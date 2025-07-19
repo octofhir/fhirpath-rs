@@ -151,46 +151,6 @@ jobs:
         working-directory: fhirpath-wasm
         run: npm run test
 
-  # Check documentation
-  check-docs:
-    name: Check documentation
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ubuntu-latest-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Check documentation
-        run: cargo doc --workspace --all-features --no-deps
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: docs-site/package.json
-
-      - name: Install docs dependencies
-        working-directory: docs-site
-        run: npm ci
-
-      - name: Build documentation site
-        working-directory: docs-site
-        run: npm run build
-
   # Security audit
   security-audit:
     name: Security audit

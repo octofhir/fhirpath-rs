@@ -180,6 +180,38 @@ jobs:
     needs: [build-cli, build-node, build-wasm]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog for release
+        run: |
+          # Generate changelog for the current tag
+          git-cliff --latest --strip header --strip footer > RELEASE_NOTES.md
+          
+          # Update the full changelog
+          git-cliff --output CHANGELOG.md
+          
+          # Commit the updated changelog
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for ${{ steps.tag.outputs.tag }} [skip ci]" || echo "No changelog changes to commit"
+          git push || echo "No changes to push"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -202,20 +234,12 @@ jobs:
             fi
           done
 
-      - name: Get tag name
-        id: tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
           files: |

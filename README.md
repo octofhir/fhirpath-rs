@@ -337,9 +337,11 @@ See [VERSIONING.md](VERSIONING.md) for detailed versioning strategy.
 5. Ensure all tests pass (`cargo test`)
 6. Run clippy for linting (`cargo clippy`)
 7. Format code (`cargo fmt`)
-8. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/) (`git commit -m 'feat: add amazing feature'`)
 9. Push to the branch (`git push origin feature/amazing-feature`)
 10. Open a Pull Request
+
+**Note**: This project uses automated changelog generation based on conventional commits. See [CHANGELOG_AUTOMATION.md](CHANGELOG_AUTOMATION.md) for details on commit message format and changelog automation.
 
 ## License
 

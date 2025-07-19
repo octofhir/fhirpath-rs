@@ -26,9 +26,11 @@ Thank you for your interest in contributing to the FHIRPath Rust Engine! This do
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/yourusername/fhirpath-rs.git`
 3. Create a feature branch: `git checkout -b feature/your-feature-name`
-4. Make your changes
+4. Make your changes following [Conventional Commits](https://www.conventionalcommits.org/)
 5. Run tests: `cargo test --workspace`
 6. Submit a pull request
+
+**Note**: This project uses automated changelog generation. Please follow [Conventional Commits](https://www.conventionalcommits.org/) format for your commit messages. See [CHANGELOG_AUTOMATION.md](CHANGELOG_AUTOMATION.md) for details.
 
 ## Development Setup
 
