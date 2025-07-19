@@ -17,9 +17,15 @@ export default defineConfig({
             ],
             sidebar: [
                 {
+                    label: 'Overview',
+                    items: [
+                        {label: 'Home', slug: 'index'},
+                        {label: 'Introduction', slug: 'introduction'},
+                    ],
+                },
+                {
                     label: 'Getting Started',
                     items: [
-                        {label: 'Introduction', slug: 'index'},
                         {label: 'Installation', slug: 'getting-started/installation'},
                         {label: 'Quick Start', slug: 'getting-started/quick-start'},
                     ],
@@ -40,11 +46,18 @@ export default defineConfig({
                     ],
                 },
                 {
+                    label: 'Technical',
+                    items: [
+                        {label: 'Architecture & Design', slug: 'technical/architecture'},
+                        {label: 'Implementation Details', slug: 'technical/implementation'},
+                        {label: 'Roadmap & Future Plans', slug: 'technical/roadmap'},
+                    ],
+                },
+                {
                     label: 'Development',
                     items: [
                         {label: 'Contributing', slug: 'development/contributing'},
                         {label: 'Performance', slug: 'development/performance'},
-                        {label: 'Implementation Plan', slug: 'development/implementation-plan'},
                     ],
                 },
                 {

@@ -1,8 +1,8 @@
 use wasm_bindgen::prelude::*;
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
+// When the `we_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
-#[cfg(feature = "wee_alloc")]
+#[cfg(feature = "we_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
@@ -14,17 +14,11 @@ extern "C" {
     fn log(s: &str);
 }
 
-// Define a macro to provide `println!(..)`-style syntax for `console.log` logging.
-#[allow(dead_code)]
-macro_rules! console_log {
-    ( $( $t:tt )* ) => {
-        log(&format!( $( $t )* ))
-    }
-}
 
 /// Initialize panic hook for better error messages in the browser
-#[wasm_bindgen(start)]
-pub fn main() {
+/// This function should be called manually when needed, not automatically on start
+#[wasm_bindgen]
+pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
@@ -119,7 +113,7 @@ pub fn get_expression_ast(expression: &str) -> String {
 
 /// Format AST as a tree structure (similar to CLI implementation)
 fn format_ast_as_tree(node: &fhirpath_core::parser::AstNode, indent: usize) -> String {
-    use fhirpath_core::parser::{AstNode, BinaryOperator, UnaryOperator};
+    use fhirpath_core::parser::AstNode;
 
     let indent_str = "  ".repeat(indent);
     let mut result = String::new();
