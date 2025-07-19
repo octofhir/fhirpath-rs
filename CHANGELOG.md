@@ -14,6 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Update changelog with recent changes
+- Update changelog [skip ci]
+- Add more technical pages
+
+### Miscellaneous Tasks
+
+- Init
+
+## [Unreleased]
+
+### Added
+
+- Add automated changelog generation system
+
+### Documentation
+
+- Update changelog with recent changes
 
 ### Miscellaneous Tasks
 
