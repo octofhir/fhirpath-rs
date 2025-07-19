@@ -192,7 +192,12 @@ fn main() -> Result<()> {
         }
         Commands::Completion { shell } => {
             let mut cmd = Cli::command();
-            generate(*shell, &mut cmd, "octofhir-fhirpath", &mut std::io::stdout());
+            generate(
+                *shell,
+                &mut cmd,
+                "octofhir-fhirpath",
+                &mut std::io::stdout(),
+            );
             Ok(())
         }
     }
@@ -351,7 +356,7 @@ fn format_ast_as_tree(node: &AstNode, indent: usize) -> String {
         AstNode::StringLiteral(value) => {
             result.push_str(&format!("{}StringLiteral: \"{}\"\n", indent_str, value));
         }
-        AstNode::NumberLiteral(value) => {
+        AstNode::NumberLiteral { value, .. } => {
             result.push_str(&format!("{}NumberLiteral: {}\n", indent_str, value));
         }
         AstNode::BooleanLiteral(value) => {
@@ -413,8 +418,14 @@ fn format_ast_as_tree(node: &AstNode, indent: usize) -> String {
             result.push_str(&format_ast_as_tree(index, indent + 2));
         }
         AstNode::QuantityLiteral { value, unit } => {
-            let unit_str = unit.as_ref().map(|u| format!(" '{}'", u)).unwrap_or_default();
-            result.push_str(&format!("{}QuantityLiteral: {}{}\n", indent_str, value, unit_str));
+            let unit_str = unit
+                .as_ref()
+                .map(|u| format!(" '{}'", u))
+                .unwrap_or_default();
+            result.push_str(&format!(
+                "{}QuantityLiteral: {}{}\n",
+                indent_str, value, unit_str
+            ));
         }
     }
 

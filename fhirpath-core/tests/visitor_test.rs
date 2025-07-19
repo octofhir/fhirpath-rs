@@ -45,7 +45,7 @@ impl AstVisitor for CountingVisitor {
         let node_type = match node {
             AstNode::Identifier(_) => "Identifier",
             AstNode::StringLiteral(_) => "StringLiteral",
-            AstNode::NumberLiteral(_) => "NumberLiteral",
+            AstNode::NumberLiteral { .. } => "NumberLiteral",
             AstNode::BooleanLiteral(_) => "BooleanLiteral",
             AstNode::DateTimeLiteral(_) => "DateTimeLiteral",
             AstNode::QuantityLiteral { .. } => "QuantityLiteral",

@@ -905,6 +905,503 @@ fn test_debug_xml_conversion() {
     }
 }
 
+/// Debug convertsToDate function
+#[test]
+fn debug_converts_to_date_function() {
+    let context = serde_json::json!({});
+
+    // Test cases that are failing
+    let test_cases = vec![
+        "'2015'.convertsToDate()",
+        "'2015-02'.convertsToDate()",
+        "'2015-02-04'.convertsToDate()",
+        "'2015-02-04T10:30:00'.convertsToDate()",
+        "'invalid'.convertsToDate()",
+    ];
+
+    println!("Testing convertsToDate function:");
+    println!("================================");
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug lexer behavior with Time literals containing timezone
+#[test]
+fn debug_lexer_time_literals() {
+    use fhirpath_core::lexer::{tokenize, TokenType};
+
+    println!("Testing lexer with Time literals containing timezone:");
+    println!("==================================================");
+
+    let test_cases = vec![
+        "@T14:34:28Z",        // Should fail - Time with Z timezone
+        "@T14:34:28+10:00",   // Should fail - Time with offset timezone
+        "@T14:34:28",         // Should pass - Time without timezone
+        "@T14",               // Should pass - Time without timezone
+    ];
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match tokenize(expression) {
+            Ok(tokens) => {
+                println!("Tokens: {:?}", tokens);
+                for token in &tokens {
+                    println!("  Token: {:?} - Value: '{}'", token.token_type, token.lexeme);
+                }
+            }
+            Err(e) => {
+                println!("Lexer Error (expected for timezone cases): {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug type conversion functions
+#[test]
+fn debug_type_conversion_functions() {
+    let context = serde_json::json!({});
+
+    // Test cases from the failing testTypes group
+    let test_cases = vec![
+        "'1.1'.toInteger()",
+        "'1.1'.toInteger().empty()",
+        "1.0.is(Decimal)",
+        "1.0",  // Debug what type 1.0 actually has
+        "1",    // Debug what type 1 actually has
+        "'1'.toInteger()",
+        "1.toInteger()",
+        "true.toInteger()",
+        "false.toInteger()",
+    ];
+
+    println!("Testing type conversion functions:");
+    println!("=================================");
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug exclude function
+#[test]
+fn debug_exclude_function() {
+    let context = serde_json::json!({});
+
+    // Test cases from the failing tests
+    let test_cases = vec![
+        "(1 | 2 | 3).exclude(2 | 4)",
+        "(1 | 2).exclude(4)",
+        "(1 | 2).exclude({})",
+    ];
+
+    println!("Testing exclude function:");
+    println!("========================");
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug boolean logic with empty collections
+#[test]
+fn debug_boolean_empty_collections() {
+    let context = serde_json::json!({});
+
+    // Test cases for boolean logic with empty collections
+    let test_cases = vec![
+        "{}.empty()",           // Empty collection should return true
+        "{}.exists()",          // Empty collection should return false
+        "({}).empty()",         // Parenthesized empty collection
+        "({}).exists()",        // Parenthesized empty collection exists
+        "{} = {}",              // Empty collection equality
+        "{} != {}",             // Empty collection inequality
+        "{} and true",          // Empty collection in AND operation
+        "{} or true",           // Empty collection in OR operation
+        "true and {}",          // Empty collection as right operand
+        "true or {}",           // Empty collection as right operand
+    ];
+
+    println!("Testing boolean logic with empty collections:");
+    println!("==============================================");
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug invalid Time literal expressions
+#[test]
+fn debug_invalid_time_literals() {
+    let context = serde_json::json!({});
+
+    // Test cases that should be INVALID (should fail parsing/evaluation)
+    let invalid_test_cases = vec![
+        "@T14:34:28Z.is(Time)",        // Time literals cannot have timezone Z
+        "@T14:34:28+10:00.is(Time)",   // Time literals cannot have timezone offset
+    ];
+
+    // Test cases that should be VALID
+    let valid_test_cases = vec![
+        "@T14.is(Time)",
+        "@T14:34.is(Time)",
+        "@T14:34:28.is(Time)",
+        "@T14:34:28.123.is(Time)",
+    ];
+
+    println!("Testing INVALID Time literal expressions (should fail):");
+    println!("=====================================================");
+
+    for expression in invalid_test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("ERROR: Should have failed but got result: {:?}", result);
+            }
+            Err(e) => {
+                println!("CORRECT: Failed as expected: {:?}", e);
+            }
+        }
+    }
+
+    println!("\n\nTesting VALID Time literal expressions (should pass):");
+    println!("====================================================");
+
+    for expression in valid_test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("CORRECT: Passed as expected: {:?}", result);
+            }
+            Err(e) => {
+                println!("ERROR: Should have passed but failed: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Test empty collection equality fix
+#[test]
+fn test_empty_collection_equality_fix() {
+    let context = serde_json::json!({});
+
+    println!("=== Testing Empty Collection Equality Fix ===");
+
+    let test_cases = vec![
+        ("{} = {}", "true"),
+        ("{} != {}", "false"),
+        ("true = {}", "false"),
+        ("{}.empty()", "true"),
+        ("{}.exists()", "false"),
+    ];
+
+    for (expression, expected) in test_cases {
+        println!("\nTesting: {} (expected: {})", expression, expected);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug String-to-Date comparison logic
+#[test]
+fn debug_string_date_comparison() {
+    use fhirpath_core::evaluator::{is_valid_datetime_string};
+    use fhirpath_core::model::FhirPathValue;
+
+    let test_string = "1974-12-25";
+
+    println!("=== Debug String-to-Date Comparison ===");
+    println!("Testing string: '{}'", test_string);
+    println!("is_valid_datetime_string: {}", is_valid_datetime_string(test_string));
+    println!("contains 'T': {}", test_string.contains('T'));
+
+    // Test the exact condition from values_equal
+    let condition_result = is_valid_datetime_string(test_string) && !test_string.contains('T');
+    println!("Full condition result: {}", condition_result);
+
+    // Test direct comparison using values_equal
+    let string_value = FhirPathValue::String(test_string.to_string());
+    let date_value = FhirPathValue::Date(test_string.to_string());
+
+    // We need to access the values_equal function - let's test through evaluation
+    let context = serde_json::json!({
+        "birthDate": "1974-12-25"
+    });
+
+    println!("\n=== Testing through evaluation ===");
+    match evaluate_expression("birthDate", context.clone()) {
+        Ok(result) => {
+            println!("birthDate evaluation result: {:?}", result);
+        }
+        Err(e) => {
+            println!("birthDate evaluation error: {:?}", e);
+        }
+    }
+
+    match evaluate_expression("@1974-12-25", context.clone()) {
+        Ok(result) => {
+            println!("@1974-12-25 evaluation result: {:?}", result);
+        }
+        Err(e) => {
+            println!("@1974-12-25 evaluation error: {:?}", e);
+        }
+    }
+
+    match evaluate_expression("birthDate = @1974-12-25", context.clone()) {
+        Ok(result) => {
+            println!("birthDate = @1974-12-25 result: {:?}", result);
+        }
+        Err(e) => {
+            println!("birthDate = @1974-12-25 error: {:?}", e);
+        }
+    }
+}
+
+/// Debug FHIR resource date field access
+#[test]
+fn debug_fhir_date_field_access() {
+    // Load the patient fixture to test with real FHIR data
+    let patient_json = fs::read_to_string("tests/fixtures/patient-example.json")
+        .expect("Failed to read patient fixture");
+    let patient_data: Value =
+        serde_json::from_str(&patient_json).expect("Failed to parse patient JSON");
+
+    println!("=== Debug FHIR Date Field Access ===");
+
+    // Test the specific failing case
+    let test_cases = vec![
+        "Patient.birthDate = @1974-12-25",
+        "Patient.birthDate",
+        "@1974-12-25",
+        "birthDate = @1974-12-25",
+        "birthDate",
+    ];
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, patient_data.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+
+    // Check what the actual birthDate value looks like in the patient data
+    println!("\n=== Patient Data Analysis ===");
+    if let Some(birth_date) = patient_data.get("birthDate") {
+        println!("Patient birthDate field: {:?}", birth_date);
+        println!("Patient birthDate type: {}", birth_date.to_string());
+    } else {
+        println!("No birthDate field found in patient data");
+    }
+
+    // Print the entire patient structure for debugging
+    println!("\n=== Full Patient Data ===");
+    println!("{}", serde_json::to_string_pretty(&patient_data).unwrap_or_else(|_| "Failed to serialize".to_string()));
+}
+
+/// Debug timezone DateTime comparisons
+#[test]
+fn debug_timezone_datetime_comparisons() {
+    let context = serde_json::json!({});
+
+    println!("=== Debug Timezone DateTime Comparisons ===");
+
+    // Test the specific failing cases
+    let test_cases = vec![
+        "@2017-11-05T01:30:00.0-04:00 > @2017-11-05T01:15:00.0-05:00", // Should be false
+        "@2017-11-05T01:30:00.0-04:00 < @2017-11-05T01:15:00.0-05:00", // Should be true
+        "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00", // Should be true (same UTC time)
+        "Patient.birthDate = @1974-12-25", // Date comparison issue
+    ];
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+
+    // Test individual DateTime literals to see their normalized forms
+    println!("\n=== Testing Individual DateTime Literals ===");
+
+    let literals = vec![
+        "@2017-11-05T01:30:00.0-04:00",
+        "@2017-11-05T01:15:00.0-05:00",
+        "@2017-11-05T00:30:00.0-05:00",
+        "@1974-12-25",
+    ];
+
+    for literal in literals {
+        println!("\nTesting: {}", literal);
+        match evaluate_expression(literal, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug collection equality specifically
+#[test]
+fn debug_collection_equality() {
+    let context = serde_json::json!({});
+
+    println!("=== Debug Collection Equality ===");
+
+    // Test basic collection equality
+    let test_cases = vec![
+        "(1 | 2) = (1 | 2)",
+        "(1 | 2) = (2 | 1)",
+        "1 = 1",
+        "(1) = 1",
+        "1 = (1)",
+        "(1) = (1)",
+    ];
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+
+    // Test individual parts
+    println!("\n=== Testing Individual Parts ===");
+
+    let parts = vec![
+        "1 | 2",
+        "2 | 1",
+        "1",
+        "2",
+    ];
+
+    for expression in parts {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+
+                // Show internal structure
+                match result {
+                    FhirPathValue::Collection(ref items) => {
+                        println!("  Collection with {} items:", items.len());
+                        for (i, item) in items.iter().enumerate() {
+                            println!("    [{}]: {:?}", i, item);
+                        }
+                    }
+                    other => {
+                        println!("  Single value: {:?}", other);
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Debug comparison operation failures
+#[test]
+fn debug_comparison_failures() {
+    let context = serde_json::json!({});
+
+    // Test cases that are likely failing based on the output
+    let test_cases = vec![
+        // Intersect function
+        "(1 | 2 | 3).intersect(2 | 4) = 2",
+        "(1 | 2 | 3).intersect(2 | 4)",
+
+        // Boolean logic with strings
+        "(true and 'foo').empty()",
+        "true and 'foo'",
+
+        // Collection comparisons
+        "{} = {}",
+        "{} != {}",
+
+        // Basic equality tests
+        "1 = 1",
+        "'test' = 'test'",
+        "true = true",
+
+        // Collection equality
+        "(1 | 2) = (1 | 2)",
+        "(1 | 2) = (2 | 1)",
+    ];
+
+    println!("Testing comparison operation failures:");
+    println!("====================================");
+
+    for expression in test_cases {
+        println!("\nTesting: {}", expression);
+        match evaluate_expression(expression, context.clone()) {
+            Ok(result) => {
+                println!("Result: {:?}", result);
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
 /// Debug specific dateTime expressions
 #[test]
 fn debug_datetime_expressions() {

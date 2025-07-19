@@ -37,7 +37,7 @@ fn test_parse_number_literal() {
     let ast = parse(&tokens).unwrap();
 
     match ast {
-        AstNode::NumberLiteral(value) => {
+        AstNode::NumberLiteral { value, .. } => {
             assert_eq!(value, 42.5);
         }
         _ => panic!("Expected NumberLiteral node, got {:?}", ast),
@@ -115,7 +115,7 @@ fn test_parse_indexer() {
             }
 
             match *index {
-                AstNode::NumberLiteral(value) => {
+                AstNode::NumberLiteral { value, .. } => {
                     assert_eq!(value, 0.0);
                 }
                 _ => panic!("Expected NumberLiteral node for index, got {:?}", index),
@@ -191,7 +191,7 @@ fn test_parse_binary_expression() {
                     }
 
                     match *right {
-                        AstNode::NumberLiteral(value) => {
+                        AstNode::NumberLiteral { value, .. } => {
                             assert_eq!(value, 18.0);
                         }
                         _ => panic!(

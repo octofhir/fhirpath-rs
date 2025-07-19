@@ -11,7 +11,7 @@ pub enum AstNode {
     // Literals
     Identifier(String),
     StringLiteral(String),
-    NumberLiteral(f64),
+    NumberLiteral { value: f64, is_decimal: bool },
     BooleanLiteral(bool),
     DateTimeLiteral(String),
     QuantityLiteral {
@@ -250,7 +250,12 @@ impl<'a> Parser<'a> {
     fn equality(&mut self) -> Result<AstNode, FhirPathError> {
         let mut expr = self.inequality()?;
 
-        while self.match_any(&[TokenType::Equal, TokenType::NotEqual, TokenType::Equivalent, TokenType::NotEquivalent]) {
+        while self.match_any(&[
+            TokenType::Equal,
+            TokenType::NotEqual,
+            TokenType::Equivalent,
+            TokenType::NotEquivalent,
+        ]) {
             let operator = match self.previous().token_type {
                 TokenType::Equal => BinaryOperator::Equals,
                 TokenType::NotEqual => BinaryOperator::NotEquals,
@@ -319,15 +324,19 @@ impl<'a> Parser<'a> {
 
         while self.check(TokenType::Is) || self.check(TokenType::As) {
             // Look ahead to see if this is a method call (followed by '(') or a binary operator
-            if self.check(TokenType::Is) && self.current + 1 < self.tokens.len() &&
-               self.tokens[self.current + 1].token_type == TokenType::LeftParen {
+            if self.check(TokenType::Is)
+                && self.current + 1 < self.tokens.len()
+                && self.tokens[self.current + 1].token_type == TokenType::LeftParen
+            {
                 // This is a method call like .is(DateTime), not a binary operator
                 // Let path() handle it instead
                 break;
             }
 
-            if self.check(TokenType::As) && self.current + 1 < self.tokens.len() &&
-               self.tokens[self.current + 1].token_type == TokenType::LeftParen {
+            if self.check(TokenType::As)
+                && self.current + 1 < self.tokens.len()
+                && self.tokens[self.current + 1].token_type == TokenType::LeftParen
+            {
                 // This is a method call like .as(Type), not a binary operator
                 // Let path() handle it instead
                 break;
@@ -353,8 +362,15 @@ impl<'a> Parser<'a> {
 
     /// Parses a qualified identifier (identifier ('.' identifier)*)
     fn qualified_identifier(&mut self) -> Result<AstNode, FhirPathError> {
-        if !self.check(TokenType::Identifier) && !self.check(TokenType::DelimitedIdentifier)
-            && !self.match_any(&[TokenType::Is, TokenType::As, TokenType::Contains, TokenType::In]) {
+        if !self.check(TokenType::Identifier)
+            && !self.check(TokenType::DelimitedIdentifier)
+            && !self.match_any(&[
+                TokenType::Is,
+                TokenType::As,
+                TokenType::Contains,
+                TokenType::In,
+            ])
+        {
             return Err(FhirPathError::ParserError(
                 "Expected identifier for qualified identifier".to_string(),
             ));
@@ -367,7 +383,12 @@ impl<'a> Parser<'a> {
             qualified_name.push_str(&self.previous().lexeme);
         } else if self.match_token(TokenType::DelimitedIdentifier) {
             qualified_name.push_str(&self.previous().lexeme);
-        } else if self.match_any(&[TokenType::Is, TokenType::As, TokenType::Contains, TokenType::In]) {
+        } else if self.match_any(&[
+            TokenType::Is,
+            TokenType::As,
+            TokenType::Contains,
+            TokenType::In,
+        ]) {
             qualified_name.push_str(&self.previous().lexeme);
         }
 
@@ -379,7 +400,12 @@ impl<'a> Parser<'a> {
                 qualified_name.push_str(&self.previous().lexeme);
             } else if self.match_token(TokenType::DelimitedIdentifier) {
                 qualified_name.push_str(&self.previous().lexeme);
-            } else if self.match_any(&[TokenType::Is, TokenType::As, TokenType::Contains, TokenType::In]) {
+            } else if self.match_any(&[
+                TokenType::Is,
+                TokenType::As,
+                TokenType::Contains,
+                TokenType::In,
+            ]) {
                 qualified_name.push_str(&self.previous().lexeme);
             } else {
                 return Err(FhirPathError::ParserError(
@@ -417,7 +443,12 @@ impl<'a> Parser<'a> {
     fn multiplicative(&mut self) -> Result<AstNode, FhirPathError> {
         let mut expr = self.unary()?;
 
-        while self.match_any(&[TokenType::Multiply, TokenType::Divide, TokenType::Div, TokenType::Mod]) {
+        while self.match_any(&[
+            TokenType::Multiply,
+            TokenType::Divide,
+            TokenType::Div,
+            TokenType::Mod,
+        ]) {
             let operator = match self.previous().token_type {
                 TokenType::Multiply => BinaryOperator::Multiplication,
                 TokenType::Divide => BinaryOperator::Division,
@@ -435,7 +466,6 @@ impl<'a> Parser<'a> {
 
         Ok(expr)
     }
-
 
     /// Parses a unary expression
     fn unary(&mut self) -> Result<AstNode, FhirPathError> {
@@ -516,7 +546,12 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(AstNode::Identifier(name))
             }
-        } else if self.match_any(&[TokenType::Is, TokenType::As, TokenType::Contains, TokenType::In]) {
+        } else if self.match_any(&[
+            TokenType::Is,
+            TokenType::As,
+            TokenType::Contains,
+            TokenType::In,
+        ]) {
             // Handle 'is', 'as', 'contains', 'in' as function names when they appear in function call contexts
             let name = self.previous().lexeme.clone();
 
@@ -568,7 +603,9 @@ impl<'a> Parser<'a> {
                 Ok(AstNode::QuantityLiteral { value, unit })
             } else {
                 // Regular number literal without unit
-                Ok(AstNode::NumberLiteral(value))
+                // Check if the original lexeme contained a decimal point
+                let is_decimal = lexeme.contains('.');
+                Ok(AstNode::NumberLiteral { value, is_decimal })
             }
         } else if self.match_token(TokenType::BooleanLiteral) {
             let value = match self.previous().lexeme.as_str() {

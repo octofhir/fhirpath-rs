@@ -394,7 +394,8 @@ impl<'a> Lexer<'a> {
                             for _ in 0..4 {
                                 if let Some(&hex_char) = self.peek() {
                                     if hex_char.is_ascii_hexdigit() {
-                                        unicode_value = unicode_value * 16 + hex_char.to_digit(16).unwrap();
+                                        unicode_value =
+                                            unicode_value * 16 + hex_char.to_digit(16).unwrap();
                                         self.advance();
                                     } else {
                                         return Err(FhirPathError::LexerError(format!(
@@ -542,6 +543,15 @@ impl<'a> Lexer<'a> {
             // Parse time format: HH:MM:SS.fff
             if let Some(time_part) = self.scan_time_format() {
                 value.push_str(&time_part);
+
+                // Check if there's timezone information following - this is invalid for Time literals
+                if self.scan_timezone_format().is_some() {
+                    return Err(FhirPathError::LexerError(format!(
+                        "Time literals cannot have timezone information at line {}, column {}",
+                        start_line, start_column
+                    )));
+                }
+
                 return Ok(self.make_token(TokenType::TimeLiteral, value));
             } else {
                 return Err(FhirPathError::LexerError(format!(

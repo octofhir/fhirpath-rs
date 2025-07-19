@@ -14,7 +14,6 @@ extern "C" {
     fn log(s: &str);
 }
 
-
 /// Initialize panic hook for better error messages in the browser
 /// This function should be called manually when needed, not automatically on start
 #[wasm_bindgen]
@@ -125,7 +124,7 @@ fn format_ast_as_tree(node: &fhirpath_core::parser::AstNode, indent: usize) -> S
         AstNode::StringLiteral(value) => {
             result.push_str(&format!("{}StringLiteral: \"{}\"\n", indent_str, value));
         }
-        AstNode::NumberLiteral(value) => {
+        AstNode::NumberLiteral { value, .. } => {
             result.push_str(&format!("{}NumberLiteral: {}\n", indent_str, value));
         }
         AstNode::BooleanLiteral(value) => {
@@ -187,8 +186,14 @@ fn format_ast_as_tree(node: &fhirpath_core::parser::AstNode, indent: usize) -> S
             result.push_str(&format_ast_as_tree(index, indent + 2));
         }
         AstNode::QuantityLiteral { value, unit } => {
-            let unit_str = unit.as_ref().map(|u| format!(" '{}'", u)).unwrap_or_default();
-            result.push_str(&format!("{}QuantityLiteral: {}{}\n", indent_str, value, unit_str));
+            let unit_str = unit
+                .as_ref()
+                .map(|u| format!(" '{}'", u))
+                .unwrap_or_default();
+            result.push_str(&format!(
+                "{}QuantityLiteral: {}{}\n",
+                indent_str, value, unit_str
+            ));
         }
     }
 
