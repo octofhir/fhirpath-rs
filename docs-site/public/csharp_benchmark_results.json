@@ -1,0 +1,31 @@
+{
+  "language": "csharp",
+  "timestamp": 1752854528,
+  "benchmarks": [
+    {
+      "name": "complexPathNavigation",
+      "description": "Complex path navigation performance test",
+      "expression": "Patient.name.where(use = \u0027official\u0027).given.first()",
+      "iterations": 1000,
+      "avg_time_ms": 0.042541100000000096,
+      "min_time_ms": 0.027,
+      "max_time_ms": 5.8927,
+      "ops_per_second": 23506.67942295798
+    },
+    {
+      "name": "functionChaining",
+      "description": "Function chaining performance test",
+      "expression": "Patient.telecom.where(system = \u0027phone\u0027).value.substring(0, 3)",
+      "iterations": 1000,
+      "avg_time_ms": 0.20770620000000023,
+      "min_time_ms": 0.1504,
+      "max_time_ms": 2.5542,
+      "ops_per_second": 4814.492778742276
+    }
+  ],
+  "system_info": {
+    "platform": "Unix 15.5.0",
+    "dotnet_version": "6.0.36",
+    "fhirpath_version": "Hl7.FhirPath 5.5.0"
+  }
+}

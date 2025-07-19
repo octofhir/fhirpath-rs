@@ -1,0 +1,1023 @@
+---
+// Astro component for FHIRPath Playground
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OctoFHIR FHIRPath - Playground</title>
+    <script>
+        import { PUBLIC_BASE_URL } from "astro:env/client";
+        let baseUrl = PUBLIC_BASE_URL;
+        baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        window.PUBLIC_BASE_URL = baseUrl</script>
+    <style >
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header styles */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(45deg, #fff, #f0f8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 255, 255, 0.3);
+            }
+            to {
+                text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 255, 255, 0.5);
+            }
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .version-info {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 10px 18px;
+            border-radius: 25px;
+            display: inline-block;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .version-info:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+        }
+
+        /* Main content */
+        main {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .demo-section {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.8),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            grid-template-rows: auto 1fr;
+            gap: 35px;
+            flex: 1;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .input-section {
+            grid-column: 1 / -1;
+            max-height: 250px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .expression-section {
+            grid-column: 1 / 2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding-right: 10px;
+        }
+
+        .expression-fixed-content {
+            flex-shrink: 0;
+        }
+
+        .expression-scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .result-section {
+            grid-column: 2 / 3;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Section headers */
+        h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            border-bottom: 3px solid transparent;
+            border-image: linear-gradient(90deg, #667eea, #764ba2, #f093fb) 1;
+            padding-bottom: 10px;
+            position: relative;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        /* Form elements */
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            resize: vertical;
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        textarea {
+            flex: 1;
+            min-height: 180px;
+            line-height: 1.5;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow:
+                0 0 0 4px rgba(102, 126, 234, 0.15),
+                inset 0 2px 4px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+        }
+
+        /* Expression input container */
+        .expression-input-container {
+            margin-bottom: 15px;
+        }
+
+        .expression-input-container input {
+            width: 100%;
+        }
+
+        /* Button container */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Buttons */
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        #evaluate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #evaluate-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        #validate-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 50%, #2f855a 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #validate-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+        }
+
+        #ast-btn {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 50%, #c05621 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #ast-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(237, 137, 54, 0.4);
+        }
+
+        button:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        /* Example buttons */
+        .example-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .example-btn {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .example-btn:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Result section */
+        #result-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #result-output {
+            background: #000000;
+            color: #e2e8f0;
+            padding: 24px;
+            border-radius: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 100%;
+            min-height: 200px;
+            border: 2px solid #4a5568;
+            box-shadow:
+                inset 0 2px 8px rgba(0, 0, 0, 0.3),
+                0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            scrollbar-width: thin;
+            scrollbar-color: #4a5568 #000000;
+        }
+
+        .result-output-success {
+            background: #000000;
+            border-color: #48bb78;
+            box-shadow:
+                inset 0 2px 8px rgba(0, 0, 0, 0.3),
+                0 4px 20px rgba(72, 187, 120, 0.2),
+                0 0 0 1px rgba(72, 187, 120, 0.3);
+        }
+
+        .result-output-error {
+            background: #000000;
+            border-color: #f56565;
+            color: #fed7d7;
+            box-shadow:
+                inset 0 2px 8px rgba(0, 0, 0, 0.3),
+                0 4px 20px rgba(245, 101, 101, 0.2),
+                0 0 0 1px rgba(245, 101, 101, 0.3);
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+            padding: 24px 32px;
+            border-radius: 16px;
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.2),
+                0 0 0 1px rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            z-index: 10;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Custom scrollbars */
+        .expression-scrollable-content::-webkit-scrollbar,
+        #result-output::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .expression-scrollable-content::-webkit-scrollbar-track,
+        #result-output::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+
+        .expression-scrollable-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+
+        #result-output::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #4a5568, #2d3748);
+            border-radius: 4px;
+        }
+
+        .expression-scrollable-content::-webkit-scrollbar-thumb:hover,
+        #result-output::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #764ba2, #f093fb);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            opacity: 0.8;
+        }
+
+        footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        footer a:hover {
+            opacity: 0.8;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            .container {
+                height: 100vh;
+                padding: 15px;
+            }
+
+            .demo-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr 1fr;
+                padding: 25px;
+                gap: 25px;
+            }
+
+            .input-section {
+                max-height: 200px;
+            }
+
+            .expression-section,
+            .result-section {
+                grid-column: 1 / -1;
+            }
+
+            .expression-section {
+                grid-row: 2;
+                max-height: 300px;
+            }
+
+            .result-section {
+                grid-row: 3;
+            }
+
+            .button-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .button-container button {
+                width: 100%;
+                padding: 12px 20px;
+            }
+
+            .example-buttons {
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .example-btn {
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+
+            header {
+                margin-bottom: 20px;
+            }
+
+            header h1 {
+                font-size: 2.2rem;
+            }
+
+            header p {
+                font-size: 1rem;
+            }
+
+            textarea {
+                min-height: 120px;
+                padding: 12px;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+                margin-bottom: 15px;
+            }
+
+            h3 {
+                font-size: 1rem;
+                margin-bottom: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .demo-section {
+                padding: 20px;
+                gap: 20px;
+            }
+
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .example-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .example-btn {
+                text-align: left;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .demo-section {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        /* Enhanced scrollbar styling for result output */
+        #result-output::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #result-output::-webkit-scrollbar-track {
+            background: #000000;
+            border-radius: 6px;
+            margin: 4px;
+        }
+
+        #result-output::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #4a5568, #718096);
+            border-radius: 6px;
+            border: 2px solid #000000;
+            min-height: 30px;
+        }
+
+        #result-output::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #718096, #a0aec0);
+            border-color: #000000;
+        }
+
+        #result-output::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(135deg, #a0aec0, #cbd5e0);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🔥 OctoFHIR FHIRPath Playground</h1>
+        <p>Interactive FHIRPath expression evaluation powered by WebAssembly</p>
+        <div class="version-info">
+            <span id="version-info">Loading version...</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="demo-section">
+            <div class="input-section">
+                <h2>FHIR Resource (JSON)</h2>
+                <textarea id="resource-input" placeholder="Enter your FHIR resource JSON here..."></textarea>
+            </div>
+
+            <div class="expression-section">
+                <div class="expression-fixed-content">
+                    <h2>FHIRPath Expression</h2>
+                    <div class="expression-input-container">
+                        <input type="text" id="expression-input" placeholder="Enter FHIRPath expression..."
+                               value="Patient.name.given">
+                    </div>
+                    <div class="button-container">
+                        <button id="evaluate-btn">Evaluate</button>
+                        <button id="validate-btn">Validate</button>
+                        <button id="ast-btn">Get AST</button>
+                    </div>
+                </div>
+                <div class="expression-scrollable-content">
+                    <div class="quick-examples">
+                    <h3>Basic Examples:</h3>
+                    <div class="example-buttons">
+                        <button class="example-btn" data-expression="Patient.name.given">Patient.name.given</button>
+                        <button class="example-btn" data-expression="Patient.name.family">Patient.name.family</button>
+                        <button class="example-btn" data-expression="Patient.gender">Patient.gender</button>
+                        <button class="example-btn" data-expression="Patient.birthDate">Patient.birthDate</button>
+                        <button class="example-btn" data-expression="Patient.address.city">Patient.address.city</button>
+                        <button class="example-btn" data-expression="Patient.telecom.where(system='phone').value">
+                            Patient.telecom.where(system='phone').value
+                        </button>
+                    </div>
+                </div>
+
+                <div class="complex-examples">
+                    <h3>Complex Examples:</h3>
+                    <div class="example-buttons">
+                        <button class="example-btn" data-expression="Patient.name.given.first() + ' ' + Patient.name.family.first()">
+                            Patient.name.given.first() + ' ' + Patient.name.family.first()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.given.count() > 1">
+                            Patient.name.given.count() > 1
+                        </button>
+                        <button class="example-btn" data-expression="Patient.telecom.where(system='phone' and use='home').exists()">
+                            Patient.telecom.where(system='phone' and use='home').exists()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.address.line.select($this + ', ' + %context.city).first()">
+                            Patient.address.line.select($this + ', ' + %context.city).first()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.birthDate.substring(0,4).convertsToInteger()">
+                            Patient.birthDate.substring(0,4).convertsToInteger()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.family.first().length() > 2">
+                            Patient.name.family.first().length() > 2
+                        </button>
+                        <button class="example-btn" data-expression="Patient.telecom.select(system + ': ' + value)">
+                            Patient.telecom.select(system + ': ' + value)
+                        </button>
+                        <button class="example-btn" data-expression="Patient.address.where(city.startsWith('P')).city">
+                            Patient.address.where(city.startsWith('P')).city
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.given.where(length() = 1).first()">
+                            Patient.name.given.where(length() = 1).first()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.gender = 'male' and Patient.name.given.count() >= 2">
+                            Patient.gender = 'male' and Patient.name.given.count() >= 2
+                        </button>
+                    </div>
+                </div>
+
+                <div class="advanced-examples">
+                    <h3>Advanced Examples:</h3>
+                    <div class="example-buttons">
+                        <button class="example-btn" data-expression="Patient.name.family.first().upper()">
+                            Patient.name.family.first().upper()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.birthDate.toDate() &lt; today()">
+                            Patient.birthDate.toDate() &lt; today()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.telecom.where(system='phone').value.matches('[0-9-]+')">
+                            Patient.telecom.where(system='phone').value.matches('[0-9-]+')
+                        </button>
+                        <button class="example-btn" data-expression="Patient.address.line.join(' ')">
+                            Patient.address.line.join(' ')
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.given.select($this.substring(0,1)).join('')">
+                            Patient.name.given.select($this.substring(0,1)).join('')
+                        </button>
+                        <button class="example-btn" data-expression="Patient.address.postalCode.replace('-', '')">
+                            Patient.address.postalCode.replace('-', '')
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.given.all(length() > 0)">
+                            Patient.name.given.all(length() > 0)
+                        </button>
+                        <button class="example-btn" data-expression="Patient.telecom.select(use + ' ' + system).distinct()">
+                            Patient.telecom.select(use + ' ' + system).distinct()
+                        </button>
+                        <button class="example-btn" data-expression="Patient.address.city.indexOf('Ville')">
+                            Patient.address.city.indexOf('Ville')
+                        </button>
+                        <button class="example-btn" data-expression="Patient.name.family.first().endsWith('oe')">
+                            Patient.name.family.first().endsWith('oe')
+                        </button>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>Result</h2>
+                <div id="result-container">
+                    <div id="loading" class="hidden">Evaluating...</div>
+                    <pre id="result-output">Click "Evaluate" to see results here</pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>
+            Built with <a href="https://github.com/octofhir/fhirpath-rs" target="_blank">OctoFHIR FHIRPath</a> -
+            A high-performance FHIRPath implementation in Rust with WebAssembly bindings
+        </p>
+    </footer>
+</div>
+
+<script type="module">
+    // Dynamically import the WASM module using the correct base path
+    const wasmModulePath = `${window.PUBLIC_BASE_URL}pkg/fhirpath_wasm.js`;
+
+    class FHIRPathDemo {
+        constructor() {
+            this.wasmModule = null;
+            this.isInitialized = false;
+
+            // These will be set once the WASM module is loaded
+            this.evaluate_fhirpath = null;
+            this.validate_fhirpath = null;
+            this.get_fhirpath_version = null;
+            this.get_expression_ast = null;
+        }
+
+        async init() {
+            try {
+                // Dynamically import the WASM module
+                const wasmGlue = await import(/* @vite-ignore */ wasmModulePath);
+
+                // Store the functions we need
+                const { default: initWasm, evaluate_fhirpath, validate_fhirpath, get_fhirpath_version, get_expression_ast } = wasmGlue;
+
+                // Initialize the WASM module
+                this.wasmModule = await initWasm();
+                this.isInitialized = true;
+
+                // Store the functions for later use
+                this.evaluate_fhirpath = evaluate_fhirpath;
+                this.validate_fhirpath = validate_fhirpath;
+                this.get_fhirpath_version = get_fhirpath_version;
+                this.get_expression_ast = get_expression_ast;
+
+                // Set default JSON content
+                this.setDefaultContent();
+
+                // Update version info
+                this.updateVersionInfo();
+
+                // Set up event listeners
+                this.setupEventListeners();
+
+                console.log('FHIRPath WASM module initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize WASM module:', error);
+                this.showError('Failed to initialize FHIRPath engine. Please refresh the page.');
+            }
+        }
+
+        setDefaultContent() {
+            document.getElementById('resource-input').value = `{
+  "resourceType": "Patient",
+  "id": "example",
+  "name": [
+    {
+      "given": ["John", "Q"],
+      "family": "Doe"
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1974-12-25",
+  "address": [
+    {
+      "line": ["534 Erewhon St"],
+      "city": "PleasantVille",
+      "state": "Vic",
+      "postalCode": "3999"
+    }
+  ],
+  "telecom": [
+    {
+      "system": "phone",
+      "value": "555-1234",
+      "use": "home"
+    }
+  ]
+}`;
+        }
+
+        updateVersionInfo() {
+            try {
+                const version = this.get_fhirpath_version();
+                const versionElement = document.getElementById('version-info');
+                versionElement.textContent = `FHIRPath Spec Version: ${version}`;
+            } catch (error) {
+                console.error('Failed to get version info:', error);
+            }
+        }
+
+        setupEventListeners() {
+            // Evaluate button
+            const evaluateBtn = document.getElementById('evaluate-btn');
+            evaluateBtn.addEventListener('click', () => this.evaluateExpression());
+
+            // Validate button
+            const validateBtn = document.getElementById('validate-btn');
+            validateBtn.addEventListener('click', () => this.validateExpression());
+
+            // AST button
+            const astBtn = document.getElementById('ast-btn');
+            astBtn.addEventListener('click', () => this.getExpressionAst());
+
+            // Example buttons
+            const exampleButtons = document.querySelectorAll('.example-btn');
+            exampleButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const expression = e.target.getAttribute('data-expression');
+                    document.getElementById('expression-input').value = expression;
+                    this.evaluateExpression();
+                });
+            });
+
+            // Enter key support for expression input
+            const expressionInput = document.getElementById('expression-input');
+            expressionInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.evaluateExpression();
+                }
+            });
+
+            // Auto-resize textarea
+            const resourceInput = document.getElementById('resource-input');
+            resourceInput.addEventListener('input', this.autoResizeTextarea);
+        }
+
+        autoResizeTextarea(e) {
+            const textarea = e.target;
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px';
+        }
+
+        async evaluateExpression() {
+            if (!this.isInitialized) {
+                this.showError('WASM module not initialized yet. Please wait...');
+                return;
+            }
+
+            const expression = document.getElementById('expression-input').value.trim();
+            const resourceJson = document.getElementById('resource-input').value.trim();
+
+            if (!expression) {
+                this.showError('Please enter a FHIRPath expression');
+                return;
+            }
+
+            if (!resourceJson) {
+                this.showError('Please enter a FHIR resource JSON');
+                return;
+            }
+
+            this.showLoading(true);
+
+            try {
+                // Validate JSON first
+                JSON.parse(resourceJson);
+
+                // Evaluate the expression
+                const result = this.evaluate_fhirpath(expression, resourceJson);
+
+                if (result === 'null') {
+                    this.showResult("null", 'success');
+                } else {
+                    const parsedResult = JSON.parse(result);
+                    if (parsedResult.error) {
+                        this.showError(`Evaluation Error: ${parsedResult.error}`);
+                    } else {
+                        this.showResult(JSON.stringify(parsedResult, null, 2), 'success');
+                    }
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    this.showError('Invalid JSON in FHIR resource');
+                } else {
+                    this.showError(`Unexpected error: ${error.message}`);
+                }
+            } finally {
+                this.showLoading(false);
+            }
+        }
+
+        async validateExpression() {
+            if (!this.isInitialized) {
+                this.showError('WASM module not initialized yet. Please wait...');
+                return;
+            }
+
+            const expression = document.getElementById('expression-input').value.trim();
+
+            if (!expression) {
+                this.showError('Please enter a FHIRPath expression to validate');
+                return;
+            }
+
+            this.showLoading(true);
+
+            try {
+                const result = this.validate_fhirpath(expression);
+                const parsedResult = JSON.parse(result);
+
+                if (parsedResult.valid) {
+                    this.showResult('✅ Expression is valid', 'success');
+                } else {
+                    this.showResult(`❌ Expression is invalid: ${parsedResult.error}`, 'error');
+                }
+            } catch (error) {
+                this.showError(`Validation error: ${error.message}`);
+            } finally {
+                this.showLoading(false);
+            }
+        }
+
+        async getExpressionAst() {
+            if (!this.isInitialized) {
+                this.showError('WASM module not initialized yet. Please wait...');
+                return;
+            }
+
+            const expression = document.getElementById('expression-input').value.trim();
+
+            if (!expression) {
+                this.showError('Please enter a FHIRPath expression to get AST');
+                return;
+            }
+
+            this.showLoading(true);
+
+            try {
+                const result = this.get_expression_ast(expression);
+                const parsedResult = JSON.parse(result);
+
+                if (parsedResult.error) {
+                    this.showResult(`❌ AST Error: ${parsedResult.error}`, 'error');
+                } else {
+                    // Format the AST for display
+                    const formattedAst = parsedResult.ast.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                    this.showResult(`🌳 Expression AST:\n\n${formattedAst}`, 'success');
+                }
+            } catch (error) {
+                this.showError(`AST generation error: ${error.message}`);
+            } finally {
+                this.showLoading(false);
+            }
+        }
+
+        showResult(result, type = 'success') {
+            const resultOutput = document.getElementById('result-output');
+            resultOutput.textContent = result;
+            // Clear any existing success/error classes
+            resultOutput.classList.remove('result-output-success', 'result-output-error');
+            // Add the appropriate class
+            resultOutput.classList.add(`result-output-${type}`);
+        }
+
+        showError(message) {
+            this.showResult(`❌ Error: ${message}`, 'error');
+        }
+
+        showLoading(show) {
+            const loading = document.getElementById('loading');
+            const resultOutput = document.getElementById('result-output');
+
+            if (show) {
+                loading.classList.remove('hidden');
+                resultOutput.style.opacity = '0.5';
+            } else {
+                loading.classList.add('hidden');
+                resultOutput.style.opacity = '1';
+            }
+        }
+    }
+
+    // Initialize the demo when the page loads
+    document.addEventListener('DOMContentLoaded', async () => {
+        const demo = new FHIRPathDemo();
+        await demo.init();
+    });
+
+    // Handle any unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+        console.error('Unhandled promise rejection:', event.reason);
+        event.preventDefault();
+    });
+
+    // Export for debugging
+    window.FHIRPathDemo = FHIRPathDemo;
+</script>
+</body>
+</html>

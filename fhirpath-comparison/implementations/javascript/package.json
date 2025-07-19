@@ -1,0 +1,21 @@
+{
+  "name": "fhirpath-comparison-js",
+  "version": "1.0.0",
+  "description": "JavaScript FHIRPath implementation for comparison testing",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test-runner.js",
+    "benchmark": "node benchmark-runner.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "fhirpath": "^3.15.1",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "benchmark": "^2.1.4"
+  },
+  "keywords": ["fhirpath", "fhir", "comparison", "benchmark"],
+  "author": "FHIRPath Comparison Project",
+  "license": "MIT"
+}

@@ -1,0 +1,86 @@
+---
+import AstrolightSiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
+
+const menuItems = [
+    {name: "Docs", href: "getting-started/installation/", target: "_self"},
+    {name: "Playground", href: "playground", target: "_blank"},
+    {name: "Comparison", href: "comparison", target: "_blank"},
+    {name: "Benchmarks", href: "benchmark-details", target: "_blank"},
+];
+
+function pathsMatch(pathA: string, pathB: string): boolean {
+    return pathB.includes(pathA);
+}
+---
+<div>
+    <AstrolightSiteTitle {...Astro.props}/>
+
+    <div class="separator"></div>
+
+    <div class="menu-items">
+        {
+            menuItems.map((menuItem) => {
+                let baseUrl = import.meta.env.BASE_URL ?? '/';
+                baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+                return <a
+                        href={`${baseUrl}${menuItem.href}`}
+                        target={menuItem.target}
+                        aria-current={
+                            pathsMatch(encodeURI(menuItem.href), Astro.url.pathname) && "page"
+                        }
+                >
+                    <span>{menuItem.name}</span>
+                </a>
+            })
+        }
+    </div>
+</div>
+
+<style>
+    div {
+        display: flex;
+        gap: var(--sl-content-pad-x);
+        align-items: center;
+    }
+
+    div.separator {
+        content: "";
+        height: 2rem;
+        border-inline-end: 1px solid var(--sl-color-gray-5);
+    }
+
+    div a {
+        text-decoration: none;
+        color: var(--sl-color-white);
+        font-size: var(--sl-text-base);
+        font-weight: 500;
+    }
+
+    div a:hover {
+        color: var(--sl-color-text-accent);
+    }
+
+    [aria-current="page"],
+    [aria-current="page"]:hover,
+    [aria-current="page"]:focus {
+        color: var(--sl-color-text-accent);
+    }
+
+    .separator {
+        display: none;
+    }
+
+    .menu-items {
+        display: none;
+    }
+
+    @media (min-width: 30em) {
+        div.separator {
+            display: block;
+        }
+
+        div.menu-items {
+            display: flex;
+        }
+    }
+</style>

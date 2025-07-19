@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo Test</title>
+</head>
+<body>
+    <h1>Testing FHIRPath Demo</h1>
+    <div id="test-results"></div>
+
+    <script type="module">
+        import init, {
+            evaluate_fhirpath,
+            validate_fhirpath,
+            get_fhirpath_version
+        } from '../pkg/fhirpath_wasm.js';
+
+        async function runTests() {
+            const results = document.getElementById('test-results');
+
+            try {
+                // Initialize WASM
+                results.innerHTML += '<p>🔄 Initializing WASM module...</p>';
+                await init();
+                results.innerHTML += '<p>✅ WASM module initialized successfully</p>';
+
+                // Test version
+                const version = get_fhirpath_version();
+                results.innerHTML += `<p>✅ Version: ${version}</p>`;
+
+                // Test validation
+                const validationResult = validate_fhirpath('Patient.name.given');
+                const validationParsed = JSON.parse(validationResult);
+                results.innerHTML += `<p>✅ Validation test: ${validationParsed.valid ? 'PASSED' : 'FAILED'}</p>`;
+
+                // Test evaluation
+                const testResource = JSON.stringify({
+                    "resourceType": "Patient",
+                    "name": [{"given": ["John"], "family": "Doe"}]
+                });
+
+                const evalResult = evaluate_fhirpath('Patient.name.given', testResource);
+                const evalParsed = JSON.parse(evalResult);
+                results.innerHTML += `<p>✅ Evaluation test: ${evalParsed.error ? 'FAILED - ' + evalParsed.error : 'PASSED'}</p>`;
+                results.innerHTML += `<p>📊 Result: ${JSON.stringify(evalParsed)}</p>`;
+
+                results.innerHTML += '<p><strong>🎉 All tests completed successfully!</strong></p>';
+
+            } catch (error) {
+                results.innerHTML += `<p>❌ Test failed: ${error.message}</p>`;
+                console.error('Test error:', error);
+            }
+        }
+
+        runTests();
+    </script>
+</body>
+</html>

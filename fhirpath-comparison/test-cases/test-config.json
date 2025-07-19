@@ -1,0 +1,202 @@
+{
+  "name": "FHIRPath Library Comparison Test Suite",
+  "description": "Standardized test cases for comparing FHIRPath implementations across different programming languages",
+  "version": "1.0.0",
+  "reference": "http://hl7.org/fhirpath|2.0.0",
+  "testData": {
+    "inputFiles": [
+      "patient-example.xml",
+      "observation-example.xml",
+      "questionnaire-example.xml",
+      "valueset-example-expansion.xml"
+    ]
+  },
+  "sampleTests": [
+    {
+      "name": "testExtractBirthDate",
+      "description": "Extract birthDate",
+      "inputFile": "patient-example.xml",
+      "expression": "birthDate",
+      "expectedOutput": [
+        {
+          "type": "date",
+          "value": "1974-12-25"
+        }
+      ],
+      "predicate": false
+    },
+    {
+      "name": "testPatientHasBirthDate",
+      "description": "patient has a birthDate",
+      "inputFile": "patient-example.xml",
+      "expression": "birthDate",
+      "expectedOutput": [
+        {
+          "type": "boolean",
+          "value": true
+        }
+      ],
+      "predicate": true
+    },
+    {
+      "name": "testSimple",
+      "description": "Simple path navigation",
+      "inputFile": "patient-example.xml",
+      "expression": "name.given",
+      "expectedOutput": [
+        {"type": "string", "value": "Peter"},
+        {"type": "string", "value": "James"},
+        {"type": "string", "value": "Jim"},
+        {"type": "string", "value": "Peter"},
+        {"type": "string", "value": "James"}
+      ]
+    },
+    {
+      "name": "testLiteralTrue",
+      "description": "Literal boolean true",
+      "inputFile": "patient-example.xml",
+      "expression": "true",
+      "expectedOutput": [
+        {
+          "type": "boolean",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "testLiteralString",
+      "description": "Literal string",
+      "inputFile": "patient-example.xml",
+      "expression": "'test string'",
+      "expectedOutput": [
+        {
+          "type": "string",
+          "value": "test string"
+        }
+      ]
+    }
+  ],
+  "benchmarkTests": [
+    {
+      "name": "complexPathNavigation",
+      "description": "Complex path navigation performance test",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.name.where(use = 'official').given.first()",
+      "iterations": 1000
+    },
+    {
+      "name": "functionChaining",
+      "description": "Function chaining performance test",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.telecom.where(system = 'phone').value.substring(0, 3)",
+      "iterations": 1000
+    },
+    {
+      "name": "multipleConditionsFiltering",
+      "description": "Complex filtering with multiple conditions and logical operators",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.telecom.where(system = 'phone' and use != 'old' and rank.exists()).select(value + ' (' + use + ')')",
+      "iterations": 1000
+    },
+    {
+      "name": "nestedCollectionOperations",
+      "description": "Nested collection operations with type checking",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.name.where(period.end.exists() or use = 'maiden').select(given.join(' ') + ' ' + family).where($this.length() > 10)",
+      "iterations": 1000
+    },
+    {
+      "name": "dateTimeComparisons",
+      "description": "Complex date/time operations and comparisons",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.telecom.where(period.end < @2015-01-01 or period.end.empty()).count() + Patient.birthDate.toString().length()",
+      "iterations": 1000
+    },
+    {
+      "name": "quantityOperations",
+      "description": "Mathematical operations on quantities and numeric values",
+      "inputFile": "observation-example.xml",
+      "expression": "Observation.valueQuantity.value * 0.453592 + Observation.code.coding.count() * 10",
+      "iterations": 1000
+    },
+    {
+      "name": "codingSystemFiltering",
+      "description": "Complex filtering across multiple coding systems",
+      "inputFile": "observation-example.xml",
+      "expression": "Observation.code.coding.where(system.contains('loinc') or system.contains('snomed')).select(code + '@' + system.split('/').last())",
+      "iterations": 1000
+    },
+    {
+      "name": "hierarchicalNavigation",
+      "description": "Deep hierarchical navigation with conditional logic",
+      "inputFile": "questionnaire-example.xml",
+      "expression": "Questionnaire.item.item.item.where(enableWhen.exists()).select(linkId + ': ' + code.coding.where(system.contains('snomed')).display.first())",
+      "iterations": 1000
+    },
+    {
+      "name": "recursiveItemSearch",
+      "description": "Recursive search through nested questionnaire items",
+      "inputFile": "questionnaire-example.xml",
+      "expression": "Questionnaire.descendants().where(resourceType = 'item' and type = 'choice' and answerValueSet.exists()).linkId",
+      "iterations": 1000
+    },
+    {
+      "name": "valueSetExpansionAnalysis",
+      "description": "Complex analysis of ValueSet expansion hierarchy",
+      "inputFile": "valueset-example-expansion.xml",
+      "expression": "ValueSet.expansion.contains.where(abstract.exists() and abstract = true).contains.where(display.contains('Mass')).count()",
+      "iterations": 1000
+    },
+    {
+      "name": "stringManipulationChain",
+      "description": "Complex string manipulation and pattern matching",
+      "inputFile": "valueset-example-expansion.xml",
+      "expression": "ValueSet.expansion.contains.contains.display.where(matches('.*\\[.*\\].*')).select(substring(indexOf('['), indexOf(']') - indexOf('[') + 1))",
+      "iterations": 1000
+    },
+    {
+      "name": "typeConversionOperations",
+      "description": "Type checking and conversion operations",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.birthDate.toString().length() + Patient.active.toString().upper().length() + Patient.telecom.rank.where(convertsToInteger()).sum()",
+      "iterations": 1000
+    },
+    {
+      "name": "aggregationFunctions",
+      "description": "Complex aggregation and mathematical functions",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.name.given.count() + Patient.telecom.where(rank.exists()).rank.sum() + Patient.address.line.count()",
+      "iterations": 1000
+    },
+    {
+      "name": "conditionalExpressions",
+      "description": "Complex conditional expressions with iif and boolean logic",
+      "inputFile": "observation-example.xml",
+      "expression": "iif(Observation.valueQuantity.value > 180, 'High', iif(Observation.valueQuantity.value < 150, 'Low', 'Normal')) + ' - ' + Observation.status.upper()",
+      "iterations": 1000
+    },
+    {
+      "name": "crossResourceReferences",
+      "description": "Complex reference handling and path resolution",
+      "inputFile": "observation-example.xml",
+      "expression": "Observation.subject.reference.split('/').last() + '_' + Observation.encounter.reference.split('/').last() + '_' + Observation.id",
+      "iterations": 1000
+    },
+    {
+      "name": "errorHandlingExpressions",
+      "description": "Expressions testing error handling and edge cases",
+      "inputFile": "patient-example.xml",
+      "expression": "Patient.name.where(use = 'nonexistent').given.first().empty().not() or Patient.telecom.where(system = 'email').value.matches('.*@.*').allTrue()",
+      "iterations": 1000
+    }
+  ],
+  "testCategories": [
+    "basic_navigation",
+    "literals",
+    "functions",
+    "operators",
+    "collections",
+    "type_checking",
+    "error_handling"
+  ]
+}

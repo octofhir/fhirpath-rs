@@ -1,0 +1,154 @@
+{
+  "language" : "java",
+  "timestamp" : 1.752867642605E9,
+  "benchmarks" : [ {
+    "name" : "complexPathNavigation",
+    "description" : "Complex path navigation performance test",
+    "expression" : "Patient.name.where(use = 'official').given.first()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.043300296,
+    "min_time_ms" : 0.014417,
+    "max_time_ms" : 5.063292,
+    "ops_per_second" : 23094.530346859523
+  }, {
+    "name" : "functionChaining",
+    "description" : "Function chaining performance test",
+    "expression" : "Patient.telecom.where(system = 'phone').value.substring(0, 3)",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.027912566,
+    "min_time_ms" : 0.014041,
+    "max_time_ms" : 5.705292,
+    "ops_per_second" : 35826.15801069669
+  }, {
+    "name" : "multipleConditionsFiltering",
+    "description" : "Complex filtering with multiple conditions and logical operators",
+    "expression" : "Patient.telecom.where(system = 'phone' and use != 'old' and rank.exists()).select(value + ' (' + use + ')')",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.029159440000000002,
+    "min_time_ms" : 0.022583,
+    "max_time_ms" : 0.947166,
+    "ops_per_second" : 34294.21141146743
+  }, {
+    "name" : "nestedCollectionOperations",
+    "description" : "Nested collection operations with type checking",
+    "expression" : "Patient.name.where(period.end.exists() or use = 'maiden').select(given.join(' ') + ' ' + family).where($this.length() > 10)",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.044042667,
+    "min_time_ms" : 0.023291,
+    "max_time_ms" : 6.62,
+    "ops_per_second" : 22705.255337965795
+  }, {
+    "name" : "dateTimeComparisons",
+    "description" : "Complex date/time operations and comparisons",
+    "expression" : "Patient.telecom.where(period.end < @2015-01-01 or period.end.empty()).count() + Patient.birthDate.toString().length()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.050402442,
+    "min_time_ms" : 0.0315,
+    "max_time_ms" : 0.773375,
+    "ops_per_second" : 19840.308531082683
+  }, {
+    "name" : "quantityOperations",
+    "description" : "Mathematical operations on quantities and numeric values",
+    "expression" : "Observation.valueQuantity.value * 0.453592 + Observation.code.coding.count() * 10",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.028534096000000002,
+    "min_time_ms" : 0.009625,
+    "max_time_ms" : 6.876375,
+    "ops_per_second" : 35045.79223396459
+  }, {
+    "name" : "codingSystemFiltering",
+    "description" : "Complex filtering across multiple coding systems",
+    "expression" : "Observation.code.coding.where(system.contains('loinc') or system.contains('snomed')).select(code + '@' + system.split('/').last())",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.033467266,
+    "min_time_ms" : 0.025958,
+    "max_time_ms" : 0.155208,
+    "ops_per_second" : 29879.942986678383
+  }, {
+    "name" : "hierarchicalNavigation",
+    "description" : "Deep hierarchical navigation with conditional logic",
+    "expression" : "Questionnaire.item.item.item.where(enableWhen.exists()).select(linkId + ': ' + code.coding.where(system.contains('snomed')).display.first())",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.023616339,
+    "min_time_ms" : 0.017042,
+    "max_time_ms" : 3.417209,
+    "ops_per_second" : 42343.565613620296
+  }, {
+    "name" : "recursiveItemSearch",
+    "description" : "Recursive search through nested questionnaire items",
+    "expression" : "Questionnaire.descendants().where(resourceType = 'item' and type = 'choice' and answerValueSet.exists()).linkId",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.19584385599999998,
+    "min_time_ms" : 0.076333,
+    "max_time_ms" : 3.66575,
+    "ops_per_second" : 5106.108613384328
+  }, {
+    "name" : "valueSetExpansionAnalysis",
+    "description" : "Complex analysis of ValueSet expansion hierarchy",
+    "expression" : "ValueSet.expansion.contains.where(abstract.exists() and abstract = true).contains.where(display.contains('Mass')).count()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.018244219000000002,
+    "min_time_ms" : 0.015041,
+    "max_time_ms" : 0.400166,
+    "ops_per_second" : 54811.88315049276
+  }, {
+    "name" : "stringManipulationChain",
+    "description" : "Complex string manipulation and pattern matching",
+    "expression" : "ValueSet.expansion.contains.contains.display.where(matches('.*\\[.*\\].*')).select(substring(indexOf('['), indexOf(']') - indexOf('[') + 1))",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.030652931,
+    "min_time_ms" : 0.009917,
+    "max_time_ms" : 9.919916,
+    "ops_per_second" : 32623.307702614147
+  }, {
+    "name" : "typeConversionOperations",
+    "description" : "Type checking and conversion operations",
+    "expression" : "Patient.birthDate.toString().length() + Patient.active.toString().upper().length() + Patient.telecom.rank.where(convertsToInteger()).sum()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.025802503,
+    "min_time_ms" : 0.014875,
+    "max_time_ms" : 0.659708,
+    "ops_per_second" : 38755.92999640384
+  }, {
+    "name" : "aggregationFunctions",
+    "description" : "Complex aggregation and mathematical functions",
+    "expression" : "Patient.name.given.count() + Patient.telecom.where(rank.exists()).rank.sum() + Patient.address.line.count()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.013631416,
+    "min_time_ms" : 0.01125,
+    "max_time_ms" : 0.22175,
+    "ops_per_second" : 73359.9502795601
+  }, {
+    "name" : "conditionalExpressions",
+    "description" : "Complex conditional expressions with iif and boolean logic",
+    "expression" : "iif(Observation.valueQuantity.value > 180, 'High', iif(Observation.valueQuantity.value < 150, 'Low', 'Normal')) + ' - ' + Observation.status.upper()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.022553998,
+    "min_time_ms" : 0.015083,
+    "max_time_ms" : 2.741625,
+    "ops_per_second" : 44338.03709657153
+  }, {
+    "name" : "crossResourceReferences",
+    "description" : "Complex reference handling and path resolution",
+    "expression" : "Observation.subject.reference.split('/').last() + '_' + Observation.encounter.reference.split('/').last() + '_' + Observation.id",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.018010576,
+    "min_time_ms" : 0.014416,
+    "max_time_ms" : 0.185208,
+    "ops_per_second" : 55522.93274795875
+  }, {
+    "name" : "errorHandlingExpressions",
+    "description" : "Expressions testing error handling and edge cases",
+    "expression" : "Patient.name.where(use = 'nonexistent').given.first().empty().not() or Patient.telecom.where(system = 'email').value.matches('.*@.*').allTrue()",
+    "iterations" : 1000,
+    "avg_time_ms" : 0.017345542000000002,
+    "min_time_ms" : 0.015083,
+    "max_time_ms" : 0.042958,
+    "ops_per_second" : 57651.700938488975
+  } ],
+  "system_info" : {
+    "platform" : "Mac OS X",
+    "java_version" : "22.0.1",
+    "hapi_fhir_version" : "6.8.0"
+  }
+}

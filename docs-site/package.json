@@ -1,0 +1,25 @@
+{
+  "name": "docs-site",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build:wasm": "cd ../fhirpath-wasm && npm run build",
+    "copy:wasm": "mkdir -p public/pkg && cp ../fhirpath-wasm/pkg/* public/pkg/",
+    "copy:comparison-data": "node scripts/copy-comparison-data.js",
+    "prebuild": "npm run build:wasm && npm run copy:wasm && npm run copy:comparison-data",
+    "build": "PUBLIC_BASE_URL=/fhirpath-rs astro build --base /fhirpath-rs",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.35.0",
+    "@astrojs/svelte": "^7.1.0",
+    "astro": "^5.6.1",
+    "astro-favicons": "^3.1.5",
+    "chart.js": "^4.5.0",
+    "sharp": "^0.34.2",
+    "svelte": "^5.36.8"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "language": "rust",
+  "timestamp": 1752867637.992819,
+  "benchmarks": [],
+  "system_info": {
+    "platform": "macos",
+    "rust_version": "1.70+",
+    "fhirpath_version": "fhirpath-core"
+  }
+}

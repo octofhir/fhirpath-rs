@@ -1,0 +1,32 @@
+{
+  "name": "@octofhir/fhirpath-wasm",
+  "version": "0.1.0",
+  "description": "WASM bindings for FHIRPath Rust implementation",
+  "main": "pkg/fhirpath_wasm.js",
+  "types": "pkg/fhirpath_wasm.d.ts",
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg",
+    "build:bundler": "wasm-pack build --target bundler --out-dir pkg",
+    "build:nodejs": "wasm-pack build --target nodejs --out-dir pkg",
+    "test": "wasm-pack test --headless --firefox",
+    "serve": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "fhir",
+    "fhirpath",
+    "healthcare",
+    "hl7",
+    "rust",
+    "wasm",
+    "webassembly"
+  ],
+  "author": "OctoFHIR Team <funyloony@gmail.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octofhir/fhirpath-rs.git"
+  }
+}
