@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add automated changelog generation system
+- Increase test compliance
+
+### Documentation
+
+- Update changelog with recent changes
+- Update changelog [skip ci]
+- Add more technical pages
+- Update changelog [skip ci]
+
+### Miscellaneous Tasks
+
+- Init
+
+## [Unreleased]
+
+### Added
+
+- Add automated changelog generation system
 
 ### Documentation
 
