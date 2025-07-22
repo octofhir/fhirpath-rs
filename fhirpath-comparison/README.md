@@ -35,9 +35,11 @@ This project compares popular FhirPath libraries across different programming la
   - Maintained by: Project maintainers
 
 ### Go
-- **go-fhirpath** - Go implementation (if available)
+- **fhir-toolbox-go** - Go implementation of FHIRPath
+  - Repository: https://github.com/DAMEDIC/fhir-toolbox-go
   - Language: Go
-  - Status: To be researched
+  - Maintained by: DAMEDIC
+  - Status: Implemented
 
 ### Clojure
 - **fhirpath.clj** - Clojure implementation by HealthSamurai
