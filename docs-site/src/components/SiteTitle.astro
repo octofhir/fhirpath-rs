@@ -2,14 +2,13 @@
 import AstrolightSiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
 
 const menuItems = [
-    {name: "Docs", href: "getting-started/installation/", target: "_self"},
-    {name: "Playground", href: "playground", target: "_blank"},
-    {name: "Comparison", href: "comparison", target: "_blank"},
-    {name: "Benchmarks", href: "benchmark-details", target: "_blank"},
+	{ name: "Docs", href: "getting-started/installation/", target: "_self" },
+	{ name: "Playground", href: "playground", target: "_blank" },
+	{ name: "Comparison", href: "comparison", target: "_blank" },
 ];
 
 function pathsMatch(pathA: string, pathB: string): boolean {
-    return pathB.includes(pathA);
+	return pathB.includes(pathA);
 }
 ---
 <div>

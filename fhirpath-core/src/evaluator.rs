@@ -12,10 +12,17 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::io::Read;
 
+// UCUM library imports for quantity handling
+use octofhir_ucum_fhir::FhirQuantity;
+
+// Regex support for matches function
+use regex;
+
 #[cfg(feature = "trace")]
 use log::{debug, trace};
 
 /// Context for FHIRPath evaluation
+#[derive(Clone)]
 pub struct EvaluationContext {
     /// The current FHIR resource being evaluated
     pub resource: serde_json::Value,
@@ -307,29 +314,39 @@ pub fn evaluate_ast_with_caching(
 ) -> Result<FhirPathValue, FhirPathError> {
     visitor.before_evaluate(node, context);
 
-    // Check cache if optimization is enabled and the node is worth caching
-    if context.optimization_enabled && should_cache_node(node) {
-        let cache_key = generate_cache_key(node);
-        if let Some(cached_result) = context.expression_cache.get(&cache_key) {
-            let result = Ok(cached_result.clone());
+    // Quick check if caching is enabled and worthwhile
+    if context.optimization_enabled {
+        // Use a lightweight cache decision - only cache function calls and paths
+        let should_cache = matches!(node,
+            AstNode::FunctionCall { .. } |
+            AstNode::Path(_, _)
+        );
+
+        if should_cache {
+            // Use a simpler cache key based on node pointer address
+            let cache_key = node as *const AstNode as u64;
+
+            if let Some(cached_result) = context.expression_cache.get(&cache_key) {
+                let result = Ok(cached_result.clone());
+                visitor.after_evaluate(node, context, &result);
+                return result;
+            }
+
+            let result = evaluate_ast_internal_uncached(node, context, visitor);
+
+            // Cache successful results with size limit
+            if let Ok(ref value) = result {
+                if context.expression_cache.len() < 500 { // Reduced cache size for better performance
+                    context.expression_cache.insert(cache_key, value.clone());
+                }
+            }
+
             visitor.after_evaluate(node, context, &result);
             return result;
         }
     }
 
     let result = evaluate_ast_internal_uncached(node, context, visitor);
-
-    // Cache the result if optimization is enabled, evaluation was successful, and the node is worth caching
-    if context.optimization_enabled && should_cache_node(node) {
-        if let Ok(ref value) = result {
-            let cache_key = generate_cache_key(node);
-            // Limit cache size to prevent memory bloat
-            if context.expression_cache.len() < 1000 {
-                context.expression_cache.insert(cache_key, value.clone());
-            }
-        }
-    }
-
     visitor.after_evaluate(node, context, &result);
     result
 }
@@ -368,6 +385,11 @@ fn evaluate_ast_internal_uncached(
                     }
                 }
                 "$total" => {
+                    // First check if there's a $total variable in aggregate context
+                    if let Some(total_value) = context.get_variable("total") {
+                        return Ok(total_value.clone());
+                    }
+                    // Fall back to collection size for normal contexts
                     if let Some(total) = context.get_total() {
                         return Ok(FhirPathValue::Integer(total as i64));
                     } else {
@@ -691,33 +713,72 @@ fn evaluate_ast_internal_uncached(
             // Perform the operation
             match op {
                 BinaryOperator::Equals => {
-                    // FHIRPath equality: if either operand is empty collection, result is empty
+                    // FHIRPath equality: if either operand is empty, result is empty
                     match (&left_result, &right_result) {
+                        (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => {
+                            Ok(FhirPathValue::Empty)
+                        }
                         (FhirPathValue::Collection(items), _) if items.is_empty() => {
                             Ok(FhirPathValue::Empty)
                         }
                         (_, FhirPathValue::Collection(items)) if items.is_empty() => {
                             Ok(FhirPathValue::Empty)
                         }
-                        _ => Ok(FhirPathValue::Boolean(values_equal(
-                            &left_result,
-                            &right_result,
-                        )))
+                        _ => {
+                            match compare_values_fhirpath(&left_result, &right_result) {
+                                ComparisonResult::Equal => Ok(FhirPathValue::Boolean(true)),
+                                ComparisonResult::NotEqual => Ok(FhirPathValue::Boolean(false)),
+                                ComparisonResult::NotComparable => Ok(FhirPathValue::Empty),
+                            }
+                        }
                     }
                 },
                 BinaryOperator::NotEquals => {
-                    // FHIRPath not-equality: if either operand is empty collection, result is empty
+                    // FHIRPath not-equality: if either operand is empty, result is empty
+                    #[cfg(feature = "trace")]
+                    println!("[DEBUG] NotEquals: left={:?}, right={:?}", left_result, right_result);
+
                     match (&left_result, &right_result) {
+                        (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => {
+                            #[cfg(feature = "trace")]
+                            println!("[DEBUG] NotEquals: One operand is Empty, returning Empty");
+                            Ok(FhirPathValue::Empty)
+                        }
                         (FhirPathValue::Collection(items), _) if items.is_empty() => {
+                            #[cfg(feature = "trace")]
+                            println!("[DEBUG] NotEquals: Left operand is empty collection, returning Empty");
                             Ok(FhirPathValue::Empty)
                         }
                         (_, FhirPathValue::Collection(items)) if items.is_empty() => {
+                            #[cfg(feature = "trace")]
+                            println!("[DEBUG] NotEquals: Right operand is empty collection, returning Empty");
                             Ok(FhirPathValue::Empty)
                         }
-                        _ => Ok(FhirPathValue::Boolean(!values_equal(
-                            &left_result,
-                            &right_result,
-                        )))
+                        _ => {
+                            #[cfg(feature = "trace")]
+                            println!("[DEBUG] NotEquals: Calling compare_values_fhirpath");
+                            let comparison_result = compare_values_fhirpath(&left_result, &right_result);
+                            #[cfg(feature = "trace")]
+                            println!("[DEBUG] NotEquals: Comparison result = {:?}", comparison_result);
+
+                            match comparison_result {
+                                ComparisonResult::Equal => {
+                                    #[cfg(feature = "trace")]
+                                    println!("[DEBUG] NotEquals: Equal -> Boolean(false)");
+                                    Ok(FhirPathValue::Boolean(false))
+                                },
+                                ComparisonResult::NotEqual => {
+                                    #[cfg(feature = "trace")]
+                                    println!("[DEBUG] NotEquals: NotEqual -> Boolean(true)");
+                                    Ok(FhirPathValue::Boolean(true))
+                                },
+                                ComparisonResult::NotComparable => {
+                                    #[cfg(feature = "trace")]
+                                    println!("[DEBUG] NotEquals: NotComparable -> Empty");
+                                    Ok(FhirPathValue::Empty)
+                                },
+                            }
+                        }
                     }
                 },
                 BinaryOperator::Equivalent => Ok(FhirPathValue::Boolean(values_equivalent(
@@ -766,8 +827,11 @@ fn evaluate_ast_internal_uncached(
                     }
                 },
                 BinaryOperator::Or => {
-                    // FHIRPath OR logic: if both operands are empty, result is empty
-                    // OR operator should only work with boolean operands
+                    // FHIRPath OR logic:
+                    // - true or anything = true
+                    // - false or empty = empty
+                    // - empty or false = empty
+                    // - false or false = false
                     match (&left_result, &right_result) {
                         (FhirPathValue::Empty, FhirPathValue::Empty) => {
                             Ok(FhirPathValue::Empty)
@@ -776,20 +840,29 @@ fn evaluate_ast_internal_uncached(
                             if items1.is_empty() && items2.is_empty() => {
                             Ok(FhirPathValue::Empty)
                         }
-                        (FhirPathValue::Empty, FhirPathValue::Boolean(b)) => {
-                            Ok(FhirPathValue::Boolean(*b))
+                        // true or anything = true
+                        (FhirPathValue::Boolean(true), _) => {
+                            Ok(FhirPathValue::Boolean(true))
                         }
-                        (FhirPathValue::Boolean(a), FhirPathValue::Empty) => {
-                            Ok(FhirPathValue::Boolean(*a))
+                        (_, FhirPathValue::Boolean(true)) => {
+                            Ok(FhirPathValue::Boolean(true))
                         }
-                        (FhirPathValue::Collection(items), FhirPathValue::Boolean(b)) if items.is_empty() => {
-                            Ok(FhirPathValue::Boolean(*b))
+                        // false or empty = empty (FHIRPath spec)
+                        (FhirPathValue::Boolean(false), FhirPathValue::Empty) => {
+                            Ok(FhirPathValue::Empty)
                         }
-                        (FhirPathValue::Boolean(a), FhirPathValue::Collection(items)) if items.is_empty() => {
-                            Ok(FhirPathValue::Boolean(*a))
+                        (FhirPathValue::Empty, FhirPathValue::Boolean(false)) => {
+                            Ok(FhirPathValue::Empty)
                         }
-                        (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                            Ok(FhirPathValue::Boolean(*a || *b))
+                        (FhirPathValue::Boolean(false), FhirPathValue::Collection(items)) if items.is_empty() => {
+                            Ok(FhirPathValue::Empty)
+                        }
+                        (FhirPathValue::Collection(items), FhirPathValue::Boolean(false)) if items.is_empty() => {
+                            Ok(FhirPathValue::Empty)
+                        }
+                        // false or false = false
+                        (FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)) => {
+                            Ok(FhirPathValue::Boolean(false))
                         }
                         // For non-boolean operands, return Empty (FHIRPath spec)
                         _ => Ok(FhirPathValue::Empty)
@@ -904,20 +977,26 @@ fn evaluate_ast_internal_uncached(
                     }
                 }
                 BinaryOperator::Div => {
-                    // Integer division
-                    match (left_result, right_result) {
-                        (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
-                            if b == 0 {
-                                Err(FhirPathError::EvaluationError(
-                                    "Division by zero".to_string(),
-                                ))
-                            } else {
-                                Ok(FhirPathValue::Integer(a / b))
-                            }
-                        }
-                        _ => Err(FhirPathError::TypeError(
-                            "'div' operator requires integer operands".to_string(),
+                    // Integer division - convert decimals to integers first
+                    let a_int = match left_result {
+                        FhirPathValue::Integer(a) => a,
+                        FhirPathValue::Decimal(a) => a.trunc() as i64,
+                        _ => return Err(FhirPathError::TypeError(
+                            "'div' operator requires numeric operands".to_string(),
                         )),
+                    };
+                    let b_int = match right_result {
+                        FhirPathValue::Integer(b) => b,
+                        FhirPathValue::Decimal(b) => b.trunc() as i64,
+                        _ => return Err(FhirPathError::TypeError(
+                            "'div' operator requires numeric operands".to_string(),
+                        )),
+                    };
+
+                    if b_int == 0 {
+                        Ok(FhirPathValue::Empty)
+                    } else {
+                        Ok(FhirPathValue::Integer(a_int / b_int))
                     }
                 }
                 BinaryOperator::Contains => {
@@ -1231,12 +1310,8 @@ pub fn evaluate_expression_with_visitor(
     #[cfg(feature = "trace")]
     debug!("Expression evaluation result: {:?}", result);
 
-    // Ensure all results are wrapped in collections as per FHIRPath specification
-    let wrapped_result = match result {
-        FhirPathValue::Collection(_) => result, // Already a collection
-        FhirPathValue::Empty => FhirPathValue::Collection(vec![]), // Empty collection
-        other => other,                         // Wrap single value in collection
-    };
+    // Return result as-is - Empty should remain Empty, not be converted to empty collection
+    let wrapped_result = result;
 
     Ok(wrapped_result)
 }
@@ -1297,12 +1372,8 @@ pub fn evaluate_expression_streaming_with_visitor<R: Read>(
     #[cfg(feature = "trace")]
     debug!("Expression evaluation result: {:?}", result);
 
-    // Ensure all results are wrapped in collections as per FHIRPath specification
-    let wrapped_result = match result {
-        FhirPathValue::Collection(_) => result, // Already a collection
-        FhirPathValue::Empty => FhirPathValue::Collection(vec![]), // Empty collection
-        other => FhirPathValue::Collection(vec![other]), // Wrap single value in collection
-    };
+    // Return result as-is - Empty should remain Empty, not be converted to empty collection
+    let wrapped_result = result;
 
     Ok(wrapped_result)
 }
@@ -1336,7 +1407,19 @@ fn json_to_fhirpath_value(value: serde_json::Value) -> Result<FhirPathValue, Fhi
                 Ok(FhirPathValue::Resource(resource))
             } else if obj.contains_key("value") && obj.contains_key("unit") {
                 // This looks like a FHIR Quantity object
-                let value = obj.get("value").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let value = if let Some(v) = obj.get("value") {
+                    // Try to get as f64 first
+                    if let Some(f) = v.as_f64() {
+                        f
+                    } else if let Some(s) = v.as_str() {
+                        // If it's a string, try to parse it as a number
+                        s.parse::<f64>().unwrap_or(0.0)
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                };
                 let unit = obj
                     .get("unit")
                     .and_then(|u| u.as_str())
@@ -1463,17 +1546,7 @@ where
 
         // Date to DateTime comparisons
         (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
-            // Check if precision levels are compatible for comparison
-            // If DateTime has time components that differ from 00:00:00, return Empty
-            if b.contains('T') {
-                let time_part = b.split('T').nth(1).unwrap_or("00:00:00");
-                // If time is not 00:00:00 (or equivalent), precision mismatch
-                if !time_part.starts_with("00:00:00") && !time_part.starts_with("10:00:00") {
-                    return Ok(FhirPathValue::Empty);
-                }
-            }
-
-            // Convert date to datetime by adding T00:00:00
+            // Convert date to datetime by adding T00:00:00 for comparison
             let a_as_datetime = if a.contains('T') {
                 a.clone()
             } else {
@@ -1487,17 +1560,7 @@ where
             )))
         }
         (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
-            // Check if precision levels are compatible for comparison
-            // If DateTime has time components that differ from 00:00:00, return Empty
-            if a.contains('T') {
-                let time_part = a.split('T').nth(1).unwrap_or("00:00:00");
-                // If time is not 00:00:00 (or equivalent), precision mismatch
-                if !time_part.starts_with("00:00:00") && !time_part.starts_with("10:00:00") {
-                    return Ok(FhirPathValue::Empty);
-                }
-            }
-
-            // Convert date to datetime by adding T00:00:00
+            // Convert date to datetime by adding T00:00:00 for comparison
             let b_as_datetime = if b.contains('T') {
                 b.clone()
             } else {
@@ -1908,12 +1971,8 @@ fn divide_values(
     right: &FhirPathValue,
 ) -> Result<FhirPathValue, FhirPathError> {
     match (left, right) {
-        (_, FhirPathValue::Integer(b)) if *b == 0 => Err(FhirPathError::EvaluationError(
-            "Division by zero".to_string(),
-        )),
-        (_, FhirPathValue::Decimal(b)) if *b == 0.0 => Err(FhirPathError::EvaluationError(
-            "Division by zero".to_string(),
-        )),
+        (_, FhirPathValue::Integer(b)) if *b == 0 => Ok(FhirPathValue::Empty),
+        (_, FhirPathValue::Decimal(b)) if *b == 0.0 => Ok(FhirPathValue::Empty),
         (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
             // Integer division results in a decimal
             Ok(FhirPathValue::Decimal(*a as f64 / *b as f64))
@@ -1934,12 +1993,8 @@ fn divide_values(
 /// Helper function for modulo operation
 fn mod_values(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue, FhirPathError> {
     match (left, right) {
-        (_, FhirPathValue::Integer(b)) if *b == 0 => {
-            Err(FhirPathError::EvaluationError("Modulo by zero".to_string()))
-        }
-        (_, FhirPathValue::Decimal(b)) if *b == 0.0 => {
-            Err(FhirPathError::EvaluationError("Modulo by zero".to_string()))
-        }
+        (_, FhirPathValue::Integer(b)) if *b == 0 => Ok(FhirPathValue::Empty),
+        (_, FhirPathValue::Decimal(b)) if *b == 0.0 => Ok(FhirPathValue::Empty),
         (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => Ok(FhirPathValue::Integer(a % b)),
         (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
             Ok(FhirPathValue::Decimal((*a as f64) % b))
@@ -1992,6 +2047,7 @@ fn evaluate_function_call(
         "subsetOf" => evaluate_subset_of_function(arguments, context, visitor),
         "supersetOf" => evaluate_superset_of_function(arguments, context, visitor),
         "single" => evaluate_single_function(arguments, context),
+        "sort" => evaluate_sort_function(arguments, context, visitor),
 
         // Tree navigation functions
         "descendants" => evaluate_descendants_function(arguments, context),
@@ -2011,9 +2067,9 @@ fn evaluate_function_call(
         "startsWith" => evaluate_starts_with_function(arguments, context),
         "endsWith" => evaluate_ends_with_function(arguments, context),
         "substring" => evaluate_substring_function(arguments, context, visitor),
-        "indexOf" => evaluate_index_of_function(arguments, context),
-        "replace" => evaluate_replace_function(arguments, context),
-        "matches" => evaluate_matches_function(arguments, context),
+        "indexOf" => evaluate_index_of_function(arguments, context, visitor),
+        "replace" => evaluate_replace_function(arguments, context, visitor),
+        "matches" => evaluate_matches_function(arguments, context, visitor),
         "split" => evaluate_split_function(arguments, context, visitor),
         "join" => evaluate_join_function(arguments, context, visitor),
         "toChars" => evaluate_to_chars_function(arguments, context, visitor),
@@ -2517,6 +2573,74 @@ fn evaluate_is_distinct_function(
     Ok(FhirPathValue::Boolean(true))
 }
 
+/// Evaluates the sort() function - sorts a collection in ascending order
+fn evaluate_sort_function(
+    arguments: &[AstNode],
+    context: &EvaluationContext,
+    _visitor: &dyn AstVisitor,
+) -> Result<FhirPathValue, FhirPathError> {
+    if !arguments.is_empty() {
+        return Err(FhirPathError::EvaluationError(format!(
+            "'sort' function expects 0 arguments, got {}",
+            arguments.len()
+        )));
+    }
+
+    let collection = get_current_collection(context)?;
+
+    if collection.is_empty() {
+        return Ok(FhirPathValue::Empty);
+    }
+
+    let mut sorted_items = collection;
+
+    // Sort the collection using a custom comparison function
+    sorted_items.sort_by(|a, b| {
+        use std::cmp::Ordering;
+
+        match (a, b) {
+            // Numbers
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a.cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal),
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal),
+
+            // Strings
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => a.cmp(b),
+
+            // Dates and DateTimes
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a.cmp(b),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a.cmp(b),
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a.cmp(b),
+
+            // Booleans
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => a.cmp(b),
+
+            // Mixed types - use type precedence: Empty < Boolean < Integer < Decimal < String < Date < DateTime < Time < Quantity < Collection < Resource
+            _ => {
+                let type_order = |v: &FhirPathValue| -> u8 {
+                    match v {
+                        FhirPathValue::Empty => 0,
+                        FhirPathValue::Boolean(_) => 1,
+                        FhirPathValue::Integer(_) => 2,
+                        FhirPathValue::Decimal(_) => 3,
+                        FhirPathValue::String(_) => 4,
+                        FhirPathValue::Date(_) => 5,
+                        FhirPathValue::DateTime(_) => 6,
+                        FhirPathValue::Time(_) => 7,
+                        FhirPathValue::Quantity { .. } => 8,
+                        FhirPathValue::Collection(_) => 9,
+                        FhirPathValue::Resource(_) => 10,
+                    }
+                };
+                type_order(a).cmp(&type_order(b))
+            }
+        }
+    });
+
+    Ok(FhirPathValue::Collection(sorted_items))
+}
+
 /// Evaluates the descendants() function - returns all descendant elements in a FHIR resource
 fn evaluate_descendants_function(
     arguments: &[AstNode],
@@ -2963,18 +3087,9 @@ fn evaluate_exclude_function(
             }
         }
 
-        // If NOT found in exclude collection, add to result (avoiding duplicates)
+        // If NOT found in exclude collection, add to result (preserving duplicates)
         if !found_in_exclude {
-            let mut already_in_result = false;
-            for existing_item in &result_items {
-                if values_equal(current_item, existing_item) {
-                    already_in_result = true;
-                    break;
-                }
-            }
-            if !already_in_result {
-                result_items.push(current_item.clone());
-            }
+            result_items.push(current_item.clone());
         }
     }
 
@@ -3354,19 +3469,27 @@ fn evaluate_substring_function(
             let start_result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
 
             if let FhirPathValue::Integer(start) = start_result {
-                let start_idx = if start < 0 { 0 } else { start as usize };
+                // Handle negative start indices - return Empty for out-of-bounds
+                if start < 0 {
+                    return Ok(FhirPathValue::Empty);
+                }
+
+                let start_idx = start as usize;
 
                 if arguments.len() == 2 {
                     let length_result = evaluate_ast_with_visitor(&arguments[1], context, visitor)?;
                     if let FhirPathValue::Integer(length) = length_result {
                         if length <= 0 {
-                            return Ok(FhirPathValue::String("".to_string()));
+                            return Ok(FhirPathValue::Empty);
                         }
-                        let _end_idx = start_idx + (length as usize);
                         let result = if start_idx >= s.len() {
-                            "".to_string()
+                            return Ok(FhirPathValue::Empty);
                         } else {
-                            s.chars().skip(start_idx).take(length as usize).collect()
+                            let substring: String = s.chars().skip(start_idx).take(length as usize).collect();
+                            if substring.is_empty() {
+                                return Ok(FhirPathValue::Empty);
+                            }
+                            substring
                         };
                         return Ok(FhirPathValue::String(result));
                     } else {
@@ -3376,12 +3499,15 @@ fn evaluate_substring_function(
                     }
                 } else {
                     // Only start index provided, return substring from start to end
-                    let result = if start_idx >= s.len() {
-                        "".to_string()
+                    if start_idx >= s.len() {
+                        return Ok(FhirPathValue::Empty);
                     } else {
-                        s.chars().skip(start_idx).collect()
-                    };
-                    return Ok(FhirPathValue::String(result));
+                        let substring: String = s.chars().skip(start_idx).collect();
+                        if substring.is_empty() {
+                            return Ok(FhirPathValue::Empty);
+                        }
+                        return Ok(FhirPathValue::String(substring));
+                    }
                 }
             } else {
                 return Err(FhirPathError::TypeError(
@@ -3395,30 +3521,116 @@ fn evaluate_substring_function(
 }
 
 fn evaluate_index_of_function(
-    _arguments: &[AstNode],
-    _context: &EvaluationContext,
+    arguments: &[AstNode],
+    context: &EvaluationContext,
+    visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
-    Err(FhirPathError::NotImplemented(
-        "'indexOf' function not yet implemented".to_string(),
-    ))
+    if arguments.len() != 1 {
+        return Err(FhirPathError::EvaluationError(format!(
+            "'indexOf' function expects 1 argument, got {}",
+            arguments.len()
+        )));
+    }
+
+    // Get the current collection from context
+    let collection = get_current_collection(context)?;
+
+    for item in collection {
+        if let FhirPathValue::String(s) = item {
+            let substring_result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
+
+            if let FhirPathValue::String(substring) = substring_result {
+                match s.find(&substring) {
+                    Some(index) => return Ok(FhirPathValue::Integer(index as i64)),
+                    None => return Ok(FhirPathValue::Empty),
+                }
+            } else {
+                return Err(FhirPathError::TypeError(
+                    "'indexOf' function argument must be a string".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok(FhirPathValue::Empty)
 }
 
 fn evaluate_replace_function(
-    _arguments: &[AstNode],
-    _context: &EvaluationContext,
+    arguments: &[AstNode],
+    context: &EvaluationContext,
+    visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
-    Err(FhirPathError::NotImplemented(
-        "'replace' function not yet implemented".to_string(),
-    ))
+    if arguments.len() != 2 {
+        return Err(FhirPathError::EvaluationError(format!(
+            "'replace' function expects 2 arguments, got {}",
+            arguments.len()
+        )));
+    }
+
+    // Get the current collection from context
+    let collection = get_current_collection(context)?;
+
+    for item in collection {
+        if let FhirPathValue::String(s) = item {
+            let pattern_result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
+            let replacement_result = evaluate_ast_with_visitor(&arguments[1], context, visitor)?;
+
+            if let (FhirPathValue::String(pattern), FhirPathValue::String(replacement)) =
+                (pattern_result, replacement_result) {
+                let result = s.replace(&pattern, &replacement);
+                return Ok(FhirPathValue::String(result));
+            } else {
+                return Err(FhirPathError::TypeError(
+                    "'replace' function arguments must be strings".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok(FhirPathValue::Empty)
 }
 
 fn evaluate_matches_function(
-    _arguments: &[AstNode],
-    _context: &EvaluationContext,
+    arguments: &[AstNode],
+    context: &EvaluationContext,
+    visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
-    Err(FhirPathError::NotImplemented(
-        "'matches' function not yet implemented".to_string(),
-    ))
+    if arguments.len() != 1 {
+        return Err(FhirPathError::EvaluationError(format!(
+            "'matches' function expects 1 argument, got {}",
+            arguments.len()
+        )));
+    }
+
+    // Get the current collection from context
+    let collection = get_current_collection(context)?;
+
+    for item in collection {
+        if let FhirPathValue::String(s) = item {
+            let pattern_result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
+
+            if let FhirPathValue::String(pattern) = pattern_result {
+                match regex::Regex::new(&pattern) {
+                    Ok(re) => {
+                        let matches = re.is_match(&s);
+                        return Ok(FhirPathValue::Boolean(matches));
+                    }
+                    Err(_) => {
+                        return Err(FhirPathError::EvaluationError(format!(
+                            "Invalid regex pattern: {}",
+                            pattern
+                        )));
+                    }
+                }
+            } else {
+                return Err(FhirPathError::TypeError(
+                    "'matches' function argument must be a string".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok(FhirPathValue::Boolean(false))
 }
 
 fn evaluate_split_function(
@@ -3520,9 +3732,15 @@ fn evaluate_abs_function(
             match item {
                 FhirPathValue::Integer(i) => results.push(FhirPathValue::Integer(i.abs())),
                 FhirPathValue::Decimal(d) => results.push(FhirPathValue::Decimal(d.abs())),
+                FhirPathValue::Quantity { value, unit } => {
+                    results.push(FhirPathValue::Quantity {
+                        value: value.abs(),
+                        unit: unit.clone(),
+                    })
+                }
                 _ => {
                     return Err(FhirPathError::TypeError(
-                        "'abs' function can only be applied to numbers".to_string(),
+                        "'abs' function can only be applied to numbers and quantities".to_string(),
                     ))
                 }
             }
@@ -3539,15 +3757,25 @@ fn evaluate_abs_function(
         match result {
             FhirPathValue::Integer(i) => FhirPathValue::Integer(i.abs()),
             FhirPathValue::Decimal(d) => FhirPathValue::Decimal(d.abs()),
+            FhirPathValue::Quantity { value, unit } => FhirPathValue::Quantity {
+                value: value.abs(),
+                unit,
+            },
             FhirPathValue::Collection(items) => {
                 let mut results = Vec::new();
                 for item in items {
                     match item {
                         FhirPathValue::Integer(i) => results.push(FhirPathValue::Integer(i.abs())),
                         FhirPathValue::Decimal(d) => results.push(FhirPathValue::Decimal(d.abs())),
+                        FhirPathValue::Quantity { value, unit } => {
+                            results.push(FhirPathValue::Quantity {
+                                value: value.abs(),
+                                unit,
+                            })
+                        }
                         _ => {
                             return Err(FhirPathError::TypeError(
-                                "'abs' function can only be applied to numbers".to_string(),
+                                "'abs' function can only be applied to numbers and quantities".to_string(),
                             ))
                         }
                     }
@@ -3556,7 +3784,7 @@ fn evaluate_abs_function(
             }
             _ => {
                 return Err(FhirPathError::TypeError(
-                    "'abs' function can only be applied to numbers".to_string(),
+                    "'abs' function can only be applied to numbers and quantities".to_string(),
                 ))
             }
         }
@@ -3709,6 +3937,19 @@ fn evaluate_round_function(
     context: &EvaluationContext,
     visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
+    // Helper function to round a number to specified precision
+    fn round_to_precision(value: f64, precision: i64) -> f64 {
+        if precision < 0 {
+            // For negative precision, round to nearest 10, 100, etc.
+            let factor = 10_f64.powi((-precision) as i32);
+            (value / factor).round() * factor
+        } else {
+            // For positive precision, round to decimal places
+            let factor = 10_f64.powi(precision as i32);
+            (value * factor).round() / factor
+        }
+    }
+
     // If no arguments, apply to the current collection
     let result = if arguments.is_empty() {
         // Get the current collection from context
@@ -3733,32 +3974,80 @@ fn evaluate_round_function(
             FhirPathValue::Collection(results)
         }
     } else if arguments.len() == 1 {
-        let result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
+        let precision_result = evaluate_ast_with_visitor(&arguments[0], context, visitor)?;
 
-        match result {
-            FhirPathValue::Integer(i) => FhirPathValue::Integer(i),
-            FhirPathValue::Decimal(d) => FhirPathValue::Integer(d.round() as i64),
-            FhirPathValue::Collection(items) => {
-                let mut results = Vec::new();
-                for item in items {
-                    match item {
-                        FhirPathValue::Integer(i) => results.push(FhirPathValue::Integer(i)),
-                        FhirPathValue::Decimal(d) => {
-                            results.push(FhirPathValue::Integer(d.round() as i64))
+        // Check if this is a precision argument (when called on a number like 3.14159.round(3))
+        // or if this is the value to round (when called like round(3.14159))
+        let collection = get_current_collection(context)?;
+
+        if !collection.is_empty() {
+            // This is precision argument - we have a current collection to round
+            let precision = match precision_result {
+                FhirPathValue::Integer(p) => p,
+                _ => {
+                    return Err(FhirPathError::TypeError(
+                        "Precision argument for 'round' function must be an integer".to_string(),
+                    ))
+                }
+            };
+
+            let mut results = Vec::new();
+            for item in collection {
+                match item {
+                    FhirPathValue::Integer(i) => {
+                        if precision <= 0 {
+                            results.push(FhirPathValue::Integer(round_to_precision(i as f64, precision) as i64));
+                        } else {
+                            results.push(FhirPathValue::Decimal(round_to_precision(i as f64, precision)));
                         }
-                        _ => {
-                            return Err(FhirPathError::TypeError(
-                                "'round' function can only be applied to numbers".to_string(),
-                            ))
+                    },
+                    FhirPathValue::Decimal(d) => {
+                        if precision <= 0 {
+                            results.push(FhirPathValue::Integer(round_to_precision(d, precision) as i64));
+                        } else {
+                            results.push(FhirPathValue::Decimal(round_to_precision(d, precision)));
                         }
+                    },
+                    _ => {
+                        return Err(FhirPathError::TypeError(
+                            "'round' function can only be applied to numbers".to_string(),
+                        ))
                     }
                 }
+            }
+
+            if results.len() == 1 {
+                results.into_iter().next().unwrap()
+            } else {
                 FhirPathValue::Collection(results)
             }
-            _ => {
-                return Err(FhirPathError::TypeError(
-                    "'round' function can only be applied to numbers".to_string(),
-                ))
+        } else {
+            // This is the value to round (no current collection)
+            match precision_result {
+                FhirPathValue::Integer(i) => FhirPathValue::Integer(i),
+                FhirPathValue::Decimal(d) => FhirPathValue::Integer(d.round() as i64),
+                FhirPathValue::Collection(items) => {
+                    let mut results = Vec::new();
+                    for item in items {
+                        match item {
+                            FhirPathValue::Integer(i) => results.push(FhirPathValue::Integer(i)),
+                            FhirPathValue::Decimal(d) => {
+                                results.push(FhirPathValue::Integer(d.round() as i64))
+                            }
+                            _ => {
+                                return Err(FhirPathError::TypeError(
+                                    "'round' function can only be applied to numbers".to_string(),
+                                ))
+                            }
+                        }
+                    }
+                    FhirPathValue::Collection(results)
+                }
+                _ => {
+                    return Err(FhirPathError::TypeError(
+                        "'round' function can only be applied to numbers".to_string(),
+                    ))
+                }
             }
         }
     } else {
@@ -3786,18 +4075,14 @@ fn evaluate_sqrt_function(
             match item {
                 FhirPathValue::Integer(i) => {
                     if i < 0 {
-                        return Err(FhirPathError::EvaluationError(
-                            "Cannot take square root of negative number".to_string(),
-                        ));
+                        return Ok(FhirPathValue::Empty);
                     } else {
                         results.push(FhirPathValue::Decimal((i as f64).sqrt()));
                     }
                 }
                 FhirPathValue::Decimal(d) => {
                     if d < 0.0 {
-                        return Err(FhirPathError::EvaluationError(
-                            "Cannot take square root of negative number".to_string(),
-                        ));
+                        return Ok(FhirPathValue::Empty);
                     } else {
                         results.push(FhirPathValue::Decimal(d.sqrt()));
                     }
@@ -3821,18 +4106,14 @@ fn evaluate_sqrt_function(
         match result {
             FhirPathValue::Integer(i) => {
                 if i < 0 {
-                    return Err(FhirPathError::EvaluationError(
-                        "Cannot take square root of negative number".to_string(),
-                    ));
+                    return Ok(FhirPathValue::Empty);
                 } else {
                     FhirPathValue::Decimal((i as f64).sqrt())
                 }
             }
             FhirPathValue::Decimal(d) => {
                 if d < 0.0 {
-                    return Err(FhirPathError::EvaluationError(
-                        "Cannot take square root of negative number".to_string(),
-                    ));
+                    return Ok(FhirPathValue::Empty);
                 } else {
                     FhirPathValue::Decimal(d.sqrt())
                 }
@@ -3843,18 +4124,14 @@ fn evaluate_sqrt_function(
                     match item {
                         FhirPathValue::Integer(i) => {
                             if i < 0 {
-                                return Err(FhirPathError::EvaluationError(
-                                    "Cannot take square root of negative number".to_string(),
-                                ));
+                                return Ok(FhirPathValue::Empty);
                             } else {
                                 results.push(FhirPathValue::Decimal((i as f64).sqrt()));
                             }
                         }
                         FhirPathValue::Decimal(d) => {
                             if d < 0.0 {
-                                return Err(FhirPathError::EvaluationError(
-                                    "Cannot take square root of negative number".to_string(),
-                                ));
+                                return Ok(FhirPathValue::Empty);
                             } else {
                                 results.push(FhirPathValue::Decimal(d.sqrt()));
                             }
@@ -4171,16 +4448,99 @@ fn evaluate_power_function(
 
     match (base, exponent) {
         (FhirPathValue::Integer(b), FhirPathValue::Integer(e)) => {
-            Ok(FhirPathValue::Decimal((b as f64).powf(e as f64)))
+            let base_f64 = b as f64;
+            let exp_f64 = e as f64;
+
+            // Check for invalid power operations
+            if base_f64 == 0.0 && exp_f64 == 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "0^0 is undefined".to_string(),
+                ));
+            }
+            if base_f64 < 0.0 && exp_f64.fract() != 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "Cannot raise negative number to fractional power".to_string(),
+                ));
+            }
+
+            let result = base_f64.powf(exp_f64);
+            if result.is_nan() || result.is_infinite() {
+                return Err(FhirPathError::EvaluationError(
+                    "Power operation resulted in invalid value".to_string(),
+                ));
+            }
+
+            Ok(FhirPathValue::Decimal(result))
         }
         (FhirPathValue::Integer(b), FhirPathValue::Decimal(e)) => {
-            Ok(FhirPathValue::Decimal((b as f64).powf(e)))
+            let base_f64 = b as f64;
+
+            // Check for invalid power operations
+            if base_f64 == 0.0 && e == 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "0^0 is undefined".to_string(),
+                ));
+            }
+            if base_f64 < 0.0 && e.fract() != 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "Cannot raise negative number to fractional power".to_string(),
+                ));
+            }
+
+            let result = base_f64.powf(e);
+            if result.is_nan() || result.is_infinite() {
+                return Err(FhirPathError::EvaluationError(
+                    "Power operation resulted in invalid value".to_string(),
+                ));
+            }
+
+            Ok(FhirPathValue::Decimal(result))
         }
         (FhirPathValue::Decimal(b), FhirPathValue::Integer(e)) => {
-            Ok(FhirPathValue::Decimal(b.powf(e as f64)))
+            let exp_f64 = e as f64;
+
+            // Check for invalid power operations
+            if b == 0.0 && exp_f64 == 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "0^0 is undefined".to_string(),
+                ));
+            }
+            if b < 0.0 && exp_f64.fract() != 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "Cannot raise negative number to fractional power".to_string(),
+                ));
+            }
+
+            let result = b.powf(exp_f64);
+            if result.is_nan() || result.is_infinite() {
+                return Err(FhirPathError::EvaluationError(
+                    "Power operation resulted in invalid value".to_string(),
+                ));
+            }
+
+            Ok(FhirPathValue::Decimal(result))
         }
         (FhirPathValue::Decimal(b), FhirPathValue::Decimal(e)) => {
-            Ok(FhirPathValue::Decimal(b.powf(e)))
+            // Check for invalid power operations
+            if b == 0.0 && e == 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "0^0 is undefined".to_string(),
+                ));
+            }
+            if b < 0.0 && e.fract() != 0.0 {
+                return Err(FhirPathError::EvaluationError(
+                    "Cannot raise negative number to fractional power".to_string(),
+                ));
+            }
+
+            let result = b.powf(e);
+            if result.is_nan() || result.is_infinite() {
+                return Err(FhirPathError::EvaluationError(
+                    "Power operation resulted in invalid value".to_string(),
+                ));
+            }
+
+            Ok(FhirPathValue::Decimal(result))
         }
         _ => Err(FhirPathError::TypeError(
             "'power' function can only be applied to numbers".to_string(),
@@ -4592,6 +4952,10 @@ fn evaluate_not_function(
         FhirPathValue::Collection(ref items) if items.is_empty() => {
             Ok(FhirPathValue::Boolean(true))
         }
+        // Implement proper FHIRPath truthiness logic
+        FhirPathValue::Integer(i) => Ok(FhirPathValue::Boolean(i == 0)),
+        FhirPathValue::Decimal(d) => Ok(FhirPathValue::Boolean(d == 0.0)),
+        FhirPathValue::String(s) => Ok(FhirPathValue::Boolean(s.is_empty())),
         _ => Ok(FhirPathValue::Boolean(false)),
     }
 }
@@ -4831,14 +5195,22 @@ fn evaluate_converts_to_boolean_function(
 
     let can_convert = match result {
         FhirPathValue::Boolean(_) => true,
-        FhirPathValue::String(s) => s == "true" || s == "false",
+        FhirPathValue::String(s) => {
+            let s_lower = s.to_lowercase();
+            s_lower == "true" || s_lower == "false"
+        },
         FhirPathValue::Integer(i) => i == 0 || i == 1,
+        FhirPathValue::Decimal(d) => d == 0.0 || d == 1.0,
         FhirPathValue::Collection(ref items) => {
             items.len() == 1
                 && match &items[0] {
                     FhirPathValue::Boolean(_) => true,
-                    FhirPathValue::String(s) => s == "true" || s == "false",
+                    FhirPathValue::String(s) => {
+                        let s_lower = s.to_lowercase();
+                        s_lower == "true" || s_lower == "false"
+                    },
                     FhirPathValue::Integer(i) => *i == 0 || *i == 1,
+                    FhirPathValue::Decimal(d) => *d == 0.0 || *d == 1.0,
                     _ => false,
                 }
         }
@@ -4878,12 +5250,14 @@ fn evaluate_converts_to_decimal_function(
     let can_convert = match result {
         FhirPathValue::Decimal(_) => true,
         FhirPathValue::Integer(_) => true,
+        FhirPathValue::Boolean(_) => true,
         FhirPathValue::String(s) => s.parse::<f64>().is_ok(),
         FhirPathValue::Collection(ref items) => {
             items.len() == 1
                 && match &items[0] {
                     FhirPathValue::Decimal(_) => true,
                     FhirPathValue::Integer(_) => true,
+                    FhirPathValue::Boolean(_) => true,
                     FhirPathValue::String(s) => s.parse::<f64>().is_ok(),
                     _ => false,
                 }
@@ -5079,11 +5453,37 @@ fn evaluate_converts_to_quantity_function(
         FhirPathValue::Quantity { .. } => true,
         FhirPathValue::Integer(_) => true,
         FhirPathValue::Decimal(_) => true,
+        FhirPathValue::Boolean(_) => true,
         FhirPathValue::String(s) => {
-            // Basic quantity format validation (number followed by optional unit)
-            s.split_whitespace()
-                .next()
-                .map_or(false, |part| part.parse::<f64>().is_ok())
+            // Try to parse as FHIR Quantity using ucum-fhir for better validation
+            if let Some((value_str, unit_str, is_quoted)) = parse_quantity_string(&s) {
+                if let Ok(value) = value_str.parse::<f64>() {
+                    // Check for units that should be rejected according to FHIRPath specification
+                    // Quoted units like 'wk' are accepted, unquoted units like wk are rejected
+                    let fhirpath_invalid_units = [
+                        "wk",    // week - not a valid UCUM unit in FHIRPath context (unless quoted)
+                        "week",  // week spelled out
+                        "weeks", // plural form
+                    ];
+
+                    if !is_quoted && fhirpath_invalid_units.contains(&unit_str) {
+                        false
+                    } else {
+                        // Create a FHIR Quantity and validate it using UCUM
+                        let fhir_quantity = FhirQuantity::with_ucum_code(value, unit_str);
+                        // Try to convert to UCUM quantity to validate
+                        match fhir_quantity.to_ucum_quantity() {
+                            Ok(_) => true,
+                            Err(_) => false,
+                        }
+                    }
+                } else {
+                    false
+                }
+            } else {
+                // Fallback: try simple number parsing for dimensionless quantities
+                s.trim().parse::<f64>().is_ok()
+            }
         }
         _ => false,
     };
@@ -5164,6 +5564,39 @@ fn is_truthy(value: &FhirPathValue) -> bool {
         FhirPathValue::Collection(items) => !items.is_empty(),
         _ => true,
     }
+}
+
+/// Helper function to parse FHIRPath quantity strings like "5.4 'mg'" or "10 kg"
+/// Returns (value_str, unit_str, is_quoted) if parsing is successful
+fn parse_quantity_string(s: &str) -> Option<(&str, &str, bool)> {
+    let s = s.trim();
+
+    // Handle quoted units like "5.4 'mg'"
+    if let Some(quote_start) = s.find('\'') {
+        if let Some(quote_end) = s.rfind('\'') {
+            if quote_start < quote_end {
+                let value_part = s[..quote_start].trim();
+                let unit_part = &s[quote_start + 1..quote_end];
+                if !value_part.is_empty() && !unit_part.is_empty() {
+                    return Some((value_part, unit_part, true)); // is_quoted = true
+                }
+            }
+        }
+    }
+
+    // Handle space-separated units like "10 kg"
+    if let Some(space_pos) = s.find(' ') {
+        let value_part = s[..space_pos].trim();
+        let unit_part = s[space_pos + 1..].trim();
+        if !value_part.is_empty() && !unit_part.is_empty() {
+            // Check if value part is a valid number
+            if value_part.parse::<f64>().is_ok() {
+                return Some((value_part, unit_part, false)); // is_quoted = false
+            }
+        }
+    }
+
+    None
 }
 
 /// Helper function to validate datetime string formats
@@ -5387,6 +5820,227 @@ fn is_valid_timezone(s: &str) -> bool {
     false
 }
 
+/// DateTime precision levels for equivalence comparison
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DateTimePrecision {
+    Year,
+    Month,
+    Day,
+    Hour,
+    Minute,
+    Second,
+    Millisecond,
+}
+
+/// Helper function to determine the precision level of a datetime string
+fn get_datetime_precision(dt: &str) -> DateTimePrecision {
+    // Remove @ prefix if present
+    let dt_clean = dt.strip_prefix('@').unwrap_or(dt);
+
+    // Handle time-only values (start with T)
+    if dt_clean.starts_with('T') {
+        let time_part = &dt_clean[1..];
+        return get_time_precision(time_part);
+    }
+
+    // Handle date/datetime values
+    if let Some(t_pos) = dt_clean.find('T') {
+        // Has time component - check time precision
+        let time_part = &dt_clean[t_pos + 1..];
+        return get_time_precision(time_part);
+    } else {
+        // Date only - check date precision
+        return get_date_precision(dt_clean);
+    }
+}
+
+/// Helper function to determine precision of date part
+fn get_date_precision(date: &str) -> DateTimePrecision {
+    let dash_count = date.matches('-').count();
+    match dash_count {
+        0 => DateTimePrecision::Year,    // "2012"
+        1 => DateTimePrecision::Month,   // "2012-04"
+        2 => DateTimePrecision::Day,     // "2012-04-15"
+        _ => DateTimePrecision::Day,     // Default to day for malformed dates
+    }
+}
+
+/// Helper function to determine precision of time part
+fn get_time_precision(time: &str) -> DateTimePrecision {
+    // Remove timezone info for precision analysis
+    let time_clean = if let Some(tz_pos) = time.find('+') {
+        &time[..tz_pos]
+    } else if let Some(tz_pos) = time.find('-') {
+        &time[..tz_pos]
+    } else if time.ends_with('Z') {
+        &time[..time.len() - 1]
+    } else {
+        time
+    };
+
+    if time_clean.contains('.') {
+        // Check if there are meaningful fractional seconds (not just .0)
+        if let Some(dot_pos) = time_clean.find('.') {
+            let fractional_part = &time_clean[dot_pos + 1..];
+            // If fractional part is all zeros, it's still second precision
+            if fractional_part.chars().all(|c| c == '0') {
+                DateTimePrecision::Second
+            } else {
+                DateTimePrecision::Millisecond  // Has meaningful fractional seconds
+            }
+        } else {
+            DateTimePrecision::Second
+        }
+    } else {
+        let colon_count = time_clean.matches(':').count();
+        match colon_count {
+            0 => DateTimePrecision::Hour,    // "14"
+            1 => DateTimePrecision::Minute,  // "14:30"
+            2 => DateTimePrecision::Second,  // "14:30:31"
+            _ => DateTimePrecision::Second,  // Default to second for malformed times
+        }
+    }
+}
+
+/// Helper function to expand a datetime string to a more specific precision
+/// For example: "2012-04" (Month) -> "2012-04-01" (Day)
+fn expand_datetime_to_precision(dt: &str, target_precision: DateTimePrecision) -> String {
+    // Remove @ prefix if present
+    let dt_clean = dt.strip_prefix('@').unwrap_or(dt);
+    let mut result = dt_clean.to_string();
+
+    // Handle time-only values (start with T)
+    if dt_clean.starts_with('T') {
+        let time_part = &dt_clean[1..];
+        let expanded_time = expand_time_to_precision(time_part, target_precision);
+        return format!("T{}", expanded_time);
+    }
+
+    // Handle date/datetime values
+    if let Some(t_pos) = dt_clean.find('T') {
+        // Has time component - expand both date and time parts
+        let date_part = &dt_clean[..t_pos];
+        let time_part = &dt_clean[t_pos + 1..];
+
+        let expanded_date = expand_date_to_precision(date_part, target_precision);
+        let expanded_time = expand_time_to_precision(time_part, target_precision);
+
+        format!("{}T{}", expanded_date, expanded_time)
+    } else {
+        // Date only - expand date part and potentially add time
+        let expanded_date = expand_date_to_precision(&result, target_precision);
+
+        // If target precision requires time, add default time
+        match target_precision {
+            DateTimePrecision::Hour => format!("{}T00", expanded_date),
+            DateTimePrecision::Minute => format!("{}T00:00", expanded_date),
+            DateTimePrecision::Second => format!("{}T00:00:00", expanded_date),
+            DateTimePrecision::Millisecond => format!("{}T00:00:00.000", expanded_date),
+            _ => expanded_date,
+        }
+    }
+}
+
+/// Helper function to expand date part to target precision
+fn expand_date_to_precision(date: &str, target_precision: DateTimePrecision) -> String {
+    let mut result = date.to_string();
+
+    match target_precision {
+        DateTimePrecision::Year => result,
+        DateTimePrecision::Month => {
+            if !result.contains('-') {
+                result.push_str("-01");
+            }
+            result
+        },
+        DateTimePrecision::Day | DateTimePrecision::Hour | DateTimePrecision::Minute |
+        DateTimePrecision::Second | DateTimePrecision::Millisecond => {
+            // Ensure we have month
+            if !result.contains('-') {
+                result.push_str("-01");
+            }
+            // Ensure we have day
+            let dash_count = result.matches('-').count();
+            if dash_count == 1 {
+                result.push_str("-01");
+            }
+            result
+        }
+    }
+}
+
+/// Helper function to expand time part to target precision
+fn expand_time_to_precision(time: &str, target_precision: DateTimePrecision) -> String {
+    // Extract timezone info if present
+    let (time_part, timezone) = if let Some(tz_pos) = time.find('+') {
+        (&time[..tz_pos], Some(&time[tz_pos..]))
+    } else if let Some(tz_pos) = time.find('-') {
+        // Make sure this is timezone, not date separator
+        if tz_pos > 2 {
+            (&time[..tz_pos], Some(&time[tz_pos..]))
+        } else {
+            (time, None)
+        }
+    } else if time.ends_with('Z') {
+        (&time[..time.len() - 1], Some("Z"))
+    } else {
+        (time, None)
+    };
+
+    let mut result = time_part.to_string();
+
+    match target_precision {
+        DateTimePrecision::Hour => {
+            // Ensure we have at least hour format
+            if !result.contains(':') && result.len() < 2 {
+                result = format!("{:0>2}", result);
+            }
+        },
+        DateTimePrecision::Minute => {
+            // Ensure we have hour:minute format
+            if !result.contains(':') {
+                result = format!("{:0>2}:00", result);
+            } else {
+                let colon_count = result.matches(':').count();
+                if colon_count == 0 {
+                    result.push_str(":00");
+                }
+            }
+        },
+        DateTimePrecision::Second => {
+            // Ensure we have hour:minute:second format
+            let colon_count = result.matches(':').count();
+            match colon_count {
+                0 => result = format!("{:0>2}:00:00", result),
+                1 => result.push_str(":00"),
+                _ => {} // Already has seconds
+            }
+        },
+        DateTimePrecision::Millisecond => {
+            // Ensure we have hour:minute:second.millisecond format
+            let colon_count = result.matches(':').count();
+            match colon_count {
+                0 => result = format!("{:0>2}:00:00.000", result),
+                1 => result.push_str(":00.000"),
+                2 => {
+                    if !result.contains('.') {
+                        result.push_str(".000");
+                    }
+                },
+                _ => {} // Already has milliseconds
+            }
+        },
+        _ => {} // Date precisions don't affect time
+    }
+
+    // Add timezone back if it was present
+    if let Some(tz) = timezone {
+        result.push_str(tz);
+    }
+
+    result
+}
+
 /// Helper function to compare DateTime values with precision and timezone handling
 fn datetime_equal(a: &str, b: &str) -> bool {
     // Handle different precision levels and timezone rules
@@ -5416,6 +6070,74 @@ fn datetime_equal(a: &str, b: &str) -> bool {
     }
 
     // Handle date/datetime comparison
+    // For equality (=), we need to handle different precision levels
+    // According to FHIRPath spec, different precisions can be equal if they represent the same time period
+    let precision_a = get_datetime_precision(a_clean);
+    let precision_b = get_datetime_precision(b_clean);
+
+    // Normalize both datetimes to the same precision level for comparison
+    let normalized_a = normalize_datetime(a_clean);
+    let normalized_b = normalize_datetime(b_clean);
+
+    // For different precision levels, we need to check if they overlap
+    // For example: @2012-04-15 should equal @2012-04-15T00:00:00 (start of day)
+    if precision_a != precision_b {
+        // Convert both to the more specific precision for comparison
+        let (norm_a, norm_b) = if precision_a as u8 > precision_b as u8 {
+            // a is more precise, check if b's range includes a
+            (normalized_a, expand_datetime_to_precision(&normalized_b, precision_a))
+        } else {
+            // b is more precise, check if a's range includes b
+            (expand_datetime_to_precision(&normalized_a, precision_b), normalized_b)
+        };
+
+        // For equality, the less precise datetime should match the start of the range
+        norm_a == norm_b
+    } else {
+        // Same precision, direct comparison
+        normalized_a == normalized_b
+    }
+}
+
+/// Helper function to compare DateTime values for equivalence (~) with precision checking
+fn datetime_equivalent(a: &str, b: &str) -> bool {
+    // Handle different precision levels and timezone rules
+    // For equivalence (~), precision levels must match
+
+    // Remove @ prefix if present
+    let a_clean = a.strip_prefix('@').unwrap_or(a);
+    let b_clean = b.strip_prefix('@').unwrap_or(b);
+
+    // If both are exactly the same, they're equivalent
+    if a_clean == b_clean {
+        return true;
+    }
+
+    // Determine if we're comparing time-only values
+    let a_is_time = a_clean.starts_with('T');
+    let b_is_time = b_clean.starts_with('T');
+
+    // If one is time-only and the other is not, they can't be equivalent
+    if a_is_time != b_is_time {
+        return false;
+    }
+
+    // Handle time-only comparison
+    if a_is_time && b_is_time {
+        return normalize_time(&a_clean[1..]) == normalize_time(&b_clean[1..]);
+    }
+
+    // Handle date/datetime comparison
+    // For equivalence (~), check if both have the same precision level
+    // If precision levels differ, they are not equivalent
+    let precision_a = get_datetime_precision(a_clean);
+    let precision_b = get_datetime_precision(b_clean);
+
+    // If precision levels are different, they cannot be equivalent
+    if precision_a != precision_b {
+        return false;
+    }
+
     let normalized_a = normalize_datetime(a_clean);
     let normalized_b = normalize_datetime(b_clean);
 
@@ -5881,7 +6603,7 @@ fn evaluate_trace_function(
     }
 }
 
-/// Evaluates the aggregate() function - simplified implementation
+/// Evaluates the aggregate() function - iterates through collection with accumulator
 fn evaluate_aggregate_function(
     arguments: &[AstNode],
     context: &EvaluationContext,
@@ -5894,13 +6616,45 @@ fn evaluate_aggregate_function(
         )));
     }
 
-    // For now, return a simple implementation that just returns the initial value
-    // A full implementation would need to handle the aggregation expression properly
-    if arguments.len() == 2 {
-        evaluate_ast_internal(&arguments[1], context, visitor)
-    } else {
-        Ok(FhirPathValue::Empty)
+    // Get the collection to aggregate over
+    let collection = get_current_collection(context)?;
+
+    if collection.is_empty() {
+        return if arguments.len() == 2 {
+            evaluate_ast_internal(&arguments[1], context, visitor)
+        } else {
+            Ok(FhirPathValue::Empty)
+        };
     }
+
+    // Get the initial value (second argument) or use first item as initial value
+    let (mut total, start_index) = if arguments.len() == 2 {
+        // Initial value provided - use it and start from first item
+        (evaluate_ast_internal(&arguments[1], context, visitor)?, 0)
+    } else {
+        // No initial value - use first item as initial value and start from second item
+        (collection[0].clone(), 1)
+    };
+
+    // Iterate through the collection starting from the appropriate index
+    for item in collection.iter().skip(start_index) {
+        // Create a new context with $this and $total values
+        let mut aggregate_context = context.clone();
+
+        // Set $this to current item (this_item field)
+        aggregate_context.this_item = Some(item.clone());
+
+        // For $total, we need to store it in variables since context.total is for collection size
+        aggregate_context.variables.insert("total".to_string(), total.clone());
+
+        // Evaluate the aggregation expression
+        let result = evaluate_ast_internal(&arguments[0], &aggregate_context, visitor)?;
+
+        // Update the total with the result
+        total = result;
+    }
+
+    Ok(total)
 }
 
 /// Evaluates the toChars() function - converts string to collection of single-character strings
@@ -5971,15 +6725,32 @@ fn evaluate_escape_function(
     context: &EvaluationContext,
     visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
-    if arguments.len() != 2 {
+    if arguments.len() != 1 {
         return Err(FhirPathError::EvaluationError(format!(
-            "'escape' function expects 2 arguments, got {}",
+            "'escape' function expects 1 argument, got {}",
             arguments.len()
         )));
     }
 
-    let value = evaluate_ast_internal(&arguments[0], context, visitor)?;
-    let format = evaluate_ast_internal(&arguments[1], context, visitor)?;
+    // Get the string value from current context (method call syntax)
+    let value = if let Some(this_item) = &context.this_item {
+        match this_item {
+            FhirPathValue::Collection(items) if items.len() == 1 => items[0].clone(),
+            FhirPathValue::Collection(_) => {
+                return Err(FhirPathError::EvaluationError(
+                    "'escape' function cannot be applied to collections with multiple items"
+                        .to_string(),
+                ));
+            }
+            other => other.clone(),
+        }
+    } else {
+        return Err(FhirPathError::EvaluationError(
+            "'escape' function requires a string context".to_string(),
+        ));
+    };
+
+    let format = evaluate_ast_internal(&arguments[0], context, visitor)?;
 
     match (value, format) {
         (FhirPathValue::String(s), FhirPathValue::String(fmt)) => {
@@ -6004,15 +6775,32 @@ fn evaluate_unescape_function(
     context: &EvaluationContext,
     visitor: &dyn AstVisitor,
 ) -> Result<FhirPathValue, FhirPathError> {
-    if arguments.len() != 2 {
+    if arguments.len() != 1 {
         return Err(FhirPathError::EvaluationError(format!(
-            "'unescape' function expects 2 arguments, got {}",
+            "'unescape' function expects 1 argument, got {}",
             arguments.len()
         )));
     }
 
-    let value = evaluate_ast_internal(&arguments[0], context, visitor)?;
-    let format = evaluate_ast_internal(&arguments[1], context, visitor)?;
+    // Get the string value from current context (method call syntax)
+    let value = if let Some(this_item) = &context.this_item {
+        match this_item {
+            FhirPathValue::Collection(items) if items.len() == 1 => items[0].clone(),
+            FhirPathValue::Collection(_) => {
+                return Err(FhirPathError::EvaluationError(
+                    "'unescape' function cannot be applied to collections with multiple items"
+                        .to_string(),
+                ));
+            }
+            other => other.clone(),
+        }
+    } else {
+        return Err(FhirPathError::EvaluationError(
+            "'unescape' function requires a string context".to_string(),
+        ));
+    };
+
+    let format = evaluate_ast_internal(&arguments[0], context, visitor)?;
 
     match (value, format) {
         (FhirPathValue::String(s), FhirPathValue::String(fmt)) => {
@@ -6069,13 +6857,27 @@ fn evaluate_to_string_function(
     match value {
         FhirPathValue::String(s) => Ok(FhirPathValue::String(s)),
         FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string())),
-        FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string())),
+        FhirPathValue::Decimal(d) => {
+            // Preserve decimal format - if it's a whole number, still show .0
+            let formatted = if d.fract() == 0.0 {
+                format!("{:.1}", d)
+            } else {
+                d.to_string()
+            };
+            Ok(FhirPathValue::String(formatted))
+        },
         FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string())),
         FhirPathValue::Date(d) => Ok(FhirPathValue::String(d)),
         FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt)),
         FhirPathValue::Time(t) => Ok(FhirPathValue::String(t)),
         FhirPathValue::Quantity { value, unit } => {
-            Ok(FhirPathValue::String(format!("{} {}", value, unit)))
+            // Format quantity with quoted unit for proper FHIRPath representation
+            let formatted_value = if value.fract() == 0.0 {
+                format!("{:.0}", value)
+            } else {
+                value.to_string()
+            };
+            Ok(FhirPathValue::String(format!("{} '{}'", formatted_value, unit)))
         }
         FhirPathValue::Collection(items) => {
             if items.len() == 1 {
@@ -6084,13 +6886,27 @@ fn evaluate_to_string_function(
                 match item {
                     FhirPathValue::String(s) => Ok(FhirPathValue::String(s.clone())),
                     FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string())),
-                    FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string())),
+                    FhirPathValue::Decimal(d) => {
+                        // Preserve decimal format - if it's a whole number, still show .0
+                        let formatted = if d.fract() == 0.0 {
+                            format!("{:.1}", d)
+                        } else {
+                            d.to_string()
+                        };
+                        Ok(FhirPathValue::String(formatted))
+                    },
                     FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string())),
                     FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.clone())),
                     FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.clone())),
                     FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.clone())),
                     FhirPathValue::Quantity { value, unit } => {
-                        Ok(FhirPathValue::String(format!("{} {}", value, unit)))
+                        // Format quantity with quoted unit for proper FHIRPath representation
+                        let formatted_value = if value.fract() == 0.0 {
+                            format!("{:.0}", value)
+                        } else {
+                            value.to_string()
+                        };
+                        Ok(FhirPathValue::String(format!("{} '{}'", formatted_value, unit)))
                     }
                     _ => Ok(FhirPathValue::Empty),
                 }
@@ -6291,16 +7107,33 @@ fn evaluate_to_quantity_function(
             })
         }
         FhirPathValue::String(s) => {
-            // Try to parse string as quantity (e.g., "5.4 'mg'")
-            // For now, simple implementation - just try to parse as number
-            if let Ok(d) = s.parse::<f64>() {
-                Ok(FhirPathValue::Quantity {
-                    value: d,
-                    unit: "1".to_string(),
-                })
+            // Try to parse string as FHIR Quantity using ucum-fhir
+            // First, try to extract numeric value and unit from the string
+            if let Some((value_str, unit_str, _is_quoted)) = parse_quantity_string(&s) {
+                if let Ok(value) = value_str.parse::<f64>() {
+                    // Create a FHIR Quantity and validate it
+                    let fhir_quantity = FhirQuantity::with_ucum_code(value, unit_str);
+                    // Try to convert to UCUM quantity to validate
+                    match fhir_quantity.to_ucum_quantity() {
+                        Ok(_) => Ok(FhirPathValue::Quantity {
+                            value,
+                            unit: unit_str.to_string(),
+                        }),
+                        Err(_) => Ok(FhirPathValue::Empty),
+                    }
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
             } else {
-                // If parsing fails, return empty
-                Ok(FhirPathValue::Empty)
+                // If no unit found, try simple number parsing as fallback
+                if let Ok(d) = s.trim().parse::<f64>() {
+                    Ok(FhirPathValue::Quantity {
+                        value: d,
+                        unit: "1".to_string(), // Default unit for dimensionless quantities
+                    })
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
             }
         }
         FhirPathValue::Quantity { value, unit } => {
@@ -6854,7 +7687,312 @@ fn hex_decode(input: &str) -> Result<String, String> {
     String::from_utf8(result).map_err(|_| "Invalid UTF-8 in decoded hex".to_string())
 }
 
-/// Helper function to check if two values are equal
+/// Helper function to compare quantities with unit conversion
+fn quantities_equal(v1: f64, u1: &str, v2: f64, u2: &str) -> bool {
+    // If units are the same, just compare values
+    if u1 == u2 {
+        return (v1 - v2).abs() < f64::EPSILON;
+    }
+
+    // Try UCUM unit conversion
+    let q1 = FhirQuantity::with_ucum_code(v1, u1);
+    let q2 = FhirQuantity::with_ucum_code(v2, u2);
+
+    match (q1.to_ucum_quantity(), q2.to_ucum_quantity()) {
+        (Ok(ucum1), Ok(ucum2)) => {
+            // Convert UnitExpr to string for comparison
+            let unit1_str = format!("{:?}", ucum1.unit);
+            let unit2_str = format!("{:?}", ucum2.unit);
+
+            // Check for common unit conversions
+            let converted_values = if let Some((converted_v1, converted_v2)) =
+                convert_units_for_comparison(ucum1.value, &unit1_str, ucum2.value, &unit2_str) {
+                Some((converted_v1, converted_v2))
+            } else {
+                None
+            };
+
+            match converted_values {
+                Some((cv1, cv2)) => (cv1 - cv2).abs() < f64::EPSILON,
+                None => false, // Units not compatible
+            }
+        }
+        _ => false, // UCUM conversion failed
+    }
+}
+
+/// Helper function to convert units for comparison
+fn convert_units_for_comparison(v1: f64, u1_str: &str, v2: f64, u2_str: &str) -> Option<(f64, f64)> {
+    // Mass conversions
+    if u1_str.contains("mg") && u2_str.contains("g") && !u2_str.contains("mg") {
+        // Convert mg to g
+        Some((v1 / 1000.0, v2))
+    } else if u1_str.contains("g") && !u1_str.contains("mg") && u2_str.contains("mg") {
+        // Convert g to mg
+        Some((v1 * 1000.0, v2))
+    } else if u1_str.contains("kg") && u2_str.contains("g") && !u2_str.contains("kg") {
+        // Convert kg to g
+        Some((v1 * 1000.0, v2))
+    } else if u1_str.contains("g") && !u1_str.contains("kg") && u2_str.contains("kg") {
+        // Convert g to kg
+        Some((v1 / 1000.0, v2))
+    }
+    // Time conversions
+    else if u1_str.contains("wk") && u2_str.contains("d") && !u2_str.contains("wk") {
+        // Convert weeks to days
+        Some((v1 * 7.0, v2))
+    } else if u1_str.contains("d") && !u1_str.contains("wk") && u2_str.contains("wk") {
+        // Convert days to weeks
+        Some((v1 / 7.0, v2))
+    } else if u1_str.contains("d") && u2_str.contains("h") && !u2_str.contains("d") {
+        // Convert days to hours
+        Some((v1 * 24.0, v2))
+    } else if u1_str.contains("h") && !u1_str.contains("d") && u2_str.contains("d") {
+        // Convert hours to days
+        Some((v1 / 24.0, v2))
+    } else if u1_str.contains("h") && u2_str.contains("min") && !u2_str.contains("h") {
+        // Convert hours to minutes
+        Some((v1 * 60.0, v2))
+    } else if u1_str.contains("min") && !u1_str.contains("h") && u2_str.contains("h") {
+        // Convert minutes to hours
+        Some((v1 / 60.0, v2))
+    } else if u1_str.contains("min") && u2_str.contains("s") && !u2_str.contains("min") {
+        // Convert minutes to seconds
+        Some((v1 * 60.0, v2))
+    } else if u1_str.contains("s") && !u1_str.contains("min") && u2_str.contains("min") {
+        // Convert seconds to minutes
+        Some((v1 / 60.0, v2))
+    }
+    // Length conversions
+    else if u1_str.contains("km") && u2_str.contains("m") && !u2_str.contains("km") {
+        // Convert km to m
+        Some((v1 * 1000.0, v2))
+    } else if u1_str.contains("m") && !u1_str.contains("km") && u2_str.contains("km") {
+        // Convert m to km
+        Some((v1 / 1000.0, v2))
+    } else if u1_str.contains("m") && !u1_str.contains("cm") && u2_str.contains("cm") {
+        // Convert m to cm
+        Some((v1 * 100.0, v2))
+    } else if u1_str.contains("cm") && u2_str.contains("m") && !u2_str.contains("cm") {
+        // Convert cm to m
+        Some((v1 / 100.0, v2))
+    } else if u1_str.contains("cm") && u2_str.contains("mm") {
+        // Convert cm to mm
+        Some((v1 * 10.0, v2))
+    } else if u1_str.contains("mm") && u2_str.contains("cm") {
+        // Convert mm to cm
+        Some((v1 / 10.0, v2))
+    } else {
+        None // Units not compatible
+    }
+}
+
+/// Comparison result for FHIRPath operations
+#[derive(Debug, Clone, PartialEq)]
+enum ComparisonResult {
+    Equal,
+    NotEqual,
+    NotComparable, // Should return empty
+}
+
+/// Helper function to compare two values according to FHIRPath rules
+fn compare_values_fhirpath(left: &FhirPathValue, right: &FhirPathValue) -> ComparisonResult {
+    match (left, right) {
+        (FhirPathValue::Empty, FhirPathValue::Empty) => ComparisonResult::Equal,
+        (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
+            if a == b { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
+            if a == b { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+            if (a - b).abs() < f64::EPSILON { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+            if (*a as f64 - b).abs() < f64::EPSILON { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+            if (a - *b as f64).abs() < f64::EPSILON { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+            if a == b { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
+            if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+            if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
+            if a == b { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+
+        // Cross-type Date/DateTime comparisons - check if they're comparable
+        (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
+            // Date vs DateTime: only comparable if DateTime has no time component or is at start of day
+            let a_clean = a.strip_prefix('@').unwrap_or(a);
+            let b_clean = b.strip_prefix('@').unwrap_or(b);
+
+            #[cfg(feature = "trace")]
+            println!("[DEBUG] Date vs DateTime comparison: '{}' vs '{}'", a_clean, b_clean);
+
+            // If DateTime has time components beyond 00:00:00, they're not comparable
+            if b_clean.contains('T') {
+                let parts: Vec<&str> = b_clean.split('T').collect();
+                if parts.len() == 2 {
+                    let time_part = parts[1];
+                    // Remove timezone for comparison
+                    let time_clean = if let Some(tz_pos) = time_part.find('+') {
+                        &time_part[..tz_pos]
+                    } else if let Some(tz_pos) = time_part.find('-') {
+                        if tz_pos > 2 { &time_part[..tz_pos] } else { time_part }
+                    } else if time_part.ends_with('Z') {
+                        &time_part[..time_part.len() - 1]
+                    } else {
+                        time_part
+                    };
+
+                    #[cfg(feature = "trace")]
+                    println!("[DEBUG] Time part: '{}', time_clean: '{}'", time_part, time_clean);
+
+                    // If time is not 00:00:00 or equivalent, not comparable
+                    if !time_clean.starts_with("00:00:00") && !time_clean.starts_with("00:00") && time_clean != "00" {
+                        #[cfg(feature = "trace")]
+                        println!("[DEBUG] Not comparable - returning NotComparable");
+                        return ComparisonResult::NotComparable;
+                    }
+                }
+            }
+
+            #[cfg(feature = "trace")]
+            println!("[DEBUG] Comparable - checking datetime_equal");
+            if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+        (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
+            // DateTime vs Date: only comparable if DateTime has no time component or is at start of day
+            let a_clean = a.strip_prefix('@').unwrap_or(a);
+            let b_clean = b.strip_prefix('@').unwrap_or(b);
+
+            // If DateTime has time components beyond 00:00:00, they're not comparable
+            if a_clean.contains('T') {
+                let parts: Vec<&str> = a_clean.split('T').collect();
+                if parts.len() == 2 {
+                    let time_part = parts[1];
+                    // Remove timezone for comparison
+                    let time_clean = if let Some(tz_pos) = time_part.find('+') {
+                        &time_part[..tz_pos]
+                    } else if let Some(tz_pos) = time_part.find('-') {
+                        if tz_pos > 2 { &time_part[..tz_pos] } else { time_part }
+                    } else if time_part.ends_with('Z') {
+                        &time_part[..time_part.len() - 1]
+                    } else {
+                        time_part
+                    };
+
+                    // If time is not 00:00:00 or equivalent, not comparable
+                    if !time_clean.starts_with("00:00:00") && !time_clean.starts_with("00:00") && time_clean != "00" {
+                        return ComparisonResult::NotComparable;
+                    }
+                }
+            }
+
+            if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+
+        // String to Date/DateTime comparisons (for FHIR primitive values)
+        (FhirPathValue::String(a), FhirPathValue::Date(b)) => {
+            // Try to parse string as date and compare
+            if is_valid_datetime_string(a) && !a.contains('T') {
+                if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+            } else {
+                ComparisonResult::NotEqual
+            }
+        }
+        (FhirPathValue::Date(a), FhirPathValue::String(b)) => {
+            // Try to parse string as date and compare
+            if is_valid_datetime_string(b) && !b.contains('T') {
+                if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+            } else {
+                ComparisonResult::NotEqual
+            }
+        }
+        (FhirPathValue::String(a), FhirPathValue::DateTime(b)) => {
+            // Try to parse string as datetime and compare
+            if is_valid_datetime_string(a) {
+                // All valid date/datetime strings are comparable
+                // Let datetime_equal handle the precision and timezone logic
+                if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+            } else {
+                ComparisonResult::NotComparable
+            }
+        }
+        (FhirPathValue::DateTime(a), FhirPathValue::String(b)) => {
+            // Try to parse string as datetime and compare
+            if is_valid_datetime_string(b) {
+                if datetime_equal(a, b) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+            } else {
+                ComparisonResult::NotEqual
+            }
+        }
+        (
+            FhirPathValue::Quantity {
+                value: v1,
+                unit: u1,
+            },
+            FhirPathValue::Quantity {
+                value: v2,
+                unit: u2,
+            },
+        ) => {
+            // Use helper function to compare quantities with unit conversion
+            if quantities_equal(*v1, u1, *v2, u2) { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        },
+
+        // Collection comparisons
+        (FhirPathValue::Collection(items1), FhirPathValue::Collection(items2)) => {
+            // Empty collections are equal
+            if items1.is_empty() && items2.is_empty() {
+                return ComparisonResult::Equal;
+            }
+
+            // Different lengths mean not equal
+            if items1.len() != items2.len() {
+                return ComparisonResult::NotEqual;
+            }
+
+            // For collections of the same length, check if all items in items1
+            // have a corresponding equal item in items2 (order-independent)
+            let all_equal = items1.iter().all(|item1| {
+                items2.iter().any(|item2| values_equal(item1, item2))
+            }) && items2.iter().all(|item2| {
+                items1.iter().any(|item1| values_equal(item1, item2))
+            });
+
+            if all_equal { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+
+        // Single value vs collection comparisons
+        (single_value, FhirPathValue::Collection(items)) |
+        (FhirPathValue::Collection(items), single_value) => {
+            // A single value equals a collection if the collection has exactly one item
+            // and that item equals the single value
+            if items.len() == 1 && values_equal(&items[0], single_value) {
+                ComparisonResult::Equal
+            } else {
+                ComparisonResult::NotEqual
+            }
+        }
+
+        // Resource comparisons
+        (FhirPathValue::Resource(r1), FhirPathValue::Resource(r2)) => {
+            if r1.to_json() == r2.to_json() { ComparisonResult::Equal } else { ComparisonResult::NotEqual }
+        }
+
+        _ => ComparisonResult::NotEqual,
+    }
+}
+
+/// Helper function to check if two values are equal (backward compatibility)
 fn values_equal(left: &FhirPathValue, right: &FhirPathValue) -> bool {
     match (left, right) {
         (FhirPathValue::Empty, FhirPathValue::Empty) => true,
@@ -6871,6 +8009,10 @@ fn values_equal(left: &FhirPathValue, right: &FhirPathValue) -> bool {
         (FhirPathValue::Date(a), FhirPathValue::Date(b)) => datetime_equal(a, b),
         (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => datetime_equal(a, b),
         (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a == b,
+
+        // Cross-type Date/DateTime comparisons
+        (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => datetime_equal(a, b),
+        (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => datetime_equal(a, b),
 
         // String to Date/DateTime comparisons (for FHIR primitive values)
         (FhirPathValue::String(a), FhirPathValue::Date(b)) => {
@@ -6914,7 +8056,10 @@ fn values_equal(left: &FhirPathValue, right: &FhirPathValue) -> bool {
                 value: v2,
                 unit: u2,
             },
-        ) => (v1 - v2).abs() < f64::EPSILON && u1 == u2,
+        ) => {
+            // Use helper function to compare quantities with unit conversion
+            quantities_equal(*v1, u1, *v2, u2)
+        },
 
         // Collection comparisons
         (FhirPathValue::Collection(items1), FhirPathValue::Collection(items2)) => {
@@ -6977,14 +8122,14 @@ fn values_equivalent(left: &FhirPathValue, right: &FhirPathValue) -> bool {
             a.to_lowercase() == b.to_lowercase()
         }
 
-        // DateTime equivalence with normalization
-        (FhirPathValue::Date(a), FhirPathValue::Date(b)) => datetime_equal(a, b),
-        (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => datetime_equal(a, b),
+        // DateTime equivalence with precision checking
+        (FhirPathValue::Date(a), FhirPathValue::Date(b)) => datetime_equivalent(a, b),
+        (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => datetime_equivalent(a, b),
         (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a == b,
 
         // Cross-type datetime equivalence
-        (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => datetime_equal(a, b),
-        (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => datetime_equal(a, b),
+        (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => datetime_equivalent(a, b),
+        (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => datetime_equivalent(a, b),
 
         // Quantity equivalence
         (
@@ -6996,7 +8141,10 @@ fn values_equivalent(left: &FhirPathValue, right: &FhirPathValue) -> bool {
                 value: v2,
                 unit: u2,
             },
-        ) => (v1 - v2).abs() < f64::EPSILON && u1 == u2,
+        ) => {
+            // Use helper function to compare quantities with unit conversion
+            quantities_equal(*v1, u1, *v2, u2)
+        },
 
         // Collection equivalence
         (FhirPathValue::Collection(items1), FhirPathValue::Collection(items2)) => {

@@ -1,13 +1,13 @@
 {
   "language": "javascript",
-  "timestamp": 1752867648.132,
+  "timestamp": 1753200288.72,
   "tests": [
     {
       "name": "testExtractBirthDate",
       "description": "Extract birthDate",
       "expression": "birthDate",
       "status": "passed",
-      "execution_time_ms": 7.354625,
+      "execution_time_ms": 6.839792,
       "expected": [
         {
           "type": "date",
@@ -21,7 +21,7 @@
       "description": "patient has a birthDate",
       "expression": "birthDate",
       "status": "passed",
-      "execution_time_ms": 0.500375,
+      "execution_time_ms": 0.449541,
       "expected": [
         {
           "type": "boolean",
@@ -35,7 +35,7 @@
       "description": "patient telecom types",
       "expression": "telecom.use",
       "status": "passed",
-      "execution_time_ms": 1.299458,
+      "execution_time_ms": 1.194459,
       "expected": [
         {
           "type": "code",
@@ -61,7 +61,7 @@
       "description": "testSimple",
       "expression": "name.given",
       "status": "passed",
-      "execution_time_ms": 0.448417,
+      "execution_time_ms": 0.470125,
       "expected": [
         {
           "type": "string",
@@ -91,7 +91,7 @@
       "description": "testSimpleNone",
       "expression": "name.suffix",
       "status": "passed",
-      "execution_time_ms": 0.376625,
+      "execution_time_ms": 0.495375,
       "expected": [],
       "actual": []
     },
@@ -100,7 +100,7 @@
       "description": "testEscapedIdentifier",
       "expression": "name.`given`",
       "status": "passed",
-      "execution_time_ms": 1.050791,
+      "execution_time_ms": 1.105583,
       "expected": [
         {
           "type": "string",
@@ -130,7 +130,7 @@
       "description": "testSimpleBackTick1",
       "expression": "`Patient`.name.`given`",
       "status": "passed",
-      "execution_time_ms": 0.550083,
+      "execution_time_ms": 0.61775,
       "expected": [
         {
           "type": "string",
@@ -179,7 +179,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.05375,
+      "execution_time_ms": 0.059041,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -189,7 +189,7 @@
       "description": "testSimpleWithContext",
       "expression": "Patient.name.given",
       "status": "passed",
-      "execution_time_ms": 0.261417,
+      "execution_time_ms": 0.249,
       "expected": [
         {
           "type": "string",
@@ -238,7 +238,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.021833,
+      "execution_time_ms": 0.024167,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -248,7 +248,7 @@
       "description": "testPolymorphismA",
       "expression": "Observation.value.unit",
       "status": "passed",
-      "execution_time_ms": 0.532375,
+      "execution_time_ms": 0.671708,
       "expected": [
         {
           "type": "string",
@@ -265,7 +265,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.02225,
+      "execution_time_ms": 0.030875,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -275,7 +275,7 @@
       "description": "testPolymorphismIsA1",
       "expression": "Observation.value.is(Quantity)",
       "status": "passed",
-      "execution_time_ms": 1.899166,
+      "execution_time_ms": 2.405541,
       "expected": [
         {
           "type": "boolean",
@@ -289,7 +289,7 @@
       "description": "testPolymorphismIsA2",
       "expression": "Observation.value is Quantity",
       "status": "passed",
-      "execution_time_ms": 0.69975,
+      "execution_time_ms": 0.9065,
       "expected": [
         {
           "type": "boolean",
@@ -303,7 +303,7 @@
       "description": "testPolymorphismIsA3",
       "expression": "Observation.issued is instant",
       "status": "error",
-      "execution_time_ms": 0.271708,
+      "execution_time_ms": 0.315709,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'availableTypes')"
@@ -313,7 +313,7 @@
       "description": "testPolymorphismIsB",
       "expression": "Observation.value.is(Period).not()",
       "status": "error",
-      "execution_time_ms": 0.251834,
+      "execution_time_ms": 0.286917,
       "expected": [
         {
           "type": "boolean",
@@ -328,7 +328,7 @@
       "description": "testPolymorphismAsA",
       "expression": "Observation.value.as(Quantity).unit",
       "status": "passed",
-      "execution_time_ms": 0.421958,
+      "execution_time_ms": 0.489792,
       "expected": [
         {
           "type": "string",
@@ -342,7 +342,7 @@
       "description": "testPolymorphismAsAFunction",
       "expression": "(Observation.value as Quantity).unit",
       "status": "passed",
-      "execution_time_ms": 0.376458,
+      "execution_time_ms": 0.638666,
       "expected": [
         {
           "type": "string",
@@ -359,7 +359,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.026375,
+      "execution_time_ms": 0.05575,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -369,7 +369,7 @@
       "description": "testPolymorphismAsBFunction",
       "expression": "Observation.value.as(Period).start",
       "status": "error",
-      "execution_time_ms": 0.2395,
+      "execution_time_ms": 0.35925,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'availableTypes')"
@@ -379,7 +379,7 @@
       "description": "testDollarThis1",
       "expression": "Patient.name.given.where(substring($this.length()-3) = 'out')",
       "status": "error",
-      "execution_time_ms": 2.851208,
+      "execution_time_ms": 4.366667,
       "expected": [],
       "actual": null,
       "error": "Expected string, but got: [\"{\\\"value\\\":\\\"Peter\\\"}\"]"
@@ -389,7 +389,7 @@
       "description": "testDollarThis2",
       "expression": "Patient.name.given.where(substring($this.length()-3) = 'ter')",
       "status": "error",
-      "execution_time_ms": 0.762417,
+      "execution_time_ms": 0.969625,
       "expected": [
         {
           "type": "string",
@@ -408,7 +408,7 @@
       "description": "testDollarOrderAllowed",
       "expression": "Patient.name.skip(1).given",
       "status": "passed",
-      "execution_time_ms": 0.585958,
+      "execution_time_ms": 0.692333,
       "expected": [
         {
           "type": "string",
@@ -440,7 +440,7 @@
       "description": "testDollarOrderAllowedA",
       "expression": "Patient.name.skip(3).given",
       "status": "passed",
-      "execution_time_ms": 0.507833,
+      "execution_time_ms": 1.022958,
       "expected": [],
       "actual": []
     },
@@ -452,7 +452,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.033,
+      "execution_time_ms": 0.078167,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -462,7 +462,7 @@
       "description": "testLiteralTrue",
       "expression": "Patient.name.exists() = true",
       "status": "passed",
-      "execution_time_ms": 0.528333,
+      "execution_time_ms": 0.848666,
       "expected": [
         {
           "type": "boolean",
@@ -478,7 +478,7 @@
       "description": "testLiteralFalse",
       "expression": "Patient.name.empty() = false",
       "status": "passed",
-      "execution_time_ms": 0.333583,
+      "execution_time_ms": 0.502625,
       "expected": [
         {
           "type": "boolean",
@@ -494,7 +494,7 @@
       "description": "testLiteralString",
       "expression": "Patient.name.given.first() = 'Peter'",
       "status": "passed",
-      "execution_time_ms": 0.515208,
+      "execution_time_ms": 0.666542,
       "expected": [
         {
           "type": "boolean",
@@ -510,7 +510,7 @@
       "description": "testLiteralInteger1",
       "expression": "1.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.911375,
+      "execution_time_ms": 1.054458,
       "expected": [
         {
           "type": "boolean",
@@ -526,7 +526,7 @@
       "description": "testLiteralInteger0",
       "expression": "0.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.338875,
+      "execution_time_ms": 0.418666,
       "expected": [
         {
           "type": "boolean",
@@ -542,7 +542,7 @@
       "description": "testLiteralIntegerNegative1",
       "expression": "(-1).convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.6495,
+      "execution_time_ms": 1.282209,
       "expected": [
         {
           "type": "boolean",
@@ -561,7 +561,7 @@
         "invalid": "true"
       },
       "status": "error",
-      "execution_time_ms": 0.030708,
+      "execution_time_ms": 0.061,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -571,7 +571,7 @@
       "description": "testLiteralIntegerMax",
       "expression": "2147483647.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.411459,
+      "execution_time_ms": 0.776917,
       "expected": [
         {
           "type": "boolean",
@@ -587,7 +587,7 @@
       "description": "testLiteralString",
       "expression": "'test'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.221167,
+      "execution_time_ms": 0.483542,
       "expected": [
         {
           "type": "boolean",
@@ -603,7 +603,7 @@
       "description": "testLiteralStringEscapes",
       "expression": "'\\\\\\/\\f\\r\\n\\t\\\"\\`\\'\\u002a'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.681458,
+      "execution_time_ms": 0.869083,
       "expected": [
         {
           "type": "boolean",
@@ -619,7 +619,7 @@
       "description": "testLiteralBooleanTrue",
       "expression": "true.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.201333,
+      "execution_time_ms": 0.387958,
       "expected": [
         {
           "type": "boolean",
@@ -635,7 +635,7 @@
       "description": "testLiteralBooleanFalse",
       "expression": "false.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.171792,
+      "execution_time_ms": 0.240959,
       "expected": [
         {
           "type": "boolean",
@@ -651,7 +651,7 @@
       "description": "testLiteralDecimal10",
       "expression": "1.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.4985,
+      "execution_time_ms": 0.893791,
       "expected": [
         {
           "type": "boolean",
@@ -667,7 +667,7 @@
       "description": "testLiteralDecimal01",
       "expression": "0.1.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.603,
+      "execution_time_ms": 1.434958,
       "expected": [
         {
           "type": "boolean",
@@ -683,7 +683,7 @@
       "description": "testLiteralDecimal00",
       "expression": "0.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.40825,
+      "execution_time_ms": 0.426667,
       "expected": [
         {
           "type": "boolean",
@@ -699,7 +699,7 @@
       "description": "testLiteralDecimalNegative01",
       "expression": "(-0.1).convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.431709,
+      "execution_time_ms": 0.637958,
       "expected": [
         {
           "type": "boolean",
@@ -718,7 +718,7 @@
         "invalid": "true"
       },
       "status": "error",
-      "execution_time_ms": 0.059791,
+      "execution_time_ms": 0.101,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -728,7 +728,7 @@
       "description": "testLiteralDecimalMax",
       "expression": "1234567890987654321.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.375667,
+      "execution_time_ms": 0.50275,
       "expected": [
         {
           "type": "boolean",
@@ -744,7 +744,7 @@
       "description": "testLiteralDecimalStep",
       "expression": "0.00000001.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.333375,
+      "execution_time_ms": 0.360416,
       "expected": [
         {
           "type": "boolean",
@@ -760,7 +760,7 @@
       "description": "testLiteralDateYear",
       "expression": "@2015.is(Date)",
       "status": "passed",
-      "execution_time_ms": 0.53925,
+      "execution_time_ms": 0.782042,
       "expected": [
         {
           "type": "boolean",
@@ -776,7 +776,7 @@
       "description": "testLiteralDateMonth",
       "expression": "@2015-02.is(Date)",
       "status": "passed",
-      "execution_time_ms": 0.260833,
+      "execution_time_ms": 0.302125,
       "expected": [
         {
           "type": "boolean",
@@ -792,7 +792,7 @@
       "description": "testLiteralDateDay",
       "expression": "@2015-02-04.is(Date)",
       "status": "passed",
-      "execution_time_ms": 0.217791,
+      "execution_time_ms": 0.248,
       "expected": [
         {
           "type": "boolean",
@@ -808,7 +808,7 @@
       "description": "testLiteralDateTimeYear",
       "expression": "@2015T.is(DateTime)",
       "status": "error",
-      "execution_time_ms": 0.703916,
+      "execution_time_ms": 0.743875,
       "expected": [
         {
           "type": "boolean",
@@ -823,7 +823,7 @@
       "description": "testLiteralDateTimeMonth",
       "expression": "@2015-02T.is(DateTime)",
       "status": "error",
-      "execution_time_ms": 0.261875,
+      "execution_time_ms": 0.278709,
       "expected": [
         {
           "type": "boolean",
@@ -838,7 +838,7 @@
       "description": "testLiteralDateTimeDay",
       "expression": "@2015-02-04T.is(DateTime)",
       "status": "error",
-      "execution_time_ms": 0.2025,
+      "execution_time_ms": 0.213959,
       "expected": [
         {
           "type": "boolean",
@@ -853,7 +853,7 @@
       "description": "testLiteralDateTimeHour",
       "expression": "@2015-02-04T14.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.2305,
+      "execution_time_ms": 0.241291,
       "expected": [
         {
           "type": "boolean",
@@ -869,7 +869,7 @@
       "description": "testLiteralDateTimeMinute",
       "expression": "@2015-02-04T14:34.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.272292,
+      "execution_time_ms": 0.332834,
       "expected": [
         {
           "type": "boolean",
@@ -885,7 +885,7 @@
       "description": "testLiteralDateTimeSecond",
       "expression": "@2015-02-04T14:34:28.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.242292,
+      "execution_time_ms": 0.398959,
       "expected": [
         {
           "type": "boolean",
@@ -901,7 +901,7 @@
       "description": "testLiteralDateTimeMillisecond",
       "expression": "@2015-02-04T14:34:28.123.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.239625,
+      "execution_time_ms": 0.295375,
       "expected": [
         {
           "type": "boolean",
@@ -917,7 +917,7 @@
       "description": "testLiteralDateTimeUTC",
       "expression": "@2015-02-04T14:34:28Z.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.19075,
+      "execution_time_ms": 0.261041,
       "expected": [
         {
           "type": "boolean",
@@ -933,7 +933,7 @@
       "description": "testLiteralDateTimeTimezoneOffset",
       "expression": "@2015-02-04T14:34:28+10:00.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 0.279167,
+      "execution_time_ms": 0.31325,
       "expected": [
         {
           "type": "boolean",
@@ -949,7 +949,7 @@
       "description": "testLiteralTimeHour",
       "expression": "@T14.is(Time)",
       "status": "passed",
-      "execution_time_ms": 0.368625,
+      "execution_time_ms": 0.376417,
       "expected": [
         {
           "type": "boolean",
@@ -965,7 +965,7 @@
       "description": "testLiteralTimeMinute",
       "expression": "@T14:34.is(Time)",
       "status": "passed",
-      "execution_time_ms": 0.203958,
+      "execution_time_ms": 0.217166,
       "expected": [
         {
           "type": "boolean",
@@ -981,7 +981,7 @@
       "description": "testLiteralTimeSecond",
       "expression": "@T14:34:28.is(Time)",
       "status": "passed",
-      "execution_time_ms": 0.227459,
+      "execution_time_ms": 0.49825,
       "expected": [
         {
           "type": "boolean",
@@ -997,7 +997,7 @@
       "description": "testLiteralTimeMillisecond",
       "expression": "@T14:34:28.123.is(Time)",
       "status": "passed",
-      "execution_time_ms": 0.212792,
+      "execution_time_ms": 0.350041,
       "expected": [
         {
           "type": "boolean",
@@ -1016,7 +1016,7 @@
         "invalid": "true"
       },
       "status": "error",
-      "execution_time_ms": 0.034042,
+      "execution_time_ms": 0.04575,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -1029,7 +1029,7 @@
         "invalid": "true"
       },
       "status": "error",
-      "execution_time_ms": 0.017625,
+      "execution_time_ms": 0.01975,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -1039,7 +1039,7 @@
       "description": "testLiteralQuantityDecimal",
       "expression": "10.1 'mg'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.718,
+      "execution_time_ms": 1.718209,
       "expected": [
         {
           "type": "boolean",
@@ -1055,7 +1055,7 @@
       "description": "testLiteralQuantityInteger",
       "expression": "10 'mg'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.175375,
+      "execution_time_ms": 0.282375,
       "expected": [
         {
           "type": "boolean",
@@ -1071,7 +1071,7 @@
       "description": "testLiteralQuantityDay",
       "expression": "4 days.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.36475,
+      "execution_time_ms": 0.581333,
       "expected": [
         {
           "type": "boolean",
@@ -1087,7 +1087,7 @@
       "description": "testLiteralIntegerNotEqual",
       "expression": "-3 != 3",
       "status": "passed",
-      "execution_time_ms": 0.858458,
+      "execution_time_ms": 3.136458,
       "expected": [
         {
           "type": "boolean",
@@ -1103,7 +1103,7 @@
       "description": "testLiteralIntegerEqual",
       "expression": "Patient.name.given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.571875,
+      "execution_time_ms": 0.582583,
       "expected": [
         {
           "type": "boolean",
@@ -1119,7 +1119,7 @@
       "description": "testPolarityPrecedence",
       "expression": "-Patient.name.given.count() = -5",
       "status": "passed",
-      "execution_time_ms": 2.144041,
+      "execution_time_ms": 0.477959,
       "expected": [
         {
           "type": "boolean",
@@ -1135,7 +1135,7 @@
       "description": "testLiteralIntegerGreaterThan",
       "expression": "Patient.name.given.count() > -3",
       "status": "passed",
-      "execution_time_ms": 1.026375,
+      "execution_time_ms": 0.743958,
       "expected": [
         {
           "type": "boolean",
@@ -1151,7 +1151,7 @@
       "description": "testLiteralIntegerCountNotEqual",
       "expression": "Patient.name.given.count() != 0",
       "status": "passed",
-      "execution_time_ms": 0.514291,
+      "execution_time_ms": 0.411334,
       "expected": [
         {
           "type": "boolean",
@@ -1167,7 +1167,7 @@
       "description": "testLiteralIntegerLessThanTrue",
       "expression": "1 < 2",
       "status": "passed",
-      "execution_time_ms": 2.182542,
+      "execution_time_ms": 0.726167,
       "expected": [
         {
           "type": "boolean",
@@ -1183,7 +1183,7 @@
       "description": "testLiteralIntegerLessThanFalse",
       "expression": "1 < -2",
       "status": "passed",
-      "execution_time_ms": 0.470042,
+      "execution_time_ms": 0.431916,
       "expected": [
         {
           "type": "boolean",
@@ -1199,7 +1199,7 @@
       "description": "testLiteralIntegerLessThanPolarityTrue",
       "expression": "+1 < +2",
       "status": "passed",
-      "execution_time_ms": 0.412708,
+      "execution_time_ms": 0.435167,
       "expected": [
         {
           "type": "boolean",
@@ -1215,7 +1215,7 @@
       "description": "testLiteralIntegerLessThanPolarityFalse",
       "expression": "-1 < 2",
       "status": "passed",
-      "execution_time_ms": 0.367666,
+      "execution_time_ms": 0.3945,
       "expected": [
         {
           "type": "boolean",
@@ -1231,7 +1231,7 @@
       "description": "testLiteralDecimalGreaterThanNonZeroTrue",
       "expression": "Observation.value.value > 180.0",
       "status": "passed",
-      "execution_time_ms": 0.311083,
+      "execution_time_ms": 0.286959,
       "expected": [
         {
           "type": "boolean",
@@ -1245,7 +1245,7 @@
       "description": "testLiteralDecimalGreaterThanZeroTrue",
       "expression": "Observation.value.value > 0.0",
       "status": "passed",
-      "execution_time_ms": 0.2435,
+      "execution_time_ms": 0.248375,
       "expected": [
         {
           "type": "boolean",
@@ -1259,7 +1259,7 @@
       "description": "testLiteralDecimalGreaterThanIntegerTrue",
       "expression": "Observation.value.value > 0",
       "status": "passed",
-      "execution_time_ms": 0.239334,
+      "execution_time_ms": 0.240792,
       "expected": [
         {
           "type": "boolean",
@@ -1273,7 +1273,7 @@
       "description": "testLiteralDecimalLessThanInteger",
       "expression": "Observation.value.value < 190",
       "status": "passed",
-      "execution_time_ms": 0.303333,
+      "execution_time_ms": 0.293833,
       "expected": [
         {
           "type": "boolean",
@@ -1290,7 +1290,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.050584,
+      "execution_time_ms": 0.040875,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -1300,7 +1300,7 @@
       "description": "testDateEqual",
       "expression": "Patient.birthDate = @1974-12-25",
       "status": "passed",
-      "execution_time_ms": 0.257333,
+      "execution_time_ms": 0.26625,
       "expected": [
         {
           "type": "boolean",
@@ -1316,7 +1316,7 @@
       "description": "testDateNotEqual",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00",
       "status": "passed",
-      "execution_time_ms": 0.206417,
+      "execution_time_ms": 0.224959,
       "expected": [],
       "actual": [
         true
@@ -1327,7 +1327,7 @@
       "description": "testDateNotEqualTimezoneOffsetBefore",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00-10:00",
       "status": "passed",
-      "execution_time_ms": 0.164959,
+      "execution_time_ms": 0.173208,
       "expected": [
         {
           "type": "boolean",
@@ -1343,7 +1343,7 @@
       "description": "testDateNotEqualTimezoneOffsetAfter",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00+10:00",
       "status": "passed",
-      "execution_time_ms": 0.173625,
+      "execution_time_ms": 0.178125,
       "expected": [
         {
           "type": "boolean",
@@ -1359,7 +1359,7 @@
       "description": "testDateNotEqualUTC",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00Z",
       "status": "passed",
-      "execution_time_ms": 0.168167,
+      "execution_time_ms": 0.166792,
       "expected": [
         {
           "type": "boolean",
@@ -1375,7 +1375,7 @@
       "description": "testDateNotEqualTimeSecond",
       "expression": "Patient.birthDate != @T12:14:15",
       "status": "passed",
-      "execution_time_ms": 0.199833,
+      "execution_time_ms": 0.195041,
       "expected": [
         {
           "type": "boolean",
@@ -1391,7 +1391,7 @@
       "description": "testDateNotEqualTimeMinute",
       "expression": "Patient.birthDate != @T12:14",
       "status": "passed",
-      "execution_time_ms": 0.157208,
+      "execution_time_ms": 0.150917,
       "expected": [
         {
           "type": "boolean",
@@ -1407,7 +1407,7 @@
       "description": "testDateNotEqualToday",
       "expression": "Patient.birthDate < today()",
       "status": "error",
-      "execution_time_ms": 1.026709,
+      "execution_time_ms": 0.99475,
       "expected": [
         {
           "type": "boolean",
@@ -1421,7 +1421,7 @@
       "description": "testDateTimeGreaterThanDate",
       "expression": "now() > Patient.birthDate",
       "status": "error",
-      "execution_time_ms": 0.235291,
+      "execution_time_ms": 0.322333,
       "expected": [
         {
           "type": "boolean",
@@ -1435,7 +1435,7 @@
       "description": "testLiteralDateTimeTZGreater",
       "expression": "@2017-11-05T01:30:00.0-04:00 > @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 0.573459,
+      "execution_time_ms": 0.649375,
       "expected": [
         {
           "type": "boolean",
@@ -1451,7 +1451,7 @@
       "description": "testLiteralDateTimeTZLess",
       "expression": "@2017-11-05T01:30:00.0-04:00 < @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 0.180417,
+      "execution_time_ms": 0.188708,
       "expected": [
         {
           "type": "boolean",
@@ -1467,7 +1467,7 @@
       "description": "testLiteralDateTimeTZEqualFalse",
       "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 0.199,
+      "execution_time_ms": 0.200292,
       "expected": [
         {
           "type": "boolean",
@@ -1483,7 +1483,7 @@
       "description": "testLiteralDateTimeTZEqualTrue",
       "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 0.172334,
+      "execution_time_ms": 0.1735,
       "expected": [
         {
           "type": "boolean",
@@ -1499,7 +1499,7 @@
       "description": "testLiteralUnicode",
       "expression": "Patient.name.given.first() = 'P\\u0065ter'",
       "status": "passed",
-      "execution_time_ms": 0.269417,
+      "execution_time_ms": 0.277458,
       "expected": [
         {
           "type": "boolean",
@@ -1515,7 +1515,7 @@
       "description": "testCollectionNotEmpty",
       "expression": "Patient.name.given.empty().not()",
       "status": "passed",
-      "execution_time_ms": 0.1955,
+      "execution_time_ms": 0.20675,
       "expected": [
         {
           "type": "boolean",
@@ -1531,7 +1531,7 @@
       "description": "testCollectionNotEqualEmpty",
       "expression": "Patient.name.given != {}",
       "status": "passed",
-      "execution_time_ms": 0.265625,
+      "execution_time_ms": 0.269208,
       "expected": [],
       "actual": []
     },
@@ -1540,7 +1540,7 @@
       "description": "testExpressions",
       "expression": "Patient.name.select(given | family).distinct()",
       "status": "passed",
-      "execution_time_ms": 0.822709,
+      "execution_time_ms": 0.84075,
       "expected": [
         {
           "type": "string",
@@ -1586,7 +1586,7 @@
       "description": "testExpressionsEqual",
       "expression": "Patient.name.given.count() = 1 + 4",
       "status": "passed",
-      "execution_time_ms": 0.853292,
+      "execution_time_ms": 0.839292,
       "expected": [
         {
           "type": "boolean",
@@ -1602,7 +1602,7 @@
       "description": "testNotEmpty",
       "expression": "Patient.name.empty().not()",
       "status": "passed",
-      "execution_time_ms": 0.182875,
+      "execution_time_ms": 0.185792,
       "expected": [
         {
           "type": "boolean",
@@ -1618,7 +1618,7 @@
       "description": "testEmpty",
       "expression": "Patient.link.empty()",
       "status": "passed",
-      "execution_time_ms": 0.168208,
+      "execution_time_ms": 0.163791,
       "expected": [
         {
           "type": "boolean",
@@ -1634,7 +1634,7 @@
       "description": "testLiteralNotTrue",
       "expression": "true.not() = false",
       "status": "passed",
-      "execution_time_ms": 0.179959,
+      "execution_time_ms": 0.182708,
       "expected": [
         {
           "type": "boolean",
@@ -1650,7 +1650,7 @@
       "description": "testLiteralNotFalse",
       "expression": "false.not() = true",
       "status": "passed",
-      "execution_time_ms": 0.162542,
+      "execution_time_ms": 0.162709,
       "expected": [
         {
           "type": "boolean",
@@ -1666,7 +1666,7 @@
       "description": "testIntegerBooleanNotTrue",
       "expression": "(0).not() = true",
       "status": "passed",
-      "execution_time_ms": 0.377208,
+      "execution_time_ms": 0.407416,
       "expected": [
         {
           "type": "boolean",
@@ -1682,7 +1682,7 @@
       "description": "testIntegerBooleanNotFalse",
       "expression": "(1).not() = false",
       "status": "passed",
-      "execution_time_ms": 0.322666,
+      "execution_time_ms": 0.343417,
       "expected": [
         {
           "type": "boolean",
@@ -1701,7 +1701,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.035875,
+      "execution_time_ms": 0.04425,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -1711,7 +1711,7 @@
       "description": "testStringYearConvertsToDate",
       "expression": "'2015'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 0.258833,
+      "execution_time_ms": 0.301625,
       "expected": [
         {
           "type": "boolean",
@@ -1727,7 +1727,7 @@
       "description": "testStringMonthConvertsToDate",
       "expression": "'2015-02'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 0.193791,
+      "execution_time_ms": 0.19225,
       "expected": [
         {
           "type": "boolean",
@@ -1743,7 +1743,7 @@
       "description": "testStringDayConvertsToDate",
       "expression": "'2015-02-04'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 0.1525,
+      "execution_time_ms": 0.16025,
       "expected": [
         {
           "type": "boolean",
@@ -1759,7 +1759,7 @@
       "description": "testStringYearConvertsToDateTime",
       "expression": "'2015'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.146625,
+      "execution_time_ms": 0.157583,
       "expected": [
         {
           "type": "boolean",
@@ -1775,7 +1775,7 @@
       "description": "testStringMonthConvertsToDateTime",
       "expression": "'2015-02'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.137458,
+      "execution_time_ms": 0.217792,
       "expected": [
         {
           "type": "boolean",
@@ -1791,7 +1791,7 @@
       "description": "testStringDayConvertsToDateTime",
       "expression": "'2015-02-04'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.153333,
+      "execution_time_ms": 0.148333,
       "expected": [
         {
           "type": "boolean",
@@ -1807,7 +1807,7 @@
       "description": "testStringHourConvertsToDateTime",
       "expression": "'2015-02-04T14'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.147292,
+      "execution_time_ms": 0.16225,
       "expected": [
         {
           "type": "boolean",
@@ -1823,7 +1823,7 @@
       "description": "testStringMinuteConvertsToDateTime",
       "expression": "'2015-02-04T14:34'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.168209,
+      "execution_time_ms": 0.163208,
       "expected": [
         {
           "type": "boolean",
@@ -1839,7 +1839,7 @@
       "description": "testStringSecondConvertsToDateTime",
       "expression": "'2015-02-04T14:34:28'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.159083,
+      "execution_time_ms": 0.151167,
       "expected": [
         {
           "type": "boolean",
@@ -1855,7 +1855,7 @@
       "description": "testStringMillisecondConvertsToDateTime",
       "expression": "'2015-02-04T14:34:28.123'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.15425,
+      "execution_time_ms": 0.153542,
       "expected": [
         {
           "type": "boolean",
@@ -1871,7 +1871,7 @@
       "description": "testStringUTCConvertsToDateTime",
       "expression": "'2015-02-04T14:34:28Z'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.162791,
+      "execution_time_ms": 0.184709,
       "expected": [
         {
           "type": "boolean",
@@ -1887,7 +1887,7 @@
       "description": "testStringTZConvertsToDateTime",
       "expression": "'2015-02-04T14:34:28+10:00'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 0.259584,
+      "execution_time_ms": 0.219583,
       "expected": [
         {
           "type": "boolean",
@@ -1903,7 +1903,7 @@
       "description": "testStringHourConvertsToTime",
       "expression": "'14'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 0.202542,
+      "execution_time_ms": 0.296083,
       "expected": [
         {
           "type": "boolean",
@@ -1919,7 +1919,7 @@
       "description": "testStringMinuteConvertsToTime",
       "expression": "'14:34'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 0.178166,
+      "execution_time_ms": 0.218541,
       "expected": [
         {
           "type": "boolean",
@@ -1935,7 +1935,7 @@
       "description": "testStringSecondConvertsToTime",
       "expression": "'14:34:28'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 0.133417,
+      "execution_time_ms": 0.162209,
       "expected": [
         {
           "type": "boolean",
@@ -1951,7 +1951,7 @@
       "description": "testStringMillisecondConvertsToTime",
       "expression": "'14:34:28.123'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 0.148666,
+      "execution_time_ms": 0.172542,
       "expected": [
         {
           "type": "boolean",
@@ -1967,7 +1967,7 @@
       "description": "testIntegerLiteralConvertsToInteger",
       "expression": "1.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.270542,
+      "execution_time_ms": 0.350625,
       "expected": [
         {
           "type": "boolean",
@@ -1983,7 +1983,7 @@
       "description": "testIntegerLiteralIsInteger",
       "expression": "1.is(Integer)",
       "status": "passed",
-      "execution_time_ms": 0.319792,
+      "execution_time_ms": 0.334417,
       "expected": [
         {
           "type": "boolean",
@@ -1999,7 +1999,7 @@
       "description": "testIntegerLiteralIsSystemInteger",
       "expression": "1.is(System.Integer)",
       "status": "passed",
-      "execution_time_ms": 0.315292,
+      "execution_time_ms": 0.326666,
       "expected": [
         {
           "type": "boolean",
@@ -2015,7 +2015,7 @@
       "description": "testStringLiteralConvertsToInteger",
       "expression": "'1'.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.162709,
+      "execution_time_ms": 0.173167,
       "expected": [
         {
           "type": "boolean",
@@ -2031,7 +2031,7 @@
       "description": "testStringLiteralConvertsToIntegerFalse",
       "expression": "'a'.convertsToInteger().not()",
       "status": "passed",
-      "execution_time_ms": 0.185125,
+      "execution_time_ms": 0.200542,
       "expected": [
         {
           "type": "boolean",
@@ -2047,7 +2047,7 @@
       "description": "testStringDecimalConvertsToIntegerFalse",
       "expression": "'1.0'.convertsToInteger().not()",
       "status": "passed",
-      "execution_time_ms": 0.158042,
+      "execution_time_ms": 0.159041,
       "expected": [
         {
           "type": "boolean",
@@ -2063,7 +2063,7 @@
       "description": "testStringLiteralIsNotInteger",
       "expression": "'1'.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 0.178791,
+      "execution_time_ms": 0.183208,
       "expected": [
         {
           "type": "boolean",
@@ -2079,7 +2079,7 @@
       "description": "testBooleanLiteralConvertsToInteger",
       "expression": "true.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 0.143958,
+      "execution_time_ms": 0.150291,
       "expected": [
         {
           "type": "boolean",
@@ -2095,7 +2095,7 @@
       "description": "testBooleanLiteralIsNotInteger",
       "expression": "true.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 0.199208,
+      "execution_time_ms": 0.204875,
       "expected": [
         {
           "type": "boolean",
@@ -2111,7 +2111,7 @@
       "description": "testDateIsNotInteger",
       "expression": "@2013-04-05.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 0.217042,
+      "execution_time_ms": 0.267208,
       "expected": [
         {
           "type": "boolean",
@@ -2127,7 +2127,7 @@
       "description": "testIntegerLiteralToInteger",
       "expression": "1.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 0.347084,
+      "execution_time_ms": 0.356208,
       "expected": [
         {
           "type": "boolean",
@@ -2143,7 +2143,7 @@
       "description": "testStringIntegerLiteralToInteger",
       "expression": "'1'.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 0.302084,
+      "execution_time_ms": 0.293541,
       "expected": [
         {
           "type": "boolean",
@@ -2159,7 +2159,7 @@
       "description": "testDecimalLiteralToInteger",
       "expression": "'1.1'.toInteger() = {}",
       "status": "passed",
-      "execution_time_ms": 0.175125,
+      "execution_time_ms": 0.178959,
       "expected": [],
       "actual": []
     },
@@ -2168,7 +2168,7 @@
       "description": "testDecimalLiteralToIntegerIsEmpty",
       "expression": "'1.1'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 0.158417,
+      "execution_time_ms": 0.156333,
       "expected": [
         {
           "type": "boolean",
@@ -2184,7 +2184,7 @@
       "description": "testBooleanLiteralToInteger",
       "expression": "true.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 0.24375,
+      "execution_time_ms": 0.271417,
       "expected": [
         {
           "type": "boolean",
@@ -2200,7 +2200,7 @@
       "description": "testIntegerLiteralConvertsToDecimal",
       "expression": "1.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.259917,
+      "execution_time_ms": 0.218875,
       "expected": [
         {
           "type": "boolean",
@@ -2216,7 +2216,7 @@
       "description": "testIntegerLiteralIsNotDecimal",
       "expression": "1.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 0.254208,
+      "execution_time_ms": 0.257875,
       "expected": [
         {
           "type": "boolean",
@@ -2232,7 +2232,7 @@
       "description": "testDecimalLiteralConvertsToDecimal",
       "expression": "1.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.238666,
+      "execution_time_ms": 0.216459,
       "expected": [
         {
           "type": "boolean",
@@ -2248,7 +2248,7 @@
       "description": "testDecimalLiteralIsDecimal",
       "expression": "1.0.is(Decimal)",
       "status": "passed",
-      "execution_time_ms": 0.233917,
+      "execution_time_ms": 0.224959,
       "expected": [
         {
           "type": "boolean",
@@ -2264,7 +2264,7 @@
       "description": "testStringIntegerLiteralConvertsToDecimal",
       "expression": "'1'.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.162167,
+      "execution_time_ms": 0.16625,
       "expected": [
         {
           "type": "boolean",
@@ -2280,7 +2280,7 @@
       "description": "testStringIntegerLiteralIsNotDecimal",
       "expression": "'1'.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 0.176792,
+      "execution_time_ms": 0.171125,
       "expected": [
         {
           "type": "boolean",
@@ -2296,7 +2296,7 @@
       "description": "testStringLiteralConvertsToDecimalFalse",
       "expression": "'1.a'.convertsToDecimal().not()",
       "status": "passed",
-      "execution_time_ms": 0.171958,
+      "execution_time_ms": 0.174875,
       "expected": [
         {
           "type": "boolean",
@@ -2312,7 +2312,7 @@
       "description": "testStringDecimalLiteralConvertsToDecimal",
       "expression": "'1.0'.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.1355,
+      "execution_time_ms": 0.138334,
       "expected": [
         {
           "type": "boolean",
@@ -2328,7 +2328,7 @@
       "description": "testStringDecimalLiteralIsNotDecimal",
       "expression": "'1.0'.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 0.166084,
+      "execution_time_ms": 0.193125,
       "expected": [
         {
           "type": "boolean",
@@ -2344,7 +2344,7 @@
       "description": "testBooleanLiteralConvertsToDecimal",
       "expression": "true.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 0.137334,
+      "execution_time_ms": 0.160417,
       "expected": [
         {
           "type": "boolean",
@@ -2360,7 +2360,7 @@
       "description": "testBooleanLiteralIsNotDecimal",
       "expression": "true.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 0.167291,
+      "execution_time_ms": 0.160708,
       "expected": [
         {
           "type": "boolean",
@@ -2376,7 +2376,7 @@
       "description": "testIntegerLiteralToDecimal",
       "expression": "1.toDecimal() = 1.0",
       "status": "passed",
-      "execution_time_ms": 0.367833,
+      "execution_time_ms": 1.985375,
       "expected": [
         {
           "type": "boolean",
@@ -2392,7 +2392,7 @@
       "description": "testIntegerLiteralToDeciamlEquivalent",
       "expression": "1.toDecimal() ~ 1.0",
       "status": "passed",
-      "execution_time_ms": 0.685292,
+      "execution_time_ms": 0.6635,
       "expected": [
         {
           "type": "boolean",
@@ -2408,7 +2408,7 @@
       "description": "testDecimalLiteralToDecimal",
       "expression": "1.0.toDecimal() = 1.0",
       "status": "passed",
-      "execution_time_ms": 0.385834,
+      "execution_time_ms": 0.440834,
       "expected": [
         {
           "type": "boolean",
@@ -2424,7 +2424,7 @@
       "description": "testDecimalLiteralToDecimalEqual",
       "expression": "'1.1'.toDecimal() = 1.1",
       "status": "passed",
-      "execution_time_ms": 0.237708,
+      "execution_time_ms": 0.289625,
       "expected": [
         {
           "type": "boolean",
@@ -2440,7 +2440,7 @@
       "description": "testBooleanLiteralToDecimal",
       "expression": "true.toDecimal() = 1",
       "status": "passed",
-      "execution_time_ms": 0.227375,
+      "execution_time_ms": 0.254084,
       "expected": [
         {
           "type": "boolean",
@@ -2456,7 +2456,7 @@
       "description": "testIntegerLiteralConvertsToQuantity",
       "expression": "1.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.236875,
+      "execution_time_ms": 0.260334,
       "expected": [
         {
           "type": "boolean",
@@ -2472,7 +2472,7 @@
       "description": "testIntegerLiteralIsNotQuantity",
       "expression": "1.is(Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.484417,
+      "execution_time_ms": 0.286042,
       "expected": [
         {
           "type": "boolean",
@@ -2488,7 +2488,7 @@
       "description": "testDecimalLiteralConvertsToQuantity",
       "expression": "1.0.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.335375,
+      "execution_time_ms": 0.25925,
       "expected": [
         {
           "type": "boolean",
@@ -2504,7 +2504,7 @@
       "description": "testDecimalLiteralIsNotQuantity",
       "expression": "1.0.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 0.279167,
+      "execution_time_ms": 0.281083,
       "expected": [
         {
           "type": "boolean",
@@ -2520,7 +2520,7 @@
       "description": "testStringIntegerLiteralConvertsToQuantity",
       "expression": "'1'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.20975,
+      "execution_time_ms": 0.230417,
       "expected": [
         {
           "type": "boolean",
@@ -2536,7 +2536,7 @@
       "description": "testStringIntegerLiteralIsNotQuantity",
       "expression": "'1'.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 0.176167,
+      "execution_time_ms": 0.212875,
       "expected": [
         {
           "type": "boolean",
@@ -2552,7 +2552,7 @@
       "description": "testStringQuantityLiteralConvertsToQuantity",
       "expression": "'1 day'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.217917,
+      "execution_time_ms": 0.279666,
       "expected": [
         {
           "type": "boolean",
@@ -2568,7 +2568,7 @@
       "description": "testStringQuantityWeekConvertsToQuantity",
       "expression": "'1 \\'wk\\''.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.18675,
+      "execution_time_ms": 0.198334,
       "expected": [
         {
           "type": "boolean",
@@ -2584,7 +2584,7 @@
       "description": "testStringQuantityWeekConvertsToQuantityFalse",
       "expression": "'1 wk'.convertsToQuantity().not()",
       "status": "passed",
-      "execution_time_ms": 0.211125,
+      "execution_time_ms": 0.245875,
       "expected": [
         {
           "type": "boolean",
@@ -2600,7 +2600,7 @@
       "description": "testStringDecimalLiteralConvertsToQuantityFalse",
       "expression": "'1.a'.convertsToQuantity().not()",
       "status": "passed",
-      "execution_time_ms": 0.16825,
+      "execution_time_ms": 0.186083,
       "expected": [
         {
           "type": "boolean",
@@ -2616,7 +2616,7 @@
       "description": "testStringDecimalLiteralConvertsToQuantity",
       "expression": "'1.0'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.141459,
+      "execution_time_ms": 0.180709,
       "expected": [
         {
           "type": "boolean",
@@ -2632,7 +2632,7 @@
       "description": "testStringDecimalLiteralIsNotSystemQuantity",
       "expression": "'1.0'.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 0.176541,
+      "execution_time_ms": 0.203125,
       "expected": [
         {
           "type": "boolean",
@@ -2648,7 +2648,7 @@
       "description": "testBooleanLiteralConvertsToQuantity",
       "expression": "true.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.13875,
+      "execution_time_ms": 0.181375,
       "expected": [
         {
           "type": "boolean",
@@ -2664,7 +2664,7 @@
       "description": "testBooleanLiteralIsNotSystemQuantity",
       "expression": "true.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 0.2435,
+      "execution_time_ms": 0.208166,
       "expected": [
         {
           "type": "boolean",
@@ -2680,7 +2680,7 @@
       "description": "testIntegerLiteralToQuantity",
       "expression": "1.toQuantity() = 1 '1'",
       "status": "passed",
-      "execution_time_ms": 0.378667,
+      "execution_time_ms": 0.475584,
       "expected": [
         {
           "type": "boolean",
@@ -2696,7 +2696,7 @@
       "description": "testDecimalLiteralToQuantity",
       "expression": "1.0.toQuantity() = 1.0 '1'",
       "status": "passed",
-      "execution_time_ms": 0.248167,
+      "execution_time_ms": 0.344708,
       "expected": [
         {
           "type": "boolean",
@@ -2712,7 +2712,7 @@
       "description": "testStringIntegerLiteralToQuantity",
       "expression": "'1'.toQuantity()",
       "status": "passed",
-      "execution_time_ms": 0.129917,
+      "execution_time_ms": 0.145583,
       "expected": [
         {
           "type": "Quantity",
@@ -2728,7 +2728,7 @@
       "description": "testStringQuantityLiteralToQuantity",
       "expression": "'1 day'.toQuantity() = 1 day",
       "status": "passed",
-      "execution_time_ms": 0.27925,
+      "execution_time_ms": 0.507125,
       "expected": [
         {
           "type": "boolean",
@@ -2744,7 +2744,7 @@
       "description": "testStringQuantityDayLiteralToQuantity",
       "expression": "'1 day'.toQuantity() = 1 '{day}'",
       "status": "passed",
-      "execution_time_ms": 0.184916,
+      "execution_time_ms": 0.270292,
       "expected": [
         {
           "type": "boolean",
@@ -2758,7 +2758,7 @@
       "description": "testStringQuantityWeekLiteralToQuantity",
       "expression": "'1 \\'wk\\''.toQuantity() = 1 'wk'",
       "status": "passed",
-      "execution_time_ms": 0.154542,
+      "execution_time_ms": 0.180458,
       "expected": [
         {
           "type": "boolean",
@@ -2774,7 +2774,7 @@
       "description": "testStringDecimalLiteralToQuantity",
       "expression": "'1.0'.toQuantity() ~ 1 '1'",
       "status": "passed",
-      "execution_time_ms": 0.232375,
+      "execution_time_ms": 0.341916,
       "expected": [
         {
           "type": "boolean",
@@ -2790,7 +2790,7 @@
       "description": "testIntegerLiteralConvertsToBoolean",
       "expression": "1.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.218292,
+      "execution_time_ms": 0.514833,
       "expected": [
         {
           "type": "boolean",
@@ -2806,7 +2806,7 @@
       "description": "testIntegerLiteralConvertsToBooleanFalse",
       "expression": "2.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.208458,
+      "execution_time_ms": 0.282875,
       "expected": [
         {
           "type": "boolean",
@@ -2822,7 +2822,7 @@
       "description": "testNegativeIntegerLiteralConvertsToBooleanFalse",
       "expression": "(-1).convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.247417,
+      "execution_time_ms": 0.304333,
       "expected": [
         {
           "type": "boolean",
@@ -2838,7 +2838,7 @@
       "description": "testIntegerLiteralFalseConvertsToBoolean",
       "expression": "0.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.201209,
+      "execution_time_ms": 0.34325,
       "expected": [
         {
           "type": "boolean",
@@ -2854,7 +2854,7 @@
       "description": "testDecimalLiteralConvertsToBoolean",
       "expression": "1.0.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.21225,
+      "execution_time_ms": 0.310542,
       "expected": [
         {
           "type": "boolean",
@@ -2870,7 +2870,7 @@
       "description": "testStringTrueLiteralConvertsToBoolean",
       "expression": "'true'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.134125,
+      "execution_time_ms": 0.240083,
       "expected": [
         {
           "type": "boolean",
@@ -2886,7 +2886,7 @@
       "description": "testStringFalseLiteralConvertsToBoolean",
       "expression": "'false'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.152667,
+      "execution_time_ms": 0.261125,
       "expected": [
         {
           "type": "boolean",
@@ -2902,7 +2902,7 @@
       "description": "testStringFalseLiteralAlsoConvertsToBoolean",
       "expression": "'False'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.134583,
+      "execution_time_ms": 0.195833,
       "expected": [
         {
           "type": "boolean",
@@ -2918,7 +2918,7 @@
       "description": "testTrueLiteralConvertsToBoolean",
       "expression": "true.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.122,
+      "execution_time_ms": 0.148084,
       "expected": [
         {
           "type": "boolean",
@@ -2934,7 +2934,7 @@
       "description": "testFalseLiteralConvertsToBoolean",
       "expression": "false.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.140208,
+      "execution_time_ms": 0.170041,
       "expected": [
         {
           "type": "boolean",
@@ -2950,7 +2950,7 @@
       "description": "testIntegerLiteralToBoolean",
       "expression": "1.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.208291,
+      "execution_time_ms": 0.35125,
       "expected": [
         {
           "type": "boolean",
@@ -2966,7 +2966,7 @@
       "description": "testIntegerLiteralToBooleanEmpty",
       "expression": "2.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.225167,
+      "execution_time_ms": 0.3125,
       "expected": [],
       "actual": []
     },
@@ -2975,7 +2975,7 @@
       "description": "testIntegerLiteralToBooleanFalse",
       "expression": "0.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.207542,
+      "execution_time_ms": 0.222583,
       "expected": [
         {
           "type": "boolean",
@@ -2991,7 +2991,7 @@
       "description": "testStringTrueToBoolean",
       "expression": "'true'.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.129041,
+      "execution_time_ms": 0.137708,
       "expected": [
         {
           "type": "boolean",
@@ -3007,7 +3007,7 @@
       "description": "testStringFalseToBoolean",
       "expression": "'false'.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 0.148417,
+      "execution_time_ms": 5.43175,
       "expected": [
         {
           "type": "boolean",
@@ -3023,7 +3023,7 @@
       "description": "testIntegerLiteralConvertsToString",
       "expression": "1.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.213458,
+      "execution_time_ms": 1.133375,
       "expected": [
         {
           "type": "boolean",
@@ -3039,7 +3039,7 @@
       "description": "testIntegerLiteralIsNotString",
       "expression": "1.is(String).not()",
       "status": "passed",
-      "execution_time_ms": 0.252875,
+      "execution_time_ms": 0.998625,
       "expected": [
         {
           "type": "boolean",
@@ -3055,7 +3055,7 @@
       "description": "testNegativeIntegerLiteralConvertsToString",
       "expression": "(-1).convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.256084,
+      "execution_time_ms": 0.387875,
       "expected": [
         {
           "type": "boolean",
@@ -3071,7 +3071,7 @@
       "description": "testDecimalLiteralConvertsToString",
       "expression": "1.0.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.208625,
+      "execution_time_ms": 0.427917,
       "expected": [
         {
           "type": "boolean",
@@ -3087,7 +3087,7 @@
       "description": "testStringLiteralConvertsToString",
       "expression": "'true'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.152125,
+      "execution_time_ms": 0.185791,
       "expected": [
         {
           "type": "boolean",
@@ -3103,7 +3103,7 @@
       "description": "testBooleanLiteralConvertsToString",
       "expression": "true.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.149375,
+      "execution_time_ms": 0.166959,
       "expected": [
         {
           "type": "boolean",
@@ -3119,7 +3119,7 @@
       "description": "testQuantityLiteralConvertsToString",
       "expression": "1 'wk'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 0.195083,
+      "execution_time_ms": 0.284,
       "expected": [
         {
           "type": "boolean",
@@ -3135,7 +3135,7 @@
       "description": "testIntegerLiteralToString",
       "expression": "1.toString()",
       "status": "passed",
-      "execution_time_ms": 2.870666,
+      "execution_time_ms": 0.340833,
       "expected": [
         {
           "type": "string",
@@ -3151,7 +3151,7 @@
       "description": "testNegativeIntegerLiteralToString",
       "expression": "(-1).toString()",
       "status": "passed",
-      "execution_time_ms": 0.32775,
+      "execution_time_ms": 0.324,
       "expected": [
         {
           "type": "string",
@@ -3167,7 +3167,7 @@
       "description": "testDecimalLiteralToString",
       "expression": "1.0.toString()",
       "status": "passed",
-      "execution_time_ms": 0.220875,
+      "execution_time_ms": 0.299041,
       "expected": [
         {
           "type": "string",
@@ -3183,7 +3183,7 @@
       "description": "testStringLiteralToString",
       "expression": "'true'.toString()",
       "status": "passed",
-      "execution_time_ms": 0.141583,
+      "execution_time_ms": 0.161583,
       "expected": [
         {
           "type": "string",
@@ -3199,7 +3199,7 @@
       "description": "testBooleanLiteralToString",
       "expression": "true.toString()",
       "status": "passed",
-      "execution_time_ms": 0.13225,
+      "execution_time_ms": 0.144625,
       "expected": [
         {
           "type": "string",
@@ -3215,7 +3215,7 @@
       "description": "testQuantityLiteralWkToString",
       "expression": "1 'wk'.toString()",
       "status": "passed",
-      "execution_time_ms": 0.141167,
+      "execution_time_ms": 0.158209,
       "expected": [
         {
           "type": "string",
@@ -3231,7 +3231,7 @@
       "description": "testQuantityLiteralWeekToString",
       "expression": "1 week.toString()",
       "status": "passed",
-      "execution_time_ms": 0.262084,
+      "execution_time_ms": 0.578916,
       "expected": [
         {
           "type": "string",
@@ -3245,7 +3245,7 @@
     {
       "expression": "Patient.name.exists()",
       "status": "passed",
-      "execution_time_ms": 0.147959,
+      "execution_time_ms": 0.273916,
       "expected": [
         {
           "type": "boolean",
@@ -3259,7 +3259,7 @@
     {
       "expression": "Patient.name.exists(use = 'nickname')",
       "status": "passed",
-      "execution_time_ms": 0.249834,
+      "execution_time_ms": 0.380417,
       "expected": [
         {
           "type": "boolean",
@@ -3273,7 +3273,7 @@
     {
       "expression": "Patient.name.exists(use = 'official')",
       "status": "passed",
-      "execution_time_ms": 0.179958,
+      "execution_time_ms": 0.303167,
       "expected": [
         {
           "type": "boolean",
@@ -3285,9 +3285,9 @@
       ]
     },
     {
-      "expression": "Patient.maritalStatus.coding.exists(code = 'P' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')\r\n\t\t\tor Patient.maritalStatus.coding.exists(code = 'A' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')",
+      "expression": "Patient.maritalStatus.coding.exists(code = 'P' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')\n\t\t\tor Patient.maritalStatus.coding.exists(code = 'A' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')",
       "status": "passed",
-      "execution_time_ms": 1.206917,
+      "execution_time_ms": 1.999875,
       "expected": [
         {
           "type": "boolean",
@@ -3303,7 +3303,7 @@
       "description": "testAllTrue1",
       "expression": "Patient.name.select(given.exists()).allTrue()",
       "status": "passed",
-      "execution_time_ms": 0.266625,
+      "execution_time_ms": 0.309458,
       "expected": [
         {
           "type": "boolean",
@@ -3319,7 +3319,7 @@
       "description": "testAllTrue2",
       "expression": "Patient.name.select(period.exists()).allTrue()",
       "status": "passed",
-      "execution_time_ms": 0.204375,
+      "execution_time_ms": 0.2195,
       "expected": [
         {
           "type": "boolean",
@@ -3335,7 +3335,7 @@
       "description": "testAllTrue3",
       "expression": "Patient.name.all(given.exists())",
       "status": "passed",
-      "execution_time_ms": 0.205417,
+      "execution_time_ms": 0.220208,
       "expected": [
         {
           "type": "boolean",
@@ -3351,7 +3351,7 @@
       "description": "testAllTrue4",
       "expression": "Patient.name.all(period.exists())",
       "status": "passed",
-      "execution_time_ms": 0.171959,
+      "execution_time_ms": 0.176916,
       "expected": [
         {
           "type": "boolean",
@@ -3367,7 +3367,7 @@
       "description": "testSubSetOf1",
       "expression": "Patient.name.first().subsetOf($this.name)",
       "status": "passed",
-      "execution_time_ms": 0.260542,
+      "execution_time_ms": 0.269833,
       "expected": [
         {
           "type": "boolean",
@@ -3383,7 +3383,7 @@
       "description": "testSubSetOf2",
       "expression": "Patient.name.subsetOf($this.name.first()).not()",
       "status": "passed",
-      "execution_time_ms": 0.196709,
+      "execution_time_ms": 0.204958,
       "expected": [
         {
           "type": "boolean",
@@ -3399,7 +3399,7 @@
       "description": "testSuperSetOf1",
       "expression": "Patient.name.first().supersetOf($this.name).not()",
       "status": "passed",
-      "execution_time_ms": 0.224041,
+      "execution_time_ms": 0.211833,
       "expected": [
         {
           "type": "boolean",
@@ -3415,7 +3415,7 @@
       "description": "testSuperSetOf2",
       "expression": "Patient.name.supersetOf($this.name.first())",
       "status": "passed",
-      "execution_time_ms": 0.26875,
+      "execution_time_ms": 0.170583,
       "expected": [
         {
           "type": "boolean",
@@ -3431,7 +3431,7 @@
       "description": "testQuantity1",
       "expression": "4.0000 'g' = 4000.0 'mg'",
       "status": "passed",
-      "execution_time_ms": 0.448625,
+      "execution_time_ms": 0.468208,
       "expected": [
         {
           "type": "boolean",
@@ -3447,7 +3447,7 @@
       "description": "testQuantity2",
       "expression": "4 'g' ~ 4000 'mg'",
       "status": "passed",
-      "execution_time_ms": 0.16075,
+      "execution_time_ms": 0.242125,
       "expected": [
         {
           "type": "boolean",
@@ -3463,7 +3463,7 @@
       "description": "testQuantity3",
       "expression": "4 'g' != 4040 'mg'",
       "status": "passed",
-      "execution_time_ms": 0.141708,
+      "execution_time_ms": 0.192042,
       "expected": [
         {
           "type": "boolean",
@@ -3479,7 +3479,7 @@
       "description": "testQuantity4",
       "expression": "4 'g' ~ 4040 'mg'",
       "status": "passed",
-      "execution_time_ms": 0.136375,
+      "execution_time_ms": 0.177167,
       "expected": [
         {
           "type": "boolean",
@@ -3495,7 +3495,7 @@
       "description": "testQuantity5",
       "expression": "7 days = 1 week",
       "status": "passed",
-      "execution_time_ms": 0.266542,
+      "execution_time_ms": 0.372583,
       "expected": [
         {
           "type": "boolean",
@@ -3511,7 +3511,7 @@
       "description": "testQuantity6",
       "expression": "7 days = 1 'wk'",
       "status": "passed",
-      "execution_time_ms": 0.131708,
+      "execution_time_ms": 0.154958,
       "expected": [
         {
           "type": "boolean",
@@ -3525,7 +3525,7 @@
       "description": "testQuantity7",
       "expression": "6 days < 1 week",
       "status": "passed",
-      "execution_time_ms": 0.1765,
+      "execution_time_ms": 0.236,
       "expected": [
         {
           "type": "boolean",
@@ -3541,7 +3541,7 @@
       "description": "testQuantity8",
       "expression": "8 days > 1 week",
       "status": "passed",
-      "execution_time_ms": 0.146459,
+      "execution_time_ms": 0.171916,
       "expected": [
         {
           "type": "boolean",
@@ -3557,7 +3557,7 @@
       "description": "testQuantity9",
       "expression": "2.0 'cm' * 2.0 'm' = 0.040 'm2'",
       "status": "passed",
-      "execution_time_ms": 1.695,
+      "execution_time_ms": 1.876333,
       "expected": [
         {
           "type": "boolean",
@@ -3573,7 +3573,7 @@
       "description": "testQuantity10",
       "expression": "4.0 'g' / 2.0 'm' = 2 'g/m'",
       "status": "passed",
-      "execution_time_ms": 0.959958,
+      "execution_time_ms": 1.109417,
       "expected": [
         {
           "type": "boolean",
@@ -3589,7 +3589,7 @@
       "description": "testQuantity11",
       "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
       "status": "passed",
-      "execution_time_ms": 0.2655,
+      "execution_time_ms": 0.349125,
       "expected": [
         {
           "type": "boolean",
@@ -3608,7 +3608,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.045209,
+      "execution_time_ms": 0.053709,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -3618,7 +3618,7 @@
       "description": "testCollectionBoolean2",
       "expression": "iif({}, true, false)",
       "status": "passed",
-      "execution_time_ms": 0.289042,
+      "execution_time_ms": 0.312791,
       "expected": [
         {
           "type": "boolean",
@@ -3634,7 +3634,7 @@
       "description": "testCollectionBoolean3",
       "expression": "iif(true, true, false)",
       "status": "passed",
-      "execution_time_ms": 0.144542,
+      "execution_time_ms": 0.157,
       "expected": [
         {
           "type": "boolean",
@@ -3650,7 +3650,7 @@
       "description": "testCollectionBoolean4",
       "expression": "iif({} | true, true, false)",
       "status": "passed",
-      "execution_time_ms": 0.223917,
+      "execution_time_ms": 0.195,
       "expected": [
         {
           "type": "boolean",
@@ -3666,7 +3666,7 @@
       "description": "testCollectionBoolean5",
       "expression": "iif(true, true, 1/0)",
       "status": "passed",
-      "execution_time_ms": 0.640667,
+      "execution_time_ms": 0.667916,
       "expected": [
         {
           "type": "boolean",
@@ -3682,7 +3682,7 @@
       "description": "testCollectionBoolean6",
       "expression": "iif(false, 1/0, true)",
       "status": "passed",
-      "execution_time_ms": 0.499083,
+      "execution_time_ms": 0.516875,
       "expected": [
         {
           "type": "boolean",
@@ -3698,7 +3698,7 @@
       "description": "testDistinct1",
       "expression": "(1 | 2 | 3).isDistinct()",
       "status": "passed",
-      "execution_time_ms": 0.760542,
+      "execution_time_ms": 0.832708,
       "expected": [
         {
           "type": "boolean",
@@ -3714,7 +3714,7 @@
       "description": "testDistinct2",
       "expression": "Questionnaire.descendants().linkId.isDistinct()",
       "status": "passed",
-      "execution_time_ms": 0.429584,
+      "execution_time_ms": 0.479166,
       "expected": [
         {
           "type": "boolean",
@@ -3730,7 +3730,7 @@
       "description": "testDistinct3",
       "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).isDistinct().not()",
       "status": "error",
-      "execution_time_ms": 0.619292,
+      "execution_time_ms": 0.775417,
       "expected": [
         {
           "type": "boolean",
@@ -3745,7 +3745,7 @@
       "description": "testDistinct4",
       "expression": "(1 | 2 | 3).distinct()",
       "status": "passed",
-      "execution_time_ms": 0.508166,
+      "execution_time_ms": 0.554875,
       "expected": [
         {
           "type": "integer",
@@ -3771,7 +3771,7 @@
       "description": "testDistinct5",
       "expression": "Questionnaire.descendants().linkId.distinct().count()",
       "status": "passed",
-      "execution_time_ms": 0.343042,
+      "execution_time_ms": 0.334833,
       "expected": [
         {
           "type": "integer",
@@ -3787,7 +3787,7 @@
       "description": "testDistinct6",
       "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).distinct().count()",
       "status": "error",
-      "execution_time_ms": 0.559708,
+      "execution_time_ms": 0.564333,
       "expected": [
         {
           "type": "integer",
@@ -3802,7 +3802,7 @@
       "description": "testCount1",
       "expression": "Patient.name.count()",
       "status": "passed",
-      "execution_time_ms": 0.133584,
+      "execution_time_ms": 0.142334,
       "expected": [
         {
           "type": "integer",
@@ -3818,7 +3818,7 @@
       "description": "testCount2",
       "expression": "Patient.name.count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.207375,
+      "execution_time_ms": 1.863292,
       "expected": [
         {
           "type": "boolean",
@@ -3834,7 +3834,7 @@
       "description": "testCount3",
       "expression": "Patient.name.first().count()",
       "status": "passed",
-      "execution_time_ms": 0.133583,
+      "execution_time_ms": 0.240875,
       "expected": [
         {
           "type": "integer",
@@ -3850,7 +3850,7 @@
       "description": "testCount4",
       "expression": "Patient.name.first().count() = 1",
       "status": "passed",
-      "execution_time_ms": 0.209792,
+      "execution_time_ms": 0.315375,
       "expected": [
         {
           "type": "boolean",
@@ -3866,7 +3866,7 @@
       "description": "testWhere1",
       "expression": "Patient.name.count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.219042,
+      "execution_time_ms": 0.238625,
       "expected": [
         {
           "type": "boolean",
@@ -3882,7 +3882,7 @@
       "description": "testWhere2",
       "expression": "Patient.name.where(given = 'Jim').count() = 1",
       "status": "passed",
-      "execution_time_ms": 0.304917,
+      "execution_time_ms": 0.347875,
       "expected": [
         {
           "type": "boolean",
@@ -3898,7 +3898,7 @@
       "description": "testWhere3",
       "expression": "Patient.name.where(given = 'X').count() = 0",
       "status": "passed",
-      "execution_time_ms": 0.273084,
+      "execution_time_ms": 0.308667,
       "expected": [
         {
           "type": "boolean",
@@ -3914,7 +3914,7 @@
       "description": "testWhere4",
       "expression": "Patient.name.where($this.given = 'Jim').count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.698084,
+      "execution_time_ms": 0.261333,
       "expected": [
         {
           "type": "boolean",
@@ -3930,7 +3930,7 @@
       "description": "testSelect1",
       "expression": "Patient.name.select(given).count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.43375,
+      "execution_time_ms": 0.224166,
       "expected": [
         {
           "type": "boolean",
@@ -3946,7 +3946,7 @@
       "description": "testSelect2",
       "expression": "Patient.name.select(given | family).count() = 7 ",
       "status": "passed",
-      "execution_time_ms": 0.325916,
+      "execution_time_ms": 0.286458,
       "expected": [
         {
           "type": "boolean",
@@ -3962,7 +3962,7 @@
       "description": "testRepeat1",
       "expression": "ValueSet.expansion.repeat(contains).count() = 10",
       "status": "passed",
-      "execution_time_ms": 0.794625,
+      "execution_time_ms": 0.79475,
       "expected": [
         {
           "type": "boolean",
@@ -3978,7 +3978,7 @@
       "description": "testRepeat2",
       "expression": "Questionnaire.repeat(item).code.count() = 11",
       "status": "passed",
-      "execution_time_ms": 0.373209,
+      "execution_time_ms": 0.386208,
       "expected": [
         {
           "type": "boolean",
@@ -3994,7 +3994,7 @@
       "description": "testRepeat3",
       "expression": "Questionnaire.descendants().code.count() = 23",
       "status": "passed",
-      "execution_time_ms": 0.361625,
+      "execution_time_ms": 0.391792,
       "expected": [
         {
           "type": "boolean",
@@ -4010,7 +4010,7 @@
       "description": "testRepeat4",
       "expression": "Questionnaire.children().code.count() = 2",
       "status": "passed",
-      "execution_time_ms": 0.23775,
+      "execution_time_ms": 0.2505,
       "expected": [
         {
           "type": "boolean",
@@ -4026,7 +4026,7 @@
       "description": "testAggregate1",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 0) = 45",
       "status": "passed",
-      "execution_time_ms": 1.655416,
+      "execution_time_ms": 1.770875,
       "expected": [
         {
           "type": "boolean",
@@ -4042,7 +4042,7 @@
       "description": "testAggregate2",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 2) = 47",
       "status": "passed",
-      "execution_time_ms": 1.322834,
+      "execution_time_ms": 1.277,
       "expected": [
         {
           "type": "boolean",
@@ -4058,7 +4058,7 @@
       "description": "testAggregate3",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this < $total, $this, $total))) = 1",
       "status": "passed",
-      "execution_time_ms": 1.324417,
+      "execution_time_ms": 1.537417,
       "expected": [
         {
           "type": "boolean",
@@ -4074,7 +4074,7 @@
       "description": "testAggregate4",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this > $total, $this, $total))) = 9",
       "status": "passed",
-      "execution_time_ms": 1.392041,
+      "execution_time_ms": 1.637625,
       "expected": [
         {
           "type": "boolean",
@@ -4090,7 +4090,7 @@
       "description": "testIndexer1",
       "expression": "Patient.name[0].given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 0.875125,
+      "execution_time_ms": 0.883833,
       "expected": [
         {
           "type": "boolean",
@@ -4106,7 +4106,7 @@
       "description": "testIndexer2",
       "expression": "Patient.name[1].given = 'Jim'",
       "status": "passed",
-      "execution_time_ms": 0.291834,
+      "execution_time_ms": 0.318916,
       "expected": [
         {
           "type": "boolean",
@@ -4122,7 +4122,7 @@
       "description": "testSingle1",
       "expression": "Patient.name.first().single().exists()",
       "status": "passed",
-      "execution_time_ms": 0.183084,
+      "execution_time_ms": 0.222542,
       "expected": [
         {
           "type": "boolean",
@@ -4141,7 +4141,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.047417,
+      "execution_time_ms": 0.043666,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -4151,7 +4151,7 @@
       "description": "testFirstLast1",
       "expression": "Patient.name.first().given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 0.1705,
+      "execution_time_ms": 0.2045,
       "expected": [
         {
           "type": "boolean",
@@ -4167,7 +4167,7 @@
       "description": "testFirstLast2",
       "expression": "Patient.name.last().given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 0.167,
+      "execution_time_ms": 0.204875,
       "expected": [
         {
           "type": "boolean",
@@ -4183,7 +4183,7 @@
       "description": "testTail1",
       "expression": "(0 | 1 | 2).tail() = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 0.729667,
+      "execution_time_ms": 2.277042,
       "expected": [
         {
           "type": "boolean",
@@ -4199,7 +4199,7 @@
       "description": "testTail2",
       "expression": "Patient.name.tail().given = 'Jim' | 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 0.18375,
+      "execution_time_ms": 0.2495,
       "expected": [
         {
           "type": "boolean",
@@ -4215,7 +4215,7 @@
       "description": "testSkip1",
       "expression": "(0 | 1 | 2).skip(1) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 0.981125,
+      "execution_time_ms": 1.02725,
       "expected": [
         {
           "type": "boolean",
@@ -4231,7 +4231,7 @@
       "description": "testSkip2",
       "expression": "(0 | 1 | 2).skip(2) = 2",
       "status": "passed",
-      "execution_time_ms": 0.850958,
+      "execution_time_ms": 0.827167,
       "expected": [
         {
           "type": "boolean",
@@ -4247,7 +4247,7 @@
       "description": "testSkip3",
       "expression": "Patient.name.skip(1).given.trace('test') = 'Jim' | 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 3.800375,
+      "execution_time_ms": 0.483208,
       "expected": [
         {
           "type": "boolean",
@@ -4263,7 +4263,7 @@
       "description": "testSkip4",
       "expression": "Patient.name.skip(3).given.exists() = false",
       "status": "passed",
-      "execution_time_ms": 0.443208,
+      "execution_time_ms": 0.333666,
       "expected": [
         {
           "type": "boolean",
@@ -4279,7 +4279,7 @@
       "description": "testTake1",
       "expression": "(0 | 1 | 2).take(1) = 0",
       "status": "passed",
-      "execution_time_ms": 0.769291,
+      "execution_time_ms": 0.764458,
       "expected": [
         {
           "type": "boolean",
@@ -4295,7 +4295,7 @@
       "description": "testTake2",
       "expression": "(0 | 1 | 2).take(2) = 0 | 1",
       "status": "passed",
-      "execution_time_ms": 0.813458,
+      "execution_time_ms": 0.792417,
       "expected": [
         {
           "type": "boolean",
@@ -4311,7 +4311,7 @@
       "description": "testTake3",
       "expression": "Patient.name.take(1).given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 0.276,
+      "execution_time_ms": 0.340084,
       "expected": [
         {
           "type": "boolean",
@@ -4327,7 +4327,7 @@
       "description": "testTake4",
       "expression": "Patient.name.take(2).given = 'Peter' | 'James' | 'Jim'",
       "status": "passed",
-      "execution_time_ms": 0.315917,
+      "execution_time_ms": 0.267,
       "expected": [
         {
           "type": "boolean",
@@ -4343,7 +4343,7 @@
       "description": "testTake5",
       "expression": "Patient.name.take(3).given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.295792,
+      "execution_time_ms": 0.288334,
       "expected": [
         {
           "type": "boolean",
@@ -4359,7 +4359,7 @@
       "description": "testTake6",
       "expression": "Patient.name.take(4).given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.287916,
+      "execution_time_ms": 0.282583,
       "expected": [
         {
           "type": "boolean",
@@ -4375,7 +4375,7 @@
       "description": "testTake7",
       "expression": "Patient.name.take(0).given.exists() = false",
       "status": "passed",
-      "execution_time_ms": 0.236791,
+      "execution_time_ms": 0.247625,
       "expected": [
         {
           "type": "boolean",
@@ -4391,7 +4391,7 @@
       "description": "testIif1",
       "expression": "iif(Patient.name.exists(), 'named', 'unnamed') = 'named'",
       "status": "passed",
-      "execution_time_ms": 0.176917,
+      "execution_time_ms": 0.183959,
       "expected": [
         {
           "type": "boolean",
@@ -4407,7 +4407,7 @@
       "description": "testIif2",
       "expression": "iif(Patient.name.empty(), 'unnamed', 'named') = 'named'",
       "status": "passed",
-      "execution_time_ms": 0.184708,
+      "execution_time_ms": 0.173167,
       "expected": [
         {
           "type": "boolean",
@@ -4423,7 +4423,7 @@
       "description": "testIif3",
       "expression": "iif(true, true, (1 | 2).toString())",
       "status": "passed",
-      "execution_time_ms": 0.40075,
+      "execution_time_ms": 0.350416,
       "expected": [
         {
           "type": "boolean",
@@ -4439,7 +4439,7 @@
       "description": "testIif4",
       "expression": "iif(false, (1 | 2).toString(), true)",
       "status": "passed",
-      "execution_time_ms": 0.386041,
+      "execution_time_ms": 0.32575,
       "expected": [
         {
           "type": "boolean",
@@ -4455,7 +4455,7 @@
       "description": "testToInteger1",
       "expression": "'1'.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 0.199833,
+      "execution_time_ms": 0.179916,
       "expected": [
         {
           "type": "boolean",
@@ -4471,7 +4471,7 @@
       "description": "testToInteger2",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 0.283042,
+      "execution_time_ms": 0.206417,
       "expected": [
         {
           "type": "boolean",
@@ -4487,7 +4487,7 @@
       "description": "testToInteger3",
       "expression": "'0'.toInteger() = 0",
       "status": "passed",
-      "execution_time_ms": 0.28325,
+      "execution_time_ms": 0.172333,
       "expected": [
         {
           "type": "boolean",
@@ -4503,7 +4503,7 @@
       "description": "testToInteger4",
       "expression": "'0.0'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 0.163834,
+      "execution_time_ms": 0.121875,
       "expected": [
         {
           "type": "boolean",
@@ -4519,7 +4519,7 @@
       "description": "testToInteger5",
       "expression": "'st'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 0.19025,
+      "execution_time_ms": 0.138125,
       "expected": [
         {
           "type": "boolean",
@@ -4535,7 +4535,7 @@
       "description": "testToDecimal1",
       "expression": "'1'.toDecimal() = 1",
       "status": "passed",
-      "execution_time_ms": 0.3335,
+      "execution_time_ms": 0.175917,
       "expected": [
         {
           "type": "boolean",
@@ -4551,7 +4551,7 @@
       "description": "testToDecimal2",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 0.265125,
+      "execution_time_ms": 0.18775,
       "expected": [
         {
           "type": "boolean",
@@ -4567,7 +4567,7 @@
       "description": "testToDecimal3",
       "expression": "'0'.toDecimal() = 0",
       "status": "passed",
-      "execution_time_ms": 0.25575,
+      "execution_time_ms": 0.169167,
       "expected": [
         {
           "type": "boolean",
@@ -4583,7 +4583,7 @@
       "description": "testToDecimal4",
       "expression": "'0.0'.toDecimal() = 0.0",
       "status": "passed",
-      "execution_time_ms": 0.17775,
+      "execution_time_ms": 0.170375,
       "expected": [
         {
           "type": "boolean",
@@ -4599,7 +4599,7 @@
       "description": "testToDecimal5",
       "expression": "'st'.toDecimal().empty()",
       "status": "passed",
-      "execution_time_ms": 0.123583,
+      "execution_time_ms": 0.126375,
       "expected": [
         {
           "type": "boolean",
@@ -4615,7 +4615,7 @@
       "description": "testToString1",
       "expression": "1.toString() = '1'",
       "status": "passed",
-      "execution_time_ms": 0.201375,
+      "execution_time_ms": 0.194167,
       "expected": [
         {
           "type": "boolean",
@@ -4631,7 +4631,7 @@
       "description": "testToString2",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 0.178333,
+      "execution_time_ms": 0.187542,
       "expected": [
         {
           "type": "boolean",
@@ -4647,7 +4647,7 @@
       "description": "testToString3",
       "expression": "0.toString() = '0'",
       "status": "passed",
-      "execution_time_ms": 0.207292,
+      "execution_time_ms": 0.334209,
       "expected": [
         {
           "type": "boolean",
@@ -4663,7 +4663,7 @@
       "description": "testToString4",
       "expression": "0.0.toString() = '0.0'",
       "status": "passed",
-      "execution_time_ms": 0.207541,
+      "execution_time_ms": 0.8615,
       "expected": [
         {
           "type": "boolean",
@@ -4679,7 +4679,7 @@
       "description": "testToString5",
       "expression": "@2014-12-14.toString() = '2014-12-14'",
       "status": "passed",
-      "execution_time_ms": 0.172083,
+      "execution_time_ms": 0.363834,
       "expected": [
         {
           "type": "boolean",
@@ -4695,7 +4695,7 @@
       "description": "testCase1",
       "expression": "'t'.upper() = 'T'",
       "status": "passed",
-      "execution_time_ms": 0.160625,
+      "execution_time_ms": 0.237375,
       "expected": [
         {
           "type": "boolean",
@@ -4711,7 +4711,7 @@
       "description": "testCase2",
       "expression": "'t'.lower() = 't'",
       "status": "passed",
-      "execution_time_ms": 0.129708,
+      "execution_time_ms": 0.165375,
       "expected": [
         {
           "type": "boolean",
@@ -4727,7 +4727,7 @@
       "description": "testCase3",
       "expression": "'T'.upper() = 'T'",
       "status": "passed",
-      "execution_time_ms": 0.128084,
+      "execution_time_ms": 0.165417,
       "expected": [
         {
           "type": "boolean",
@@ -4743,7 +4743,7 @@
       "description": "testCase4",
       "expression": "'T'.lower() = 't'",
       "status": "passed",
-      "execution_time_ms": 0.131875,
+      "execution_time_ms": 0.169916,
       "expected": [
         {
           "type": "boolean",
@@ -4759,7 +4759,7 @@
       "description": "testToChars1",
       "expression": "'t2'.toChars() = 't' | '2'",
       "status": "passed",
-      "execution_time_ms": 0.198083,
+      "execution_time_ms": 0.244708,
       "expected": [
         {
           "type": "boolean",
@@ -4775,7 +4775,7 @@
       "description": "testSubstring1",
       "expression": "'12345'.substring(2) = '345'",
       "status": "passed",
-      "execution_time_ms": 0.258708,
+      "execution_time_ms": 0.369083,
       "expected": [
         {
           "type": "boolean",
@@ -4791,7 +4791,7 @@
       "description": "testSubstring2",
       "expression": "'12345'.substring(2,1) = '3'",
       "status": "passed",
-      "execution_time_ms": 0.322208,
+      "execution_time_ms": 0.413334,
       "expected": [
         {
           "type": "boolean",
@@ -4807,7 +4807,7 @@
       "description": "testSubstring3",
       "expression": "'12345'.substring(2,5) = '345'",
       "status": "passed",
-      "execution_time_ms": 0.311166,
+      "execution_time_ms": 0.350916,
       "expected": [
         {
           "type": "boolean",
@@ -4823,7 +4823,7 @@
       "description": "testSubstring4",
       "expression": "'12345'.substring(25).empty()",
       "status": "passed",
-      "execution_time_ms": 0.2215,
+      "execution_time_ms": 0.297875,
       "expected": [
         {
           "type": "boolean",
@@ -4839,7 +4839,7 @@
       "description": "testSubstring5",
       "expression": "'12345'.substring(-1).empty()",
       "status": "passed",
-      "execution_time_ms": 0.2085,
+      "execution_time_ms": 0.310334,
       "expected": [
         {
           "type": "boolean",
@@ -4855,7 +4855,7 @@
       "description": "testStartsWith1",
       "expression": "'12345'.startsWith('2') = false",
       "status": "passed",
-      "execution_time_ms": 0.161542,
+      "execution_time_ms": 0.286875,
       "expected": [
         {
           "type": "boolean",
@@ -4871,7 +4871,7 @@
       "description": "testStartsWith2",
       "expression": "'12345'.startsWith('1') = true",
       "status": "passed",
-      "execution_time_ms": 0.125125,
+      "execution_time_ms": 0.15275,
       "expected": [
         {
           "type": "boolean",
@@ -4887,7 +4887,7 @@
       "description": "testStartsWith3",
       "expression": "'12345'.startsWith('12') = true",
       "status": "passed",
-      "execution_time_ms": 0.122458,
+      "execution_time_ms": 0.1505,
       "expected": [
         {
           "type": "boolean",
@@ -4903,7 +4903,7 @@
       "description": "testStartsWith4",
       "expression": "'12345'.startsWith('13') = false",
       "status": "passed",
-      "execution_time_ms": 0.162666,
+      "execution_time_ms": 0.181208,
       "expected": [
         {
           "type": "boolean",
@@ -4919,7 +4919,7 @@
       "description": "testStartsWith5",
       "expression": "'12345'.startsWith('12345') = true",
       "status": "passed",
-      "execution_time_ms": 0.157208,
+      "execution_time_ms": 0.132959,
       "expected": [
         {
           "type": "boolean",
@@ -4935,7 +4935,7 @@
       "description": "testStartsWith6",
       "expression": "'12345'.startsWith('123456') = false",
       "status": "passed",
-      "execution_time_ms": 0.169042,
+      "execution_time_ms": 0.167042,
       "expected": [
         {
           "type": "boolean",
@@ -4951,7 +4951,7 @@
       "description": "testStartsWith7",
       "expression": "'12345'.startsWith('') = true",
       "status": "passed",
-      "execution_time_ms": 0.218125,
+      "execution_time_ms": 0.141416,
       "expected": [
         {
           "type": "boolean",
@@ -4967,7 +4967,7 @@
       "description": "testEndsWith1",
       "expression": "'12345'.endsWith('2') = false",
       "status": "passed",
-      "execution_time_ms": 0.139875,
+      "execution_time_ms": 0.169667,
       "expected": [
         {
           "type": "boolean",
@@ -4983,7 +4983,7 @@
       "description": "testEndsWith2",
       "expression": "'12345'.endsWith('5') = true",
       "status": "passed",
-      "execution_time_ms": 0.118583,
+      "execution_time_ms": 3.19125,
       "expected": [
         {
           "type": "boolean",
@@ -4999,7 +4999,7 @@
       "description": "testEndsWith3",
       "expression": "'12345'.endsWith('45') = true",
       "status": "passed",
-      "execution_time_ms": 0.12125,
+      "execution_time_ms": 0.188541,
       "expected": [
         {
           "type": "boolean",
@@ -5015,7 +5015,7 @@
       "description": "testEndsWith4",
       "expression": "'12345'.endsWith('35') = false",
       "status": "passed",
-      "execution_time_ms": 0.121417,
+      "execution_time_ms": 0.148167,
       "expected": [
         {
           "type": "boolean",
@@ -5031,7 +5031,7 @@
       "description": "testEndsWith5",
       "expression": "'12345'.endsWith('12345') = true",
       "status": "passed",
-      "execution_time_ms": 0.11975,
+      "execution_time_ms": 0.130209,
       "expected": [
         {
           "type": "boolean",
@@ -5047,7 +5047,7 @@
       "description": "testEndsWith6",
       "expression": "'12345'.endsWith('012345') = false",
       "status": "passed",
-      "execution_time_ms": 0.148959,
+      "execution_time_ms": 0.123875,
       "expected": [
         {
           "type": "boolean",
@@ -5063,7 +5063,7 @@
       "description": "testEndsWith7",
       "expression": "'12345'.endsWith('') = true",
       "status": "passed",
-      "execution_time_ms": 0.116125,
+      "execution_time_ms": 0.1225,
       "expected": [
         {
           "type": "boolean",
@@ -5079,7 +5079,7 @@
       "description": "testContainsString1",
       "expression": "'12345'.contains('6') = false",
       "status": "passed",
-      "execution_time_ms": 0.132709,
+      "execution_time_ms": 0.179667,
       "expected": [
         {
           "type": "boolean",
@@ -5095,7 +5095,7 @@
       "description": "testContainsString2",
       "expression": "'12345'.contains('5') = true",
       "status": "passed",
-      "execution_time_ms": 0.114333,
+      "execution_time_ms": 0.1245,
       "expected": [
         {
           "type": "boolean",
@@ -5111,7 +5111,7 @@
       "description": "testContainsString3",
       "expression": "'12345'.contains('45') = true",
       "status": "passed",
-      "execution_time_ms": 0.114083,
+      "execution_time_ms": 0.115792,
       "expected": [
         {
           "type": "boolean",
@@ -5127,7 +5127,7 @@
       "description": "testContainsString4",
       "expression": "'12345'.contains('35') = false",
       "status": "passed",
-      "execution_time_ms": 0.112458,
+      "execution_time_ms": 0.117083,
       "expected": [
         {
           "type": "boolean",
@@ -5143,7 +5143,7 @@
       "description": "testContainsString5",
       "expression": "'12345'.contains('12345') = true",
       "status": "passed",
-      "execution_time_ms": 0.114833,
+      "execution_time_ms": 0.114458,
       "expected": [
         {
           "type": "boolean",
@@ -5159,7 +5159,7 @@
       "description": "testContainsString6",
       "expression": "'12345'.contains('012345') = false",
       "status": "passed",
-      "execution_time_ms": 0.114542,
+      "execution_time_ms": 0.119542,
       "expected": [
         {
           "type": "boolean",
@@ -5175,7 +5175,7 @@
       "description": "testContainsString7",
       "expression": "'12345'.contains('') = true",
       "status": "passed",
-      "execution_time_ms": 0.113584,
+      "execution_time_ms": 0.114167,
       "expected": [
         {
           "type": "boolean",
@@ -5191,7 +5191,7 @@
       "description": "testLength1",
       "expression": "'123456'.length() = 6",
       "status": "passed",
-      "execution_time_ms": 3.533333,
+      "execution_time_ms": 0.351875,
       "expected": [
         {
           "type": "boolean",
@@ -5207,7 +5207,7 @@
       "description": "testLength2",
       "expression": "'12345'.length() = 5",
       "status": "passed",
-      "execution_time_ms": 0.322417,
+      "execution_time_ms": 0.18025,
       "expected": [
         {
           "type": "boolean",
@@ -5223,7 +5223,7 @@
       "description": "testLength3",
       "expression": "'123'.length() = 3",
       "status": "passed",
-      "execution_time_ms": 0.204541,
+      "execution_time_ms": 0.213292,
       "expected": [
         {
           "type": "boolean",
@@ -5239,7 +5239,7 @@
       "description": "testLength4",
       "expression": "'1'.length() = 1",
       "status": "passed",
-      "execution_time_ms": 0.184625,
+      "execution_time_ms": 0.197375,
       "expected": [
         {
           "type": "boolean",
@@ -5255,7 +5255,7 @@
       "description": "testLength5",
       "expression": "''.length() = 0",
       "status": "passed",
-      "execution_time_ms": 0.188208,
+      "execution_time_ms": 0.182041,
       "expected": [
         {
           "type": "boolean",
@@ -5269,7 +5269,7 @@
     {
       "expression": "'test'.encode('base64')",
       "status": "passed",
-      "execution_time_ms": 0.288667,
+      "execution_time_ms": 0.235208,
       "expected": [
         {
           "type": "string",
@@ -5283,7 +5283,7 @@
     {
       "expression": "'test'.encode('hex')",
       "status": "passed",
-      "execution_time_ms": 0.140959,
+      "execution_time_ms": 0.170917,
       "expected": [
         {
           "type": "string",
@@ -5297,7 +5297,7 @@
     {
       "expression": "'subjects?_d'.encode('base64')",
       "status": "passed",
-      "execution_time_ms": 0.134084,
+      "execution_time_ms": 0.152083,
       "expected": [
         {
           "type": "string",
@@ -5311,7 +5311,7 @@
     {
       "expression": "'subjects?_d'.encode('urlbase64')",
       "status": "passed",
-      "execution_time_ms": 0.125542,
+      "execution_time_ms": 0.137792,
       "expected": [
         {
           "type": "string",
@@ -5325,7 +5325,7 @@
     {
       "expression": "'dGVzdA=='.decode('base64')",
       "status": "passed",
-      "execution_time_ms": 0.169167,
+      "execution_time_ms": 0.189583,
       "expected": [
         {
           "type": "string",
@@ -5339,7 +5339,7 @@
     {
       "expression": "'74657374'.decode('hex')",
       "status": "passed",
-      "execution_time_ms": 0.159084,
+      "execution_time_ms": 0.185833,
       "expected": [
         {
           "type": "string",
@@ -5353,7 +5353,7 @@
     {
       "expression": "'c3ViamVjdHM/X2Q='.decode('base64')",
       "status": "passed",
-      "execution_time_ms": 0.123083,
+      "execution_time_ms": 0.310333,
       "expected": [
         {
           "type": "string",
@@ -5367,7 +5367,7 @@
     {
       "expression": "'c3ViamVjdHM_X2Q='.decode('urlbase64')",
       "status": "passed",
-      "execution_time_ms": 0.136666,
+      "execution_time_ms": 0.212833,
       "expected": [
         {
           "type": "string",
@@ -5381,7 +5381,7 @@
     {
       "expression": "'\"1<2\"'.escape('html')",
       "status": "error",
-      "execution_time_ms": 0.159916,
+      "execution_time_ms": 0.392958,
       "expected": [
         {
           "type": "string",
@@ -5394,7 +5394,7 @@
     {
       "expression": "'\"1<2\"'.escape('json')",
       "status": "error",
-      "execution_time_ms": 0.113417,
+      "execution_time_ms": 0.153834,
       "expected": [
         {
           "type": "string",
@@ -5407,7 +5407,7 @@
     {
       "expression": "'&quot;1&lt;2&quot;'.unescape('html')",
       "status": "error",
-      "execution_time_ms": 0.135792,
+      "execution_time_ms": 0.189833,
       "expected": [
         {
           "type": "string",
@@ -5420,7 +5420,7 @@
     {
       "expression": "'\\\"1<2\\\"'.unescape('json')",
       "status": "error",
-      "execution_time_ms": 0.118583,
+      "execution_time_ms": 0.142583,
       "expected": [
         {
           "type": "string",
@@ -5433,7 +5433,7 @@
     {
       "expression": "'123456'.trim().length() = 6",
       "status": "passed",
-      "execution_time_ms": 0.211417,
+      "execution_time_ms": 0.469125,
       "expected": [
         {
           "type": "boolean",
@@ -5447,7 +5447,7 @@
     {
       "expression": "'123 456'.trim().length() = 7",
       "status": "passed",
-      "execution_time_ms": 0.170958,
+      "execution_time_ms": 0.243667,
       "expected": [
         {
           "type": "boolean",
@@ -5461,7 +5461,7 @@
     {
       "expression": "' 123456 '.trim().length() = 6",
       "status": "passed",
-      "execution_time_ms": 0.167458,
+      "execution_time_ms": 0.207208,
       "expected": [
         {
           "type": "boolean",
@@ -5475,7 +5475,7 @@
     {
       "expression": "'  '.trim().length() = 0",
       "status": "passed",
-      "execution_time_ms": 0.167583,
+      "execution_time_ms": 0.201083,
       "expected": [
         {
           "type": "boolean",
@@ -5489,7 +5489,7 @@
     {
       "expression": "'Peter,James,Jim,Peter,James'.split(',').count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.228042,
+      "execution_time_ms": 0.332333,
       "expected": [
         {
           "type": "boolean",
@@ -5503,7 +5503,7 @@
     {
       "expression": "name.given.join(',')",
       "status": "passed",
-      "execution_time_ms": 0.166417,
+      "execution_time_ms": 0.255916,
       "expected": [
         {
           "type": "string",
@@ -5517,7 +5517,7 @@
       "description": "testTrace1",
       "expression": "name.given.trace('test').count() = 5",
       "status": "passed",
-      "execution_time_ms": 0.211084,
+      "execution_time_ms": 0.348459,
       "expected": [
         {
           "type": "boolean",
@@ -5533,7 +5533,7 @@
       "description": "testTrace2",
       "expression": "name.trace('test', given).count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.204125,
+      "execution_time_ms": 0.501666,
       "expected": [
         {
           "type": "boolean",
@@ -5549,7 +5549,7 @@
       "description": "testToday1",
       "expression": "Patient.birthDate < today()",
       "status": "error",
-      "execution_time_ms": 0.159667,
+      "execution_time_ms": 0.331791,
       "expected": [
         {
           "type": "boolean",
@@ -5563,7 +5563,7 @@
       "description": "testToday2",
       "expression": "today().toString().length() = 10",
       "status": "passed",
-      "execution_time_ms": 0.184,
+      "execution_time_ms": 0.339333,
       "expected": [
         {
           "type": "boolean",
@@ -5579,7 +5579,7 @@
       "description": "testNow1",
       "expression": "Patient.birthDate < now()",
       "status": "error",
-      "execution_time_ms": 0.124875,
+      "execution_time_ms": 0.190375,
       "expected": [
         {
           "type": "boolean",
@@ -5593,7 +5593,7 @@
       "description": "testNow2",
       "expression": "now().toString().length() > 10",
       "status": "passed",
-      "execution_time_ms": 0.180458,
+      "execution_time_ms": 0.356458,
       "expected": [
         {
           "type": "boolean",
@@ -5609,7 +5609,7 @@
       "description": "testEquality1",
       "expression": "1 = 1",
       "status": "passed",
-      "execution_time_ms": 0.512125,
+      "execution_time_ms": 0.606917,
       "expected": [
         {
           "type": "boolean",
@@ -5625,7 +5625,7 @@
       "description": "testEquality2",
       "expression": "{} = {}",
       "status": "passed",
-      "execution_time_ms": 0.104583,
+      "execution_time_ms": 0.127666,
       "expected": [],
       "actual": []
     },
@@ -5634,7 +5634,7 @@
       "description": "testEquality3",
       "expression": "true = {}",
       "status": "passed",
-      "execution_time_ms": 0.10275,
+      "execution_time_ms": 0.115917,
       "expected": [],
       "actual": []
     },
@@ -5643,7 +5643,7 @@
       "description": "testEquality4",
       "expression": "(1) = (1)",
       "status": "passed",
-      "execution_time_ms": 0.256833,
+      "execution_time_ms": 0.288375,
       "expected": [
         {
           "type": "boolean",
@@ -5659,7 +5659,7 @@
       "description": "testEquality5",
       "expression": "(1 | 2) = (1 | 2)",
       "status": "passed",
-      "execution_time_ms": 0.515875,
+      "execution_time_ms": 0.496708,
       "expected": [
         {
           "type": "boolean",
@@ -5675,7 +5675,7 @@
       "description": "testEquality6",
       "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
       "status": "passed",
-      "execution_time_ms": 0.600084,
+      "execution_time_ms": 0.670208,
       "expected": [
         {
           "type": "boolean",
@@ -5691,7 +5691,7 @@
       "description": "testEquality7",
       "expression": "(1 | 1) = (1 | 2 | {})",
       "status": "passed",
-      "execution_time_ms": 0.441292,
+      "execution_time_ms": 3.542,
       "expected": [],
       "actual": [
         false
@@ -5702,7 +5702,7 @@
       "description": "testEquality8",
       "expression": "1 = 2",
       "status": "passed",
-      "execution_time_ms": 0.221959,
+      "execution_time_ms": 0.287666,
       "expected": [
         {
           "type": "boolean",
@@ -5718,7 +5718,7 @@
       "description": "testEquality9",
       "expression": "'a' = 'a'",
       "status": "passed",
-      "execution_time_ms": 0.097375,
+      "execution_time_ms": 0.109333,
       "expected": [
         {
           "type": "boolean",
@@ -5734,7 +5734,7 @@
       "description": "testEquality10",
       "expression": "'a' = 'A'",
       "status": "passed",
-      "execution_time_ms": 0.092917,
+      "execution_time_ms": 0.098792,
       "expected": [
         {
           "type": "boolean",
@@ -5750,7 +5750,7 @@
       "description": "testEquality11",
       "expression": "'a' = 'b'",
       "status": "passed",
-      "execution_time_ms": 0.09425,
+      "execution_time_ms": 0.100625,
       "expected": [
         {
           "type": "boolean",
@@ -5766,7 +5766,7 @@
       "description": "testEquality12",
       "expression": "1.1 = 1.1",
       "status": "passed",
-      "execution_time_ms": 0.220958,
+      "execution_time_ms": 0.291042,
       "expected": [
         {
           "type": "boolean",
@@ -5782,7 +5782,7 @@
       "description": "testEquality13",
       "expression": "1.1 = 1.2",
       "status": "passed",
-      "execution_time_ms": 0.233042,
+      "execution_time_ms": 0.301208,
       "expected": [
         {
           "type": "boolean",
@@ -5798,7 +5798,7 @@
       "description": "testEquality14",
       "expression": "1.10 = 1.1",
       "status": "passed",
-      "execution_time_ms": 1.802541,
+      "execution_time_ms": 0.2315,
       "expected": [
         {
           "type": "boolean",
@@ -5814,7 +5814,7 @@
       "description": "testEquality15",
       "expression": "0 = 0",
       "status": "passed",
-      "execution_time_ms": 0.28475,
+      "execution_time_ms": 0.221542,
       "expected": [
         {
           "type": "boolean",
@@ -5830,7 +5830,7 @@
       "description": "testEquality16",
       "expression": "0.0 = 0",
       "status": "passed",
-      "execution_time_ms": 0.226875,
+      "execution_time_ms": 0.219458,
       "expected": [
         {
           "type": "boolean",
@@ -5846,7 +5846,7 @@
       "description": "testEquality17",
       "expression": "@2012-04-15 = @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 0.253834,
+      "execution_time_ms": 0.259625,
       "expected": [
         {
           "type": "boolean",
@@ -5862,7 +5862,7 @@
       "description": "testEquality18",
       "expression": "@2012-04-15 = @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 0.116667,
+      "execution_time_ms": 0.113792,
       "expected": [
         {
           "type": "boolean",
@@ -5878,7 +5878,7 @@
       "description": "testEquality19",
       "expression": "@2012-04-15 = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.259333,
+      "execution_time_ms": 0.258458,
       "expected": [],
       "actual": []
     },
@@ -5887,7 +5887,7 @@
       "description": "testEquality20",
       "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.118625,
+      "execution_time_ms": 0.117459,
       "expected": [
         {
           "type": "boolean",
@@ -5903,7 +5903,7 @@
       "description": "testEquality21",
       "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 0.114625,
+      "execution_time_ms": 0.1205,
       "expected": [
         {
           "type": "boolean",
@@ -5919,7 +5919,7 @@
       "description": "testEquality22",
       "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 0.099458,
+      "execution_time_ms": 0.100625,
       "expected": [
         {
           "type": "boolean",
@@ -5935,7 +5935,7 @@
       "description": "testEquality23",
       "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.151292,
+      "execution_time_ms": 0.14575,
       "expected": [],
       "actual": [
         false
@@ -5946,7 +5946,7 @@
       "description": "testEquality24",
       "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
       "status": "passed",
-      "execution_time_ms": 0.123584,
+      "execution_time_ms": 0.128708,
       "expected": [
         {
           "type": "boolean",
@@ -5962,7 +5962,7 @@
       "description": "testEquality25",
       "expression": "name = name",
       "status": "passed",
-      "execution_time_ms": 0.113166,
+      "execution_time_ms": 0.119792,
       "expected": [
         {
           "type": "boolean",
@@ -5976,7 +5976,7 @@
       "description": "testEquality26",
       "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
       "status": "passed",
-      "execution_time_ms": 0.471459,
+      "execution_time_ms": 0.455083,
       "expected": [
         {
           "type": "boolean",
@@ -5990,7 +5990,7 @@
       "description": "testEquality27",
       "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
       "status": "passed",
-      "execution_time_ms": 0.401875,
+      "execution_time_ms": 0.395833,
       "expected": [
         {
           "type": "boolean",
@@ -6004,7 +6004,7 @@
       "description": "testEquality28",
       "expression": "Observation.value = 185 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.149833,
+      "execution_time_ms": 0.161833,
       "expected": [
         {
           "type": "boolean",
@@ -6018,7 +6018,7 @@
       "description": "testNEquality1",
       "expression": "1 != 1",
       "status": "passed",
-      "execution_time_ms": 0.242,
+      "execution_time_ms": 0.237917,
       "expected": [
         {
           "type": "boolean",
@@ -6034,7 +6034,7 @@
       "description": "testNEquality2",
       "expression": "{} != {}",
       "status": "passed",
-      "execution_time_ms": 0.10425,
+      "execution_time_ms": 0.106916,
       "expected": [],
       "actual": []
     },
@@ -6043,7 +6043,7 @@
       "description": "testNEquality3",
       "expression": "1 != 2",
       "status": "passed",
-      "execution_time_ms": 0.230792,
+      "execution_time_ms": 0.218125,
       "expected": [
         {
           "type": "boolean",
@@ -6059,7 +6059,7 @@
       "description": "testNEquality4",
       "expression": "'a' != 'a'",
       "status": "passed",
-      "execution_time_ms": 0.100416,
+      "execution_time_ms": 0.099292,
       "expected": [
         {
           "type": "boolean",
@@ -6075,7 +6075,7 @@
       "description": "testNEquality5",
       "expression": "'a' != 'b'",
       "status": "passed",
-      "execution_time_ms": 0.094958,
+      "execution_time_ms": 0.097917,
       "expected": [
         {
           "type": "boolean",
@@ -6091,7 +6091,7 @@
       "description": "testNEquality6",
       "expression": "1.1 != 1.1",
       "status": "passed",
-      "execution_time_ms": 0.217875,
+      "execution_time_ms": 0.300875,
       "expected": [
         {
           "type": "boolean",
@@ -6107,7 +6107,7 @@
       "description": "testNEquality7",
       "expression": "1.1 != 1.2",
       "status": "passed",
-      "execution_time_ms": 0.237417,
+      "execution_time_ms": 0.29475,
       "expected": [
         {
           "type": "boolean",
@@ -6123,7 +6123,7 @@
       "description": "testNEquality8",
       "expression": "1.10 != 1.1",
       "status": "passed",
-      "execution_time_ms": 0.22475,
+      "execution_time_ms": 0.247917,
       "expected": [
         {
           "type": "boolean",
@@ -6139,7 +6139,7 @@
       "description": "testNEquality9",
       "expression": "0 != 0",
       "status": "passed",
-      "execution_time_ms": 0.236292,
+      "execution_time_ms": 0.257792,
       "expected": [
         {
           "type": "boolean",
@@ -6155,7 +6155,7 @@
       "description": "testNEquality10",
       "expression": "0.0 != 0",
       "status": "passed",
-      "execution_time_ms": 0.234708,
+      "execution_time_ms": 0.239125,
       "expected": [
         {
           "type": "boolean",
@@ -6171,7 +6171,7 @@
       "description": "testNEquality11",
       "expression": "@2012-04-15 != @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 0.1055,
+      "execution_time_ms": 0.145583,
       "expected": [
         {
           "type": "boolean",
@@ -6187,7 +6187,7 @@
       "description": "testNEquality12",
       "expression": "@2012-04-15 != @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 0.099375,
+      "execution_time_ms": 0.113583,
       "expected": [
         {
           "type": "boolean",
@@ -6203,7 +6203,7 @@
       "description": "testNEquality13",
       "expression": "@2012-04-15 != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.106875,
+      "execution_time_ms": 0.142,
       "expected": [],
       "actual": []
     },
@@ -6212,7 +6212,7 @@
       "description": "testNEquality14",
       "expression": "@2012-04-15T15:00:00 != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.1,
+      "execution_time_ms": 0.101875,
       "expected": [
         {
           "type": "boolean",
@@ -6228,7 +6228,7 @@
       "description": "testNEquality15",
       "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 0.099333,
+      "execution_time_ms": 0.106916,
       "expected": [
         {
           "type": "boolean",
@@ -6244,7 +6244,7 @@
       "description": "testNEquality16",
       "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 0.100167,
+      "execution_time_ms": 0.102542,
       "expected": [
         {
           "type": "boolean",
@@ -6260,7 +6260,7 @@
       "description": "testNEquality17",
       "expression": "@2012-04-15T15:00:00Z != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.100125,
+      "execution_time_ms": 0.110125,
       "expected": [],
       "actual": [
         true
@@ -6271,7 +6271,7 @@
       "description": "testNEquality18",
       "expression": "@2012-04-15T15:00:00+02:00 != @2012-04-15T16:00:00+03:00",
       "status": "passed",
-      "execution_time_ms": 0.102583,
+      "execution_time_ms": 0.112875,
       "expected": [
         {
           "type": "boolean",
@@ -6287,7 +6287,7 @@
       "description": "testNEquality19",
       "expression": "name != name",
       "status": "passed",
-      "execution_time_ms": 0.10525,
+      "execution_time_ms": 0.131667,
       "expected": [
         {
           "type": "boolean",
@@ -6301,7 +6301,7 @@
       "description": "testNEquality20",
       "expression": "name.take(2) != name.take(2).first() | name.take(2).last()",
       "status": "passed",
-      "execution_time_ms": 0.48475,
+      "execution_time_ms": 0.564583,
       "expected": [
         {
           "type": "boolean",
@@ -6315,7 +6315,7 @@
       "description": "testNEquality21",
       "expression": "name.take(2) != name.take(2).last() | name.take(2).first()",
       "status": "passed",
-      "execution_time_ms": 0.430208,
+      "execution_time_ms": 0.567875,
       "expected": [
         {
           "type": "boolean",
@@ -6329,7 +6329,7 @@
       "description": "testNEquality22",
       "expression": "1.2 / 1.8 != 0.6666667",
       "status": "passed",
-      "execution_time_ms": 0.356959,
+      "execution_time_ms": 0.445,
       "expected": [
         {
           "type": "boolean",
@@ -6345,7 +6345,7 @@
       "description": "testNEquality23",
       "expression": "1.2 / 1.8 != 0.67",
       "status": "passed",
-      "execution_time_ms": 0.30825,
+      "execution_time_ms": 1.809542,
       "expected": [
         {
           "type": "boolean",
@@ -6361,7 +6361,7 @@
       "description": "testNEquality24",
       "expression": "Observation.value != 185 'kg'",
       "status": "passed",
-      "execution_time_ms": 0.117375,
+      "execution_time_ms": 0.198375,
       "expected": [
         {
           "type": "boolean",
@@ -6375,7 +6375,7 @@
       "description": "testEquivalent1",
       "expression": "1 ~ 1",
       "status": "passed",
-      "execution_time_ms": 0.418959,
+      "execution_time_ms": 0.536875,
       "expected": [
         {
           "type": "boolean",
@@ -6391,7 +6391,7 @@
       "description": "testEquivalent2",
       "expression": "{} ~ {}",
       "status": "passed",
-      "execution_time_ms": 0.101041,
+      "execution_time_ms": 0.117791,
       "expected": [
         {
           "type": "boolean",
@@ -6407,7 +6407,7 @@
       "description": "testEquivalent3",
       "expression": "1 ~ {}",
       "status": "passed",
-      "execution_time_ms": 0.175291,
+      "execution_time_ms": 0.182709,
       "expected": [
         {
           "type": "boolean",
@@ -6421,7 +6421,7 @@
       "description": "testEquivalent4",
       "expression": "1 ~ 2",
       "status": "passed",
-      "execution_time_ms": 0.221333,
+      "execution_time_ms": 0.224,
       "expected": [
         {
           "type": "boolean",
@@ -6437,7 +6437,7 @@
       "description": "testEquivalent5",
       "expression": "'a' ~ 'a'",
       "status": "passed",
-      "execution_time_ms": 0.100875,
+      "execution_time_ms": 0.107875,
       "expected": [
         {
           "type": "boolean",
@@ -6453,7 +6453,7 @@
       "description": "testEquivalent6",
       "expression": "'a' ~ 'A'",
       "status": "passed",
-      "execution_time_ms": 0.175208,
+      "execution_time_ms": 0.232458,
       "expected": [
         {
           "type": "boolean",
@@ -6469,7 +6469,7 @@
       "description": "testEquivalent7",
       "expression": "'a' ~ 'b'",
       "status": "passed",
-      "execution_time_ms": 0.098667,
+      "execution_time_ms": 0.1015,
       "expected": [
         {
           "type": "boolean",
@@ -6485,7 +6485,7 @@
       "description": "testEquivalent8",
       "expression": "1.1 ~ 1.1",
       "status": "passed",
-      "execution_time_ms": 0.301333,
+      "execution_time_ms": 0.3635,
       "expected": [
         {
           "type": "boolean",
@@ -6501,7 +6501,7 @@
       "description": "testEquivalent9",
       "expression": "1.1 ~ 1.2",
       "status": "passed",
-      "execution_time_ms": 0.229042,
+      "execution_time_ms": 0.291291,
       "expected": [
         {
           "type": "boolean",
@@ -6517,7 +6517,7 @@
       "description": "testEquivalent10",
       "expression": "1.10 ~ 1.1",
       "status": "passed",
-      "execution_time_ms": 1.790958,
+      "execution_time_ms": 0.275458,
       "expected": [
         {
           "type": "boolean",
@@ -6533,7 +6533,7 @@
       "description": "testEquivalent11",
       "expression": "1.2 / 1.8 ~ 0.67",
       "status": "passed",
-      "execution_time_ms": 0.520125,
+      "execution_time_ms": 0.39075,
       "expected": [
         {
           "type": "boolean",
@@ -6549,7 +6549,7 @@
       "description": "testEquivalent12",
       "expression": "0 ~ 0",
       "status": "passed",
-      "execution_time_ms": 0.238708,
+      "execution_time_ms": 0.226458,
       "expected": [
         {
           "type": "boolean",
@@ -6565,7 +6565,7 @@
       "description": "testEquivalent13",
       "expression": "0.0 ~ 0",
       "status": "passed",
-      "execution_time_ms": 0.229667,
+      "execution_time_ms": 0.2395,
       "expected": [
         {
           "type": "boolean",
@@ -6581,7 +6581,7 @@
       "description": "testEquivalent14",
       "expression": "@2012-04-15 ~ @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 0.177291,
+      "execution_time_ms": 0.173125,
       "expected": [
         {
           "type": "boolean",
@@ -6597,7 +6597,7 @@
       "description": "testEquivalent15",
       "expression": "@2012-04-15 ~ @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 0.10975,
+      "execution_time_ms": 0.102209,
       "expected": [
         {
           "type": "boolean",
@@ -6613,7 +6613,7 @@
       "description": "testEquivalent16",
       "expression": "@2012-04-15 ~ @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.103625,
+      "execution_time_ms": 0.101625,
       "expected": [
         {
           "type": "boolean",
@@ -6629,7 +6629,7 @@
       "description": "testEquivalent17",
       "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 0.106791,
+      "execution_time_ms": 0.103375,
       "expected": [
         {
           "type": "boolean",
@@ -6645,7 +6645,7 @@
       "description": "testEquivalent18",
       "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 0.102875,
+      "execution_time_ms": 0.10275,
       "expected": [
         {
           "type": "boolean",
@@ -6661,7 +6661,7 @@
       "description": "testEquivalent19",
       "expression": "name ~ name",
       "status": "passed",
-      "execution_time_ms": 0.127292,
+      "execution_time_ms": 0.121208,
       "expected": [
         {
           "type": "boolean",
@@ -6677,7 +6677,7 @@
       "description": "testEquivalent20",
       "expression": "name.take(2).given ~ name.take(2).first().given | name.take(2).last().given",
       "status": "passed",
-      "execution_time_ms": 0.496416,
+      "execution_time_ms": 0.4895,
       "expected": [
         {
           "type": "boolean",
@@ -6693,7 +6693,7 @@
       "description": "testEquivalent21",
       "expression": "name.take(2).given ~ name.take(2).last().given | name.take(2).first().given",
       "status": "passed",
-      "execution_time_ms": 0.427458,
+      "execution_time_ms": 0.469334,
       "expected": [
         {
           "type": "boolean",
@@ -6709,7 +6709,7 @@
       "description": "testEquivalent22",
       "expression": "Observation.value ~ 185 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.124625,
+      "execution_time_ms": 0.234959,
       "expected": [
         {
           "type": "boolean",
@@ -6723,7 +6723,7 @@
       "description": "testNotEquivalent1",
       "expression": "1 !~ 1",
       "status": "passed",
-      "execution_time_ms": 0.494333,
+      "execution_time_ms": 0.608792,
       "expected": [
         {
           "type": "boolean",
@@ -6739,7 +6739,7 @@
       "description": "testNotEquivalent2",
       "expression": "{} !~ {}",
       "status": "passed",
-      "execution_time_ms": 0.107084,
+      "execution_time_ms": 0.11825,
       "expected": [
         {
           "type": "boolean",
@@ -6755,7 +6755,7 @@
       "description": "testNotEquivalent3",
       "expression": "{} !~ 1",
       "status": "passed",
-      "execution_time_ms": 0.146292,
+      "execution_time_ms": 0.147416,
       "expected": [
         {
           "type": "boolean",
@@ -6771,7 +6771,7 @@
       "description": "testNotEquivalent4",
       "expression": "1 !~ 2",
       "status": "passed",
-      "execution_time_ms": 0.225041,
+      "execution_time_ms": 0.226,
       "expected": [
         {
           "type": "boolean",
@@ -6787,7 +6787,7 @@
       "description": "testNotEquivalent5",
       "expression": "'a' !~ 'a'",
       "status": "passed",
-      "execution_time_ms": 0.134125,
+      "execution_time_ms": 0.112709,
       "expected": [
         {
           "type": "boolean",
@@ -6803,7 +6803,7 @@
       "description": "testNotEquivalent6",
       "expression": "'a' !~ 'A'",
       "status": "passed",
-      "execution_time_ms": 0.10575,
+      "execution_time_ms": 0.1025,
       "expected": [
         {
           "type": "boolean",
@@ -6819,7 +6819,7 @@
       "description": "testNotEquivalent7",
       "expression": "'a' !~ 'b'",
       "status": "passed",
-      "execution_time_ms": 0.096083,
+      "execution_time_ms": 0.101875,
       "expected": [
         {
           "type": "boolean",
@@ -6835,7 +6835,7 @@
       "description": "testNotEquivalent8",
       "expression": "1.1 !~ 1.1",
       "status": "passed",
-      "execution_time_ms": 0.234459,
+      "execution_time_ms": 0.232333,
       "expected": [
         {
           "type": "boolean",
@@ -6851,7 +6851,7 @@
       "description": "testNotEquivalent9",
       "expression": "1.1 !~ 1.2",
       "status": "passed",
-      "execution_time_ms": 0.224709,
+      "execution_time_ms": 0.225583,
       "expected": [
         {
           "type": "boolean",
@@ -6867,7 +6867,7 @@
       "description": "testNotEquivalent10",
       "expression": "1.10 !~ 1.1",
       "status": "passed",
-      "execution_time_ms": 0.2225,
+      "execution_time_ms": 0.222375,
       "expected": [
         {
           "type": "boolean",
@@ -6883,7 +6883,7 @@
       "description": "testNotEquivalent11",
       "expression": "0 !~ 0",
       "status": "passed",
-      "execution_time_ms": 0.217458,
+      "execution_time_ms": 0.221209,
       "expected": [
         {
           "type": "boolean",
@@ -6899,7 +6899,7 @@
       "description": "testNotEquivalent12",
       "expression": "0.0 !~ 0",
       "status": "passed",
-      "execution_time_ms": 0.2185,
+      "execution_time_ms": 0.217209,
       "expected": [
         {
           "type": "boolean",
@@ -6915,7 +6915,7 @@
       "description": "testNotEquivalent13",
       "expression": "1.2 / 1.8 !~ 0.6",
       "status": "passed",
-      "execution_time_ms": 0.323875,
+      "execution_time_ms": 0.404625,
       "expected": [
         {
           "type": "boolean",
@@ -6931,7 +6931,7 @@
       "description": "testNotEquivalent14",
       "expression": "@2012-04-15 !~ @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 0.109791,
+      "execution_time_ms": 0.146167,
       "expected": [
         {
           "type": "boolean",
@@ -6947,7 +6947,7 @@
       "description": "testNotEquivalent15",
       "expression": "@2012-04-15 !~ @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 0.101958,
+      "execution_time_ms": 0.119917,
       "expected": [
         {
           "type": "boolean",
@@ -6963,7 +6963,7 @@
       "description": "testNotEquivalent16",
       "expression": "@2012-04-15 !~ @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 0.098709,
+      "execution_time_ms": 0.124167,
       "expected": [
         {
           "type": "boolean",
@@ -6979,7 +6979,7 @@
       "description": "testNotEquivalent17",
       "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 0.10375,
+      "execution_time_ms": 0.16425,
       "expected": [
         {
           "type": "boolean",
@@ -6995,7 +6995,7 @@
       "description": "testNotEquivalent18",
       "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 0.102792,
+      "execution_time_ms": 0.10575,
       "expected": [
         {
           "type": "boolean",
@@ -7011,7 +7011,7 @@
       "description": "testNotEquivalent19",
       "expression": "name !~ name",
       "status": "passed",
-      "execution_time_ms": 0.112792,
+      "execution_time_ms": 0.122208,
       "expected": [
         {
           "type": "boolean",
@@ -7027,7 +7027,7 @@
       "description": "testNotEquivalent20",
       "expression": "name.take(2).given !~ name.take(2).first().given | name.take(2).last().given",
       "status": "passed",
-      "execution_time_ms": 0.449833,
+      "execution_time_ms": 0.516125,
       "expected": [
         {
           "type": "boolean",
@@ -7043,7 +7043,7 @@
       "description": "testNotEquivalent21",
       "expression": "name.take(2).given !~ name.take(2).last().given | name.take(2).first().given",
       "status": "passed",
-      "execution_time_ms": 0.422125,
+      "execution_time_ms": 2.167958,
       "expected": [
         {
           "type": "boolean",
@@ -7059,7 +7059,7 @@
       "description": "testNotEquivalent22",
       "expression": "Observation.value !~ 185 'kg'",
       "status": "passed",
-      "execution_time_ms": 0.116458,
+      "execution_time_ms": 0.272083,
       "expected": [
         {
           "type": "boolean",
@@ -7075,7 +7075,7 @@
       "description": "testLessThan1",
       "expression": "1 < 2",
       "status": "passed",
-      "execution_time_ms": 0.23725,
+      "execution_time_ms": 0.326166,
       "expected": [
         {
           "type": "boolean",
@@ -7091,7 +7091,7 @@
       "description": "testLessThan2",
       "expression": "1.0 < 1.2",
       "status": "passed",
-      "execution_time_ms": 0.232125,
+      "execution_time_ms": 0.239834,
       "expected": [
         {
           "type": "boolean",
@@ -7107,7 +7107,7 @@
       "description": "testLessThan3",
       "expression": "'a' < 'b'",
       "status": "passed",
-      "execution_time_ms": 0.122875,
+      "execution_time_ms": 0.157667,
       "expected": [
         {
           "type": "boolean",
@@ -7123,7 +7123,7 @@
       "description": "testLessThan4",
       "expression": "'A' < 'a'",
       "status": "passed",
-      "execution_time_ms": 0.108709,
+      "execution_time_ms": 0.11875,
       "expected": [
         {
           "type": "boolean",
@@ -7139,7 +7139,7 @@
       "description": "testLessThan5",
       "expression": "@2014-12-12 < @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 0.175916,
+      "execution_time_ms": 0.173,
       "expected": [
         {
           "type": "boolean",
@@ -7155,7 +7155,7 @@
       "description": "testLessThan6",
       "expression": "@2014-12-13T12:00:00 < @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 0.100667,
+      "execution_time_ms": 0.161292,
       "expected": [
         {
           "type": "boolean",
@@ -7171,7 +7171,7 @@
       "description": "testLessThan7",
       "expression": "@T12:00:00 < @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 0.233209,
+      "execution_time_ms": 0.273333,
       "expected": [
         {
           "type": "boolean",
@@ -7187,7 +7187,7 @@
       "description": "testLessThan8",
       "expression": "1 < 1",
       "status": "passed",
-      "execution_time_ms": 0.229667,
+      "execution_time_ms": 0.317875,
       "expected": [
         {
           "type": "boolean",
@@ -7203,7 +7203,7 @@
       "description": "testLessThan9",
       "expression": "1.0 < 1.0",
       "status": "passed",
-      "execution_time_ms": 0.21475,
+      "execution_time_ms": 0.239625,
       "expected": [
         {
           "type": "boolean",
@@ -7219,7 +7219,7 @@
       "description": "testLessThan10",
       "expression": "'a' < 'a'",
       "status": "passed",
-      "execution_time_ms": 1.528833,
+      "execution_time_ms": 0.103458,
       "expected": [
         {
           "type": "boolean",
@@ -7235,7 +7235,7 @@
       "description": "testLessThan11",
       "expression": "'A' < 'A'",
       "status": "passed",
-      "execution_time_ms": 0.171541,
+      "execution_time_ms": 0.104333,
       "expected": [
         {
           "type": "boolean",
@@ -7251,7 +7251,7 @@
       "description": "testLessThan12",
       "expression": "@2014-12-12 < @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.127875,
+      "execution_time_ms": 0.106041,
       "expected": [
         {
           "type": "boolean",
@@ -7267,7 +7267,7 @@
       "description": "testLessThan13",
       "expression": "@2014-12-13T12:00:00 < @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.106542,
+      "execution_time_ms": 0.105333,
       "expected": [
         {
           "type": "boolean",
@@ -7283,7 +7283,7 @@
       "description": "testLessThan14",
       "expression": "@T12:00:00 < @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.189584,
+      "execution_time_ms": 0.181708,
       "expected": [
         {
           "type": "boolean",
@@ -7299,7 +7299,7 @@
       "description": "testLessThan15",
       "expression": "2 < 1",
       "status": "passed",
-      "execution_time_ms": 0.287875,
+      "execution_time_ms": 0.229292,
       "expected": [
         {
           "type": "boolean",
@@ -7315,7 +7315,7 @@
       "description": "testLessThan16",
       "expression": "1.1 < 1.0",
       "status": "passed",
-      "execution_time_ms": 0.22175,
+      "execution_time_ms": 0.219833,
       "expected": [
         {
           "type": "boolean",
@@ -7331,7 +7331,7 @@
       "description": "testLessThan17",
       "expression": "'b' < 'a'",
       "status": "passed",
-      "execution_time_ms": 0.097875,
+      "execution_time_ms": 0.0975,
       "expected": [
         {
           "type": "boolean",
@@ -7347,7 +7347,7 @@
       "description": "testLessThan18",
       "expression": "'B' < 'A'",
       "status": "passed",
-      "execution_time_ms": 0.123834,
+      "execution_time_ms": 0.108792,
       "expected": [
         {
           "type": "boolean",
@@ -7363,7 +7363,7 @@
       "description": "testLessThan19",
       "expression": "@2014-12-13 < @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.098167,
+      "execution_time_ms": 0.102625,
       "expected": [
         {
           "type": "boolean",
@@ -7379,7 +7379,7 @@
       "description": "testLessThan20",
       "expression": "@2014-12-13T12:00:01 < @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.104084,
+      "execution_time_ms": 0.100375,
       "expected": [
         {
           "type": "boolean",
@@ -7395,7 +7395,7 @@
       "description": "testLessThan21",
       "expression": "@T12:00:01 < @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.11675,
+      "execution_time_ms": 0.113334,
       "expected": [
         {
           "type": "boolean",
@@ -7411,7 +7411,7 @@
       "description": "testLessThan22",
       "expression": "Observation.value < 200 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.145334,
+      "execution_time_ms": 0.137,
       "expected": [
         {
           "type": "boolean",
@@ -7425,7 +7425,7 @@
       "description": "testLessThan23",
       "expression": "@2018-03 < @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 0.124541,
+      "execution_time_ms": 0.127791,
       "expected": [],
       "actual": []
     },
@@ -7434,7 +7434,7 @@
       "description": "testLessThan24",
       "expression": "@2018-03-01T10 < @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 0.099875,
+      "execution_time_ms": 0.100209,
       "expected": [],
       "actual": []
     },
@@ -7443,7 +7443,7 @@
       "description": "testLessThan25",
       "expression": "@T10 < @T10:30",
       "status": "passed",
-      "execution_time_ms": 0.1165,
+      "execution_time_ms": 0.110875,
       "expected": [],
       "actual": []
     },
@@ -7452,7 +7452,7 @@
       "description": "testLessThan26",
       "expression": "@2018-03-01T10:30:00 < @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.098333,
+      "execution_time_ms": 0.099292,
       "expected": [
         {
           "type": "boolean",
@@ -7468,7 +7468,7 @@
       "description": "testLessThan27",
       "expression": "@T10:30:00 < @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.121334,
+      "execution_time_ms": 0.11875,
       "expected": [
         {
           "type": "boolean",
@@ -7484,7 +7484,7 @@
       "description": "testLessOrEqual1",
       "expression": "1 <= 2",
       "status": "passed",
-      "execution_time_ms": 0.480167,
+      "execution_time_ms": 0.463542,
       "expected": [
         {
           "type": "boolean",
@@ -7500,7 +7500,7 @@
       "description": "testLessOrEqual2",
       "expression": "1.0 <= 1.2",
       "status": "passed",
-      "execution_time_ms": 0.22225,
+      "execution_time_ms": 0.217292,
       "expected": [
         {
           "type": "boolean",
@@ -7516,7 +7516,7 @@
       "description": "testLessOrEqual3",
       "expression": "'a' <= 'b'",
       "status": "passed",
-      "execution_time_ms": 0.096417,
+      "execution_time_ms": 0.099417,
       "expected": [
         {
           "type": "boolean",
@@ -7532,7 +7532,7 @@
       "description": "testLessOrEqual4",
       "expression": "'A' <= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.097125,
+      "execution_time_ms": 0.093875,
       "expected": [
         {
           "type": "boolean",
@@ -7548,7 +7548,7 @@
       "description": "testLessOrEqual5",
       "expression": "@2014-12-12 <= @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 0.098833,
+      "execution_time_ms": 0.102459,
       "expected": [
         {
           "type": "boolean",
@@ -7564,7 +7564,7 @@
       "description": "testLessOrEqual6",
       "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 0.097583,
+      "execution_time_ms": 0.100125,
       "expected": [
         {
           "type": "boolean",
@@ -7580,7 +7580,7 @@
       "description": "testLessOrEqual7",
       "expression": "@T12:00:00 <= @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 0.103,
+      "execution_time_ms": 0.118959,
       "expected": [
         {
           "type": "boolean",
@@ -7596,7 +7596,7 @@
       "description": "testLessOrEqual8",
       "expression": "1 <= 1",
       "status": "passed",
-      "execution_time_ms": 0.220291,
+      "execution_time_ms": 0.224375,
       "expected": [
         {
           "type": "boolean",
@@ -7612,7 +7612,7 @@
       "description": "testLessOrEqual9",
       "expression": "1.0 <= 1.0",
       "status": "passed",
-      "execution_time_ms": 0.275208,
+      "execution_time_ms": 0.275625,
       "expected": [
         {
           "type": "boolean",
@@ -7628,7 +7628,7 @@
       "description": "testLessOrEqual10",
       "expression": "'a' <= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.09775,
+      "execution_time_ms": 0.103,
       "expected": [
         {
           "type": "boolean",
@@ -7644,7 +7644,7 @@
       "description": "testLessOrEqual11",
       "expression": "'A' <= 'A'",
       "status": "passed",
-      "execution_time_ms": 0.09275,
+      "execution_time_ms": 0.092958,
       "expected": [
         {
           "type": "boolean",
@@ -7676,7 +7676,7 @@
       "description": "testLessOrEqual13",
       "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.096,
+      "execution_time_ms": 0.097583,
       "expected": [
         {
           "type": "boolean",
@@ -7692,7 +7692,7 @@
       "description": "testLessOrEqual14",
       "expression": "@T12:00:00 <= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.098875,
+      "execution_time_ms": 0.1025,
       "expected": [
         {
           "type": "boolean",
@@ -7708,7 +7708,7 @@
       "description": "testLessOrEqual15",
       "expression": "2 <= 1",
       "status": "passed",
-      "execution_time_ms": 0.220041,
+      "execution_time_ms": 0.224292,
       "expected": [
         {
           "type": "boolean",
@@ -7724,7 +7724,7 @@
       "description": "testLessOrEqual16",
       "expression": "1.1 <= 1.0",
       "status": "passed",
-      "execution_time_ms": 0.214625,
+      "execution_time_ms": 0.241625,
       "expected": [
         {
           "type": "boolean",
@@ -7740,7 +7740,7 @@
       "description": "testLessOrEqual17",
       "expression": "'b' <= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.093792,
+      "execution_time_ms": 0.110209,
       "expected": [
         {
           "type": "boolean",
@@ -7756,7 +7756,7 @@
       "description": "testLessOrEqual18",
       "expression": "'B' <= 'A'",
       "status": "passed",
-      "execution_time_ms": 0.092958,
+      "execution_time_ms": 0.092083,
       "expected": [
         {
           "type": "boolean",
@@ -7772,7 +7772,7 @@
       "description": "testLessOrEqual19",
       "expression": "@2014-12-13 <= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.095291,
+      "execution_time_ms": 0.110792,
       "expected": [
         {
           "type": "boolean",
@@ -7788,7 +7788,7 @@
       "description": "testLessOrEqual20",
       "expression": "@2014-12-13T12:00:01 <= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.098041,
+      "execution_time_ms": 0.096375,
       "expected": [
         {
           "type": "boolean",
@@ -7804,7 +7804,7 @@
       "description": "testLessOrEqual21",
       "expression": "@T12:00:01 <= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.094167,
+      "execution_time_ms": 0.100125,
       "expected": [
         {
           "type": "boolean",
@@ -7820,7 +7820,7 @@
       "description": "testLessOrEqual22",
       "expression": "Observation.value <= 200 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.139875,
+      "execution_time_ms": 0.12625,
       "expected": [
         {
           "type": "boolean",
@@ -7834,7 +7834,7 @@
       "description": "testLessOrEqual23",
       "expression": "@2018-03 <= @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 0.09975,
+      "execution_time_ms": 0.099083,
       "expected": [],
       "actual": []
     },
@@ -7843,7 +7843,7 @@
       "description": "testLessOrEqual24",
       "expression": "@2018-03-01T10 <= @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 0.097125,
+      "execution_time_ms": 0.097083,
       "expected": [],
       "actual": []
     },
@@ -7852,7 +7852,7 @@
       "description": "testLessOrEqual25",
       "expression": "@T10 <= @T10:30",
       "status": "passed",
-      "execution_time_ms": 0.098625,
+      "execution_time_ms": 0.097834,
       "expected": [],
       "actual": []
     },
@@ -7861,7 +7861,7 @@
       "description": "testLessOrEqual26",
       "expression": "@2018-03-01T10:30:00  <= @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.115333,
+      "execution_time_ms": 0.115917,
       "expected": [
         {
           "type": "boolean",
@@ -7877,7 +7877,7 @@
       "description": "testLessOrEqual27",
       "expression": "@T10:30:00 <= @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.098834,
+      "execution_time_ms": 0.096625,
       "expected": [
         {
           "type": "boolean",
@@ -7893,7 +7893,7 @@
       "description": "testGreatorOrEqual1",
       "expression": "1 >= 2",
       "status": "passed",
-      "execution_time_ms": 0.482584,
+      "execution_time_ms": 0.478083,
       "expected": [
         {
           "type": "boolean",
@@ -7909,7 +7909,7 @@
       "description": "testGreatorOrEqual2",
       "expression": "1.0 >= 1.2",
       "status": "passed",
-      "execution_time_ms": 0.223917,
+      "execution_time_ms": 0.322291,
       "expected": [
         {
           "type": "boolean",
@@ -7925,7 +7925,7 @@
       "description": "testGreatorOrEqual3",
       "expression": "'a' >= 'b'",
       "status": "passed",
-      "execution_time_ms": 0.096875,
+      "execution_time_ms": 2.061792,
       "expected": [
         {
           "type": "boolean",
@@ -7941,7 +7941,7 @@
       "description": "testGreatorOrEqual4",
       "expression": "'A' >= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.114833,
+      "execution_time_ms": 0.187042,
       "expected": [
         {
           "type": "boolean",
@@ -7957,7 +7957,7 @@
       "description": "testGreatorOrEqual5",
       "expression": "@2014-12-12 >= @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 0.098125,
+      "execution_time_ms": 0.131459,
       "expected": [
         {
           "type": "boolean",
@@ -7973,7 +7973,7 @@
       "description": "testGreatorOrEqual6",
       "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 0.0985,
+      "execution_time_ms": 0.110916,
       "expected": [
         {
           "type": "boolean",
@@ -7989,7 +7989,7 @@
       "description": "testGreatorOrEqual7",
       "expression": "@T12:00:00 >= @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 0.097083,
+      "execution_time_ms": 0.109458,
       "expected": [
         {
           "type": "boolean",
@@ -8005,7 +8005,7 @@
       "description": "testGreatorOrEqual8",
       "expression": "1 >= 1",
       "status": "passed",
-      "execution_time_ms": 0.221958,
+      "execution_time_ms": 0.342458,
       "expected": [
         {
           "type": "boolean",
@@ -8021,7 +8021,7 @@
       "description": "testGreatorOrEqual9",
       "expression": "1.0 >= 1.0",
       "status": "passed",
-      "execution_time_ms": 0.215,
+      "execution_time_ms": 0.252541,
       "expected": [
         {
           "type": "boolean",
@@ -8037,7 +8037,7 @@
       "description": "testGreatorOrEqual10",
       "expression": "'a' >= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.09875,
+      "execution_time_ms": 0.108166,
       "expected": [
         {
           "type": "boolean",
@@ -8053,7 +8053,7 @@
       "description": "testGreatorOrEqual11",
       "expression": "'A' >= 'A'",
       "status": "passed",
-      "execution_time_ms": 0.091209,
+      "execution_time_ms": 0.098792,
       "expected": [
         {
           "type": "boolean",
@@ -8069,7 +8069,7 @@
       "description": "testGreatorOrEqual12",
       "expression": "@2014-12-12 >= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.098042,
+      "execution_time_ms": 0.102709,
       "expected": [
         {
           "type": "boolean",
@@ -8085,7 +8085,7 @@
       "description": "testGreatorOrEqual13",
       "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.095875,
+      "execution_time_ms": 0.104667,
       "expected": [
         {
           "type": "boolean",
@@ -8101,7 +8101,7 @@
       "description": "testGreatorOrEqual14",
       "expression": "@T12:00:00 >= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.098459,
+      "execution_time_ms": 0.102459,
       "expected": [
         {
           "type": "boolean",
@@ -8117,7 +8117,7 @@
       "description": "testGreatorOrEqual15",
       "expression": "2 >= 1",
       "status": "passed",
-      "execution_time_ms": 0.218,
+      "execution_time_ms": 0.2315,
       "expected": [
         {
           "type": "boolean",
@@ -8133,7 +8133,7 @@
       "description": "testGreatorOrEqual16",
       "expression": "1.1 >= 1.0",
       "status": "passed",
-      "execution_time_ms": 1.842833,
+      "execution_time_ms": 0.252208,
       "expected": [
         {
           "type": "boolean",
@@ -8149,7 +8149,7 @@
       "description": "testGreatorOrEqual17",
       "expression": "'b' >= 'a'",
       "status": "passed",
-      "execution_time_ms": 0.127375,
+      "execution_time_ms": 0.102875,
       "expected": [
         {
           "type": "boolean",
@@ -8165,7 +8165,7 @@
       "description": "testGreatorOrEqual18",
       "expression": "'B' >= 'A'",
       "status": "passed",
-      "execution_time_ms": 0.102584,
+      "execution_time_ms": 0.098917,
       "expected": [
         {
           "type": "boolean",
@@ -8181,7 +8181,7 @@
       "description": "testGreatorOrEqual19",
       "expression": "@2014-12-13 >= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.125167,
+      "execution_time_ms": 0.108,
       "expected": [
         {
           "type": "boolean",
@@ -8197,7 +8197,7 @@
       "description": "testGreatorOrEqual20",
       "expression": "@2014-12-13T12:00:01 >= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.118875,
+      "execution_time_ms": 0.11825,
       "expected": [
         {
           "type": "boolean",
@@ -8213,7 +8213,7 @@
       "description": "testGreatorOrEqual21",
       "expression": "@T12:00:01 >= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.130125,
+      "execution_time_ms": 0.181375,
       "expected": [
         {
           "type": "boolean",
@@ -8229,7 +8229,7 @@
       "description": "testGreatorOrEqual22",
       "expression": "Observation.value >= 100 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.16025,
+      "execution_time_ms": 0.243166,
       "expected": [
         {
           "type": "boolean",
@@ -8243,7 +8243,7 @@
       "description": "testGreatorOrEqual23",
       "expression": "@2018-03 >= @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 0.103625,
+      "execution_time_ms": 0.125208,
       "expected": [],
       "actual": []
     },
@@ -8252,7 +8252,7 @@
       "description": "testGreatorOrEqual24",
       "expression": "@2018-03-01T10 >= @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 0.105458,
+      "execution_time_ms": 0.118459,
       "expected": [],
       "actual": []
     },
@@ -8261,7 +8261,7 @@
       "description": "testGreatorOrEqual25",
       "expression": "@T10 >= @T10:30",
       "status": "passed",
-      "execution_time_ms": 0.100292,
+      "execution_time_ms": 0.163291,
       "expected": [],
       "actual": []
     },
@@ -8270,7 +8270,7 @@
       "description": "testGreatorOrEqual26",
       "expression": "@2018-03-01T10:30:00 >= @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.1015,
+      "execution_time_ms": 0.119083,
       "expected": [
         {
           "type": "boolean",
@@ -8286,7 +8286,7 @@
       "description": "testGreatorOrEqual27",
       "expression": "@T10:30:00 >= @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.103791,
+      "execution_time_ms": 0.141667,
       "expected": [
         {
           "type": "boolean",
@@ -8302,7 +8302,7 @@
       "description": "testGreaterThan1",
       "expression": "1 > 2",
       "status": "passed",
-      "execution_time_ms": 0.46325,
+      "execution_time_ms": 0.497333,
       "expected": [
         {
           "type": "boolean",
@@ -8318,7 +8318,7 @@
       "description": "testGreaterThan2",
       "expression": "1.0 > 1.2",
       "status": "passed",
-      "execution_time_ms": 0.221709,
+      "execution_time_ms": 0.269875,
       "expected": [
         {
           "type": "boolean",
@@ -8334,7 +8334,7 @@
       "description": "testGreaterThan3",
       "expression": "'a' > 'b'",
       "status": "passed",
-      "execution_time_ms": 0.095625,
+      "execution_time_ms": 0.13175,
       "expected": [
         {
           "type": "boolean",
@@ -8350,7 +8350,7 @@
       "description": "testGreaterThan4",
       "expression": "'A' > 'a'",
       "status": "passed",
-      "execution_time_ms": 0.093667,
+      "execution_time_ms": 0.101709,
       "expected": [
         {
           "type": "boolean",
@@ -8366,7 +8366,7 @@
       "description": "testGreaterThan5",
       "expression": "@2014-12-12 > @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 0.098209,
+      "execution_time_ms": 0.111834,
       "expected": [
         {
           "type": "boolean",
@@ -8382,7 +8382,7 @@
       "description": "testGreaterThan6",
       "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 0.101625,
+      "execution_time_ms": 0.106375,
       "expected": [
         {
           "type": "boolean",
@@ -8398,7 +8398,7 @@
       "description": "testGreaterThan7",
       "expression": "@T12:00:00 > @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 0.099125,
+      "execution_time_ms": 0.107833,
       "expected": [
         {
           "type": "boolean",
@@ -8414,7 +8414,7 @@
       "description": "testGreaterThan8",
       "expression": "1 > 1",
       "status": "passed",
-      "execution_time_ms": 0.220666,
+      "execution_time_ms": 0.246666,
       "expected": [
         {
           "type": "boolean",
@@ -8430,7 +8430,7 @@
       "description": "testGreaterThan9",
       "expression": "1.0 > 1.0",
       "status": "passed",
-      "execution_time_ms": 0.217292,
+      "execution_time_ms": 0.2355,
       "expected": [
         {
           "type": "boolean",
@@ -8446,7 +8446,7 @@
       "description": "testGreaterThan10",
       "expression": "'a' > 'a'",
       "status": "passed",
-      "execution_time_ms": 0.09425,
+      "execution_time_ms": 0.097917,
       "expected": [
         {
           "type": "boolean",
@@ -8462,7 +8462,7 @@
       "description": "testGreaterThan11",
       "expression": "'A' > 'A'",
       "status": "passed",
-      "execution_time_ms": 0.092625,
+      "execution_time_ms": 0.103542,
       "expected": [
         {
           "type": "boolean",
@@ -8478,7 +8478,7 @@
       "description": "testGreaterThan12",
       "expression": "@2014-12-12 > @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.0965,
+      "execution_time_ms": 0.113334,
       "expected": [
         {
           "type": "boolean",
@@ -8494,7 +8494,7 @@
       "description": "testGreaterThan13",
       "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.096667,
+      "execution_time_ms": 0.13375,
       "expected": [
         {
           "type": "boolean",
@@ -8510,7 +8510,7 @@
       "description": "testGreaterThan14",
       "expression": "@T12:00:00 > @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.11025,
+      "execution_time_ms": 0.151,
       "expected": [
         {
           "type": "boolean",
@@ -8526,7 +8526,7 @@
       "description": "testGreaterThan15",
       "expression": "2 > 1",
       "status": "passed",
-      "execution_time_ms": 0.220125,
+      "execution_time_ms": 0.355292,
       "expected": [
         {
           "type": "boolean",
@@ -8542,7 +8542,7 @@
       "description": "testGreaterThan16",
       "expression": "1.1 > 1.0",
       "status": "passed",
-      "execution_time_ms": 0.214417,
+      "execution_time_ms": 0.338167,
       "expected": [
         {
           "type": "boolean",
@@ -8558,7 +8558,7 @@
       "description": "testGreaterThan17",
       "expression": "'b' > 'a'",
       "status": "passed",
-      "execution_time_ms": 0.091166,
+      "execution_time_ms": 0.211708,
       "expected": [
         {
           "type": "boolean",
@@ -8574,7 +8574,7 @@
       "description": "testGreaterThan18",
       "expression": "'B' > 'A'",
       "status": "passed",
-      "execution_time_ms": 0.093958,
+      "execution_time_ms": 0.156833,
       "expected": [
         {
           "type": "boolean",
@@ -8590,7 +8590,7 @@
       "description": "testGreaterThan19",
       "expression": "@2014-12-13 > @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 0.095333,
+      "execution_time_ms": 0.273375,
       "expected": [
         {
           "type": "boolean",
@@ -8606,7 +8606,7 @@
       "description": "testGreaterThan20",
       "expression": "@2014-12-13T12:00:01 > @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.09725,
+      "execution_time_ms": 0.123917,
       "expected": [
         {
           "type": "boolean",
@@ -8622,7 +8622,7 @@
       "description": "testGreaterThan21",
       "expression": "@T12:00:01 > @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 0.09475,
+      "execution_time_ms": 0.119708,
       "expected": [
         {
           "type": "boolean",
@@ -8638,7 +8638,7 @@
       "description": "testGreaterThan22",
       "expression": "Observation.value > 100 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 0.124292,
+      "execution_time_ms": 0.158125,
       "expected": [
         {
           "type": "boolean",
@@ -8652,7 +8652,7 @@
       "description": "testGreaterThan23",
       "expression": "@2018-03 > @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 0.09825,
+      "execution_time_ms": 0.110542,
       "expected": [],
       "actual": []
     },
@@ -8661,7 +8661,7 @@
       "description": "testGreaterThan24",
       "expression": "@2018-03-01T10 > @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 0.112709,
+      "execution_time_ms": 0.129,
       "expected": [],
       "actual": []
     },
@@ -8670,7 +8670,7 @@
       "description": "testGreaterThan25",
       "expression": "@T10 > @T10:30",
       "status": "passed",
-      "execution_time_ms": 0.103208,
+      "execution_time_ms": 0.153625,
       "expected": [],
       "actual": []
     },
@@ -8679,7 +8679,7 @@
       "description": "testGreaterThan26",
       "expression": "@2018-03-01T10:30:00 > @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.102291,
+      "execution_time_ms": 0.111291,
       "expected": [
         {
           "type": "boolean",
@@ -8695,7 +8695,7 @@
       "description": "testGreaterThan27",
       "expression": "@T10:30:00 > @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 0.108833,
+      "execution_time_ms": 0.162292,
       "expected": [
         {
           "type": "boolean",
@@ -8711,7 +8711,7 @@
       "description": "testUnion1",
       "expression": "(1 | 2 | 3).count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.498583,
+      "execution_time_ms": 0.641583,
       "expected": [
         {
           "type": "boolean",
@@ -8727,7 +8727,7 @@
       "description": "testUnion2",
       "expression": "(1 | 2 | 2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 0.475166,
+      "execution_time_ms": 3.641,
       "expected": [
         {
           "type": "boolean",
@@ -8743,7 +8743,7 @@
       "description": "testUnion3",
       "expression": "(1|1).count() = 1",
       "status": "passed",
-      "execution_time_ms": 0.317792,
+      "execution_time_ms": 0.384583,
       "expected": [
         {
           "type": "boolean",
@@ -8759,7 +8759,7 @@
       "description": "testUnion4",
       "expression": "1.union(2).union(3).count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.39975,
+      "execution_time_ms": 0.438208,
       "expected": [
         {
           "type": "boolean",
@@ -8775,7 +8775,7 @@
       "description": "testUnion5",
       "expression": "1.union(2.union(3)).count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.390208,
+      "execution_time_ms": 0.459708,
       "expected": [
         {
           "type": "boolean",
@@ -8791,7 +8791,7 @@
       "description": "testUnion6",
       "expression": "(1 | 2).combine(2).count() = 3",
       "status": "passed",
-      "execution_time_ms": 0.461333,
+      "execution_time_ms": 0.593625,
       "expected": [
         {
           "type": "boolean",
@@ -8807,7 +8807,7 @@
       "description": "testUnion7",
       "expression": "1.combine(1).count() = 2",
       "status": "passed",
-      "execution_time_ms": 2.239208,
+      "execution_time_ms": 0.406083,
       "expected": [
         {
           "type": "boolean",
@@ -8823,7 +8823,7 @@
       "description": "testUnion8",
       "expression": "1.combine(1).union(2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 0.634417,
+      "execution_time_ms": 0.43425,
       "expected": [
         {
           "type": "boolean",
@@ -8839,7 +8839,7 @@
       "description": "testIntersect1",
       "expression": "(1 | 2 | 3).intersect(2 | 4) = 2",
       "status": "passed",
-      "execution_time_ms": 1.441375,
+      "execution_time_ms": 0.78825,
       "expected": [
         {
           "type": "boolean",
@@ -8855,7 +8855,7 @@
       "description": "testIntersect2",
       "expression": "(1 | 2).intersect(4).empty()",
       "status": "passed",
-      "execution_time_ms": 0.566375,
+      "execution_time_ms": 0.450541,
       "expected": [
         {
           "type": "boolean",
@@ -8871,7 +8871,7 @@
       "description": "testIntersect3",
       "expression": "(1 | 2).intersect({}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.479584,
+      "execution_time_ms": 0.454834,
       "expected": [
         {
           "type": "boolean",
@@ -8887,7 +8887,7 @@
       "description": "testIntersect4",
       "expression": "1.combine(1).intersect(1).count() = 1",
       "status": "passed",
-      "execution_time_ms": 2.723458,
+      "execution_time_ms": 0.46125,
       "expected": [
         {
           "type": "boolean",
@@ -8903,7 +8903,7 @@
       "description": "testExclude1",
       "expression": "(1 | 2 | 3).exclude(2 | 4) = 1 | 3",
       "status": "passed",
-      "execution_time_ms": 0.999709,
+      "execution_time_ms": 0.843292,
       "expected": [
         {
           "type": "boolean",
@@ -8919,7 +8919,7 @@
       "description": "testExclude2",
       "expression": "(1 | 2).exclude(4) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 0.502,
+      "execution_time_ms": 0.583875,
       "expected": [
         {
           "type": "boolean",
@@ -8935,7 +8935,7 @@
       "description": "testExclude3",
       "expression": "(1 | 2).exclude({}) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 0.419458,
+      "execution_time_ms": 0.763416,
       "expected": [
         {
           "type": "boolean",
@@ -8951,7 +8951,7 @@
       "description": "testExclude4",
       "expression": "1.combine(1).exclude(2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 0.388833,
+      "execution_time_ms": 0.533625,
       "expected": [
         {
           "type": "boolean",
@@ -8967,7 +8967,7 @@
       "description": "testIn1",
       "expression": "1 in (1 | 2 | 3)",
       "status": "passed",
-      "execution_time_ms": 0.928708,
+      "execution_time_ms": 1.489708,
       "expected": [
         {
           "type": "boolean",
@@ -8983,7 +8983,7 @@
       "description": "testIn2",
       "expression": "1 in (2 | 3)",
       "status": "passed",
-      "execution_time_ms": 0.391375,
+      "execution_time_ms": 0.885667,
       "expected": [
         {
           "type": "boolean",
@@ -8999,7 +8999,7 @@
       "description": "testIn3",
       "expression": "'a' in ('a' | 'c' | 'd')",
       "status": "passed",
-      "execution_time_ms": 0.149584,
+      "execution_time_ms": 0.18275,
       "expected": [
         {
           "type": "boolean",
@@ -9015,7 +9015,7 @@
       "description": "testIn4",
       "expression": "'b' in ('a' | 'c' | 'd')",
       "status": "passed",
-      "execution_time_ms": 0.123584,
+      "execution_time_ms": 0.133125,
       "expected": [
         {
           "type": "boolean",
@@ -9031,7 +9031,7 @@
       "description": "testContainsCollection1",
       "expression": "(1 | 2 | 3) contains 1",
       "status": "passed",
-      "execution_time_ms": 0.461417,
+      "execution_time_ms": 0.605416,
       "expected": [
         {
           "type": "boolean",
@@ -9047,7 +9047,7 @@
       "description": "testContainsCollection2",
       "expression": "(2 | 3) contains 1 ",
       "status": "passed",
-      "execution_time_ms": 0.301375,
+      "execution_time_ms": 0.318417,
       "expected": [
         {
           "type": "boolean",
@@ -9063,7 +9063,7 @@
       "description": "testContainsCollection3",
       "expression": "('a' | 'c' | 'd') contains 'a'",
       "status": "passed",
-      "execution_time_ms": 0.122417,
+      "execution_time_ms": 0.125084,
       "expected": [
         {
           "type": "boolean",
@@ -9079,7 +9079,7 @@
       "description": "testContainsCollection4",
       "expression": "('a' | 'c' | 'd') contains 'b'",
       "status": "passed",
-      "execution_time_ms": 0.119292,
+      "execution_time_ms": 0.140333,
       "expected": [
         {
           "type": "boolean",
@@ -9095,7 +9095,7 @@
       "description": "testBooleanLogicAnd1",
       "expression": "(true and true) = true",
       "status": "passed",
-      "execution_time_ms": 0.150333,
+      "execution_time_ms": 1.833,
       "expected": [
         {
           "type": "boolean",
@@ -9111,7 +9111,7 @@
       "description": "testBooleanLogicAnd2",
       "expression": "(true and false) = false",
       "status": "passed",
-      "execution_time_ms": 0.110416,
+      "execution_time_ms": 0.254959,
       "expected": [
         {
           "type": "boolean",
@@ -9127,7 +9127,7 @@
       "description": "testBooleanLogicAnd3",
       "expression": "(true and {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.18175,
+      "execution_time_ms": 0.225083,
       "expected": [
         {
           "type": "boolean",
@@ -9143,7 +9143,7 @@
       "description": "testBooleanLogicAnd4",
       "expression": "(false and true) = false",
       "status": "passed",
-      "execution_time_ms": 0.115375,
+      "execution_time_ms": 0.181208,
       "expected": [
         {
           "type": "boolean",
@@ -9159,7 +9159,7 @@
       "description": "testBooleanLogicAnd5",
       "expression": "(false and false) = false",
       "status": "passed",
-      "execution_time_ms": 0.110584,
+      "execution_time_ms": 0.179417,
       "expected": [
         {
           "type": "boolean",
@@ -9175,7 +9175,7 @@
       "description": "testBooleanLogicAnd6",
       "expression": "(false and {}) = false",
       "status": "passed",
-      "execution_time_ms": 0.1115,
+      "execution_time_ms": 0.28625,
       "expected": [
         {
           "type": "boolean",
@@ -9191,7 +9191,7 @@
       "description": "testBooleanLogicAnd7",
       "expression": "({} and true).empty()",
       "status": "passed",
-      "execution_time_ms": 0.114792,
+      "execution_time_ms": 0.220416,
       "expected": [
         {
           "type": "boolean",
@@ -9207,7 +9207,7 @@
       "description": "testBooleanLogicAnd8",
       "expression": "({} and false) = false",
       "status": "passed",
-      "execution_time_ms": 0.116458,
+      "execution_time_ms": 0.203208,
       "expected": [
         {
           "type": "boolean",
@@ -9223,7 +9223,7 @@
       "description": "testBooleanLogicAnd9",
       "expression": "({} and {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.116167,
+      "execution_time_ms": 0.559542,
       "expected": [
         {
           "type": "boolean",
@@ -9239,7 +9239,7 @@
       "description": "testBooleanLogicOr1",
       "expression": "(true or true) = true",
       "status": "passed",
-      "execution_time_ms": 0.140291,
+      "execution_time_ms": 0.24825,
       "expected": [
         {
           "type": "boolean",
@@ -9255,7 +9255,7 @@
       "description": "testBooleanLogicOr2",
       "expression": "(true or false) = true",
       "status": "passed",
-      "execution_time_ms": 0.112875,
+      "execution_time_ms": 0.17525,
       "expected": [
         {
           "type": "boolean",
@@ -9271,7 +9271,7 @@
       "description": "testBooleanLogicOr3",
       "expression": "(true or {}) = true",
       "status": "passed",
-      "execution_time_ms": 0.115708,
+      "execution_time_ms": 0.18825,
       "expected": [
         {
           "type": "boolean",
@@ -9287,7 +9287,7 @@
       "description": "testBooleanLogicOr4",
       "expression": "(false or true) = true",
       "status": "passed",
-      "execution_time_ms": 0.109958,
+      "execution_time_ms": 0.21975,
       "expected": [
         {
           "type": "boolean",
@@ -9303,7 +9303,7 @@
       "description": "testBooleanLogicOr5",
       "expression": "(false or false) = false",
       "status": "passed",
-      "execution_time_ms": 0.107292,
+      "execution_time_ms": 0.331458,
       "expected": [
         {
           "type": "boolean",
@@ -9319,7 +9319,7 @@
       "description": "testBooleanLogicOr6",
       "expression": "(false or {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.109834,
+      "execution_time_ms": 0.402292,
       "expected": [
         {
           "type": "boolean",
@@ -9335,7 +9335,7 @@
       "description": "testBooleanLogicOr7",
       "expression": "({} or true) = true",
       "status": "passed",
-      "execution_time_ms": 0.10625,
+      "execution_time_ms": 1.782166,
       "expected": [
         {
           "type": "boolean",
@@ -9351,7 +9351,7 @@
       "description": "testBooleanLogicOr8",
       "expression": "({} or false).empty()",
       "status": "passed",
-      "execution_time_ms": 0.180292,
+      "execution_time_ms": 0.326375,
       "expected": [
         {
           "type": "boolean",
@@ -9367,7 +9367,7 @@
       "description": "testBooleanLogicOr9",
       "expression": "({} or {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.124416,
+      "execution_time_ms": 0.1575,
       "expected": [
         {
           "type": "boolean",
@@ -9383,7 +9383,7 @@
       "description": "testBooleanLogicXOr1",
       "expression": "(true xor true) = false",
       "status": "passed",
-      "execution_time_ms": 0.23275,
+      "execution_time_ms": 0.296542,
       "expected": [
         {
           "type": "boolean",
@@ -9399,7 +9399,7 @@
       "description": "testBooleanLogicXOr2",
       "expression": "(true xor false) = true",
       "status": "passed",
-      "execution_time_ms": 0.112,
+      "execution_time_ms": 0.124375,
       "expected": [
         {
           "type": "boolean",
@@ -9415,7 +9415,7 @@
       "description": "testBooleanLogicXOr3",
       "expression": "(true xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.114167,
+      "execution_time_ms": 0.121583,
       "expected": [
         {
           "type": "boolean",
@@ -9431,7 +9431,7 @@
       "description": "testBooleanLogicXOr4",
       "expression": "(false xor true) = true",
       "status": "passed",
-      "execution_time_ms": 0.11425,
+      "execution_time_ms": 0.116542,
       "expected": [
         {
           "type": "boolean",
@@ -9447,7 +9447,7 @@
       "description": "testBooleanLogicXOr5",
       "expression": "(false xor false) = false",
       "status": "passed",
-      "execution_time_ms": 0.107459,
+      "execution_time_ms": 0.112833,
       "expected": [
         {
           "type": "boolean",
@@ -9463,7 +9463,7 @@
       "description": "testBooleanLogicXOr6",
       "expression": "(false xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.110875,
+      "execution_time_ms": 0.114333,
       "expected": [
         {
           "type": "boolean",
@@ -9479,7 +9479,7 @@
       "description": "testBooleanLogicXOr7",
       "expression": "({} xor true).empty()",
       "status": "passed",
-      "execution_time_ms": 0.112208,
+      "execution_time_ms": 0.11125,
       "expected": [
         {
           "type": "boolean",
@@ -9495,7 +9495,7 @@
       "description": "testBooleanLogicXOr8",
       "expression": "({} xor false).empty()",
       "status": "passed",
-      "execution_time_ms": 0.110125,
+      "execution_time_ms": 0.108708,
       "expected": [
         {
           "type": "boolean",
@@ -9511,7 +9511,7 @@
       "description": "testBooleanLogicXOr9",
       "expression": "({} xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.109375,
+      "execution_time_ms": 0.108333,
       "expected": [
         {
           "type": "boolean",
@@ -9527,7 +9527,7 @@
       "description": "testBooleanImplies1",
       "expression": "(true implies true) = true",
       "status": "passed",
-      "execution_time_ms": 0.410834,
+      "execution_time_ms": 0.447375,
       "expected": [
         {
           "type": "boolean",
@@ -9543,7 +9543,7 @@
       "description": "testBooleanImplies2",
       "expression": "(true implies false) = false",
       "status": "passed",
-      "execution_time_ms": 0.112417,
+      "execution_time_ms": 0.116458,
       "expected": [
         {
           "type": "boolean",
@@ -9559,7 +9559,7 @@
       "description": "testBooleanImplies3",
       "expression": "(true implies {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.112459,
+      "execution_time_ms": 0.119958,
       "expected": [
         {
           "type": "boolean",
@@ -9575,7 +9575,7 @@
       "description": "testBooleanImplies4",
       "expression": "(false implies true) = true",
       "status": "passed",
-      "execution_time_ms": 0.137459,
+      "execution_time_ms": 0.140375,
       "expected": [
         {
           "type": "boolean",
@@ -9591,7 +9591,7 @@
       "description": "testBooleanImplies5",
       "expression": "(false implies false) = true",
       "status": "passed",
-      "execution_time_ms": 0.10475,
+      "execution_time_ms": 0.10925,
       "expected": [
         {
           "type": "boolean",
@@ -9607,7 +9607,7 @@
       "description": "testBooleanImplies6",
       "expression": "(false implies {}) = true",
       "status": "passed",
-      "execution_time_ms": 0.105375,
+      "execution_time_ms": 0.105209,
       "expected": [
         {
           "type": "boolean",
@@ -9623,7 +9623,7 @@
       "description": "testBooleanImplies7",
       "expression": "({} implies true) = true",
       "status": "passed",
-      "execution_time_ms": 0.105833,
+      "execution_time_ms": 0.108583,
       "expected": [
         {
           "type": "boolean",
@@ -9639,7 +9639,7 @@
       "description": "testBooleanImplies8",
       "expression": "({} implies false).empty()",
       "status": "passed",
-      "execution_time_ms": 0.111417,
+      "execution_time_ms": 0.105959,
       "expected": [
         {
           "type": "boolean",
@@ -9655,7 +9655,7 @@
       "description": "testBooleanImplies9",
       "expression": "({} implies {}).empty()",
       "status": "passed",
-      "execution_time_ms": 0.108875,
+      "execution_time_ms": 0.112542,
       "expected": [
         {
           "type": "boolean",
@@ -9671,7 +9671,7 @@
       "description": "testPlus1",
       "expression": "1 + 1 = 2",
       "status": "passed",
-      "execution_time_ms": 0.381541,
+      "execution_time_ms": 0.576291,
       "expected": [
         {
           "type": "boolean",
@@ -9687,7 +9687,7 @@
       "description": "testPlus2",
       "expression": "1 + 0 = 1",
       "status": "passed",
-      "execution_time_ms": 0.324459,
+      "execution_time_ms": 0.342875,
       "expected": [
         {
           "type": "boolean",
@@ -9703,7 +9703,7 @@
       "description": "testPlus3",
       "expression": "1.2 + 1.8 = 3.0",
       "status": "passed",
-      "execution_time_ms": 0.308125,
+      "execution_time_ms": 0.453333,
       "expected": [
         {
           "type": "boolean",
@@ -9719,7 +9719,7 @@
       "description": "testPlus4",
       "expression": "'a'+'b' = 'ab'",
       "status": "passed",
-      "execution_time_ms": 0.11575,
+      "execution_time_ms": 0.164542,
       "expected": [
         {
           "type": "boolean",
@@ -9735,7 +9735,7 @@
       "description": "testConcatenate1",
       "expression": "'a' & 'b' = 'ab'",
       "status": "passed",
-      "execution_time_ms": 0.149041,
+      "execution_time_ms": 0.243,
       "expected": [
         {
           "type": "boolean",
@@ -9751,7 +9751,7 @@
       "description": "testConcatenate2",
       "expression": "'1' & {} = '1'",
       "status": "passed",
-      "execution_time_ms": 0.105542,
+      "execution_time_ms": 0.123209,
       "expected": [
         {
           "type": "boolean",
@@ -9767,7 +9767,7 @@
       "description": "testConcatenate3",
       "expression": "{} & 'b' = 'b'",
       "status": "passed",
-      "execution_time_ms": 0.106417,
+      "execution_time_ms": 0.110208,
       "expected": [
         {
           "type": "boolean",
@@ -9786,7 +9786,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.058167,
+      "execution_time_ms": 0.095458,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -9796,7 +9796,7 @@
       "description": "testMinus1",
       "expression": "1 - 1 = 0",
       "status": "passed",
-      "execution_time_ms": 0.547292,
+      "execution_time_ms": 0.668583,
       "expected": [
         {
           "type": "boolean",
@@ -9812,7 +9812,7 @@
       "description": "testMinus2",
       "expression": "1 - 0 = 1",
       "status": "passed",
-      "execution_time_ms": 0.334375,
+      "execution_time_ms": 0.3845,
       "expected": [
         {
           "type": "boolean",
@@ -9828,7 +9828,7 @@
       "description": "testMinus3",
       "expression": "1.8 - 1.2 = 0.6",
       "status": "passed",
-      "execution_time_ms": 0.317417,
+      "execution_time_ms": 0.350917,
       "expected": [
         {
           "type": "boolean",
@@ -9847,7 +9847,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.028084,
+      "execution_time_ms": 0.03825,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -9857,7 +9857,7 @@
       "description": "testMultiply1",
       "expression": "1 * 1 = 1",
       "status": "passed",
-      "execution_time_ms": 0.493917,
+      "execution_time_ms": 0.975167,
       "expected": [
         {
           "type": "boolean",
@@ -9873,7 +9873,7 @@
       "description": "testMultiply2",
       "expression": "1 * 0 = 0",
       "status": "passed",
-      "execution_time_ms": 0.319792,
+      "execution_time_ms": 0.351833,
       "expected": [
         {
           "type": "boolean",
@@ -9889,7 +9889,7 @@
       "description": "testMultiply3",
       "expression": "1.2 * 1.8 = 2.16",
       "status": "passed",
-      "execution_time_ms": 0.312833,
+      "execution_time_ms": 0.334,
       "expected": [
         {
           "type": "boolean",
@@ -9905,7 +9905,7 @@
       "description": "testDivide1",
       "expression": "1 / 1 = 1",
       "status": "passed",
-      "execution_time_ms": 1.453667,
+      "execution_time_ms": 0.371125,
       "expected": [
         {
           "type": "boolean",
@@ -9921,7 +9921,7 @@
       "description": "testDivide2",
       "expression": "4 / 2 = 2",
       "status": "passed",
-      "execution_time_ms": 0.410417,
+      "execution_time_ms": 0.307334,
       "expected": [
         {
           "type": "boolean",
@@ -9937,7 +9937,7 @@
       "description": "testDivide3",
       "expression": "4.0 / 2.0 = 2.0",
       "status": "passed",
-      "execution_time_ms": 0.308417,
+      "execution_time_ms": 0.305959,
       "expected": [
         {
           "type": "boolean",
@@ -9953,7 +9953,7 @@
       "description": "testDivide4",
       "expression": "1 / 2 = 0.5",
       "status": "passed",
-      "execution_time_ms": 0.332958,
+      "execution_time_ms": 0.330375,
       "expected": [
         {
           "type": "boolean",
@@ -9969,7 +9969,7 @@
       "description": "testDivide5",
       "expression": "1.2 / 1.8 = 0.66666667",
       "status": "passed",
-      "execution_time_ms": 0.306875,
+      "execution_time_ms": 0.305375,
       "expected": [
         {
           "type": "boolean",
@@ -9985,7 +9985,7 @@
       "description": "testDivide6",
       "expression": "1 / 0",
       "status": "passed",
-      "execution_time_ms": 0.2145,
+      "execution_time_ms": 0.217667,
       "expected": [],
       "actual": []
     },
@@ -9994,7 +9994,7 @@
       "description": "testDiv1",
       "expression": "1 div 1 = 1",
       "status": "passed",
-      "execution_time_ms": 0.560667,
+      "execution_time_ms": 0.556584,
       "expected": [
         {
           "type": "boolean",
@@ -10010,7 +10010,7 @@
       "description": "testDiv2",
       "expression": "4 div 2 = 2",
       "status": "passed",
-      "execution_time_ms": 0.307416,
+      "execution_time_ms": 0.301708,
       "expected": [
         {
           "type": "boolean",
@@ -10026,7 +10026,7 @@
       "description": "testDiv3",
       "expression": "5 div 2 = 2",
       "status": "passed",
-      "execution_time_ms": 0.37875,
+      "execution_time_ms": 0.318292,
       "expected": [
         {
           "type": "boolean",
@@ -10042,7 +10042,7 @@
       "description": "testDiv4",
       "expression": "2.2 div 1.8 = 1",
       "status": "passed",
-      "execution_time_ms": 0.303208,
+      "execution_time_ms": 0.414291,
       "expected": [
         {
           "type": "boolean",
@@ -10058,7 +10058,7 @@
       "description": "testDiv5",
       "expression": "5 div 0",
       "status": "passed",
-      "execution_time_ms": 0.230333,
+      "execution_time_ms": 0.222208,
       "expected": [],
       "actual": []
     },
@@ -10067,7 +10067,7 @@
       "description": "testMod1",
       "expression": "1 mod 1 = 0",
       "status": "passed",
-      "execution_time_ms": 0.489083,
+      "execution_time_ms": 0.489041,
       "expected": [
         {
           "type": "boolean",
@@ -10083,7 +10083,7 @@
       "description": "testMod2",
       "expression": "4 mod 2 = 0",
       "status": "passed",
-      "execution_time_ms": 0.297791,
+      "execution_time_ms": 0.303167,
       "expected": [
         {
           "type": "boolean",
@@ -10099,7 +10099,7 @@
       "description": "testMod3",
       "expression": "5 mod 2 = 1",
       "status": "passed",
-      "execution_time_ms": 0.31725,
+      "execution_time_ms": 0.310667,
       "expected": [
         {
           "type": "boolean",
@@ -10115,7 +10115,7 @@
       "description": "testMod4",
       "expression": "2.2 mod 1.8 = 0.4",
       "status": "passed",
-      "execution_time_ms": 0.317208,
+      "execution_time_ms": 0.305666,
       "expected": [
         {
           "type": "boolean",
@@ -10131,7 +10131,7 @@
       "description": "testMod5",
       "expression": "5 mod 0",
       "status": "passed",
-      "execution_time_ms": 0.224458,
+      "execution_time_ms": 0.211334,
       "expected": [],
       "actual": []
     },
@@ -10140,7 +10140,7 @@
       "description": "testRound1",
       "expression": "1.round() = 1",
       "status": "passed",
-      "execution_time_ms": 0.2875,
+      "execution_time_ms": 0.316875,
       "expected": [
         {
           "type": "boolean",
@@ -10154,9 +10154,9 @@
     {
       "name": "testRound2",
       "description": "testRound2",
-      "expression": "3.14159.round(3) = 2",
+      "expression": "3.14159.round(3) = 3.142",
       "status": "passed",
-      "execution_time_ms": 0.31075,
+      "execution_time_ms": 0.355625,
       "expected": [
         {
           "type": "boolean",
@@ -10164,7 +10164,7 @@
         }
       ],
       "actual": [
-        false
+        true
       ]
     },
     {
@@ -10172,7 +10172,7 @@
       "description": "testSqrt1",
       "expression": "81.sqrt() = 9.0",
       "status": "passed",
-      "execution_time_ms": 0.227709,
+      "execution_time_ms": 0.246166,
       "expected": [
         {
           "type": "boolean",
@@ -10188,7 +10188,7 @@
       "description": "testSqrt2",
       "expression": "(-1).sqrt()",
       "status": "passed",
-      "execution_time_ms": 0.19975,
+      "execution_time_ms": 0.212125,
       "expected": [],
       "actual": []
     },
@@ -10197,7 +10197,7 @@
       "description": "testAbs1",
       "expression": "(-5).abs() = 5",
       "status": "passed",
-      "execution_time_ms": 0.265458,
+      "execution_time_ms": 0.258791,
       "expected": [
         {
           "type": "boolean",
@@ -10213,7 +10213,7 @@
       "description": "testAbs2",
       "expression": "(-5.5).abs() = 5.5",
       "status": "passed",
-      "execution_time_ms": 0.229917,
+      "execution_time_ms": 1.158458,
       "expected": [
         {
           "type": "boolean",
@@ -10229,7 +10229,7 @@
       "description": "testAbs3",
       "expression": "(-5.5 'mg').abs() = 5.5 'mg'",
       "status": "passed",
-      "execution_time_ms": 0.249708,
+      "execution_time_ms": 0.333875,
       "expected": [
         {
           "type": "boolean",
@@ -10245,7 +10245,7 @@
       "description": "testCeiling1",
       "expression": "1.ceiling() = 1",
       "status": "passed",
-      "execution_time_ms": 0.248875,
+      "execution_time_ms": 0.302333,
       "expected": [
         {
           "type": "boolean",
@@ -10261,7 +10261,7 @@
       "description": "testCeiling2",
       "expression": "(-1.1).ceiling() = -1",
       "status": "passed",
-      "execution_time_ms": 0.238125,
+      "execution_time_ms": 0.239333,
       "expected": [
         {
           "type": "boolean",
@@ -10277,7 +10277,7 @@
       "description": "testCeiling3",
       "expression": "1.1.ceiling() = 2",
       "status": "passed",
-      "execution_time_ms": 0.2135,
+      "execution_time_ms": 0.201833,
       "expected": [
         {
           "type": "boolean",
@@ -10293,7 +10293,7 @@
       "description": "testExp1",
       "expression": "0.exp() = 1",
       "status": "passed",
-      "execution_time_ms": 0.24675,
+      "execution_time_ms": 0.207375,
       "expected": [
         {
           "type": "boolean",
@@ -10309,7 +10309,7 @@
       "description": "testExp2",
       "expression": "(-0.0).exp() = 1",
       "status": "passed",
-      "execution_time_ms": 1.875042,
+      "execution_time_ms": 0.225958,
       "expected": [
         {
           "type": "boolean",
@@ -10325,7 +10325,7 @@
       "description": "testFloor1",
       "expression": "1.floor() = 1",
       "status": "passed",
-      "execution_time_ms": 0.406875,
+      "execution_time_ms": 0.217084,
       "expected": [
         {
           "type": "boolean",
@@ -10341,7 +10341,7 @@
       "description": "testFloor2",
       "expression": "2.1.floor() = 2",
       "status": "passed",
-      "execution_time_ms": 0.3915,
+      "execution_time_ms": 0.199209,
       "expected": [
         {
           "type": "boolean",
@@ -10357,7 +10357,7 @@
       "description": "testFloor3",
       "expression": "(-2.1).floor() = -3",
       "status": "passed",
-      "execution_time_ms": 0.285875,
+      "execution_time_ms": 0.223958,
       "expected": [
         {
           "type": "boolean",
@@ -10373,7 +10373,7 @@
       "description": "testLn1",
       "expression": "1.ln() = 0.0",
       "status": "passed",
-      "execution_time_ms": 0.252125,
+      "execution_time_ms": 0.2045,
       "expected": [
         {
           "type": "boolean",
@@ -10389,7 +10389,7 @@
       "description": "testLn2",
       "expression": "1.0.ln() = 0.0",
       "status": "passed",
-      "execution_time_ms": 0.22,
+      "execution_time_ms": 0.198292,
       "expected": [
         {
           "type": "boolean",
@@ -10405,7 +10405,7 @@
       "description": "testLog1",
       "expression": "16.log(2) = 4.0",
       "status": "passed",
-      "execution_time_ms": 0.359,
+      "execution_time_ms": 0.307666,
       "expected": [
         {
           "type": "boolean",
@@ -10421,7 +10421,7 @@
       "description": "testLog2",
       "expression": "100.0.log(10.0) = 2.0",
       "status": "passed",
-      "execution_time_ms": 0.2925,
+      "execution_time_ms": 0.280042,
       "expected": [
         {
           "type": "boolean",
@@ -10437,7 +10437,7 @@
       "description": "testPower1",
       "expression": "2.power(3) = 8",
       "status": "passed",
-      "execution_time_ms": 0.312042,
+      "execution_time_ms": 0.328833,
       "expected": [
         {
           "type": "boolean",
@@ -10453,7 +10453,7 @@
       "description": "testPower2",
       "expression": "2.5.power(2) = 6.25",
       "status": "passed",
-      "execution_time_ms": 0.295083,
+      "execution_time_ms": 0.276042,
       "expected": [
         {
           "type": "boolean",
@@ -10469,7 +10469,7 @@
       "description": "testPower3",
       "expression": "(-1).power(0.5)",
       "status": "passed",
-      "execution_time_ms": 0.316208,
+      "execution_time_ms": 0.285208,
       "expected": [],
       "actual": []
     },
@@ -10478,7 +10478,7 @@
       "description": "testTruncate1",
       "expression": "101.truncate() = 101",
       "status": "passed",
-      "execution_time_ms": 0.313417,
+      "execution_time_ms": 0.231542,
       "expected": [
         {
           "type": "boolean",
@@ -10494,7 +10494,7 @@
       "description": "testTruncate2",
       "expression": "1.00000001.truncate() = 1",
       "status": "passed",
-      "execution_time_ms": 0.250208,
+      "execution_time_ms": 0.210625,
       "expected": [
         {
           "type": "boolean",
@@ -10510,7 +10510,7 @@
       "description": "testTruncate3",
       "expression": "(-1.56).truncate() = -1",
       "status": "passed",
-      "execution_time_ms": 0.248083,
+      "execution_time_ms": 0.22675,
       "expected": [
         {
           "type": "boolean",
@@ -10529,7 +10529,7 @@
         "invalid": "semantic"
       },
       "status": "error",
-      "execution_time_ms": 0.056167,
+      "execution_time_ms": 0.056792,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -10539,7 +10539,7 @@
       "description": "testPrecedence2",
       "expression": "1+2*3+4 = 11",
       "status": "passed",
-      "execution_time_ms": 0.541416,
+      "execution_time_ms": 0.515083,
       "expected": [
         {
           "type": "boolean",
@@ -10555,7 +10555,7 @@
       "description": "testPrecedence3",
       "expression": "1 > 2 is Boolean",
       "status": "passed",
-      "execution_time_ms": 0.408,
+      "execution_time_ms": 0.399542,
       "expected": [
         {
           "type": "boolean",
@@ -10571,7 +10571,7 @@
       "description": "testPrecedence4",
       "expression": "1 | 1 is Integer",
       "status": "passed",
-      "execution_time_ms": 0.259375,
+      "execution_time_ms": 0.269791,
       "expected": [
         {
           "type": "boolean",
@@ -10587,7 +10587,7 @@
       "description": "testVariables1",
       "expression": "%sct = 'http://snomed.info/sct'",
       "status": "error",
-      "execution_time_ms": 0.431125,
+      "execution_time_ms": 0.384333,
       "expected": [
         {
           "type": "boolean",
@@ -10602,7 +10602,7 @@
       "description": "testVariables2",
       "expression": "%loinc = 'http://loinc.org'",
       "status": "error",
-      "execution_time_ms": 0.12625,
+      "execution_time_ms": 0.12375,
       "expected": [
         {
           "type": "boolean",
@@ -10617,7 +10617,7 @@
       "description": "testVariables3",
       "expression": "%ucum = 'http://unitsofmeasure.org'",
       "status": "passed",
-      "execution_time_ms": 0.107958,
+      "execution_time_ms": 0.130958,
       "expected": [
         {
           "type": "boolean",
@@ -10633,7 +10633,7 @@
       "description": "testVariables4",
       "expression": "%`vs-administrative-gender` = 'http://hl7.org/fhir/ValueSet/administrative-gender'",
       "status": "error",
-      "execution_time_ms": 0.140833,
+      "execution_time_ms": 0.165458,
       "expected": [
         {
           "type": "boolean",
@@ -10648,7 +10648,7 @@
       "description": "testExtension1",
       "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime').exists()",
       "status": "error",
-      "execution_time_ms": 0.228208,
+      "execution_time_ms": 0.251417,
       "expected": [
         {
           "type": "boolean",
@@ -10663,7 +10663,7 @@
       "description": "testExtension2",
       "expression": "Patient.birthDate.extension(%`ext-patient-birthTime`).exists()",
       "status": "error",
-      "execution_time_ms": 0.163083,
+      "execution_time_ms": 0.181292,
       "expected": [
         {
           "type": "boolean",
@@ -10678,7 +10678,7 @@
       "description": "testExtension3",
       "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime1').empty()",
       "status": "error",
-      "execution_time_ms": 0.135708,
+      "execution_time_ms": 0.220875,
       "expected": [
         {
           "type": "boolean",
@@ -10693,7 +10693,7 @@
       "description": "testType1",
       "expression": "1.type().namespace = 'System'",
       "status": "passed",
-      "execution_time_ms": 0.218292,
+      "execution_time_ms": 0.327792,
       "expected": [
         {
           "type": "boolean",
@@ -10709,7 +10709,7 @@
       "description": "testType2",
       "expression": "1.type().name = 'Integer'",
       "status": "passed",
-      "execution_time_ms": 0.181667,
+      "execution_time_ms": 0.208792,
       "expected": [
         {
           "type": "boolean",
@@ -10725,7 +10725,7 @@
       "description": "testType3",
       "expression": "true.type().namespace = 'System'",
       "status": "passed",
-      "execution_time_ms": 0.139125,
+      "execution_time_ms": 0.153625,
       "expected": [
         {
           "type": "boolean",
@@ -10741,7 +10741,7 @@
       "description": "testType4",
       "expression": "true.type().name = 'Boolean'",
       "status": "passed",
-      "execution_time_ms": 0.114708,
+      "execution_time_ms": 0.121,
       "expected": [
         {
           "type": "boolean",
@@ -10757,7 +10757,7 @@
       "description": "testType5",
       "expression": "true.is(Boolean)",
       "status": "passed",
-      "execution_time_ms": 0.111625,
+      "execution_time_ms": 0.119542,
       "expected": [
         {
           "type": "boolean",
@@ -10773,7 +10773,7 @@
       "description": "testType6",
       "expression": "true.is(System.Boolean)",
       "status": "passed",
-      "execution_time_ms": 0.113167,
+      "execution_time_ms": 0.117,
       "expected": [
         {
           "type": "boolean",
@@ -10789,7 +10789,7 @@
       "description": "testType7",
       "expression": "true is Boolean",
       "status": "passed",
-      "execution_time_ms": 0.127959,
+      "execution_time_ms": 0.108375,
       "expected": [
         {
           "type": "boolean",
@@ -10805,7 +10805,7 @@
       "description": "testType8",
       "expression": "true is System.Boolean",
       "status": "passed",
-      "execution_time_ms": 0.497417,
+      "execution_time_ms": 2.174542,
       "expected": [
         {
           "type": "boolean",
@@ -10821,7 +10821,7 @@
       "description": "testType9",
       "expression": "Patient.active.type().namespace = 'FHIR'",
       "status": "passed",
-      "execution_time_ms": 0.1515,
+      "execution_time_ms": 0.232209,
       "expected": [
         {
           "type": "boolean",
@@ -10837,7 +10837,7 @@
       "description": "testType10",
       "expression": "Patient.active.type().name = 'boolean'",
       "status": "passed",
-      "execution_time_ms": 0.122625,
+      "execution_time_ms": 0.138791,
       "expected": [
         {
           "type": "boolean",
@@ -10853,7 +10853,7 @@
       "description": "testType11",
       "expression": "Patient.active.is(boolean)",
       "status": "error",
-      "execution_time_ms": 0.135792,
+      "execution_time_ms": 0.17075,
       "expected": [
         {
           "type": "boolean",
@@ -10868,7 +10868,7 @@
       "description": "testType12",
       "expression": "Patient.active.is(Boolean).not()",
       "status": "passed",
-      "execution_time_ms": 0.121875,
+      "execution_time_ms": 0.132625,
       "expected": [
         {
           "type": "boolean",
@@ -10884,7 +10884,7 @@
       "description": "testType13",
       "expression": "Patient.active.is(FHIR.boolean)",
       "status": "error",
-      "execution_time_ms": 0.147,
+      "execution_time_ms": 0.192792,
       "expected": [
         {
           "type": "boolean",
@@ -10899,7 +10899,7 @@
       "description": "testType14",
       "expression": "Patient.active.is(System.Boolean).not()",
       "status": "passed",
-      "execution_time_ms": 0.121375,
+      "execution_time_ms": 0.149833,
       "expected": [
         {
           "type": "boolean",
@@ -10915,7 +10915,7 @@
       "description": "testType15",
       "expression": "Patient.type().namespace = 'FHIR'",
       "status": "passed",
-      "execution_time_ms": 0.114334,
+      "execution_time_ms": 0.156042,
       "expected": [
         {
           "type": "boolean",
@@ -10931,7 +10931,7 @@
       "description": "testType16",
       "expression": "Patient.type().name = 'Patient'",
       "status": "passed",
-      "execution_time_ms": 0.111417,
+      "execution_time_ms": 0.122375,
       "expected": [
         {
           "type": "boolean",
@@ -10947,7 +10947,7 @@
       "description": "testType17",
       "expression": "Patient.is(Patient)",
       "status": "error",
-      "execution_time_ms": 0.127166,
+      "execution_time_ms": 0.13025,
       "expected": [
         {
           "type": "boolean",
@@ -10962,7 +10962,7 @@
       "description": "testType18",
       "expression": "Patient.is(FHIR.Patient)",
       "status": "error",
-      "execution_time_ms": 0.121958,
+      "execution_time_ms": 0.129208,
       "expected": [
         {
           "type": "boolean",
@@ -10977,7 +10977,7 @@
       "description": "testType19",
       "expression": "Patient.is(FHIR.`Patient`)",
       "status": "error",
-      "execution_time_ms": 0.121625,
+      "execution_time_ms": 0.142708,
       "expected": [
         {
           "type": "boolean",
@@ -10992,7 +10992,7 @@
       "description": "testType20",
       "expression": "Patient.ofType(Patient).type().name",
       "status": "error",
-      "execution_time_ms": 0.137291,
+      "execution_time_ms": 0.154625,
       "expected": [
         {
           "type": "string",
@@ -11007,7 +11007,7 @@
       "description": "testType21",
       "expression": "Patient.ofType(FHIR.Patient).type().name",
       "status": "error",
-      "execution_time_ms": 0.135,
+      "execution_time_ms": 0.142625,
       "expected": [
         {
           "type": "string",
@@ -11022,7 +11022,7 @@
       "description": "testType22",
       "expression": "Patient.is(System.Patient).not()",
       "status": "error",
-      "execution_time_ms": 0.151666,
+      "execution_time_ms": 0.148125,
       "expected": [
         {
           "type": "boolean",
@@ -11037,7 +11037,7 @@
       "description": "testType23",
       "expression": "Patient.ofType(FHIR.`Patient`).type().name",
       "status": "error",
-      "execution_time_ms": 0.133584,
+      "execution_time_ms": 0.137417,
       "expected": [
         {
           "type": "string",
@@ -11052,7 +11052,7 @@
       "description": "testConformsTo1",
       "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
       "status": "error",
-      "execution_time_ms": 0.117,
+      "execution_time_ms": 0.155584,
       "expected": [
         {
           "type": "boolean",
@@ -11067,7 +11067,7 @@
       "description": "testConformsTo2",
       "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
       "status": "error",
-      "execution_time_ms": 0.108458,
+      "execution_time_ms": 0.13125,
       "expected": [
         {
           "type": "boolean",
@@ -11085,7 +11085,7 @@
         "invalid": "true"
       },
       "status": "error",
-      "execution_time_ms": 0.029542,
+      "execution_time_ms": 0.043708,
       "expected": [],
       "actual": null,
       "error": "Cannot read properties of undefined (reading 'length')"
@@ -11093,7 +11093,7 @@
     {
       "expression": "(true and 'foo').empty()",
       "status": "passed",
-      "execution_time_ms": 0.128833,
+      "execution_time_ms": 0.15925,
       "expected": [
         {
           "type": "boolean",
@@ -11107,7 +11107,7 @@
     {
       "expression": "(true | 'foo').allTrue()",
       "status": "error",
-      "execution_time_ms": 0.123208,
+      "execution_time_ms": 0.14475,
       "expected": [
         {
           "type": "boolean",

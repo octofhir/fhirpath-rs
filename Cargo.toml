@@ -3,7 +3,6 @@ resolver = "3"
 members = [
     "fhirpath-core",
     "fhirpath-cli",
-    "fhirpath-node",
     "fhirpath-wasm",
 ]
 

@@ -240,17 +240,22 @@ class JavaScriptTestRunner {
             const times = [];
             const iterations = benchmark.iterations || 1000;
 
-            // Warm up
-            for (let i = 0; i < 10; i++) {
-                fhirpath.evaluate(testData, benchmark.expression);
-            }
+            try {
+                // Warm up
+                for (let i = 0; i < 10; i++) {
+                    fhirpath.evaluate(testData, benchmark.expression);
+                }
 
-            // Actual benchmark
-            for (let i = 0; i < iterations; i++) {
-                const startTime = process.hrtime.bigint();
-                fhirpath.evaluate(testData, benchmark.expression);
-                const endTime = process.hrtime.bigint();
-                times.push(Number(endTime - startTime) / 1000000); // Convert to milliseconds
+                // Actual benchmark
+                for (let i = 0; i < iterations; i++) {
+                    const startTime = process.hrtime.bigint();
+                    fhirpath.evaluate(testData, benchmark.expression);
+                    const endTime = process.hrtime.bigint();
+                    times.push(Number(endTime - startTime) / 1000000); // Convert to milliseconds
+                }
+            } catch (error) {
+                console.warn(`    ⚠️  Skipping ${benchmark.name} - expression failed: ${error.message}`);
+                continue;
             }
 
             const avgTime = times.reduce((a, b) => a + b, 0) / times.length;

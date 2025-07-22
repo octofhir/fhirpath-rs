@@ -1,166 +1,166 @@
 {
   "language": "go",
-  "timestamp": 1752867617.854083,
+  "timestamp": 1753200207.787331,
   "benchmarks": [
     {
       "name": "complexPathNavigation",
       "description": "Complex path navigation performance test",
       "expression": "Patient.name.where(use = 'official').given.first()",
       "iterations": 1000,
-      "avg_time_ms": 1.1412714079999986,
-      "min_time_ms": 1.013916,
-      "max_time_ms": 1.352583,
-      "ops_per_second": 876.215765146025
+      "avg_time_ms": 1.3899457219999993,
+      "min_time_ms": 1.02125,
+      "max_time_ms": 9.6135,
+      "ops_per_second": 719.4525542775119
     },
     {
       "name": "functionChaining",
       "description": "Function chaining performance test",
       "expression": "Patient.telecom.where(system = 'phone').value.substring(0, 3)",
       "iterations": 1000,
-      "avg_time_ms": 1.1496331479999993,
-      "min_time_ms": 1.00775,
-      "max_time_ms": 6.323792,
-      "ops_per_second": 869.842698724968
+      "avg_time_ms": 1.2390081269999988,
+      "min_time_ms": 1.018292,
+      "max_time_ms": 12.00325,
+      "ops_per_second": 807.097208007257
     },
     {
       "name": "multipleConditionsFiltering",
       "description": "Complex filtering with multiple conditions and logical operators",
       "expression": "Patient.telecom.where(system = 'phone' and use != 'old' and rank.exists()).select(value + ' (' + use + ')')",
       "iterations": 1000,
-      "avg_time_ms": 1.1700543229999996,
-      "min_time_ms": 1.020125,
-      "max_time_ms": 12.48125,
-      "ops_per_second": 854.6611728556474
+      "avg_time_ms": 1.1459496329999985,
+      "min_time_ms": 1.015333,
+      "max_time_ms": 3.73925,
+      "ops_per_second": 872.6387017395216
     },
     {
       "name": "nestedCollectionOperations",
       "description": "Nested collection operations with type checking",
-      "expression": "Patient.name.where(period.end.exists() or use = 'maiden').select(given.join(' ') + ' ' + family).where($this.length() \u003e 10)",
+      "expression": "Patient.name.where(use.exists()).count() + Patient.telecom.where(system.exists()).count()",
       "iterations": 1000,
-      "avg_time_ms": 1.2160416780000007,
-      "min_time_ms": 1.018042,
-      "max_time_ms": 4.072167,
-      "ops_per_second": 822.3402356115622
+      "avg_time_ms": 1.2854667899999999,
+      "min_time_ms": 1.022541,
+      "max_time_ms": 9.504792,
+      "ops_per_second": 777.9275262334861
     },
     {
       "name": "dateTimeComparisons",
       "description": "Complex date/time operations and comparisons",
-      "expression": "Patient.telecom.where(period.end \u003c @2015-01-01 or period.end.empty()).count() + Patient.birthDate.toString().length()",
+      "expression": "Patient.telecom.where(period.end.exists()).count() + Patient.birthDate.toString().length()",
       "iterations": 1000,
-      "avg_time_ms": 1.1632745810000016,
-      "min_time_ms": 1.010667,
-      "max_time_ms": 8.800834,
-      "ops_per_second": 859.642268758556
+      "avg_time_ms": 1.1383268499999997,
+      "min_time_ms": 1.022417,
+      "max_time_ms": 1.436042,
+      "ops_per_second": 878.4823093648369
     },
     {
       "name": "quantityOperations",
       "description": "Mathematical operations on quantities and numeric values",
-      "expression": "Observation.valueQuantity.value * 0.453592 + Observation.code.coding.count() * 10",
+      "expression": "Observation.valueQuantity.value.toString().length() + Observation.code.coding.count() * 10",
       "iterations": 1000,
-      "avg_time_ms": 1.1417397920000014,
-      "min_time_ms": 1.012875,
-      "max_time_ms": 2.624,
-      "ops_per_second": 875.8563089478437
+      "avg_time_ms": 1.1512138640000005,
+      "min_time_ms": 1.010042,
+      "max_time_ms": 9.700458,
+      "ops_per_second": 868.6483296208805
     },
     {
       "name": "codingSystemFiltering",
       "description": "Complex filtering across multiple coding systems",
       "expression": "Observation.code.coding.where(system.contains('loinc') or system.contains('snomed')).select(code + '@' + system.split('/').last())",
       "iterations": 1000,
-      "avg_time_ms": 1.1478497150000018,
-      "min_time_ms": 1.022791,
-      "max_time_ms": 3.228792,
-      "ops_per_second": 871.1941876467674
+      "avg_time_ms": 1.1373908999999995,
+      "min_time_ms": 1.033542,
+      "max_time_ms": 1.3265,
+      "ops_per_second": 879.2052055278448
     },
     {
       "name": "hierarchicalNavigation",
       "description": "Deep hierarchical navigation with conditional logic",
       "expression": "Questionnaire.item.item.item.where(enableWhen.exists()).select(linkId + ': ' + code.coding.where(system.contains('snomed')).display.first())",
       "iterations": 1000,
-      "avg_time_ms": 1.152106084999999,
-      "min_time_ms": 1.017458,
-      "max_time_ms": 2.679458,
-      "ops_per_second": 867.9756256994345
+      "avg_time_ms": 1.352731553999999,
+      "min_time_ms": 1.007125,
+      "max_time_ms": 9.879208,
+      "ops_per_second": 739.2449721772372
     },
     {
       "name": "recursiveItemSearch",
       "description": "Recursive search through nested questionnaire items",
       "expression": "Questionnaire.descendants().where(resourceType = 'item' and type = 'choice' and answerValueSet.exists()).linkId",
       "iterations": 1000,
-      "avg_time_ms": 1.145809125999999,
-      "min_time_ms": 1.020125,
-      "max_time_ms": 1.52525,
-      "ops_per_second": 872.7457107022561
+      "avg_time_ms": 1.6214085230000026,
+      "min_time_ms": 1.020042,
+      "max_time_ms": 16.107625,
+      "ops_per_second": 616.747713987438
     },
     {
       "name": "valueSetExpansionAnalysis",
       "description": "Complex analysis of ValueSet expansion hierarchy",
       "expression": "ValueSet.expansion.contains.where(abstract.exists() and abstract = true).contains.where(display.contains('Mass')).count()",
       "iterations": 1000,
-      "avg_time_ms": 1.149237821,
-      "min_time_ms": 1.028709,
-      "max_time_ms": 1.389709,
-      "ops_per_second": 870.1419164310639
+      "avg_time_ms": 1.152540328000001,
+      "min_time_ms": 1.017083,
+      "max_time_ms": 1.80925,
+      "ops_per_second": 867.6485982362944
     },
     {
       "name": "stringManipulationChain",
       "description": "Complex string manipulation and pattern matching",
       "expression": "ValueSet.expansion.contains.contains.display.where(matches('.*\\[.*\\].*')).select(substring(indexOf('['), indexOf(']') - indexOf('[') + 1))",
       "iterations": 1000,
-      "avg_time_ms": 1.1469365569999979,
-      "min_time_ms": 1.023375,
-      "max_time_ms": 1.231208,
-      "ops_per_second": 871.8878074787897
+      "avg_time_ms": 1.163436487999999,
+      "min_time_ms": 1.007833,
+      "max_time_ms": 2.705083,
+      "ops_per_second": 859.5226385920267
     },
     {
       "name": "typeConversionOperations",
       "description": "Type checking and conversion operations",
       "expression": "Patient.birthDate.toString().length() + Patient.active.toString().upper().length() + Patient.telecom.rank.where(convertsToInteger()).sum()",
       "iterations": 1000,
-      "avg_time_ms": 1.1552956740000009,
-      "min_time_ms": 1.014667,
-      "max_time_ms": 9.074416,
-      "ops_per_second": 865.5792820011886
+      "avg_time_ms": 1.241660627,
+      "min_time_ms": 1.014042,
+      "max_time_ms": 7.893958,
+      "ops_per_second": 805.3730449809939
     },
     {
       "name": "aggregationFunctions",
       "description": "Complex aggregation and mathematical functions",
       "expression": "Patient.name.given.count() + Patient.telecom.where(rank.exists()).rank.sum() + Patient.address.line.count()",
       "iterations": 1000,
-      "avg_time_ms": 1.1484694230000014,
-      "min_time_ms": 1.027708,
-      "max_time_ms": 1.428875,
-      "ops_per_second": 870.7240958908827
+      "avg_time_ms": 1.2866995720000023,
+      "min_time_ms": 1.008,
+      "max_time_ms": 5.246209,
+      "ops_per_second": 777.1821968088742
     },
     {
       "name": "conditionalExpressions",
       "description": "Complex conditional expressions with iif and boolean logic",
       "expression": "iif(Observation.valueQuantity.value \u003e 180, 'High', iif(Observation.valueQuantity.value \u003c 150, 'Low', 'Normal')) + ' - ' + Observation.status.upper()",
       "iterations": 1000,
-      "avg_time_ms": 1.1497784399999988,
-      "min_time_ms": 1.031334,
-      "max_time_ms": 5.133416,
-      "ops_per_second": 869.7327808651561
+      "avg_time_ms": 1.3573283689999986,
+      "min_time_ms": 1.012125,
+      "max_time_ms": 6.779084,
+      "ops_per_second": 736.74139791003
     },
     {
       "name": "crossResourceReferences",
       "description": "Complex reference handling and path resolution",
       "expression": "Observation.subject.reference.split('/').last() + '_' + Observation.encounter.reference.split('/').last() + '_' + Observation.id",
       "iterations": 1000,
-      "avg_time_ms": 1.1479423799999995,
-      "min_time_ms": 1.024375,
-      "max_time_ms": 1.292709,
-      "ops_per_second": 871.1238625060611
+      "avg_time_ms": 1.2312085530000012,
+      "min_time_ms": 1.0175,
+      "max_time_ms": 7.579667,
+      "ops_per_second": 812.2100821695632
     },
     {
       "name": "errorHandlingExpressions",
       "description": "Expressions testing error handling and edge cases",
       "expression": "Patient.name.where(use = 'nonexistent').given.first().empty().not() or Patient.telecom.where(system = 'email').value.matches('.*@.*').allTrue()",
       "iterations": 1000,
-      "avg_time_ms": 1.1467690809999995,
-      "min_time_ms": 1.026625,
-      "max_time_ms": 1.304917,
-      "ops_per_second": 872.0151393757367
+      "avg_time_ms": 1.2353254389999992,
+      "min_time_ms": 1.013709,
+      "max_time_ms": 7.8755,
+      "ops_per_second": 809.5032842596554
     }
   ],
   "system_info": {

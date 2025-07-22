@@ -1,7 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const main: () => void;
+export const init_panic_hook: () => void;
 export const evaluate_fhirpath: (a: number, b: number, c: number, d: number) => [number, number];
 export const validate_fhirpath: (a: number, b: number) => [number, number];
 export const get_fhirpath_version: () => [number, number];

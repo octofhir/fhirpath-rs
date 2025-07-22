@@ -14,12 +14,27 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/react": "^4.0.0",
     "@astrojs/starlight": "^0.35.0",
     "@astrojs/svelte": "^7.1.0",
+    "@mantine/charts": "^8.0.0",
+    "@mantine/core": "^8.0.0",
+    "@mantine/hooks": "^8.0.0",
+    "@tabler/icons-react": "^3.34.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "astro": "^5.6.1",
     "astro-favicons": "^3.1.5",
     "chart.js": "^4.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0",
+    "recharts": "^2.12.0",
     "sharp": "^0.34.2",
-    "svelte": "^5.36.8"
+    "svelte": "^5.36.8",
+    "typescript": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   }
 }

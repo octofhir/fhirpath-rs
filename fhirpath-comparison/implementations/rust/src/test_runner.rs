@@ -123,26 +123,34 @@ struct SystemInfo {
 impl RustTestRunner {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let current_dir = std::env::current_dir()?;
-        // Point to the official test suites in fhirpath-core
+        // Point to the official test suites in fhirpath-core for test data
         let test_data_dir = current_dir.join("../../../fhirpath-core/tests/official-tests/r4/input").to_string_lossy().to_string();
-        let test_cases_dir = current_dir.join("../../../fhirpath-core/tests/official-tests/r4").to_string_lossy().to_string();
+        // Point to the comparison project test cases for configuration
+        let test_cases_dir = current_dir.join("../../test-cases").to_string_lossy().to_string();
         let results_dir = current_dir.join("../../results").to_string_lossy().to_string();
 
         // Ensure results directory exists
         fs::create_dir_all(&results_dir)?;
 
-        // Create default test configuration since official tests don't have a config file
-        let test_config = TestConfig {
-            test_data: TestData {
-                input_files: vec![
-                    "patient-example.xml".to_string(),
-                    "observation-example.xml".to_string(),
-                    "questionnaire-example.xml".to_string(),
-                    "valueset-example-expansion.xml".to_string(),
-                ],
-            },
-            sample_tests: Vec::new(),
-            benchmark_tests: Vec::new(),
+        // Load test configuration from JSON file
+        let config_path = Path::new(&test_cases_dir).join("test-config.json");
+        let test_config = if config_path.exists() {
+            let config_content = fs::read_to_string(&config_path)?;
+            serde_json::from_str::<TestConfig>(&config_content)?
+        } else {
+            // Fallback to default configuration if file doesn't exist
+            TestConfig {
+                test_data: TestData {
+                    input_files: vec![
+                        "patient-example.xml".to_string(),
+                        "observation-example.xml".to_string(),
+                        "questionnaire-example.xml".to_string(),
+                        "valueset-example-expansion.xml".to_string(),
+                    ],
+                },
+                sample_tests: Vec::new(),
+                benchmark_tests: Vec::new(),
+            }
         };
 
         Ok(RustTestRunner {

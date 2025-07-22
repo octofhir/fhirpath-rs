@@ -59,7 +59,7 @@ export async function getComparisonReport() {
  */
 export async function getAllTestResults() {
   const results = [];
-  const languages = ['javascript', 'python', 'java', 'csharp', 'rust', 'go'];
+  const languages = ['javascript', 'python', 'java', 'csharp', 'rust', 'go', 'clojure'];
 
   // Get comparison report
   const report = await getComparisonReport();
@@ -116,7 +116,7 @@ export async function getAllTestResults() {
  */
 export async function getAllBenchmarkResults() {
   const results = [];
-  const languages = ['javascript', 'python', 'java', 'csharp', 'rust', 'go'];
+  const languages = ['javascript', 'python', 'java', 'csharp', 'rust', 'go', 'clojure'];
 
   // Get comparison report
   const report = await getComparisonReport();

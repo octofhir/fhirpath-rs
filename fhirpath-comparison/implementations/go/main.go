@@ -181,11 +181,7 @@ func (r *GoTestRunner) loadOfficialTests() ([]TestCase, error) {
 	// Extract tests from groups
 	for _, group := range testSuite.Groups {
 		for _, test := range group.Tests {
-			// Skip tests marked as invalid for now (these test error conditions)
-			if test.Expression.Invalid != "" {
-				fmt.Printf("⏭️  Skipping invalid test %s (tests error conditions)\n", test.Name)
-				continue
-			}
+			// Include all tests, including invalid ones (like Rust implementation)
 
 			// Parse expected outputs
 			var expectedOutput []interface{}
@@ -413,11 +409,7 @@ func (r *GoTestRunner) runTests() error {
 			continue
 		}
 
-		// Skip tests marked as invalid for now (these test error conditions)
-		if testCase.Invalid != "" {
-			fmt.Printf("⏭️  Skipping invalid test %s (tests error conditions)\n", testCase.Name)
-			continue
-		}
+		// Include all tests, including invalid ones (like Rust implementation)
 
 		result := r.runSingleTest(testCase, testData)
 		allResults = append(allResults, result)

@@ -16,6 +16,15 @@ log = "0.4.20"
 
 # Parser dependencies
 nom = "7.1.3"
+regex = "1.10"
+
+# UCUM library for quantity handling
+octofhir-ucum-core = "0.2.5"
+octofhir-ucum-fhir = { version = "0.2.5", features = ["serde"] }
+
+# Performance optimization dependencies
+rustc-hash = "1.1"
+smallvec = { version = "1.11", features = ["serde"] }
 
 [features]
 default = []

@@ -355,60 +355,68 @@ namespace FhirPathComparison
                 var iterations = benchmark["iterations"]?.GetValue<int>() ?? 1000;
                 var times = new List<double>();
 
-                var compiled = _fhirPathCompiler.Compile(expression);
-                var typedElement = testData.ToTypedElement();
-                var context = EvaluationContext.CreateDefault();
-
-                // Warm up
-                for (int i = 0; i < 10; i++)
+                try
                 {
-                    try
+                    var compiled = _fhirPathCompiler.Compile(expression);
+                    var typedElement = testData.ToTypedElement();
+                    var context = EvaluationContext.CreateDefault();
+
+                    // Warm up
+                    for (int i = 0; i < 10; i++)
                     {
-                        compiled(typedElement, context).ToList();
+                        try
+                        {
+                            compiled(typedElement, context).ToList();
+                        }
+                        catch
+                        {
+                            // Ignore warm-up errors
+                        }
                     }
-                    catch
+
+                    // Actual benchmark
+                    for (int i = 0; i < iterations; i++)
                     {
-                        // Ignore warm-up errors
+                        var stopwatch = Stopwatch.StartNew();
+                        try
+                        {
+                            compiled(typedElement, context).ToList();
+                        }
+                        catch
+                        {
+                            // Continue timing even if expression fails
+                        }
+                        stopwatch.Stop();
+                        times.Add(stopwatch.Elapsed.TotalMilliseconds);
+                    }
+
+                    if (times.Any())
+                    {
+                        var avgTime = times.Average();
+                        var minTime = times.Min();
+                        var maxTime = times.Max();
+                        var opsPerSecond = avgTime > 0 ? 1000.0 / avgTime : 0.0;
+
+                        var benchmarkResult = new JsonObject
+                        {
+                            ["name"] = benchmark["name"].ToString(),
+                            ["description"] = benchmark["description"].ToString(),
+                            ["expression"] = expression,
+                            ["iterations"] = iterations,
+                            ["avg_time_ms"] = avgTime,
+                            ["min_time_ms"] = minTime,
+                            ["max_time_ms"] = maxTime,
+                            ["ops_per_second"] = opsPerSecond
+                        };
+
+                        benchmarksArray.Add(benchmarkResult);
+                        Console.WriteLine($"    ⏱️  {avgTime:F2}ms avg ({opsPerSecond:F1} ops/sec)");
                     }
                 }
-
-                // Actual benchmark
-                for (int i = 0; i < iterations; i++)
+                catch (Exception ex)
                 {
-                    var stopwatch = Stopwatch.StartNew();
-                    try
-                    {
-                        compiled(typedElement, context).ToList();
-                    }
-                    catch
-                    {
-                        // Continue timing even if expression fails
-                    }
-                    stopwatch.Stop();
-                    times.Add(stopwatch.Elapsed.TotalMilliseconds);
-                }
-
-                if (times.Any())
-                {
-                    var avgTime = times.Average();
-                    var minTime = times.Min();
-                    var maxTime = times.Max();
-                    var opsPerSecond = avgTime > 0 ? 1000.0 / avgTime : 0.0;
-
-                    var benchmarkResult = new JsonObject
-                    {
-                        ["name"] = benchmark["name"].ToString(),
-                        ["description"] = benchmark["description"].ToString(),
-                        ["expression"] = expression,
-                        ["iterations"] = iterations,
-                        ["avg_time_ms"] = avgTime,
-                        ["min_time_ms"] = minTime,
-                        ["max_time_ms"] = maxTime,
-                        ["ops_per_second"] = opsPerSecond
-                    };
-
-                    benchmarksArray.Add(benchmarkResult);
-                    Console.WriteLine($"    ⏱️  {avgTime:F2}ms avg ({opsPerSecond:F1} ops/sec)");
+                    Console.WriteLine($"    ⚠️  Skipping {benchmark["name"]} - expression failed: {ex.Message}");
+                    continue;
                 }
             }
 

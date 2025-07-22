@@ -31,6 +31,29 @@ pub enum FhirPathError {
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 
+    /// Context validation error - invalid path for resource type
+    #[error("Invalid path '{path}' for resource type '{resource_type}'. Available properties: {available_properties:?}")]
+    InvalidContextPath {
+        path: String,
+        resource_type: String,
+        available_properties: Vec<String>,
+    },
+
+    /// Type mismatch error during context validation
+    #[error("Type mismatch at path '{path}': expected '{expected}', found '{actual}'")]
+    ContextTypeMismatch {
+        path: String,
+        expected: String,
+        actual: String,
+    },
+
+    /// Resource type validation error
+    #[error("Expression cannot be evaluated against resource type '{resource_type}': {reason}")]
+    ResourceTypeError {
+        resource_type: String,
+        reason: String,
+    },
+
     /// Other errors
     #[error("Error: {0}")]
     Other(String),

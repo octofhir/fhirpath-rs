@@ -1,13 +1,13 @@
 {
   "language": "go",
-  "timestamp": 1752867599.265059,
+  "timestamp": 1753200187.504277,
   "tests": [
     {
       "name": "testExtractBirthDate",
       "description": "Extract birthDate",
       "expression": "birthDate",
       "status": "passed",
-      "execution_time_ms": 1.130375,
+      "execution_time_ms": 1.076792,
       "expected": [
         {
           "type": "date",
@@ -21,7 +21,7 @@
       "description": "patient has a birthDate",
       "expression": "birthDate",
       "status": "passed",
-      "execution_time_ms": 1.133125,
+      "execution_time_ms": 1.182958,
       "expected": [
         {
           "type": "boolean",
@@ -35,7 +35,7 @@
       "description": "patient telecom types",
       "expression": "telecom.use",
       "status": "passed",
-      "execution_time_ms": 1.138667,
+      "execution_time_ms": 1.171958,
       "expected": [
         {
           "type": "code",
@@ -61,7 +61,7 @@
       "description": "",
       "expression": "name.given",
       "status": "passed",
-      "execution_time_ms": 1.135625,
+      "execution_time_ms": 1.10775,
       "expected": [
         {
           "type": "string",
@@ -91,7 +91,7 @@
       "description": "",
       "expression": "name.suffix",
       "status": "passed",
-      "execution_time_ms": 1.131584,
+      "execution_time_ms": 1.225042,
       "expected": null,
       "actual": []
     },
@@ -100,7 +100,7 @@
       "description": "",
       "expression": "name.`given`",
       "status": "passed",
-      "execution_time_ms": 1.131458,
+      "execution_time_ms": 1.157209,
       "expected": [
         {
           "type": "string",
@@ -130,7 +130,7 @@
       "description": "",
       "expression": "`Patient`.name.`given`",
       "status": "passed",
-      "execution_time_ms": 1.129917,
+      "execution_time_ms": 1.137292,
       "expected": [
         {
           "type": "string",
@@ -160,7 +160,7 @@
       "description": "",
       "expression": "Patient.name.given",
       "status": "passed",
-      "execution_time_ms": 1.140792,
+      "execution_time_ms": 1.142542,
       "expected": [
         {
           "type": "string",
@@ -190,7 +190,7 @@
       "description": "",
       "expression": "Observation.value.unit",
       "status": "passed",
-      "execution_time_ms": 1.13875,
+      "execution_time_ms": 1.133375,
       "expected": [
         {
           "type": "string",
@@ -204,7 +204,7 @@
       "description": "",
       "expression": "Observation.value.is(Quantity)",
       "status": "passed",
-      "execution_time_ms": 1.133875,
+      "execution_time_ms": 1.133167,
       "expected": [
         {
           "type": "boolean",
@@ -218,7 +218,7 @@
       "description": "",
       "expression": "Observation.value is Quantity",
       "status": "passed",
-      "execution_time_ms": 1.138625,
+      "execution_time_ms": 1.143,
       "expected": [
         {
           "type": "boolean",
@@ -232,7 +232,7 @@
       "description": "",
       "expression": "Observation.issued is instant",
       "status": "passed",
-      "execution_time_ms": 1.14475,
+      "execution_time_ms": 1.145167,
       "expected": null,
       "actual": []
     },
@@ -241,7 +241,7 @@
       "description": "",
       "expression": "Observation.value.is(Period).not()",
       "status": "passed",
-      "execution_time_ms": 1.157208,
+      "execution_time_ms": 1.254959,
       "expected": [
         {
           "type": "boolean",
@@ -255,7 +255,7 @@
       "description": "",
       "expression": "Observation.value.as(Quantity).unit",
       "status": "passed",
-      "execution_time_ms": 1.13825,
+      "execution_time_ms": 1.157917,
       "expected": [
         {
           "type": "string",
@@ -269,7 +269,7 @@
       "description": "",
       "expression": "(Observation.value as Quantity).unit",
       "status": "passed",
-      "execution_time_ms": 1.135084,
+      "execution_time_ms": 1.333792,
       "expected": [
         {
           "type": "string",
@@ -283,7 +283,7 @@
       "description": "",
       "expression": "Observation.value.as(Period).start",
       "status": "passed",
-      "execution_time_ms": 1.160667,
+      "execution_time_ms": 1.149916,
       "expected": null,
       "actual": []
     },
@@ -292,7 +292,7 @@
       "description": "",
       "expression": "Patient.name.given.where(substring($this.length()-3) = 'out')",
       "status": "passed",
-      "execution_time_ms": 1.13575,
+      "execution_time_ms": 1.298583,
       "expected": null,
       "actual": []
     },
@@ -301,7 +301,7 @@
       "description": "",
       "expression": "Patient.name.given.where(substring($this.length()-3) = 'ter')",
       "status": "passed",
-      "execution_time_ms": 1.156542,
+      "execution_time_ms": 1.145333,
       "expected": [
         {
           "type": "string",
@@ -319,7 +319,7 @@
       "description": "",
       "expression": "Patient.name.skip(1).given",
       "status": "passed",
-      "execution_time_ms": 1.13475,
+      "execution_time_ms": 1.147583,
       "expected": [
         {
           "type": "string",
@@ -341,7 +341,7 @@
       "description": "",
       "expression": "Patient.name.skip(3).given",
       "status": "passed",
-      "execution_time_ms": 1.135083,
+      "execution_time_ms": 1.179709,
       "expected": null,
       "actual": []
     },
@@ -350,7 +350,7 @@
       "description": "",
       "expression": "Patient.name.exists() = true",
       "status": "passed",
-      "execution_time_ms": 1.141042,
+      "execution_time_ms": 1.143125,
       "expected": [
         {
           "type": "boolean",
@@ -364,7 +364,7 @@
       "description": "",
       "expression": "Patient.name.empty() = false",
       "status": "passed",
-      "execution_time_ms": 1.114,
+      "execution_time_ms": 1.150667,
       "expected": [
         {
           "type": "boolean",
@@ -378,7 +378,7 @@
       "description": "",
       "expression": "Patient.name.given.first() = 'Peter'",
       "status": "passed",
-      "execution_time_ms": 1.146666,
+      "execution_time_ms": 1.556042,
       "expected": [
         {
           "type": "boolean",
@@ -392,7 +392,7 @@
       "description": "",
       "expression": "1.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.140875,
+      "execution_time_ms": 1.141125,
       "expected": [
         {
           "type": "boolean",
@@ -406,7 +406,7 @@
       "description": "",
       "expression": "0.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.136583,
+      "execution_time_ms": 1.157583,
       "expected": [
         {
           "type": "boolean",
@@ -420,7 +420,7 @@
       "description": "",
       "expression": "(-1).convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.153167,
+      "execution_time_ms": 1.279625,
       "expected": [
         {
           "type": "boolean",
@@ -434,7 +434,7 @@
       "description": "",
       "expression": "2147483647.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.1465,
+      "execution_time_ms": 1.224958,
       "expected": [
         {
           "type": "boolean",
@@ -448,7 +448,7 @@
       "description": "",
       "expression": "'test'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.135,
+      "execution_time_ms": 1.184792,
       "expected": [
         {
           "type": "boolean",
@@ -462,7 +462,7 @@
       "description": "",
       "expression": "'\\\\\\/\\f\\r\\n\\t\\\"\\`\\'\\u002a'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.146167,
       "expected": [
         {
           "type": "boolean",
@@ -476,7 +476,7 @@
       "description": "",
       "expression": "true.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.17075,
+      "execution_time_ms": 1.131458,
       "expected": [
         {
           "type": "boolean",
@@ -490,7 +490,7 @@
       "description": "",
       "expression": "false.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.114875,
+      "execution_time_ms": 1.259541,
       "expected": [
         {
           "type": "boolean",
@@ -504,7 +504,7 @@
       "description": "",
       "expression": "1.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.14125,
+      "execution_time_ms": 1.137417,
       "expected": [
         {
           "type": "boolean",
@@ -518,7 +518,7 @@
       "description": "",
       "expression": "0.1.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.176541,
+      "execution_time_ms": 1.20775,
       "expected": [
         {
           "type": "boolean",
@@ -532,7 +532,7 @@
       "description": "",
       "expression": "0.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.17,
+      "execution_time_ms": 1.149458,
       "expected": [
         {
           "type": "boolean",
@@ -546,7 +546,7 @@
       "description": "",
       "expression": "(-0.1).convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.150542,
+      "execution_time_ms": 1.174875,
       "expected": [
         {
           "type": "boolean",
@@ -560,7 +560,7 @@
       "description": "",
       "expression": "1234567890987654321.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.159625,
+      "execution_time_ms": 1.191416,
       "expected": [
         {
           "type": "boolean",
@@ -574,7 +574,7 @@
       "description": "",
       "expression": "0.00000001.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.122125,
+      "execution_time_ms": 1.406083,
       "expected": [
         {
           "type": "boolean",
@@ -588,7 +588,7 @@
       "description": "",
       "expression": "@2015.is(Date)",
       "status": "passed",
-      "execution_time_ms": 1.162209,
+      "execution_time_ms": 1.821208,
       "expected": [
         {
           "type": "boolean",
@@ -602,7 +602,7 @@
       "description": "",
       "expression": "@2015-02.is(Date)",
       "status": "passed",
-      "execution_time_ms": 1.153708,
+      "execution_time_ms": 1.600542,
       "expected": [
         {
           "type": "boolean",
@@ -616,7 +616,7 @@
       "description": "",
       "expression": "@2015-02-04.is(Date)",
       "status": "passed",
-      "execution_time_ms": 1.158833,
+      "execution_time_ms": 1.15275,
       "expected": [
         {
           "type": "boolean",
@@ -630,7 +630,7 @@
       "description": "",
       "expression": "@2015T.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.145833,
+      "execution_time_ms": 2.381917,
       "expected": [
         {
           "type": "boolean",
@@ -644,7 +644,7 @@
       "description": "",
       "expression": "@2015-02T.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.133709,
+      "execution_time_ms": 1.254875,
       "expected": [
         {
           "type": "boolean",
@@ -658,7 +658,7 @@
       "description": "",
       "expression": "@2015-02-04T.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.132917,
+      "execution_time_ms": 2.014917,
       "expected": [
         {
           "type": "boolean",
@@ -672,7 +672,7 @@
       "description": "",
       "expression": "@2015-02-04T14.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.134667,
+      "execution_time_ms": 1.45025,
       "expected": [
         {
           "type": "boolean",
@@ -686,7 +686,7 @@
       "description": "",
       "expression": "@2015-02-04T14:34.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.1325,
+      "execution_time_ms": 1.11275,
       "expected": [
         {
           "type": "boolean",
@@ -700,7 +700,7 @@
       "description": "",
       "expression": "@2015-02-04T14:34:28.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.146292,
+      "execution_time_ms": 1.227625,
       "expected": [
         {
           "type": "boolean",
@@ -714,7 +714,7 @@
       "description": "",
       "expression": "@2015-02-04T14:34:28.123.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.145959,
+      "execution_time_ms": 1.211416,
       "expected": [
         {
           "type": "boolean",
@@ -728,7 +728,7 @@
       "description": "",
       "expression": "@2015-02-04T14:34:28Z.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.156667,
+      "execution_time_ms": 1.139209,
       "expected": [
         {
           "type": "boolean",
@@ -742,7 +742,7 @@
       "description": "",
       "expression": "@2015-02-04T14:34:28+10:00.is(DateTime)",
       "status": "passed",
-      "execution_time_ms": 1.071125,
+      "execution_time_ms": 1.056125,
       "expected": [
         {
           "type": "boolean",
@@ -756,7 +756,7 @@
       "description": "",
       "expression": "@T14.is(Time)",
       "status": "passed",
-      "execution_time_ms": 1.161875,
+      "execution_time_ms": 1.136667,
       "expected": [
         {
           "type": "boolean",
@@ -770,7 +770,7 @@
       "description": "",
       "expression": "@T14:34.is(Time)",
       "status": "passed",
-      "execution_time_ms": 1.14875,
+      "execution_time_ms": 1.164,
       "expected": [
         {
           "type": "boolean",
@@ -784,7 +784,7 @@
       "description": "",
       "expression": "@T14:34:28.is(Time)",
       "status": "passed",
-      "execution_time_ms": 1.202541,
+      "execution_time_ms": 1.158875,
       "expected": [
         {
           "type": "boolean",
@@ -798,7 +798,7 @@
       "description": "",
       "expression": "@T14:34:28.123.is(Time)",
       "status": "passed",
-      "execution_time_ms": 1.146792,
+      "execution_time_ms": 1.284583,
       "expected": [
         {
           "type": "boolean",
@@ -812,7 +812,7 @@
       "description": "",
       "expression": "10.1 'mg'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.137333,
+      "execution_time_ms": 1.279917,
       "expected": [
         {
           "type": "boolean",
@@ -826,7 +826,7 @@
       "description": "",
       "expression": "10 'mg'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.119416,
+      "execution_time_ms": 1.580708,
       "expected": [
         {
           "type": "boolean",
@@ -840,7 +840,7 @@
       "description": "",
       "expression": "4 days.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.082958,
+      "execution_time_ms": 1.362083,
       "expected": [
         {
           "type": "boolean",
@@ -854,7 +854,7 @@
       "description": "",
       "expression": "-3 != 3",
       "status": "passed",
-      "execution_time_ms": 1.069417,
+      "execution_time_ms": 1.877291,
       "expected": [
         {
           "type": "boolean",
@@ -868,7 +868,7 @@
       "description": "",
       "expression": "Patient.name.given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.168791,
+      "execution_time_ms": 1.212458,
       "expected": [
         {
           "type": "boolean",
@@ -882,7 +882,7 @@
       "description": "",
       "expression": "-Patient.name.given.count() = -5",
       "status": "passed",
-      "execution_time_ms": 1.132042,
+      "execution_time_ms": 1.255959,
       "expected": [
         {
           "type": "boolean",
@@ -896,7 +896,7 @@
       "description": "",
       "expression": "Patient.name.given.count() \u003e -3",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.166541,
       "expected": [
         {
           "type": "boolean",
@@ -910,7 +910,7 @@
       "description": "",
       "expression": "Patient.name.given.count() != 0",
       "status": "passed",
-      "execution_time_ms": 1.163125,
+      "execution_time_ms": 1.145417,
       "expected": [
         {
           "type": "boolean",
@@ -924,7 +924,7 @@
       "description": "",
       "expression": "1 \u003c 2",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.221625,
       "expected": [
         {
           "type": "boolean",
@@ -938,7 +938,7 @@
       "description": "",
       "expression": "1 \u003c -2",
       "status": "passed",
-      "execution_time_ms": 1.134916,
+      "execution_time_ms": 1.162625,
       "expected": [
         {
           "type": "boolean",
@@ -952,7 +952,7 @@
       "description": "",
       "expression": "+1 \u003c +2",
       "status": "passed",
-      "execution_time_ms": 1.138083,
+      "execution_time_ms": 1.134,
       "expected": [
         {
           "type": "boolean",
@@ -966,7 +966,7 @@
       "description": "",
       "expression": "-1 \u003c 2",
       "status": "passed",
-      "execution_time_ms": 1.132584,
+      "execution_time_ms": 1.136333,
       "expected": [
         {
           "type": "boolean",
@@ -980,7 +980,7 @@
       "description": "",
       "expression": "Observation.value.value \u003e 180.0",
       "status": "passed",
-      "execution_time_ms": 1.146542,
+      "execution_time_ms": 1.1555,
       "expected": [
         {
           "type": "boolean",
@@ -994,7 +994,7 @@
       "description": "",
       "expression": "Observation.value.value \u003e 0.0",
       "status": "passed",
-      "execution_time_ms": 1.157125,
+      "execution_time_ms": 1.152208,
       "expected": [
         {
           "type": "boolean",
@@ -1008,7 +1008,7 @@
       "description": "",
       "expression": "Observation.value.value \u003e 0",
       "status": "passed",
-      "execution_time_ms": 1.140458,
+      "execution_time_ms": 1.35075,
       "expected": [
         {
           "type": "boolean",
@@ -1022,7 +1022,7 @@
       "description": "",
       "expression": "Observation.value.value \u003c 190",
       "status": "passed",
-      "execution_time_ms": 1.146542,
+      "execution_time_ms": 1.148875,
       "expected": [
         {
           "type": "boolean",
@@ -1036,7 +1036,7 @@
       "description": "",
       "expression": "Patient.birthDate = @1974-12-25",
       "status": "passed",
-      "execution_time_ms": 1.143917,
+      "execution_time_ms": 1.155958,
       "expected": [
         {
           "type": "boolean",
@@ -1050,7 +1050,7 @@
       "description": "",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00",
       "status": "passed",
-      "execution_time_ms": 1.160625,
+      "execution_time_ms": 1.144125,
       "expected": null,
       "actual": []
     },
@@ -1059,7 +1059,7 @@
       "description": "",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00-10:00",
       "status": "passed",
-      "execution_time_ms": 1.130792,
+      "execution_time_ms": 1.151583,
       "expected": [
         {
           "type": "boolean",
@@ -1073,7 +1073,7 @@
       "description": "",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00+10:00",
       "status": "passed",
-      "execution_time_ms": 1.142209,
+      "execution_time_ms": 1.057,
       "expected": [
         {
           "type": "boolean",
@@ -1087,7 +1087,7 @@
       "description": "",
       "expression": "Patient.birthDate != @1974-12-25T12:34:00Z",
       "status": "passed",
-      "execution_time_ms": 1.130792,
+      "execution_time_ms": 1.149042,
       "expected": [
         {
           "type": "boolean",
@@ -1101,7 +1101,7 @@
       "description": "",
       "expression": "Patient.birthDate != @T12:14:15",
       "status": "passed",
-      "execution_time_ms": 1.123125,
+      "execution_time_ms": 1.141875,
       "expected": [
         {
           "type": "boolean",
@@ -1115,7 +1115,7 @@
       "description": "",
       "expression": "Patient.birthDate != @T12:14",
       "status": "passed",
-      "execution_time_ms": 1.176541,
+      "execution_time_ms": 1.139458,
       "expected": [
         {
           "type": "boolean",
@@ -1129,7 +1129,7 @@
       "description": "",
       "expression": "Patient.birthDate \u003c today()",
       "status": "passed",
-      "execution_time_ms": 1.142875,
+      "execution_time_ms": 1.134333,
       "expected": [
         {
           "type": "boolean",
@@ -1143,7 +1143,7 @@
       "description": "",
       "expression": "now() \u003e Patient.birthDate",
       "status": "passed",
-      "execution_time_ms": 1.055167,
+      "execution_time_ms": 1.163,
       "expected": [
         {
           "type": "boolean",
@@ -1157,7 +1157,7 @@
       "description": "",
       "expression": "@2017-11-05T01:30:00.0-04:00 \u003e @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 1.148333,
+      "execution_time_ms": 1.163084,
       "expected": [
         {
           "type": "boolean",
@@ -1171,7 +1171,7 @@
       "description": "",
       "expression": "@2017-11-05T01:30:00.0-04:00 \u003c @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 1.167875,
+      "execution_time_ms": 1.132208,
       "expected": [
         {
           "type": "boolean",
@@ -1185,7 +1185,7 @@
       "description": "",
       "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T01:15:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 1.170667,
+      "execution_time_ms": 1.17025,
       "expected": [
         {
           "type": "boolean",
@@ -1199,7 +1199,7 @@
       "description": "",
       "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00",
       "status": "passed",
-      "execution_time_ms": 1.138833,
+      "execution_time_ms": 1.186458,
       "expected": [
         {
           "type": "boolean",
@@ -1213,7 +1213,7 @@
       "description": "",
       "expression": "Patient.name.given.first() = 'P\\u0065ter'",
       "status": "passed",
-      "execution_time_ms": 1.145958,
+      "execution_time_ms": 1.532125,
       "expected": [
         {
           "type": "boolean",
@@ -1227,7 +1227,7 @@
       "description": "",
       "expression": "Patient.name.given.empty().not()",
       "status": "passed",
-      "execution_time_ms": 1.135916,
+      "execution_time_ms": 1.225834,
       "expected": [
         {
           "type": "boolean",
@@ -1241,7 +1241,7 @@
       "description": "",
       "expression": "Patient.name.given != {}",
       "status": "passed",
-      "execution_time_ms": 1.133792,
+      "execution_time_ms": 1.209542,
       "expected": null,
       "actual": []
     },
@@ -1250,7 +1250,7 @@
       "description": "",
       "expression": "Patient.name.select(given | family).distinct()",
       "status": "passed",
-      "execution_time_ms": 1.141375,
+      "execution_time_ms": 1.191292,
       "expected": [
         {
           "type": "string",
@@ -1280,7 +1280,7 @@
       "description": "",
       "expression": "Patient.name.given.count() = 1 + 4",
       "status": "passed",
-      "execution_time_ms": 1.14675,
+      "execution_time_ms": 1.072875,
       "expected": [
         {
           "type": "boolean",
@@ -1294,7 +1294,7 @@
       "description": "",
       "expression": "Patient.name.empty().not()",
       "status": "passed",
-      "execution_time_ms": 1.134125,
+      "execution_time_ms": 1.16175,
       "expected": [
         {
           "type": "boolean",
@@ -1308,7 +1308,7 @@
       "description": "",
       "expression": "Patient.link.empty()",
       "status": "passed",
-      "execution_time_ms": 1.202,
+      "execution_time_ms": 1.139875,
       "expected": [
         {
           "type": "boolean",
@@ -1322,7 +1322,7 @@
       "description": "",
       "expression": "true.not() = false",
       "status": "passed",
-      "execution_time_ms": 1.14975,
+      "execution_time_ms": 1.136167,
       "expected": [
         {
           "type": "boolean",
@@ -1336,7 +1336,7 @@
       "description": "",
       "expression": "false.not() = true",
       "status": "passed",
-      "execution_time_ms": 1.132209,
+      "execution_time_ms": 1.136959,
       "expected": [
         {
           "type": "boolean",
@@ -1350,7 +1350,7 @@
       "description": "",
       "expression": "(0).not() = true",
       "status": "passed",
-      "execution_time_ms": 1.181208,
+      "execution_time_ms": 1.112834,
       "expected": [
         {
           "type": "boolean",
@@ -1364,7 +1364,7 @@
       "description": "",
       "expression": "(1).not() = false",
       "status": "passed",
-      "execution_time_ms": 1.132709,
+      "execution_time_ms": 1.1545,
       "expected": [
         {
           "type": "boolean",
@@ -1378,7 +1378,7 @@
       "description": "",
       "expression": "'2015'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 1.248125,
+      "execution_time_ms": 1.137959,
       "expected": [
         {
           "type": "boolean",
@@ -1392,7 +1392,7 @@
       "description": "",
       "expression": "'2015-02'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 1.158417,
+      "execution_time_ms": 1.143917,
       "expected": [
         {
           "type": "boolean",
@@ -1406,7 +1406,7 @@
       "description": "",
       "expression": "'2015-02-04'.convertsToDate()",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.147083,
       "expected": [
         {
           "type": "boolean",
@@ -1420,7 +1420,7 @@
       "description": "",
       "expression": "'2015'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.131084,
+      "execution_time_ms": 1.1505,
       "expected": [
         {
           "type": "boolean",
@@ -1434,7 +1434,7 @@
       "description": "",
       "expression": "'2015-02'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.162709,
+      "execution_time_ms": 1.199,
       "expected": [
         {
           "type": "boolean",
@@ -1448,7 +1448,7 @@
       "description": "",
       "expression": "'2015-02-04'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.135333,
+      "execution_time_ms": 1.17075,
       "expected": [
         {
           "type": "boolean",
@@ -1462,7 +1462,7 @@
       "description": "",
       "expression": "'2015-02-04T14'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.146166,
+      "execution_time_ms": 1.132583,
       "expected": [
         {
           "type": "boolean",
@@ -1476,7 +1476,7 @@
       "description": "",
       "expression": "'2015-02-04T14:34'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.1755,
+      "execution_time_ms": 1.143167,
       "expected": [
         {
           "type": "boolean",
@@ -1490,7 +1490,7 @@
       "description": "",
       "expression": "'2015-02-04T14:34:28'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.138333,
+      "execution_time_ms": 1.045625,
       "expected": [
         {
           "type": "boolean",
@@ -1504,7 +1504,7 @@
       "description": "",
       "expression": "'2015-02-04T14:34:28.123'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 2.46025,
+      "execution_time_ms": 1.505542,
       "expected": [
         {
           "type": "boolean",
@@ -1518,7 +1518,7 @@
       "description": "",
       "expression": "'2015-02-04T14:34:28Z'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.136875,
+      "execution_time_ms": 1.186292,
       "expected": [
         {
           "type": "boolean",
@@ -1532,7 +1532,7 @@
       "description": "",
       "expression": "'2015-02-04T14:34:28+10:00'.convertsToDateTime()",
       "status": "passed",
-      "execution_time_ms": 1.130417,
+      "execution_time_ms": 1.156,
       "expected": [
         {
           "type": "boolean",
@@ -1546,7 +1546,7 @@
       "description": "",
       "expression": "'14'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 1.132583,
+      "execution_time_ms": 1.136834,
       "expected": [
         {
           "type": "boolean",
@@ -1560,7 +1560,7 @@
       "description": "",
       "expression": "'14:34'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 1.160583,
+      "execution_time_ms": 1.142833,
       "expected": [
         {
           "type": "boolean",
@@ -1574,7 +1574,7 @@
       "description": "",
       "expression": "'14:34:28'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 1.132875,
+      "execution_time_ms": 1.162375,
       "expected": [
         {
           "type": "boolean",
@@ -1588,7 +1588,7 @@
       "description": "",
       "expression": "'14:34:28.123'.convertsToTime()",
       "status": "passed",
-      "execution_time_ms": 1.149167,
+      "execution_time_ms": 1.13225,
       "expected": [
         {
           "type": "boolean",
@@ -1602,7 +1602,7 @@
       "description": "",
       "expression": "1.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.1365,
+      "execution_time_ms": 1.13425,
       "expected": [
         {
           "type": "boolean",
@@ -1616,7 +1616,7 @@
       "description": "",
       "expression": "1.is(Integer)",
       "status": "passed",
-      "execution_time_ms": 1.166,
+      "execution_time_ms": 1.22075,
       "expected": [
         {
           "type": "boolean",
@@ -1630,7 +1630,7 @@
       "description": "",
       "expression": "1.is(System.Integer)",
       "status": "passed",
-      "execution_time_ms": 1.135666,
+      "execution_time_ms": 1.173042,
       "expected": [
         {
           "type": "boolean",
@@ -1644,7 +1644,7 @@
       "description": "",
       "expression": "'1'.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.141292,
+      "execution_time_ms": 1.26975,
       "expected": [
         {
           "type": "boolean",
@@ -1658,7 +1658,7 @@
       "description": "",
       "expression": "'a'.convertsToInteger().not()",
       "status": "passed",
-      "execution_time_ms": 1.139542,
+      "execution_time_ms": 1.150042,
       "expected": [
         {
           "type": "boolean",
@@ -1672,7 +1672,7 @@
       "description": "",
       "expression": "'1.0'.convertsToInteger().not()",
       "status": "passed",
-      "execution_time_ms": 1.137083,
+      "execution_time_ms": 1.108375,
       "expected": [
         {
           "type": "boolean",
@@ -1686,7 +1686,7 @@
       "description": "",
       "expression": "'1'.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 1.173834,
+      "execution_time_ms": 1.15725,
       "expected": [
         {
           "type": "boolean",
@@ -1700,7 +1700,7 @@
       "description": "",
       "expression": "true.convertsToInteger()",
       "status": "passed",
-      "execution_time_ms": 1.13375,
+      "execution_time_ms": 1.156583,
       "expected": [
         {
           "type": "boolean",
@@ -1714,7 +1714,7 @@
       "description": "",
       "expression": "true.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 1.135125,
+      "execution_time_ms": 1.16725,
       "expected": [
         {
           "type": "boolean",
@@ -1728,7 +1728,7 @@
       "description": "",
       "expression": "@2013-04-05.is(Integer).not()",
       "status": "passed",
-      "execution_time_ms": 1.133958,
+      "execution_time_ms": 1.137,
       "expected": [
         {
           "type": "boolean",
@@ -1742,7 +1742,7 @@
       "description": "",
       "expression": "1.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 1.134667,
+      "execution_time_ms": 1.135625,
       "expected": [
         {
           "type": "boolean",
@@ -1756,7 +1756,7 @@
       "description": "",
       "expression": "'1'.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 1.153292,
+      "execution_time_ms": 1.149625,
       "expected": [
         {
           "type": "boolean",
@@ -1770,7 +1770,7 @@
       "description": "",
       "expression": "'1.1'.toInteger() = {}",
       "status": "passed",
-      "execution_time_ms": 1.139416,
+      "execution_time_ms": 1.136292,
       "expected": null,
       "actual": []
     },
@@ -1779,7 +1779,7 @@
       "description": "",
       "expression": "'1.1'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 1.138375,
+      "execution_time_ms": 1.143667,
       "expected": [
         {
           "type": "boolean",
@@ -1793,7 +1793,7 @@
       "description": "",
       "expression": "true.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 1.161834,
+      "execution_time_ms": 1.152166,
       "expected": [
         {
           "type": "boolean",
@@ -1807,7 +1807,7 @@
       "description": "",
       "expression": "1.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.133583,
+      "execution_time_ms": 1.185666,
       "expected": [
         {
           "type": "boolean",
@@ -1821,7 +1821,7 @@
       "description": "",
       "expression": "1.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 1.132167,
+      "execution_time_ms": 2.860834,
       "expected": [
         {
           "type": "boolean",
@@ -1835,7 +1835,7 @@
       "description": "",
       "expression": "1.0.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.13375,
+      "execution_time_ms": 1.135916,
       "expected": [
         {
           "type": "boolean",
@@ -1849,7 +1849,7 @@
       "description": "",
       "expression": "1.0.is(Decimal)",
       "status": "passed",
-      "execution_time_ms": 1.154333,
+      "execution_time_ms": 1.039791,
       "expected": [
         {
           "type": "boolean",
@@ -1863,7 +1863,7 @@
       "description": "",
       "expression": "'1'.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.132167,
+      "execution_time_ms": 1.127916,
       "expected": [
         {
           "type": "boolean",
@@ -1877,7 +1877,7 @@
       "description": "",
       "expression": "'1'.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 1.178416,
+      "execution_time_ms": 1.16,
       "expected": [
         {
           "type": "boolean",
@@ -1891,7 +1891,7 @@
       "description": "",
       "expression": "'1.a'.convertsToDecimal().not()",
       "status": "passed",
-      "execution_time_ms": 1.143417,
+      "execution_time_ms": 1.193666,
       "expected": [
         {
           "type": "boolean",
@@ -1905,7 +1905,7 @@
       "description": "",
       "expression": "'1.0'.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.133583,
+      "execution_time_ms": 1.135375,
       "expected": [
         {
           "type": "boolean",
@@ -1919,7 +1919,7 @@
       "description": "",
       "expression": "'1.0'.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 1.157375,
+      "execution_time_ms": 1.162042,
       "expected": [
         {
           "type": "boolean",
@@ -1933,7 +1933,7 @@
       "description": "",
       "expression": "true.convertsToDecimal()",
       "status": "passed",
-      "execution_time_ms": 1.136625,
+      "execution_time_ms": 1.201959,
       "expected": [
         {
           "type": "boolean",
@@ -1947,7 +1947,7 @@
       "description": "",
       "expression": "true.is(Decimal).not()",
       "status": "passed",
-      "execution_time_ms": 1.137584,
+      "execution_time_ms": 1.138166,
       "expected": [
         {
           "type": "boolean",
@@ -1961,7 +1961,7 @@
       "description": "",
       "expression": "1.toDecimal() = 1.0",
       "status": "passed",
-      "execution_time_ms": 1.1305,
+      "execution_time_ms": 1.093416,
       "expected": [
         {
           "type": "boolean",
@@ -1975,7 +1975,7 @@
       "description": "",
       "expression": "1.toDecimal() ~ 1.0",
       "status": "passed",
-      "execution_time_ms": 1.132333,
+      "execution_time_ms": 1.220292,
       "expected": [
         {
           "type": "boolean",
@@ -1989,7 +1989,7 @@
       "description": "",
       "expression": "1.0.toDecimal() = 1.0",
       "status": "passed",
-      "execution_time_ms": 1.150875,
+      "execution_time_ms": 1.081834,
       "expected": [
         {
           "type": "boolean",
@@ -2003,7 +2003,7 @@
       "description": "",
       "expression": "'1.1'.toDecimal() = 1.1",
       "status": "passed",
-      "execution_time_ms": 1.051375,
+      "execution_time_ms": 1.13825,
       "expected": [
         {
           "type": "boolean",
@@ -2017,7 +2017,7 @@
       "description": "",
       "expression": "true.toDecimal() = 1",
       "status": "passed",
-      "execution_time_ms": 1.134084,
+      "execution_time_ms": 1.143417,
       "expected": [
         {
           "type": "boolean",
@@ -2031,7 +2031,7 @@
       "description": "",
       "expression": "1.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.159042,
+      "execution_time_ms": 1.137584,
       "expected": [
         {
           "type": "boolean",
@@ -2045,7 +2045,7 @@
       "description": "",
       "expression": "1.is(Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.147209,
+      "execution_time_ms": 1.148959,
       "expected": [
         {
           "type": "boolean",
@@ -2059,7 +2059,7 @@
       "description": "",
       "expression": "1.0.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.136458,
+      "execution_time_ms": 1.150666,
       "expected": [
         {
           "type": "boolean",
@@ -2073,7 +2073,7 @@
       "description": "",
       "expression": "1.0.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.133583,
+      "execution_time_ms": 1.142708,
       "expected": [
         {
           "type": "boolean",
@@ -2087,7 +2087,7 @@
       "description": "",
       "expression": "'1'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.14125,
+      "execution_time_ms": 1.137083,
       "expected": [
         {
           "type": "boolean",
@@ -2101,7 +2101,7 @@
       "description": "",
       "expression": "'1'.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.1315,
+      "execution_time_ms": 1.180042,
       "expected": [
         {
           "type": "boolean",
@@ -2115,7 +2115,7 @@
       "description": "",
       "expression": "'1 day'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.140416,
+      "execution_time_ms": 1.205583,
       "expected": [
         {
           "type": "boolean",
@@ -2129,7 +2129,7 @@
       "description": "",
       "expression": "'1 \\'wk\\''.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.134583,
+      "execution_time_ms": 1.165875,
       "expected": [
         {
           "type": "boolean",
@@ -2143,7 +2143,7 @@
       "description": "",
       "expression": "'1 wk'.convertsToQuantity().not()",
       "status": "passed",
-      "execution_time_ms": 1.13325,
+      "execution_time_ms": 1.117542,
       "expected": [
         {
           "type": "boolean",
@@ -2157,7 +2157,7 @@
       "description": "",
       "expression": "'1.a'.convertsToQuantity().not()",
       "status": "passed",
-      "execution_time_ms": 1.133542,
+      "execution_time_ms": 1.163958,
       "expected": [
         {
           "type": "boolean",
@@ -2171,7 +2171,7 @@
       "description": "",
       "expression": "'1.0'.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.133042,
+      "execution_time_ms": 1.262708,
       "expected": [
         {
           "type": "boolean",
@@ -2185,7 +2185,7 @@
       "description": "",
       "expression": "'1.0'.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.142041,
+      "execution_time_ms": 1.933666,
       "expected": [
         {
           "type": "boolean",
@@ -2199,7 +2199,7 @@
       "description": "",
       "expression": "true.convertsToQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.143375,
+      "execution_time_ms": 1.192292,
       "expected": [
         {
           "type": "boolean",
@@ -2213,7 +2213,7 @@
       "description": "",
       "expression": "true.is(System.Quantity).not()",
       "status": "passed",
-      "execution_time_ms": 1.140417,
+      "execution_time_ms": 1.148167,
       "expected": [
         {
           "type": "boolean",
@@ -2227,7 +2227,7 @@
       "description": "",
       "expression": "1.toQuantity() = 1 '1'",
       "status": "passed",
-      "execution_time_ms": 1.13625,
+      "execution_time_ms": 1.136083,
       "expected": [
         {
           "type": "boolean",
@@ -2241,7 +2241,7 @@
       "description": "",
       "expression": "1.0.toQuantity() = 1.0 '1'",
       "status": "passed",
-      "execution_time_ms": 1.1455,
+      "execution_time_ms": 1.152208,
       "expected": [
         {
           "type": "boolean",
@@ -2255,7 +2255,7 @@
       "description": "",
       "expression": "'1'.toQuantity()",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.132708,
       "expected": [
         {
           "type": "Quantity",
@@ -2269,7 +2269,7 @@
       "description": "",
       "expression": "'1 day'.toQuantity() = 1 day",
       "status": "passed",
-      "execution_time_ms": 1.130042,
+      "execution_time_ms": 1.136084,
       "expected": [
         {
           "type": "boolean",
@@ -2283,7 +2283,7 @@
       "description": "",
       "expression": "'1 day'.toQuantity() = 1 '{day}'",
       "status": "passed",
-      "execution_time_ms": 1.141584,
+      "execution_time_ms": 1.146333,
       "expected": [
         {
           "type": "boolean",
@@ -2297,7 +2297,7 @@
       "description": "",
       "expression": "'1 \\'wk\\''.toQuantity() = 1 'wk'",
       "status": "passed",
-      "execution_time_ms": 1.138708,
+      "execution_time_ms": 1.178458,
       "expected": [
         {
           "type": "boolean",
@@ -2311,7 +2311,7 @@
       "description": "",
       "expression": "'1.0'.toQuantity() ~ 1 '1'",
       "status": "passed",
-      "execution_time_ms": 1.133833,
+      "execution_time_ms": 1.153584,
       "expected": [
         {
           "type": "boolean",
@@ -2325,7 +2325,7 @@
       "description": "",
       "expression": "1.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.1345,
+      "execution_time_ms": 1.14975,
       "expected": [
         {
           "type": "boolean",
@@ -2339,7 +2339,7 @@
       "description": "",
       "expression": "2.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.1425,
+      "execution_time_ms": 1.136667,
       "expected": [
         {
           "type": "boolean",
@@ -2353,7 +2353,7 @@
       "description": "",
       "expression": "(-1).convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.132542,
+      "execution_time_ms": 1.165292,
       "expected": [
         {
           "type": "boolean",
@@ -2367,7 +2367,7 @@
       "description": "",
       "expression": "0.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.10175,
+      "execution_time_ms": 1.1995,
       "expected": [
         {
           "type": "boolean",
@@ -2381,7 +2381,7 @@
       "description": "",
       "expression": "1.0.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.139209,
+      "execution_time_ms": 1.182333,
       "expected": [
         {
           "type": "boolean",
@@ -2395,7 +2395,7 @@
       "description": "",
       "expression": "'true'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.13675,
+      "execution_time_ms": 1.153417,
       "expected": [
         {
           "type": "boolean",
@@ -2409,7 +2409,7 @@
       "description": "",
       "expression": "'false'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.133,
+      "execution_time_ms": 1.134333,
       "expected": [
         {
           "type": "boolean",
@@ -2423,7 +2423,7 @@
       "description": "",
       "expression": "'False'.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.131583,
+      "execution_time_ms": 1.169333,
       "expected": [
         {
           "type": "boolean",
@@ -2437,7 +2437,7 @@
       "description": "",
       "expression": "true.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.141041,
+      "execution_time_ms": 1.023541,
       "expected": [
         {
           "type": "boolean",
@@ -2451,7 +2451,7 @@
       "description": "",
       "expression": "false.convertsToBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.133125,
       "expected": [
         {
           "type": "boolean",
@@ -2465,7 +2465,7 @@
       "description": "",
       "expression": "1.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.132083,
+      "execution_time_ms": 1.060375,
       "expected": [
         {
           "type": "boolean",
@@ -2479,7 +2479,7 @@
       "description": "",
       "expression": "2.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.145458,
+      "execution_time_ms": 1.151958,
       "expected": null,
       "actual": []
     },
@@ -2488,7 +2488,7 @@
       "description": "",
       "expression": "0.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.137542,
+      "execution_time_ms": 1.166625,
       "expected": [
         {
           "type": "boolean",
@@ -2502,7 +2502,7 @@
       "description": "",
       "expression": "'true'.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.155958,
+      "execution_time_ms": 1.10825,
       "expected": [
         {
           "type": "boolean",
@@ -2516,7 +2516,7 @@
       "description": "",
       "expression": "'false'.toBoolean()",
       "status": "passed",
-      "execution_time_ms": 1.143834,
+      "execution_time_ms": 1.169875,
       "expected": [
         {
           "type": "boolean",
@@ -2530,7 +2530,7 @@
       "description": "",
       "expression": "1.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.135458,
+      "execution_time_ms": 1.1595,
       "expected": [
         {
           "type": "boolean",
@@ -2544,7 +2544,7 @@
       "description": "",
       "expression": "1.is(String).not()",
       "status": "passed",
-      "execution_time_ms": 1.133417,
+      "execution_time_ms": 1.136292,
       "expected": [
         {
           "type": "boolean",
@@ -2558,7 +2558,7 @@
       "description": "",
       "expression": "(-1).convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.130417,
+      "execution_time_ms": 1.125791,
       "expected": [
         {
           "type": "boolean",
@@ -2572,7 +2572,7 @@
       "description": "",
       "expression": "1.0.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.147625,
+      "execution_time_ms": 1.154709,
       "expected": [
         {
           "type": "boolean",
@@ -2586,7 +2586,7 @@
       "description": "",
       "expression": "'true'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.150417,
+      "execution_time_ms": 1.064375,
       "expected": [
         {
           "type": "boolean",
@@ -2600,7 +2600,7 @@
       "description": "",
       "expression": "true.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.136333,
+      "execution_time_ms": 1.142625,
       "expected": [
         {
           "type": "boolean",
@@ -2614,7 +2614,7 @@
       "description": "",
       "expression": "1 'wk'.convertsToString()",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.144875,
       "expected": [
         {
           "type": "boolean",
@@ -2628,7 +2628,7 @@
       "description": "",
       "expression": "1.toString()",
       "status": "passed",
-      "execution_time_ms": 1.152125,
+      "execution_time_ms": 1.15125,
       "expected": [
         {
           "type": "string",
@@ -2642,7 +2642,7 @@
       "description": "",
       "expression": "(-1).toString()",
       "status": "passed",
-      "execution_time_ms": 1.132042,
+      "execution_time_ms": 1.143041,
       "expected": [
         {
           "type": "string",
@@ -2656,7 +2656,7 @@
       "description": "",
       "expression": "1.0.toString()",
       "status": "passed",
-      "execution_time_ms": 1.139625,
+      "execution_time_ms": 1.1355,
       "expected": [
         {
           "type": "string",
@@ -2670,7 +2670,7 @@
       "description": "",
       "expression": "'true'.toString()",
       "status": "passed",
-      "execution_time_ms": 1.133833,
+      "execution_time_ms": 1.138292,
       "expected": [
         {
           "type": "string",
@@ -2684,7 +2684,7 @@
       "description": "",
       "expression": "true.toString()",
       "status": "passed",
-      "execution_time_ms": 1.143334,
+      "execution_time_ms": 1.190542,
       "expected": [
         {
           "type": "string",
@@ -2698,7 +2698,7 @@
       "description": "",
       "expression": "1 'wk'.toString()",
       "status": "passed",
-      "execution_time_ms": 1.131041,
+      "execution_time_ms": 1.164166,
       "expected": [
         {
           "type": "string",
@@ -2712,7 +2712,7 @@
       "description": "",
       "expression": "1 week.toString()",
       "status": "passed",
-      "execution_time_ms": 1.129916,
+      "execution_time_ms": 1.175459,
       "expected": [
         {
           "type": "string",
@@ -2726,7 +2726,7 @@
       "description": "",
       "expression": "Patient.name.exists()",
       "status": "passed",
-      "execution_time_ms": 1.133042,
+      "execution_time_ms": 1.070291,
       "expected": [
         {
           "type": "boolean",
@@ -2740,7 +2740,7 @@
       "description": "",
       "expression": "Patient.name.exists(use = 'nickname')",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.179875,
       "expected": [
         {
           "type": "boolean",
@@ -2754,7 +2754,7 @@
       "description": "",
       "expression": "Patient.name.exists(use = 'official')",
       "status": "passed",
-      "execution_time_ms": 1.134208,
+      "execution_time_ms": 1.141166,
       "expected": [
         {
           "type": "boolean",
@@ -2768,7 +2768,7 @@
       "description": "",
       "expression": "Patient.maritalStatus.coding.exists(code = 'P' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')\n\t\t\tor Patient.maritalStatus.coding.exists(code = 'A' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')",
       "status": "passed",
-      "execution_time_ms": 1.141834,
+      "execution_time_ms": 1.136166,
       "expected": [
         {
           "type": "boolean",
@@ -2782,7 +2782,7 @@
       "description": "",
       "expression": "Patient.name.select(given.exists()).allTrue()",
       "status": "passed",
-      "execution_time_ms": 1.144584,
+      "execution_time_ms": 1.138291,
       "expected": [
         {
           "type": "boolean",
@@ -2796,7 +2796,7 @@
       "description": "",
       "expression": "Patient.name.select(period.exists()).allTrue()",
       "status": "passed",
-      "execution_time_ms": 1.210791,
+      "execution_time_ms": 1.141792,
       "expected": [
         {
           "type": "boolean",
@@ -2810,7 +2810,7 @@
       "description": "",
       "expression": "Patient.name.all(given.exists())",
       "status": "passed",
-      "execution_time_ms": 1.133375,
+      "execution_time_ms": 1.152709,
       "expected": [
         {
           "type": "boolean",
@@ -2824,7 +2824,7 @@
       "description": "",
       "expression": "Patient.name.all(period.exists())",
       "status": "passed",
-      "execution_time_ms": 1.1315,
+      "execution_time_ms": 1.143708,
       "expected": [
         {
           "type": "boolean",
@@ -2838,7 +2838,7 @@
       "description": "",
       "expression": "Patient.name.first().subsetOf($this.name)",
       "status": "passed",
-      "execution_time_ms": 1.132709,
+      "execution_time_ms": 1.157042,
       "expected": [
         {
           "type": "boolean",
@@ -2852,7 +2852,7 @@
       "description": "",
       "expression": "Patient.name.subsetOf($this.name.first()).not()",
       "status": "passed",
-      "execution_time_ms": 1.131125,
+      "execution_time_ms": 1.134083,
       "expected": [
         {
           "type": "boolean",
@@ -2866,7 +2866,7 @@
       "description": "",
       "expression": "Patient.name.first().supersetOf($this.name).not()",
       "status": "passed",
-      "execution_time_ms": 1.1325,
+      "execution_time_ms": 1.13875,
       "expected": [
         {
           "type": "boolean",
@@ -2880,7 +2880,7 @@
       "description": "",
       "expression": "Patient.name.supersetOf($this.name.first())",
       "status": "passed",
-      "execution_time_ms": 1.15225,
+      "execution_time_ms": 1.130458,
       "expected": [
         {
           "type": "boolean",
@@ -2894,7 +2894,7 @@
       "description": "",
       "expression": "4.0000 'g' = 4000.0 'mg'",
       "status": "passed",
-      "execution_time_ms": 1.138125,
+      "execution_time_ms": 1.157666,
       "expected": [
         {
           "type": "boolean",
@@ -2908,7 +2908,7 @@
       "description": "",
       "expression": "4 'g' ~ 4000 'mg'",
       "status": "passed",
-      "execution_time_ms": 1.15125,
+      "execution_time_ms": 1.154417,
       "expected": [
         {
           "type": "boolean",
@@ -2922,7 +2922,7 @@
       "description": "",
       "expression": "4 'g' != 4040 'mg'",
       "status": "passed",
-      "execution_time_ms": 1.136625,
+      "execution_time_ms": 1.144833,
       "expected": [
         {
           "type": "boolean",
@@ -2936,7 +2936,7 @@
       "description": "",
       "expression": "4 'g' ~ 4040 'mg'",
       "status": "passed",
-      "execution_time_ms": 1.143959,
+      "execution_time_ms": 1.141375,
       "expected": [
         {
           "type": "boolean",
@@ -2950,7 +2950,7 @@
       "description": "",
       "expression": "7 days = 1 week",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.145792,
       "expected": [
         {
           "type": "boolean",
@@ -2964,7 +2964,7 @@
       "description": "",
       "expression": "7 days = 1 'wk'",
       "status": "passed",
-      "execution_time_ms": 1.138583,
+      "execution_time_ms": 1.162209,
       "expected": [
         {
           "type": "boolean",
@@ -2978,7 +2978,7 @@
       "description": "",
       "expression": "6 days \u003c 1 week",
       "status": "passed",
-      "execution_time_ms": 1.140208,
+      "execution_time_ms": 1.148792,
       "expected": [
         {
           "type": "boolean",
@@ -2992,7 +2992,7 @@
       "description": "",
       "expression": "8 days \u003e 1 week",
       "status": "passed",
-      "execution_time_ms": 1.135541,
+      "execution_time_ms": 1.146333,
       "expected": [
         {
           "type": "boolean",
@@ -3006,7 +3006,7 @@
       "description": "",
       "expression": "2.0 'cm' * 2.0 'm' = 0.040 'm2'",
       "status": "passed",
-      "execution_time_ms": 1.134208,
+      "execution_time_ms": 1.136458,
       "expected": [
         {
           "type": "boolean",
@@ -3020,7 +3020,7 @@
       "description": "",
       "expression": "4.0 'g' / 2.0 'm' = 2 'g/m'",
       "status": "passed",
-      "execution_time_ms": 1.134125,
+      "execution_time_ms": 1.143917,
       "expected": [
         {
           "type": "boolean",
@@ -3034,7 +3034,7 @@
       "description": "",
       "expression": "1.0 'm' / 1.0 'm' = 1 '1'",
       "status": "passed",
-      "execution_time_ms": 1.133958,
+      "execution_time_ms": 1.152542,
       "expected": [
         {
           "type": "boolean",
@@ -3048,7 +3048,7 @@
       "description": "",
       "expression": "iif({}, true, false)",
       "status": "passed",
-      "execution_time_ms": 1.133625,
+      "execution_time_ms": 1.139667,
       "expected": [
         {
           "type": "boolean",
@@ -3062,7 +3062,7 @@
       "description": "",
       "expression": "iif(true, true, false)",
       "status": "passed",
-      "execution_time_ms": 1.132375,
+      "execution_time_ms": 1.150083,
       "expected": [
         {
           "type": "boolean",
@@ -3076,7 +3076,7 @@
       "description": "",
       "expression": "iif({} | true, true, false)",
       "status": "passed",
-      "execution_time_ms": 1.151792,
+      "execution_time_ms": 1.157625,
       "expected": [
         {
           "type": "boolean",
@@ -3090,7 +3090,7 @@
       "description": "",
       "expression": "iif(true, true, 1/0)",
       "status": "passed",
-      "execution_time_ms": 1.13725,
+      "execution_time_ms": 1.137458,
       "expected": [
         {
           "type": "boolean",
@@ -3104,7 +3104,7 @@
       "description": "",
       "expression": "iif(false, 1/0, true)",
       "status": "passed",
-      "execution_time_ms": 1.165167,
+      "execution_time_ms": 1.144208,
       "expected": [
         {
           "type": "boolean",
@@ -3118,7 +3118,7 @@
       "description": "",
       "expression": "(1 | 2 | 3).isDistinct()",
       "status": "passed",
-      "execution_time_ms": 1.134708,
+      "execution_time_ms": 1.153916,
       "expected": [
         {
           "type": "boolean",
@@ -3132,7 +3132,7 @@
       "description": "",
       "expression": "Questionnaire.descendants().linkId.isDistinct()",
       "status": "passed",
-      "execution_time_ms": 1.139292,
+      "execution_time_ms": 1.162,
       "expected": [
         {
           "type": "boolean",
@@ -3146,7 +3146,7 @@
       "description": "",
       "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).isDistinct().not()",
       "status": "passed",
-      "execution_time_ms": 1.135708,
+      "execution_time_ms": 1.136375,
       "expected": [
         {
           "type": "boolean",
@@ -3160,7 +3160,7 @@
       "description": "",
       "expression": "(1 | 2 | 3).distinct()",
       "status": "passed",
-      "execution_time_ms": 1.130583,
+      "execution_time_ms": 1.15,
       "expected": [
         {
           "type": "integer",
@@ -3182,7 +3182,7 @@
       "description": "",
       "expression": "Questionnaire.descendants().linkId.distinct().count()",
       "status": "passed",
-      "execution_time_ms": 1.13075,
+      "execution_time_ms": 1.143708,
       "expected": [
         {
           "type": "integer",
@@ -3196,7 +3196,7 @@
       "description": "",
       "expression": "Questionnaire.descendants().linkId.select(substring(0,1)).distinct().count()",
       "status": "passed",
-      "execution_time_ms": 1.13125,
+      "execution_time_ms": 1.138583,
       "expected": [
         {
           "type": "integer",
@@ -3210,7 +3210,7 @@
       "description": "",
       "expression": "Patient.name.count()",
       "status": "passed",
-      "execution_time_ms": 1.130916,
+      "execution_time_ms": 1.136666,
       "expected": [
         {
           "type": "integer",
@@ -3224,7 +3224,7 @@
       "description": "",
       "expression": "Patient.name.count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.135042,
+      "execution_time_ms": 1.133584,
       "expected": [
         {
           "type": "boolean",
@@ -3238,7 +3238,7 @@
       "description": "",
       "expression": "Patient.name.first().count()",
       "status": "passed",
-      "execution_time_ms": 1.14925,
+      "execution_time_ms": 1.137292,
       "expected": [
         {
           "type": "integer",
@@ -3252,7 +3252,7 @@
       "description": "",
       "expression": "Patient.name.first().count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.133875,
+      "execution_time_ms": 1.137625,
       "expected": [
         {
           "type": "boolean",
@@ -3266,7 +3266,7 @@
       "description": "",
       "expression": "Patient.name.count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.072,
+      "execution_time_ms": 1.136625,
       "expected": [
         {
           "type": "boolean",
@@ -3280,7 +3280,7 @@
       "description": "",
       "expression": "Patient.name.where(given = 'Jim').count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.137208,
+      "execution_time_ms": 1.149334,
       "expected": [
         {
           "type": "boolean",
@@ -3294,7 +3294,7 @@
       "description": "",
       "expression": "Patient.name.where(given = 'X').count() = 0",
       "status": "passed",
-      "execution_time_ms": 1.084667,
+      "execution_time_ms": 1.153292,
       "expected": [
         {
           "type": "boolean",
@@ -3308,7 +3308,7 @@
       "description": "",
       "expression": "Patient.name.where($this.given = 'Jim').count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.158375,
+      "execution_time_ms": 1.138208,
       "expected": [
         {
           "type": "boolean",
@@ -3322,7 +3322,7 @@
       "description": "",
       "expression": "Patient.name.select(given).count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.132625,
+      "execution_time_ms": 1.139167,
       "expected": [
         {
           "type": "boolean",
@@ -3336,7 +3336,7 @@
       "description": "",
       "expression": "Patient.name.select(given | family).count() = 7 ",
       "status": "passed",
-      "execution_time_ms": 1.130583,
+      "execution_time_ms": 1.150792,
       "expected": [
         {
           "type": "boolean",
@@ -3350,7 +3350,7 @@
       "description": "",
       "expression": "ValueSet.expansion.repeat(contains).count() = 10",
       "status": "passed",
-      "execution_time_ms": 1.130042,
+      "execution_time_ms": 1.136625,
       "expected": [
         {
           "type": "boolean",
@@ -3364,7 +3364,7 @@
       "description": "",
       "expression": "Questionnaire.repeat(item).code.count() = 11",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.140875,
       "expected": [
         {
           "type": "boolean",
@@ -3378,7 +3378,7 @@
       "description": "",
       "expression": "Questionnaire.descendants().code.count() = 23",
       "status": "passed",
-      "execution_time_ms": 1.132583,
+      "execution_time_ms": 1.149792,
       "expected": [
         {
           "type": "boolean",
@@ -3392,7 +3392,7 @@
       "description": "",
       "expression": "Questionnaire.children().code.count() = 2",
       "status": "passed",
-      "execution_time_ms": 1.133917,
+      "execution_time_ms": 1.135375,
       "expected": [
         {
           "type": "boolean",
@@ -3406,7 +3406,7 @@
       "description": "",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 0) = 45",
       "status": "passed",
-      "execution_time_ms": 1.147375,
+      "execution_time_ms": 1.135542,
       "expected": [
         {
           "type": "boolean",
@@ -3420,7 +3420,7 @@
       "description": "",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 2) = 47",
       "status": "passed",
-      "execution_time_ms": 1.139875,
+      "execution_time_ms": 1.141792,
       "expected": [
         {
           "type": "boolean",
@@ -3434,7 +3434,7 @@
       "description": "",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this \u003c $total, $this, $total))) = 1",
       "status": "passed",
-      "execution_time_ms": 1.1325,
+      "execution_time_ms": 1.149791,
       "expected": [
         {
           "type": "boolean",
@@ -3448,7 +3448,7 @@
       "description": "",
       "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this \u003e $total, $this, $total))) = 9",
       "status": "passed",
-      "execution_time_ms": 1.149125,
+      "execution_time_ms": 1.136625,
       "expected": [
         {
           "type": "boolean",
@@ -3462,7 +3462,7 @@
       "description": "",
       "expression": "Patient.name[0].given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.135,
+      "execution_time_ms": 1.138,
       "expected": [
         {
           "type": "boolean",
@@ -3476,7 +3476,7 @@
       "description": "",
       "expression": "Patient.name[1].given = 'Jim'",
       "status": "passed",
-      "execution_time_ms": 1.130125,
+      "execution_time_ms": 1.141125,
       "expected": [
         {
           "type": "boolean",
@@ -3490,7 +3490,7 @@
       "description": "",
       "expression": "Patient.name.first().single().exists()",
       "status": "passed",
-      "execution_time_ms": 1.130542,
+      "execution_time_ms": 1.136542,
       "expected": [
         {
           "type": "boolean",
@@ -3504,7 +3504,7 @@
       "description": "",
       "expression": "Patient.name.first().given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.135917,
+      "execution_time_ms": 1.1305,
       "expected": [
         {
           "type": "boolean",
@@ -3518,7 +3518,7 @@
       "description": "",
       "expression": "Patient.name.last().given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.134458,
+      "execution_time_ms": 1.130625,
       "expected": [
         {
           "type": "boolean",
@@ -3532,7 +3532,7 @@
       "description": "",
       "expression": "(0 | 1 | 2).tail() = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 1.131958,
+      "execution_time_ms": 1.064,
       "expected": [
         {
           "type": "boolean",
@@ -3546,7 +3546,7 @@
       "description": "",
       "expression": "Patient.name.tail().given = 'Jim' | 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.135,
+      "execution_time_ms": 1.1515,
       "expected": [
         {
           "type": "boolean",
@@ -3560,7 +3560,7 @@
       "description": "",
       "expression": "(0 | 1 | 2).skip(1) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 1.150792,
+      "execution_time_ms": 1.04225,
       "expected": [
         {
           "type": "boolean",
@@ -3574,7 +3574,7 @@
       "description": "",
       "expression": "(0 | 1 | 2).skip(2) = 2",
       "status": "passed",
-      "execution_time_ms": 1.137625,
+      "execution_time_ms": 1.149041,
       "expected": [
         {
           "type": "boolean",
@@ -3588,7 +3588,7 @@
       "description": "",
       "expression": "Patient.name.skip(1).given.trace('test') = 'Jim' | 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.133917,
+      "execution_time_ms": 1.141875,
       "expected": [
         {
           "type": "boolean",
@@ -3602,7 +3602,7 @@
       "description": "",
       "expression": "Patient.name.skip(3).given.exists() = false",
       "status": "passed",
-      "execution_time_ms": 1.133708,
+      "execution_time_ms": 1.146209,
       "expected": [
         {
           "type": "boolean",
@@ -3616,7 +3616,7 @@
       "description": "",
       "expression": "(0 | 1 | 2).take(1) = 0",
       "status": "passed",
-      "execution_time_ms": 1.135667,
+      "execution_time_ms": 1.163666,
       "expected": [
         {
           "type": "boolean",
@@ -3630,7 +3630,7 @@
       "description": "",
       "expression": "(0 | 1 | 2).take(2) = 0 | 1",
       "status": "passed",
-      "execution_time_ms": 1.13425,
+      "execution_time_ms": 1.15875,
       "expected": [
         {
           "type": "boolean",
@@ -3644,7 +3644,7 @@
       "description": "",
       "expression": "Patient.name.take(1).given = 'Peter' | 'James'",
       "status": "passed",
-      "execution_time_ms": 1.133709,
+      "execution_time_ms": 1.136125,
       "expected": [
         {
           "type": "boolean",
@@ -3658,7 +3658,7 @@
       "description": "",
       "expression": "Patient.name.take(2).given = 'Peter' | 'James' | 'Jim'",
       "status": "passed",
-      "execution_time_ms": 1.130958,
+      "execution_time_ms": 1.148416,
       "expected": [
         {
           "type": "boolean",
@@ -3672,7 +3672,7 @@
       "description": "",
       "expression": "Patient.name.take(3).given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.130791,
+      "execution_time_ms": 1.133083,
       "expected": [
         {
           "type": "boolean",
@@ -3686,7 +3686,7 @@
       "description": "",
       "expression": "Patient.name.take(4).given.count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.132167,
+      "execution_time_ms": 1.151958,
       "expected": [
         {
           "type": "boolean",
@@ -3700,7 +3700,7 @@
       "description": "",
       "expression": "Patient.name.take(0).given.exists() = false",
       "status": "passed",
-      "execution_time_ms": 1.131667,
+      "execution_time_ms": 1.11325,
       "expected": [
         {
           "type": "boolean",
@@ -3714,7 +3714,7 @@
       "description": "",
       "expression": "iif(Patient.name.exists(), 'named', 'unnamed') = 'named'",
       "status": "passed",
-      "execution_time_ms": 1.133459,
+      "execution_time_ms": 1.13575,
       "expected": [
         {
           "type": "boolean",
@@ -3728,7 +3728,7 @@
       "description": "",
       "expression": "iif(Patient.name.empty(), 'unnamed', 'named') = 'named'",
       "status": "passed",
-      "execution_time_ms": 1.145917,
+      "execution_time_ms": 1.158625,
       "expected": [
         {
           "type": "boolean",
@@ -3742,7 +3742,7 @@
       "description": "",
       "expression": "iif(true, true, (1 | 2).toString())",
       "status": "passed",
-      "execution_time_ms": 1.136708,
+      "execution_time_ms": 1.159833,
       "expected": [
         {
           "type": "boolean",
@@ -3756,7 +3756,7 @@
       "description": "",
       "expression": "iif(false, (1 | 2).toString(), true)",
       "status": "passed",
-      "execution_time_ms": 1.133042,
+      "execution_time_ms": 1.132125,
       "expected": [
         {
           "type": "boolean",
@@ -3770,7 +3770,7 @@
       "description": "",
       "expression": "'1'.toInteger() = 1",
       "status": "passed",
-      "execution_time_ms": 1.133459,
+      "execution_time_ms": 1.135083,
       "expected": [
         {
           "type": "boolean",
@@ -3784,7 +3784,7 @@
       "description": "",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 1.134625,
+      "execution_time_ms": 1.16825,
       "expected": [
         {
           "type": "boolean",
@@ -3798,7 +3798,7 @@
       "description": "",
       "expression": "'0'.toInteger() = 0",
       "status": "passed",
-      "execution_time_ms": 1.132917,
+      "execution_time_ms": 1.114417,
       "expected": [
         {
           "type": "boolean",
@@ -3812,7 +3812,7 @@
       "description": "",
       "expression": "'0.0'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 1.132333,
+      "execution_time_ms": 1.163875,
       "expected": [
         {
           "type": "boolean",
@@ -3826,7 +3826,7 @@
       "description": "",
       "expression": "'st'.toInteger().empty()",
       "status": "passed",
-      "execution_time_ms": 1.14,
+      "execution_time_ms": 1.132209,
       "expected": [
         {
           "type": "boolean",
@@ -3840,7 +3840,7 @@
       "description": "",
       "expression": "'1'.toDecimal() = 1",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.134625,
       "expected": [
         {
           "type": "boolean",
@@ -3854,7 +3854,7 @@
       "description": "",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 1.135542,
+      "execution_time_ms": 1.132667,
       "expected": [
         {
           "type": "boolean",
@@ -3868,7 +3868,7 @@
       "description": "",
       "expression": "'0'.toDecimal() = 0",
       "status": "passed",
-      "execution_time_ms": 1.129916,
+      "execution_time_ms": 1.134334,
       "expected": [
         {
           "type": "boolean",
@@ -3882,7 +3882,7 @@
       "description": "",
       "expression": "'0.0'.toDecimal() = 0.0",
       "status": "passed",
-      "execution_time_ms": 1.154416,
+      "execution_time_ms": 1.131208,
       "expected": [
         {
           "type": "boolean",
@@ -3896,7 +3896,7 @@
       "description": "",
       "expression": "'st'.toDecimal().empty()",
       "status": "passed",
-      "execution_time_ms": 1.159958,
+      "execution_time_ms": 1.131167,
       "expected": [
         {
           "type": "boolean",
@@ -3910,7 +3910,7 @@
       "description": "",
       "expression": "1.toString() = '1'",
       "status": "passed",
-      "execution_time_ms": 1.145666,
+      "execution_time_ms": 1.130834,
       "expected": [
         {
           "type": "boolean",
@@ -3924,7 +3924,7 @@
       "description": "",
       "expression": "'-1'.toInteger() = -1",
       "status": "passed",
-      "execution_time_ms": 1.139041,
+      "execution_time_ms": 1.130083,
       "expected": [
         {
           "type": "boolean",
@@ -3938,7 +3938,7 @@
       "description": "",
       "expression": "0.toString() = '0'",
       "status": "passed",
-      "execution_time_ms": 1.133917,
+      "execution_time_ms": 1.133708,
       "expected": [
         {
           "type": "boolean",
@@ -3952,7 +3952,7 @@
       "description": "",
       "expression": "0.0.toString() = '0.0'",
       "status": "passed",
-      "execution_time_ms": 1.133792,
+      "execution_time_ms": 1.130625,
       "expected": [
         {
           "type": "boolean",
@@ -3966,7 +3966,7 @@
       "description": "",
       "expression": "@2014-12-14.toString() = '2014-12-14'",
       "status": "passed",
-      "execution_time_ms": 1.132834,
+      "execution_time_ms": 1.131125,
       "expected": [
         {
           "type": "boolean",
@@ -3980,7 +3980,7 @@
       "description": "",
       "expression": "'t'.upper() = 'T'",
       "status": "passed",
-      "execution_time_ms": 1.130334,
+      "execution_time_ms": 1.131625,
       "expected": [
         {
           "type": "boolean",
@@ -3994,7 +3994,7 @@
       "description": "",
       "expression": "'t'.lower() = 't'",
       "status": "passed",
-      "execution_time_ms": 1.144792,
+      "execution_time_ms": 1.131,
       "expected": [
         {
           "type": "boolean",
@@ -4008,7 +4008,7 @@
       "description": "",
       "expression": "'T'.upper() = 'T'",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.130958,
       "expected": [
         {
           "type": "boolean",
@@ -4022,7 +4022,7 @@
       "description": "",
       "expression": "'T'.lower() = 't'",
       "status": "passed",
-      "execution_time_ms": 1.161833,
+      "execution_time_ms": 1.153791,
       "expected": [
         {
           "type": "boolean",
@@ -4036,7 +4036,7 @@
       "description": "",
       "expression": "'t2'.toChars() = 't' | '2'",
       "status": "passed",
-      "execution_time_ms": 1.140875,
+      "execution_time_ms": 1.026666,
       "expected": [
         {
           "type": "boolean",
@@ -4050,7 +4050,7 @@
       "description": "",
       "expression": "'12345'.substring(2) = '345'",
       "status": "passed",
-      "execution_time_ms": 1.1385,
+      "execution_time_ms": 1.129417,
       "expected": [
         {
           "type": "boolean",
@@ -4064,7 +4064,7 @@
       "description": "",
       "expression": "'12345'.substring(2,1) = '3'",
       "status": "passed",
-      "execution_time_ms": 1.13925,
+      "execution_time_ms": 1.131209,
       "expected": [
         {
           "type": "boolean",
@@ -4078,7 +4078,7 @@
       "description": "",
       "expression": "'12345'.substring(2,5) = '345'",
       "status": "passed",
-      "execution_time_ms": 1.135166,
+      "execution_time_ms": 1.13075,
       "expected": [
         {
           "type": "boolean",
@@ -4092,7 +4092,7 @@
       "description": "",
       "expression": "'12345'.substring(25).empty()",
       "status": "passed",
-      "execution_time_ms": 1.134208,
+      "execution_time_ms": 1.130292,
       "expected": [
         {
           "type": "boolean",
@@ -4106,7 +4106,7 @@
       "description": "",
       "expression": "'12345'.substring(-1).empty()",
       "status": "passed",
-      "execution_time_ms": 1.137917,
+      "execution_time_ms": 1.134541,
       "expected": [
         {
           "type": "boolean",
@@ -4120,7 +4120,7 @@
       "description": "",
       "expression": "'12345'.startsWith('2') = false",
       "status": "passed",
-      "execution_time_ms": 1.141291,
+      "execution_time_ms": 1.130625,
       "expected": [
         {
           "type": "boolean",
@@ -4134,7 +4134,7 @@
       "description": "",
       "expression": "'12345'.startsWith('1') = true",
       "status": "passed",
-      "execution_time_ms": 1.132125,
+      "execution_time_ms": 1.13375,
       "expected": [
         {
           "type": "boolean",
@@ -4148,7 +4148,7 @@
       "description": "",
       "expression": "'12345'.startsWith('12') = true",
       "status": "passed",
-      "execution_time_ms": 1.134917,
+      "execution_time_ms": 1.130292,
       "expected": [
         {
           "type": "boolean",
@@ -4162,7 +4162,7 @@
       "description": "",
       "expression": "'12345'.startsWith('13') = false",
       "status": "passed",
-      "execution_time_ms": 1.131334,
+      "execution_time_ms": 1.130375,
       "expected": [
         {
           "type": "boolean",
@@ -4176,7 +4176,7 @@
       "description": "",
       "expression": "'12345'.startsWith('12345') = true",
       "status": "passed",
-      "execution_time_ms": 1.142333,
+      "execution_time_ms": 1.134166,
       "expected": [
         {
           "type": "boolean",
@@ -4190,7 +4190,7 @@
       "description": "",
       "expression": "'12345'.startsWith('123456') = false",
       "status": "passed",
-      "execution_time_ms": 1.133,
+      "execution_time_ms": 1.132208,
       "expected": [
         {
           "type": "boolean",
@@ -4204,7 +4204,7 @@
       "description": "",
       "expression": "'12345'.startsWith('') = true",
       "status": "passed",
-      "execution_time_ms": 1.144708,
+      "execution_time_ms": 1.138583,
       "expected": [
         {
           "type": "boolean",
@@ -4218,7 +4218,7 @@
       "description": "",
       "expression": "'12345'.endsWith('2') = false",
       "status": "passed",
-      "execution_time_ms": 1.157333,
+      "execution_time_ms": 1.13975,
       "expected": [
         {
           "type": "boolean",
@@ -4232,7 +4232,7 @@
       "description": "",
       "expression": "'12345'.endsWith('5') = true",
       "status": "passed",
-      "execution_time_ms": 1.153208,
+      "execution_time_ms": 1.128,
       "expected": [
         {
           "type": "boolean",
@@ -4246,7 +4246,7 @@
       "description": "",
       "expression": "'12345'.endsWith('45') = true",
       "status": "passed",
-      "execution_time_ms": 1.142709,
+      "execution_time_ms": 1.132958,
       "expected": [
         {
           "type": "boolean",
@@ -4260,7 +4260,7 @@
       "description": "",
       "expression": "'12345'.endsWith('35') = false",
       "status": "passed",
-      "execution_time_ms": 1.134125,
+      "execution_time_ms": 1.137792,
       "expected": [
         {
           "type": "boolean",
@@ -4274,7 +4274,7 @@
       "description": "",
       "expression": "'12345'.endsWith('12345') = true",
       "status": "passed",
-      "execution_time_ms": 1.13175,
+      "execution_time_ms": 1.134958,
       "expected": [
         {
           "type": "boolean",
@@ -4288,7 +4288,7 @@
       "description": "",
       "expression": "'12345'.endsWith('012345') = false",
       "status": "passed",
-      "execution_time_ms": 1.13125,
+      "execution_time_ms": 1.130708,
       "expected": [
         {
           "type": "boolean",
@@ -4302,7 +4302,7 @@
       "description": "",
       "expression": "'12345'.endsWith('') = true",
       "status": "passed",
-      "execution_time_ms": 1.14,
+      "execution_time_ms": 1.14525,
       "expected": [
         {
           "type": "boolean",
@@ -4316,7 +4316,7 @@
       "description": "",
       "expression": "'12345'.contains('6') = false",
       "status": "passed",
-      "execution_time_ms": 1.164375,
+      "execution_time_ms": 1.130333,
       "expected": [
         {
           "type": "boolean",
@@ -4330,7 +4330,7 @@
       "description": "",
       "expression": "'12345'.contains('5') = true",
       "status": "passed",
-      "execution_time_ms": 1.137708,
+      "execution_time_ms": 1.131209,
       "expected": [
         {
           "type": "boolean",
@@ -4344,7 +4344,7 @@
       "description": "",
       "expression": "'12345'.contains('45') = true",
       "status": "passed",
-      "execution_time_ms": 1.171458,
+      "execution_time_ms": 1.131917,
       "expected": [
         {
           "type": "boolean",
@@ -4358,7 +4358,7 @@
       "description": "",
       "expression": "'12345'.contains('35') = false",
       "status": "passed",
-      "execution_time_ms": 1.13275,
+      "execution_time_ms": 1.134458,
       "expected": [
         {
           "type": "boolean",
@@ -4372,7 +4372,7 @@
       "description": "",
       "expression": "'12345'.contains('12345') = true",
       "status": "passed",
-      "execution_time_ms": 1.132417,
+      "execution_time_ms": 1.135459,
       "expected": [
         {
           "type": "boolean",
@@ -4386,7 +4386,7 @@
       "description": "",
       "expression": "'12345'.contains('012345') = false",
       "status": "passed",
-      "execution_time_ms": 1.131166,
+      "execution_time_ms": 1.134709,
       "expected": [
         {
           "type": "boolean",
@@ -4400,7 +4400,7 @@
       "description": "",
       "expression": "'12345'.contains('') = true",
       "status": "passed",
-      "execution_time_ms": 1.131958,
+      "execution_time_ms": 1.112709,
       "expected": [
         {
           "type": "boolean",
@@ -4414,7 +4414,7 @@
       "description": "",
       "expression": "'123456'.length() = 6",
       "status": "passed",
-      "execution_time_ms": 1.130834,
+      "execution_time_ms": 1.151667,
       "expected": [
         {
           "type": "boolean",
@@ -4428,7 +4428,7 @@
       "description": "",
       "expression": "'12345'.length() = 5",
       "status": "passed",
-      "execution_time_ms": 1.132125,
+      "execution_time_ms": 1.144083,
       "expected": [
         {
           "type": "boolean",
@@ -4442,7 +4442,7 @@
       "description": "",
       "expression": "'123'.length() = 3",
       "status": "passed",
-      "execution_time_ms": 1.135041,
+      "execution_time_ms": 1.151916,
       "expected": [
         {
           "type": "boolean",
@@ -4456,7 +4456,7 @@
       "description": "",
       "expression": "'1'.length() = 1",
       "status": "passed",
-      "execution_time_ms": 1.145709,
+      "execution_time_ms": 1.133625,
       "expected": [
         {
           "type": "boolean",
@@ -4470,7 +4470,7 @@
       "description": "",
       "expression": "''.length() = 0",
       "status": "passed",
-      "execution_time_ms": 1.132,
+      "execution_time_ms": 1.133125,
       "expected": [
         {
           "type": "boolean",
@@ -4484,7 +4484,7 @@
       "description": "",
       "expression": "'test'.encode('base64')",
       "status": "passed",
-      "execution_time_ms": 1.151542,
+      "execution_time_ms": 1.159667,
       "expected": [
         {
           "type": "string",
@@ -4498,7 +4498,7 @@
       "description": "",
       "expression": "'test'.encode('hex')",
       "status": "passed",
-      "execution_time_ms": 1.139,
+      "execution_time_ms": 1.130458,
       "expected": [
         {
           "type": "string",
@@ -4512,7 +4512,7 @@
       "description": "",
       "expression": "'subjects?_d'.encode('base64')",
       "status": "passed",
-      "execution_time_ms": 1.132083,
+      "execution_time_ms": 1.131417,
       "expected": [
         {
           "type": "string",
@@ -4526,7 +4526,7 @@
       "description": "",
       "expression": "'subjects?_d'.encode('urlbase64')",
       "status": "passed",
-      "execution_time_ms": 1.132292,
+      "execution_time_ms": 1.12675,
       "expected": [
         {
           "type": "string",
@@ -4540,7 +4540,7 @@
       "description": "",
       "expression": "'dGVzdA=='.decode('base64')",
       "status": "passed",
-      "execution_time_ms": 1.130084,
+      "execution_time_ms": 1.162333,
       "expected": [
         {
           "type": "string",
@@ -4554,7 +4554,7 @@
       "description": "",
       "expression": "'74657374'.decode('hex')",
       "status": "passed",
-      "execution_time_ms": 1.1355,
+      "execution_time_ms": 1.079125,
       "expected": [
         {
           "type": "string",
@@ -4568,7 +4568,7 @@
       "description": "",
       "expression": "'c3ViamVjdHM/X2Q='.decode('base64')",
       "status": "passed",
-      "execution_time_ms": 1.131625,
+      "execution_time_ms": 1.134875,
       "expected": [
         {
           "type": "string",
@@ -4582,7 +4582,7 @@
       "description": "",
       "expression": "'c3ViamVjdHM_X2Q='.decode('urlbase64')",
       "status": "passed",
-      "execution_time_ms": 1.131208,
+      "execution_time_ms": 1.132875,
       "expected": [
         {
           "type": "string",
@@ -4596,7 +4596,7 @@
       "description": "",
       "expression": "'\"1\u003c2\"'.escape('html')",
       "status": "passed",
-      "execution_time_ms": 1.1395,
+      "execution_time_ms": 1.131333,
       "expected": [
         {
           "type": "string",
@@ -4610,7 +4610,7 @@
       "description": "",
       "expression": "'\"1\u003c2\"'.escape('json')",
       "status": "passed",
-      "execution_time_ms": 1.161417,
+      "execution_time_ms": 1.130167,
       "expected": [
         {
           "type": "string",
@@ -4624,7 +4624,7 @@
       "description": "",
       "expression": "'\u0026quot;1\u0026lt;2\u0026quot;'.unescape('html')",
       "status": "passed",
-      "execution_time_ms": 1.159708,
+      "execution_time_ms": 1.132375,
       "expected": [
         {
           "type": "string",
@@ -4638,7 +4638,7 @@
       "description": "",
       "expression": "'\\\"1\u003c2\\\"'.unescape('json')",
       "status": "passed",
-      "execution_time_ms": 1.156292,
+      "execution_time_ms": 1.140042,
       "expected": [
         {
           "type": "string",
@@ -4652,7 +4652,7 @@
       "description": "",
       "expression": "'123456'.trim().length() = 6",
       "status": "passed",
-      "execution_time_ms": 1.136125,
+      "execution_time_ms": 1.043834,
       "expected": [
         {
           "type": "boolean",
@@ -4666,7 +4666,7 @@
       "description": "",
       "expression": "'123 456'.trim().length() = 7",
       "status": "passed",
-      "execution_time_ms": 1.135041,
+      "execution_time_ms": 1.130583,
       "expected": [
         {
           "type": "boolean",
@@ -4680,7 +4680,7 @@
       "description": "",
       "expression": "' 123456 '.trim().length() = 6",
       "status": "passed",
-      "execution_time_ms": 1.14625,
+      "execution_time_ms": 1.135834,
       "expected": [
         {
           "type": "boolean",
@@ -4694,7 +4694,7 @@
       "description": "",
       "expression": "'  '.trim().length() = 0",
       "status": "passed",
-      "execution_time_ms": 1.131125,
+      "execution_time_ms": 1.130667,
       "expected": [
         {
           "type": "boolean",
@@ -4708,7 +4708,7 @@
       "description": "",
       "expression": "'Peter,James,Jim,Peter,James'.split(',').count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.13425,
+      "execution_time_ms": 1.153083,
       "expected": [
         {
           "type": "boolean",
@@ -4722,7 +4722,7 @@
       "description": "",
       "expression": "name.given.join(',')",
       "status": "passed",
-      "execution_time_ms": 1.134917,
+      "execution_time_ms": 1.134958,
       "expected": [
         {
           "type": "string",
@@ -4736,7 +4736,7 @@
       "description": "",
       "expression": "name.given.trace('test').count() = 5",
       "status": "passed",
-      "execution_time_ms": 1.148291,
+      "execution_time_ms": 1.13175,
       "expected": [
         {
           "type": "boolean",
@@ -4750,7 +4750,7 @@
       "description": "",
       "expression": "name.trace('test', given).count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.139125,
+      "execution_time_ms": 1.133833,
       "expected": [
         {
           "type": "boolean",
@@ -4764,7 +4764,7 @@
       "description": "",
       "expression": "Patient.birthDate \u003c today()",
       "status": "passed",
-      "execution_time_ms": 1.133708,
+      "execution_time_ms": 1.134459,
       "expected": [
         {
           "type": "boolean",
@@ -4778,7 +4778,7 @@
       "description": "",
       "expression": "today().toString().length() = 10",
       "status": "passed",
-      "execution_time_ms": 1.156959,
+      "execution_time_ms": 1.134875,
       "expected": [
         {
           "type": "boolean",
@@ -4792,7 +4792,7 @@
       "description": "",
       "expression": "Patient.birthDate \u003c now()",
       "status": "passed",
-      "execution_time_ms": 1.133209,
+      "execution_time_ms": 1.159042,
       "expected": [
         {
           "type": "boolean",
@@ -4806,7 +4806,7 @@
       "description": "",
       "expression": "now().toString().length() \u003e 10",
       "status": "passed",
-      "execution_time_ms": 1.134917,
+      "execution_time_ms": 1.130334,
       "expected": [
         {
           "type": "boolean",
@@ -4820,7 +4820,7 @@
       "description": "",
       "expression": "1 = 1",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.069917,
       "expected": [
         {
           "type": "boolean",
@@ -4834,7 +4834,7 @@
       "description": "",
       "expression": "{} = {}",
       "status": "passed",
-      "execution_time_ms": 1.134291,
+      "execution_time_ms": 1.13175,
       "expected": null,
       "actual": []
     },
@@ -4843,7 +4843,7 @@
       "description": "",
       "expression": "true = {}",
       "status": "passed",
-      "execution_time_ms": 1.136583,
+      "execution_time_ms": 1.16125,
       "expected": null,
       "actual": []
     },
@@ -4852,7 +4852,7 @@
       "description": "",
       "expression": "(1) = (1)",
       "status": "passed",
-      "execution_time_ms": 1.13725,
+      "execution_time_ms": 1.156916,
       "expected": [
         {
           "type": "boolean",
@@ -4866,7 +4866,7 @@
       "description": "",
       "expression": "(1 | 2) = (1 | 2)",
       "status": "passed",
-      "execution_time_ms": 1.13375,
+      "execution_time_ms": 1.131416,
       "expected": [
         {
           "type": "boolean",
@@ -4880,7 +4880,7 @@
       "description": "",
       "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
       "status": "passed",
-      "execution_time_ms": 1.14725,
+      "execution_time_ms": 1.1335,
       "expected": [
         {
           "type": "boolean",
@@ -4894,7 +4894,7 @@
       "description": "",
       "expression": "(1 | 1) = (1 | 2 | {})",
       "status": "passed",
-      "execution_time_ms": 1.151459,
+      "execution_time_ms": 1.131166,
       "expected": null,
       "actual": []
     },
@@ -4903,7 +4903,7 @@
       "description": "",
       "expression": "1 = 2",
       "status": "passed",
-      "execution_time_ms": 1.11675,
+      "execution_time_ms": 1.132167,
       "expected": [
         {
           "type": "boolean",
@@ -4917,7 +4917,7 @@
       "description": "",
       "expression": "'a' = 'a'",
       "status": "passed",
-      "execution_time_ms": 1.135416,
+      "execution_time_ms": 1.133416,
       "expected": [
         {
           "type": "boolean",
@@ -4931,7 +4931,7 @@
       "description": "",
       "expression": "'a' = 'A'",
       "status": "passed",
-      "execution_time_ms": 1.134541,
+      "execution_time_ms": 1.1315,
       "expected": [
         {
           "type": "boolean",
@@ -4945,7 +4945,7 @@
       "description": "",
       "expression": "'a' = 'b'",
       "status": "passed",
-      "execution_time_ms": 1.13475,
+      "execution_time_ms": 1.135958,
       "expected": [
         {
           "type": "boolean",
@@ -4959,7 +4959,7 @@
       "description": "",
       "expression": "1.1 = 1.1",
       "status": "passed",
-      "execution_time_ms": 1.130208,
+      "execution_time_ms": 1.130917,
       "expected": [
         {
           "type": "boolean",
@@ -4973,7 +4973,7 @@
       "description": "",
       "expression": "1.1 = 1.2",
       "status": "passed",
-      "execution_time_ms": 1.130666,
+      "execution_time_ms": 1.134125,
       "expected": [
         {
           "type": "boolean",
@@ -4987,7 +4987,7 @@
       "description": "",
       "expression": "1.10 = 1.1",
       "status": "passed",
-      "execution_time_ms": 1.140375,
+      "execution_time_ms": 1.134917,
       "expected": [
         {
           "type": "boolean",
@@ -5001,7 +5001,7 @@
       "description": "",
       "expression": "0 = 0",
       "status": "passed",
-      "execution_time_ms": 1.133875,
+      "execution_time_ms": 1.130791,
       "expected": [
         {
           "type": "boolean",
@@ -5015,7 +5015,7 @@
       "description": "",
       "expression": "0.0 = 0",
       "status": "passed",
-      "execution_time_ms": 1.161417,
+      "execution_time_ms": 1.137625,
       "expected": [
         {
           "type": "boolean",
@@ -5029,7 +5029,7 @@
       "description": "",
       "expression": "@2012-04-15 = @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 1.141042,
+      "execution_time_ms": 1.130875,
       "expected": [
         {
           "type": "boolean",
@@ -5043,7 +5043,7 @@
       "description": "",
       "expression": "@2012-04-15 = @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 1.136875,
+      "execution_time_ms": 1.159625,
       "expected": [
         {
           "type": "boolean",
@@ -5057,7 +5057,7 @@
       "description": "",
       "expression": "@2012-04-15 = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.13475,
+      "execution_time_ms": 1.159916,
       "expected": null,
       "actual": []
     },
@@ -5066,7 +5066,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132208,
+      "execution_time_ms": 1.133291,
       "expected": [
         {
           "type": "boolean",
@@ -5080,7 +5080,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 1.134125,
+      "execution_time_ms": 1.131834,
       "expected": [
         {
           "type": "boolean",
@@ -5094,7 +5094,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 1.133833,
+      "execution_time_ms": 1.135375,
       "expected": [
         {
           "type": "boolean",
@@ -5108,7 +5108,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132042,
+      "execution_time_ms": 1.134542,
       "expected": null,
       "actual": []
     },
@@ -5117,7 +5117,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
       "status": "passed",
-      "execution_time_ms": 1.132875,
+      "execution_time_ms": 1.101209,
       "expected": [
         {
           "type": "boolean",
@@ -5131,7 +5131,7 @@
       "description": "",
       "expression": "name = name",
       "status": "passed",
-      "execution_time_ms": 1.131625,
+      "execution_time_ms": 1.159209,
       "expected": [
         {
           "type": "boolean",
@@ -5145,7 +5145,7 @@
       "description": "",
       "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
       "status": "passed",
-      "execution_time_ms": 1.134167,
+      "execution_time_ms": 1.132959,
       "expected": [
         {
           "type": "boolean",
@@ -5159,7 +5159,7 @@
       "description": "",
       "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
       "status": "passed",
-      "execution_time_ms": 1.148333,
+      "execution_time_ms": 1.131917,
       "expected": [
         {
           "type": "boolean",
@@ -5173,7 +5173,7 @@
       "description": "",
       "expression": "Observation.value = 185 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.136458,
+      "execution_time_ms": 1.153709,
       "expected": [
         {
           "type": "boolean",
@@ -5187,7 +5187,7 @@
       "description": "",
       "expression": "1 != 1",
       "status": "passed",
-      "execution_time_ms": 1.15825,
+      "execution_time_ms": 1.145208,
       "expected": [
         {
           "type": "boolean",
@@ -5201,7 +5201,7 @@
       "description": "",
       "expression": "{} != {}",
       "status": "passed",
-      "execution_time_ms": 1.14475,
+      "execution_time_ms": 1.150584,
       "expected": null,
       "actual": []
     },
@@ -5210,7 +5210,7 @@
       "description": "",
       "expression": "1 != 2",
       "status": "passed",
-      "execution_time_ms": 1.1325,
+      "execution_time_ms": 1.239583,
       "expected": [
         {
           "type": "boolean",
@@ -5224,7 +5224,7 @@
       "description": "",
       "expression": "'a' != 'a'",
       "status": "passed",
-      "execution_time_ms": 1.134709,
+      "execution_time_ms": 1.168792,
       "expected": [
         {
           "type": "boolean",
@@ -5238,7 +5238,7 @@
       "description": "",
       "expression": "'a' != 'b'",
       "status": "passed",
-      "execution_time_ms": 1.134833,
+      "execution_time_ms": 1.134583,
       "expected": [
         {
           "type": "boolean",
@@ -5252,7 +5252,7 @@
       "description": "",
       "expression": "1.1 != 1.1",
       "status": "passed",
-      "execution_time_ms": 1.130708,
+      "execution_time_ms": 1.131916,
       "expected": [
         {
           "type": "boolean",
@@ -5266,7 +5266,7 @@
       "description": "",
       "expression": "1.1 != 1.2",
       "status": "passed",
-      "execution_time_ms": 1.132125,
+      "execution_time_ms": 1.133209,
       "expected": [
         {
           "type": "boolean",
@@ -5280,7 +5280,7 @@
       "description": "",
       "expression": "1.10 != 1.1",
       "status": "passed",
-      "execution_time_ms": 1.133541,
+      "execution_time_ms": 1.134667,
       "expected": [
         {
           "type": "boolean",
@@ -5294,7 +5294,7 @@
       "description": "",
       "expression": "0 != 0",
       "status": "passed",
-      "execution_time_ms": 1.147125,
+      "execution_time_ms": 1.144417,
       "expected": [
         {
           "type": "boolean",
@@ -5308,7 +5308,7 @@
       "description": "",
       "expression": "0.0 != 0",
       "status": "passed",
-      "execution_time_ms": 1.145584,
+      "execution_time_ms": 1.14175,
       "expected": [
         {
           "type": "boolean",
@@ -5322,7 +5322,7 @@
       "description": "",
       "expression": "@2012-04-15 != @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 1.158042,
+      "execution_time_ms": 1.137167,
       "expected": [
         {
           "type": "boolean",
@@ -5336,7 +5336,7 @@
       "description": "",
       "expression": "@2012-04-15 != @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 1.132417,
+      "execution_time_ms": 1.161542,
       "expected": [
         {
           "type": "boolean",
@@ -5350,7 +5350,7 @@
       "description": "",
       "expression": "@2012-04-15 != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135583,
+      "execution_time_ms": 1.138375,
       "expected": null,
       "actual": []
     },
@@ -5359,7 +5359,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00 != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.130041,
+      "execution_time_ms": 1.154583,
       "expected": [
         {
           "type": "boolean",
@@ -5373,7 +5373,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 1.134375,
+      "execution_time_ms": 1.173916,
       "expected": [
         {
           "type": "boolean",
@@ -5387,7 +5387,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 != @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 1.1395,
+      "execution_time_ms": 1.141458,
       "expected": [
         {
           "type": "boolean",
@@ -5401,7 +5401,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00Z != @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.13575,
+      "execution_time_ms": 1.148375,
       "expected": null,
       "actual": []
     },
@@ -5410,7 +5410,7 @@
       "description": "",
       "expression": "@2012-04-15T15:00:00+02:00 != @2012-04-15T16:00:00+03:00",
       "status": "passed",
-      "execution_time_ms": 1.133708,
+      "execution_time_ms": 1.139417,
       "expected": [
         {
           "type": "boolean",
@@ -5424,7 +5424,7 @@
       "description": "",
       "expression": "name != name",
       "status": "passed",
-      "execution_time_ms": 1.136833,
+      "execution_time_ms": 1.13225,
       "expected": [
         {
           "type": "boolean",
@@ -5438,7 +5438,7 @@
       "description": "",
       "expression": "name.take(2) != name.take(2).first() | name.take(2).last()",
       "status": "passed",
-      "execution_time_ms": 1.148666,
+      "execution_time_ms": 1.157708,
       "expected": [
         {
           "type": "boolean",
@@ -5452,7 +5452,7 @@
       "description": "",
       "expression": "name.take(2) != name.take(2).last() | name.take(2).first()",
       "status": "passed",
-      "execution_time_ms": 1.14225,
+      "execution_time_ms": 1.134625,
       "expected": [
         {
           "type": "boolean",
@@ -5466,7 +5466,7 @@
       "description": "",
       "expression": "1.2 / 1.8 != 0.6666667",
       "status": "passed",
-      "execution_time_ms": 1.153,
+      "execution_time_ms": 1.096333,
       "expected": [
         {
           "type": "boolean",
@@ -5480,7 +5480,7 @@
       "description": "",
       "expression": "1.2 / 1.8 != 0.67",
       "status": "passed",
-      "execution_time_ms": 1.133042,
+      "execution_time_ms": 1.13275,
       "expected": [
         {
           "type": "boolean",
@@ -5494,7 +5494,7 @@
       "description": "",
       "expression": "Observation.value != 185 'kg'",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.148667,
       "expected": [
         {
           "type": "boolean",
@@ -5508,7 +5508,7 @@
       "description": "",
       "expression": "1 ~ 1",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.139666,
       "expected": [
         {
           "type": "boolean",
@@ -5522,7 +5522,7 @@
       "description": "",
       "expression": "{} ~ {}",
       "status": "passed",
-      "execution_time_ms": 1.130875,
+      "execution_time_ms": 1.129334,
       "expected": [
         {
           "type": "boolean",
@@ -5536,7 +5536,7 @@
       "description": "",
       "expression": "1 ~ {}",
       "status": "passed",
-      "execution_time_ms": 1.130125,
+      "execution_time_ms": 1.1305,
       "expected": [
         {
           "type": "boolean",
@@ -5550,7 +5550,7 @@
       "description": "",
       "expression": "1 ~ 2",
       "status": "passed",
-      "execution_time_ms": 1.137709,
+      "execution_time_ms": 1.13025,
       "expected": [
         {
           "type": "boolean",
@@ -5564,7 +5564,7 @@
       "description": "",
       "expression": "'a' ~ 'a'",
       "status": "passed",
-      "execution_time_ms": 1.132542,
+      "execution_time_ms": 1.157333,
       "expected": [
         {
           "type": "boolean",
@@ -5578,7 +5578,7 @@
       "description": "",
       "expression": "'a' ~ 'A'",
       "status": "passed",
-      "execution_time_ms": 1.13475,
+      "execution_time_ms": 1.133916,
       "expected": [
         {
           "type": "boolean",
@@ -5592,7 +5592,7 @@
       "description": "",
       "expression": "'a' ~ 'b'",
       "status": "passed",
-      "execution_time_ms": 1.151375,
+      "execution_time_ms": 1.134583,
       "expected": [
         {
           "type": "boolean",
@@ -5606,7 +5606,7 @@
       "description": "",
       "expression": "1.1 ~ 1.1",
       "status": "passed",
-      "execution_time_ms": 1.1385,
+      "execution_time_ms": 1.136041,
       "expected": [
         {
           "type": "boolean",
@@ -5620,7 +5620,7 @@
       "description": "",
       "expression": "1.1 ~ 1.2",
       "status": "passed",
-      "execution_time_ms": 1.136583,
+      "execution_time_ms": 1.135208,
       "expected": [
         {
           "type": "boolean",
@@ -5634,7 +5634,7 @@
       "description": "",
       "expression": "1.10 ~ 1.1",
       "status": "passed",
-      "execution_time_ms": 1.137041,
+      "execution_time_ms": 1.135416,
       "expected": [
         {
           "type": "boolean",
@@ -5648,7 +5648,7 @@
       "description": "",
       "expression": "1.2 / 1.8 ~ 0.67",
       "status": "passed",
-      "execution_time_ms": 1.132,
+      "execution_time_ms": 1.132584,
       "expected": [
         {
           "type": "boolean",
@@ -5662,7 +5662,7 @@
       "description": "",
       "expression": "0 ~ 0",
       "status": "passed",
-      "execution_time_ms": 1.13425,
+      "execution_time_ms": 1.13075,
       "expected": [
         {
           "type": "boolean",
@@ -5676,7 +5676,7 @@
       "description": "",
       "expression": "0.0 ~ 0",
       "status": "passed",
-      "execution_time_ms": 1.1345,
+      "execution_time_ms": 1.135625,
       "expected": [
         {
           "type": "boolean",
@@ -5690,7 +5690,7 @@
       "description": "",
       "expression": "@2012-04-15 ~ @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 1.134625,
+      "execution_time_ms": 1.134542,
       "expected": [
         {
           "type": "boolean",
@@ -5704,7 +5704,7 @@
       "description": "",
       "expression": "@2012-04-15 ~ @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 1.134416,
+      "execution_time_ms": 1.153958,
       "expected": [
         {
           "type": "boolean",
@@ -5718,7 +5718,7 @@
       "description": "",
       "expression": "@2012-04-15 ~ @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.13225,
+      "execution_time_ms": 1.135,
       "expected": [
         {
           "type": "boolean",
@@ -5732,7 +5732,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 1.144833,
+      "execution_time_ms": 1.131333,
       "expected": [
         {
           "type": "boolean",
@@ -5746,7 +5746,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 1.141,
+      "execution_time_ms": 1.132208,
       "expected": [
         {
           "type": "boolean",
@@ -5760,7 +5760,7 @@
       "description": "",
       "expression": "name ~ name",
       "status": "passed",
-      "execution_time_ms": 1.131792,
+      "execution_time_ms": 1.13275,
       "expected": [
         {
           "type": "boolean",
@@ -5774,7 +5774,7 @@
       "description": "",
       "expression": "name.take(2).given ~ name.take(2).first().given | name.take(2).last().given",
       "status": "passed",
-      "execution_time_ms": 1.137417,
+      "execution_time_ms": 1.133167,
       "expected": [
         {
           "type": "boolean",
@@ -5788,7 +5788,7 @@
       "description": "",
       "expression": "name.take(2).given ~ name.take(2).last().given | name.take(2).first().given",
       "status": "passed",
-      "execution_time_ms": 1.131667,
+      "execution_time_ms": 1.130916,
       "expected": [
         {
           "type": "boolean",
@@ -5802,7 +5802,7 @@
       "description": "",
       "expression": "Observation.value ~ 185 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.13125,
+      "execution_time_ms": 1.152292,
       "expected": [
         {
           "type": "boolean",
@@ -5816,7 +5816,7 @@
       "description": "",
       "expression": "1 !~ 1",
       "status": "passed",
-      "execution_time_ms": 1.132958,
+      "execution_time_ms": 1.15925,
       "expected": [
         {
           "type": "boolean",
@@ -5830,7 +5830,7 @@
       "description": "",
       "expression": "{} !~ {}",
       "status": "passed",
-      "execution_time_ms": 1.13125,
+      "execution_time_ms": 1.137042,
       "expected": [
         {
           "type": "boolean",
@@ -5844,7 +5844,7 @@
       "description": "",
       "expression": "{} !~ 1",
       "status": "passed",
-      "execution_time_ms": 1.131,
+      "execution_time_ms": 1.159667,
       "expected": [
         {
           "type": "boolean",
@@ -5858,7 +5858,7 @@
       "description": "",
       "expression": "1 !~ 2",
       "status": "passed",
-      "execution_time_ms": 1.131833,
+      "execution_time_ms": 1.138666,
       "expected": [
         {
           "type": "boolean",
@@ -5872,7 +5872,7 @@
       "description": "",
       "expression": "'a' !~ 'a'",
       "status": "passed",
-      "execution_time_ms": 1.139583,
+      "execution_time_ms": 1.159167,
       "expected": [
         {
           "type": "boolean",
@@ -5886,7 +5886,7 @@
       "description": "",
       "expression": "'a' !~ 'A'",
       "status": "passed",
-      "execution_time_ms": 1.10725,
+      "execution_time_ms": 1.136958,
       "expected": [
         {
           "type": "boolean",
@@ -5900,7 +5900,7 @@
       "description": "",
       "expression": "'a' !~ 'b'",
       "status": "passed",
-      "execution_time_ms": 1.138458,
+      "execution_time_ms": 1.136541,
       "expected": [
         {
           "type": "boolean",
@@ -5914,7 +5914,7 @@
       "description": "",
       "expression": "1.1 !~ 1.1",
       "status": "passed",
-      "execution_time_ms": 1.134334,
+      "execution_time_ms": 1.147458,
       "expected": [
         {
           "type": "boolean",
@@ -5928,7 +5928,7 @@
       "description": "",
       "expression": "1.1 !~ 1.2",
       "status": "passed",
-      "execution_time_ms": 1.133,
+      "execution_time_ms": 1.129083,
       "expected": [
         {
           "type": "boolean",
@@ -5942,7 +5942,7 @@
       "description": "",
       "expression": "1.10 !~ 1.1",
       "status": "passed",
-      "execution_time_ms": 1.1335,
+      "execution_time_ms": 1.135375,
       "expected": [
         {
           "type": "boolean",
@@ -5956,7 +5956,7 @@
       "description": "",
       "expression": "0 !~ 0",
       "status": "passed",
-      "execution_time_ms": 1.130834,
+      "execution_time_ms": 1.155958,
       "expected": [
         {
           "type": "boolean",
@@ -5970,7 +5970,7 @@
       "description": "",
       "expression": "0.0 !~ 0",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.159667,
       "expected": [
         {
           "type": "boolean",
@@ -5984,7 +5984,7 @@
       "description": "",
       "expression": "1.2 / 1.8 !~ 0.6",
       "status": "passed",
-      "execution_time_ms": 1.13425,
+      "execution_time_ms": 1.132917,
       "expected": [
         {
           "type": "boolean",
@@ -5998,7 +5998,7 @@
       "description": "",
       "expression": "@2012-04-15 !~ @2012-04-15",
       "status": "passed",
-      "execution_time_ms": 1.133833,
+      "execution_time_ms": 1.131375,
       "expected": [
         {
           "type": "boolean",
@@ -6012,7 +6012,7 @@
       "description": "",
       "expression": "@2012-04-15 !~ @2012-04-16",
       "status": "passed",
-      "execution_time_ms": 1.134833,
+      "execution_time_ms": 1.132125,
       "expected": [
         {
           "type": "boolean",
@@ -6026,7 +6026,7 @@
       "description": "",
       "expression": "@2012-04-15 !~ @2012-04-15T10:00:00",
       "status": "passed",
-      "execution_time_ms": 1.134,
+      "execution_time_ms": 1.131542,
       "expected": [
         {
           "type": "boolean",
@@ -6040,7 +6040,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.0",
       "status": "passed",
-      "execution_time_ms": 1.146584,
+      "execution_time_ms": 1.1625,
       "expected": [
         {
           "type": "boolean",
@@ -6054,7 +6054,7 @@
       "description": "",
       "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.1",
       "status": "passed",
-      "execution_time_ms": 1.132292,
+      "execution_time_ms": 1.145791,
       "expected": [
         {
           "type": "boolean",
@@ -6068,7 +6068,7 @@
       "description": "",
       "expression": "name !~ name",
       "status": "passed",
-      "execution_time_ms": 1.131916,
+      "execution_time_ms": 1.086917,
       "expected": [
         {
           "type": "boolean",
@@ -6082,7 +6082,7 @@
       "description": "",
       "expression": "name.take(2).given !~ name.take(2).first().given | name.take(2).last().given",
       "status": "passed",
-      "execution_time_ms": 1.13175,
+      "execution_time_ms": 1.138167,
       "expected": [
         {
           "type": "boolean",
@@ -6096,7 +6096,7 @@
       "description": "",
       "expression": "name.take(2).given !~ name.take(2).last().given | name.take(2).first().given",
       "status": "passed",
-      "execution_time_ms": 1.1345,
+      "execution_time_ms": 1.079166,
       "expected": [
         {
           "type": "boolean",
@@ -6110,7 +6110,7 @@
       "description": "",
       "expression": "Observation.value !~ 185 'kg'",
       "status": "passed",
-      "execution_time_ms": 1.133084,
+      "execution_time_ms": 1.134667,
       "expected": [
         {
           "type": "boolean",
@@ -6124,7 +6124,7 @@
       "description": "",
       "expression": "1 \u003c 2",
       "status": "passed",
-      "execution_time_ms": 1.129666,
+      "execution_time_ms": 1.158041,
       "expected": [
         {
           "type": "boolean",
@@ -6138,7 +6138,7 @@
       "description": "",
       "expression": "1.0 \u003c 1.2",
       "status": "passed",
-      "execution_time_ms": 1.134792,
+      "execution_time_ms": 1.134291,
       "expected": [
         {
           "type": "boolean",
@@ -6152,7 +6152,7 @@
       "description": "",
       "expression": "'a' \u003c 'b'",
       "status": "passed",
-      "execution_time_ms": 1.154375,
+      "execution_time_ms": 1.134042,
       "expected": [
         {
           "type": "boolean",
@@ -6166,7 +6166,7 @@
       "description": "",
       "expression": "'A' \u003c 'a'",
       "status": "passed",
-      "execution_time_ms": 1.135334,
+      "execution_time_ms": 1.147625,
       "expected": [
         {
           "type": "boolean",
@@ -6180,7 +6180,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003c @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 1.131709,
+      "execution_time_ms": 1.133458,
       "expected": [
         {
           "type": "boolean",
@@ -6194,7 +6194,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003c @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 1.130167,
+      "execution_time_ms": 1.132084,
       "expected": [
         {
           "type": "boolean",
@@ -6208,7 +6208,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003c @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 1.131416,
+      "execution_time_ms": 1.131291,
       "expected": [
         {
           "type": "boolean",
@@ -6222,7 +6222,7 @@
       "description": "",
       "expression": "1 \u003c 1",
       "status": "passed",
-      "execution_time_ms": 1.134541,
+      "execution_time_ms": 1.13725,
       "expected": [
         {
           "type": "boolean",
@@ -6236,7 +6236,7 @@
       "description": "",
       "expression": "1.0 \u003c 1.0",
       "status": "passed",
-      "execution_time_ms": 1.135167,
+      "execution_time_ms": 1.130959,
       "expected": [
         {
           "type": "boolean",
@@ -6250,7 +6250,7 @@
       "description": "",
       "expression": "'a' \u003c 'a'",
       "status": "passed",
-      "execution_time_ms": 1.131625,
+      "execution_time_ms": 1.136333,
       "expected": [
         {
           "type": "boolean",
@@ -6264,7 +6264,7 @@
       "description": "",
       "expression": "'A' \u003c 'A'",
       "status": "passed",
-      "execution_time_ms": 1.130583,
+      "execution_time_ms": 1.133917,
       "expected": [
         {
           "type": "boolean",
@@ -6278,7 +6278,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003c @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.1345,
+      "execution_time_ms": 1.156791,
       "expected": [
         {
           "type": "boolean",
@@ -6292,7 +6292,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003c @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.141334,
+      "execution_time_ms": 1.13475,
       "expected": [
         {
           "type": "boolean",
@@ -6306,7 +6306,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003c @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135459,
+      "execution_time_ms": 1.139334,
       "expected": [
         {
           "type": "boolean",
@@ -6320,7 +6320,7 @@
       "description": "",
       "expression": "2 \u003c 1",
       "status": "passed",
-      "execution_time_ms": 1.130709,
+      "execution_time_ms": 1.136583,
       "expected": [
         {
           "type": "boolean",
@@ -6334,7 +6334,7 @@
       "description": "",
       "expression": "1.1 \u003c 1.0",
       "status": "passed",
-      "execution_time_ms": 1.132959,
+      "execution_time_ms": 1.133625,
       "expected": [
         {
           "type": "boolean",
@@ -6348,7 +6348,7 @@
       "description": "",
       "expression": "'b' \u003c 'a'",
       "status": "passed",
-      "execution_time_ms": 1.131209,
+      "execution_time_ms": 1.151666,
       "expected": [
         {
           "type": "boolean",
@@ -6362,7 +6362,7 @@
       "description": "",
       "expression": "'B' \u003c 'A'",
       "status": "passed",
-      "execution_time_ms": 1.137833,
+      "execution_time_ms": 1.130916,
       "expected": [
         {
           "type": "boolean",
@@ -6376,7 +6376,7 @@
       "description": "",
       "expression": "@2014-12-13 \u003c @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.135292,
+      "execution_time_ms": 1.157125,
       "expected": [
         {
           "type": "boolean",
@@ -6390,7 +6390,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:01 \u003c @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.131042,
+      "execution_time_ms": 1.15875,
       "expected": [
         {
           "type": "boolean",
@@ -6404,7 +6404,7 @@
       "description": "",
       "expression": "@T12:00:01 \u003c @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.13175,
+      "execution_time_ms": 1.153041,
       "expected": [
         {
           "type": "boolean",
@@ -6418,7 +6418,7 @@
       "description": "",
       "expression": "Observation.value \u003c 200 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.134834,
+      "execution_time_ms": 1.141291,
       "expected": [
         {
           "type": "boolean",
@@ -6432,7 +6432,7 @@
       "description": "",
       "expression": "@2018-03 \u003c @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 1.135708,
+      "execution_time_ms": 1.131458,
       "expected": null,
       "actual": []
     },
@@ -6441,7 +6441,7 @@
       "description": "",
       "expression": "@2018-03-01T10 \u003c @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 1.133541,
+      "execution_time_ms": 1.132791,
       "expected": null,
       "actual": []
     },
@@ -6450,7 +6450,7 @@
       "description": "",
       "expression": "@T10 \u003c @T10:30",
       "status": "passed",
-      "execution_time_ms": 1.139042,
+      "execution_time_ms": 1.132875,
       "expected": null,
       "actual": []
     },
@@ -6459,7 +6459,7 @@
       "description": "",
       "expression": "@2018-03-01T10:30:00 \u003c @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.135334,
+      "execution_time_ms": 1.133125,
       "expected": [
         {
           "type": "boolean",
@@ -6473,7 +6473,7 @@
       "description": "",
       "expression": "@T10:30:00 \u003c @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.134291,
+      "execution_time_ms": 1.131916,
       "expected": [
         {
           "type": "boolean",
@@ -6487,7 +6487,7 @@
       "description": "",
       "expression": "1 \u003c= 2",
       "status": "passed",
-      "execution_time_ms": 1.134625,
+      "execution_time_ms": 1.1665,
       "expected": [
         {
           "type": "boolean",
@@ -6501,7 +6501,7 @@
       "description": "",
       "expression": "1.0 \u003c= 1.2",
       "status": "passed",
-      "execution_time_ms": 1.131291,
+      "execution_time_ms": 1.132334,
       "expected": [
         {
           "type": "boolean",
@@ -6515,7 +6515,7 @@
       "description": "",
       "expression": "'a' \u003c= 'b'",
       "status": "passed",
-      "execution_time_ms": 1.134541,
+      "execution_time_ms": 1.131292,
       "expected": [
         {
           "type": "boolean",
@@ -6529,7 +6529,7 @@
       "description": "",
       "expression": "'A' \u003c= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.131834,
+      "execution_time_ms": 1.060875,
       "expected": [
         {
           "type": "boolean",
@@ -6543,7 +6543,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003c= @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 1.133125,
+      "execution_time_ms": 1.136583,
       "expected": [
         {
           "type": "boolean",
@@ -6557,7 +6557,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003c= @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 1.133916,
+      "execution_time_ms": 1.155625,
       "expected": [
         {
           "type": "boolean",
@@ -6571,7 +6571,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003c= @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 1.134417,
+      "execution_time_ms": 1.1625,
       "expected": [
         {
           "type": "boolean",
@@ -6585,7 +6585,7 @@
       "description": "",
       "expression": "1 \u003c= 1",
       "status": "passed",
-      "execution_time_ms": 1.133083,
+      "execution_time_ms": 1.138417,
       "expected": [
         {
           "type": "boolean",
@@ -6599,7 +6599,7 @@
       "description": "",
       "expression": "1.0 \u003c= 1.0",
       "status": "passed",
-      "execution_time_ms": 1.135084,
+      "execution_time_ms": 1.161458,
       "expected": [
         {
           "type": "boolean",
@@ -6613,7 +6613,7 @@
       "description": "",
       "expression": "'a' \u003c= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.132125,
+      "execution_time_ms": 1.139458,
       "expected": [
         {
           "type": "boolean",
@@ -6627,7 +6627,7 @@
       "description": "",
       "expression": "'A' \u003c= 'A'",
       "status": "passed",
-      "execution_time_ms": 1.131791,
+      "execution_time_ms": 1.141792,
       "expected": [
         {
           "type": "boolean",
@@ -6641,7 +6641,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003c= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.131417,
+      "execution_time_ms": 2.693333,
       "expected": [
         {
           "type": "boolean",
@@ -6655,7 +6655,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003c= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.0995,
+      "execution_time_ms": 1.14775,
       "expected": [
         {
           "type": "boolean",
@@ -6669,7 +6669,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003c= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.134375,
+      "execution_time_ms": 1.05225,
       "expected": [
         {
           "type": "boolean",
@@ -6683,7 +6683,7 @@
       "description": "",
       "expression": "2 \u003c= 1",
       "status": "passed",
-      "execution_time_ms": 1.132042,
+      "execution_time_ms": 1.067166,
       "expected": [
         {
           "type": "boolean",
@@ -6697,7 +6697,7 @@
       "description": "",
       "expression": "1.1 \u003c= 1.0",
       "status": "passed",
-      "execution_time_ms": 1.132417,
+      "execution_time_ms": 1.14875,
       "expected": [
         {
           "type": "boolean",
@@ -6711,7 +6711,7 @@
       "description": "",
       "expression": "'b' \u003c= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.13175,
+      "execution_time_ms": 1.137708,
       "expected": [
         {
           "type": "boolean",
@@ -6725,7 +6725,7 @@
       "description": "",
       "expression": "'B' \u003c= 'A'",
       "status": "passed",
-      "execution_time_ms": 1.131833,
+      "execution_time_ms": 4.105916,
       "expected": [
         {
           "type": "boolean",
@@ -6739,7 +6739,7 @@
       "description": "",
       "expression": "@2014-12-13 \u003c= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.132125,
+      "execution_time_ms": 1.151541,
       "expected": [
         {
           "type": "boolean",
@@ -6753,7 +6753,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:01 \u003c= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132166,
+      "execution_time_ms": 1.212375,
       "expected": [
         {
           "type": "boolean",
@@ -6767,7 +6767,7 @@
       "description": "",
       "expression": "@T12:00:01 \u003c= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135208,
+      "execution_time_ms": 1.235417,
       "expected": [
         {
           "type": "boolean",
@@ -6781,7 +6781,7 @@
       "description": "",
       "expression": "Observation.value \u003c= 200 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.135542,
+      "execution_time_ms": 1.144208,
       "expected": [
         {
           "type": "boolean",
@@ -6795,7 +6795,7 @@
       "description": "",
       "expression": "@2018-03 \u003c= @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 1.131417,
+      "execution_time_ms": 1.152208,
       "expected": null,
       "actual": []
     },
@@ -6804,7 +6804,7 @@
       "description": "",
       "expression": "@2018-03-01T10 \u003c= @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 1.135625,
+      "execution_time_ms": 1.135917,
       "expected": null,
       "actual": []
     },
@@ -6813,7 +6813,7 @@
       "description": "",
       "expression": "@T10 \u003c= @T10:30",
       "status": "passed",
-      "execution_time_ms": 1.13125,
+      "execution_time_ms": 1.116,
       "expected": null,
       "actual": []
     },
@@ -6822,7 +6822,7 @@
       "description": "",
       "expression": "@2018-03-01T10:30:00  \u003c= @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.132833,
+      "execution_time_ms": 1.420042,
       "expected": [
         {
           "type": "boolean",
@@ -6836,7 +6836,7 @@
       "description": "",
       "expression": "@T10:30:00 \u003c= @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.139375,
+      "execution_time_ms": 1.135958,
       "expected": [
         {
           "type": "boolean",
@@ -6850,7 +6850,7 @@
       "description": "",
       "expression": "1 \u003e= 2",
       "status": "passed",
-      "execution_time_ms": 1.131667,
+      "execution_time_ms": 1.036625,
       "expected": [
         {
           "type": "boolean",
@@ -6864,7 +6864,7 @@
       "description": "",
       "expression": "1.0 \u003e= 1.2",
       "status": "passed",
-      "execution_time_ms": 1.136,
+      "execution_time_ms": 1.842708,
       "expected": [
         {
           "type": "boolean",
@@ -6878,7 +6878,7 @@
       "description": "",
       "expression": "'a' \u003e= 'b'",
       "status": "passed",
-      "execution_time_ms": 1.135,
+      "execution_time_ms": 1.215,
       "expected": [
         {
           "type": "boolean",
@@ -6892,7 +6892,7 @@
       "description": "",
       "expression": "'A' \u003e= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.134666,
+      "execution_time_ms": 1.14975,
       "expected": [
         {
           "type": "boolean",
@@ -6906,7 +6906,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003e= @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 1.144709,
+      "execution_time_ms": 1.60525,
       "expected": [
         {
           "type": "boolean",
@@ -6920,7 +6920,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003e= @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 1.136333,
+      "execution_time_ms": 1.154834,
       "expected": [
         {
           "type": "boolean",
@@ -6934,7 +6934,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003e= @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 1.131292,
+      "execution_time_ms": 1.168458,
       "expected": [
         {
           "type": "boolean",
@@ -6948,7 +6948,7 @@
       "description": "",
       "expression": "1 \u003e= 1",
       "status": "passed",
-      "execution_time_ms": 1.132834,
+      "execution_time_ms": 1.145875,
       "expected": [
         {
           "type": "boolean",
@@ -6962,7 +6962,7 @@
       "description": "",
       "expression": "1.0 \u003e= 1.0",
       "status": "passed",
-      "execution_time_ms": 1.134166,
+      "execution_time_ms": 1.137542,
       "expected": [
         {
           "type": "boolean",
@@ -6976,7 +6976,7 @@
       "description": "",
       "expression": "'a' \u003e= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.135041,
+      "execution_time_ms": 1.437333,
       "expected": [
         {
           "type": "boolean",
@@ -6990,7 +6990,7 @@
       "description": "",
       "expression": "'A' \u003e= 'A'",
       "status": "passed",
-      "execution_time_ms": 1.1315,
+      "execution_time_ms": 1.207417,
       "expected": [
         {
           "type": "boolean",
@@ -7004,7 +7004,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003e= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.136708,
+      "execution_time_ms": 1.318959,
       "expected": [
         {
           "type": "boolean",
@@ -7018,7 +7018,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003e= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132041,
+      "execution_time_ms": 1.109291,
       "expected": [
         {
           "type": "boolean",
@@ -7032,7 +7032,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003e= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.133041,
+      "execution_time_ms": 1.23425,
       "expected": [
         {
           "type": "boolean",
@@ -7046,7 +7046,7 @@
       "description": "",
       "expression": "2 \u003e= 1",
       "status": "passed",
-      "execution_time_ms": 1.121875,
+      "execution_time_ms": 1.17725,
       "expected": [
         {
           "type": "boolean",
@@ -7060,7 +7060,7 @@
       "description": "",
       "expression": "1.1 \u003e= 1.0",
       "status": "passed",
-      "execution_time_ms": 1.141041,
+      "execution_time_ms": 1.163333,
       "expected": [
         {
           "type": "boolean",
@@ -7074,7 +7074,7 @@
       "description": "",
       "expression": "'b' \u003e= 'a'",
       "status": "passed",
-      "execution_time_ms": 1.119792,
+      "execution_time_ms": 1.192709,
       "expected": [
         {
           "type": "boolean",
@@ -7088,7 +7088,7 @@
       "description": "",
       "expression": "'B' \u003e= 'A'",
       "status": "passed",
-      "execution_time_ms": 1.136,
+      "execution_time_ms": 1.170875,
       "expected": [
         {
           "type": "boolean",
@@ -7102,7 +7102,7 @@
       "description": "",
       "expression": "@2014-12-13 \u003e= @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.132458,
+      "execution_time_ms": 1.200708,
       "expected": [
         {
           "type": "boolean",
@@ -7116,7 +7116,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:01 \u003e= @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.131958,
+      "execution_time_ms": 1.239416,
       "expected": [
         {
           "type": "boolean",
@@ -7130,7 +7130,7 @@
       "description": "",
       "expression": "@T12:00:01 \u003e= @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132084,
+      "execution_time_ms": 1.156958,
       "expected": [
         {
           "type": "boolean",
@@ -7144,7 +7144,7 @@
       "description": "",
       "expression": "Observation.value \u003e= 100 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.145542,
+      "execution_time_ms": 1.1485,
       "expected": [
         {
           "type": "boolean",
@@ -7158,7 +7158,7 @@
       "description": "",
       "expression": "@2018-03 \u003e= @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 1.1325,
+      "execution_time_ms": 1.148208,
       "expected": null,
       "actual": []
     },
@@ -7167,7 +7167,7 @@
       "description": "",
       "expression": "@2018-03-01T10 \u003e= @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 1.135709,
+      "execution_time_ms": 1.134459,
       "expected": null,
       "actual": []
     },
@@ -7176,7 +7176,7 @@
       "description": "",
       "expression": "@T10 \u003e= @T10:30",
       "status": "passed",
-      "execution_time_ms": 1.135583,
+      "execution_time_ms": 1.132833,
       "expected": null,
       "actual": []
     },
@@ -7185,7 +7185,7 @@
       "description": "",
       "expression": "@2018-03-01T10:30:00 \u003e= @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.134708,
+      "execution_time_ms": 1.138584,
       "expected": [
         {
           "type": "boolean",
@@ -7199,7 +7199,7 @@
       "description": "",
       "expression": "@T10:30:00 \u003e= @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.13275,
+      "execution_time_ms": 1.143958,
       "expected": [
         {
           "type": "boolean",
@@ -7213,7 +7213,7 @@
       "description": "",
       "expression": "1 \u003e 2",
       "status": "passed",
-      "execution_time_ms": 1.132334,
+      "execution_time_ms": 1.144166,
       "expected": [
         {
           "type": "boolean",
@@ -7227,7 +7227,7 @@
       "description": "",
       "expression": "1.0 \u003e 1.2",
       "status": "passed",
-      "execution_time_ms": 1.131958,
+      "execution_time_ms": 1.136167,
       "expected": [
         {
           "type": "boolean",
@@ -7241,7 +7241,7 @@
       "description": "",
       "expression": "'a' \u003e 'b'",
       "status": "passed",
-      "execution_time_ms": 1.1315,
+      "execution_time_ms": 1.150167,
       "expected": [
         {
           "type": "boolean",
@@ -7255,7 +7255,7 @@
       "description": "",
       "expression": "'A' \u003e 'a'",
       "status": "passed",
-      "execution_time_ms": 1.134625,
+      "execution_time_ms": 1.144459,
       "expected": [
         {
           "type": "boolean",
@@ -7269,7 +7269,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003e @2014-12-13",
       "status": "passed",
-      "execution_time_ms": 1.136667,
+      "execution_time_ms": 1.157209,
       "expected": [
         {
           "type": "boolean",
@@ -7283,7 +7283,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003e @2014-12-13T12:00:01",
       "status": "passed",
-      "execution_time_ms": 1.135167,
+      "execution_time_ms": 1.134833,
       "expected": [
         {
           "type": "boolean",
@@ -7297,7 +7297,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003e @T14:00:00",
       "status": "passed",
-      "execution_time_ms": 1.132583,
+      "execution_time_ms": 1.142666,
       "expected": [
         {
           "type": "boolean",
@@ -7311,7 +7311,7 @@
       "description": "",
       "expression": "1 \u003e 1",
       "status": "passed",
-      "execution_time_ms": 1.1315,
+      "execution_time_ms": 1.119458,
       "expected": [
         {
           "type": "boolean",
@@ -7325,7 +7325,7 @@
       "description": "",
       "expression": "1.0 \u003e 1.0",
       "status": "passed",
-      "execution_time_ms": 1.141791,
+      "execution_time_ms": 1.916875,
       "expected": [
         {
           "type": "boolean",
@@ -7339,7 +7339,7 @@
       "description": "",
       "expression": "'a' \u003e 'a'",
       "status": "passed",
-      "execution_time_ms": 1.134875,
+      "execution_time_ms": 1.5425,
       "expected": [
         {
           "type": "boolean",
@@ -7353,7 +7353,7 @@
       "description": "",
       "expression": "'A' \u003e 'A'",
       "status": "passed",
-      "execution_time_ms": 1.134917,
+      "execution_time_ms": 1.320791,
       "expected": [
         {
           "type": "boolean",
@@ -7367,7 +7367,7 @@
       "description": "",
       "expression": "@2014-12-12 \u003e @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.134958,
+      "execution_time_ms": 1.152958,
       "expected": [
         {
           "type": "boolean",
@@ -7381,7 +7381,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:00 \u003e @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135292,
+      "execution_time_ms": 1.401625,
       "expected": [
         {
           "type": "boolean",
@@ -7395,7 +7395,7 @@
       "description": "",
       "expression": "@T12:00:00 \u003e @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135834,
+      "execution_time_ms": 1.153875,
       "expected": [
         {
           "type": "boolean",
@@ -7409,7 +7409,7 @@
       "description": "",
       "expression": "2 \u003e 1",
       "status": "passed",
-      "execution_time_ms": 1.131834,
+      "execution_time_ms": 1.212125,
       "expected": [
         {
           "type": "boolean",
@@ -7423,7 +7423,7 @@
       "description": "",
       "expression": "1.1 \u003e 1.0",
       "status": "passed",
-      "execution_time_ms": 1.139291,
+      "execution_time_ms": 1.133334,
       "expected": [
         {
           "type": "boolean",
@@ -7437,7 +7437,7 @@
       "description": "",
       "expression": "'b' \u003e 'a'",
       "status": "passed",
-      "execution_time_ms": 1.132833,
+      "execution_time_ms": 1.287209,
       "expected": [
         {
           "type": "boolean",
@@ -7451,7 +7451,7 @@
       "description": "",
       "expression": "'B' \u003e 'A'",
       "status": "passed",
-      "execution_time_ms": 1.135834,
+      "execution_time_ms": 1.250791,
       "expected": [
         {
           "type": "boolean",
@@ -7465,7 +7465,7 @@
       "description": "",
       "expression": "@2014-12-13 \u003e @2014-12-12",
       "status": "passed",
-      "execution_time_ms": 1.134125,
+      "execution_time_ms": 1.178084,
       "expected": [
         {
           "type": "boolean",
@@ -7479,7 +7479,7 @@
       "description": "",
       "expression": "@2014-12-13T12:00:01 \u003e @2014-12-13T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.136042,
+      "execution_time_ms": 1.156125,
       "expected": [
         {
           "type": "boolean",
@@ -7493,7 +7493,7 @@
       "description": "",
       "expression": "@T12:00:01 \u003e @T12:00:00",
       "status": "passed",
-      "execution_time_ms": 1.135958,
+      "execution_time_ms": 1.157042,
       "expected": [
         {
           "type": "boolean",
@@ -7507,7 +7507,7 @@
       "description": "",
       "expression": "Observation.value \u003e 100 '[lb_av]'",
       "status": "passed",
-      "execution_time_ms": 1.135792,
+      "execution_time_ms": 1.168875,
       "expected": [
         {
           "type": "boolean",
@@ -7521,7 +7521,7 @@
       "description": "",
       "expression": "@2018-03 \u003e @2018-03-01",
       "status": "passed",
-      "execution_time_ms": 1.139875,
+      "execution_time_ms": 1.169167,
       "expected": null,
       "actual": []
     },
@@ -7530,7 +7530,7 @@
       "description": "",
       "expression": "@2018-03-01T10 \u003e @2018-03-01T10:30",
       "status": "passed",
-      "execution_time_ms": 1.133375,
+      "execution_time_ms": 1.069708,
       "expected": null,
       "actual": []
     },
@@ -7539,7 +7539,7 @@
       "description": "",
       "expression": "@T10 \u003e @T10:30",
       "status": "passed",
-      "execution_time_ms": 1.137333,
+      "execution_time_ms": 1.166292,
       "expected": null,
       "actual": []
     },
@@ -7548,7 +7548,7 @@
       "description": "",
       "expression": "@2018-03-01T10:30:00 \u003e @2018-03-01T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.135125,
+      "execution_time_ms": 1.144042,
       "expected": [
         {
           "type": "boolean",
@@ -7562,7 +7562,7 @@
       "description": "",
       "expression": "@T10:30:00 \u003e @T10:30:00.0",
       "status": "passed",
-      "execution_time_ms": 1.135667,
+      "execution_time_ms": 1.163166,
       "expected": [
         {
           "type": "boolean",
@@ -7576,7 +7576,7 @@
       "description": "",
       "expression": "(1 | 2 | 3).count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.135916,
+      "execution_time_ms": 1.164916,
       "expected": [
         {
           "type": "boolean",
@@ -7590,7 +7590,7 @@
       "description": "",
       "expression": "(1 | 2 | 2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 1.1335,
+      "execution_time_ms": 1.124375,
       "expected": [
         {
           "type": "boolean",
@@ -7604,7 +7604,7 @@
       "description": "",
       "expression": "(1|1).count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.134459,
+      "execution_time_ms": 1.492917,
       "expected": [
         {
           "type": "boolean",
@@ -7618,7 +7618,7 @@
       "description": "",
       "expression": "1.union(2).union(3).count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.141291,
+      "execution_time_ms": 1.155792,
       "expected": [
         {
           "type": "boolean",
@@ -7632,7 +7632,7 @@
       "description": "",
       "expression": "1.union(2.union(3)).count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.133041,
+      "execution_time_ms": 1.153375,
       "expected": [
         {
           "type": "boolean",
@@ -7646,7 +7646,7 @@
       "description": "",
       "expression": "(1 | 2).combine(2).count() = 3",
       "status": "passed",
-      "execution_time_ms": 1.136667,
+      "execution_time_ms": 1.1545,
       "expected": [
         {
           "type": "boolean",
@@ -7660,7 +7660,7 @@
       "description": "",
       "expression": "1.combine(1).count() = 2",
       "status": "passed",
-      "execution_time_ms": 1.13275,
+      "execution_time_ms": 1.164709,
       "expected": [
         {
           "type": "boolean",
@@ -7674,7 +7674,7 @@
       "description": "",
       "expression": "1.combine(1).union(2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 1.135875,
+      "execution_time_ms": 1.149,
       "expected": [
         {
           "type": "boolean",
@@ -7688,7 +7688,7 @@
       "description": "",
       "expression": "(1 | 2 | 3).intersect(2 | 4) = 2",
       "status": "passed",
-      "execution_time_ms": 1.132209,
+      "execution_time_ms": 1.137625,
       "expected": [
         {
           "type": "boolean",
@@ -7702,7 +7702,7 @@
       "description": "",
       "expression": "(1 | 2).intersect(4).empty()",
       "status": "passed",
-      "execution_time_ms": 1.133459,
+      "execution_time_ms": 1.039166,
       "expected": [
         {
           "type": "boolean",
@@ -7716,7 +7716,7 @@
       "description": "",
       "expression": "(1 | 2).intersect({}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.13825,
+      "execution_time_ms": 1.136083,
       "expected": [
         {
           "type": "boolean",
@@ -7730,7 +7730,7 @@
       "description": "",
       "expression": "1.combine(1).intersect(1).count() = 1",
       "status": "passed",
-      "execution_time_ms": 1.135666,
+      "execution_time_ms": 1.1405,
       "expected": [
         {
           "type": "boolean",
@@ -7744,7 +7744,7 @@
       "description": "",
       "expression": "(1 | 2 | 3).exclude(2 | 4) = 1 | 3",
       "status": "passed",
-      "execution_time_ms": 1.132875,
+      "execution_time_ms": 1.150625,
       "expected": [
         {
           "type": "boolean",
@@ -7758,7 +7758,7 @@
       "description": "",
       "expression": "(1 | 2).exclude(4) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 1.141208,
+      "execution_time_ms": 1.38225,
       "expected": [
         {
           "type": "boolean",
@@ -7772,7 +7772,7 @@
       "description": "",
       "expression": "(1 | 2).exclude({}) = 1 | 2",
       "status": "passed",
-      "execution_time_ms": 1.153959,
+      "execution_time_ms": 1.239667,
       "expected": [
         {
           "type": "boolean",
@@ -7786,7 +7786,7 @@
       "description": "",
       "expression": "1.combine(1).exclude(2).count() = 2",
       "status": "passed",
-      "execution_time_ms": 1.133208,
+      "execution_time_ms": 1.583708,
       "expected": [
         {
           "type": "boolean",
@@ -7800,7 +7800,7 @@
       "description": "",
       "expression": "1 in (1 | 2 | 3)",
       "status": "passed",
-      "execution_time_ms": 1.138625,
+      "execution_time_ms": 1.503667,
       "expected": [
         {
           "type": "boolean",
@@ -7814,7 +7814,7 @@
       "description": "",
       "expression": "1 in (2 | 3)",
       "status": "passed",
-      "execution_time_ms": 1.133334,
+      "execution_time_ms": 1.188917,
       "expected": [
         {
           "type": "boolean",
@@ -7828,7 +7828,7 @@
       "description": "",
       "expression": "'a' in ('a' | 'c' | 'd')",
       "status": "passed",
-      "execution_time_ms": 1.140584,
+      "execution_time_ms": 1.210125,
       "expected": [
         {
           "type": "boolean",
@@ -7842,7 +7842,7 @@
       "description": "",
       "expression": "'b' in ('a' | 'c' | 'd')",
       "status": "passed",
-      "execution_time_ms": 1.137167,
+      "execution_time_ms": 1.8665,
       "expected": [
         {
           "type": "boolean",
@@ -7856,7 +7856,7 @@
       "description": "",
       "expression": "(1 | 2 | 3) contains 1",
       "status": "passed",
-      "execution_time_ms": 1.132958,
+      "execution_time_ms": 1.187416,
       "expected": [
         {
           "type": "boolean",
@@ -7870,7 +7870,7 @@
       "description": "",
       "expression": "(2 | 3) contains 1 ",
       "status": "passed",
-      "execution_time_ms": 1.136166,
+      "execution_time_ms": 1.155416,
       "expected": [
         {
           "type": "boolean",
@@ -7884,7 +7884,7 @@
       "description": "",
       "expression": "('a' | 'c' | 'd') contains 'a'",
       "status": "passed",
-      "execution_time_ms": 1.136458,
+      "execution_time_ms": 1.193833,
       "expected": [
         {
           "type": "boolean",
@@ -7898,7 +7898,7 @@
       "description": "",
       "expression": "('a' | 'c' | 'd') contains 'b'",
       "status": "passed",
-      "execution_time_ms": 1.131583,
+      "execution_time_ms": 1.16,
       "expected": [
         {
           "type": "boolean",
@@ -7912,7 +7912,7 @@
       "description": "",
       "expression": "(true and true) = true",
       "status": "passed",
-      "execution_time_ms": 1.136333,
+      "execution_time_ms": 1.182541,
       "expected": [
         {
           "type": "boolean",
@@ -7926,7 +7926,7 @@
       "description": "",
       "expression": "(true and false) = false",
       "status": "passed",
-      "execution_time_ms": 1.132292,
+      "execution_time_ms": 1.204125,
       "expected": [
         {
           "type": "boolean",
@@ -7940,7 +7940,7 @@
       "description": "",
       "expression": "(true and {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.136625,
+      "execution_time_ms": 1.164333,
       "expected": [
         {
           "type": "boolean",
@@ -7954,7 +7954,7 @@
       "description": "",
       "expression": "(false and true) = false",
       "status": "passed",
-      "execution_time_ms": 1.1335,
+      "execution_time_ms": 1.159709,
       "expected": [
         {
           "type": "boolean",
@@ -7968,7 +7968,7 @@
       "description": "",
       "expression": "(false and false) = false",
       "status": "passed",
-      "execution_time_ms": 1.135625,
+      "execution_time_ms": 1.139875,
       "expected": [
         {
           "type": "boolean",
@@ -7982,7 +7982,7 @@
       "description": "",
       "expression": "(false and {}) = false",
       "status": "passed",
-      "execution_time_ms": 1.1365,
+      "execution_time_ms": 1.140292,
       "expected": [
         {
           "type": "boolean",
@@ -7996,7 +7996,7 @@
       "description": "",
       "expression": "({} and true).empty()",
       "status": "passed",
-      "execution_time_ms": 1.134958,
+      "execution_time_ms": 1.154666,
       "expected": [
         {
           "type": "boolean",
@@ -8010,7 +8010,7 @@
       "description": "",
       "expression": "({} and false) = false",
       "status": "passed",
-      "execution_time_ms": 1.1365,
+      "execution_time_ms": 1.159583,
       "expected": [
         {
           "type": "boolean",
@@ -8024,7 +8024,7 @@
       "description": "",
       "expression": "({} and {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.132792,
+      "execution_time_ms": 1.179584,
       "expected": [
         {
           "type": "boolean",
@@ -8038,7 +8038,7 @@
       "description": "",
       "expression": "(true or true) = true",
       "status": "passed",
-      "execution_time_ms": 1.136959,
+      "execution_time_ms": 1.169,
       "expected": [
         {
           "type": "boolean",
@@ -8052,7 +8052,7 @@
       "description": "",
       "expression": "(true or false) = true",
       "status": "passed",
-      "execution_time_ms": 1.136208,
+      "execution_time_ms": 1.154584,
       "expected": [
         {
           "type": "boolean",
@@ -8066,7 +8066,7 @@
       "description": "",
       "expression": "(true or {}) = true",
       "status": "passed",
-      "execution_time_ms": 1.134917,
+      "execution_time_ms": 1.148375,
       "expected": [
         {
           "type": "boolean",
@@ -8080,7 +8080,7 @@
       "description": "",
       "expression": "(false or true) = true",
       "status": "passed",
-      "execution_time_ms": 1.136167,
+      "execution_time_ms": 1.144583,
       "expected": [
         {
           "type": "boolean",
@@ -8094,7 +8094,7 @@
       "description": "",
       "expression": "(false or false) = false",
       "status": "passed",
-      "execution_time_ms": 1.133333,
+      "execution_time_ms": 1.151166,
       "expected": [
         {
           "type": "boolean",
@@ -8108,7 +8108,7 @@
       "description": "",
       "expression": "(false or {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.133792,
+      "execution_time_ms": 1.157333,
       "expected": [
         {
           "type": "boolean",
@@ -8122,7 +8122,7 @@
       "description": "",
       "expression": "({} or true) = true",
       "status": "passed",
-      "execution_time_ms": 1.13675,
+      "execution_time_ms": 1.10025,
       "expected": [
         {
           "type": "boolean",
@@ -8136,7 +8136,7 @@
       "description": "",
       "expression": "({} or false).empty()",
       "status": "passed",
-      "execution_time_ms": 1.136417,
+      "execution_time_ms": 1.138666,
       "expected": [
         {
           "type": "boolean",
@@ -8150,7 +8150,7 @@
       "description": "",
       "expression": "({} or {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.137625,
+      "execution_time_ms": 1.170416,
       "expected": [
         {
           "type": "boolean",
@@ -8164,7 +8164,7 @@
       "description": "",
       "expression": "(true xor true) = false",
       "status": "passed",
-      "execution_time_ms": 1.135208,
+      "execution_time_ms": 1.148208,
       "expected": [
         {
           "type": "boolean",
@@ -8178,7 +8178,7 @@
       "description": "",
       "expression": "(true xor false) = true",
       "status": "passed",
-      "execution_time_ms": 1.135084,
+      "execution_time_ms": 1.3095,
       "expected": [
         {
           "type": "boolean",
@@ -8192,7 +8192,7 @@
       "description": "",
       "expression": "(true xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.134791,
+      "execution_time_ms": 1.676875,
       "expected": [
         {
           "type": "boolean",
@@ -8206,7 +8206,7 @@
       "description": "",
       "expression": "(false xor true) = true",
       "status": "passed",
-      "execution_time_ms": 1.134791,
+      "execution_time_ms": 1.153167,
       "expected": [
         {
           "type": "boolean",
@@ -8220,7 +8220,7 @@
       "description": "",
       "expression": "(false xor false) = false",
       "status": "passed",
-      "execution_time_ms": 1.133125,
+      "execution_time_ms": 1.221417,
       "expected": [
         {
           "type": "boolean",
@@ -8234,7 +8234,7 @@
       "description": "",
       "expression": "(false xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.133958,
+      "execution_time_ms": 1.149458,
       "expected": [
         {
           "type": "boolean",
@@ -8248,7 +8248,7 @@
       "description": "",
       "expression": "({} xor true).empty()",
       "status": "passed",
-      "execution_time_ms": 1.133208,
+      "execution_time_ms": 1.139417,
       "expected": [
         {
           "type": "boolean",
@@ -8262,7 +8262,7 @@
       "description": "",
       "expression": "({} xor false).empty()",
       "status": "passed",
-      "execution_time_ms": 1.136917,
+      "execution_time_ms": 1.225291,
       "expected": [
         {
           "type": "boolean",
@@ -8276,7 +8276,7 @@
       "description": "",
       "expression": "({} xor {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.13675,
+      "execution_time_ms": 1.156167,
       "expected": [
         {
           "type": "boolean",
@@ -8290,7 +8290,7 @@
       "description": "",
       "expression": "(true implies true) = true",
       "status": "passed",
-      "execution_time_ms": 1.135917,
+      "execution_time_ms": 1.166541,
       "expected": [
         {
           "type": "boolean",
@@ -8304,7 +8304,7 @@
       "description": "",
       "expression": "(true implies false) = false",
       "status": "passed",
-      "execution_time_ms": 1.143291,
+      "execution_time_ms": 1.148917,
       "expected": [
         {
           "type": "boolean",
@@ -8318,7 +8318,7 @@
       "description": "",
       "expression": "(true implies {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.133792,
+      "execution_time_ms": 1.146291,
       "expected": [
         {
           "type": "boolean",
@@ -8332,7 +8332,7 @@
       "description": "",
       "expression": "(false implies true) = true",
       "status": "passed",
-      "execution_time_ms": 1.134375,
+      "execution_time_ms": 1.174958,
       "expected": [
         {
           "type": "boolean",
@@ -8346,7 +8346,7 @@
       "description": "",
       "expression": "(false implies false) = true",
       "status": "passed",
-      "execution_time_ms": 1.133333,
+      "execution_time_ms": 1.237333,
       "expected": [
         {
           "type": "boolean",
@@ -8360,7 +8360,7 @@
       "description": "",
       "expression": "(false implies {}) = true",
       "status": "passed",
-      "execution_time_ms": 1.133584,
+      "execution_time_ms": 1.179041,
       "expected": [
         {
           "type": "boolean",
@@ -8374,7 +8374,7 @@
       "description": "",
       "expression": "({} implies true) = true",
       "status": "passed",
-      "execution_time_ms": 1.136042,
+      "execution_time_ms": 1.15975,
       "expected": [
         {
           "type": "boolean",
@@ -8388,7 +8388,7 @@
       "description": "",
       "expression": "({} implies false).empty()",
       "status": "passed",
-      "execution_time_ms": 1.132917,
+      "execution_time_ms": 1.181916,
       "expected": [
         {
           "type": "boolean",
@@ -8402,7 +8402,7 @@
       "description": "",
       "expression": "({} implies {}).empty()",
       "status": "passed",
-      "execution_time_ms": 1.154291,
+      "execution_time_ms": 1.145333,
       "expected": [
         {
           "type": "boolean",
@@ -8416,7 +8416,7 @@
       "description": "",
       "expression": "1 + 1 = 2",
       "status": "passed",
-      "execution_time_ms": 1.133041,
+      "execution_time_ms": 1.150209,
       "expected": [
         {
           "type": "boolean",
@@ -8430,7 +8430,7 @@
       "description": "",
       "expression": "1 + 0 = 1",
       "status": "passed",
-      "execution_time_ms": 1.137417,
+      "execution_time_ms": 1.139958,
       "expected": [
         {
           "type": "boolean",
@@ -8444,7 +8444,7 @@
       "description": "",
       "expression": "1.2 + 1.8 = 3.0",
       "status": "passed",
-      "execution_time_ms": 1.137334,
+      "execution_time_ms": 1.1365,
       "expected": [
         {
           "type": "boolean",
@@ -8458,7 +8458,7 @@
       "description": "",
       "expression": "'a'+'b' = 'ab'",
       "status": "passed",
-      "execution_time_ms": 1.13825,
+      "execution_time_ms": 1.143208,
       "expected": [
         {
           "type": "boolean",
@@ -8472,7 +8472,7 @@
       "description": "",
       "expression": "'a' \u0026 'b' = 'ab'",
       "status": "passed",
-      "execution_time_ms": 1.137417,
+      "execution_time_ms": 1.135666,
       "expected": [
         {
           "type": "boolean",
@@ -8486,7 +8486,7 @@
       "description": "",
       "expression": "'1' \u0026 {} = '1'",
       "status": "passed",
-      "execution_time_ms": 1.135,
+      "execution_time_ms": 1.1385,
       "expected": [
         {
           "type": "boolean",
@@ -8500,7 +8500,7 @@
       "description": "",
       "expression": "{} \u0026 'b' = 'b'",
       "status": "passed",
-      "execution_time_ms": 1.13725,
+      "execution_time_ms": 1.156542,
       "expected": [
         {
           "type": "boolean",
@@ -8514,7 +8514,7 @@
       "description": "",
       "expression": "1 - 1 = 0",
       "status": "passed",
-      "execution_time_ms": 1.138084,
+      "execution_time_ms": 1.148125,
       "expected": [
         {
           "type": "boolean",
@@ -8528,7 +8528,7 @@
       "description": "",
       "expression": "1 - 0 = 1",
       "status": "passed",
-      "execution_time_ms": 1.137084,
+      "execution_time_ms": 1.143042,
       "expected": [
         {
           "type": "boolean",
@@ -8542,7 +8542,7 @@
       "description": "",
       "expression": "1.8 - 1.2 = 0.6",
       "status": "passed",
-      "execution_time_ms": 1.137,
+      "execution_time_ms": 1.143084,
       "expected": [
         {
           "type": "boolean",
@@ -8556,7 +8556,7 @@
       "description": "",
       "expression": "1 * 1 = 1",
       "status": "passed",
-      "execution_time_ms": 1.090542,
+      "execution_time_ms": 1.152292,
       "expected": [
         {
           "type": "boolean",
@@ -8570,7 +8570,7 @@
       "description": "",
       "expression": "1 * 0 = 0",
       "status": "passed",
-      "execution_time_ms": 1.139375,
+      "execution_time_ms": 1.143125,
       "expected": [
         {
           "type": "boolean",
@@ -8584,7 +8584,7 @@
       "description": "",
       "expression": "1.2 * 1.8 = 2.16",
       "status": "passed",
-      "execution_time_ms": 1.135166,
+      "execution_time_ms": 1.133459,
       "expected": [
         {
           "type": "boolean",
@@ -8598,7 +8598,7 @@
       "description": "",
       "expression": "1 / 1 = 1",
       "status": "passed",
-      "execution_time_ms": 1.162625,
+      "execution_time_ms": 1.093167,
       "expected": [
         {
           "type": "boolean",
@@ -8612,7 +8612,7 @@
       "description": "",
       "expression": "4 / 2 = 2",
       "status": "passed",
-      "execution_time_ms": 1.135625,
+      "execution_time_ms": 1.152416,
       "expected": [
         {
           "type": "boolean",
@@ -8626,7 +8626,7 @@
       "description": "",
       "expression": "4.0 / 2.0 = 2.0",
       "status": "passed",
-      "execution_time_ms": 1.1355,
+      "execution_time_ms": 1.1455,
       "expected": [
         {
           "type": "boolean",
@@ -8640,7 +8640,7 @@
       "description": "",
       "expression": "1 / 2 = 0.5",
       "status": "passed",
-      "execution_time_ms": 1.13875,
+      "execution_time_ms": 1.145792,
       "expected": [
         {
           "type": "boolean",
@@ -8654,7 +8654,7 @@
       "description": "",
       "expression": "1.2 / 1.8 = 0.66666667",
       "status": "passed",
-      "execution_time_ms": 1.133416,
+      "execution_time_ms": 1.151792,
       "expected": [
         {
           "type": "boolean",
@@ -8668,7 +8668,7 @@
       "description": "",
       "expression": "1 / 0",
       "status": "passed",
-      "execution_time_ms": 1.1345,
+      "execution_time_ms": 1.162708,
       "expected": null,
       "actual": []
     },
@@ -8677,7 +8677,7 @@
       "description": "",
       "expression": "1 div 1 = 1",
       "status": "passed",
-      "execution_time_ms": 1.134958,
+      "execution_time_ms": 1.137875,
       "expected": [
         {
           "type": "boolean",
@@ -8691,7 +8691,7 @@
       "description": "",
       "expression": "4 div 2 = 2",
       "status": "passed",
-      "execution_time_ms": 1.137875,
+      "execution_time_ms": 1.071416,
       "expected": [
         {
           "type": "boolean",
@@ -8705,7 +8705,7 @@
       "description": "",
       "expression": "5 div 2 = 2",
       "status": "passed",
-      "execution_time_ms": 1.137084,
+      "execution_time_ms": 1.157958,
       "expected": [
         {
           "type": "boolean",
@@ -8719,7 +8719,7 @@
       "description": "",
       "expression": "2.2 div 1.8 = 1",
       "status": "passed",
-      "execution_time_ms": 1.134625,
+      "execution_time_ms": 1.16925,
       "expected": [
         {
           "type": "boolean",
@@ -8733,7 +8733,7 @@
       "description": "",
       "expression": "5 div 0",
       "status": "passed",
-      "execution_time_ms": 1.137,
+      "execution_time_ms": 1.4085,
       "expected": null,
       "actual": []
     },
@@ -8742,7 +8742,7 @@
       "description": "",
       "expression": "1 mod 1 = 0",
       "status": "passed",
-      "execution_time_ms": 1.138084,
+      "execution_time_ms": 1.967375,
       "expected": [
         {
           "type": "boolean",
@@ -8756,7 +8756,7 @@
       "description": "",
       "expression": "4 mod 2 = 0",
       "status": "passed",
-      "execution_time_ms": 1.137583,
+      "execution_time_ms": 1.148625,
       "expected": [
         {
           "type": "boolean",
@@ -8770,7 +8770,7 @@
       "description": "",
       "expression": "5 mod 2 = 1",
       "status": "passed",
-      "execution_time_ms": 1.136708,
+      "execution_time_ms": 1.103167,
       "expected": [
         {
           "type": "boolean",
@@ -8784,7 +8784,7 @@
       "description": "",
       "expression": "2.2 mod 1.8 = 0.4",
       "status": "passed",
-      "execution_time_ms": 1.138583,
+      "execution_time_ms": 1.132584,
       "expected": [
         {
           "type": "boolean",
@@ -8798,7 +8798,7 @@
       "description": "",
       "expression": "5 mod 0",
       "status": "passed",
-      "execution_time_ms": 1.138959,
+      "execution_time_ms": 1.139166,
       "expected": null,
       "actual": []
     },
@@ -8807,7 +8807,7 @@
       "description": "",
       "expression": "1.round() = 1",
       "status": "passed",
-      "execution_time_ms": 1.138458,
+      "execution_time_ms": 1.145584,
       "expected": [
         {
           "type": "boolean",
@@ -8819,9 +8819,9 @@
     {
       "name": "testRound2",
       "description": "",
-      "expression": "3.14159.round(3) = 2",
+      "expression": "3.14159.round(3) = 3.142",
       "status": "passed",
-      "execution_time_ms": 1.152709,
+      "execution_time_ms": 1.147333,
       "expected": [
         {
           "type": "boolean",
@@ -8835,7 +8835,7 @@
       "description": "",
       "expression": "81.sqrt() = 9.0",
       "status": "passed",
-      "execution_time_ms": 1.136417,
+      "execution_time_ms": 1.162791,
       "expected": [
         {
           "type": "boolean",
@@ -8849,7 +8849,7 @@
       "description": "",
       "expression": "(-1).sqrt()",
       "status": "passed",
-      "execution_time_ms": 1.138083,
+      "execution_time_ms": 1.150375,
       "expected": null,
       "actual": []
     },
@@ -8858,7 +8858,7 @@
       "description": "",
       "expression": "(-5).abs() = 5",
       "status": "passed",
-      "execution_time_ms": 1.040916,
+      "execution_time_ms": 1.15475,
       "expected": [
         {
           "type": "boolean",
@@ -8872,7 +8872,7 @@
       "description": "",
       "expression": "(-5.5).abs() = 5.5",
       "status": "passed",
-      "execution_time_ms": 1.136083,
+      "execution_time_ms": 1.151416,
       "expected": [
         {
           "type": "boolean",
@@ -8886,7 +8886,7 @@
       "description": "",
       "expression": "(-5.5 'mg').abs() = 5.5 'mg'",
       "status": "passed",
-      "execution_time_ms": 1.141208,
+      "execution_time_ms": 1.14075,
       "expected": [
         {
           "type": "boolean",
@@ -8900,7 +8900,7 @@
       "description": "",
       "expression": "1.ceiling() = 1",
       "status": "passed",
-      "execution_time_ms": 1.14125,
+      "execution_time_ms": 1.150625,
       "expected": [
         {
           "type": "boolean",
@@ -8914,7 +8914,7 @@
       "description": "",
       "expression": "(-1.1).ceiling() = -1",
       "status": "passed",
-      "execution_time_ms": 1.139292,
+      "execution_time_ms": 1.139083,
       "expected": [
         {
           "type": "boolean",
@@ -8928,7 +8928,7 @@
       "description": "",
       "expression": "1.1.ceiling() = 2",
       "status": "passed",
-      "execution_time_ms": 1.136,
+      "execution_time_ms": 1.139292,
       "expected": [
         {
           "type": "boolean",
@@ -8942,7 +8942,7 @@
       "description": "",
       "expression": "0.exp() = 1",
       "status": "passed",
-      "execution_time_ms": 1.136083,
+      "execution_time_ms": 1.136125,
       "expected": [
         {
           "type": "boolean",
@@ -8956,7 +8956,7 @@
       "description": "",
       "expression": "(-0.0).exp() = 1",
       "status": "passed",
-      "execution_time_ms": 1.138541,
+      "execution_time_ms": 1.145834,
       "expected": [
         {
           "type": "boolean",
@@ -8970,7 +8970,7 @@
       "description": "",
       "expression": "1.floor() = 1",
       "status": "passed",
-      "execution_time_ms": 1.134833,
+      "execution_time_ms": 1.133084,
       "expected": [
         {
           "type": "boolean",
@@ -8984,7 +8984,7 @@
       "description": "",
       "expression": "2.1.floor() = 2",
       "status": "passed",
-      "execution_time_ms": 1.139625,
+      "execution_time_ms": 1.1425,
       "expected": [
         {
           "type": "boolean",
@@ -8998,7 +8998,7 @@
       "description": "",
       "expression": "(-2.1).floor() = -3",
       "status": "passed",
-      "execution_time_ms": 1.136583,
+      "execution_time_ms": 1.14825,
       "expected": [
         {
           "type": "boolean",
@@ -9012,7 +9012,7 @@
       "description": "",
       "expression": "1.ln() = 0.0",
       "status": "passed",
-      "execution_time_ms": 1.135708,
+      "execution_time_ms": 1.080291,
       "expected": [
         {
           "type": "boolean",
@@ -9026,7 +9026,7 @@
       "description": "",
       "expression": "1.0.ln() = 0.0",
       "status": "passed",
-      "execution_time_ms": 1.1385,
+      "execution_time_ms": 1.142916,
       "expected": [
         {
           "type": "boolean",
@@ -9040,7 +9040,7 @@
       "description": "",
       "expression": "16.log(2) = 4.0",
       "status": "passed",
-      "execution_time_ms": 1.138125,
+      "execution_time_ms": 1.138917,
       "expected": [
         {
           "type": "boolean",
@@ -9054,7 +9054,7 @@
       "description": "",
       "expression": "100.0.log(10.0) = 2.0",
       "status": "passed",
-      "execution_time_ms": 1.139292,
+      "execution_time_ms": 1.134875,
       "expected": [
         {
           "type": "boolean",
@@ -9068,7 +9068,7 @@
       "description": "",
       "expression": "2.power(3) = 8",
       "status": "passed",
-      "execution_time_ms": 1.138959,
+      "execution_time_ms": 1.140916,
       "expected": [
         {
           "type": "boolean",
@@ -9082,7 +9082,7 @@
       "description": "",
       "expression": "2.5.power(2) = 6.25",
       "status": "passed",
-      "execution_time_ms": 1.13875,
+      "execution_time_ms": 1.143292,
       "expected": [
         {
           "type": "boolean",
@@ -9096,7 +9096,7 @@
       "description": "",
       "expression": "(-1).power(0.5)",
       "status": "passed",
-      "execution_time_ms": 1.139333,
+      "execution_time_ms": 1.1595,
       "expected": null,
       "actual": []
     },
@@ -9105,7 +9105,7 @@
       "description": "",
       "expression": "101.truncate() = 101",
       "status": "passed",
-      "execution_time_ms": 1.136875,
+      "execution_time_ms": 1.141292,
       "expected": [
         {
           "type": "boolean",
@@ -9119,7 +9119,7 @@
       "description": "",
       "expression": "1.00000001.truncate() = 1",
       "status": "passed",
-      "execution_time_ms": 1.136375,
+      "execution_time_ms": 1.147875,
       "expected": [
         {
           "type": "boolean",
@@ -9133,7 +9133,7 @@
       "description": "",
       "expression": "(-1.56).truncate() = -1",
       "status": "passed",
-      "execution_time_ms": 1.135334,
+      "execution_time_ms": 1.171084,
       "expected": [
         {
           "type": "boolean",
@@ -9147,7 +9147,7 @@
       "description": "",
       "expression": "1+2*3+4 = 11",
       "status": "passed",
-      "execution_time_ms": 1.140333,
+      "execution_time_ms": 1.137583,
       "expected": [
         {
           "type": "boolean",
@@ -9161,7 +9161,7 @@
       "description": "",
       "expression": "1 \u003e 2 is Boolean",
       "status": "passed",
-      "execution_time_ms": 1.1375,
+      "execution_time_ms": 1.145791,
       "expected": [
         {
           "type": "boolean",
@@ -9175,7 +9175,7 @@
       "description": "",
       "expression": "1 | 1 is Integer",
       "status": "passed",
-      "execution_time_ms": 1.136792,
+      "execution_time_ms": 1.1375,
       "expected": [
         {
           "type": "boolean",
@@ -9189,7 +9189,7 @@
       "description": "",
       "expression": "%sct = 'http://snomed.info/sct'",
       "status": "passed",
-      "execution_time_ms": 1.136958,
+      "execution_time_ms": 1.08225,
       "expected": [
         {
           "type": "boolean",
@@ -9203,7 +9203,7 @@
       "description": "",
       "expression": "%loinc = 'http://loinc.org'",
       "status": "passed",
-      "execution_time_ms": 1.139166,
+      "execution_time_ms": 1.136625,
       "expected": [
         {
           "type": "boolean",
@@ -9217,7 +9217,7 @@
       "description": "",
       "expression": "%ucum = 'http://unitsofmeasure.org'",
       "status": "passed",
-      "execution_time_ms": 1.144208,
+      "execution_time_ms": 1.038709,
       "expected": [
         {
           "type": "boolean",
@@ -9231,7 +9231,7 @@
       "description": "",
       "expression": "%`vs-administrative-gender` = 'http://hl7.org/fhir/ValueSet/administrative-gender'",
       "status": "passed",
-      "execution_time_ms": 1.139042,
+      "execution_time_ms": 1.164958,
       "expected": [
         {
           "type": "boolean",
@@ -9245,7 +9245,7 @@
       "description": "",
       "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime').exists()",
       "status": "passed",
-      "execution_time_ms": 1.141458,
+      "execution_time_ms": 1.13825,
       "expected": [
         {
           "type": "boolean",
@@ -9259,7 +9259,7 @@
       "description": "",
       "expression": "Patient.birthDate.extension(%`ext-patient-birthTime`).exists()",
       "status": "passed",
-      "execution_time_ms": 1.141125,
+      "execution_time_ms": 1.139209,
       "expected": [
         {
           "type": "boolean",
@@ -9273,7 +9273,7 @@
       "description": "",
       "expression": "Patient.birthDate.extension('http://hl7.org/fhir/StructureDefinition/patient-birthTime1').empty()",
       "status": "passed",
-      "execution_time_ms": 1.140417,
+      "execution_time_ms": 1.145416,
       "expected": [
         {
           "type": "boolean",
@@ -9287,7 +9287,7 @@
       "description": "",
       "expression": "1.type().namespace = 'System'",
       "status": "passed",
-      "execution_time_ms": 1.139,
+      "execution_time_ms": 1.1615,
       "expected": [
         {
           "type": "boolean",
@@ -9301,7 +9301,7 @@
       "description": "",
       "expression": "1.type().name = 'Integer'",
       "status": "passed",
-      "execution_time_ms": 1.139167,
+      "execution_time_ms": 1.147167,
       "expected": [
         {
           "type": "boolean",
@@ -9315,7 +9315,7 @@
       "description": "",
       "expression": "true.type().namespace = 'System'",
       "status": "passed",
-      "execution_time_ms": 1.145625,
+      "execution_time_ms": 1.172166,
       "expected": [
         {
           "type": "boolean",
@@ -9329,7 +9329,7 @@
       "description": "",
       "expression": "true.type().name = 'Boolean'",
       "status": "passed",
-      "execution_time_ms": 1.141125,
+      "execution_time_ms": 1.143708,
       "expected": [
         {
           "type": "boolean",
@@ -9343,7 +9343,7 @@
       "description": "",
       "expression": "true.is(Boolean)",
       "status": "passed",
-      "execution_time_ms": 1.142958,
+      "execution_time_ms": 1.181208,
       "expected": [
         {
           "type": "boolean",
@@ -9357,7 +9357,7 @@
       "description": "",
       "expression": "true.is(System.Boolean)",
       "status": "passed",
-      "execution_time_ms": 1.142333,
+      "execution_time_ms": 1.227709,
       "expected": [
         {
           "type": "boolean",
@@ -9371,7 +9371,7 @@
       "description": "",
       "expression": "true is Boolean",
       "status": "passed",
-      "execution_time_ms": 1.140833,
+      "execution_time_ms": 14.217583,
       "expected": [
         {
           "type": "boolean",
@@ -9385,7 +9385,7 @@
       "description": "",
       "expression": "true is System.Boolean",
       "status": "passed",
-      "execution_time_ms": 1.140708,
+      "execution_time_ms": 1.103083,
       "expected": [
         {
           "type": "boolean",
@@ -9399,7 +9399,7 @@
       "description": "",
       "expression": "Patient.active.type().namespace = 'FHIR'",
       "status": "passed",
-      "execution_time_ms": 1.143458,
+      "execution_time_ms": 1.152292,
       "expected": [
         {
           "type": "boolean",
@@ -9413,7 +9413,7 @@
       "description": "",
       "expression": "Patient.active.type().name = 'boolean'",
       "status": "passed",
-      "execution_time_ms": 1.142167,
+      "execution_time_ms": 1.225542,
       "expected": [
         {
           "type": "boolean",
@@ -9427,7 +9427,7 @@
       "description": "",
       "expression": "Patient.active.is(boolean)",
       "status": "passed",
-      "execution_time_ms": 1.140916,
+      "execution_time_ms": 3.558291,
       "expected": [
         {
           "type": "boolean",
@@ -9441,7 +9441,7 @@
       "description": "",
       "expression": "Patient.active.is(Boolean).not()",
       "status": "passed",
-      "execution_time_ms": 1.139875,
+      "execution_time_ms": 1.217125,
       "expected": [
         {
           "type": "boolean",
@@ -9455,7 +9455,7 @@
       "description": "",
       "expression": "Patient.active.is(FHIR.boolean)",
       "status": "passed",
-      "execution_time_ms": 1.142417,
+      "execution_time_ms": 1.281084,
       "expected": [
         {
           "type": "boolean",
@@ -9469,7 +9469,7 @@
       "description": "",
       "expression": "Patient.active.is(System.Boolean).not()",
       "status": "passed",
-      "execution_time_ms": 1.140167,
+      "execution_time_ms": 1.431125,
       "expected": [
         {
           "type": "boolean",
@@ -9483,7 +9483,7 @@
       "description": "",
       "expression": "Patient.type().namespace = 'FHIR'",
       "status": "passed",
-      "execution_time_ms": 1.138375,
+      "execution_time_ms": 1.150417,
       "expected": [
         {
           "type": "boolean",
@@ -9497,7 +9497,7 @@
       "description": "",
       "expression": "Patient.type().name = 'Patient'",
       "status": "passed",
-      "execution_time_ms": 1.14325,
+      "execution_time_ms": 1.156209,
       "expected": [
         {
           "type": "boolean",
@@ -9511,7 +9511,7 @@
       "description": "",
       "expression": "Patient.is(Patient)",
       "status": "passed",
-      "execution_time_ms": 1.141417,
+      "execution_time_ms": 1.135708,
       "expected": [
         {
           "type": "boolean",
@@ -9525,7 +9525,7 @@
       "description": "",
       "expression": "Patient.is(FHIR.Patient)",
       "status": "passed",
-      "execution_time_ms": 1.143125,
+      "execution_time_ms": 1.190875,
       "expected": [
         {
           "type": "boolean",
@@ -9539,7 +9539,7 @@
       "description": "",
       "expression": "Patient.is(FHIR.`Patient`)",
       "status": "passed",
-      "execution_time_ms": 1.138958,
+      "execution_time_ms": 1.13875,
       "expected": [
         {
           "type": "boolean",
@@ -9553,7 +9553,7 @@
       "description": "",
       "expression": "Patient.ofType(Patient).type().name",
       "status": "passed",
-      "execution_time_ms": 1.1405,
+      "execution_time_ms": 1.145917,
       "expected": [
         {
           "type": "string",
@@ -9567,7 +9567,7 @@
       "description": "",
       "expression": "Patient.ofType(FHIR.Patient).type().name",
       "status": "passed",
-      "execution_time_ms": 1.140542,
+      "execution_time_ms": 1.160333,
       "expected": [
         {
           "type": "string",
@@ -9581,7 +9581,7 @@
       "description": "",
       "expression": "Patient.is(System.Patient).not()",
       "status": "passed",
-      "execution_time_ms": 1.139916,
+      "execution_time_ms": 1.502667,
       "expected": [
         {
           "type": "boolean",
@@ -9595,7 +9595,7 @@
       "description": "",
       "expression": "Patient.ofType(FHIR.`Patient`).type().name",
       "status": "passed",
-      "execution_time_ms": 1.140542,
+      "execution_time_ms": 1.620292,
       "expected": [
         {
           "type": "string",
@@ -9609,7 +9609,7 @@
       "description": "",
       "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
       "status": "passed",
-      "execution_time_ms": 1.141833,
+      "execution_time_ms": 1.239459,
       "expected": [
         {
           "type": "boolean",
@@ -9623,7 +9623,7 @@
       "description": "",
       "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
       "status": "passed",
-      "execution_time_ms": 1.143417,
+      "execution_time_ms": 1.541875,
       "expected": [
         {
           "type": "boolean",
@@ -9637,7 +9637,7 @@
       "description": "",
       "expression": "(true and 'foo').empty()",
       "status": "passed",
-      "execution_time_ms": 1.141417,
+      "execution_time_ms": 1.166916,
       "expected": [
         {
           "type": "boolean",
@@ -9651,7 +9651,7 @@
       "description": "",
       "expression": "(true | 'foo').allTrue()",
       "status": "passed",
-      "execution_time_ms": 1.145958,
+      "execution_time_ms": 1.182416,
       "expected": [
         {
           "type": "boolean",

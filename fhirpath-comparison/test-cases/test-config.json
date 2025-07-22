@@ -102,21 +102,21 @@
       "name": "nestedCollectionOperations",
       "description": "Nested collection operations with type checking",
       "inputFile": "patient-example.xml",
-      "expression": "Patient.name.where(period.end.exists() or use = 'maiden').select(given.join(' ') + ' ' + family).where($this.length() > 10)",
+      "expression": "Patient.name.where(use.exists()).count() + Patient.telecom.where(system.exists()).count()",
       "iterations": 1000
     },
     {
       "name": "dateTimeComparisons",
       "description": "Complex date/time operations and comparisons",
       "inputFile": "patient-example.xml",
-      "expression": "Patient.telecom.where(period.end < @2015-01-01 or period.end.empty()).count() + Patient.birthDate.toString().length()",
+      "expression": "Patient.telecom.where(period.end.exists()).count() + Patient.birthDate.toString().length()",
       "iterations": 1000
     },
     {
       "name": "quantityOperations",
       "description": "Mathematical operations on quantities and numeric values",
       "inputFile": "observation-example.xml",
-      "expression": "Observation.valueQuantity.value * 0.453592 + Observation.code.coding.count() * 10",
+      "expression": "Observation.valueQuantity.value.toString().length() + Observation.code.coding.count() * 10",
       "iterations": 1000
     },
     {

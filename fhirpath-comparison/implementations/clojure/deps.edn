@@ -1,0 +1,13 @@
+{:paths ["src"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        io.github.healthsamurai/fhirpath.clj {:git/url "https://github.com/HealthSamurai/fhirpath.clj"
+                                              :git/sha "f7d61e41bb43d1708cf389bf370fc1a0a3f6dd5e"}
+        org.clojure/data.json {:mvn/version "2.4.0"}
+        org.clojure/data.xml {:mvn/version "0.0.8"}
+        clj-commons/clj-yaml {:mvn/version "0.7.0"}}
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :main-opts ["-m" "test-runner"]}
+  :run
+  {:main-opts ["-m" "test-runner"]}}}

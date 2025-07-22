@@ -39,6 +39,12 @@ This project compares popular FhirPath libraries across different programming la
   - Language: Go
   - Status: To be researched
 
+### Clojure
+- **fhirpath.clj** - Clojure implementation by HealthSamurai
+  - Repository: https://github.com/HealthSamurai/fhirpath.clj
+  - Language: Clojure (JVM-based)
+  - Maintained by: HealthSamurai
+
 ## Comparison Criteria
 
 ### Performance Metrics
@@ -81,6 +87,7 @@ fhirpath-comparison/
 │   ├── csharp/             # C# with Hl7.FhirPath
 │   ├── python/             # Python with fhirpath-py
 │   ├── rust/               # Rust with fhirpath-core
+│   ├── clojure/            # Clojure with fhirpath.clj
 │   └── go/                 # Go implementation (planned)
 ├── results/                 # Comparison results and reports
 ├── visualization/           # Interactive HTML dashboard
@@ -97,6 +104,7 @@ fhirpath-comparison/
 - **C#**: Hl7.FhirPath official .NET implementation
 - **Python**: fhirpath-py library
 - **Rust**: fhirpath-core (this project's implementation)
+- **Clojure**: fhirpath.clj by HealthSamurai
 
 ### 📊 **Interactive Visualization**
 - **Real-time Dashboard**: Modern web interface with interactive charts

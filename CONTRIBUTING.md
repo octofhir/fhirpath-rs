@@ -17,7 +17,7 @@ Thank you for your interest in contributing to the FHIRPath Rust Engine! This do
 
 ### Prerequisites
 
-- Rust 1.70+ (latest stable recommended)
+- Rust 1.87+ (latest stable recommended)
 - Node.js 20+ (for Node.js bindings development)
 - Git
 

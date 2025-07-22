@@ -90,6 +90,8 @@ class ComparisonRunner:
             elif language == "go":
                 subprocess.run(["go", "mod", "tidy"], cwd=impl_dir, check=True)
                 subprocess.run(["go", "build"], cwd=impl_dir, check=True)
+            elif language == "clojure":
+                subprocess.run(["clojure", "-P"], cwd=impl_dir, check=True)
 
             print(f"✅ {language} setup completed")
             return True
@@ -175,6 +177,14 @@ class ComparisonRunner:
             elif language == "go":
                 result = subprocess.run(
                     ["go", "run", "main.go", "test"],
+                    cwd=impl_dir,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+            elif language == "clojure":
+                result = subprocess.run(
+                    ["clojure", "-M", "-m", "test-runner"],
                     cwd=impl_dir,
                     capture_output=True,
                     text=True,
@@ -279,6 +289,14 @@ class ComparisonRunner:
             elif language == "go":
                 result = subprocess.run(
                     ["go", "run", "main.go", "benchmark"],
+                    cwd=impl_dir,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+            elif language == "clojure":
+                result = subprocess.run(
+                    ["clojure", "-M", "-m", "test-runner", "benchmark"],
                     cwd=impl_dir,
                     capture_output=True,
                     text=True,

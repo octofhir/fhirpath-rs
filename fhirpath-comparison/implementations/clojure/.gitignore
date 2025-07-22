@@ -1,0 +1,17 @@
+# Clojure
+.cpcache/
+.nrepl-port
+.rebel_readline_history
+
+# Build artifacts
+target/
+classes/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

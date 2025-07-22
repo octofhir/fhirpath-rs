@@ -419,6 +419,11 @@ impl<'a> Lexer<'a> {
                                 )));
                             }
                         }
+                        '`' => {
+                            // Backtick escape sequence
+                            string.push('`');
+                            self.advance();
+                        }
                         _ => {
                             return Err(FhirPathError::LexerError(format!(
                                 "Invalid escape sequence '\\{}' at line {}, column {}",

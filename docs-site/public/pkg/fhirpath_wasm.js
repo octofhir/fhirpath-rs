@@ -84,9 +84,10 @@ function getDataViewMemory0() {
 }
 /**
  * Initialize panic hook for better error messages in the browser
+ * This function should be called manually when needed, not automatically on start
  */
-export function main() {
-    wasm.main();
+export function init_panic_hook() {
+    wasm.init_panic_hook();
 }
 
 /**

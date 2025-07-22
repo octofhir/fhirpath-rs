@@ -89,6 +89,22 @@ Node.js bindings that enable:
 - Native performance in Node.js applications
 - Seamless JSON handling
 
+### fhirpath-comparison
+A comprehensive comparison framework that enables:
+- Performance benchmarking across multiple FHIRPath implementations
+- Compatibility testing against the official FHIRPath test suite
+- Support for JavaScript, Python, Java, C#, Rust, Go, and Clojure implementations
+- Interactive visualization dashboard with detailed metrics
+- Automated test execution and report generation
+
+The comparison project is located in the `fhirpath-comparison/` directory and includes:
+- Standardized test runners for each language implementation
+- Official FHIRPath test suite integration
+- Performance benchmarking with detailed timing metrics
+- Web-based dashboard for viewing results and comparisons
+
+See [fhirpath-comparison/README.md](fhirpath-comparison/README.md) for detailed setup and usage instructions.
+
 ## Installation
 
 ### CLI Tool

@@ -1,0 +1,165 @@
+/**
+ * Modern CSS Module for ComparisonPage component
+ * Inspired by Linear Design System with improved contrast and typography
+ */
+
+/* Main Container */
+.container {
+  padding: 2rem 1.5rem;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--mantine-color-surface);
+  color: var(--mantine-color-text);
+}
+
+/* Page Header Styles */
+.headerButtons {
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.backButton {
+  transition: all 0.2s ease;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+}
+
+.backButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+/* Error Alert */
+.errorAlert {
+  margin-bottom: 2rem;
+  border-radius: 0.5rem;
+}
+
+/* Tabs */
+.tabs {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  background: var(--mantine-color-surface-secondary);
+  border: 1px solid var(--mantine-color-border);
+}
+
+.tabsList {
+  padding: 0.5rem;
+  gap: 0.25rem;
+  background: var(--mantine-color-surface-secondary);
+}
+
+.tab {
+  border-radius: 0.375rem;
+  padding: 0.75rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  color: var(--mantine-color-text-secondary);
+  background: transparent;
+}
+
+.tab[data-active="true"],
+.tab[data-active] {
+  color: var(--mantine-color-primary);
+  border-color: var(--mantine-color-primary);
+  background: var(--mantine-color-surface);
+}
+
+/* Tab Panels */
+.tabPanel {
+  padding: 2rem;
+  min-height: 400px;
+  background: var(--mantine-color-surface);
+  color: var(--mantine-color-text);
+}
+
+/* Placeholder styles for development */
+.detailsPlaceholder {
+  padding: 3rem;
+  border: 2px dashed var(--mantine-color-border);
+  border-radius: 0.75rem;
+  text-align: center;
+  background: var(--mantine-color-surface-secondary);
+}
+
+.detailsPlaceholder h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--mantine-color-text);
+}
+
+.detailsPlaceholder p {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--mantine-color-text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-md);
+  }
+
+  .headerButtons {
+    gap: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .backButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tabsList {
+    padding: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-xs);
+  }
+
+  .tab {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    font-size: var(--mantine-font-size-sm);
+  }
+
+  .tabPanel {
+    padding: var(--mantine-spacing-xl);
+  }
+
+  .chartsPlaceholder,
+  .implementationsPlaceholder,
+  .detailsPlaceholder {
+    padding: var(--mantine-spacing-xl);
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+  }
+
+  .tabsList {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab {
+    text-align: center;
+    justify-content: center;
+  }
+
+  .tabPanel {
+    padding: var(--mantine-spacing-lg);
+  }
+
+  .chartsPlaceholder,
+  .implementationsPlaceholder,
+  .detailsPlaceholder {
+    padding: var(--mantine-spacing-lg);
+  }
+}

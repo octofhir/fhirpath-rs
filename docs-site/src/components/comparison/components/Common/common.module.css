@@ -1,0 +1,87 @@
+/**
+ * Modern CSS Module for common comparison components
+ * Inspired by Linear Design System
+ */
+
+/* Loading Container */
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 2rem;
+  background: var(--mantine-color-surface-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--mantine-color-border);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Error Container */
+.errorContainer {
+  padding: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.errorList {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  color: var(--mantine-color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.errorList li {
+  margin-bottom: 0.25rem;
+}
+
+.errorDetails {
+  margin-top: 1rem;
+  border: 1px solid var(--mantine-color-border);
+  border-radius: 0.5rem;
+  background: var(--mantine-color-surface-secondary);
+  overflow: hidden;
+}
+
+.errorDetails summary {
+  padding: 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--mantine-color-text-secondary);
+  border-bottom: 1px solid var(--mantine-color-border);
+  transition: background-color 0.15s ease;
+}
+
+.errorDetails summary:hover {
+  background: var(--mantine-color-surface);
+}
+
+.errorStack {
+  padding: 1rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--mantine-color-text-secondary);
+  background: var(--mantine-color-surface);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .loadingContainer {
+    min-height: 150px;
+    padding: 1.5rem;
+  }
+
+  .errorContainer {
+    padding: 1.25rem;
+  }
+
+  .errorStack {
+    font-size: 0.625rem;
+  }
+}

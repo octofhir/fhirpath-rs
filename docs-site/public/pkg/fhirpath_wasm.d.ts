@@ -2,8 +2,9 @@
 /* eslint-disable */
 /**
  * Initialize panic hook for better error messages in the browser
+ * This function should be called manually when needed, not automatically on start
  */
-export function main(): void;
+export function init_panic_hook(): void;
 /**
  * Evaluate a FHIRPath expression against a FHIR resource
  *
@@ -44,7 +45,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly main: () => void;
+  readonly init_panic_hook: () => void;
   readonly evaluate_fhirpath: (a: number, b: number, c: number, d: number) => [number, number];
   readonly validate_fhirpath: (a: number, b: number) => [number, number];
   readonly get_fhirpath_version: () => [number, number];

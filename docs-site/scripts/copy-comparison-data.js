@@ -34,7 +34,9 @@ const filesToCopy = [
   'rust_test_results.json',
   'rust_benchmark_results.json',
   'go_test_results.json',
-  'go_benchmark_results.json'
+  'go_benchmark_results.json',
+  'clojure_test_results.json',
+  'clojure_benchmark_results.json'
 ];
 
 // Copy files
