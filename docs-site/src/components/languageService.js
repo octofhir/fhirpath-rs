@@ -70,13 +70,13 @@ export const languageInfo = {
     },
     go: {
         fullName: 'Go',
-        description: 'Go implementation',
-        repository: 'https://github.com/healthiop/hipath',
+        description: 'Go implementation using fhir-toolbox-go library',
+        repository: 'https://github.com/DAMEDIC/fhir-toolbox-go',
         license: 'Apache-2.0',
-        maintainer: 'HealthIOP',
+        maintainer: 'DAMEDIC',
         logo: '/fhirpath-rs/logos/go.svg',
         icon: '🔵',
-        libraries: ['hipath', 'go-fhir'],
+        libraries: ['fhir-toolbox-go'],
         runtime: 'Native',
         color: '#00add8'
     },

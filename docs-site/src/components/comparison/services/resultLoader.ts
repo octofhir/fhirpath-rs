@@ -66,12 +66,12 @@ export const LANGUAGE_INFO: Record<string, LanguageInfo> = {
   },
   go: {
     fullName: 'Go',
-    description: 'Go implementation',
-    repository: 'https://github.com/healthiop/hipath',
+    description: 'Go implementation using fhir-toolbox-go library',
+    repository: 'https://github.com/DAMEDIC/fhir-toolbox-go',
     license: 'Apache-2.0',
-    maintainer: 'HealthIOP',
+    maintainer: 'DAMEDIC',
     icon: '🔵',
-    libraries: ['hipath', 'go-fhir'],
+    libraries: ['fhir-toolbox-go'],
     runtime: 'Native'
   },
   clojure: {
