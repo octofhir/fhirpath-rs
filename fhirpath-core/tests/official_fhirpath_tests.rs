@@ -529,9 +529,11 @@ fn parse_test(
     }
 
     let mut buf = Vec::new();
+    let mut current_element = String::new();
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
+                current_element = String::from_utf8(e.name().as_ref().to_vec())?;
                 match e.name().as_ref() {
                     b"expression" => {
                         // Parse expression attributes
@@ -545,20 +547,27 @@ fn parse_test(
                     b"output" => {
                         let output = parse_output(reader, e)?;
                         outputs.push(output);
+                        current_element.clear(); // Reset since parse_output consumes the element
                     }
                     _ => {}
                 }
             }
             Ok(Event::Text(e)) => {
-                // This is the text content of the current element
-                let text = e.unescape()?.into_owned();
-                if !text.trim().is_empty() {
-                    expression.text = text.trim().to_string();
+                // Only assign text content if we're inside an expression element
+                if current_element == "expression" {
+                    let text = e.unescape()?.into_owned();
+                    if !text.trim().is_empty() {
+                        expression.text = text.trim().to_string();
+                    }
                 }
             }
             Ok(Event::End(ref e)) => {
                 if e.name().as_ref() == b"test" {
                     break;
+                }
+                // Clear current element when we exit it
+                if current_element.as_bytes() == e.name().as_ref() {
+                    current_element.clear();
                 }
             }
             Ok(Event::Eof) => break,
@@ -647,10 +656,16 @@ fn fhirpath_value_to_string(value: &FhirPathValue) -> String {
         FhirPathValue::Integer(i) => i.to_string(),
         FhirPathValue::Decimal(d) => d.to_string(),
         FhirPathValue::String(s) => s.clone(),
-        FhirPathValue::Date(d) => d.clone(),
-        FhirPathValue::DateTime(dt) => dt.clone(),
-        FhirPathValue::Time(t) => t.clone(),
-        FhirPathValue::Quantity { value, unit } => format!("{} {}", value, unit),
+        FhirPathValue::Date(d) => d.format("%Y-%m-%d").to_string(),
+        FhirPathValue::DateTime(dt) => dt.to_rfc3339(),
+        FhirPathValue::Time(t) => t.format("%H:%M:%S").to_string(),
+        FhirPathValue::Quantity { value, unit, .. } => {
+            if let Some(unit) = unit {
+                format!("{} {}", value, unit)
+            } else {
+                value.to_string()
+            }
+        },
         FhirPathValue::Collection(coll) => {
             if coll.is_empty() {
                 String::new()
@@ -670,6 +685,11 @@ fn fhirpath_value_to_string(value: &FhirPathValue) -> String {
 /// Execute a single test case
 fn execute_test(test: &Test, input_data: &Value) -> Result<bool, Box<dyn std::error::Error>> {
     let expression = &test.expression.text;
+
+    // Debug: Print the actual expression being parsed
+    if test.name.contains("testLiteralTrue") || test.name.contains("testLiteralFalse") {
+        println!("DEBUG: Test '{}' - Full expression text: '{}'", test.name, expression);
+    }
 
     // Check if this is an invalid expression test
     if test.expression.invalid.is_some() {

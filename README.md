@@ -190,10 +190,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]
     }
     "#)?;
-    
+
     let expression = "Patient.name.given";
     let result = evaluate_expression(expression, &fhir_resource)?;
-    
+
     println!("Result: {:?}", result);
     Ok(())
 }
@@ -328,34 +328,12 @@ Each release automatically publishes:
   - `fhirpath-core`
   - `octofhir-fhirpath` (CLI)
 - **Node.js packages** to [npm](https://npmjs.com):
-  - `@octofhir/fhirpath-node`
   - `@octofhir/fhirpath-wasm`
 - **GitHub release** with:
   - Cross-platform binaries (Linux, macOS, Windows)
   - Automatically generated changelog
   - Release artifacts
 
-### Versioning
-
-This project follows [Semantic Versioning (SemVer)](https://semver.org/):
-- **MAJOR**: Incompatible API changes
-- **MINOR**: Backwards-compatible functionality additions  
-- **PATCH**: Backwards-compatible bug fixes
-
-See [VERSIONING.md](VERSIONING.md) for detailed versioning strategy.
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for your changes
-5. Ensure all tests pass (`cargo test`)
-6. Run clippy for linting (`cargo clippy`)
-7. Format code (`cargo fmt`)
-8. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/) (`git commit -m 'feat: add amazing feature'`)
-9. Push to the branch (`git push origin feature/amazing-feature`)
-10. Open a Pull Request
 
 **Note**: This project uses automated changelog generation based on conventional commits. See [CHANGELOG_AUTOMATION.md](CHANGELOG_AUTOMATION.md) for details on commit message format and changelog automation.
 

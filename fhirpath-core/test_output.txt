@@ -1,0 +1,1872 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /Users/alexanderstreltsov/work/octofhir/fhirpath-rs/fhirpath-core/Cargo.toml
+workspace: /Users/alexanderstreltsov/work/octofhir/fhirpath-rs/Cargo.toml
+   Compiling fhirpath-core v0.1.1 (/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/fhirpath-core)
+warning: unused import: `FhirPathError`
+ --> fhirpath-core/src/engine.rs:4:20
+  |
+4 | use crate::error::{FhirPathError, Result};
+  |                    ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `FhirResource`
+ --> fhirpath-core/src/evaluator.rs:7:35
+  |
+7 | use crate::model::{FhirPathValue, FhirResource};
+  |                                   ^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> fhirpath-core/src/model.rs:9:5
+  |
+9 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `nom::sequence::tuple`: `Parser` is directly implemented for tuples
+  --> fhirpath-core/src/parser.rs:14:43
+   |
+14 |     sequence::{delimited, pair, preceded, tuple},
+   |                                           ^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `nom::sequence::tuple`: `Parser` is directly implemented for tuples
+   --> fhirpath-core/src/parser.rs:206:13
+    |
+206 |             tuple((
+    |             ^^^^^
+
+warning: use of deprecated function `nom::sequence::tuple`: `Parser` is directly implemented for tuples
+   --> fhirpath-core/src/parser.rs:315:19
+    |
+315 |         recognize(tuple((
+    |                   ^^^^^
+
+warning: use of deprecated function `nom::sequence::tuple`: `Parser` is directly implemented for tuples
+   --> fhirpath-core/src/parser.rs:318:17
+    |
+318 |             opt(tuple((char('.'), digit1))),
+    |                 ^^^^^
+
+error[E0277]: expected a `FnMut(&'a str)` closure, found `impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>>`
+   --> fhirpath-core/src/parser.rs:361:30
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected an `FnMut(&'a str)` closure, found `impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>>`
+...
+365 |     delimited(multispace0, inner, multispace0)
+    |     ------------------------------------------ return type was inferred to be `impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>>` here
+    |
+    = help: the trait `FnMut(&'a str)` is not implemented for `impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>>`
+
+error[E0618]: expected function, found `Choice<(for<'a> fn(&'a str) -> std::result::Result<(&'a str, ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {predicate_expression}, impl FnMut(&str) -> std::result::Result<(&str, ExpressionNode), nom::Err<nom::error::Error<&str>>>)>`
+  --> fhirpath-core/src/parser.rs:42:5
+   |
+42 | //     alt((
+43 | ||         predicate_expression,
+44 | ||         ws(or_expression),
+45 | ||     ))(input)
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0618]: expected function, found `Choice<(for<'a> fn(&'a str) -> std::result::Result<(&'a str, ast::ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {predicate_expression}, impl FnMut(&str) -> std::result::Result<(&str, ast::ExpressionNode), nom::Err<nom::error::Error<&str>>>)>`
+  --> fhirpath-core/src/parser.rs:42:5
+   |
+42 | //     alt((
+43 | ||         predicate_expression,
+44 | ||         ws(or_expression),
+45 | ||     ))(input)
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:26
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________--_^
+    | |                       |
+    | |                       required by a bound introduced by this call
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-8479555309789215523.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:23
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________^
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |_______^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-8479555309789215523.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:26
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________--_^
+    | |                       |
+    | |                       required by a bound introduced by this call
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-5412882394214040325.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:23
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________^
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |______________^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-8479555309789215523.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:23
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________^
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |_______^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-5412882394214040325.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (&str, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (&str, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+  --> fhirpath-core/src/parser.rs:74:25
+   |
+74 |        let (input, rest) = nom::multi::many0(pair(
+   |   _________________________^
+   |  |_________________________|
+75 | ||         ws(tag("or")),
+76 | ||         ws(and_expression),
+77 | ||     ))(input)?;
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (&str, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (&str, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+  --> fhirpath-core/src/parser.rs:90:25
+   |
+90 |        let (input, rest) = nom::multi::many0(pair(
+   |   _________________________^
+   |  |_________________________|
+91 | ||         ws(tag("and")),
+92 | ||         ws(equality_expression),
+93 | ||     ))(input)?;
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:51:23
+    |
+51  |       let (input, op) = ws(alt((
+    |  _______________________^
+52  | |         map(tag("!="), |_| BinaryOperator::NotEqual),
+53  | |         map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+54  | |         map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+57  | |         map(tag("<"), |_| BinaryOperator::LessThan),
+58  | |     )))(input)?;
+    | |______________^ expected an `FnMut(&str)` closure, found `Choice<(..., ..., ..., ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-5412882394214040325.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(..., ..., ..., ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (&str, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (&str, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+  --> fhirpath-core/src/parser.rs:74:25
+   |
+74 |        let (input, rest) = nom::multi::many0(pair(
+   |   _________________________^
+   |  |_________________________|
+75 | ||         ws(tag("or")),
+76 | ||         ws(and_expression),
+77 | ||     ))(input)?;
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (&str, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (&str, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+  --> fhirpath-core/src/parser.rs:90:25
+   |
+90 |        let (input, rest) = nom::multi::many0(pair(
+   |   _________________________^
+   |  |_________________________|
+91 | ||         ws(tag("and")),
+92 | ||         ws(equality_expression),
+93 | ||     ))(input)?;
+   | ||______^______- call expression requires function
+   |  |______|
+   |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:107:12
+    |
+107 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:107:9
+    |
+107 | /         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:107:12
+    |
+107 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:43
+    |
+106 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:107:9
+    |
+107 | /         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:43
+    |
+106 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:43
+    |
+106 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+107 | |         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+111 | |         ws(relational_expression),
+112 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:43
+    |
+106 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+107 | |         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+111 | |         ws(relational_expression),
+112 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+107 | |         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+111 | |         ws(relational_expression),
+112 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-11038301146109494577.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+107 | ||         ws(alt((
+108 | ||             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | ||             map(tag("="), |_| BinaryOperator::Equal),
+110 | ||         ))),
+111 | ||         ws(relational_expression),
+112 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+107 | |         ws(alt((
+108 | |             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | |             map(tag("="), |_| BinaryOperator::Equal),
+110 | |         ))),
+111 | |         ws(relational_expression),
+112 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-12601301892136495758.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:106:25
+    |
+106 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+107 | ||         ws(alt((
+108 | ||             map(tag("!="), |_| BinaryOperator::NotEqual),
+109 | ||             map(tag("="), |_| BinaryOperator::Equal),
+110 | ||         ))),
+111 | ||         ws(relational_expression),
+112 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:126:12
+    |
+126 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+129 | |             map(tag(">"), |_| BinaryOperator::GreaterThan),
+130 | |             map(tag("<"), |_| BinaryOperator::LessThan),
+131 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:126:12
+    |
+126 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+129 | |             map(tag(">"), |_| BinaryOperator::GreaterThan),
+130 | |             map(tag("<"), |_| BinaryOperator::LessThan),
+131 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:126:9
+    |
+126 | /         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+129 | |             map(tag(">"), |_| BinaryOperator::GreaterThan),
+130 | |             map(tag("<"), |_| BinaryOperator::LessThan),
+131 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:43
+    |
+125 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:126:9
+    |
+126 | /         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+129 | |             map(tag(">"), |_| BinaryOperator::GreaterThan),
+130 | |             map(tag("<"), |_| BinaryOperator::LessThan),
+131 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:43
+    |
+125 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:43
+    |
+125 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+126 | |         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+132 | |         ws(additive_expression),
+133 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:43
+    |
+125 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+126 | |         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+132 | |         ws(additive_expression),
+133 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+126 | |         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+132 | |         ws(additive_expression),
+133 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-9019814538284303225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+126 | ||         ws(alt((
+127 | ||             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | ||             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   ||
+132 | ||         ws(additive_expression),
+133 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+126 | |         ws(alt((
+127 | |             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | |             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   |
+132 | |         ws(additive_expression),
+133 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-4185327579712277856.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = ..., Error = ...>, ..., ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:147:12
+    |
+147 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:125:25
+    |
+125 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+126 | ||         ws(alt((
+127 | ||             map(tag(">="), |_| BinaryOperator::GreaterThanOrEqual),
+128 | ||             map(tag("<="), |_| BinaryOperator::LessThanOrEqual),
+...   ||
+132 | ||         ws(additive_expression),
+133 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:147:9
+    |
+147 | /         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:43
+    |
+146 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:147:12
+    |
+147 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:43
+    |
+146 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+147 | |         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+151 | |         ws(multiplicative_expression),
+152 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:147:9
+    |
+147 | /         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:43
+    |
+146 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+147 | |         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+151 | |         ws(multiplicative_expression),
+152 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14099142912472440362.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+147 | ||         ws(alt((
+148 | ||             map(char('+'), |_| BinaryOperator::Add),
+149 | ||             map(char('-'), |_| BinaryOperator::Subtract),
+150 | ||         ))),
+151 | ||         ws(multiplicative_expression),
+152 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:43
+    |
+146 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+147 | |         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+151 | |         ws(multiplicative_expression),
+152 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:166:12
+    |
+166 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:166:9
+    |
+166 | /         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+147 | |         ws(alt((
+148 | |             map(char('+'), |_| BinaryOperator::Add),
+149 | |             map(char('-'), |_| BinaryOperator::Subtract),
+150 | |         ))),
+151 | |         ws(multiplicative_expression),
+152 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-3141494257263918853.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:146:25
+    |
+146 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+147 | ||         ws(alt((
+148 | ||             map(char('+'), |_| BinaryOperator::Add),
+149 | ||             map(char('-'), |_| BinaryOperator::Subtract),
+150 | ||         ))),
+151 | ||         ws(multiplicative_expression),
+152 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:43
+    |
+165 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:166:12
+    |
+166 |           ws(alt((
+    |  _________--_^
+    | |         |
+    | |         required by a bound introduced by this call
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+    | |__________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:43
+    |
+165 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+166 | |         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+170 | |         ws(unary_expression),
+171 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:166:9
+    |
+166 | /         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+    | |___________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:43
+    |
+165 |     let (input, rest) = nom::multi::many0(pair(
+    |                                           ^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+166 | |         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+170 | |         ws(unary_expression),
+171 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14530377677096836374.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ast::ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+166 | ||         ws(alt((
+167 | ||             map(char('*'), |_| BinaryOperator::Multiply),
+168 | ||             map(char('/'), |_| BinaryOperator::Divide),
+169 | ||         ))),
+170 | ||         ws(unary_expression),
+171 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0618]: expected function, found `Choice<(impl Parser<&str, Output = ast::ExpressionNode, Error = nom::error::Error<&str>>, impl Parser<&str, Output = ast::ExpressionNode, Error = nom::error::Error<&str>>, impl Parser<&str, Output = ast::ExpressionNode, Error = nom::error::Error<&str>>, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ast::ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {postfix_expression})>`
+   --> fhirpath-core/src/parser.rs:183:5
+    |
+183 | //     alt((
+184 | ||         map(
+185 | ||             pair(ws(tag("not")), ws(unary_expression)),
+186 | ||             |(_, expr)| ExpressionNode::unary_op(UnaryOperator::Not, expr),
+...   ||
+196 | ||         postfix_expression,
+197 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:43
+    |
+165 |       let (input, rest) = nom::multi::many0(pair(
+    |  ___________________________________________^
+166 | |         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+170 | |         ws(unary_expression),
+171 | |     ))(input)?;
+    | |_____^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |     let (input, rest) = nom::multi::many0(pair(
+    |                         ^^^^^^^^^^^^^^^^^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |       let (input, rest) = nom::multi::many0(pair(
+    |  _________________________^
+166 | |         ws(alt((
+167 | |             map(char('*'), |_| BinaryOperator::Multiply),
+168 | |             map(char('/'), |_| BinaryOperator::Divide),
+169 | |         ))),
+170 | |         ws(unary_expression),
+171 | |     ))(input)?;
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-1547668988995421085.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<_, Output = BinaryOperator, Error = _>, ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<Choice<(impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>, impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>, impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>)> as Parser<&str>>::Output>, Error = <Choice<(impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>, impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>, impl Parser<&str, Output = PostfixOp, Error = nom::error::Error<&str>>)> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:203:30
+    |
+203 |        let (input, postfixes) = nom::multi::many0(alt((
+    |   ______________________________^
+    |  |______________________________|
+204 | ||         // Function call: identifier()
+205 | ||         map(
+206 | ||             tuple((
+...   ||
+222 | ||         ),
+223 | ||     )))(input)?;
+    | ||_______^______- call expression requires function
+    |  |_______|
+    |
+
+error[E0618]: expected function, found `impl Parser<&str, Output = Vec<<impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Output>, Error = <impl Parser<&str, Output = (_, ExpressionNode), Error = nom::error::Error<&str>> as Parser<&str>>::Error>`
+   --> fhirpath-core/src/parser.rs:165:25
+    |
+165 |        let (input, rest) = nom::multi::many0(pair(
+    |   _________________________^
+    |  |_________________________|
+166 | ||         ws(alt((
+167 | ||             map(char('*'), |_| BinaryOperator::Multiply),
+168 | ||             map(char('/'), |_| BinaryOperator::Divide),
+169 | ||         ))),
+170 | ||         ws(unary_expression),
+171 | ||     ))(input)?;
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0618]: expected function, found `Choice<(impl Parser<&str, Output = ExpressionNode, Error = nom::error::Error<&str>>, impl Parser<&str, Output = ExpressionNode, Error = nom::error::Error<&str>>, impl Parser<&str, Output = ExpressionNode, Error = nom::error::Error<&str>>, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {postfix_expression})>`
+   --> fhirpath-core/src/parser.rs:183:5
+    |
+183 | //     alt((
+184 | ||         map(
+185 | ||             pair(ws(tag("not")), ws(unary_expression)),
+186 | ||             |(_, expr)| ExpressionNode::unary_op(UnaryOperator::Not, expr),
+...   ||
+196 | ||         postfix_expression,
+197 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:8
+    |
+261 |       ws(alt((
+    |  _____--_^
+    | |     |
+    | |     required by a bound introduced by this call
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14674758563866921225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:5
+    |
+261 | /     ws(alt((
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |_______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14674758563866921225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:5
+    |
+261 | /     ws(alt((
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |______________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-8b1745ab7c9168c4.long-type-14674758563866921225.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `Choice<(impl Parser<_, Output = ast::ExpressionNode, Error = _>, impl Parser<_, Output = ast::ExpressionNode, Error = _>, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ast::ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {string_literal}, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ast::ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {numeric_literal})>`
+   --> fhirpath-core/src/parser.rs:273:5
+    |
+273 | //     alt((
+274 | ||         // Boolean literals
+275 | ||         map(tag("true"), |_| {
+276 | ||             ExpressionNode::literal(FhirPathValue::Boolean(true))
+...   ||
+284 | ||         numeric_literal,
+285 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:8
+    |
+261 |       ws(alt((
+    |  _____--_^
+    | |     |
+    | |     required by a bound introduced by this call
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-16906380715097630634.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:5
+    |
+261 | /     ws(alt((
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |_______^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-16906380715097630634.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `Choice<(impl Parser<&str, Output = ast::ExpressionNode, Error = _>, impl Parser<&str, Output = ast::ExpressionNode, Error = _>)>`
+   --> fhirpath-core/src/parser.rs:290:5
+    |
+290 | //     alt((
+291 | ||         // Double-quoted strings
+292 | ||         map(
+293 | ||             delimited(
+...   ||
+308 | ||         ),
+309 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0277]: expected a `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+   --> fhirpath-core/src/parser.rs:261:5
+    |
+261 | /     ws(alt((
+262 | |         // Parenthesized expression
+263 | |         delimited(char('('), ws(expression), char(')')),
+...   |
+267 | |         map(identifier, ExpressionNode::identifier),
+268 | |     )))(input)
+    | |______________^ expected an `FnMut(&str)` closure, found `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+    |
+    = note: the full name for the type has been written to '/Users/alexanderstreltsov/work/octofhir/fhirpath-rs/target/debug/deps/fhirpath_core-76c2b8a79263cd0b.long-type-16906380715097630634.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = help: the trait `FnMut(&str)` is not implemented for `Choice<(impl Parser<&str, Output = ..., Error = ...>, ..., ...)>`
+note: required by a bound in `ws`
+   --> fhirpath-core/src/parser.rs:363:8
+    |
+361 | fn ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+    |    -- required by a bound in this function
+362 | where
+363 |     F: FnMut(&'a str) -> IResult<&'a str, O>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ws`
+
+error[E0618]: expected function, found `Choice<(impl Parser<_, Output = ExpressionNode, Error = _>, impl Parser<_, Output = ExpressionNode, Error = _>, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {string_literal}, for<'a> fn(&'a str) -> std::result::Result<(&'a str, ExpressionNode), nom::Err<nom::error::Error<&'a str>>> {numeric_literal})>`
+   --> fhirpath-core/src/parser.rs:273:5
+    |
+273 | //     alt((
+274 | ||         // Boolean literals
+275 | ||         map(tag("true"), |_| {
+276 | ||             ExpressionNode::literal(FhirPathValue::Boolean(true))
+...   ||
+284 | ||         numeric_literal,
+285 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0618]: expected function, found `impl Parser<&str, Output = ast::ExpressionNode, Error = _>`
+   --> fhirpath-core/src/parser.rs:314:5
+    |
+314 | //     map(
+315 | ||         recognize(tuple((
+316 | ||             opt(char('-')),
+317 | ||             digit1,
+...   ||
+336 | ||         },
+337 | ||     )(input)
+    | ||_____^______- call expression requires function
+    |  |_____|
+    |
+
+error[E0618]: expected function, found `Choice<(impl Parser<&str, Output = ExpressionNode, Error = _>, impl Parser<&str, Output = ExpressionNode, Error = _>)>`
+   --> fhirpath-core/src/parser.rs:290:5
+    |
+290 | //     alt((
+291 | ||         // Double-quoted strings
+292 | ||         map(
+293 | ||             delimited(
+...   ||
+308 | ||         ),
+309 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0618]: expected function, found `Choice<(impl Parser<&str, Output = std::string::String, Error = _>, impl Parser<&str, Output = std::string::String, Error = _>)>`
+   --> fhirpath-core/src/parser.rs:342:5
+    |
+342 | //     alt((
+343 | ||         // Backtick-quoted identifiers
+344 | ||         map(
+345 | ||             delimited(
+...   ||
+356 | ||         ),
+357 | ||     ))(input)
+    | ||______^______- call expression requires function
+    |  |______|
+    |
+
+error[E0618]: expected function, found `impl Parser<&str, Output = ExpressionNode, Error = _>`
+   --> fhirpath-core/src/parser.rs:314:5
+    |
+314 | //     map(
+315 | ||         recognize(tuple((
+316 | ||             opt(char('-')),
+317 | ||             digit1,
+...   ||
+336 | ||         },
+337 | ||     )(input)
+    | ||_____^______- call expression requires function
+    |  |_____|
+    |
+
+error[E0004]: non-exhaustive patterns: `&BinaryOperator::Equivalent` and `&BinaryOperator::NotEquivalent` not covered
+   --> fhirpath-core/src/ast.rs:233:15
+    |
+233 |         match self {
+    |               ^^^^ patterns `&BinaryOperator::Equivalent` and `&BinaryOperator::NotEquivalent` not covered
+    |
+note: `BinaryOperator` defined here
+   --> fhirpath-core/src/ast.rs:74:10
+    |
+74  | pub enum BinaryOperator {
+    |          ^^^^^^^^^^^^^^
+...
+91  |     Equivalent,
+    |     ---------- not covered
+92  |     NotEquivalent,
+    |     ------------- not covered
+    = note: the matched value is of type `&BinaryOperator`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+    |
+244 ~             Self::Union => 0,
+245 ~             &BinaryOperator::Equivalent | &BinaryOperator::NotEquivalent => todo!(),
+    |
+
+error[E0004]: non-exhaustive patterns: `&ast::BinaryOperator::Equivalent` and `&ast::BinaryOperator::NotEquivalent` not covered
+   --> fhirpath-core/src/ast.rs:233:15
+    |
+233 |         match self {
+    |               ^^^^ patterns `&ast::BinaryOperator::Equivalent` and `&ast::BinaryOperator::NotEquivalent` not covered
+    |
+note: `ast::BinaryOperator` defined here
+   --> fhirpath-core/src/ast.rs:74:10
+    |
+74  | pub enum BinaryOperator {
+    |          ^^^^^^^^^^^^^^
+...
+91  |     Equivalent,
+    |     ---------- not covered
+92  |     NotEquivalent,
+    |     ------------- not covered
+    = note: the matched value is of type `&ast::BinaryOperator`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+    |
+244 ~             Self::Union => 0,
+245 ~             &ast::BinaryOperator::Equivalent | &ast::BinaryOperator::NotEquivalent => todo!(),
+    |
+
+error[E0004]: non-exhaustive patterns: `&BinaryOperator::Equivalent` and `&BinaryOperator::NotEquivalent` not covered
+   --> fhirpath-core/src/ast.rs:256:15
+    |
+256 |         match self {
+    |               ^^^^ patterns `&BinaryOperator::Equivalent` and `&BinaryOperator::NotEquivalent` not covered
+    |
+note: `BinaryOperator` defined here
+   --> fhirpath-core/src/ast.rs:74:10
+    |
+74  | pub enum BinaryOperator {
+    |          ^^^^^^^^^^^^^^
+...
+91  |     Equivalent,
+    |     ---------- not covered
+92  |     NotEquivalent,
+    |     ------------- not covered
+    = note: the matched value is of type `&BinaryOperator`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+    |
+274 ~             Self::Union => "|",
+275 ~             &BinaryOperator::Equivalent | &BinaryOperator::NotEquivalent => todo!(),
+    |
+
+error[E0004]: non-exhaustive patterns: `&ast::BinaryOperator::Equivalent` and `&ast::BinaryOperator::NotEquivalent` not covered
+   --> fhirpath-core/src/ast.rs:256:15
+    |
+256 |         match self {
+    |               ^^^^ patterns `&ast::BinaryOperator::Equivalent` and `&ast::BinaryOperator::NotEquivalent` not covered
+    |
+note: `ast::BinaryOperator` defined here
+   --> fhirpath-core/src/ast.rs:74:10
+    |
+74  | pub enum BinaryOperator {
+    |          ^^^^^^^^^^^^^^
+...
+91  |     Equivalent,
+    |     ---------- not covered
+92  |     NotEquivalent,
+    |     ------------- not covered
+    = note: the matched value is of type `&ast::BinaryOperator`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+    |
+274 ~             Self::Union => "|",
+275 ~             &ast::BinaryOperator::Equivalent | &ast::BinaryOperator::NotEquivalent => todo!(),
+    |
+
+warning: unused variable: `context`
+   --> fhirpath-core/src/evaluator.rs:527:5
+    |
+527 |     context: &EvaluationContext,
+    |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `type_name`
+   --> fhirpath-core/src/evaluator.rs:584:46
+    |
+584 | fn evaluate_type_cast(value: &FhirPathValue, type_name: &str) -> Result<FhirPathValue> {
+    |                                              ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_type_name`
+
+Some errors have detailed explanations: E0004, E0277, E0618.
+For more information about an error, try `rustc --explain E0004`.
+warning: `fhirpath-core` (lib) generated 9 warnings (7 duplicates)
+error: could not compile `fhirpath-core` (lib) due to 46 previous errors; 9 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `fhirpath-core` (lib test) generated 9 warnings (2 duplicates)
+error: could not compile `fhirpath-core` (lib test) due to 46 previous errors; 9 warnings emitted

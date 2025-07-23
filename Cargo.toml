@@ -2,7 +2,6 @@
 resolver = "3"
 members = [
     "fhirpath-core",
-    "fhirpath-cli",
     "fhirpath-wasm",
 ]
 
@@ -12,7 +11,7 @@ exclude = [
 
 [workspace.package]
 version = "0.1.1"
-edition = "2021"
+edition = "2024"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/octofhir/fhirpath-rs"
