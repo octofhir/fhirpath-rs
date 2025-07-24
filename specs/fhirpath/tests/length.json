@@ -1,0 +1,85 @@
+{
+  "name": "testLength",
+  "description": "testLength",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testLength1",
+      "expression": "'123456'.length() = 6",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLength2",
+      "expression": "'12345'.length() = 5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLength3",
+      "expression": "'123'.length() = 3",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLength4",
+      "expression": "'1'.length() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLength5",
+      "expression": "''.length() = 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLength6",
+      "expression": "{}.length().empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLength"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

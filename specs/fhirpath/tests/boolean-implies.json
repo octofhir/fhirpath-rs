@@ -1,0 +1,124 @@
+{
+  "name": "testBooleanImplies",
+  "description": "testBooleanImplies",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testBooleanImplies1",
+      "expression": "(true implies true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies2",
+      "expression": "(true implies false) = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies3",
+      "expression": "(true implies {}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies4",
+      "expression": "(false implies true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies5",
+      "expression": "(false implies false) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies6",
+      "expression": "(false implies {}) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies7",
+      "expression": "({} implies true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies8",
+      "expression": "({} implies false).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanImplies9",
+      "expression": "({} implies {}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanImplies"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

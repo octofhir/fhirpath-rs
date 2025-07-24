@@ -1,0 +1,20 @@
+{
+  "name": "testJoin",
+  "description": "testJoin",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testJoin",
+      "expression": "name.given.join(',')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testJoin"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter,James,Jim,Peter,James"
+      ]
+    }
+  ]
+}

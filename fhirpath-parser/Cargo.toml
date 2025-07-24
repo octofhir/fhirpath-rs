@@ -1,0 +1,34 @@
+[package]
+name = "fhirpath-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "FHIRPath expression parser using nom"
+
+[dependencies]
+# Local crates
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-model = { path = "../fhirpath-model" }
+fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+
+# Parser dependencies
+nom = "8.0.0"
+nom_locate = "5.0.0"
+
+# Core dependencies
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# Date/time and decimal parsing
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1.32", features = ["serde-with-str"] }
+
+# Unicode support
+unicode-xid = "0.2"
+
+[dev-dependencies]
+pretty_assertions = "1.4.0"
+rstest = "0.18.2"

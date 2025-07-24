@@ -1,0 +1,33 @@
+{
+  "name": "polymorphics",
+  "description": "polymorphics",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testPolymorphicsA",
+      "expression": "Observation.value.exists()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "polymorphics"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPolymorphicsB",
+      "expression": "Observation.valueQuantity.exists()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "polymorphics"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ]
+    }
+  ]
+}

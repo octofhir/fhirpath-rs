@@ -1,0 +1,57 @@
+{
+  "name": "testConcatenate",
+  "description": "testConcatenate",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testConcatenate1",
+      "expression": "'a' & 'b' = 'ab'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConcatenate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testConcatenate2",
+      "expression": "'1' & {} = '1'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConcatenate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testConcatenate3",
+      "expression": "{} & 'b' = 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConcatenate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testConcatenate4",
+      "expression": "(1 | 2 | 3) & 'b' = '1,2,3b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConcatenate"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "name": "testCase",
+  "description": "testCase",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testCase1",
+      "expression": "'t'.upper() = 'T'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCase"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCase2",
+      "expression": "'t'.lower() = 't'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCase"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCase3",
+      "expression": "'T'.upper() = 'T'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCase"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCase4",
+      "expression": "'T'.lower() = 't'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCase"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

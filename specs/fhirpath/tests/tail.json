@@ -1,0 +1,33 @@
+{
+  "name": "testTail",
+  "description": "testTail",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testTail1",
+      "expression": "(0 | 1 | 2).tail() = 1 | 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTail"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTail2",
+      "expression": "Patient.name.tail().given = 'Jim' | 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTail"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

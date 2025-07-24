@@ -1,0 +1,59 @@
+{
+  "name": "testEscapeUnescape",
+  "description": "testEscapeUnescape",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testEscapeHtml",
+      "expression": "'\"1<2\"'.escape('html')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEscapeUnescape"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "&quot;1&lt;2&quot;"
+      ]
+    },
+    {
+      "name": "testEscapeJson",
+      "expression": "'\"1<2\"'.escape('json')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEscapeUnescape"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\\\"1<2\\\""
+      ]
+    },
+    {
+      "name": "testUnescapeHtml",
+      "expression": "'&quot;1&lt;2&quot;'.unescape('html')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEscapeUnescape"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\"1<2\""
+      ]
+    },
+    {
+      "name": "testUnescapeJson",
+      "expression": "'\\\"1<2\\\"'.unescape('json')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEscapeUnescape"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\"1<2\""
+      ]
+    }
+  ]
+}

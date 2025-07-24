@@ -1,0 +1,385 @@
+{
+  "name": "testGreatorOrEqual",
+  "description": "testGreatorOrEqual",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testGreatorOrEqual1",
+      "expression": "1 >= 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual2",
+      "expression": "1.0 >= 1.2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual3",
+      "expression": "'a' >= 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual4",
+      "expression": "'A' >= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual5",
+      "expression": "@2014-12-12 >= @2014-12-13",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual6",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:01",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual7",
+      "expression": "@T12:00:00 >= @T14:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual8",
+      "expression": "1 >= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual9",
+      "expression": "1.0 >= 1.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual10",
+      "expression": "'a' >= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual11",
+      "expression": "'A' >= 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual12",
+      "expression": "@2014-12-12 >= @2014-12-12",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual13",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual14",
+      "expression": "@T12:00:00 >= @T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual15",
+      "expression": "2 >= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual16",
+      "expression": "1.1 >= 1.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual17",
+      "expression": "'b' >= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual18",
+      "expression": "'B' >= 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual19",
+      "expression": "@2014-12-13 >= @2014-12-12",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual20",
+      "expression": "@2014-12-13T12:00:01 >= @2014-12-13T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual21",
+      "expression": "@T12:00:01 >= @T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual22",
+      "expression": "Observation.value >= 100 '[lb_av]'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual23",
+      "expression": "@2018-03 >= @2018-03-01",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testGreatorOrEqual24",
+      "expression": "@2018-03-01T10:30 >= @2018-03-01T10:30:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testGreatorOrEqual25",
+      "expression": "@T10:30 >= @T10:30:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testGreatorOrEqual26",
+      "expression": "@2018-03-01T10:30:00 >= @2018-03-01T10:30:00.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual27",
+      "expression": "@T10:30:00 >= @T10:30:00.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testGreatorOrEqualEmpty1",
+      "expression": "1 >= {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testGreatorOrEqualEmpty2",
+      "expression": "{} >= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testGreatorOrEqualEmpty3",
+      "expression": "{} >= {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testGreatorOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

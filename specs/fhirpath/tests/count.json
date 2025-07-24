@@ -1,0 +1,59 @@
+{
+  "name": "testCount",
+  "description": "testCount",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testCount1",
+      "expression": "Patient.name.count()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCount"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ]
+    },
+    {
+      "name": "testCount2",
+      "expression": "Patient.name.count() = 3",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCount"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCount3",
+      "expression": "Patient.name.first().count()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCount"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        1
+      ]
+    },
+    {
+      "name": "testCount4",
+      "expression": "Patient.name.first().count() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCount"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

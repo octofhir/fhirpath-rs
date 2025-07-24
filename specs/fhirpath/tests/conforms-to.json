@@ -1,0 +1,44 @@
+{
+  "name": "testConformsTo",
+  "description": "testConformsTo",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testConformsTo1",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConformsTo"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testConformsTo2",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConformsTo"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testConformsTo3",
+      "expression": "conformsTo('http://trash')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConformsTo"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

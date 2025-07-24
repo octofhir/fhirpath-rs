@@ -1,0 +1,80 @@
+{
+  "name": "Precision",
+  "description": "Precision",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "PrecisionDecimal",
+      "expression": "1.58700.precision()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "expected": [
+        5
+      ]
+    },
+    {
+      "name": "PrecisionYear",
+      "expression": "@2014.precision()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "expected": [
+        4
+      ]
+    },
+    {
+      "name": "PrecisionDateTimeMilliseconds",
+      "expression": "@2014-01-05T10:30:00.000.precision()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "expected": [
+        17
+      ]
+    },
+    {
+      "name": "PrecisionTimeMinutes",
+      "expression": "@T10:30.precision()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "expected": [
+        4
+      ]
+    },
+    {
+      "name": "PrecisionTimeMilliseconds",
+      "expression": "@T10:30:00.000.precision()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "expected": [
+        9
+      ]
+    },
+    {
+      "name": "PrecisionEmpty",
+      "expression": "{}.precision().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "Precision"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

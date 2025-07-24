@@ -1,0 +1,319 @@
+{
+  "name": "testEquivalent",
+  "description": "testEquivalent",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testEquivalent1",
+      "expression": "1 ~ 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent2",
+      "expression": "{} ~ {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent3",
+      "expression": "1 ~ {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent4",
+      "expression": "1 ~ 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent5",
+      "expression": "'a' ~ 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent6",
+      "expression": "'a' ~ 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent7",
+      "expression": "'a' ~ 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent8",
+      "expression": "1.1 ~ 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent9",
+      "expression": "1.1 ~ 1.2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent10",
+      "expression": "1.10 ~ 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent11",
+      "expression": "1.2 / 1.8 ~ 0.67",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent12",
+      "expression": "0 ~ 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent13",
+      "expression": "0.0 ~ 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent14",
+      "expression": "@2012-04-15 ~ @2012-04-15",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent15",
+      "expression": "@2012-04-15 ~ @2012-04-16",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent16",
+      "expression": "@2012-04-15 ~ @2012-04-15T10:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent17",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent18",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquivalent19",
+      "expression": "name ~ name",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent20",
+      "expression": "name.take(2).given ~ name.take(2).first().given | name.take(2).last().given",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent21",
+      "expression": "name.take(2).given ~ name.take(2).last().given | name.take(2).first().given",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent22",
+      "expression": "Observation.value ~ 185 '[lb_av]'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent23",
+      "expression": "(1 | 2 | 3) ~ (1 | 2 | 3)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquivalent24",
+      "expression": "(1 | 2 | 3) ~ (3 | 2 | 1)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquivalent"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

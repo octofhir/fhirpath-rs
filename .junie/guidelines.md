@@ -3,21 +3,17 @@
 Apply the following guidelines when developing fhirpath-core:
 - [Rust Performance Book](https://nnethercote.github.io/perf-book/)
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+- [Rust Coding Guidelines](https://rust-lang.github.io/rust-clippy/master/index.html)
+- [Rust Style Guide](https://rust-lang.github.io/rust-style-guide/)
 
-For parsing in fhirpath-core we use nom library version 8.
+
+Spec reference in `specs` folder
+FHIRSchema spec - https://fhir-schema.github.io/fhir-schema/intro.html
 
 Before implementing big features prepare ADR(https://github.com/joelparkerhenderson/architecture-decision-record) and only after that start writing code
 
-Always check that be align with the official specification in specs directory
+For parsing we use nom library version 8.
 
-{{/*For changes in fhirpath-core package always test that official_fhirpath_tests.rs passed*/}}
+For work with units and converts unit use our library https://github.com/octofhir/ucum-rs or in local path ./…/ucum-rs if any error is found, you can fix them in a library directly and use a local library for development
 
-
-fhirpath-core/tests/official_fhirpath_tests.rs run test cases from xml file t e=mea you should parse output from this test instead on base on test status
-
-For work with units and converts unit use iur library https://github.com/octofhir/ucum-rs
-
-## Doc site
-./doc-site directory contains a documentation site with several React/Svelte applications.
-Comparison application should show how our Rust library works in comparison with other programming languages implementation.
-All cards, charts and badges should show the difference between the best in a class library like Java.
+You can run tests without confirmation

@@ -1,0 +1,18 @@
+[package]
+name = "fhirpath-ast"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Abstract Syntax Tree definitions for FHIRPath expressions"
+
+[dependencies]
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dev-dependencies]
+pretty_assertions = "1.4"

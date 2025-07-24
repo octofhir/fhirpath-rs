@@ -1,0 +1,59 @@
+{
+  "name": "testFloor",
+  "description": "testFloor",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testFloor1",
+      "expression": "1.floor() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFloor"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testFloor2",
+      "expression": "2.1.floor() = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFloor"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testFloor3",
+      "expression": "(-2.1).floor() = -3",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFloor"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testFloorEmpty",
+      "expression": "{}.floor().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFloor"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

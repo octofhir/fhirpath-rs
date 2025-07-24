@@ -1,0 +1,148 @@
+{
+  "name": "testContainsString",
+  "description": "testContainsString",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testContainsString1",
+      "expression": "'12345'.contains('6') = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString2",
+      "expression": "'12345'.contains('5') = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString3",
+      "expression": "'12345'.contains('45') = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString4",
+      "expression": "'12345'.contains('35') = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString5",
+      "expression": "'12345'.contains('12345') = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString6",
+      "expression": "'12345'.contains('012345') = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString7",
+      "expression": "'12345'.contains('') = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString8",
+      "expression": "{}.contains('a').empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString9",
+      "expression": "{}.contains('').empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsString10",
+      "expression": "'123456789'.contains(length().toString())",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testContainsNonString1",
+      "expression": "Appointment.identifier.contains('rand')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testContainsString"
+      ],
+      "inputfile": "appointment-examplereq.json",
+      "expected": []
+    }
+  ]
+}

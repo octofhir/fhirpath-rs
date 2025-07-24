@@ -1,0 +1,72 @@
+{
+  "name": "testLog",
+  "description": "testLog",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testLog1",
+      "expression": "16.log(2) = 4.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLog"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLog2",
+      "expression": "100.0.log(10.0) = 2.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLog"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLogEmpty",
+      "expression": "{}.log(10).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLog"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLogEmpty2",
+      "expression": "{}.log({}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLog"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLogEmpty3",
+      "expression": "16.log({}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLog"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

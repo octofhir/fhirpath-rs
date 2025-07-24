@@ -1,0 +1,33 @@
+{
+  "name": "testToday",
+  "description": "testToday",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testToday1",
+      "expression": "Patient.birthDate < today()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToday"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testToday2",
+      "expression": "today().toString().length() = 10",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToday"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

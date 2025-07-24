@@ -1,0 +1,105 @@
+{
+  "name": "testIn",
+  "description": "testIn",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testIn1",
+      "expression": "1 in (1 | 2 | 3)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testIn2",
+      "expression": "1 in (2 | 3)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testIn3",
+      "expression": "'a' in ('a' | 'c' | 'd')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testIn4",
+      "expression": "'b' in ('a' | 'c' | 'd')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testIn5",
+      "expression": "('a' | 'c' | 'd') in 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testInEmptyCollection",
+      "expression": "1 in {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testInEmptyValue",
+      "expression": "{} in (1 | 2 | 3)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testInEmptyBoth",
+      "expression": "{} in {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIn"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

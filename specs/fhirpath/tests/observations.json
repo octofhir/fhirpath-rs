@@ -1,0 +1,131 @@
+{
+  "name": "testObservations",
+  "description": "testObservations",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testPolymorphismA",
+      "expression": "Observation.value.unit",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ]
+    },
+    {
+      "name": "testPolymorphismB",
+      "expression": "Observation.valueQuantity.unit",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ]
+    },
+    {
+      "name": "testPolymorphismIsA1",
+      "expression": "Observation.value.is(Quantity)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPolymorphismIsA2",
+      "expression": "Observation.value is Quantity",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPolymorphismIsA3",
+      "expression": "Observation.issued is instant",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPolymorphismIsB",
+      "expression": "Observation.value.is(Period).not()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPolymorphismAsA",
+      "expression": "Observation.value.as(Quantity).unit",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ]
+    },
+    {
+      "name": "testPolymorphismAsAFunction",
+      "expression": "(Observation.value as Quantity).unit",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ]
+    },
+    {
+      "name": "testPolymorphismAsB",
+      "expression": "(Observation.value as Period).unit",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPolymorphismAsBFunction",
+      "expression": "Observation.value.as(Period).start",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testObservations"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": []
+    }
+  ]
+}

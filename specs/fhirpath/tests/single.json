@@ -1,0 +1,31 @@
+{
+  "name": "testSingle",
+  "description": "testSingle",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSingle1",
+      "expression": "Patient.name.first().single().exists()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSingle"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSingle2",
+      "expression": "Patient.name.single().exists()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSingle"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

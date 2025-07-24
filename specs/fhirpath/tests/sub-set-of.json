@@ -1,0 +1,48 @@
+{
+  "name": "testSubSetOf",
+  "description": "testSubSetOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSubSetOf1",
+      "expression": "Patient.name.first().subsetOf($this.name)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubSetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubSetOf2",
+      "expression": "Patient.name.subsetOf($this.name.first()).not()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubSetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubSetOf3",
+      "expression": "supportingInfo.where(category.coding.code = 'additionalbodysite').sequence.subsetOf($this.item.informationSequence)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubSetOf",
+        "function:where",
+        "filtering"
+      ],
+      "inputfile": "explanationofbenefit-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

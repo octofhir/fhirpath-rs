@@ -1,0 +1,33 @@
+{
+  "name": "testIndexer",
+  "description": "testIndexer",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testIndexer1",
+      "expression": "Patient.name[0].given = 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIndexer"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testIndexer2",
+      "expression": "Patient.name[1].given = 'Jim'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testIndexer"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

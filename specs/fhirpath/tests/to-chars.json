@@ -1,0 +1,20 @@
+{
+  "name": "testToChars",
+  "description": "testToChars",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testToChars1",
+      "expression": "'t2'.toChars() = 't' | '2'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToChars"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

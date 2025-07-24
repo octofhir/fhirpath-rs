@@ -1,0 +1,44 @@
+{
+  "name": "testSqrt",
+  "description": "testSqrt",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSqrt1",
+      "expression": "81.sqrt() = 9.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSqrt"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSqrt2",
+      "expression": "(-1).sqrt()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSqrt"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testSqrtEmpty",
+      "expression": "{}.sqrt().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSqrt"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

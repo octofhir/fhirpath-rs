@@ -1,0 +1,28 @@
+[package]
+name = "fhirpath-diagnostics"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Diagnostic system for FHIRPath parsing and evaluation errors"
+
+[dependencies]
+thiserror.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+# Optional LSP support
+lsp-types = { version = "0.97", optional = true }
+
+# For colored terminal output
+colored = { version = "3", optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+lsp = ["lsp-types"]
+terminal = ["colored"]
+
+[dev-dependencies]
+pretty_assertions = "1.4"

@@ -1,0 +1,59 @@
+{
+  "name": "testSplit",
+  "description": "testSplit",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSplit1",
+      "expression": "'Peter,James,Jim,Peter,James'.split(',').count() = 5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSplit"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSplit2",
+      "expression": "'A,,C'.split(',').join(',') = 'A,,C'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSplit"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSplit3",
+      "expression": "'[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]'.split('[stop]').trace('n').count() = 9",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSplit"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSplit4",
+      "expression": "'[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]'.split('[stop]').join('[stop]')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSplit"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "[stop]ONE[stop][stop]TWO[stop][stop][stop]THREE[stop][stop]"
+      ]
+    }
+  ]
+}

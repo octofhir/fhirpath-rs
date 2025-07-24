@@ -1,0 +1,363 @@
+{
+  "name": "testEquality",
+  "description": "testEquality",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testEquality1",
+      "expression": "1 = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality2",
+      "expression": "{} = {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testEquality3",
+      "expression": "true = {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testEquality4",
+      "expression": "(1) = (1)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality5",
+      "expression": "(1 | 2) = (1 | 2)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality6",
+      "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality7",
+      "expression": "(1 | 1) = (1 | 2 | {})",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality8",
+      "expression": "1 = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality9",
+      "expression": "'a' = 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality10",
+      "expression": "'a' = 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality11",
+      "expression": "'a' = 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality12",
+      "expression": "1.1 = 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality13",
+      "expression": "1.1 = 1.2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality14",
+      "expression": "1.10 = 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality15",
+      "expression": "0 = 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality16",
+      "expression": "0.0 = 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality17",
+      "expression": "@2012-04-15 = @2012-04-15",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality18",
+      "expression": "@2012-04-15 = @2012-04-16",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality19",
+      "expression": "@2012-04-15 = @2012-04-15T10:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testEquality20",
+      "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality21",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality22",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality23",
+      "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testEquality24",
+      "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality25",
+      "expression": "name = name",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality26",
+      "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testEquality27",
+      "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testEquality28",
+      "expression": "Observation.value = 185 '[lb_av]'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testEquality"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

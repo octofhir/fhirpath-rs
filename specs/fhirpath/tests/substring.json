@@ -1,0 +1,150 @@
+{
+  "name": "testSubstring",
+  "description": "testSubstring",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSubstring1",
+      "expression": "'12345'.substring(2) = '345'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring2",
+      "expression": "'12345'.substring(2,1) = '3'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring3",
+      "expression": "'12345'.substring(2,5) = '345'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring4",
+      "expression": "'12345'.substring(25).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring5",
+      "expression": "'12345'.substring(-1).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring7",
+      "expression": "'LogicalModel-Person'.substring(0, 12)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ]
+    },
+    {
+      "name": "testSubstring8",
+      "expression": "'LogicalModel-Person'.substring(0, 'LogicalModel-Person'.indexOf('-'))",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "LogicalModel"
+      ]
+    },
+    {
+      "name": "testSubstring9",
+      "expression": "{}.substring(25).empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring10",
+      "expression": "Patient.name.family.first().substring(2, length()-5)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "alm"
+      ]
+    },
+    {
+      "name": "testSubstring11",
+      "expression": "{}.substring({}).empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSubstring12",
+      "expression": "'string'.substring({}).empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSubstring"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

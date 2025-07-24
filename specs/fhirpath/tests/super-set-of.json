@@ -1,0 +1,33 @@
+{
+  "name": "testSuperSetOf",
+  "description": "testSuperSetOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSuperSetOf1",
+      "expression": "Patient.name.first().supersetOf($this.name).not()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSuperSetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSuperSetOf2",
+      "expression": "Patient.name.supersetOf($this.name.first())",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSuperSetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

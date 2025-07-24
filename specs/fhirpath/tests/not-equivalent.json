@@ -1,0 +1,293 @@
+{
+  "name": "testNotEquivalent",
+  "description": "testNotEquivalent",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testNotEquivalent1",
+      "expression": "1 !~ 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent2",
+      "expression": "{} !~ {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent3",
+      "expression": "{} !~ 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent4",
+      "expression": "1 !~ 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent5",
+      "expression": "'a' !~ 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent6",
+      "expression": "'a' !~ 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent7",
+      "expression": "'a' !~ 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent8",
+      "expression": "1.1 !~ 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent9",
+      "expression": "1.1 !~ 1.2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent10",
+      "expression": "1.10 !~ 1.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent11",
+      "expression": "0 !~ 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent12",
+      "expression": "0.0 !~ 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent13",
+      "expression": "1.2 / 1.8 !~ 0.6",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent14",
+      "expression": "@2012-04-15 !~ @2012-04-15",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent15",
+      "expression": "@2012-04-15 !~ @2012-04-16",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent16",
+      "expression": "@2012-04-15 !~ @2012-04-15T10:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent17",
+      "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent18",
+      "expression": "@2012-04-15T15:30:31 !~ @2012-04-15T15:30:31.1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testNotEquivalent19",
+      "expression": "name !~ name",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent20",
+      "expression": "name.take(2).given !~ name.take(2).first().given | name.take(2).last().given",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent21",
+      "expression": "name.take(2).given !~ name.take(2).last().given | name.take(2).first().given",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testNotEquivalent22",
+      "expression": "Observation.value !~ 185 'kg'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testNotEquivalent"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

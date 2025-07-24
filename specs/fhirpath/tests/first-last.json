@@ -1,0 +1,33 @@
+{
+  "name": "testFirstLast",
+  "description": "testFirstLast",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testFirstLast1",
+      "expression": "Patient.name.first().given = 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFirstLast"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testFirstLast2",
+      "expression": "Patient.name.last().given = 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testFirstLast"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

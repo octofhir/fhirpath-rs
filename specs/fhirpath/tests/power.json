@@ -1,0 +1,83 @@
+{
+  "name": "testPower",
+  "description": "testPower",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testPower1",
+      "expression": "2.power(3) = 8",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPower2",
+      "expression": "2.5.power(2) = 6.25",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPower3",
+      "expression": "(-1).power(0.5)",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPowerEmpty",
+      "expression": "{}.power(2).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPowerEmpty2",
+      "expression": "{}.power({}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPowerEmpty3",
+      "expression": "2.5.power({}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPower"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

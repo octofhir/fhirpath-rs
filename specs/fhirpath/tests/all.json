@@ -1,0 +1,63 @@
+{
+  "name": "testAll",
+  "description": "testAll",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testAllTrue1",
+      "expression": "Patient.name.select(given.exists()).allTrue()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAll",
+        "function:select",
+        "filtering"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testAllTrue2",
+      "expression": "Patient.name.select(period.exists()).allTrue()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAll",
+        "function:select",
+        "filtering"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testAllTrue3",
+      "expression": "Patient.name.all(given.exists())",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAll"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testAllTrue4",
+      "expression": "Patient.name.all(period.exists())",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAll"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    }
+  ]
+}

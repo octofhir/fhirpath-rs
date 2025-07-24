@@ -1,0 +1,98 @@
+{
+  "name": "testTake",
+  "description": "testTake",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testTake1",
+      "expression": "(0 | 1 | 2).take(1) = 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake2",
+      "expression": "(0 | 1 | 2).take(2) = 0 | 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake3",
+      "expression": "Patient.name.take(1).given = 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake4",
+      "expression": "Patient.name.take(2).given = 'Peter' | 'James' | 'Jim'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake5",
+      "expression": "Patient.name.take(3).given.count() = 5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake6",
+      "expression": "Patient.name.take(4).given.count() = 5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testTake7",
+      "expression": "Patient.name.take(0).given.exists() = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTake"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

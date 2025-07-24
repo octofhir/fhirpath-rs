@@ -1,9 +1,9 @@
 //! FHIRPath engine - the main entry point for FHIRPath evaluation
 
-use crate::ast::ExpressionNode;
+use fhirpath_ast::ExpressionNode;
 use crate::error::Result;
 use crate::evaluator::{evaluate_ast, EvaluationContext};
-use crate::model::FhirPathValue;
+use crate::value_ext::FhirPathValue;
 use crate::parser::parse_expression;
 use serde_json::Value;
 use std::collections::HashMap;

@@ -1,0 +1,385 @@
+{
+  "name": "testLessOrEqual",
+  "description": "testLessOrEqual",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testLessOrEqual1",
+      "expression": "1 <= 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual2",
+      "expression": "1.0 <= 1.2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual3",
+      "expression": "'a' <= 'b'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual4",
+      "expression": "'A' <= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual5",
+      "expression": "@2014-12-12 <= @2014-12-13",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual6",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:01",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual7",
+      "expression": "@T12:00:00 <= @T14:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual8",
+      "expression": "1 <= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual9",
+      "expression": "1.0 <= 1.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual10",
+      "expression": "'a' <= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual11",
+      "expression": "'A' <= 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual12",
+      "expression": "@2014-12-12 <= @2014-12-12",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual13",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual14",
+      "expression": "@T12:00:00 <= @T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual15",
+      "expression": "2 <= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual16",
+      "expression": "1.1 <= 1.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual17",
+      "expression": "'b' <= 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual18",
+      "expression": "'B' <= 'A'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual19",
+      "expression": "@2014-12-13 <= @2014-12-12",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual20",
+      "expression": "@2014-12-13T12:00:01 <= @2014-12-13T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual21",
+      "expression": "@T12:00:01 <= @T12:00:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ]
+    },
+    {
+      "name": "testLessOrEqual22",
+      "expression": "Observation.value <= 200 '[lb_av]'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual23",
+      "expression": "@2018-03 <= @2018-03-01",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testLessOrEqual24",
+      "expression": "@2018-03-01T10:30 <= @2018-03-01T10:30:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testLessOrEqual25",
+      "expression": "@T10:30 <= @T10:30:00",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testLessOrEqual26",
+      "expression": "@2018-03-01T10:30:00  <= @2018-03-01T10:30:00.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqual27",
+      "expression": "@T10:30:00 <= @T10:30:00.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testLessOrEqualEmpty1",
+      "expression": "1 <= {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testLessOrEqualEmpty2",
+      "expression": "{} <= 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testLessOrEqualEmpty3",
+      "expression": "{} <= {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testLessOrEqual"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

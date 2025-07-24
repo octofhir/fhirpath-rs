@@ -1,0 +1,46 @@
+{
+  "name": "testExp",
+  "description": "testExp",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testExp1",
+      "expression": "0.exp() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testExp"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testExp2",
+      "expression": "(-0.0).exp() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testExp"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testExp3",
+      "expression": "{}.exp().empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testExp"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

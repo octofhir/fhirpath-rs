@@ -1,0 +1,433 @@
+{
+  "name": "testPlus",
+  "description": "testPlus",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testPlus1",
+      "expression": "1 + 1 = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPlus2",
+      "expression": "1 + 0 = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPlus3",
+      "expression": "1.2 + 1.8 = 3.0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPlus4",
+      "expression": "'a'+'b' = 'ab'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testPlus5",
+      "expression": "'a'+{}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusDate1",
+      "expression": "@1973-12-25 + 7 days",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01"
+      ]
+    },
+    {
+      "name": "testPlusDate2",
+      "expression": "@1973-12-25 + 7.7 days",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01"
+      ]
+    },
+    {
+      "name": "testPlusDate3",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7 days",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01T00:00:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate4",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 7.7 days",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01T00:00:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate5",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 second",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:00:01.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate6",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 millisecond",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:00:00.010+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate7",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 minute",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:01:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate8",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 hour",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T01:00:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate9",
+      "expression": "@1973-12-25 + 1 day",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-26"
+      ]
+    },
+    {
+      "name": "testPlusDate10",
+      "expression": "@1973-12-25 + 1 month",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-25"
+      ]
+    },
+    {
+      "name": "testPlusDate11",
+      "expression": "@1973-12-25 + 1 week",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01"
+      ]
+    },
+    {
+      "name": "testPlusDate12",
+      "expression": "@1973-12-25 + 1 year",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-12-25"
+      ]
+    },
+    {
+      "name": "testPlusDate13",
+      "expression": "@1973-12-25 + 1 'd'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-26"
+      ]
+    },
+    {
+      "name": "testPlusDate14",
+      "expression": "@1973-12-25 + 1 'mo'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusDate15",
+      "expression": "@1973-12-25 + 1 'wk'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1974-01-01"
+      ]
+    },
+    {
+      "name": "testPlusDate16",
+      "expression": "@1973-12-25 + 1 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusDate17",
+      "expression": "@1975-12-25 + 1 'a'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusDate18",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 's'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:00:01.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate19",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 0.1 's'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:00:00.100+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate20",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 10 'ms'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:00:00.010+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate21",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'min'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T00:01:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlusDate22",
+      "expression": "@1973-12-25T00:00:00.000+10:00 + 1 'h'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@1973-12-25T01:00:00.000+10:00"
+      ]
+    },
+    {
+      "name": "testPlus6",
+      "expression": "@1974-12-25 + 7",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusTime1",
+      "expression": "@T01:00:00 + 2 hours",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@T03:00:00"
+      ]
+    },
+    {
+      "name": "testPlusTime2",
+      "expression": "@T23:00:00 + 2 hours",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@T01:00:00"
+      ]
+    },
+    {
+      "name": "testPlusTime3",
+      "expression": "@T23:00:00 + 50 hours",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "@T01:00:00"
+      ]
+    },
+    {
+      "name": "testPlusEmpty1",
+      "expression": "1 + {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusEmpty2",
+      "expression": "{} + 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testPlusEmpty3",
+      "expression": "{} + {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testPlus"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

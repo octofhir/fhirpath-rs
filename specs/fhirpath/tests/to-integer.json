@@ -1,0 +1,72 @@
+{
+  "name": "testToInteger",
+  "description": "testToInteger",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testToInteger1",
+      "expression": "'1'.toInteger() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToInteger"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testToInteger2",
+      "expression": "'-1'.toInteger() = -1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToInteger"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testToInteger3",
+      "expression": "'0'.toInteger() = 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToInteger"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testToInteger4",
+      "expression": "'0.0'.toInteger().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToInteger"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testToInteger5",
+      "expression": "'st'.toInteger().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToInteger"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

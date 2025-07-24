@@ -1,0 +1,59 @@
+{
+  "name": "testAbs",
+  "description": "testAbs",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testAbs1",
+      "expression": "(-5).abs() = 5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAbs"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testAbs2",
+      "expression": "(-5.5).abs() = 5.5",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAbs"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testAbs3",
+      "expression": "(-5.5 'mg').abs() = 5.5 'mg'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAbs"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testAbsEmpty",
+      "expression": "{}.abs().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testAbs"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

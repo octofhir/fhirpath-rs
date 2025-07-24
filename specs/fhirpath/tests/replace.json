@@ -1,0 +1,85 @@
+{
+  "name": "testReplace",
+  "description": "testReplace",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testReplace1",
+      "expression": "'123456'.replace('234', 'X')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1X56"
+      ]
+    },
+    {
+      "name": "testReplace2",
+      "expression": "'abc'.replace('', 'x')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "xaxbxcx"
+      ]
+    },
+    {
+      "name": "testReplace3",
+      "expression": "'123456'.replace('234', '')",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        "156"
+      ]
+    },
+    {
+      "name": "testReplace4",
+      "expression": "{}.replace('234', 'X').empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testReplace5",
+      "expression": "'123'.replace({}, 'X').empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testReplace6",
+      "expression": "'123'.replace('2', {}).empty() = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testReplace"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

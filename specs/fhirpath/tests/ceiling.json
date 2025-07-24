@@ -1,0 +1,59 @@
+{
+  "name": "testCeiling",
+  "description": "testCeiling",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testCeiling1",
+      "expression": "1.ceiling() = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCeiling"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCeiling2",
+      "expression": "(-1.1).ceiling() = -1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCeiling"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCeiling3",
+      "expression": "1.1.ceiling() = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCeiling"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testCeilingEmpty",
+      "expression": "{}.ceiling().empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testCeiling"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

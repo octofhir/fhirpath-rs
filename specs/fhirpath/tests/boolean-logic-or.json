@@ -1,0 +1,124 @@
+{
+  "name": "testBooleanLogicOr",
+  "description": "testBooleanLogicOr",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testBooleanLogicOr1",
+      "expression": "(true or true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr2",
+      "expression": "(true or false) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr3",
+      "expression": "(true or {}) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr4",
+      "expression": "(false or true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr5",
+      "expression": "(false or false) = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr6",
+      "expression": "(false or {}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr7",
+      "expression": "({} or true) = true",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr8",
+      "expression": "({} or false).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testBooleanLogicOr9",
+      "expression": "({} or {}).empty()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testBooleanLogicOr"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}

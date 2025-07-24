@@ -1,0 +1,103 @@
+{
+  "name": "testDiv",
+  "description": "testDiv",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testDiv1",
+      "expression": "1 div 1 = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testDiv2",
+      "expression": "4 div 2 = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testDiv3",
+      "expression": "5 div 2 = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testDiv4",
+      "expression": "2.2 div 1.8 = 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testDiv5",
+      "expression": "5 div 0",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testDivEmpty1",
+      "expression": "1 div {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testDivEmpty2",
+      "expression": "{} div 1",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "testDivEmpty3",
+      "expression": "{} div {}",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDiv"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": []
+    }
+  ]
+}

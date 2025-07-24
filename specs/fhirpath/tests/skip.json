@@ -1,0 +1,59 @@
+{
+  "name": "testSkip",
+  "description": "testSkip",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSkip1",
+      "expression": "(0 | 1 | 2).skip(1) = 1 | 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSkip"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSkip2",
+      "expression": "(0 | 1 | 2).skip(2) = 2",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSkip"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSkip3",
+      "expression": "Patient.name.skip(1).given.trace('test') = 'Jim' | 'Peter' | 'James'",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSkip"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    },
+    {
+      "name": "testSkip4",
+      "expression": "Patient.name.skip(3).given.exists() = false",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSkip"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ]
+    }
+  ]
+}
