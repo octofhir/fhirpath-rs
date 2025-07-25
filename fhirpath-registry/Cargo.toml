@@ -21,6 +21,9 @@ serde_json.workspace = true
 rustc-hash = "1.1"
 indexmap = "2.0"
 
+# String processing
+regex = "1.10"
+
 # Math and date/time
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1.32", features = ["serde-with-str"] }

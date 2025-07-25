@@ -22,7 +22,7 @@ fn parse_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
 /// Parse OR expression (lowest precedence)
 fn parse_or_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_xor_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::Or => {
@@ -33,14 +33,14 @@ fn parse_or_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse XOR expression
 fn parse_xor_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_and_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::Xor => {
@@ -51,14 +51,14 @@ fn parse_xor_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse AND expression
 fn parse_and_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_implies_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::And => {
@@ -69,14 +69,14 @@ fn parse_and_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse IMPLIES expression
 fn parse_implies_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_union_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::Implies => {
@@ -87,14 +87,14 @@ fn parse_implies_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse UNION expression
 fn parse_union_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_equality_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::Union => {
@@ -108,14 +108,14 @@ fn parse_union_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse equality/equivalence expressions
 fn parse_equality_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_relational_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         let op = match &token.value {
             Token::Equal => Some(BinaryOperator::Equal),
@@ -124,7 +124,7 @@ fn parse_equality_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> 
             Token::NotEquivalent => Some(BinaryOperator::NotEquivalent),
             _ => None,
         };
-        
+
         if let Some(op) = op {
             stream.next();
             let right = parse_relational_expr(stream)?;
@@ -133,14 +133,14 @@ fn parse_equality_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> 
             break;
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse relational expressions
 fn parse_relational_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_membership_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         let op = match &token.value {
             Token::LessThan => Some(BinaryOperator::LessThan),
@@ -149,7 +149,7 @@ fn parse_relational_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode
             Token::GreaterThanOrEqual => Some(BinaryOperator::GreaterThanOrEqual),
             _ => None,
         };
-        
+
         if let Some(op) = op {
             stream.next();
             let right = parse_membership_expr(stream)?;
@@ -158,21 +158,21 @@ fn parse_relational_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode
             break;
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse membership expressions (in, contains)
 fn parse_membership_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_type_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         let op = match &token.value {
             Token::In => Some(BinaryOperator::In),
             Token::Contains => Some(BinaryOperator::Contains),
             _ => None,
         };
-        
+
         if let Some(op) = op {
             stream.next();
             let right = parse_type_expr(stream)?;
@@ -181,14 +181,14 @@ fn parse_membership_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode
             break;
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse type expressions (is, as)
 fn parse_type_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_additive_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         match &token.value {
             Token::Is => {
@@ -210,14 +210,14 @@ fn parse_type_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => break,
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse additive expressions
 fn parse_additive_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_multiplicative_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         let op = match &token.value {
             Token::Plus => Some(BinaryOperator::Add),
@@ -225,7 +225,7 @@ fn parse_additive_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> 
             Token::And => Some(BinaryOperator::Concatenate), // String concatenation uses &
             _ => None,
         };
-        
+
         if let Some(op) = op {
             stream.next();
             let right = parse_multiplicative_expr(stream)?;
@@ -234,14 +234,14 @@ fn parse_additive_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> 
             break;
         }
     }
-    
+
     Ok(left)
 }
 
 /// Parse multiplicative expressions
 fn parse_multiplicative_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut left = parse_unary_expr(stream)?;
-    
+
     while let Some(token) = stream.peek() {
         let op = match &token.value {
             Token::Multiply => Some(BinaryOperator::Multiply),
@@ -250,7 +250,7 @@ fn parse_multiplicative_expr(stream: &mut TokenStream) -> ParseResult<Expression
             Token::Mod => Some(BinaryOperator::Modulo),
             _ => None,
         };
-        
+
         if let Some(op) = op {
             stream.next();
             let right = parse_unary_expr(stream)?;
@@ -259,7 +259,7 @@ fn parse_multiplicative_expr(stream: &mut TokenStream) -> ParseResult<Expression
             break;
         }
     }
-    
+
     Ok(left)
 }
 
@@ -285,14 +285,14 @@ fn parse_unary_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             _ => {}
         }
     }
-    
+
     parse_postfix_expr(stream)
 }
 
 /// Parse postfix expressions (invocations, indexing, navigation)
 fn parse_postfix_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
     let mut expr = parse_primary_expr(stream)?;
-    
+
     loop {
         if let Some(token) = stream.peek() {
             match &token.value {
@@ -353,7 +353,7 @@ fn parse_postfix_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             break;
         }
     }
-    
+
     Ok(expr)
 }
 
@@ -370,17 +370,21 @@ fn parse_primary_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
             Token::Date(d) => Ok(ExpressionNode::literal(LiteralValue::Date(d.format("%Y-%m-%d").to_string()))),
             Token::DateTime(dt) => Ok(ExpressionNode::literal(LiteralValue::DateTime(dt.to_rfc3339()))),
             Token::Time(t) => Ok(ExpressionNode::literal(LiteralValue::Time(t.format("%H:%M:%S").to_string()))),
+            Token::Quantity { value, unit } => Ok(ExpressionNode::literal(LiteralValue::Quantity { value, unit })),
             Token::Empty => Ok(ExpressionNode::literal(LiteralValue::Null)),
-            
+
             // Identifiers
             Token::Identifier(name) => Ok(ExpressionNode::identifier(name)),
-            
+
+            // Keywords that can be used as identifiers
+            Token::Is => Ok(ExpressionNode::identifier("is".to_string())),
+
             // Special variables
             Token::Dollar => {
                 let var_name = parse_identifier(stream)?;
                 Ok(ExpressionNode::identifier(format!("${}", var_name)))
             }
-            
+
             // Parenthesized expression
             Token::LeftParen => {
                 let expr = parse_expr(stream)?;
@@ -391,7 +395,7 @@ fn parse_primary_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
                     })?;
                 Ok(expr)
             }
-            
+
             // Collection literal - not supported in AST literals, so we create a synthetic collection
             Token::LeftBrace => {
                 let _elements = parse_collection_elements(stream)?;
@@ -403,7 +407,7 @@ fn parse_primary_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
                 // For now, return an empty collection as this requires evaluation context
                 Ok(ExpressionNode::literal(LiteralValue::Null))
             }
-            
+
             _ => Err(ParseError::UnexpectedToken {
                 token: format!("{:?}", token.value),
                 position: token.start,
@@ -419,6 +423,9 @@ fn parse_identifier(stream: &mut TokenStream) -> ParseResult<String> {
     if let Some(token) = stream.next() {
         match token.value {
             Token::Identifier(name) => Ok(name),
+            // Allow keywords that can also be used as method/function names
+            Token::Is => Ok("is".to_string()),
+            Token::Contains => Ok("contains".to_string()),
             _ => Err(ParseError::UnexpectedToken {
                 token: format!("{:?}", token.value),
                 position: token.start,
@@ -437,17 +444,17 @@ fn parse_type_specifier(stream: &mut TokenStream) -> ParseResult<String> {
 /// Parse argument list for function calls
 fn parse_argument_list(stream: &mut TokenStream) -> ParseResult<Vec<ExpressionNode>> {
     let mut args = Vec::new();
-    
-    // Check for empty argument list
+
+    // Check for an empty argument list
     if let Some(token) = stream.peek() {
         if token.value == Token::RightParen {
             return Ok(args);
         }
     }
-    
+
     // Parse first argument
     args.push(parse_expr(stream)?);
-    
+
     // Parse remaining arguments
     while let Some(token) = stream.peek() {
         if token.value == Token::Comma {
@@ -457,24 +464,24 @@ fn parse_argument_list(stream: &mut TokenStream) -> ParseResult<Vec<ExpressionNo
             break;
         }
     }
-    
+
     Ok(args)
 }
 
 /// Parse collection elements
 fn parse_collection_elements(stream: &mut TokenStream) -> ParseResult<Vec<ExpressionNode>> {
     let mut elements = Vec::new();
-    
+
     // Check for empty collection
     if let Some(token) = stream.peek() {
         if token.value == Token::RightBrace {
             return Ok(elements);
         }
     }
-    
+
     // Parse first element
     elements.push(parse_expr(stream)?);
-    
+
     // Parse remaining elements
     while let Some(token) = stream.peek() {
         if token.value == Token::Comma {
@@ -484,14 +491,14 @@ fn parse_collection_elements(stream: &mut TokenStream) -> ParseResult<Vec<Expres
             break;
         }
     }
-    
+
     Ok(elements)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_simple_identifier() {
         let expr = parse_expression("name").unwrap();
@@ -500,7 +507,7 @@ mod tests {
             _ => panic!("Expected identifier"),
         }
     }
-    
+
     #[test]
     fn test_parse_path_navigation() {
         let expr = parse_expression("name.given").unwrap();
@@ -515,7 +522,7 @@ mod tests {
             _ => panic!("Expected path expression"),
         }
     }
-    
+
     #[test]
     fn test_parse_function_call() {
         let expr = parse_expression("count()").unwrap();
@@ -527,7 +534,7 @@ mod tests {
             _ => panic!("Expected function call"),
         }
     }
-    
+
     #[test]
     fn test_parse_binary_operation() {
         let expr = parse_expression("age > 18").unwrap();

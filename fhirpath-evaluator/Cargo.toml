@@ -16,6 +16,7 @@ fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 thiserror = { workspace = true }
 rustc-hash = "2.0"
 rust_decimal = "1.36"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -3,6 +3,7 @@
 use crate::signature::OperatorSignature;
 use fhirpath_model::{FhirPathValue, TypeInfo};
 use rustc_hash::FxHashMap;
+use rust_decimal::prelude::{ToPrimitive, FromPrimitive};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -202,6 +203,7 @@ pub fn register_builtin_operators(registry: &mut OperatorRegistry) {
     registry.register(DivideOperator);
     registry.register(IntegerDivideOperator);
     registry.register(ModuloOperator);
+    registry.register(PowerOperator);
     
     // Comparison operators
     registry.register(EqualOperator);
@@ -258,7 +260,11 @@ impl FhirPathOperator for AddOperator {
                 OperatorSignature::binary("+", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
                 OperatorSignature::binary("+", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
                 OperatorSignature::binary("+", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
+                OperatorSignature::binary("+", TypeInfo::String, TypeInfo::String, TypeInfo::String),
                 OperatorSignature::binary("+", TypeInfo::Quantity, TypeInfo::Quantity, TypeInfo::Quantity),
+                OperatorSignature::binary("+", TypeInfo::Date, TypeInfo::Quantity, TypeInfo::Date),
+                OperatorSignature::binary("+", TypeInfo::DateTime, TypeInfo::Quantity, TypeInfo::DateTime),
+                OperatorSignature::binary("+", TypeInfo::Time, TypeInfo::Quantity, TypeInfo::Time),
                 OperatorSignature::unary("+", TypeInfo::Integer, TypeInfo::Integer),
                 OperatorSignature::unary("+", TypeInfo::Decimal, TypeInfo::Decimal),
             ]
@@ -267,6 +273,11 @@ impl FhirPathOperator for AddOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_add(*b)
@@ -284,6 +295,9 @@ impl FhirPathOperator for AddOperator {
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
                 FhirPathValue::Decimal(a + rust_decimal::Decimal::from(*b))
             }
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+                FhirPathValue::String(format!("{}{}", a, b))
+            }
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 if a.unit == b.unit {
                     let mut result = a.clone();
@@ -295,6 +309,15 @@ impl FhirPathOperator for AddOperator {
                         right_unit: b.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
                     });
                 }
+            }
+            (FhirPathValue::Date(date), FhirPathValue::Quantity(quantity)) => {
+                self.add_date_quantity(date, quantity)?
+            }
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity(quantity)) => {
+                self.add_datetime_quantity(datetime, quantity)?
+            }
+            (FhirPathValue::Time(time), FhirPathValue::Quantity(quantity)) => {
+                self.add_time_quantity(time, quantity)?
             }
             _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -313,6 +336,117 @@ impl FhirPathOperator for AddOperator {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
             }),
+        }
+    }
+}
+
+impl AddOperator {
+    /// Add a quantity to a date
+    fn add_date_quantity(&self, date: &chrono::NaiveDate, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+        use chrono::Datelike;
+        
+        let unit = quantity.unit.as_deref().unwrap_or("");
+        let amount = quantity.value.to_i64().unwrap_or(0);
+        
+        let result_date = match unit {
+            "year" | "years" | "a" => {
+                date.with_year((date.year() + amount as i32).max(1))
+            }
+            "month" | "months" | "mo" => {
+                let total_months = date.year() as i64 * 12 + date.month() as i64 - 1 + amount;
+                let new_year = (total_months / 12) as i32;
+                let new_month = (total_months % 12 + 1) as u32;
+                date.with_year(new_year.max(1)).and_then(|d| d.with_month(new_month))
+            }
+            "week" | "weeks" | "wk" => {
+                Some(*date + chrono::Duration::weeks(amount))
+            }
+            "day" | "days" | "d" => {
+                Some(*date + chrono::Duration::days(amount))
+            }
+            _ => None, // Invalid unit for date arithmetic
+        };
+        
+        match result_date {
+            Some(new_date) => Ok(FhirPathValue::Date(new_date)),
+            None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
+        }
+    }
+    
+    /// Add a quantity to a datetime
+    fn add_datetime_quantity(&self, datetime: &chrono::DateTime<chrono::Utc>, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+        use chrono::Datelike;
+        
+        let unit = quantity.unit.as_deref().unwrap_or("");
+        let amount = quantity.value;
+        
+        let result_datetime = match unit {
+            "year" | "years" | "a" => {
+                let new_year = (datetime.year() as i64 + amount.to_i64().unwrap_or(0)) as i32;
+                datetime.with_year(new_year.max(1))
+            }
+            "month" | "months" | "mo" => {
+                let total_months = datetime.year() as i64 * 12 + datetime.month() as i64 - 1 + amount.to_i64().unwrap_or(0);
+                let new_year = (total_months / 12) as i32;
+                let new_month = (total_months % 12 + 1) as u32;
+                datetime.with_year(new_year.max(1)).and_then(|d| d.with_month(new_month))
+            }
+            "week" | "weeks" | "wk" => {
+                Some(*datetime + chrono::Duration::weeks(amount.to_i64().unwrap_or(0)))
+            }
+            "day" | "days" | "d" => {
+                Some(*datetime + chrono::Duration::days(amount.to_i64().unwrap_or(0)))
+            }
+            "hour" | "hours" | "h" => {
+                Some(*datetime + chrono::Duration::hours(amount.to_i64().unwrap_or(0)))
+            }
+            "minute" | "minutes" | "min" => {
+                Some(*datetime + chrono::Duration::minutes(amount.to_i64().unwrap_or(0)))
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = amount.to_i64().unwrap_or(0);
+                let millis = ((amount - rust_decimal::Decimal::from(seconds)) * rust_decimal::Decimal::from(1000)).to_i64().unwrap_or(0);
+                Some(*datetime + chrono::Duration::seconds(seconds) + chrono::Duration::milliseconds(millis))
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                Some(*datetime + chrono::Duration::milliseconds(amount.to_i64().unwrap_or(0)))
+            }
+            _ => None, // Invalid unit
+        };
+        
+        match result_datetime {
+            Some(new_datetime) => Ok(FhirPathValue::DateTime(new_datetime)),
+            None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
+        }
+    }
+    
+    /// Add a quantity to a time
+    fn add_time_quantity(&self, time: &chrono::NaiveTime, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+        let unit = quantity.unit.as_deref().unwrap_or("");
+        let amount = quantity.value;
+        
+        let result_time = match unit {
+            "hour" | "hours" | "h" => {
+                let hours = amount.to_i64().unwrap_or(0) % 24; // Handle wrap-around
+                Some(time.overflowing_add_signed(chrono::Duration::hours(hours)).0)
+            }
+            "minute" | "minutes" | "min" => {
+                Some(time.overflowing_add_signed(chrono::Duration::minutes(amount.to_i64().unwrap_or(0))).0)
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = amount.to_i64().unwrap_or(0);
+                let millis = ((amount - rust_decimal::Decimal::from(seconds)) * rust_decimal::Decimal::from(1000)).to_i64().unwrap_or(0);
+                Some(time.overflowing_add_signed(chrono::Duration::seconds(seconds) + chrono::Duration::milliseconds(millis)).0)
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                Some(time.overflowing_add_signed(chrono::Duration::milliseconds(amount.to_i64().unwrap_or(0))).0)
+            }
+            _ => None, // Invalid unit for time arithmetic
+        };
+        
+        match result_time {
+            Some(new_time) => Ok(FhirPathValue::Time(new_time)),
+            None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
 }
@@ -341,6 +475,11 @@ impl FhirPathOperator for SubtractOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_sub(*b)
@@ -417,6 +556,11 @@ impl FhirPathOperator for MultiplyOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_mul(*b)
@@ -544,18 +688,50 @@ impl FhirPathOperator for IntegerDivideOperator {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
                 OperatorSignature::binary("div", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
+                OperatorSignature::binary("div", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Integer),
+                OperatorSignature::binary("div", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Integer),
+                OperatorSignature::binary("div", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Integer),
             ]
         });
         &SIGS
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
                 FhirPathValue::Integer(a / b)
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                // Convert to integer result (truncate)
+                let result = (a / b).trunc();
+                FhirPathValue::Integer(result.to_i64().unwrap_or(0))
+            }
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                let a_dec = rust_decimal::Decimal::from(*a);
+                let result = (a_dec / b).trunc();
+                FhirPathValue::Integer(result.to_i64().unwrap_or(0))
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                let b_dec = rust_decimal::Decimal::from(*b);
+                let result = (a / b_dec).trunc();
+                FhirPathValue::Integer(result.to_i64().unwrap_or(0))
             }
             _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -580,18 +756,129 @@ impl FhirPathOperator for ModuloOperator {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
                 OperatorSignature::binary("mod", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
+                OperatorSignature::binary("mod", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
+                OperatorSignature::binary("mod", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
+                OperatorSignature::binary("mod", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
             ]
         });
         &SIGS
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
                 FhirPathValue::Integer(a % b)
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                FhirPathValue::Decimal(a % b)
+            }
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                let a_dec = rust_decimal::Decimal::from(*a);
+                FhirPathValue::Decimal(a_dec % b)
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return Err(OperatorError::DivisionByZero);
+                }
+                let b_dec = rust_decimal::Decimal::from(*b);
+                FhirPathValue::Decimal(a % b_dec)
+            }
+            _ => return Err(OperatorError::InvalidOperandTypes {
+                operator: self.symbol().to_string(),
+                left_type: left.type_name().to_string(),
+                right_type: right.type_name().to_string(),
+            }),
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
+    }
+}
+
+/// Power operator (**)
+struct PowerOperator;
+
+impl FhirPathOperator for PowerOperator {
+    fn symbol(&self) -> &str { "**" }
+    fn precedence(&self) -> u8 { 8 }  // Higher than multiplication
+    fn associativity(&self) -> Associativity { Associativity::Right }
+    
+    fn signatures(&self) -> &[OperatorSignature] {
+        static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
+            vec![
+                OperatorSignature::binary("**", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
+                OperatorSignature::binary("**", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
+                OperatorSignature::binary("**", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
+                OperatorSignature::binary("**", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
+            ]
+        });
+        &SIGS
+    }
+    
+    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Handle empty operands per FHIRPath specification
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
+        let result = match (left, right) {
+            (FhirPathValue::Integer(base), FhirPathValue::Integer(exp)) => {
+                if *exp < 0 {
+                    // Negative exponent results in decimal using f64 for power calculation
+                    let base_f64 = *base as f64;
+                    let exp_f64 = *exp as f64;
+                    let result = base_f64.powf(exp_f64);
+                    FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                } else if *exp > 32 {
+                    // Large exponents use f64 to avoid overflow
+                    let base_f64 = *base as f64;
+                    let exp_f64 = *exp as f64;
+                    let result = base_f64.powf(exp_f64);
+                    FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                } else {
+                    // For small positive exponents, try to keep as integer
+                    match base.checked_pow(*exp as u32) {
+                        Some(result) => FhirPathValue::Integer(result),
+                        None => {
+                            // Overflow, convert to decimal
+                            let base_f64 = *base as f64;
+                            let exp_f64 = *exp as f64;
+                            let result = base_f64.powf(exp_f64);
+                            FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                        }
+                    }
+                }
+            }
+            (FhirPathValue::Decimal(base), FhirPathValue::Integer(exp)) => {
+                let base_f64 = base.to_f64().unwrap_or(0.0);
+                let exp_f64 = *exp as f64;
+                let result = base_f64.powf(exp_f64);
+                FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+            }
+            (FhirPathValue::Integer(base), FhirPathValue::Decimal(exp)) => {
+                let base_f64 = *base as f64;
+                let exp_f64 = exp.to_f64().unwrap_or(0.0);
+                let result = base_f64.powf(exp_f64);
+                FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+            }
+            (FhirPathValue::Decimal(base), FhirPathValue::Decimal(exp)) => {
+                let base_f64 = base.to_f64().unwrap_or(0.0);
+                let exp_f64 = exp.to_f64().unwrap_or(0.0);
+                let result = base_f64.powf(exp_f64);
+                FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
             }
             _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -624,6 +911,16 @@ impl FhirPathOperator for EqualOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // FHIRPath equality has special semantics:
+        // - If either operand is empty, return empty
+        // - If collections have different lengths, return false
+        // - Otherwise compare values
+        
+        // Check if either operand is empty
+        if left.is_empty() || right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         // FHIRPath equality is strict - types must match
         let result = match (left, right) {
             (FhirPathValue::Boolean(l), FhirPathValue::Boolean(r)) => l == r,
@@ -636,13 +933,13 @@ impl FhirPathOperator for EqualOperator {
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
                 q1.value == q2.value && q1.unit == q2.unit
             }
-            (FhirPathValue::Empty, FhirPathValue::Empty) => true,
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
                 l.len() == r.len() && l.iter().zip(r.iter()).all(|(a, b)| {
                     match self.evaluate_binary(a, b) {
                         Ok(FhirPathValue::Collection(result)) if result.len() == 1 => {
                             matches!(result.get(0), Some(FhirPathValue::Boolean(true)))
                         }
+                        Ok(FhirPathValue::Empty) => false, // Empty means not equal
                         _ => false
                     }
                 })
@@ -673,13 +970,14 @@ impl FhirPathOperator for NotEqualOperator {
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match EqualOperator.evaluate_binary(left, right)? {
+            FhirPathValue::Empty => Ok(FhirPathValue::Empty), // If equal returns empty, != also returns empty
             FhirPathValue::Collection(items) if items.len() == 1 => {
                 match items.get(0) {
                     Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
                     _ => unreachable!("Equal operator should always return boolean"),
                 }
             }
-            _ => unreachable!("Equal operator should always return collection with one boolean"),
+            _ => unreachable!("Equal operator should return empty or collection with one boolean"),
         }
     }
 }
@@ -1124,8 +1422,34 @@ impl FhirPathOperator for InOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Per FHIRPath spec for 'in' operator:
+        // - If left operand is empty, return empty
+        // - If right operand is empty, return [false]
+        // - If left operand is multi-item collection, special logic applies
+        
+        if left.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
+        if right.is_empty() {
+            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
+        }
+        
+        // For multi-item left operand, each item is tested individually
+        let left_collection = left.clone().to_collection();
         let right_collection = right.clone().to_collection();
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(right_collection.contains(left))]))
+        
+        // If left has multiple items, return empty (based on test testIn5)
+        if left_collection.len() > 1 {
+            return Ok(FhirPathValue::Empty);
+        }
+        
+        // Single item test
+        if let Some(single_item) = left_collection.first() {
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(right_collection.contains(single_item))]))
+        } else {
+            Ok(FhirPathValue::Empty)
+        }
     }
 }
 
@@ -1147,6 +1471,23 @@ impl FhirPathOperator for ContainsOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+        // Per FHIRPath spec for 'contains' operator:
+        // - If both operands are empty, return empty
+        // - If left operand is empty (but right is not), return [false]
+        // - If right operand is empty (but left is not), return empty
+        
+        if left.is_empty() && right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
+        if left.is_empty() {
+            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
+        }
+        
+        if right.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+        
         let left_collection = left.clone().to_collection();
         Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left_collection.contains(right))]))
     }

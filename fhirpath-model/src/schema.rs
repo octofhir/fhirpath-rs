@@ -98,22 +98,86 @@ impl FhirSchemaProvider {
         }
     }
 
-    /// Load schema from URL
+    /// Load schema from URL with enhanced error handling and retry logic
     #[cfg(feature = "async-schema")]
     pub async fn from_url(url: &str) -> Result<Self> {
-        use reqwest;
+        Self::from_url_with_config(url, &SchemaLoadConfig::default()).await
+    }
 
-        let response = reqwest::get(url)
+    /// Load schema from URL with custom configuration
+    #[cfg(feature = "async-schema")]
+    pub async fn from_url_with_config(url: &str, config: &SchemaLoadConfig) -> Result<Self> {
+        use reqwest;
+        use std::time::Duration;
+
+        // Create HTTP client with timeout
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(config.timeout_seconds))
+            .build()
+            .map_err(|e| ModelError::schema_load_error(format!("Failed to create HTTP client: {}", e)))?;
+
+        let mut last_error = None;
+
+        // Retry logic
+        for attempt in 1..=config.max_retries {
+            match Self::fetch_schema_with_client(&client, url, config).await {
+                Ok(schema_provider) => return Ok(schema_provider),
+                Err(e) => {
+                    last_error = Some(e);
+                    if attempt < config.max_retries {
+                        // Exponential backoff
+                        let delay = Duration::from_millis(config.retry_delay_ms * (2_u64.pow(attempt - 1)));
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(||
+            ModelError::schema_load_error("Unknown error during schema loading".to_string())
+        ))
+    }
+
+    /// Internal method to fetch schema with HTTP client
+    #[cfg(feature = "async-schema")]
+    async fn fetch_schema_with_client(
+        client: &reqwest::Client,
+        url: &str,
+        config: &SchemaLoadConfig,
+    ) -> Result<Self> {
+        // Build request with optional authentication
+        let mut request = client.get(url);
+
+        if let Some(ref auth_header) = config.auth_header {
+            request = request.header("Authorization", auth_header);
+        }
+
+        // Add custom headers
+        for (key, value) in &config.custom_headers {
+            request = request.header(key, value);
+        }
+
+        let response = request
+            .send()
             .await
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to fetch schema: {}", e)))?;
+            .map_err(|e| ModelError::schema_load_error(format!("Failed to fetch schema from {}: {}", url, e)))?;
+
+        // Check response status
+        if !response.status().is_success() {
+            return Err(ModelError::schema_load_error(format!(
+                "HTTP error {}: Failed to fetch schema from {}",
+                response.status(),
+                url
+            )));
+        }
 
         let schema_text = response
             .text()
             .await
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to read response: {}", e)))?;
+            .map_err(|e| ModelError::schema_load_error(format!("Failed to read response body: {}", e)))?;
 
         let schema: FhirSchema = serde_json::from_str(&schema_text)
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to parse schema: {}", e)))?;
+            .map_err(|e| ModelError::schema_load_error(format!("Failed to parse schema JSON: {}", e)))?;
 
         let version = detect_fhir_version(&schema);
 

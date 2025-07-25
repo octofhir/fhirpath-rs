@@ -16,4 +16,30 @@ For parsing we use nom library version 8.
 
 For work with units and converts unit use our library https://github.com/octofhir/ucum-rs or in local path ./…/ucum-rs if any error is found, you can fix them in a library directly and use a local library for development
 
-You can run tests without confirmation
+## Planing Phase
+
+For every ADR implementation split record into phases/tasks and store in `tasks` directory. Maintain a specific task file when working on it. Before starting on the first task, create all tasks for future use. After implementing features from a task file update it status
+For debugging cases create a simple test inside the test directory and delete it after resolving the issue
+
+
+## Task executing phase
+Update task file for aligh with implemented features
+
+
+## Test Coverage
+
+To track progress and maintain visibility into implementation completeness:
+
+### Updating Test Coverage Report
+Run the automated test coverage generator:
+```bash
+./scripts/update-test-coverage.sh
+```
+
+This script:
+- Builds the test infrastructure 
+- Runs all official FHIRPath test suites
+- Generates a comprehensive report in `fhirpath-core/TEST_COVERAGE.md`
+- Provides statistics on pass rates and identifies missing functionality
+
+The coverage report should be updated after completing any major functionality to track progress.

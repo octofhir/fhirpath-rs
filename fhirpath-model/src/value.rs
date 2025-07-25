@@ -415,9 +415,9 @@ impl From<FhirPathValue> for Value {
                 }
             }
             FhirPathValue::String(s) => Value::String(s),
-            FhirPathValue::Date(d) => Value::String(d.format("%Y-%m-%d").to_string()),
-            FhirPathValue::DateTime(dt) => Value::String(dt.to_rfc3339()),
-            FhirPathValue::Time(t) => Value::String(t.format("%H:%M:%S").to_string()),
+            FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
+            FhirPathValue::DateTime(dt) => Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z"))),
+            FhirPathValue::Time(t) => Value::String(format!("@T{}", t.format("%H:%M:%S"))),
             FhirPathValue::Quantity(q) => q.to_json(),
             FhirPathValue::Collection(items) => {
                 let json_items: Vec<Value> = items.into_iter().map(Value::from).collect();
@@ -437,9 +437,9 @@ impl fmt::Display for FhirPathValue {
             Self::Boolean(b) => write!(f, "{}", b),
             Self::Integer(i) => write!(f, "{}", i),
             Self::Decimal(d) => write!(f, "{}", d),
-            Self::Date(d) => write!(f, "{}", d.format("%Y-%m-%d")),
-            Self::DateTime(dt) => write!(f, "{}", dt.to_rfc3339()),
-            Self::Time(t) => write!(f, "{}", t.format("%H:%M:%S")),
+            Self::Date(d) => write!(f, "@{}", d.format("%Y-%m-%d")),
+            Self::DateTime(dt) => write!(f, "@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")),
+            Self::Time(t) => write!(f, "@T{}", t.format("%H:%M:%S")),
             Self::Quantity(q) => write!(f, "{}", q),
             Self::Collection(items) => {
                 let item_strings: Vec<String> = items.iter().map(|item| item.to_string()).collect();

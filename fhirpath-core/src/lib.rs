@@ -16,6 +16,7 @@ pub mod value_ext;
 pub mod parser;
 pub mod types;
 pub mod debug_test;
+pub mod lambda_test;
 
 // Re-export commonly used types
 pub use error::{FhirPathError, Result};

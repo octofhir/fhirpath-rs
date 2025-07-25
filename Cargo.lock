@@ -543,6 +543,7 @@ dependencies = [
 name = "fhirpath-evaluator"
 version = "0.2.0"
 dependencies = [
+ "chrono",
  "fhirpath-ast",
  "fhirpath-diagnostics",
  "fhirpath-model",
@@ -601,6 +602,7 @@ dependencies = [
  "indexmap",
  "octofhir-ucum-core",
  "pretty_assertions",
+ "regex",
  "rstest",
  "rust_decimal",
  "rustc-hash 1.1.0",
