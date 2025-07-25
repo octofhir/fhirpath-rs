@@ -76,6 +76,10 @@ impl FhirPathEngine {
                 self.evaluate_function_call(name, args, context)
             }
 
+            ExpressionNode::MethodCall { base, method, args } => {
+                self.evaluate_method_call(base, method, args, context)
+            }
+
             ExpressionNode::BinaryOp { op, left, right } => {
                 self.evaluate_binary_op(op, left, right, context)
             }
@@ -122,7 +126,7 @@ impl FhirPathEngine {
 
     /// Evaluate a literal value
     fn evaluate_literal(&self, literal: &LiteralValue) -> EvaluationResult<FhirPathValue> {
-        Ok(match literal {
+        let value = match literal {
             LiteralValue::Boolean(b) => FhirPathValue::Boolean(*b),
             LiteralValue::Integer(i) => FhirPathValue::Integer(*i),
             LiteralValue::Decimal(s) => {
@@ -154,14 +158,26 @@ impl FhirPathEngine {
                     }),
                 }
             }
-            LiteralValue::Null => FhirPathValue::Empty,
-        })
+            LiteralValue::Null => return Ok(FhirPathValue::Empty),
+        };
+        
+        // In FHIRPath, all values are conceptually collections
+        Ok(FhirPathValue::collection(vec![value]))
     }
 
     /// Evaluate an identifier (property access)
     fn evaluate_identifier(&self, name: &str, context: &EvaluationContext) -> EvaluationResult<FhirPathValue> {
         match &context.input {
             FhirPathValue::Resource(resource) => {
+                // First check if the identifier matches the resource type
+                if let Some(resource_type) = resource.resource_type() {
+                    if resource_type == name {
+                        // Return the resource itself when accessing by resource type
+                        return Ok(context.input.clone());
+                    }
+                }
+                
+                // Otherwise try to get the property
                 match resource.get_property(name) {
                     Some(value) => Ok(FhirPathValue::from(value.clone())),
                     None => Err(EvaluationError::PropertyNotFound {
@@ -177,11 +193,21 @@ impl FhirPathEngine {
                     match self.evaluate_identifier(name, &item_context) {
                         Ok(value) => {
                             if !value.is_empty() {
-                                results.push(value);
+                                // Flatten collections according to FHIRPath semantics
+                                match value {
+                                    FhirPathValue::Collection(sub_items) => {
+                                        for sub_item in sub_items.iter() {
+                                            results.push(sub_item.clone());
+                                        }
+                                    }
+                                    single_value => {
+                                        results.push(single_value);
+                                    }
+                                }
                             }
                         }
                         Err(_) => {
-                            // Ignore errors for collection items that don" have the property
+                            // Ignore errors for collection items that don't have the property
                         }
                     }
                 }
@@ -237,6 +263,24 @@ impl FhirPathEngine {
         Ok(result)
     }
 
+    /// Evaluate a method call
+    fn evaluate_method_call(
+        &self,
+        base: &ExpressionNode,
+        method: &str,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // First evaluate the base expression to get the context for the method call
+        let base_value = self.evaluate_with_context(base, context)?;
+        
+        // Create a new context with the base value as input
+        let method_context = context.with_input(base_value);
+        
+        // Evaluate the method as a function call with the new context
+        self.evaluate_function_call(method, args, &method_context)
+    }
+
     /// Evaluate a binary operation
     fn evaluate_binary_op(
         &self,
@@ -249,11 +293,27 @@ impl FhirPathEngine {
         let right_val = self.evaluate_with_context(right, context)?;
 
         // Use operator registry
-        let op_str = format!("{:?}", op); // Convert enum to string
-        let operator = context.operators.get_binary(&op_str)
-            .ok_or_else(|| EvaluationError::Operator(format!("Unknown binary operator: {}", op_str)))?;
+        let op_symbol = op.as_str(); // Convert enum to string
+        let operator = context.operators.get_binary(op_symbol)
+            .ok_or_else(|| EvaluationError::Operator(format!("Unknown binary operator: {}", op_symbol)))?;
 
-        operator.evaluate_binary(&left_val, &right_val)
+        // For binary operations, we need to unwrap single-element collections
+        // according to FHIRPath semantics
+        let left_operand = match &left_val {
+            FhirPathValue::Collection(items) if items.len() == 1 => {
+                items.get(0).unwrap().clone()
+            }
+            _ => left_val.clone(),
+        };
+        
+        let right_operand = match &right_val {
+            FhirPathValue::Collection(items) if items.len() == 1 => {
+                items.get(0).unwrap().clone()
+            }
+            _ => right_val.clone(),
+        };
+
+        operator.evaluate_binary(&left_operand, &right_operand)
             .map_err(|e| EvaluationError::Operator(e.to_string()))
     }
 
@@ -270,15 +330,15 @@ impl FhirPathEngine {
         match op {
             UnaryOperator::Not => {
                 match operand_val {
-                    FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(!b)),
-                    FhirPathValue::Empty => Ok(FhirPathValue::Boolean(true)),
-                    _ => Ok(FhirPathValue::Boolean(false)),
+                    FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
+                    FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])),
+                    _ => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
                 }
             }
             UnaryOperator::Minus => {
                 match operand_val {
-                    FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(-i)),
-                    FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
+                    FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(-i)])),
+                    FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(-d)])),
                     _ => Err(EvaluationError::TypeError {
                         expected: "Number".to_string(),
                         actual: operand_val.type_name().to_string(),
@@ -287,7 +347,7 @@ impl FhirPathEngine {
             }
             UnaryOperator::Plus => {
                 match operand_val {
-                    FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(operand_val),
+                    FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(FhirPathValue::collection(vec![operand_val])),
                     _ => Err(EvaluationError::TypeError {
                         expected: "Number".to_string(),
                         actual: operand_val.type_name().to_string(),
@@ -431,7 +491,7 @@ impl FhirPathEngine {
             _ => false,
         };
 
-        Ok(FhirPathValue::Boolean(matches))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(matches)]))
     }
 
     /// Evaluate type cast
@@ -447,12 +507,12 @@ impl FhirPathEngine {
         match (type_name, &value) {
             ("String", _) => {
                 if let Some(s) = value.to_string_value() {
-                    Ok(FhirPathValue::String(s))
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::String(s)]))
                 } else {
-                    Ok(FhirPathValue::Empty)
+                    Ok(FhirPathValue::collection(vec![]))
                 }
             }
-            _ => Ok(value), // For now, just return the value as-is
+            _ => Ok(FhirPathValue::collection(vec![value])), // For now, just return the value as-is
         }
     }
 
@@ -474,7 +534,7 @@ impl FhirPathEngine {
                 if let Some(else_branch) = else_expr {
                     self.evaluate_with_context(else_branch, context)
                 } else {
-                    Ok(FhirPathValue::Empty)
+                    Ok(FhirPathValue::collection(vec![]))
                 }
             }
         }

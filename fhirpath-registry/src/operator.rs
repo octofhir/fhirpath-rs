@@ -267,46 +267,48 @@ impl FhirPathOperator for AddOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_add(*b)
                     .map(FhirPathValue::Integer)
                     .ok_or_else(|| OperatorError::ArithmeticOverflow {
                         operation: format!("{} + {}", a, b),
-                    })
+                    })?
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(a + b))
+                FhirPathValue::Decimal(a + b)
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) + b))
+                FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) + b)
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                Ok(FhirPathValue::Decimal(a + rust_decimal::Decimal::from(*b)))
+                FhirPathValue::Decimal(a + rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 if a.unit == b.unit {
                     let mut result = a.clone();
                     result.value = a.value + b.value;
-                    Ok(FhirPathValue::Quantity(result))
+                    FhirPathValue::Quantity(result)
                 } else {
-                    Err(OperatorError::IncompatibleUnits {
+                    return Err(OperatorError::IncompatibleUnits {
                         left_unit: a.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
                         right_unit: b.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
-                    })
+                    });
                 }
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
     
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match operand {
-            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(operand.clone()),
+            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(FhirPathValue::collection(vec![operand.clone()])),
             _ => Err(OperatorError::InvalidUnaryOperandType {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
@@ -339,52 +341,56 @@ impl FhirPathOperator for SubtractOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_sub(*b)
                     .map(FhirPathValue::Integer)
                     .ok_or_else(|| OperatorError::ArithmeticOverflow {
                         operation: format!("{} - {}", a, b),
-                    })
+                    })?
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(a - b))
+                FhirPathValue::Decimal(a - b)
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) - b))
+                FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) - b)
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                Ok(FhirPathValue::Decimal(a - rust_decimal::Decimal::from(*b)))
+                FhirPathValue::Decimal(a - rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 if a.unit == b.unit {
                     let mut result = a.clone();
                     result.value = a.value - b.value;
-                    Ok(FhirPathValue::Quantity(result))
+                    FhirPathValue::Quantity(result)
                 } else {
-                    Err(OperatorError::IncompatibleUnits {
+                    return Err(OperatorError::IncompatibleUnits {
                         left_unit: a.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
                         right_unit: b.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
-                    })
+                    });
                 }
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
     
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match operand {
-            FhirPathValue::Integer(n) => Ok(FhirPathValue::Integer(-n)),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
-            _ => Err(OperatorError::InvalidUnaryOperandType {
+        let result = match operand {
+            FhirPathValue::Integer(n) => FhirPathValue::Integer(-n),
+            FhirPathValue::Decimal(d) => FhirPathValue::Decimal(-d),
+            _ => return Err(OperatorError::InvalidUnaryOperandType {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
 }
 
@@ -411,39 +417,41 @@ impl FhirPathOperator for MultiplyOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 a.checked_mul(*b)
                     .map(FhirPathValue::Integer)
                     .ok_or_else(|| OperatorError::ArithmeticOverflow {
                         operation: format!("{} * {}", a, b),
-                    })
+                    })?
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(a * b))
+                FhirPathValue::Decimal(a * b)
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) * b))
+                FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) * b)
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                Ok(FhirPathValue::Decimal(a * rust_decimal::Decimal::from(*b)))
+                FhirPathValue::Decimal(a * rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Integer(n)) => {
                 let mut result = q.clone();
                 result.value = q.value * rust_decimal::Decimal::from(*n);
-                Ok(FhirPathValue::Quantity(result))
+                FhirPathValue::Quantity(result)
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Decimal(d)) => {
                 let mut result = q.clone();
                 result.value = q.value * d;
-                Ok(FhirPathValue::Quantity(result))
+                FhirPathValue::Quantity(result)
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
 }
 
@@ -470,32 +478,32 @@ impl FhirPathOperator for DivideOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
                 let a_dec = rust_decimal::Decimal::from(*a);
                 let b_dec = rust_decimal::Decimal::from(*b);
-                Ok(FhirPathValue::Decimal(a_dec / b_dec))
+                FhirPathValue::Decimal(a_dec / b_dec)
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
                     return Err(OperatorError::DivisionByZero);
                 }
-                Ok(FhirPathValue::Decimal(a / b))
+                FhirPathValue::Decimal(a / b)
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
                     return Err(OperatorError::DivisionByZero);
                 }
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) / b))
+                FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) / b)
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
-                Ok(FhirPathValue::Decimal(a / rust_decimal::Decimal::from(*b)))
+                FhirPathValue::Decimal(a / rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Integer(n)) => {
                 if *n == 0 {
@@ -503,7 +511,7 @@ impl FhirPathOperator for DivideOperator {
                 }
                 let mut result = q.clone();
                 result.value = q.value / rust_decimal::Decimal::from(*n);
-                Ok(FhirPathValue::Quantity(result))
+                FhirPathValue::Quantity(result)
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Decimal(d)) => {
                 if d.is_zero() {
@@ -511,14 +519,16 @@ impl FhirPathOperator for DivideOperator {
                 }
                 let mut result = q.clone();
                 result.value = q.value / d;
-                Ok(FhirPathValue::Quantity(result))
+                FhirPathValue::Quantity(result)
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
 }
 
@@ -540,19 +550,21 @@ impl FhirPathOperator for IntegerDivideOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
-                Ok(FhirPathValue::Integer(a / b))
+                FhirPathValue::Integer(a / b)
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
 }
 
@@ -574,19 +586,21 @@ impl FhirPathOperator for ModuloOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        match (left, right) {
+        let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
                     return Err(OperatorError::DivisionByZero);
                 }
-                Ok(FhirPathValue::Integer(a % b))
+                FhirPathValue::Integer(a % b)
             }
-            _ => Err(OperatorError::InvalidOperandTypes {
+            _ => return Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
                 right_type: right.type_name().to_string(),
             }),
-        }
+        };
+        
+        Ok(FhirPathValue::collection(vec![result]))
     }
 }
 
@@ -610,7 +624,33 @@ impl FhirPathOperator for EqualOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        Ok(FhirPathValue::Boolean(left == right))
+        // FHIRPath equality is strict - types must match
+        let result = match (left, right) {
+            (FhirPathValue::Boolean(l), FhirPathValue::Boolean(r)) => l == r,
+            (FhirPathValue::Integer(l), FhirPathValue::Integer(r)) => l == r,
+            (FhirPathValue::Decimal(l), FhirPathValue::Decimal(r)) => l == r,
+            (FhirPathValue::String(l), FhirPathValue::String(r)) => l == r,
+            (FhirPathValue::Date(l), FhirPathValue::Date(r)) => l == r,
+            (FhirPathValue::DateTime(l), FhirPathValue::DateTime(r)) => l == r,
+            (FhirPathValue::Time(l), FhirPathValue::Time(r)) => l == r,
+            (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
+                q1.value == q2.value && q1.unit == q2.unit
+            }
+            (FhirPathValue::Empty, FhirPathValue::Empty) => true,
+            (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
+                l.len() == r.len() && l.iter().zip(r.iter()).all(|(a, b)| {
+                    match self.evaluate_binary(a, b) {
+                        Ok(FhirPathValue::Collection(result)) if result.len() == 1 => {
+                            matches!(result.get(0), Some(FhirPathValue::Boolean(true)))
+                        }
+                        _ => false
+                    }
+                })
+            }
+            _ => false,
+        };
+        
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
     }
 }
 
@@ -632,7 +672,15 @@ impl FhirPathOperator for NotEqualOperator {
     }
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
-        Ok(FhirPathValue::Boolean(left != right))
+        match EqualOperator.evaluate_binary(left, right)? {
+            FhirPathValue::Collection(items) if items.len() == 1 => {
+                match items.get(0) {
+                    Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
+                    _ => unreachable!("Equal operator should always return boolean"),
+                }
+            }
+            _ => unreachable!("Equal operator should always return collection with one boolean"),
+        }
     }
 }
 
@@ -672,7 +720,7 @@ impl FhirPathOperator for LessThanOperator {
                 right_type: right.type_name().to_string(),
             }),
         };
-        Ok(FhirPathValue::Boolean(result))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
     }
 }
 
@@ -712,7 +760,7 @@ impl FhirPathOperator for LessThanOrEqualOperator {
                 right_type: right.type_name().to_string(),
             }),
         };
-        Ok(FhirPathValue::Boolean(result))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
     }
 }
 
@@ -752,7 +800,7 @@ impl FhirPathOperator for GreaterThanOperator {
                 right_type: right.type_name().to_string(),
             }),
         };
-        Ok(FhirPathValue::Boolean(result))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
     }
 }
 
@@ -792,7 +840,7 @@ impl FhirPathOperator for GreaterThanOrEqualOperator {
                 right_type: right.type_name().to_string(),
             }),
         };
-        Ok(FhirPathValue::Boolean(result))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
     }
 }
 
@@ -817,7 +865,7 @@ impl FhirPathOperator for EquivalentOperator {
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         // TODO: Implement proper equivalence logic (case-insensitive strings, etc.)
-        Ok(FhirPathValue::Boolean(left == right))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left == right)]))
     }
 }
 
@@ -840,7 +888,7 @@ impl FhirPathOperator for NotEquivalentOperator {
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         // TODO: Implement proper equivalence logic
-        Ok(FhirPathValue::Boolean(left != right))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left != right)]))
     }
 }
 
@@ -866,7 +914,7 @@ impl FhirPathOperator for AndOperator {
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::Boolean(*a && *b))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a && *b)]))
             }
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -897,7 +945,7 @@ impl FhirPathOperator for OrOperator {
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::Boolean(*a || *b))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a || *b)]))
             }
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -928,7 +976,7 @@ impl FhirPathOperator for XorOperator {
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::Boolean(*a ^ *b))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a ^ *b)]))
             }
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -960,7 +1008,7 @@ impl FhirPathOperator for ImpliesOperator {
         match (left, right) {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
                 // A implies B is equivalent to (not A) or B
-                Ok(FhirPathValue::Boolean(!*a || *b))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!*a || *b)]))
             }
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
@@ -997,7 +1045,7 @@ impl FhirPathOperator for NotOperator {
     
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match operand {
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(!*b)),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!*b)])),
             _ => Err(OperatorError::InvalidUnaryOperandType {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
@@ -1028,7 +1076,7 @@ impl FhirPathOperator for ConcatenateOperator {
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         let left_str = left.to_string_value().unwrap_or_default();
         let right_str = right.to_string_value().unwrap_or_default();
-        Ok(FhirPathValue::String(left_str + &right_str))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::String(left_str + &right_str)]))
     }
 }
 
@@ -1077,7 +1125,7 @@ impl FhirPathOperator for InOperator {
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         let right_collection = right.clone().to_collection();
-        Ok(FhirPathValue::Boolean(right_collection.contains(left)))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(right_collection.contains(left))]))
     }
 }
 
@@ -1100,6 +1148,6 @@ impl FhirPathOperator for ContainsOperator {
     
     fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         let left_collection = left.clone().to_collection();
-        Ok(FhirPathValue::Boolean(left_collection.contains(right)))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left_collection.contains(right))]))
     }
 }

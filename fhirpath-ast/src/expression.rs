@@ -20,6 +20,16 @@ pub enum ExpressionNode {
         args: Vec<ExpressionNode>,
     },
 
+    /// Method call on an expression (expression.method(args))
+    MethodCall {
+        /// Base expression to call method on
+        base: Box<ExpressionNode>,
+        /// Method name
+        method: String,
+        /// Method arguments
+        args: Vec<ExpressionNode>,
+    },
+
     /// Binary operation (arithmetic, comparison, logical)
     BinaryOp {
         /// The operator
@@ -152,6 +162,15 @@ impl ExpressionNode {
     pub fn function_call(name: impl Into<String>, args: Vec<ExpressionNode>) -> Self {
         Self::FunctionCall {
             name: name.into(),
+            args,
+        }
+    }
+
+    /// Create a method call expression
+    pub fn method_call(base: ExpressionNode, method: impl Into<String>, args: Vec<ExpressionNode>) -> Self {
+        Self::MethodCall {
+            base: Box::new(base),
+            method: method.into(),
             args,
         }
     }

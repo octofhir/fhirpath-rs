@@ -6,7 +6,8 @@
 use fhirpath_ast::ExpressionNode;
 use fhirpath_evaluator::{FhirPathEngine, EvaluationError};
 use fhirpath_model::{FhirPathValue, FhirResource};
-use fhirpath_parser::Parser;
+use fhirpath_parser::parse_expression;
+use fhirpath_registry::create_standard_registries;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -92,7 +93,6 @@ impl TestStats {
 /// Integration test runner that uses the complete FHIRPath stack
 pub struct IntegrationTestRunner {
     engine: FhirPathEngine,
-    parser: Parser,
     input_cache: HashMap<String, FhirResource>,
     base_path: PathBuf,
     verbose: bool,
@@ -101,9 +101,14 @@ pub struct IntegrationTestRunner {
 impl IntegrationTestRunner {
     /// Create a new integration test runner
     pub fn new() -> Self {
+        let (functions, operators) = create_standard_registries();
+        let engine = FhirPathEngine::with_registries(
+            std::sync::Arc::new(functions),
+            std::sync::Arc::new(operators),
+        );
+        
         Self {
-            engine: FhirPathEngine::new(),
-            parser: Parser::new(),
+            engine,
             input_cache: HashMap::new(),
             base_path: PathBuf::from("."),
             verbose: false,
@@ -172,8 +177,7 @@ impl IntegrationTestRunner {
         let json_value: Value = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse JSON in {}: {}", filename, e))?;
         
-        let resource = FhirResource::from_json(json_value)
-            .map_err(|e| format!("Failed to create FHIR resource from {}: {}", filename, e))?;
+        let resource = FhirResource::from_json(json_value);
         
         if self.verbose {
             println!("Loaded input file {} from {}", filename, used_path.unwrap().display());
@@ -185,7 +189,7 @@ impl IntegrationTestRunner {
 
     /// Parse a FHIRPath expression using the integrated parser
     fn parse_expression(&mut self, expression: &str) -> Result<ExpressionNode, String> {
-        self.parser.parse(expression)
+        parse_expression(expression)
             .map_err(|e| format!("Parser error in '{}': {}", expression, e))
     }
 
@@ -309,6 +313,7 @@ impl IntegrationTestRunner {
             FhirPathValue::Boolean(b) => Value::Bool(*b),
             FhirPathValue::Integer(i) => Value::Number((*i).into()),
             FhirPathValue::Decimal(d) => {
+                use rust_decimal::prelude::ToPrimitive;
                 Value::Number(serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
                     .unwrap_or_else(|| serde_json::Number::from(0)))
             }
@@ -323,7 +328,7 @@ impl IntegrationTestRunner {
             FhirPathValue::Empty => Value::Array(vec![]),
             FhirPathValue::Resource(resource) => {
                 // Convert back to JSON representation
-                resource.to_json().unwrap_or(Value::Null)
+                resource.to_json()
             }
             _ => Value::String(format!("{:?}", value)), // Fallback for other complex types
         }

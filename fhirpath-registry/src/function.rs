@@ -211,6 +211,10 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     registry.register(LastFunction);
     registry.register(LengthFunction);
     registry.register(DistinctFunction);
+    registry.register(TakeFunction);
+    registry.register(SkipFunction);
+    registry.register(TailFunction);
+    registry.register(SelectFunction);
 
     // String functions
     registry.register(SubstringFunction);
@@ -229,6 +233,13 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     // Advanced functions with multiple parameter types
     registry.register(IifFunction);
     registry.register(WhereFunction);
+
+    // Date/Time functions
+    registry.register(NowFunction);
+    registry.register(TodayFunction);
+
+    // Boolean logic functions
+    registry.register(NotFunction);
 }
 
 // Built-in function implementations
@@ -259,7 +270,7 @@ impl FhirPathFunction for CountFunction {
             _ => 1,
         };
 
-        Ok(FhirPathValue::Integer(count as i64))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(count as i64)]))
     }
 }
 
@@ -282,7 +293,7 @@ impl FhirPathFunction for EmptyFunction {
 
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        Ok(FhirPathValue::Boolean(context.input.is_empty()))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(context.input.is_empty())]))
     }
 }
 
@@ -308,10 +319,10 @@ impl FhirPathFunction for ExistsFunction {
 
         if args.is_empty() {
             // No criteria - just check if input is non-empty
-            Ok(FhirPathValue::Boolean(!context.input.is_empty()))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!context.input.is_empty())]))
         } else {
             // TODO: Implement exists with criteria
-            Ok(FhirPathValue::Boolean(false))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
         }
     }
 }
@@ -341,7 +352,7 @@ impl FhirPathFunction for FirstFunction {
                 if let Some(first) = items.first() {
                     Ok(first.clone())
                 } else {
-                    Ok(FhirPathValue::Empty)
+                    Ok(FhirPathValue::collection(vec![]))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
@@ -375,7 +386,7 @@ impl FhirPathFunction for LastFunction {
                 if let Some(last) = items.last() {
                     Ok(last.clone())
                 } else {
-                    Ok(FhirPathValue::Empty)
+                    Ok(FhirPathValue::collection(vec![]))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
@@ -405,10 +416,10 @@ impl FhirPathFunction for LengthFunction {
         self.validate_args(args)?;
 
         match &context.input {
-            FhirPathValue::String(s) => Ok(FhirPathValue::Integer(s.len() as i64)),
-            FhirPathValue::Collection(items) => Ok(FhirPathValue::Integer(items.len() as i64)),
-            FhirPathValue::Empty => Ok(FhirPathValue::Integer(0)),
-            _ => Ok(FhirPathValue::Integer(1)),
+            FhirPathValue::String(s) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(s.len() as i64)])),
+            FhirPathValue::Collection(items) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(items.len() as i64)])),
+            FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(0)])),
+            _ => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(1)])),
         }
     }
 }
@@ -484,7 +495,7 @@ impl FhirPathFunction for SubstringFunction {
                     s.chars().skip(start_idx).collect()
                 };
 
-                Ok(FhirPathValue::String(result))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::String(result)]))
             } else {
                 Err(FunctionError::InvalidArgumentType {
                     name: self.name().to_string(),
@@ -494,7 +505,7 @@ impl FhirPathFunction for SubstringFunction {
                 })
             }
         } else {
-            Ok(FhirPathValue::Empty)
+            Ok(FhirPathValue::collection(vec![]))
         }
     }
 }
@@ -520,9 +531,9 @@ impl FhirPathFunction for StartsWithFunction {
         self.validate_args(args)?;
 
         if let (FhirPathValue::String(s), Some(FhirPathValue::String(prefix))) = (&context.input, args.get(0)) {
-            Ok(FhirPathValue::Boolean(s.starts_with(prefix)))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(s.starts_with(prefix))]))
         } else {
-            Ok(FhirPathValue::Boolean(false))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
         }
     }
 }
@@ -548,9 +559,9 @@ impl FhirPathFunction for EndsWithFunction {
         self.validate_args(args)?;
 
         if let (FhirPathValue::String(s), Some(FhirPathValue::String(suffix))) = (&context.input, args.get(0)) {
-            Ok(FhirPathValue::Boolean(s.ends_with(suffix)))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(s.ends_with(suffix))]))
         } else {
-            Ok(FhirPathValue::Boolean(false))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
         }
     }
 }
@@ -576,9 +587,9 @@ impl FhirPathFunction for ContainsFunction {
         self.validate_args(args)?;
 
         if let (FhirPathValue::String(s), Some(FhirPathValue::String(substring))) = (&context.input, args.get(0)) {
-            Ok(FhirPathValue::Boolean(s.contains(substring)))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(s.contains(substring))]))
         } else {
-            Ok(FhirPathValue::Boolean(false))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
         }
     }
 }
@@ -606,14 +617,14 @@ impl FhirPathFunction for AbsFunction {
         self.validate_args(args)?;
 
         match &context.input {
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(i.abs())),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(d.abs())),
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(i.abs())])),
+            FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(d.abs())])),
             FhirPathValue::Quantity(q) => {
                 let mut abs_q = q.clone();
                 abs_q.value = abs_q.value.abs();
-                Ok(FhirPathValue::Quantity(abs_q))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(abs_q)]))
             }
-            _ => Ok(FhirPathValue::Empty),
+            _ => Ok(FhirPathValue::collection(vec![])),
         }
     }
 }
@@ -641,8 +652,8 @@ impl FhirPathFunction for ToStringFunction {
         self.validate_args(args)?;
 
         match context.input.to_string_value() {
-            Some(s) => Ok(FhirPathValue::String(s)),
-            None => Ok(FhirPathValue::Empty),
+            Some(s) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(s)])),
+            None => Ok(FhirPathValue::collection(vec![])),
         }
     }
 }
@@ -668,15 +679,15 @@ impl FhirPathFunction for ToIntegerFunction {
         self.validate_args(args)?;
 
         match &context.input {
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(*i)])),
             FhirPathValue::String(s) => {
                 match s.parse::<i64>() {
-                    Ok(i) => Ok(FhirPathValue::Integer(i)),
-                    Err(_) => Ok(FhirPathValue::Empty),
+                    Ok(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(i)])),
+                    Err(_) => Ok(FhirPathValue::collection(vec![])),
                 }
             }
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Integer(if *b { 1 } else { 0 })),
-            _ => Ok(FhirPathValue::Empty),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(if *b { 1 } else { 0 })])),
+            _ => Ok(FhirPathValue::collection(vec![])),
         }
     }
 }
@@ -702,15 +713,15 @@ impl FhirPathFunction for ToDecimalFunction {
         self.validate_args(args)?;
 
         match &context.input {
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(*d)),
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*i))),
+            FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(*d)])),
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(rust_decimal::Decimal::from(*i))])),
             FhirPathValue::String(s) => {
                 match s.parse::<rust_decimal::Decimal>() {
-                    Ok(d) => Ok(FhirPathValue::Decimal(d)),
-                    Err(_) => Ok(FhirPathValue::Empty),
+                    Ok(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(d)])),
+                    Err(_) => Ok(FhirPathValue::collection(vec![])),
                 }
             }
-            _ => Ok(FhirPathValue::Empty),
+            _ => Ok(FhirPathValue::collection(vec![])),
         }
     }
 }
@@ -797,7 +808,7 @@ impl FhirPathFunction for WhereFunction {
                 if matches!(condition_expr, FhirPathValue::Boolean(true)) {
                     Ok(other.clone())
                 } else {
-                    Ok(FhirPathValue::Empty)
+                    Ok(FhirPathValue::collection(vec![]))
                 }
             }
         }
@@ -805,5 +816,264 @@ impl FhirPathFunction for WhereFunction {
 
     fn documentation(&self) -> &str {
         "where(condition) - Returns a collection containing only items for which condition evaluates to true"
+    }
+}
+
+/// take() function - returns the first n items from a collection
+struct TakeFunction;
+
+impl FhirPathFunction for TakeFunction {
+    fn name(&self) -> &str { "take" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "take",
+                vec![ParameterInfo::required("num", TypeInfo::Integer)],
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        if let Some(FhirPathValue::Integer(n)) = args.get(0) {
+            let n = *n as usize;
+            match &context.input {
+                FhirPathValue::Collection(items) => {
+                    let taken: Vec<_> = items.iter().take(n).cloned().collect();
+                    Ok(FhirPathValue::collection(taken))
+                }
+                single if n > 0 => Ok(single.clone()),
+                _ => Ok(FhirPathValue::collection(vec![])),
+            }
+        } else {
+            Ok(FhirPathValue::collection(vec![]))
+        }
+    }
+
+    fn documentation(&self) -> &str {
+        "take(num) - Returns a collection containing the first num items"
+    }
+}
+
+/// skip() function - returns all items except the first n from a collection
+struct SkipFunction;
+
+impl FhirPathFunction for SkipFunction {
+    fn name(&self) -> &str { "skip" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "skip",
+                vec![ParameterInfo::required("num", TypeInfo::Integer)],
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        if let Some(FhirPathValue::Integer(n)) = args.get(0) {
+            let n = *n as usize;
+            match &context.input {
+                FhirPathValue::Collection(items) => {
+                    let skipped: Vec<_> = items.iter().skip(n).cloned().collect();
+                    Ok(FhirPathValue::collection(skipped))
+                }
+                single if n == 0 => Ok(single.clone()),
+                _ => Ok(FhirPathValue::collection(vec![])),
+            }
+        } else {
+            Ok(FhirPathValue::collection(vec![]))
+        }
+    }
+
+    fn documentation(&self) -> &str {
+        "skip(num) - Returns a collection containing all items except the first num items"
+    }
+}
+
+/// tail() function - returns all items except the first from a collection
+struct TailFunction;
+
+impl FhirPathFunction for TailFunction {
+    fn name(&self) -> &str { "tail" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "tail",
+                vec![],
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        match &context.input {
+            FhirPathValue::Collection(items) => {
+                let tail: Vec<_> = items.iter().skip(1).cloned().collect();
+                Ok(FhirPathValue::collection(tail))
+            }
+            _ => Ok(FhirPathValue::collection(vec![])),
+        }
+    }
+
+    fn documentation(&self) -> &str {
+        "tail() - Returns a collection containing all items except the first"
+    }
+}
+
+/// select() function - projects each item to a new value
+struct SelectFunction;
+
+impl FhirPathFunction for SelectFunction {
+    fn name(&self) -> &str { "select" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "select",
+                vec![ParameterInfo::required("projection", TypeInfo::Any)],
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        let projection = args.get(0).ok_or_else(|| FunctionError::EvaluationError {
+            name: self.name().to_string(),
+            message: "Missing projection argument".to_string(),
+        })?;
+
+        match &context.input {
+            FhirPathValue::Collection(items) => {
+                let mut results = Vec::new();
+                for _item in items.iter() {
+                    // In a real implementation, we would evaluate the projection expression
+                    // against each item. For now, we just return the projection value.
+                    results.push(projection.clone());
+                }
+                Ok(FhirPathValue::collection(results))
+            }
+            single => {
+                // For non-collection input, treat as single-item collection
+                Ok(FhirPathValue::collection(vec![projection.clone()]))
+            }
+        }
+    }
+
+    fn documentation(&self) -> &str {
+        "select(projection) - Projects each item in the collection to a new value"
+    }
+}
+
+/// now() function - returns the current date and time
+struct NowFunction;
+
+impl FhirPathFunction for NowFunction {
+    fn name(&self) -> &str { "now" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "now",
+                vec![],
+                TypeInfo::DateTime,
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        let now = chrono::Utc::now();
+        Ok(FhirPathValue::collection(vec![FhirPathValue::DateTime(now)]))
+    }
+
+    fn documentation(&self) -> &str {
+        "now() - Returns the current date and time"
+    }
+}
+
+/// today() function - returns the current date
+struct TodayFunction;
+
+impl FhirPathFunction for TodayFunction {
+    fn name(&self) -> &str { "today" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "today",
+                vec![],
+                TypeInfo::Date,
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        let today = chrono::Utc::now().date_naive();
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Date(today)]))
+    }
+
+    fn documentation(&self) -> &str {
+        "today() - Returns the current date"
+    }
+}
+
+/// not() function - logical negation
+struct NotFunction;
+
+impl FhirPathFunction for NotFunction {
+    fn name(&self) -> &str { "not" }
+
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "not",
+                vec![],
+                TypeInfo::Boolean,
+            )
+        });
+        &SIG
+    }
+
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+
+        match &context.input {
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
+            FhirPathValue::Collection(items) => {
+                // For collections: empty collection is false (not becomes true)
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(items.is_empty())]))
+            }
+            FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])),
+            FhirPathValue::Integer(i) => {
+                // For integers: 0 is false, anything else is true
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*i == 0)]))
+            }
+            _ => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+        }
+    }
+
+    fn documentation(&self) -> &str {
+        "not() - Returns the logical negation of the input"
     }
 }

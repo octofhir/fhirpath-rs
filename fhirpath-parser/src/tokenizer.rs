@@ -91,49 +91,51 @@ pub enum Token {
 }
 
 impl Token {
-    /// Check if this token is a keyword
+    /// Check if this token is a keyword (reserved word that cannot be used as identifier)
     pub fn is_keyword(&self) -> bool {
         matches!(self,
-            Token::True | Token::False | Token::Empty |
-            Token::Define | Token::Where | Token::Select |
-            Token::All | Token::First | Token::Last |
-            Token::Tail | Token::Skip | Token::Take |
-            Token::Distinct | Token::Count | Token::OfType |
+            // Core literal keywords
+            Token::True | Token::False |
+            // Boolean operators
             Token::And | Token::Or | Token::Xor | Token::Implies |
-            Token::Not | Token::In | Token::Contains |
-            Token::Is | Token::As | Token::Div | Token::Mod
+            // Type operators  
+            Token::Is | Token::As | Token::In | Token::Contains |
+            // Arithmetic operators
+            Token::Div | Token::Mod
         )
     }
     
-    /// Get keyword from string
+    /// Get keyword from string - only true keywords, not function names
     pub fn from_keyword(s: &str) -> Option<Token> {
         match s {
+            // Core literal keywords (always reserved)
             "true" => Some(Token::True),
             "false" => Some(Token::False),
-            "empty" => Some(Token::Empty),
-            "define" => Some(Token::Define),
-            "where" => Some(Token::Where),
-            "select" => Some(Token::Select),
-            "all" => Some(Token::All),
-            "first" => Some(Token::First),
-            "last" => Some(Token::Last),
-            "tail" => Some(Token::Tail),
-            "skip" => Some(Token::Skip),
-            "take" => Some(Token::Take),
-            "distinct" => Some(Token::Distinct),
-            "count" => Some(Token::Count),
-            "ofType" => Some(Token::OfType),
+            
+            // Boolean operators (can be used as operators only)
             "and" => Some(Token::And),
             "or" => Some(Token::Or),
             "xor" => Some(Token::Xor),
             "implies" => Some(Token::Implies),
-            "not" => Some(Token::Not),
-            "in" => Some(Token::In),
-            "contains" => Some(Token::Contains),
+            
+            // Type operators (always operators)
             "is" => Some(Token::Is),
             "as" => Some(Token::As),
+            "in" => Some(Token::In),
+            "contains" => Some(Token::Contains),
+            
+            // Arithmetic operators that are words
             "div" => Some(Token::Div),
             "mod" => Some(Token::Mod),
+            
+            // NOTE: "not" is intentionally removed from keywords since it can be:
+            // 1. A function: Patient.active.not()
+            // 2. An operator: not Patient.active  
+            // The parser will need to disambiguate based on context
+            
+            // All function names are treated as identifiers:
+            // "not", "empty", "define", "where", "select", "all", "first", "last", 
+            // "tail", "skip", "take", "distinct", "count", "ofType"
             _ => None,
         }
     }
@@ -165,11 +167,110 @@ fn tokenize_all(input: Span) -> IResult<Span, Vec<Spanned<Token>>, ParseError> {
 
 fn token(input: Span) -> IResult<Span, Spanned<Token>, ParseError> {
     alt((
+        token_date_literal,
         token_number,
         token_string,
+        token_backtick_identifier,
         token_identifier_or_keyword,
         token_multi_char_op,
         token_single_char,
+    )).parse(input)
+}
+
+fn token_date_literal(input: Span) -> IResult<Span, Spanned<Token>, ParseError> {
+    use crate::span::helpers::*;
+    
+    let start = input.clone();
+    
+    // Must start with @
+    let (input, _) = char('@').parse(input)?;
+    
+    // Try different date/time formats
+    let (input, date_str) = alt((
+        date_time_literal,
+        time_literal,
+        date_literal,
+    )).parse(input)?;
+    
+    let date_text = date_str.fragment();
+    
+    let token = if date_text.starts_with('T') {
+        // Time literal
+        let time_part = &date_text[1..]; // Remove 'T' prefix
+        match chrono::NaiveTime::parse_from_str(time_part, "%H:%M:%S") 
+            .or_else(|_| chrono::NaiveTime::parse_from_str(time_part, "%H:%M:%S%.f")) {
+            Ok(time) => Token::Time(time),
+            Err(_) => return Err(nom::Err::Error(ParseError::InvalidLiteral {
+                literal_type: "time".to_string(),
+                value: date_text.to_string(),
+                position: position(&start),
+            })),
+        }
+    } else if date_text.contains('T') {
+        // DateTime literal
+        match chrono::DateTime::parse_from_rfc3339(&format!("{}Z", date_text.trim_end_matches('Z'))) {
+            Ok(dt) => Token::DateTime(dt.with_timezone(&chrono::Utc)),
+            Err(_) => return Err(nom::Err::Error(ParseError::InvalidLiteral {
+                literal_type: "datetime".to_string(),
+                value: date_text.to_string(),
+                position: position(&start),
+            })),
+        }
+    } else {
+        // Date literal
+        match chrono::NaiveDate::parse_from_str(date_text, "%Y-%m-%d") {
+            Ok(date) => Token::Date(date),
+            Err(_) => return Err(nom::Err::Error(ParseError::InvalidLiteral {
+                literal_type: "date".to_string(),
+                value: date_text.to_string(),
+                position: position(&start),
+            })),
+        }
+    };
+    
+    Ok((input, spanned(&start, &input, token)))
+}
+
+// Parse full DateTime: 2012-04-15T10:00:00 or 2012-04-15T10:00:00.123Z
+fn date_time_literal(input: Span) -> IResult<Span, Span, ParseError> {
+    recognize((
+        take_while1(|c: char| c.is_ascii_digit()),  // year
+        char('-'),
+        take_while1(|c: char| c.is_ascii_digit()),  // month  
+        char('-'),
+        take_while1(|c: char| c.is_ascii_digit()),  // day
+        char('T'),
+        take_while1(|c: char| c.is_ascii_digit()),  // hour
+        char(':'),
+        take_while1(|c: char| c.is_ascii_digit()),  // minute
+        char(':'),
+        take_while1(|c: char| c.is_ascii_digit()),  // second
+        opt((char('.'), take_while1(|c: char| c.is_ascii_digit()))), // optional milliseconds
+        opt(char('Z')), // optional Z suffix
+    )).parse(input)
+}
+
+// Parse time only: T10:00:00 or T10:00:00.123
+fn time_literal(input: Span) -> IResult<Span, Span, ParseError> {
+    recognize((
+        char('T'),
+        take_while1(|c: char| c.is_ascii_digit()),  // hour
+        char(':'),
+        take_while1(|c: char| c.is_ascii_digit()),  // minute
+        char(':'),
+        take_while1(|c: char| c.is_ascii_digit()),  // second
+        opt((char('.'), take_while1(|c: char| c.is_ascii_digit()))), // optional milliseconds
+    )).parse(input)
+}
+
+// Parse date only: 2012-04-15
+fn date_literal(input: Span) -> IResult<Span, Span, ParseError> {
+    recognize((
+        take_while1(|c: char| c.is_ascii_digit()),  // year
+        char('-'),
+        take_while1(|c: char| c.is_ascii_digit()),  // month
+        char('-'),
+        take_while1(|c: char| c.is_ascii_digit()),  // day
     )).parse(input)
 }
 
@@ -253,6 +354,29 @@ fn token_identifier_or_keyword(input: Span) -> IResult<Span, Spanned<Token>, Par
     let ident_str = ident.fragment();
     let token = Token::from_keyword(ident_str)
         .unwrap_or_else(|| Token::Identifier(ident_str.to_string()));
+    
+    Ok((input, spanned(&start, &input, token)))
+}
+
+fn token_backtick_identifier(input: Span) -> IResult<Span, Spanned<Token>, ParseError> {
+    use crate::span::helpers::*;
+    
+    let start = input.clone();
+    let (input, _) = char('`').parse(input)?;
+    
+    // Parse identifier content between backticks
+    let (input, ident) = take_while1(|c: char| {
+        c != '`' && c != '\n' && c != '\r'
+    }).parse(input)?;
+    
+    let (input, _) = char('`').parse(input).map_err(|_: nom::Err<ParseError>| {
+        nom::Err::Error(ParseError::UnclosedString {
+            position: position(&start),
+        })
+    })?;
+    
+    let ident_str = ident.fragment();
+    let token = Token::Identifier(ident_str.to_string());
     
     Ok((input, spanned(&start, &input, token)))
 }

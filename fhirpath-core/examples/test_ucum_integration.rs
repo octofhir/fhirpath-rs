@@ -1,4 +1,4 @@
-use fhirpath_core::model::FhirPathValue;
+use fhirpath_core::FhirPathValue;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 

@@ -2,15 +2,19 @@
 
 use fhirpath_ast::ExpressionNode;
 use crate::error::Result;
-use crate::evaluator::{evaluate_ast, EvaluationContext};
-use crate::value_ext::FhirPathValue;
+use fhirpath_evaluator::{FhirPathEngine as EvaluatorEngine, EvaluationContext};
+use fhirpath_model::FhirPathValue;
+use fhirpath_registry::create_standard_registries;
 use crate::parser::parse_expression;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Main FHIRPath engine for parsing and evaluating expressions
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FhirPathEngine {
+    /// The underlying evaluator engine
+    evaluator: EvaluatorEngine,
     /// Cached compiled expressions for performance
     expression_cache: HashMap<String, ExpressionNode>,
     /// Maximum cache size to prevent memory issues
@@ -26,7 +30,14 @@ impl Default for FhirPathEngine {
 impl FhirPathEngine {
     /// Create a new FHIRPath engine
     pub fn new() -> Self {
+        let (functions, operators) = create_standard_registries();
+        let evaluator = EvaluatorEngine::with_registries(
+            Arc::new(functions),
+            Arc::new(operators),
+        );
+        
         Self {
+            evaluator,
             expression_cache: HashMap::new(),
             max_cache_size: 1000,
         }
@@ -34,9 +45,13 @@ impl FhirPathEngine {
 
     /// Evaluate an FHIRPath expression against input data
     pub fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
-        let ast = self.get_or_compile_expression(expression)?;
-        let context = EvaluationContext::from_json(input_data);
-        evaluate_ast(&ast, &context)
+        let ast = self.get_or_compile_expression(expression)?.clone();
+        let input_value = FhirPathValue::from(input_data);
+        
+        match self.evaluator.evaluate(&ast, input_value) {
+            Ok(result) => Ok(result),
+            Err(eval_error) => Err(crate::error::FhirPathError::evaluation_error(eval_error.to_string())),
+        }
     }
 
     /// Get or compile an expression, using cache when possible

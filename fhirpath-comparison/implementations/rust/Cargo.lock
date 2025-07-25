@@ -394,8 +394,10 @@ dependencies = [
  "chrono",
  "fhirpath-ast",
  "fhirpath-diagnostics",
+ "fhirpath-evaluator",
  "fhirpath-model",
  "fhirpath-parser",
+ "fhirpath-registry",
  "hex",
  "log",
  "lru",
@@ -405,7 +407,7 @@ dependencies = [
  "parking_lot",
  "regex",
  "rust_decimal",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
  "smallvec",
@@ -417,6 +419,20 @@ dependencies = [
 name = "fhirpath-diagnostics"
 version = "0.2.0"
 dependencies = [
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "fhirpath-evaluator"
+version = "0.2.0"
+dependencies = [
+ "fhirpath-ast",
+ "fhirpath-diagnostics",
+ "fhirpath-model",
+ "fhirpath-parser",
+ "fhirpath-registry",
+ "rust_decimal",
+ "rustc-hash 2.1.1",
  "thiserror 2.0.12",
 ]
 
@@ -448,6 +464,22 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.12",
  "unicode-xid",
+]
+
+[[package]]
+name = "fhirpath-registry"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "fhirpath-ast",
+ "fhirpath-model",
+ "indexmap",
+ "octofhir-ucum-core",
+ "rust_decimal",
+ "rustc-hash 1.1.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1034,6 +1066,12 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 
 [[package]]
 name = "rustversion"

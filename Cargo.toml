@@ -5,7 +5,6 @@ members = [
     "fhirpath-model",
     "fhirpath-diagnostics",
     "fhirpath-core",
-    "fhirpath-wasm",
     "fhirpath-parser",
     "fhirpath-registry",
     "fhirpath-evaluator",

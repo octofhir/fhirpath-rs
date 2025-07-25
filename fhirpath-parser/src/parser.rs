@@ -318,18 +318,33 @@ fn parse_postfix_expr(stream: &mut TokenStream) -> ParseResult<ExpressionNode> {
                     };
                 }
                 Token::LeftParen => {
-                    // Function call
-                    if let ExpressionNode::Identifier(name) = expr {
-                        stream.next();
-                        let args = parse_argument_list(stream)?;
-                        stream.expect(Token::RightParen)
-                            .map_err(|e| ParseError::SyntaxError {
-                                position: stream.position(),
-                                message: e,
-                            })?;
-                        expr = ExpressionNode::function_call(name, args);
-                    } else {
-                        break;
+                    // Function or method call
+                    match expr {
+                        ExpressionNode::Identifier(name) => {
+                            // Direct function call: count()
+                            stream.next();
+                            let args = parse_argument_list(stream)?;
+                            stream.expect(Token::RightParen)
+                                .map_err(|e| ParseError::SyntaxError {
+                                    position: stream.position(),
+                                    message: e,
+                                })?;
+                            expr = ExpressionNode::function_call(name, args);
+                        }
+                        ExpressionNode::Path { base, path } => {
+                            // Method call: Patient.name.count()
+                            stream.next();
+                            let args = parse_argument_list(stream)?;
+                            stream.expect(Token::RightParen)
+                                .map_err(|e| ParseError::SyntaxError {
+                                    position: stream.position(),
+                                    message: e,
+                                })?;
+                            expr = ExpressionNode::method_call(*base, path, args);
+                        }
+                        _ => {
+                            break;
+                        }
                     }
                 }
                 _ => break,
@@ -524,7 +539,7 @@ mod tests {
                     _ => panic!("Expected identifier on left"),
                 }
                 match *right {
-                    ExpressionNode::Literal(FhirPathValue::Integer(n)) => assert_eq!(n, 18),
+                    ExpressionNode::Literal(LiteralValue::Integer(n)) => assert_eq!(n, 18),
                     _ => panic!("Expected integer literal on right"),
                 }
             }

@@ -7,14 +7,14 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Severity {
-    /// Error - prevents successful execution
-    Error,
-    /// Warning - may indicate a problem but doesn't prevent execution
-    Warning,
-    /// Information - provides helpful information
-    Info,
     /// Hint - subtle suggestion for improvement
     Hint,
+    /// Information - provides helpful information
+    Info,
+    /// Warning - may indicate a problem but doesn't prevent execution
+    Warning,
+    /// Error - prevents successful execution
+    Error,
 }
 
 /// Diagnostic error codes

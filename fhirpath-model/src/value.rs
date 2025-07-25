@@ -16,7 +16,7 @@ use crate::types::TypeInfo;
 /// This enum represents all possible values that can be produced by FHIRPath expressions.
 /// All values in FHIRPath are conceptual collections, but single values are represented
 /// directly for performance reasons.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum FhirPathValue {
     /// Boolean value
@@ -54,7 +54,7 @@ pub enum FhirPathValue {
 }
 
 /// Collection type that wraps a vector of values
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Collection(Vec<FhirPathValue>);
 
 impl Collection {
@@ -448,6 +448,37 @@ impl fmt::Display for FhirPathValue {
             Self::Resource(resource) => write!(f, "{}", resource.to_json()),
             Self::Empty => write!(f, ""),
         }
+    }
+}
+
+/// Debug implementation for FhirPathValue - uses cleaner format than derived Debug
+impl fmt::Debug for FhirPathValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::String(s) => write!(f, "String({})", s),
+            Self::Boolean(b) => write!(f, "Boolean({})", b),
+            Self::Integer(i) => write!(f, "Integer({})", i),
+            Self::Decimal(d) => write!(f, "Decimal({})", d),
+            Self::Date(d) => write!(f, "Date({})", d.format("%Y-%m-%d")),
+            Self::DateTime(dt) => write!(f, "DateTime({})", dt.to_rfc3339()),
+            Self::Time(t) => write!(f, "Time({})", t.format("%H:%M:%S")),
+            Self::Quantity(q) => write!(f, "Quantity({})", q),
+            Self::Collection(items) => {
+                // Show the collection contents without nested Collection wrapper
+                let item_strings: Vec<String> = items.iter().map(|item| format!("{:?}", item)).collect();
+                write!(f, "Collection([{}])", item_strings.join(", "))
+            }
+            Self::Resource(resource) => write!(f, "Resource({})", resource.to_json()),
+            Self::Empty => write!(f, "Empty"),
+        }
+    }
+}
+
+/// Debug implementation for Collection
+impl fmt::Debug for Collection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let item_strings: Vec<String> = self.0.iter().map(|item| format!("{:?}", item)).collect();
+        write!(f, "[{}]", item_strings.join(", "))
     }
 }
 

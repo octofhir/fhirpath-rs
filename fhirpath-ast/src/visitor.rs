@@ -21,6 +21,14 @@ pub trait Visitor: Sized {
     /// Visit a function call
     fn visit_function_call(&mut self, _name: &str, _args: &[ExpressionNode]) -> Self::Result;
 
+    /// Visit a method call
+    fn visit_method_call(
+        &mut self,
+        _base: &ExpressionNode,
+        _method: &str,
+        _args: &[ExpressionNode],
+    ) -> Self::Result;
+
     /// Visit a binary operation
     fn visit_binary_op(
         &mut self,
@@ -79,6 +87,9 @@ pub fn walk_expression<V: Visitor>(visitor: &mut V, expr: &ExpressionNode) -> V:
         ExpressionNode::Literal(lit) => visitor.visit_literal(lit),
         ExpressionNode::Identifier(name) => visitor.visit_identifier(name),
         ExpressionNode::FunctionCall { name, args } => visitor.visit_function_call(name, args),
+        ExpressionNode::MethodCall { base, method, args } => {
+            visitor.visit_method_call(base, method, args)
+        }
         ExpressionNode::BinaryOp { op, left, right } => visitor.visit_binary_op(op, left, right),
         ExpressionNode::UnaryOp { op, operand } => visitor.visit_unary_op(op, operand),
         ExpressionNode::Path { base, path } => visitor.visit_path(base, path),
@@ -118,6 +129,19 @@ pub trait MutVisitor: Sized {
 
     /// Visit a function call
     fn visit_function_call_mut(&mut self, _name: &mut String, args: &mut Vec<ExpressionNode>) {
+        for arg in args {
+            self.visit_expression_mut(arg);
+        }
+    }
+
+    /// Visit a method call
+    fn visit_method_call_mut(
+        &mut self,
+        base: &mut ExpressionNode,
+        _method: &mut String,
+        args: &mut Vec<ExpressionNode>,
+    ) {
+        self.visit_expression_mut(base);
         for arg in args {
             self.visit_expression_mut(arg);
         }
@@ -209,6 +233,9 @@ pub fn walk_expression_mut<V: MutVisitor>(visitor: &mut V, expr: &mut Expression
         ExpressionNode::Literal(lit) => visitor.visit_literal_mut(lit),
         ExpressionNode::Identifier(name) => visitor.visit_identifier_mut(name),
         ExpressionNode::FunctionCall { name, args } => visitor.visit_function_call_mut(name, args),
+        ExpressionNode::MethodCall { base, method, args } => {
+            visitor.visit_method_call_mut(base, method, args)
+        }
         ExpressionNode::BinaryOp { op, left, right } => {
             visitor.visit_binary_op_mut(op, left, right)
         }

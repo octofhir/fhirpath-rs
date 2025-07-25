@@ -23,6 +23,8 @@ fhirpath-model = { path = "../fhirpath-model" }
 fhirpath-parser = { path = "../fhirpath-parser" }
 fhirpath-ast = { path = "../fhirpath-ast" }
 fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+fhirpath-registry = { path = "../fhirpath-registry" }
 
 # Parser dependencies
 nom = "8.0.0"
@@ -62,9 +64,6 @@ lsp-diagnostics = ["lsp-types"]
 full = ["async-schema", "lsp-diagnostics"]
 
 [dev-dependencies]
-# Local dependencies for integration testing
-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
-fhirpath-registry = { path = "../fhirpath-registry" }
 
 # Testing framework dependencies
 pretty_assertions = "1.4.0"
