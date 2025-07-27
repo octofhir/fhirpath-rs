@@ -1,6 +1,6 @@
 //! Core value types for FHIRPath expressions
 
-use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveTime, Utc, FixedOffset};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,8 +16,7 @@ use crate::types::TypeInfo;
 /// This enum represents all possible values that can be produced by FHIRPath expressions.
 /// All values in FHIRPath are conceptual collections, but single values are represented
 /// directly for performance reasons.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value")]
+#[derive(Clone, PartialEq, Deserialize)]
 pub enum FhirPathValue {
     /// Boolean value
     Boolean(bool),
@@ -35,7 +34,7 @@ pub enum FhirPathValue {
     Date(NaiveDate),
 
     /// DateTime value with timezone
-    DateTime(DateTime<Utc>),
+    DateTime(DateTime<FixedOffset>),
 
     /// Time value (without date)
     Time(NaiveTime),
@@ -357,7 +356,7 @@ impl From<Value> for FhirPathValue {
                 if let Ok(date) = NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
                     Self::Date(date)
                 } else if let Ok(datetime) = DateTime::parse_from_rfc3339(&s) {
-                    Self::DateTime(datetime.with_timezone(&Utc))
+                    Self::DateTime(datetime.fixed_offset())
                 } else if let Ok(time) = NaiveTime::parse_from_str(&s, "%H:%M:%S") {
                     Self::Time(time)
                 } else if let Ok(time) = NaiveTime::parse_from_str(&s, "%H:%M:%S%.f") {
@@ -448,6 +447,19 @@ impl fmt::Display for FhirPathValue {
             Self::Resource(resource) => write!(f, "{}", resource.to_json()),
             Self::Empty => write!(f, ""),
         }
+    }
+}
+
+/// Custom serialization for FhirPathValue that uses the proper FHIRPath format
+impl Serialize for FhirPathValue {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Convert to JSON Value using the existing From implementation
+        // which correctly formats dates with @ prefix
+        let json_value: serde_json::Value = self.clone().into();
+        json_value.serialize(serializer)
     }
 }
 

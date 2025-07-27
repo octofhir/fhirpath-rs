@@ -22,6 +22,7 @@ pub struct TestCase {
     /// FHIRPath expression to evaluate
     pub expression: String,
     /// Input data (usually null, uses inputfile instead)
+    #[serde(default, deserialize_with = "deserialize_nullable_input")]
     pub input: Option<Value>,
     /// File containing input data
     pub inputfile: Option<String>,
@@ -33,6 +34,15 @@ pub struct TestCase {
     /// Optional description
     #[serde(default)]
     pub description: Option<String>,
+}
+
+/// Custom deserializer to handle "input": null as Some(Value::Null) instead of None
+fn deserialize_nullable_input<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<Value>::deserialize(deserializer)?;
+    Ok(opt.or(Some(Value::Null)))
 }
 
 /// A test suite containing multiple test cases
@@ -106,7 +116,7 @@ impl IntegrationTestRunner {
             std::sync::Arc::new(functions),
             std::sync::Arc::new(operators),
         );
-        
+
         Self {
             engine,
             input_cache: HashMap::new(),
@@ -137,10 +147,10 @@ impl IntegrationTestRunner {
 
         let content = fs::read_to_string(&full_path)
             .map_err(|e| format!("Failed to read test suite file {}: {}", full_path.display(), e))?;
-        
+
         let suite: TestSuite = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse test suite JSON: {}", e))?;
-        
+
         Ok(suite)
     }
 
@@ -169,27 +179,27 @@ impl IntegrationTestRunner {
         }
 
         let content = content.ok_or_else(|| {
-            format!("Failed to find input file {} in any of: {}", 
-                   filename, 
+            format!("Failed to find input file {} in any of: {}",
+                   filename,
                    possible_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "))
         })?;
-        
+
         let json_value: Value = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse JSON in {}: {}", filename, e))?;
-        
+
         let resource = FhirResource::from_json(json_value);
-        
+
         if self.verbose {
             println!("Loaded input file {} from {}", filename, used_path.unwrap().display());
         }
-        
+
         self.input_cache.insert(filename.to_string(), resource.clone());
         Ok(resource)
     }
 
     /// Parse a FHIRPath expression using the integrated parser
     fn parse_expression(&mut self, expression: &str) -> Result<ExpressionNode, String> {
-        parse_expression(expression)
+        fhirpath_parser::parse_expression(expression)
             .map_err(|e| format!("Parser error in '{}': {}", expression, e))
     }
 
@@ -232,7 +242,7 @@ impl IntegrationTestRunner {
     /// Compare actual result with expected result
     fn compare_results(&self, actual: &FhirPathValue, expected: &Value) -> bool {
         let expected_value = self.convert_expected_value(expected);
-        
+
         // Handle empty collections vs empty values
         match (actual, &expected_value) {
             (FhirPathValue::Empty, FhirPathValue::Empty) => true,
@@ -260,16 +270,23 @@ impl IntegrationTestRunner {
             Some(filename) => {
                 match self.load_input_data(filename) {
                     Ok(data) => FhirPathValue::Resource(data),
-                    Err(e) => return TestResult::Error { 
-                        error: format!("Failed to load input from {}: {}", filename, e) 
+                    Err(e) => return TestResult::Error {
+                        error: format!("Failed to load input from {}: {}", filename, e)
                     },
                 }
             }
             None => {
                 match &test.input {
-                    Some(input_val) => FhirPathValue::from(input_val.clone()),
-                    None => return TestResult::Error { 
-                        error: "No input data provided (neither inputfile nor input)".to_string() 
+                    Some(input_val) => {
+                        if input_val.is_null() {
+                            // null input means evaluate without context data
+                            FhirPathValue::Empty
+                        } else {
+                            FhirPathValue::from(input_val.clone())
+                        }
+                    }
+                    None => return TestResult::Error {
+                        error: "No input data provided (neither inputfile nor input)".to_string()
                     },
                 }
             }
@@ -284,8 +301,8 @@ impl IntegrationTestRunner {
         // Evaluate expression using integrated engine
         let result = match self.engine.evaluate(&ast, input_data) {
             Ok(result) => result,
-            Err(e) => return TestResult::Error { 
-                error: format!("Evaluation error: {}", e) 
+            Err(e) => return TestResult::Error {
+                error: format!("Evaluation error: {}", e)
             },
         };
 
@@ -318,6 +335,10 @@ impl IntegrationTestRunner {
                     .unwrap_or_else(|| serde_json::Number::from(0)))
             }
             FhirPathValue::String(s) => Value::String(s.clone()),
+            FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
+            FhirPathValue::DateTime(dt) => Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z"))),
+            FhirPathValue::Time(t) => Value::String(format!("@T{}", t.format("%H:%M:%S"))),
+            FhirPathValue::Quantity(q) => q.to_json(),
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     Value::Array(vec![])
@@ -330,26 +351,25 @@ impl IntegrationTestRunner {
                 // Convert back to JSON representation
                 resource.to_json()
             }
-            _ => Value::String(format!("{:?}", value)), // Fallback for other complex types
         }
     }
 
     /// Run all tests in a test suite
     pub fn run_test_suite(&mut self, suite: &TestSuite) -> HashMap<String, TestResult> {
         let mut results = HashMap::new();
-        
+
         if self.verbose {
             println!("Running test suite: {}", suite.name);
             println!("Description: {}", suite.description);
             println!("Total tests: {}", suite.tests.len());
             println!();
         }
-        
+
         for test in &suite.tests {
             let result = self.run_test(test);
             results.insert(test.name.clone(), result);
         }
-        
+
         results
     }
 
@@ -363,7 +383,7 @@ impl IntegrationTestRunner {
     pub fn calculate_stats(&self, results: &HashMap<String, TestResult>) -> TestStats {
         let mut stats = TestStats::default();
         stats.total = results.len();
-        
+
         for result in results.values() {
             match result {
                 TestResult::Passed => stats.passed += 1,
@@ -372,7 +392,7 @@ impl IntegrationTestRunner {
                 TestResult::Skipped { .. } => stats.skipped += 1,
             }
         }
-        
+
         stats
     }
 
@@ -399,9 +419,9 @@ impl IntegrationTestRunner {
                 TestResult::Error { .. } => ("ERROR", "⚠️"),
                 TestResult::Skipped { .. } => ("SKIP", "⊘"),
             };
-            
+
             println!("{} {} {}", icon, status, test.name);
-            
+
             if self.verbose || !matches!(result, TestResult::Passed) {
                 println!("   Expression: {}", test.expression);
                 if let Some(inputfile) = &test.inputfile {
@@ -411,11 +431,13 @@ impl IntegrationTestRunner {
                     println!("   Tags: {}", test.tags.join(", "));
                 }
             }
-            
+
             match result {
                 TestResult::Failed { expected, actual } => {
                     println!("   Expected: {}", serde_json::to_string_pretty(expected).unwrap_or_default());
-                    println!("   Actual:   {}", serde_json::to_string_pretty(actual).unwrap_or_default());
+                    // Convert FhirPathValue to serde_json::Value to use the proper format
+                    let actual_json: serde_json::Value = actual.clone().into();
+                    println!("   Actual:   {}", serde_json::to_string_pretty(&actual_json).unwrap_or_default());
                 }
                 TestResult::Error { error } => {
                     println!("   Error: {}", error);
@@ -425,7 +447,7 @@ impl IntegrationTestRunner {
                 }
                 _ => {}
             }
-            
+
             if !matches!(result, TestResult::Passed) {
                 println!();
             }
@@ -462,15 +484,15 @@ impl IntegrationTestRunner {
     /// Run multiple test files and provide consolidated report
     pub fn run_multiple_test_files<P: AsRef<Path>>(&mut self, test_files: &[P]) -> Result<TestStats, Box<dyn std::error::Error>> {
         let mut consolidated_stats = TestStats::default();
-        
+
         println!("🚀 Running FHIRPath Integration Test Suite");
         println!("📁 Test files: {}", test_files.len());
         println!();
-        
+
         for (i, test_file) in test_files.iter().enumerate() {
-            println!("📄 [{}/{}] Running {}", i + 1, test_files.len(), 
+            println!("📄 [{}/{}] Running {}", i + 1, test_files.len(),
                     test_file.as_ref().file_name().unwrap_or_default().to_string_lossy());
-            
+
             match self.run_and_report(test_file) {
                 Ok(stats) => {
                     consolidated_stats.total += stats.total;
@@ -486,7 +508,7 @@ impl IntegrationTestRunner {
             }
             println!();
         }
-        
+
         // Print consolidated summary
         println!("🏁 === Consolidated Summary ===");
         println!("Total suites: {}", test_files.len());
@@ -500,7 +522,7 @@ impl IntegrationTestRunner {
             println!("⚠️  Errors:     {} ({:.1}%)", consolidated_stats.errored,
                     (consolidated_stats.errored as f64 / consolidated_stats.total as f64) * 100.0);
         }
-        
+
         Ok(consolidated_stats)
     }
 }
@@ -518,7 +540,7 @@ mod tests {
     #[test]
     fn test_convert_expected_value() {
         let runner = IntegrationTestRunner::new();
-        
+
         assert_eq!(runner.convert_expected_value(&Value::Bool(true)), FhirPathValue::Boolean(true));
         assert_eq!(runner.convert_expected_value(&Value::from(42)), FhirPathValue::Integer(42));
         assert_eq!(runner.convert_expected_value(&Value::from("test")), FhirPathValue::String("test".to_string()));
@@ -528,11 +550,11 @@ mod tests {
     #[test]
     fn test_compare_results() {
         let runner = IntegrationTestRunner::new();
-        
+
         assert!(runner.compare_results(&FhirPathValue::Boolean(true), &Value::Bool(true)));
         assert!(runner.compare_results(&FhirPathValue::Integer(42), &Value::from(42)));
         assert!(runner.compare_results(&FhirPathValue::Empty, &Value::Array(vec![])));
-        
+
         // Test collection comparison
         let collection = FhirPathValue::collection(vec![
             FhirPathValue::String("test".to_string()),
@@ -549,21 +571,21 @@ mod tests {
     fn test_stats_calculation() {
         let runner = IntegrationTestRunner::new();
         let mut results = HashMap::new();
-        
+
         results.insert("test1".to_string(), TestResult::Passed);
-        results.insert("test2".to_string(), TestResult::Failed { 
-            expected: Value::Bool(true), 
-            actual: Value::Bool(false) 
+        results.insert("test2".to_string(), TestResult::Failed {
+            expected: Value::Bool(true),
+            actual: Value::Bool(false)
         });
-        results.insert("test3".to_string(), TestResult::Error { 
-            error: "Test error".to_string() 
+        results.insert("test3".to_string(), TestResult::Error {
+            error: "Test error".to_string()
         });
-        
+
         let stats = runner.calculate_stats(&results);
         assert_eq!(stats.total, 3);
         assert_eq!(stats.passed, 1);
         assert_eq!(stats.failed, 1);
         assert_eq!(stats.errored, 1);
-        assert_eq!(stats.pass_rate(), 33.333333333333336);
+        assert!((stats.pass_rate() - 33.333333333333336).abs() < 0.00001);
     }
 }

@@ -14,30 +14,30 @@ pub fn is_identifier_continue(c: char) -> bool {
 }
 
 /// Token stream with lookahead capability
-#[derive(Debug, Clone)]
-pub struct TokenStream {
-    tokens: Vec<Spanned<Token>>,
+#[derive(Debug)]
+pub struct TokenStream<'input> {
+    tokens: Vec<Spanned<Token<'input>>>,
     position: usize,
 }
 
-impl TokenStream {
+impl<'input> TokenStream<'input> {
     /// Create a new token stream
-    pub fn new(tokens: Vec<Spanned<Token>>) -> Self {
+    pub fn new(tokens: Vec<Spanned<Token<'input>>>) -> Self {
         Self { tokens, position: 0 }
     }
     
     /// Peek at the current token without consuming
-    pub fn peek(&self) -> Option<&Spanned<Token>> {
+    pub fn peek(&self) -> Option<&Spanned<Token<'input>>> {
         self.tokens.get(self.position)
     }
     
     /// Peek at a token n positions ahead
-    pub fn peek_ahead(&self, n: usize) -> Option<&Spanned<Token>> {
+    pub fn peek_ahead(&self, n: usize) -> Option<&Spanned<Token<'input>>> {
         self.tokens.get(self.position + n)
     }
     
     /// Consume and return the current token
-    pub fn next(&mut self) -> Option<Spanned<Token>> {
+    pub fn next(&mut self) -> Option<Spanned<Token<'input>>> {
         if self.position < self.tokens.len() {
             let token = self.tokens[self.position].clone();
             self.position += 1;
@@ -63,9 +63,9 @@ impl TokenStream {
     }
     
     /// Consume a token if it matches the predicate
-    pub fn consume_if<F>(&mut self, predicate: F) -> Option<Spanned<Token>>
+    pub fn consume_if<F>(&mut self, predicate: F) -> Option<Spanned<Token<'input>>>
     where
-        F: FnOnce(&Token) -> bool,
+        F: FnOnce(&Token<'input>) -> bool,
     {
         if let Some(token) = self.peek() {
             if predicate(&token.value) {
@@ -76,9 +76,9 @@ impl TokenStream {
     }
     
     /// Expect a specific token type
-    pub fn expect(&mut self, expected: Token) -> Result<Spanned<Token>, String> {
+    pub fn expect(&mut self, expected: Token<'input>) -> Result<Spanned<Token<'input>>, String> {
         if let Some(token) = self.peek() {
-            if token.value == expected {
+            if std::mem::discriminant(&token.value) == std::mem::discriminant(&expected) {
                 Ok(self.next().unwrap())
             } else {
                 Err(format!("Expected {:?}, found {:?}", expected, token.value))

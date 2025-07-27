@@ -27,7 +27,7 @@ fn test_run_basics_suite() {
         .with_verbose(false);
 
     let basics_path = specs_path.join("basics.json");
-    
+
     if !basics_path.exists() {
         println!("Skipping basics test - file not found: {}", basics_path.display());
         return;
@@ -37,7 +37,7 @@ fn test_run_basics_suite() {
         Ok(stats) => {
             println!("Basics test suite completed:");
             println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
-            
+
             // For now, we don't assert success since we're still implementing features
             // In the future, this could be: assert_eq!(stats.failed + stats.errored, 0);
         }
@@ -56,7 +56,7 @@ fn test_run_literals_suite() {
         .with_verbose(false);
 
     let literals_path = specs_path.join("literals.json");
-    
+
     if !literals_path.exists() {
         println!("Skipping literals test - file not found: {}", literals_path.display());
         return;
@@ -110,6 +110,146 @@ fn test_simple_expression_parsing() {
     }
 }
 
+/// Test abs function specifically
+#[test]
+fn test_run_abs_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let abs_path = specs_path.join("abs.json");
+
+    if !abs_path.exists() {
+        println!("Skipping abs test - file not found: {}", abs_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&abs_path) {
+        Ok(stats) => {
+            println!("Abs test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run abs test suite: {}", e);
+        }
+    }
+}
+
+/// Test ceiling function specifically
+#[test]
+fn test_run_ceiling_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let ceiling_path = specs_path.join("ceiling.json");
+
+    if !ceiling_path.exists() {
+        println!("Skipping ceiling test - file not found: {}", ceiling_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&ceiling_path) {
+        Ok(stats) => {
+            println!("Ceiling test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run ceiling test suite: {}", e);
+        }
+    }
+}
+
+/// Test floor function specifically
+#[test]
+fn test_run_floor_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let floor_path = specs_path.join("floor.json");
+
+    if !floor_path.exists() {
+        println!("Skipping floor test - file not found: {}", floor_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&floor_path) {
+        Ok(stats) => {
+            println!("Floor test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run floor test suite: {}", e);
+        }
+    }
+}
+
+/// Test round function specifically
+#[test]
+fn test_run_round_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let round_path = specs_path.join("round.json");
+
+    if !round_path.exists() {
+        println!("Skipping round test - file not found: {}", round_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&round_path) {
+        Ok(stats) => {
+            println!("Round test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run round test suite: {}", e);
+        }
+    }
+}
+
+/// Test take function specifically
+#[test]
+fn test_run_take_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let take_path = specs_path.join("take.json");
+
+    if !take_path.exists() {
+        println!("Skipping take test - file not found: {}", take_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&take_path) {
+        Ok(stats) => {
+            println!("Take test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run take test suite: {}", e);
+        }
+    }
+}
+
 /// Run multiple test suites for broader coverage
 #[test]
 #[ignore] // Use #[ignore] so it doesn't run by default, but can be run with --ignored
@@ -147,7 +287,7 @@ fn test_run_multiple_official_suites() {
             println!("  Passed: {} ({:.1}%)", stats.passed, stats.pass_rate());
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
-            
+
             // Report progress but don't fail the test yet
             let success_rate = stats.pass_rate();
             if success_rate > 50.0 {
@@ -168,7 +308,7 @@ fn test_run_multiple_official_suites() {
 #[test]
 fn test_custom_test_creation() {
     use integration_test_runner::{TestSuite, TestCase};
-    
+
     let custom_suite = TestSuite {
         name: "Custom Test Suite".to_string(),
         description: "Tests for custom functionality".to_string(),

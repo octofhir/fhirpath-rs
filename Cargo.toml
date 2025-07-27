@@ -1,5 +1,38 @@
+[package]
+name = "fhirpath-rs"
+version = "0.2.0"
+edition = "2024"
+authors = ["OctoFHIR Team <funyloony@gmail.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/octofhir/fhirpath-rs"
+description = "A FHIRPath implementation in Rust"
+
+[[bench]]
+name = "tokenizer_only_benchmark"
+harness = false
+
+[[bench]]
+name = "parser_benchmark"
+harness = false
+
+[[bench]]
+name = "parser_only"
+harness = false
+
+[[bin]]
+name = "benchmark_server"
+path = "src/benchmark_server.rs"
+
+[dependencies]
+fhirpath-parser = { path = "fhirpath-parser" }
+criterion = { workspace = true }
+tokio = { workspace = true }
+warp = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "fhirpath-ast",
     "fhirpath-model",
@@ -10,13 +43,9 @@ members = [
     "fhirpath-evaluator",
 ]
 
-exclude = [
-    "fhirpath-comparison/implementations/rust",
-]
-
 [workspace.package]
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/octofhir/fhirpath-rs"
@@ -28,3 +57,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 anyhow = "1.0"
+criterion = "0.5"
+tokio = { version = "1.0", features = ["full"] }
+warp = "0.3"

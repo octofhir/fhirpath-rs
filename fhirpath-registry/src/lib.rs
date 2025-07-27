@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod function;
+pub mod functions;
 pub mod operator;
 pub mod signature;
 

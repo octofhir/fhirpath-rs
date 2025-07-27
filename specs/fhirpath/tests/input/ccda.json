@@ -1,0 +1,785 @@
+{
+    "resourceType": "ClinicalDocument",
+    "author": {
+      "assignedAuthor": {
+        "addr": {
+          "city": {
+            "#text": "OROVILLE"
+          },
+          "country": {
+            "#text": "US"
+          },
+          "postalCode": {
+            "#text": "21014"
+          },
+          "state": {
+            "#text": "CA"
+          },
+          "streetAddressLine": {
+            "#text": "302 Cumming Ave RR 2"
+          }
+        },
+        "assignedPerson": {
+          "name": {
+            "family": {
+              "#text": "Wilma"
+            },
+            "given": {
+              "#text": "Colon"
+            },
+            "prefix": {
+              "#text": "Dr"
+            }
+          }
+        }
+      }
+    },
+    "component": {
+      "structuredBody": {
+        "component": [
+          {
+            "section": {
+              "entry": [
+                {
+                  "act": {
+                    "@classCode": "ACT",
+                    "@moodCode": "EVN",
+                    "effectiveTime": {},
+                    "entryRelationship": {
+                      "@typeCode": "SUBJ",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN",
+                        "effectiveTime": {},
+                        "text": {},
+                        "value": {
+                          "@nullFlavor": "OTH",
+                          "@xsi:type": "CD"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "act": {
+                    "@classCode": "ACT",
+                    "@moodCode": "EVN",
+                    "effectiveTime": {},
+                    "entryRelationship": {
+                      "@typeCode": "SUBJ",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN",
+                        "effectiveTime": {},
+                        "text": {},
+                        "value": {
+                          "@nullFlavor": "OTH",
+                          "@xsi:type": "CD"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "act": {
+                    "@classCode": "ACT",
+                    "@moodCode": "EVN",
+                    "effectiveTime": {},
+                    "entryRelationship": {
+                      "@typeCode": "SUBJ",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN",
+                        "effectiveTime": {},
+                        "text": {},
+                        "value": {
+                          "@nullFlavor": "OTH",
+                          "@xsi:type": "CD"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "act": {
+                    "@classCode": "ACT",
+                    "@moodCode": "EVN",
+                    "effectiveTime": {},
+                    "entryRelationship": {
+                      "@typeCode": "SUBJ",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN",
+                        "effectiveTime": {},
+                        "text": {},
+                        "value": {
+                          "@nullFlavor": "OTH",
+                          "@xsi:type": "CD"
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": [
+                      {
+                        "td": [
+                          {
+                            "#text": "Burn Of Third Degree Of Unspecified Thigh, Subsequent Encounter",
+                            "@ID": "problem920000584281"
+                          },
+                          {
+                            "#text": "06/25/2015"
+                          },
+                          {
+                            "#text": "Active"
+                          }
+                        ]
+                      },
+                      {
+                        "td": [
+                          {
+                            "#text": "Burn Of Second Degree Of Female Genital Region, Initial Encounter",
+                            "@ID": "problem920000584280"
+                          },
+                          {
+                            "#text": "06/25/2015"
+                          },
+                          {
+                            "#text": "Active"
+                          }
+                        ]
+                      },
+                      {
+                        "td": [
+                          {
+                            "#text": "Burns on lower body",
+                            "@ID": "problem920000584278"
+                          },
+                          {
+                            "#text": "06/18/2015"
+                          },
+                          {
+                            "#text": "06/25/2015"
+                          },
+                          {
+                            "#text": "Resolved"
+                          }
+                        ]
+                      },
+                      {
+                        "td": [
+                          {
+                            "#text": "Cerebral Palsy, Unspecified",
+                            "@ID": "problem920000584276"
+                          },
+                          {
+                            "#text": "08/29/1982"
+                          },
+                          {
+                            "#text": "Active"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Condition"
+                        },
+                        {
+                          "#text": "Effective Date"
+                        },
+                        {
+                          "#text": "Resolved Date"
+                        },
+                        {
+                          "#text": "Status"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "Problems"
+              }
+            }
+          },
+          {
+            "section": {
+              "entry": [
+                {
+                  "@typeCode": "DRIV",
+                  "substanceAdministration": {
+                    "@classCode": "SBADM",
+                    "@moodCode": "INT",
+                    "consumable": {
+                      "manufacturedProduct": {
+                        "@classCode": "MANU",
+                        "manufacturedMaterial": {
+                          "code": {
+                            "@nullFlavor": "OTH",
+                            "originalText": {}
+                          }
+                        }
+                      }
+                    },
+                    "effectiveTime": [
+                      {
+                        "@xsi:type": "IVL_TS"
+                      },
+                      {
+                        "@operator": "A",
+                        "@xsi:type": "PIVL_TS"
+                      },
+                      {
+                        "@operator": "A",
+                        "@xsi:type": "EIVL_TS"
+                      }
+                    ],
+                    "entryRelationship": {
+                      "@typeCode": "REFR",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN"
+                      }
+                    },
+                    "precondition": {
+                      "@typeCode": "PRCN",
+                      "criterion": {}
+                    },
+                    "text": {}
+                  }
+                },
+                {
+                  "@typeCode": "DRIV",
+                  "substanceAdministration": {
+                    "@classCode": "SBADM",
+                    "@moodCode": "INT",
+                    "consumable": {
+                      "manufacturedProduct": {
+                        "@classCode": "MANU",
+                        "manufacturedMaterial": {
+                          "code": {
+                            "@nullFlavor": "OTH",
+                            "originalText": {}
+                          }
+                        }
+                      }
+                    },
+                    "effectiveTime": [
+                      {
+                        "@xsi:type": "IVL_TS"
+                      },
+                      {
+                        "@operator": "A",
+                        "@xsi:type": "PIVL_TS"
+                      }
+                    ],
+                    "entryRelationship": {
+                      "@typeCode": "REFR",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN"
+                      }
+                    },
+                    "precondition": {
+                      "@typeCode": "PRCN",
+                      "criterion": {}
+                    },
+                    "text": {}
+                  }
+                },
+                {
+                  "@typeCode": "DRIV",
+                  "substanceAdministration": {
+                    "@classCode": "SBADM",
+                    "@moodCode": "INT",
+                    "consumable": {
+                      "manufacturedProduct": {
+                        "@classCode": "MANU",
+                        "manufacturedMaterial": {
+                          "code": {
+                            "@nullFlavor": "OTH",
+                            "originalText": {}
+                          }
+                        }
+                      }
+                    },
+                    "effectiveTime": [
+                      {
+                        "@xsi:type": "IVL_TS"
+                      },
+                      {
+                        "@operator": "A",
+                        "@xsi:type": "PIVL_TS"
+                      }
+                    ],
+                    "entryRelationship": {
+                      "@typeCode": "REFR",
+                      "observation": {
+                        "@classCode": "OBS",
+                        "@moodCode": "EVN"
+                      }
+                    },
+                    "precondition": {
+                      "@typeCode": "PRCN",
+                      "criterion": {}
+                    },
+                    "text": {}
+                  }
+                }
+              ],
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": [
+                      {
+                        "td": [
+                          {
+                            "#text": "SENOKOT  187 MG | 2 Tablet(s) | PO | QHS  (06/01/2015 - present)",
+                            "@ID": "medication920000875889"
+                          },
+                          {
+                            "#text": "187 MG | 2 Tablet(s) | PO | QHS"
+                          },
+                          {
+                            "#text": "06/01/2015-"
+                          },
+                          {
+                            "#text": "Completed"
+                          },
+                          {
+                            "#text": "Taken in clinic |",
+                            "@ID": "medcommentsmedication920000875889"
+                          }
+                        ]
+                      },
+                      {
+                        "td": [
+                          {
+                            "#text": "CLOTRIMAZOLE  1 % | 1 GM | VA | BID  (06/01/2015 - present)",
+                            "@ID": "medication920000875890"
+                          },
+                          {
+                            "#text": "1 % | 1 GM | VA | BID"
+                          },
+                          {
+                            "#text": "06/01/2015-"
+                          },
+                          {
+                            "#text": "Completed"
+                          },
+                          {
+                            "#text": "Taken in clinic |",
+                            "@ID": "medcommentsmedication920000875890"
+                          }
+                        ]
+                      },
+                      {
+                        "td": [
+                          {
+                            "#text": "TYLENOL WITH CODEINE #3  300-30 MG | 1 Tablet(s) | PO | QD-PRN  (06/25/2015 - present)",
+                            "@ID": "medication920000875891"
+                          },
+                          {
+                            "#text": "300-30 MG | 1 Tablet(s) | PO | QD-PRN"
+                          },
+                          {
+                            "#text": "06/25/2015-"
+                          },
+                          {
+                            "#text": "Completed"
+                          },
+                          {
+                            "#text": "Taken in clinic |",
+                            "@ID": "medcommentsmedication920000875891"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Medication"
+                        },
+                        {
+                          "#text": "Instructions"
+                        },
+                        {
+                          "#text": "Date Range"
+                        },
+                        {
+                          "#text": "Status"
+                        },
+                        {
+                          "#text": "comments"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "Medications"
+              }
+            }
+          },
+          {
+            "section": {
+              "entry": {
+                "@typeCode": "DRIV",
+                "substanceAdministration": {
+                  "@classCode": "SBADM",
+                  "@moodCode": "EVN",
+                  "@negationInd": "true",
+                  "consumable": {
+                    "manufacturedProduct": {
+                      "manufacturedLabeledDrug": {}
+                    }
+                  },
+                  "text": {}
+                }
+              },
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": {
+                      "td": {
+                        "#text": "No Known Medication Administrations",
+                        "@ID": "medicationadmin1"
+                      }
+                    }
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Medication"
+                        },
+                        {
+                          "#text": "Start Date"
+                        },
+                        {
+                          "#text": "End Date"
+                        },
+                        {
+                          "#text": "Status"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "Medications Administered"
+              }
+            }
+          },
+          {
+            "section": {
+              "entry": {
+                "@typeCode": "DRIV",
+                "substanceAdministration": {
+                  "@classCode": "SBADM",
+                  "@moodCode": "EVN",
+                  "@negationInd": "false",
+                  "consumable": {
+                    "manufacturedProduct": {
+                      "@classCode": "MANU",
+                      "manufacturedMaterial": {
+                        "code": {
+                          "@codeSystem": "2.16.840.1.113883.12.292",
+                          "@codeSystemName": "CVX",
+                          "originalText": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": {
+                      "td": [
+                        {
+                          "#text": "No Known Immunizations",
+                          "@ID": "immunization1"
+                        },
+                        {}
+                      ]
+                    }
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Date"
+                        },
+                        {
+                          "#text": "Vaccination"
+                        },
+                        {
+                          "#text": "Appointment"
+                        },
+                        {
+                          "#text": "Status/Event"
+                        },
+                        {
+                          "#text": "Comments"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "IMMUNIZATIONS"
+              }
+            }
+          },
+          {
+            "section": {
+              "entry": {
+                "act": {
+                  "entryRelationship": {
+                    "observation": {
+                      "@classCode": "OBS",
+                      "@moodCode": "EVN",
+                      "@negationInd": "true",
+                      "effectiveTime": {},
+                      "entryRelationship": {
+                        "@inversionInd": "true",
+                        "@typeCode": "MFST",
+                        "observation": {
+                          "@classCode": "OBS",
+                          "@moodCode": "EVN",
+                          "effectiveTime": {},
+                          "text": {},
+                          "value": {
+                            "@xsi:type": "CD"
+                          }
+                        }
+                      },
+                      "participant": {
+                        "@typeCode": "CSM",
+                        "participantRole": {
+                          "@classCode": "MANU",
+                          "playingEntity": {
+                            "@classCode": "MMAT"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": {
+                      "td": {
+                        "#text": "No Known Allergies",
+                        "@ID": "allergy1"
+                      }
+                    }
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Substance"
+                        },
+                        {
+                          "#text": "Reaction"
+                        },
+                        {
+                          "#text": "Effective Date"
+                        },
+                        {
+                          "#text": "Resolved Date"
+                        },
+                        {
+                          "#text": "Severity"
+                        },
+                        {
+                          "#text": "Status"
+                        },
+                        {
+                          "#text": "Notes"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "Allergies/Adverse Reactions"
+              }
+            }
+          },
+          {
+            "section": {
+              "@nullFlavor": "NI",
+              "text": {
+                "#text": "No Information"
+              },
+              "title": {
+                "#text": "VITAL SIGNS"
+              }
+            }
+          },
+          {
+            "section": {
+              "entry": {
+                "@typeCode": "DRIV",
+                "observation": {
+                  "@classCode": "OBS",
+                  "@moodCode": "EVN",
+                  "code": {
+                    "@code": "ASSERTION",
+                    "@codeSystem": "2.16.840.1.113883.5.4",
+                    "@codeSystemName": "ActCode",
+                    "@displayName": "Assertion",
+                    "originalText": {}
+                  },
+                  "effectiveTime": {}
+                }
+              },
+              "text": {
+                "table": {
+                  "@border": "1",
+                  "@width": "100%",
+                  "tbody": {
+                    "tr": {
+                      "td": [
+                        {
+                          "content": {
+                            "#text": "Smoking"
+                          }
+                        },
+                        {
+                          "#text": "Never as of 06/18/2015"
+                        },
+                        {
+                          "#text": "20150618000000"
+                        }
+                      ]
+                    }
+                  },
+                  "thead": {
+                    "tr": {
+                      "th": [
+                        {
+                          "#text": "Social History Element"
+                        },
+                        {
+                          "#text": "Description"
+                        },
+                        {
+                          "#text": "Effective Date"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "title": {
+                "#text": "Social History"
+              }
+            }
+          },
+          {
+            "section": {
+              "text": {
+                "#text": "Pain and Blistering on legs"
+              },
+              "title": {
+                "#text": "Reason for Visit/Chief Complaint"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "custodian": {
+      "assignedCustodian": {
+        "representedCustodianOrganization": {
+          "addr": {
+            "@use": "WP",
+            "city": {
+              "#text": "Bel Air"
+            },
+            "country": {
+              "#text": "US"
+            },
+            "postalCode": {
+              "#text": "21014"
+            },
+            "state": {
+              "#text": "MD"
+            },
+            "streetAddressLine": {
+              "#text": "8333 Clairemont Blvd"
+            }
+          }
+        }
+      }
+    },
+    "recordTarget": {
+      "patientRole": {
+        "addr": {
+          "@use": "HP",
+          "city": {
+            "#text": "OROVILLE"
+          },
+          "country": {
+            "#text": "US"
+          },
+          "postalCode": {
+            "#text": "21014"
+          },
+          "state": {
+            "#text": "CA"
+          },
+          "streetAddressLine": {
+            "#text": "302 Cumming Ave RR 2"
+          }
+        },
+        "patient": {
+          "languageCommunication": {},
+          "name": {
+            "@use": "L",
+            "family": {
+              "#text": "DCI"
+            },
+            "given": {
+              "#text": "BARBARA"
+            }
+          }
+        }
+      }
+    },
+    "title": {
+      "#text": "DCI Continuity of Care Document"
+    }
+}

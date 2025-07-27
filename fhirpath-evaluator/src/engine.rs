@@ -4,10 +4,18 @@ use crate::{EvaluationContext, EvaluationError, EvaluationResult};
 use fhirpath_ast::{ExpressionNode, LiteralValue, BinaryOperator, UnaryOperator};
 use fhirpath_model::FhirPathValue;
 use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
-use fhirpath_registry::function::{AllFunction, AnyFunction, ExistsFunction, LambdaFunction};
+// Lambda functions are not yet fully implemented
+// use fhirpath_registry::function::{AllFunction, AnyFunction, ExistsFunction};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::str::FromStr;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+// Thread-local storage for variables defined by defineVariable
+thread_local! {
+    static VARIABLE_CONTEXT: RefCell<HashMap<String, FhirPathValue>> = RefCell::new(HashMap::new());
+}
 
 /// Main FHIRPath evaluation engine
 #[derive(Clone)]
@@ -147,7 +155,7 @@ impl FhirPathEngine {
             }
             LiteralValue::DateTime(s) => {
                 match parse_fhirpath_datetime(s) {
-                    Ok(datetime) => FhirPathValue::DateTime(datetime),
+                    Ok(datetime) => FhirPathValue::DateTime(datetime.into()),
                     Err(_) => return Err(EvaluationError::InvalidOperation {
                         message: format!("Invalid datetime literal: {}", s),
                     }),
@@ -171,7 +179,7 @@ impl FhirPathEngine {
             }
             LiteralValue::Null => return Ok(FhirPathValue::Empty),
         };
-        
+
         // In FHIRPath, all values are conceptually collections
         Ok(FhirPathValue::collection(vec![value]))
     }
@@ -187,7 +195,7 @@ impl FhirPathEngine {
                         return Ok(context.input.clone());
                     }
                 }
-                
+
                 // Otherwise try to get the property
                 match resource.get_property(name) {
                     Some(value) => Ok(FhirPathValue::from(value.clone())),
@@ -231,13 +239,67 @@ impl FhirPathEngine {
             "$this" | "$" => Ok(context.input.clone()),
             "$$" => Ok(context.root.clone()),
             _ => {
-                context.get_variable(name)
-                    .cloned()
-                    .ok_or_else(|| EvaluationError::VariableNotFound {
-                        name: name.to_string(),
-                    })
+                // First check the regular context
+                if let Some(value) = context.get_variable(name) {
+                    return Ok(value.clone());
+                }
+
+                // If not found, check thread-local storage for defineVariable variables
+                VARIABLE_CONTEXT.with(|vc| {
+                    let vars = vc.borrow();
+                    if let Some(value) = vars.get(name) {
+                        Ok(value.clone())
+                    } else {
+                        Err(EvaluationError::VariableNotFound {
+                            name: name.to_string(),
+                        })
+                    }
+                })
             }
         }
+    }
+
+    /// Evaluate defineVariable function call
+    fn evaluate_define_variable(
+        &self,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        if args.len() != 2 {
+            return Err(EvaluationError::InvalidOperation {
+                message: "defineVariable requires exactly 2 arguments: name and value".to_string(),
+            });
+        }
+
+        // Evaluate the variable name (should be a string)
+        let name_value = self.evaluate_with_context(&args[0], context)?;
+        let var_name = match name_value {
+            FhirPathValue::String(name) => name,
+            FhirPathValue::Collection(items) if items.len() == 1 => {
+                match items.get(0) {
+                    Some(FhirPathValue::String(name)) => name.clone(),
+                    _ => return Err(EvaluationError::InvalidOperation {
+                        message: "defineVariable first argument must be a string".to_string(),
+                    }),
+                }
+            }
+            _ => return Err(EvaluationError::InvalidOperation {
+                message: "defineVariable first argument must be a string".to_string(),
+            }),
+        };
+
+        // Evaluate the variable value
+        let var_value = self.evaluate_with_context(&args[1], context)?;
+
+        // Store the variable in a thread-local context for this evaluation chain
+        // This is a workaround for the immutable context limitation
+        VARIABLE_CONTEXT.with(|vc| {
+            let mut vars = vc.borrow_mut();
+            vars.insert(format!("%{}", var_name), var_value);
+        });
+
+        // Return the input for chaining
+        Ok(context.input.clone())
     }
 
     /// Evaluate a function call
@@ -257,6 +319,11 @@ impl FhirPathEngine {
         if is_lambda_function(name) {
             // For lambda functions, we don't evaluate arguments first - we pass the expressions
             return self.evaluate_lambda_function(function, args, context);
+        }
+
+        // Check if this is defineVariable function that needs special evaluation
+        if name == "defineVariable" {
+            return self.evaluate_define_variable(args, context);
         }
 
         // For regular functions, evaluate arguments normally
@@ -287,10 +354,9 @@ impl FhirPathEngine {
     ) -> EvaluationResult<FhirPathValue> {
         // Create a lambda evaluator closure
         let evaluator = |expr: &ExpressionNode, item_context: &FhirPathValue| -> Result<FhirPathValue, fhirpath_registry::function::FunctionError> {
-            // Create a new evaluation context with the item as input and $this bound
-            let mut item_eval_context = context.with_input(item_context.clone());
-            item_eval_context.set_variable("$this".to_string(), item_context.clone());
-            
+            // Create a new evaluation context with the item as input
+            let item_eval_context = context.with_input(item_context.clone());
+
             // Evaluate the expression in the item context
             self.evaluate_with_context(expr, &item_eval_context)
                 .map_err(|e| fhirpath_registry::function::FunctionError::EvaluationError {
@@ -299,39 +365,41 @@ impl FhirPathEngine {
                 })
         };
 
-        // Create the registry context and lambda context
+        // Try to cast to LambdaFunction and use lambda evaluation
+        use fhirpath_registry::function::LambdaFunction;
+
+        // Create lambda evaluation context
         let registry_context = fhirpath_registry::function::EvaluationContext::new(context.input.clone());
         let lambda_context = fhirpath_registry::function::LambdaEvaluationContext {
             context: &registry_context,
             evaluator: &evaluator,
         };
 
-        // Try to cast to LambdaFunction and evaluate
-        // Note: This is a bit tricky with trait objects, we'll need to check function name
+        // Check if function implements LambdaFunction trait
+        // For now, we'll handle known lambda functions explicitly
         match function.name() {
             "all" => {
-                let all_fn = fhirpath_registry::function::AllFunction;
+                use fhirpath_registry::functions::boolean::AllFunction;
+                let all_fn = AllFunction;
                 all_fn.evaluate_with_lambda(args, &lambda_context)
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Error in all() function: {}", e),
-                    })
+                    .map_err(|e| EvaluationError::Function(e))
             }
-            "any" => {
-                let any_fn = fhirpath_registry::function::AnyFunction;
-                any_fn.evaluate_with_lambda(args, &lambda_context)
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Error in any() function: {}", e),
-                    })
+            "select" => {
+                use fhirpath_registry::functions::filtering::SelectFunction;
+                let select_fn = SelectFunction;
+                select_fn.evaluate_with_lambda(args, &lambda_context)
+                    .map_err(|e| EvaluationError::Function(e))
             }
-            "exists" => {
-                let exists_fn = fhirpath_registry::function::ExistsFunction;
-                exists_fn.evaluate_with_lambda(args, &lambda_context)
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Error in exists() function: {}", e),
-                    })
+            "where" => {
+                use fhirpath_registry::functions::filtering::WhereFunction;
+                let where_fn = WhereFunction;
+                // TODO: Implement lambda evaluation for where function
+                Err(EvaluationError::InvalidOperation {
+                    message: "where() lambda evaluation not yet implemented".to_string(),
+                })
             }
             _ => {
-                // Fallback to regular evaluation
+                // Fall back to regular function evaluation for other functions
                 self.evaluate_function_call_regular(function, args, context)
             }
         }
@@ -372,10 +440,10 @@ impl FhirPathEngine {
     ) -> EvaluationResult<FhirPathValue> {
         // First evaluate the base expression to get the context for the method call
         let base_value = self.evaluate_with_context(base, context)?;
-        
+
         // Create a new context with the base value as input
         let method_context = context.with_input(base_value);
-        
+
         // Evaluate the method as a function call with the new context
         self.evaluate_function_call(method, args, &method_context)
     }
@@ -404,7 +472,7 @@ impl FhirPathEngine {
             }
             _ => left_val.clone(),
         };
-        
+
         let right_operand = match &right_val {
             FhirPathValue::Collection(items) if items.len() == 1 => {
                 items.get(0).unwrap().clone()
@@ -435,20 +503,32 @@ impl FhirPathEngine {
                 }
             }
             UnaryOperator::Minus => {
-                match operand_val {
+                // Handle collections by unwrapping single-element collections
+                let value_to_process = match &operand_val {
+                    FhirPathValue::Collection(items) if items.len() == 1 => {
+                        items.get(0).unwrap()
+                    }
+                    _ => &operand_val,
+                };
+
+                match value_to_process {
                     FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(-i)])),
                     FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(-d)])),
+                    FhirPathValue::Quantity(q) => {
+                        let negated = q.multiply_scalar(rust_decimal::Decimal::from(-1));
+                        Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(negated)]))
+                    },
                     _ => Err(EvaluationError::TypeError {
-                        expected: "Number".to_string(),
-                        actual: operand_val.type_name().to_string(),
+                        expected: "Number or Quantity".to_string(),
+                        actual: value_to_process.type_name().to_string(),
                     }),
                 }
             }
             UnaryOperator::Plus => {
                 match operand_val {
-                    FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(FhirPathValue::collection(vec![operand_val])),
+                    FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) | FhirPathValue::Quantity(_) => Ok(FhirPathValue::collection(vec![operand_val])),
                     _ => Err(EvaluationError::TypeError {
-                        expected: "Number".to_string(),
+                        expected: "Number or Quantity".to_string(),
                         actual: operand_val.type_name().to_string(),
                     }),
                 }
@@ -689,7 +769,7 @@ fn check_value_type(value: &FhirPathValue, type_name: &str) -> bool {
         FhirPathValue::Resource(resource) => {
             // Check FHIR resource type - support both with and without FHIR prefix
             if let Some(resource_type) = resource.resource_type() {
-                resource_type == type_name || 
+                resource_type == type_name ||
                 type_name == format!("FHIR.{}", resource_type) ||
                 type_name == format!("FHIR.`{}`", resource_type)
             } else {
@@ -725,30 +805,30 @@ fn parse_fhirpath_date(s: &str) -> Result<chrono::NaiveDate, chrono::ParseError>
 /// Parse a FHIRPath datetime literal (format: @YYYY-MM-DDTHH:MM:SS.sss+ZZ:ZZ)
 fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::Utc>, chrono::ParseError> {
     use chrono::TimeZone;
-    
+
     // Remove the @ prefix
     let datetime_str = s.strip_prefix('@').unwrap_or(s);
-    
+
     // Try different datetime formats
     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(datetime_str) {
         return Ok(dt.with_timezone(&chrono::Utc));
     }
-    
+
     // Try format with timezone offset
     if let Ok(dt) = chrono::DateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S%.3f%z") {
         return Ok(dt.with_timezone(&chrono::Utc));
     }
-    
+
     // Try format without timezone (assume UTC)
     if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S%.3f") {
         return Ok(chrono::Utc.from_utc_datetime(&naive_dt));
     }
-    
+
     // Try basic format without milliseconds
     if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S") {
         return Ok(chrono::Utc.from_utc_datetime(&naive_dt));
     }
-    
+
     // Return a simple parse error by trying an invalid format to get a real ParseError
     chrono::NaiveDateTime::parse_from_str("invalid", "%Y-%m-%d")
         .map(|_| chrono::Utc.from_utc_datetime(&chrono::NaiveDateTime::new(
@@ -762,17 +842,17 @@ fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::Utc>, chr
 fn parse_fhirpath_time(s: &str) -> Result<chrono::NaiveTime, chrono::ParseError> {
     // Remove the @T prefix
     let time_str = s.strip_prefix('@').and_then(|s| s.strip_prefix('T')).unwrap_or(s);
-    
+
     // Try format with milliseconds
     if let Ok(time) = chrono::NaiveTime::parse_from_str(time_str, "%H:%M:%S%.3f") {
         return Ok(time);
     }
-    
+
     // Try basic format without milliseconds
     chrono::NaiveTime::parse_from_str(time_str, "%H:%M:%S")
 }
 
 /// Check if a function name corresponds to a lambda function
 fn is_lambda_function(name: &str) -> bool {
-    matches!(name, "all" | "any" | "exists")
+    matches!(name, "all" | "any" | "exists" | "select" | "where")
 }

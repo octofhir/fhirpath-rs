@@ -11,6 +11,7 @@ description = "Core FHIRPath engine implementation"
 name = "fhirpath-test-runner"
 path = "src/bin/test_runner.rs"
 
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
@@ -55,6 +56,9 @@ thread_local = "1.1"
 
 # For diagnostics
 lsp-types = { version = "0.94", optional = true }
+
+# XML parsing for conversion utilities
+quick-xml = "0.31"
 
 [features]
 default = []
