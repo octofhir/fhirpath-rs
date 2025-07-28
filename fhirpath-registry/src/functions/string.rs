@@ -28,8 +28,8 @@ impl FhirPathFunction for SubstringFunction {
         self.validate_args(args)?;
         match &context.input {
             FhirPathValue::String(s) => {
-                let start = match &args[0] {
-                    FhirPathValue::Integer(i) => *i as usize,
+                let start_int = match &args[0] {
+                    FhirPathValue::Integer(i) => *i,
                     _ => return Err(FunctionError::InvalidArgumentType {
                         name: self.name().to_string(),
                         index: 0,
@@ -38,13 +38,24 @@ impl FhirPathFunction for SubstringFunction {
                     }),
                 };
                 
-                let chars: Vec<char> = s.chars().collect();
-                if start >= chars.len() {
-                    return Ok(FhirPathValue::String(String::new()));
+                // Handle negative indices and out of bounds - return empty string
+                if start_int < 0 {
+                    return Ok(FhirPathValue::Empty);
                 }
                 
-                let result = if let Some(FhirPathValue::Integer(len)) = args.get(1) {
-                    chars.iter().skip(start).take(*len as usize).collect()
+                let start = start_int as usize;
+                let chars: Vec<char> = s.chars().collect();
+                
+                if start >= chars.len() {
+                    return Ok(FhirPathValue::Empty);
+                }
+                
+                let result = if let Some(FhirPathValue::Integer(len_int)) = args.get(1) {
+                    if *len_int < 0 {
+                        return Ok(FhirPathValue::Empty);
+                    }
+                    let len = *len_int as usize;
+                    chars.iter().skip(start).take(len).collect()
                 } else {
                     chars.iter().skip(start).collect()
                 };

@@ -110,6 +110,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -542,7 +548,7 @@ name = "fhirpath-core"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "base64",
+ "base64 0.22.1",
  "chrono",
  "colored 2.2.0",
  "comfy-table",
@@ -567,7 +573,7 @@ dependencies = [
  "reqwest",
  "rstest",
  "rust_decimal",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.1",
  "serde",
  "serde-xml-rs",
  "serde_json",
@@ -646,7 +652,7 @@ dependencies = [
 name = "fhirpath-registry"
 version = "0.2.0"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "chrono",
  "fhirpath-ast",
  "fhirpath-model",
@@ -929,7 +935,7 @@ version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06683b93020a07e3dbcf5f8c0f6d40080d725bea7936fc01ad345c01b97dc270"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "bytes",
  "headers-core",
  "http 0.2.12",
@@ -1283,9 +1289,9 @@ checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "lru"
-version = "0.12.5"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
+checksum = "86ea4e65087ff52f3862caff188d489f1fab49a0cb09e01b2e3f1a617b10aaed"
 dependencies = [
  "hashbrown 0.15.4",
 ]
@@ -1433,9 +1439,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-ucum-core"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062f534053eeddcd1e7a9087550ddd6fd7e6416636c19b330df74417db326025"
+checksum = "6c370a37aa9340d9e936af25b1d32deb55c10c7d6f698665d6562461f2730915"
 dependencies = [
  "fuzzy-matcher",
  "lazy_static",
@@ -1450,9 +1456,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-ucum-fhir"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b821e461f37aed9809aa32049c3d0c8cf1386f6d491dd19221e75b5d27afd8d1"
+checksum = "b36c8f6fc1cfe75cf720843cde98850166d5c16ba13717c3c010ebb34bf85185"
 dependencies = [
  "octofhir-ucum-core",
  "serde",
@@ -1815,7 +1821,7 @@ version = "0.11.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd67538700a17451e7cba03ac727fb961abb7607553461627b97de0b89cf4a62"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -1982,7 +1988,7 @@ version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c74cae0a4cf6ccbbf5f359f08efdf8ee7e1dc532573bf0db71968cb56b1448c"
 dependencies = [
- "base64",
+ "base64 0.21.7",
 ]
 
 [[package]]

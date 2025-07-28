@@ -23,19 +23,34 @@ impl FhirPathFunction for ToStringFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        match &context.input {
-            FhirPathValue::String(s) => Ok(FhirPathValue::String(s.clone())),
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string())),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string())),
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string())),
-            FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.to_string())),
-            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_string())),
-            FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.to_string())),
-            FhirPathValue::Empty => Ok(FhirPathValue::Empty),
-            _ => Err(FunctionError::EvaluationError {
-                name: self.name().to_string(),
-                message: "Cannot convert this type to string".to_string(),
-            }),
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        match input_item {
+            FhirPathValue::String(s) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(s.clone())])),
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(i.to_string())])),
+            FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(d.to_string())])),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(b.to_string())])),
+            FhirPathValue::Date(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(d.to_string())])),
+            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(dt.to_string())])),
+            FhirPathValue::Time(t) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(t.to_string())])),
+            _ => Ok(FhirPathValue::Empty),
         }
     }
 }
@@ -58,17 +73,39 @@ impl FhirPathFunction for ToIntegerFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        match &context.input {
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Integer(d.trunc().to_i64().unwrap_or(0))),
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        match input_item {
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(*i)])),
             FhirPathValue::String(s) => {
-                match s.parse::<i64>() {
-                    Ok(i) => Ok(FhirPathValue::Integer(i)),
-                    Err(_) => Ok(FhirPathValue::Empty),
+                // According to FHIRPath spec, strings with decimal points cannot be converted to integers
+                if s.contains('.') {
+                    Ok(FhirPathValue::Empty)
+                } else {
+                    match s.trim().parse::<i64>() {
+                        Ok(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(i)])),
+                        Err(_) => Ok(FhirPathValue::Empty),
+                    }
                 }
             }
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Integer(if *b { 1 } else { 0 })),
-            FhirPathValue::Empty => Ok(FhirPathValue::Empty),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(if *b { 1 } else { 0 })])),
             _ => Ok(FhirPathValue::Empty),
         }
     }
@@ -92,17 +129,35 @@ impl FhirPathFunction for ToDecimalFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        match &context.input {
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(*d)),
-            FhirPathValue::Integer(i) => Ok(FhirPathValue::Decimal(Decimal::from(*i))),
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        match input_item {
+            FhirPathValue::Decimal(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(*d)])),
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(Decimal::from(*i))])),
             FhirPathValue::String(s) => {
-                match Decimal::from_str(s) {
-                    Ok(d) => Ok(FhirPathValue::Decimal(d)),
+                match Decimal::from_str(s.trim()) {
+                    Ok(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(d)])),
                     Err(_) => Ok(FhirPathValue::Empty),
                 }
             }
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Decimal(if *b { Decimal::ONE } else { Decimal::ZERO })),
-            FhirPathValue::Empty => Ok(FhirPathValue::Empty),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(if *b { Decimal::ONE } else { Decimal::ZERO })])),
             _ => Ok(FhirPathValue::Empty),
         }
     }
@@ -126,15 +181,32 @@ impl FhirPathFunction for ConvertsToIntegerFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        let can_convert = match &context.input {
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        let can_convert = match input_item {
             FhirPathValue::Integer(_) => true,
-            FhirPathValue::Decimal(d) => d.fract().is_zero(),
-            FhirPathValue::String(s) => s.parse::<i64>().is_ok(),
+            FhirPathValue::String(s) => !s.contains('.') && s.trim().parse::<i64>().is_ok(),
             FhirPathValue::Boolean(_) => true,
-            FhirPathValue::Empty => false,
             _ => false,
         };
-        Ok(FhirPathValue::Boolean(can_convert))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(can_convert)]))
     }
 }
 
@@ -156,15 +228,33 @@ impl FhirPathFunction for ConvertsToDecimalFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        let can_convert = match &context.input {
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        let can_convert = match input_item {
             FhirPathValue::Decimal(_) => true,
             FhirPathValue::Integer(_) => true,
-            FhirPathValue::String(s) => Decimal::from_str(s).is_ok(),
+            FhirPathValue::String(s) => Decimal::from_str(s.trim()).is_ok(),
             FhirPathValue::Boolean(_) => true,
-            FhirPathValue::Empty => false,
             _ => false,
         };
-        Ok(FhirPathValue::Boolean(can_convert))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(can_convert)]))
     }
 }
 
@@ -186,7 +276,26 @@ impl FhirPathFunction for ConvertsToStringFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        let can_convert = match &context.input {
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        let can_convert = match input_item {
             FhirPathValue::String(_) => true,
             FhirPathValue::Integer(_) => true,
             FhirPathValue::Decimal(_) => true,
@@ -194,10 +303,78 @@ impl FhirPathFunction for ConvertsToStringFunction {
             FhirPathValue::Date(_) => true,
             FhirPathValue::DateTime(_) => true,
             FhirPathValue::Time(_) => true,
-            FhirPathValue::Empty => false,
+            FhirPathValue::Quantity(_) => true,
             _ => false,
         };
-        Ok(FhirPathValue::Boolean(can_convert))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(can_convert)]))
+    }
+}
+
+/// toBoolean() function - converts value to boolean
+pub struct ToBooleanFunction;
+
+impl FhirPathFunction for ToBooleanFunction {
+    fn name(&self) -> &str { "toBoolean" }
+    fn human_friendly_name(&self) -> &str { "To Boolean" }
+    fn signature(&self) -> &FunctionSignature {
+        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
+            FunctionSignature::new(
+                "toBoolean",
+                vec![],
+                TypeInfo::Boolean,
+            )
+        });
+        &SIG
+    }
+    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+        self.validate_args(args)?;
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        match input_item {
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*b)])),
+            FhirPathValue::String(s) => {
+                let lower = s.to_lowercase();
+                match lower.as_str() {
+                    "true" | "t" | "yes" | "y" | "1" | "1.0" => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])),
+                    "false" | "f" | "no" | "n" | "0" | "0.0" => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+                    _ => Ok(FhirPathValue::Empty),
+                }
+            },
+            FhirPathValue::Integer(i) => {
+                match *i {
+                    1 => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])),
+                    0 => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+                    _ => Ok(FhirPathValue::Empty),
+                }
+            },
+            FhirPathValue::Decimal(d) => {
+                if *d == Decimal::ONE {
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
+                } else if *d == Decimal::ZERO {
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
+            },
+            _ => Ok(FhirPathValue::Empty),
+        }
     }
 }
 
@@ -219,14 +396,36 @@ impl FhirPathFunction for ConvertsToBooleanFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        let can_convert = match &context.input {
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        let can_convert = match input_item {
             FhirPathValue::Boolean(_) => true,
-            FhirPathValue::String(s) => s == "true" || s == "false",
+            FhirPathValue::String(s) => {
+                let lower = s.to_lowercase();
+                matches!(lower.as_str(), "true" | "t" | "yes" | "y" | "1" | "1.0" | "false" | "f" | "no" | "n" | "0" | "0.0")
+            },
             FhirPathValue::Integer(i) => *i == 0 || *i == 1,
-            FhirPathValue::Empty => false,
+            FhirPathValue::Decimal(d) => *d == Decimal::ZERO || *d == Decimal::ONE,
             _ => false,
         };
-        Ok(FhirPathValue::Boolean(can_convert))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(can_convert)]))
     }
 }
 
@@ -248,7 +447,26 @@ impl FhirPathFunction for TypeFunction {
     }
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
-        let type_name = match &context.input {
+        
+        // Extract single item from collection according to spec
+        let input_item = match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.len() > 1 {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Input collection contains multiple items".to_string(),
+                    });
+                } else if items.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                } else {
+                    items.get(0).unwrap()
+                }
+            },
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            item => item,
+        };
+        
+        let type_name = match input_item {
             FhirPathValue::String(_) => "String",
             FhirPathValue::Integer(_) => "Integer",
             FhirPathValue::Decimal(_) => "Decimal",
@@ -257,10 +475,10 @@ impl FhirPathFunction for TypeFunction {
             FhirPathValue::DateTime(_) => "DateTime",
             FhirPathValue::Time(_) => "Time",
             FhirPathValue::Quantity(_) => "Quantity",
-            FhirPathValue::Collection(_) => "Collection",
             FhirPathValue::Resource(_) => "Resource",
+            FhirPathValue::Collection(_) => "Collection",
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
         };
-        Ok(FhirPathValue::String(type_name.to_string()))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::String(type_name.to_string())]))
     }
 }

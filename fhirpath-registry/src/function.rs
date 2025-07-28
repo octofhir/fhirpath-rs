@@ -309,6 +309,7 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     registry.register(ToStringFunction);
     registry.register(ToIntegerFunction);
     registry.register(ToDecimalFunction);
+    registry.register(ToBooleanFunction);
     registry.register(TypeFunction);
     registry.register(ConvertsToIntegerFunction);
     registry.register(ConvertsToDecimalFunction);

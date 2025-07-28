@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use octofhir_ucum_core::{self, UnitExpr};
+use octofhir_ucum_core::{self, OwnedUnitExpr};
 
 /// Core value type for FHIRPath expressions
 ///
@@ -44,7 +44,7 @@ pub enum FhirPathValue {
         /// Cached parsed UCUM unit expression for performance
         #[serde(skip)]
         #[serde(default)]
-        ucum_expr: Option<Arc<UnitExpr>>,
+        ucum_expr: Option<Arc<OwnedUnitExpr>>,
     },
 
     /// Collection of values (the fundamental FHIRPath concept)
@@ -149,13 +149,13 @@ impl FhirPathValue {
         }
     }
 
-    /// Parse a UCUM unit string into a UnitExpr with defensive programming and caching
-    pub fn parse_ucum_unit(unit_str: &str) -> Option<Arc<UnitExpr>> {
+    /// Parse a UCUM unit string into a OwnedUnitExpr with defensive programming and caching
+    pub fn parse_ucum_unit(unit_str: &str) -> Option<Arc<OwnedUnitExpr>> {
         use std::collections::HashMap;
         use std::sync::{Mutex, OnceLock};
 
         // Static cache for parsed UCUM units
-        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<UnitExpr>>>>> = OnceLock::new();
+        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<OwnedUnitExpr>>>>> = OnceLock::new();
 
         // Early validation to prevent potential issues
         if unit_str.is_empty() {

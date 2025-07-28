@@ -304,6 +304,170 @@ fn test_run_multiple_official_suites() {
     }
 }
 
+/// Test equality operations specifically  
+#[test]
+fn test_run_equality_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let equality_path = specs_path.join("equality.json");
+
+    if !equality_path.exists() {
+        println!("Skipping equality test - file not found: {}", equality_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&equality_path) {
+        Ok(stats) => {
+            println!("Equality test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run equality test suite: {}", e);
+        }
+    }
+}
+
+/// Test equivalent operations specifically
+#[test]
+fn test_run_equivalent_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let equivalent_path = specs_path.join("equivalent.json");
+
+    if !equivalent_path.exists() {
+        println!("Skipping equivalent test - file not found: {}", equivalent_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&equivalent_path) {
+        Ok(stats) => {
+            println!("Equivalent test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run equivalent test suite: {}", e);
+        }
+    }
+}
+
+/// Test not-equivalent operations specifically
+#[test]
+fn test_run_not_equivalent_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let not_equivalent_path = specs_path.join("not-equivalent.json");
+
+    if !not_equivalent_path.exists() {
+        println!("Skipping not-equivalent test - file not found: {}", not_equivalent_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&not_equivalent_path) {
+        Ok(stats) => {
+            println!("Not-equivalent test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run not-equivalent test suite: {}", e);
+        }
+    }
+}
+
+/// Test not-equal operations specifically
+#[test]
+fn test_run_not_equal_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let not_equal_path = specs_path.join("n-equality.json");
+
+    if !not_equal_path.exists() {
+        println!("Skipping n-equality test - file not found: {}", not_equal_path.display());
+        return;
+    }
+
+    match runner.run_and_report(&not_equal_path) {
+        Ok(stats) => {
+            println!("N-equality (not equal) test suite completed:");
+            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run n-equality test suite: {}", e);
+        }
+    }
+}
+
+/// Run all equality-related test suites 
+#[test]
+fn test_run_all_equality_suites() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(false);
+
+    // List of equality-related test files
+    let equality_test_files = vec![
+        "equality.json",
+        "equivalent.json", 
+        "not-equivalent.json",
+        "n-equality.json"
+    ];
+
+    let test_paths: Vec<PathBuf> = equality_test_files.into_iter()
+        .map(|f| specs_path.join(f))
+        .filter(|p| p.exists()) // Only include files that exist
+        .collect();
+
+    if test_paths.is_empty() {
+        println!("No equality test files found in {}", specs_path.display());
+        return;
+    }
+
+    match runner.run_multiple_test_files(&test_paths) {
+        Ok(stats) => {
+            println!("🏁 All equality test suites completed:");
+            println!("  Total tests: {}", stats.total);
+            println!("  Passed: {} ({:.1}%)", stats.passed, stats.pass_rate());
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+
+            // Report progress but don't fail the test yet
+            let success_rate = stats.pass_rate();
+            if success_rate > 80.0 {
+                println!("🎉 Excellent! Over 80% of equality tests are passing.");
+            } else if success_rate > 60.0 {
+                println!("📈 Good progress! Over 60% of equality tests are passing.");
+            } else if success_rate > 40.0 {
+                println!("🚧 Making progress! Over 40% of equality tests are passing.");
+            } else {
+                println!("🔄 Early stage - more work needed on equality implementations.");
+            }
+        }
+        Err(e) => {
+            println!("Failed to run equality test suites: {}", e);
+        }
+    }
+}
+
 /// Example of how to create and run a custom test suite
 #[test]
 fn test_custom_test_creation() {

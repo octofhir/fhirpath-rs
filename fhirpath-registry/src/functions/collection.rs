@@ -27,7 +27,7 @@ impl FhirPathFunction for CountFunction {
             FhirPathValue::Empty => 0,
             _ => 1,
         };
-        Ok(FhirPathValue::Integer(count as i64))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(count as i64)]))
     }
 }
 
@@ -68,7 +68,7 @@ impl FhirPathFunction for ExistsFunction {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
                 "exists",
-                vec![],
+                vec![ParameterInfo::optional("condition", TypeInfo::Any)],
                 TypeInfo::Boolean,
             )
         });
@@ -77,11 +77,22 @@ impl FhirPathFunction for ExistsFunction {
     fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
-        // Just check if collection is non-empty
         let exists = match &context.input {
             FhirPathValue::Empty => false,
-            FhirPathValue::Collection(items) => !items.is_empty(),
-            _ => true,
+            FhirPathValue::Collection(items) => {
+                if args.is_empty() {
+                    // No condition provided, just check if collection is non-empty
+                    !items.is_empty()
+                } else {
+                    // TODO: With condition argument, this needs lambda evaluation support
+                    // For now, return error to indicate this functionality is not yet implemented
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "exists() with condition parameter requires lambda evaluation support (not yet implemented)".to_string(),
+                    });
+                }
+            }
+            _ => args.is_empty(), // Single value exists if no condition, or needs lambda evaluation
         };
         Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(exists)]))
     }

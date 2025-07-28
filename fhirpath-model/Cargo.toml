@@ -17,7 +17,7 @@ rust_decimal = { version = "1.32", features = ["serde-with-str"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # UCUM library for quantity handling
-octofhir-ucum-core = "0.3.0"
+octofhir-ucum-core = "0.4.0"
 
 # Performance
 parking_lot = "0.12"

@@ -36,15 +36,15 @@ rust_decimal = { version = "1.32", features = ["serde-with-str"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # UCUM library for quantity handling
-octofhir-ucum-core = "0.3.0"
-octofhir-ucum-fhir = { version = "0.3.0", features = ["serde"] }
+octofhir-ucum-core = "0.4.0"
+octofhir-ucum-fhir = { version = "0.4.0", features = ["serde"] }
 
 # Performance optimization dependencies
-rustc-hash = "1.1"
+rustc-hash = "2"
 smallvec = { version = "1.11", features = ["serde"] }
-base64 = "0.21"
+base64 = "0.22"
 hex = "0.4"
-lru = "0.12"
+lru = "0.16"
 
 # Async runtime for FHIR Schema loading
 tokio = { version = "1.35", features = ["rt", "macros"], optional = true }

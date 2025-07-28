@@ -457,6 +457,11 @@ impl<'input> Tokenizer<'input> {
                 Token::String(content)
             }
 
+            // Date/Time literals starting with @
+            b'@' => {
+                self.parse_datetime_literal()?
+            }
+
             // Identifiers and keywords - hot path optimization
             ch if Self::is_id_start(ch) => {
                 let ident = self.parse_identifier();
@@ -488,7 +493,7 @@ impl<'input> Tokenizer<'input> {
                     Token::Equal | Token::NotEqual | Token::LessThanOrEqual
                     | Token::GreaterThanOrEqual | Token::Equivalent | Token::NotEquivalent => 2,
                     Token::Arrow => 2,
-                    Token::Identifier(s) | Token::String(s) => s.len(),
+                    Token::Identifier(s) | Token::String(s) | Token::Date(s) | Token::DateTime(s) | Token::Time(s) => s.len(),
                     Token::Integer(_) => {
                         // Calculate integer length
                         let mut temp_pos = self.position;
@@ -508,6 +513,158 @@ impl<'input> Tokenizer<'input> {
 
         tokens.shrink_to_fit(); // Remove excess capacity
         Ok(tokens)
+    }
+
+    /// Parse date/time literal starting with @
+    /// Supports formats: @YYYY, @YYYY-MM, @YYYY-MM-DD, @YYYY-MM-DDTHH:MM:SS, @T12:34:56, etc.
+    fn parse_datetime_literal(&mut self) -> ParseResult<Token<'input>> {
+        let start = self.position;
+        self.position += 1; // Skip '@'
+
+        if self.position >= self.length {
+            return Err(ParseError::UnexpectedToken {
+                token: "@".to_string(),
+                position: start,
+            });
+        }
+
+        // Check if it starts with T (time literal)
+        if self.bytes[self.position] == b'T' {
+            // Time literal: @T12:34:56
+            self.position += 1; // Skip 'T'
+            self.parse_time_part()?;
+            let literal = &self.input[start..self.position];
+            return Ok(Token::Time(literal));
+        }
+
+        // Parse date part (YYYY-MM-DD)
+        let has_date_part = self.parse_date_part()?;
+        if !has_date_part {
+            return Err(ParseError::UnexpectedToken {
+                token: "@".to_string(),
+                position: start,
+            });
+        }
+
+        // Check if there's time part (T...)
+        if self.position < self.length && self.bytes[self.position] == b'T' {
+            self.position += 1; // Skip 'T'
+            
+            // If there's nothing after T, it's still a datetime
+            if self.position >= self.length || !self.is_time_char(self.bytes[self.position]) {
+                let literal = &self.input[start..self.position];
+                return Ok(Token::DateTime(literal));
+            }
+            
+            // Parse time part
+            self.parse_time_part()?;
+            let literal = &self.input[start..self.position];
+            Ok(Token::DateTime(literal))
+        } else {
+            // Just a date
+            let literal = &self.input[start..self.position];
+            Ok(Token::Date(literal))
+        }
+    }
+
+    /// Parse date part (YYYY-MM-DD), returns true if any digits were consumed
+    fn parse_date_part(&mut self) -> ParseResult<bool> {
+        if self.position >= self.length || !self.bytes[self.position].is_ascii_digit() {
+            return Ok(false);
+        }
+
+        // Parse year (1-4 digits)
+        let mut digit_count = 0;
+        while self.position < self.length && self.bytes[self.position].is_ascii_digit() && digit_count < 4 {
+            self.position += 1;
+            digit_count += 1;
+        }
+
+        if digit_count == 0 {
+            return Ok(false);
+        }
+
+        // Check for month (-MM)
+        if self.position + 2 < self.length && self.bytes[self.position] == b'-' 
+            && self.bytes[self.position + 1].is_ascii_digit() 
+            && self.bytes[self.position + 2].is_ascii_digit() {
+            self.position += 3; // Skip -MM
+
+            // Check for day (-DD)
+            if self.position + 2 < self.length && self.bytes[self.position] == b'-'
+                && self.bytes[self.position + 1].is_ascii_digit()
+                && self.bytes[self.position + 2].is_ascii_digit() {
+                self.position += 3; // Skip -DD
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Parse time part (HH:MM:SS.sss with optional timezone)
+    fn parse_time_part(&mut self) -> ParseResult<()> {
+        if self.position >= self.length || !self.bytes[self.position].is_ascii_digit() {
+            return Ok(()); // Empty time part is allowed
+        }
+
+        // Parse hour (1-2 digits)
+        let mut digit_count = 0;
+        while self.position < self.length && self.bytes[self.position].is_ascii_digit() && digit_count < 2 {
+            self.position += 1;
+            digit_count += 1;
+        }
+
+        // Check for minutes (:MM)
+        if self.position + 2 < self.length && self.bytes[self.position] == b':'
+            && self.bytes[self.position + 1].is_ascii_digit()
+            && self.bytes[self.position + 2].is_ascii_digit() {
+            self.position += 3; // Skip :MM
+
+            // Check for seconds (:SS)
+            if self.position + 2 < self.length && self.bytes[self.position] == b':'
+                && self.bytes[self.position + 1].is_ascii_digit()
+                && self.bytes[self.position + 2].is_ascii_digit() {
+                self.position += 3; // Skip :SS
+
+                // Check for milliseconds (.sss)
+                if self.position < self.length && self.bytes[self.position] == b'.' {
+                    self.position += 1; // Skip '.'
+                    while self.position < self.length && self.bytes[self.position].is_ascii_digit() {
+                        self.position += 1;
+                    }
+                }
+            }
+        }
+
+        // Check for timezone (Z or +/-HH:MM)
+        if self.position < self.length {
+            match self.bytes[self.position] {
+                b'Z' => {
+                    self.position += 1;
+                }
+                b'+' | b'-' => {
+                    self.position += 1;
+                    // Parse HH:MM timezone offset
+                    if self.position + 4 < self.length 
+                        && self.bytes[self.position].is_ascii_digit()
+                        && self.bytes[self.position + 1].is_ascii_digit()
+                        && self.bytes[self.position + 2] == b':'
+                        && self.bytes[self.position + 3].is_ascii_digit()
+                        && self.bytes[self.position + 4].is_ascii_digit() {
+                        self.position += 5; // Skip HH:MM
+                    }
+                }
+                _ => {} // No timezone
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if character can be part of a time
+    #[inline]
+    fn is_time_char(&self, ch: u8) -> bool {
+        ch.is_ascii_digit() || ch == b':' || ch == b'.' || ch == b'Z' || ch == b'+' || ch == b'-'
     }
 }
 

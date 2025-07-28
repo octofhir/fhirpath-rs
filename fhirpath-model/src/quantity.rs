@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
 
-use octofhir_ucum_core::{self, UnitExpr};
+use octofhir_ucum_core::{self, OwnedUnitExpr};
 
 use crate::error::{ModelError, Result};
 
@@ -18,7 +18,7 @@ pub struct Quantity {
     pub unit: Option<String>,
     /// Cached parsed UCUM unit expression for performance
     #[serde(skip)]
-    ucum_expr: Option<Arc<UnitExpr>>,
+    ucum_expr: Option<Arc<OwnedUnitExpr>>,
 }
 
 impl Quantity {
@@ -41,14 +41,14 @@ impl Quantity {
         }
     }
 
-    /// Parse a UCUM unit string into a UnitExpr
-    fn parse_ucum_unit(unit_str: &str) -> Option<Arc<UnitExpr>> {
+    /// Parse a UCUM unit string into an OwnedUnitExpr
+    fn parse_ucum_unit(unit_str: &str) -> Option<Arc<OwnedUnitExpr>> {
         use parking_lot::Mutex;
         use std::collections::HashMap;
         use std::sync::OnceLock;
 
         // Static cache for parsed UCUM units
-        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<UnitExpr>>>>> =
+        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<OwnedUnitExpr>>>>> =
             OnceLock::new();
 
         // Early validation

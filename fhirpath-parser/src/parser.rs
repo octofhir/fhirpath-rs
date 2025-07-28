@@ -244,6 +244,27 @@ impl<'input> Parser<'input> {
                 // Handle method calls on boolean literals
                 self.parse_method_chain(expr)
             }
+            Some(Token::Date(value)) => {
+                let expr = ExpressionNode::literal(LiteralValue::Date(value.to_string()));
+                self.advance()?;
+
+                // Handle method calls on date literals
+                self.parse_method_chain(expr)
+            }
+            Some(Token::DateTime(value)) => {
+                let expr = ExpressionNode::literal(LiteralValue::DateTime(value.to_string()));
+                self.advance()?;
+
+                // Handle method calls on datetime literals
+                self.parse_method_chain(expr)
+            }
+            Some(Token::Time(value)) => {
+                let expr = ExpressionNode::literal(LiteralValue::Time(value.to_string()));
+                self.advance()?;
+
+                // Handle method calls on time literals
+                self.parse_method_chain(expr)
+            }
             Some(Token::LeftParen) => {
                 self.advance()?; // consume '('
                 let expr = self.parse_expression()?;

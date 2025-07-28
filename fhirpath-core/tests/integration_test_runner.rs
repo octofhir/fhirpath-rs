@@ -325,7 +325,39 @@ impl IntegrationTestRunner {
     }
 
     /// Convert FhirPathValue to JSON Value for display
+    /// According to FHIRPath spec, all results should be collections (arrays)
     fn fhirpath_value_to_json(&self, value: &FhirPathValue) -> Value {
+        match value {
+            FhirPathValue::Boolean(b) => Value::Array(vec![Value::Bool(*b)]),
+            FhirPathValue::Integer(i) => Value::Array(vec![Value::Number((*i).into())]),
+            FhirPathValue::Decimal(d) => {
+                use rust_decimal::prelude::ToPrimitive;
+                let num = Value::Number(serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
+                    .unwrap_or_else(|| serde_json::Number::from(0)));
+                Value::Array(vec![num])
+            }
+            FhirPathValue::String(s) => Value::Array(vec![Value::String(s.clone())]),
+            FhirPathValue::Date(d) => Value::Array(vec![Value::String(format!("@{}", d.format("%Y-%m-%d")))]),
+            FhirPathValue::DateTime(dt) => Value::Array(vec![Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))]),
+            FhirPathValue::Time(t) => Value::Array(vec![Value::String(format!("@T{}", t.format("%H:%M:%S")))]),
+            FhirPathValue::Quantity(q) => Value::Array(vec![q.to_json()]),
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    Value::Array(vec![])
+                } else {
+                    Value::Array(items.iter().map(|item| self.fhirpath_value_to_json_item(item)).collect())
+                }
+            }
+            FhirPathValue::Empty => Value::Array(vec![]),
+            FhirPathValue::Resource(resource) => {
+                // Convert back to JSON representation
+                Value::Array(vec![resource.to_json()])
+            }
+        }
+    }
+
+    /// Convert a single FhirPathValue item to JSON (not wrapped in array)
+    fn fhirpath_value_to_json_item(&self, value: &FhirPathValue) -> Value {
         match value {
             FhirPathValue::Boolean(b) => Value::Bool(*b),
             FhirPathValue::Integer(i) => Value::Number((*i).into()),
@@ -343,14 +375,11 @@ impl IntegrationTestRunner {
                 if items.is_empty() {
                     Value::Array(vec![])
                 } else {
-                    Value::Array(items.iter().map(|item| self.fhirpath_value_to_json(item)).collect())
+                    Value::Array(items.iter().map(|item| self.fhirpath_value_to_json_item(item)).collect())
                 }
             }
-            FhirPathValue::Empty => Value::Array(vec![]),
-            FhirPathValue::Resource(resource) => {
-                // Convert back to JSON representation
-                resource.to_json()
-            }
+            FhirPathValue::Empty => Value::Null,
+            FhirPathValue::Resource(resource) => resource.to_json(),
         }
     }
 

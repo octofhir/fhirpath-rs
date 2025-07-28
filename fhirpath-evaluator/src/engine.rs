@@ -441,11 +441,55 @@ impl FhirPathEngine {
         // First evaluate the base expression to get the context for the method call
         let base_value = self.evaluate_with_context(base, context)?;
 
-        // Create a new context with the base value as input
-        let method_context = context.with_input(base_value);
+        // Check if this is a collection-level function that should operate on the entire collection
+        let is_collection_level_function = matches!(method, 
+            "count" | "exists" | "isDistinct" | "single" | "distinct" | "empty" | 
+            "allTrue" | "anyTrue" | "allFalse" | "anyFalse" | "aggregate"
+        );
 
-        // Evaluate the method as a function call with the new context
-        self.evaluate_function_call(method, args, &method_context)
+        // For collection-level functions, always operate on the entire collection
+        if is_collection_level_function {
+            let method_context = context.with_input(base_value);
+            return self.evaluate_function_call(method, args, &method_context);
+        }
+
+        // For method calls on collections, we need to handle them properly
+        match &base_value {
+            FhirPathValue::Collection(items) => {
+                let items_vec: Vec<FhirPathValue> = items.iter().cloned().collect();
+                // For single-element collections, unwrap and call method on the element
+                if items_vec.len() == 1 {
+                    let method_context = context.with_input(items_vec[0].clone());
+                    self.evaluate_function_call(method, args, &method_context)
+                } else {
+                    // For multi-element collections, call method on each element and collect results
+                    let mut results = Vec::new();
+                    for item in items_vec {
+                        let method_context = context.with_input(item.clone());
+                        match self.evaluate_function_call(method, args, &method_context) {
+                            Ok(result) => {
+                                match result {
+                                    FhirPathValue::Collection(sub_items) => {
+                                        for sub_item in sub_items.iter() {
+                                            results.push(sub_item.clone());
+                                        }
+                                    }
+                                    FhirPathValue::Empty => {}
+                                    single_item => results.push(single_item),
+                                }
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
+                    Ok(FhirPathValue::collection(results))
+                }
+            }
+            _ => {
+                // For non-collections, create context directly
+                let method_context = context.with_input(base_value);
+                self.evaluate_function_call(method, args, &method_context)
+            }
+        }
     }
 
     /// Evaluate a binary operation
