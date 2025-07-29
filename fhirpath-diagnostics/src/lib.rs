@@ -6,15 +6,15 @@
 
 #![warn(missing_docs)]
 
-pub mod diagnostic;
-pub mod location;
 pub mod builder;
+pub mod diagnostic;
 pub mod formatter;
+pub mod location;
 
-pub use diagnostic::{Diagnostic, Severity, DiagnosticCode};
-pub use location::{SourceLocation, Position, Span};
 pub use builder::DiagnosticBuilder;
+pub use diagnostic::{Diagnostic, DiagnosticCode, Severity};
 pub use formatter::{DiagnosticFormatter, Format};
+pub use location::{Position, SourceLocation, Span};
 
 // Re-export LSP types when feature is enabled
 #[cfg(feature = "lsp")]

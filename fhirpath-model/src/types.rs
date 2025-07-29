@@ -44,12 +44,8 @@ impl TypeInfo {
             (TypeInfo::Optional(a), b) => a.is_compatible_with(b),
             (a, TypeInfo::Optional(b)) => a.is_compatible_with(b),
             (TypeInfo::Collection(a), TypeInfo::Collection(b)) => a.is_compatible_with(b),
-            (TypeInfo::Union(types), other) => {
-                types.iter().any(|t| t.is_compatible_with(other))
-            }
-            (other, TypeInfo::Union(types)) => {
-                types.iter().any(|t| other.is_compatible_with(t))
-            }
+            (TypeInfo::Union(types), other) => types.iter().any(|t| t.is_compatible_with(other)),
+            (other, TypeInfo::Union(types)) => types.iter().any(|t| other.is_compatible_with(t)),
             _ => self == other,
         }
     }

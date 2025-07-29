@@ -1,46 +1,60 @@
 //! Boolean logic functions
 
-use crate::function::{FhirPathFunction, FunctionError, FunctionResult, EvaluationContext, LambdaEvaluationContext, LambdaFunction};
+use crate::function::{
+    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult, LambdaEvaluationContext,
+    LambdaFunction,
+};
 use crate::signature::{FunctionSignature, ParameterInfo};
-use fhirpath_model::{FhirPathValue, TypeInfo};
 use fhirpath_ast::ExpressionNode;
+use fhirpath_model::{FhirPathValue, TypeInfo};
 use std::collections::HashMap;
 
 /// not() function - logical negation
 pub struct NotFunction;
 
 impl FhirPathFunction for NotFunction {
-    fn name(&self) -> &str { "not" }
-    fn human_friendly_name(&self) -> &str { "Not" }
+    fn name(&self) -> &str {
+        "not"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Not"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "not",
-                vec![],
-                TypeInfo::Boolean,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("not", vec![], TypeInfo::Boolean));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
+            FhirPathValue::Boolean(b) => {
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)]))
+            }
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     // Empty collection is false, not becomes true
-                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        true,
+                    )]))
                 } else if items.len() == 1 {
                     match items.iter().next() {
-                        Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
-                        _ => Ok(FhirPathValue::Empty)
+                        Some(FhirPathValue::Boolean(b)) => {
+                            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)]))
+                        }
+                        _ => Ok(FhirPathValue::Empty),
                     }
                 } else {
                     Ok(FhirPathValue::Empty)
                 }
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])),
-            _ => Ok(FhirPathValue::Empty)
+            FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                true,
+            )])),
+            _ => Ok(FhirPathValue::Empty),
         }
     }
 }
@@ -49,8 +63,12 @@ impl FhirPathFunction for NotFunction {
 pub struct AllFunction;
 
 impl FhirPathFunction for AllFunction {
-    fn name(&self) -> &str { "all" }
-    fn human_friendly_name(&self) -> &str { "All" }
+    fn name(&self) -> &str {
+        "all"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "All"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
@@ -61,11 +79,17 @@ impl FhirPathFunction for AllFunction {
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         if args.is_empty() {
             // No criteria - check if all items exist (non-empty means all exist)
-            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!context.input.is_empty())]))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                !context.input.is_empty(),
+            )]))
         } else {
             // This should not be called for lambda functions - use evaluate_with_lambda instead
             Err(FunctionError::EvaluationError {
@@ -84,7 +108,9 @@ impl LambdaFunction for AllFunction {
     ) -> FunctionResult<FhirPathValue> {
         if args.is_empty() {
             // No criteria - check if all items exist (non-empty means all exist)
-            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!context.context.input.is_empty())]));
+            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                !context.context.input.is_empty(),
+            )]));
         }
 
         let criteria = &args[0];
@@ -92,7 +118,11 @@ impl LambdaFunction for AllFunction {
         // Get the collection to iterate over
         let items = match &context.context.input {
             FhirPathValue::Collection(items) => items.iter().collect::<Vec<_>>(),
-            FhirPathValue::Empty => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])), // Empty collection is vacuously true
+            FhirPathValue::Empty => {
+                return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                    true,
+                )]));
+            } // Empty collection is vacuously true
             single => vec![single], // Single item treated as collection
         };
 
@@ -115,11 +145,15 @@ impl LambdaFunction for AllFunction {
             };
 
             if !is_true {
-                return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
+                return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                    false,
+                )]));
             }
         }
 
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            true,
+        )]))
     }
 }
 
@@ -127,8 +161,12 @@ impl LambdaFunction for AllFunction {
 pub struct AnyFunction;
 
 impl FhirPathFunction for AnyFunction {
-    fn name(&self) -> &str { "any" }
-    fn human_friendly_name(&self) -> &str { "Any" }
+    fn name(&self) -> &str {
+        "any"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Any"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
@@ -139,11 +177,17 @@ impl FhirPathFunction for AnyFunction {
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         if args.is_empty() {
             // No criteria - check if any items exist (non-empty means some exist)
-            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!context.input.is_empty())]))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                !context.input.is_empty(),
+            )]))
         } else {
             // TODO: Implement any with criteria - need lambda evaluation
             Err(FunctionError::EvaluationError {
@@ -152,35 +196,48 @@ impl FhirPathFunction for AnyFunction {
             })
         }
     }
-
 }
 
 /// allTrue() function - returns true if all items in collection are true
 pub struct AllTrueFunction;
 
 impl FhirPathFunction for AllTrueFunction {
-    fn name(&self) -> &str { "allTrue" }
-    fn human_friendly_name(&self) -> &str { "All True" }
+    fn name(&self) -> &str {
+        "allTrue"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "All True"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "allTrue",
-                vec![],
-                TypeInfo::Boolean,
-            )
+            FunctionSignature::new("allTrue", vec![], TypeInfo::Boolean)
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         let items = match &context.input {
             FhirPathValue::Collection(items) => items,
-            FhirPathValue::Empty => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)])), // Empty collection is vacuously true
+            FhirPathValue::Empty => {
+                return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                    true,
+                )]));
+            } // Empty collection is vacuously true
             single => {
                 // Single item - check if it's a boolean true
                 match single {
-                    FhirPathValue::Boolean(b) => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*b)])),
-                    _ => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+                    FhirPathValue::Boolean(b) => {
+                        return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*b)]));
+                    }
+                    _ => {
+                        return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                            false,
+                        )]));
+                    }
                 }
             }
         };
@@ -189,10 +246,16 @@ impl FhirPathFunction for AllTrueFunction {
         for item in items.iter() {
             match item {
                 FhirPathValue::Boolean(true) => continue,
-                _ => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+                _ => {
+                    return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        false,
+                    )]));
+                }
             }
         }
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            true,
+        )]))
     }
 }
 
@@ -229,19 +292,21 @@ impl IsDistinctFunction {
             FhirPathValue::Date(d) => ValueDiscriminant::Date(d.to_string()),
             FhirPathValue::DateTime(dt) => ValueDiscriminant::DateTime(dt.to_string()),
             FhirPathValue::Time(t) => ValueDiscriminant::Time(t.to_string()),
-            FhirPathValue::Quantity(q) => ValueDiscriminant::Quantity(
-                q.value.to_string(),
-                q.unit.clone(),
-            ),
+            FhirPathValue::Quantity(q) => {
+                ValueDiscriminant::Quantity(q.value.to_string(), q.unit.clone())
+            }
             // FhirPathValue::Code variant doesn't exist yet
             // FhirPathValue::Code(c) => ValueDiscriminant::Code(
             //     c.code.clone(),
             //     c.system.clone(),
             // ),
             FhirPathValue::Collection(items) => ValueDiscriminant::Collection(items.len()),
-            FhirPathValue::Resource(r) => ValueDiscriminant::Resource(
-                r.resource_type().unwrap_or("Unknown").to_string()
-            ),
+            FhirPathValue::Resource(r) => {
+                ValueDiscriminant::Resource(r.resource_type().unwrap_or("Unknown").to_string())
+            }
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                ValueDiscriminant::String(format!("TypeInfo({}.{})", namespace, name))
+            }
             // FhirPathValue::Lambda variant doesn't exist yet
             // FhirPathValue::Lambda(_) => ValueDiscriminant::Lambda,
         }
@@ -281,25 +346,31 @@ impl IsDistinctFunction {
 }
 
 impl FhirPathFunction for IsDistinctFunction {
-    fn name(&self) -> &str { "isDistinct" }
-    fn human_friendly_name(&self) -> &str { "Is Distinct" }
+    fn name(&self) -> &str {
+        "isDistinct"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Is Distinct"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "isDistinct",
-                vec![],
-                TypeInfo::Boolean,
-            )
+            FunctionSignature::new("isDistinct", vec![], TypeInfo::Boolean)
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         let is_distinct = match &context.input {
             FhirPathValue::Empty => true, // Empty collection has no duplicates
             FhirPathValue::Collection(items) => Self::has_no_duplicates(items.iter()),
             _ => true, // Single value is always distinct
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(is_distinct)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            is_distinct,
+        )]))
     }
 }

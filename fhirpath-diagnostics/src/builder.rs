@@ -76,12 +76,18 @@ impl DiagnosticBuilder {
     }
 
     /// Set the location from start and end positions
-    pub fn with_positions(mut self, start: Position, end: Position) -> Self {
+    pub fn with_positions(self, start: Position, end: Position) -> Self {
         self.with_span(Span::new(start, end))
     }
 
     /// Set the location from line/column coordinates
-    pub fn with_location(mut self, start_line: usize, start_col: usize, end_line: usize, end_col: usize) -> Self {
+    pub fn with_location(
+        self,
+        start_line: usize,
+        start_col: usize,
+        end_line: usize,
+        end_col: usize,
+    ) -> Self {
         self.with_positions(
             Position::new(start_line, start_col),
             Position::new(end_line, end_col),
@@ -89,7 +95,7 @@ impl DiagnosticBuilder {
     }
 
     /// Set the location from byte offsets
-    pub fn with_offsets(mut self, source: &str, start_offset: usize, end_offset: usize) -> Self {
+    pub fn with_offsets(self, source: &str, start_offset: usize, end_offset: usize) -> Self {
         self.with_span(Span::from_offsets(source, start_offset, end_offset))
     }
 
@@ -184,7 +190,10 @@ impl DiagnosticBuilder {
             expected: expected.to_string(),
             actual: actual.to_string(),
         })
-        .with_message(format!("Type mismatch: expected {}, found {}", expected, actual))
+        .with_message(format!(
+            "Type mismatch: expected {}, found {}",
+            expected, actual
+        ))
     }
 
     /// Create an "undefined variable" error
@@ -195,8 +204,10 @@ impl DiagnosticBuilder {
 
     /// Create a "property not found" error
     pub fn property_not_found(property: &str, type_name: &str) -> Self {
-        Self::error(DiagnosticCode::PropertyNotFound)
-            .with_message(format!("Property '{}' not found on type '{}'", property, type_name))
+        Self::error(DiagnosticCode::PropertyNotFound).with_message(format!(
+            "Property '{}' not found on type '{}'",
+            property, type_name
+        ))
     }
 
     /// Create an "expected token" error
@@ -207,14 +218,15 @@ impl DiagnosticBuilder {
 
     /// Create a "division by zero" error
     pub fn division_by_zero() -> Self {
-        Self::error(DiagnosticCode::DivisionByZero)
-            .with_message("Division by zero")
+        Self::error(DiagnosticCode::DivisionByZero).with_message("Division by zero")
     }
 
     /// Create an "index out of bounds" error
     pub fn index_out_of_bounds(index: i64, size: usize) -> Self {
-        Self::error(DiagnosticCode::IndexOutOfBounds)
-            .with_message(format!("Index {} out of bounds for collection of size {}", index, size))
+        Self::error(DiagnosticCode::IndexOutOfBounds).with_message(format!(
+            "Index {} out of bounds for collection of size {}",
+            index, size
+        ))
     }
 }
 
@@ -246,10 +258,12 @@ mod tests {
         assert_eq!(diagnostic.message, "Unknown function 'foo'");
         assert!(matches!(diagnostic.code, DiagnosticCode::UnknownFunction));
 
-        let diagnostic = DiagnosticBuilder::type_mismatch("String", "Integer")
-            .build();
+        let diagnostic = DiagnosticBuilder::type_mismatch("String", "Integer").build();
 
-        assert_eq!(diagnostic.message, "Type mismatch: expected String, found Integer");
+        assert_eq!(
+            diagnostic.message,
+            "Type mismatch: expected String, found Integer"
+        );
     }
 
     #[test]

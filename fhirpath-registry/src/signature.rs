@@ -148,11 +148,7 @@ impl OperatorSignature {
     }
 
     /// Create a unary operator signature
-    pub fn unary(
-        symbol: impl Into<String>,
-        operand_type: TypeInfo,
-        result_type: TypeInfo,
-    ) -> Self {
+    pub fn unary(symbol: impl Into<String>, operand_type: TypeInfo, result_type: TypeInfo) -> Self {
         Self {
             symbol: symbol.into(),
             left_type: operand_type,
@@ -170,7 +166,7 @@ impl OperatorSignature {
         match (&self.right_type, right_type) {
             (Some(expected), Some(actual)) => expected.is_compatible_with(actual),
             (None, None) => true, // Unary operator
-            _ => false, // Mismatch between binary/unary
+            _ => false,           // Mismatch between binary/unary
         }
     }
 }
@@ -194,10 +190,16 @@ impl fmt::Display for FunctionSignature {
 impl fmt::Display for OperatorSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.right_type {
-            Some(right) => write!(f, "{} {} {} -> {}", 
-                                self.left_type, self.symbol, right, self.result_type),
-            None => write!(f, "{} {} -> {}", 
-                         self.symbol, self.left_type, self.result_type),
+            Some(right) => write!(
+                f,
+                "{} {} {} -> {}",
+                self.left_type, self.symbol, right, self.result_type
+            ),
+            None => write!(
+                f,
+                "{} {} -> {}",
+                self.symbol, self.left_type, self.result_type
+            ),
         }
     }
 }
@@ -225,12 +227,8 @@ mod tests {
 
     #[test]
     fn test_operator_signature_matching() {
-        let sig = OperatorSignature::binary(
-            "+",
-            TypeInfo::Integer,
-            TypeInfo::Integer,
-            TypeInfo::Integer,
-        );
+        let sig =
+            OperatorSignature::binary("+", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer);
 
         assert!(sig.matches(&TypeInfo::Integer, Some(&TypeInfo::Integer)));
         assert!(!sig.matches(&TypeInfo::String, Some(&TypeInfo::Integer)));

@@ -2,11 +2,14 @@
 
 use crate::signature::OperatorSignature;
 use fhirpath_model::{FhirPathValue, TypeInfo};
+use octofhir_ucum_core;
+use rust_decimal::{
+    Decimal,
+    prelude::{FromPrimitive, ToPrimitive},
+};
 use rustc_hash::FxHashMap;
-use rust_decimal::{Decimal, prelude::{ToPrimitive, FromPrimitive}};
 use std::sync::Arc;
 use thiserror::Error;
-use octofhir_ucum_core;
 
 /// Result type for operator operations
 pub type OperatorResult<T> = Result<T, OperatorError>;
@@ -91,7 +94,11 @@ pub trait FhirPathOperator: Send + Sync {
     fn signatures(&self) -> &[OperatorSignature];
 
     /// Evaluate binary operation
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue>;
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue>;
 
     /// Evaluate unary operation (default implementation returns error)
     fn evaluate_unary(&self, _operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
@@ -263,9 +270,12 @@ enum TimeUnitType {
 /// Helper function to classify a unit string using UCUM
 fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
     // First check exact matches for UCUM standard units
+    // Note: According to FHIRPath specification, 'mo' (month) and 'a' (year)
+    // are not supported for date arithmetic and should return empty
     match unit_str {
-        "a" => return Some(TimeUnitType::Year),
-        "mo" => return Some(TimeUnitType::Month),
+        // Unsupported UCUM units for date arithmetic - return None to indicate empty result
+        "a" | "mo" => return None,
+        // Supported UCUM units for date arithmetic
         "wk" => return Some(TimeUnitType::Week),
         "d" => return Some(TimeUnitType::Day),
         "h" => return Some(TimeUnitType::Hour),
@@ -308,23 +318,66 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
 struct AddOperator;
 
 impl FhirPathOperator for AddOperator {
-    fn symbol(&self) -> &str { "+" }
-    fn human_friendly_name(&self) -> &str { "Addition" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "+"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Addition"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("+", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("+", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("+", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("+", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("+", TypeInfo::String, TypeInfo::String, TypeInfo::String),
-                OperatorSignature::binary("+", TypeInfo::Quantity, TypeInfo::Quantity, TypeInfo::Quantity),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::String,
+                    TypeInfo::String,
+                    TypeInfo::String,
+                ),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                ),
                 OperatorSignature::binary("+", TypeInfo::Date, TypeInfo::Quantity, TypeInfo::Date),
                 OperatorSignature::binary("+", TypeInfo::Date, TypeInfo::Integer, TypeInfo::Date),
-                OperatorSignature::binary("+", TypeInfo::DateTime, TypeInfo::Quantity, TypeInfo::DateTime),
+                OperatorSignature::binary(
+                    "+",
+                    TypeInfo::DateTime,
+                    TypeInfo::Quantity,
+                    TypeInfo::DateTime,
+                ),
                 OperatorSignature::binary("+", TypeInfo::Time, TypeInfo::Quantity, TypeInfo::Time),
                 OperatorSignature::unary("+", TypeInfo::Integer, TypeInfo::Integer),
                 OperatorSignature::unary("+", TypeInfo::Decimal, TypeInfo::Decimal),
@@ -333,23 +386,24 @@ impl FhirPathOperator for AddOperator {
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
         }
 
         let result = match (left, right) {
-            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
-                a.checked_add(*b)
-                    .map(FhirPathValue::Integer)
-                    .ok_or_else(|| OperatorError::ArithmeticOverflow {
-                        operation: format!("{} + {}", a, b),
-                    })?
-            }
-            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                FhirPathValue::Decimal(a + b)
-            }
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a
+                .checked_add(*b)
+                .map(FhirPathValue::Integer)
+                .ok_or_else(|| OperatorError::ArithmeticOverflow {
+                    operation: format!("{} + {}", a, b),
+                })?,
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => FhirPathValue::Decimal(a + b),
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) + b)
             }
@@ -360,15 +414,15 @@ impl FhirPathOperator for AddOperator {
                 FhirPathValue::String(format!("{}{}", a, b))
             }
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                if a.unit == b.unit {
-                    let mut result = a.clone();
-                    result.value = a.value + b.value;
-                    FhirPathValue::Quantity(result)
-                } else {
-                    return Err(OperatorError::IncompatibleUnits {
-                        left_unit: a.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
-                        right_unit: b.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
-                    });
+                // Try to add quantities using UCUM unit conversion
+                match a.add(b) {
+                    Ok(result) => FhirPathValue::Quantity(result),
+                    Err(_) => {
+                        return Err(OperatorError::IncompatibleUnits {
+                            left_unit: a.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
+                            right_unit: b.unit.as_ref().map(|u| u.clone()).unwrap_or_default(),
+                        });
+                    }
                 }
             }
             (FhirPathValue::Date(date), FhirPathValue::Quantity(quantity)) => {
@@ -385,11 +439,13 @@ impl FhirPathOperator for AddOperator {
             (FhirPathValue::Time(time), FhirPathValue::Quantity(quantity)) => {
                 self.add_time_quantity(time, quantity)?
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -397,7 +453,9 @@ impl FhirPathOperator for AddOperator {
 
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match operand {
-            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(FhirPathValue::collection(vec![operand.clone()])),
+            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => {
+                Ok(FhirPathValue::collection(vec![operand.clone()]))
+            }
             _ => Err(OperatorError::InvalidUnaryOperandType {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
@@ -408,7 +466,11 @@ impl FhirPathOperator for AddOperator {
 
 impl AddOperator {
     /// Add a quantity to a date
-    fn add_date_quantity(&self, date: &chrono::NaiveDate, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+    fn add_date_quantity(
+        &self,
+        date: &chrono::NaiveDate,
+        quantity: &fhirpath_model::quantity::Quantity,
+    ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
         let unit = quantity.unit.as_deref().unwrap_or("");
@@ -424,7 +486,8 @@ impl AddOperator {
                 let total_months = date.year() as i64 * 12 + date.month() as i64 - 1 + months;
                 let new_year = (total_months / 12) as i32;
                 let new_month = (total_months % 12 + 1) as u32;
-                date.with_year(new_year.max(1)).and_then(|d| d.with_month(new_month))
+                date.with_year(new_year.max(1))
+                    .and_then(|d| d.with_month(new_month))
             }
             Some(TimeUnitType::Week) => {
                 // Handle fractional weeks by converting to days
@@ -448,7 +511,11 @@ impl AddOperator {
     }
 
     /// Add a quantity to a datetime
-    fn add_datetime_quantity(&self, datetime: &chrono::DateTime<chrono::FixedOffset>, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+    fn add_datetime_quantity(
+        &self,
+        datetime: &chrono::DateTime<chrono::FixedOffset>,
+        quantity: &fhirpath_model::quantity::Quantity,
+    ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
         let unit = quantity.unit.as_deref().unwrap_or("");
@@ -460,10 +527,13 @@ impl AddOperator {
                 datetime.with_year(new_year.max(1))
             }
             Some(TimeUnitType::Month) => {
-                let total_months = datetime.year() as i64 * 12 + datetime.month() as i64 - 1 + amount.to_i64().unwrap_or(0);
+                let total_months = datetime.year() as i64 * 12 + datetime.month() as i64 - 1
+                    + amount.to_i64().unwrap_or(0);
                 let new_year = (total_months / 12) as i32;
                 let new_month = (total_months % 12 + 1) as u32;
-                datetime.with_year(new_year.max(1)).and_then(|d| d.with_month(new_month))
+                datetime
+                    .with_year(new_year.max(1))
+                    .and_then(|d| d.with_month(new_month))
             }
             Some(TimeUnitType::Week) => {
                 // Handle fractional weeks by converting to total seconds
@@ -491,8 +561,15 @@ impl AddOperator {
             }
             Some(TimeUnitType::Second) => {
                 let seconds = amount.to_i64().unwrap_or(0);
-                let millis = ((amount - rust_decimal::Decimal::from(seconds)) * rust_decimal::Decimal::from(1000)).to_i64().unwrap_or(0);
-                Some(*datetime + chrono::Duration::seconds(seconds) + chrono::Duration::milliseconds(millis))
+                let millis = ((amount - rust_decimal::Decimal::from(seconds))
+                    * rust_decimal::Decimal::from(1000))
+                .to_i64()
+                .unwrap_or(0);
+                Some(
+                    *datetime
+                        + chrono::Duration::seconds(seconds)
+                        + chrono::Duration::milliseconds(millis),
+                )
             }
             Some(TimeUnitType::Millisecond) => {
                 Some(*datetime + chrono::Duration::milliseconds(amount.to_i64().unwrap_or(0)))
@@ -507,26 +584,47 @@ impl AddOperator {
     }
 
     /// Add a quantity to a time
-    fn add_time_quantity(&self, time: &chrono::NaiveTime, quantity: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+    fn add_time_quantity(
+        &self,
+        time: &chrono::NaiveTime,
+        quantity: &fhirpath_model::quantity::Quantity,
+    ) -> OperatorResult<FhirPathValue> {
         let unit = quantity.unit.as_deref().unwrap_or("");
         let amount = quantity.value;
 
         let result_time = match classify_time_unit(unit) {
             Some(TimeUnitType::Hour) => {
                 let hours = amount.to_i64().unwrap_or(0) % 24; // Handle wrap-around
-                Some(time.overflowing_add_signed(chrono::Duration::hours(hours)).0)
+                Some(
+                    time.overflowing_add_signed(chrono::Duration::hours(hours))
+                        .0,
+                )
             }
-            Some(TimeUnitType::Minute) => {
-                Some(time.overflowing_add_signed(chrono::Duration::minutes(amount.to_i64().unwrap_or(0))).0)
-            }
+            Some(TimeUnitType::Minute) => Some(
+                time.overflowing_add_signed(chrono::Duration::minutes(
+                    amount.to_i64().unwrap_or(0),
+                ))
+                .0,
+            ),
             Some(TimeUnitType::Second) => {
                 let seconds = amount.to_i64().unwrap_or(0);
-                let millis = ((amount - rust_decimal::Decimal::from(seconds)) * rust_decimal::Decimal::from(1000)).to_i64().unwrap_or(0);
-                Some(time.overflowing_add_signed(chrono::Duration::seconds(seconds) + chrono::Duration::milliseconds(millis)).0)
+                let millis = ((amount - rust_decimal::Decimal::from(seconds))
+                    * rust_decimal::Decimal::from(1000))
+                .to_i64()
+                .unwrap_or(0);
+                Some(
+                    time.overflowing_add_signed(
+                        chrono::Duration::seconds(seconds) + chrono::Duration::milliseconds(millis),
+                    )
+                    .0,
+                )
             }
-            Some(TimeUnitType::Millisecond) => {
-                Some(time.overflowing_add_signed(chrono::Duration::milliseconds(amount.to_i64().unwrap_or(0))).0)
-            }
+            Some(TimeUnitType::Millisecond) => Some(
+                time.overflowing_add_signed(chrono::Duration::milliseconds(
+                    amount.to_i64().unwrap_or(0),
+                ))
+                .0,
+            ),
             _ => None, // Invalid unit for time arithmetic
         };
 
@@ -541,19 +639,52 @@ impl AddOperator {
 struct SubtractOperator;
 
 impl FhirPathOperator for SubtractOperator {
-    fn symbol(&self) -> &str { "-" }
-    fn human_friendly_name(&self) -> &str { "Subtraction" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "-"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Subtraction"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("-", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("-", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("-", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("-", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("-", TypeInfo::Quantity, TypeInfo::Quantity, TypeInfo::Quantity),
+                OperatorSignature::binary(
+                    "-",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "-",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "-",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "-",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "-",
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                ),
                 OperatorSignature::unary("-", TypeInfo::Integer, TypeInfo::Integer),
                 OperatorSignature::unary("-", TypeInfo::Decimal, TypeInfo::Decimal),
             ]
@@ -561,23 +692,24 @@ impl FhirPathOperator for SubtractOperator {
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
         }
 
         let result = match (left, right) {
-            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
-                a.checked_sub(*b)
-                    .map(FhirPathValue::Integer)
-                    .ok_or_else(|| OperatorError::ArithmeticOverflow {
-                        operation: format!("{} - {}", a, b),
-                    })?
-            }
-            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                FhirPathValue::Decimal(a - b)
-            }
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a
+                .checked_sub(*b)
+                .map(FhirPathValue::Integer)
+                .ok_or_else(|| OperatorError::ArithmeticOverflow {
+                    operation: format!("{} - {}", a, b),
+                })?,
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => FhirPathValue::Decimal(a - b),
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) - b)
             }
@@ -596,11 +728,13 @@ impl FhirPathOperator for SubtractOperator {
                     });
                 }
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -610,10 +744,12 @@ impl FhirPathOperator for SubtractOperator {
         let result = match operand {
             FhirPathValue::Integer(n) => FhirPathValue::Integer(-n),
             FhirPathValue::Decimal(d) => FhirPathValue::Decimal(-d),
-            _ => return Err(OperatorError::InvalidUnaryOperandType {
-                operator: self.symbol().to_string(),
-                operand_type: operand.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidUnaryOperandType {
+                    operator: self.symbol().to_string(),
+                    operand_type: operand.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -624,43 +760,87 @@ impl FhirPathOperator for SubtractOperator {
 struct MultiplyOperator;
 
 impl FhirPathOperator for MultiplyOperator {
-    fn symbol(&self) -> &str { "*" }
-    fn human_friendly_name(&self) -> &str { "Multiplication" }
-    fn precedence(&self) -> u8 { 7 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "*"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Multiplication"
+    }
+    fn precedence(&self) -> u8 {
+        7
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("*", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("*", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("*", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("*", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("*", TypeInfo::Quantity, TypeInfo::Integer, TypeInfo::Quantity),
-                OperatorSignature::binary("*", TypeInfo::Quantity, TypeInfo::Decimal, TypeInfo::Quantity),
-                OperatorSignature::binary("*", TypeInfo::Quantity, TypeInfo::Quantity, TypeInfo::Quantity),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Quantity,
+                    TypeInfo::Integer,
+                    TypeInfo::Quantity,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Quantity,
+                    TypeInfo::Decimal,
+                    TypeInfo::Quantity,
+                ),
+                OperatorSignature::binary(
+                    "*",
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                ),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
         }
 
         let result = match (left, right) {
-            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
-                a.checked_mul(*b)
-                    .map(FhirPathValue::Integer)
-                    .ok_or_else(|| OperatorError::ArithmeticOverflow {
-                        operation: format!("{} * {}", a, b),
-                    })?
-            }
-            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                FhirPathValue::Decimal(a * b)
-            }
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a
+                .checked_mul(*b)
+                .map(FhirPathValue::Integer)
+                .ok_or_else(|| OperatorError::ArithmeticOverflow {
+                    operation: format!("{} * {}", a, b),
+                })?,
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => FhirPathValue::Decimal(a * b),
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 FhirPathValue::Decimal(rust_decimal::Decimal::from(*a) * b)
             }
@@ -681,11 +861,13 @@ impl FhirPathOperator for MultiplyOperator {
                 // Multiply two quantities with UCUM unit multiplication
                 self.multiply_quantities(q1, q2)?
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -694,7 +876,11 @@ impl FhirPathOperator for MultiplyOperator {
 
 impl MultiplyOperator {
     /// Multiply two quantities with UCUM unit multiplication
-    fn multiply_quantities(&self, q1: &fhirpath_model::quantity::Quantity, q2: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+    fn multiply_quantities(
+        &self,
+        q1: &fhirpath_model::quantity::Quantity,
+        q2: &fhirpath_model::quantity::Quantity,
+    ) -> OperatorResult<FhirPathValue> {
         let result_value = q1.value * q2.value;
 
         let result_unit = match (&q1.unit, &q2.unit) {
@@ -727,27 +913,74 @@ impl MultiplyOperator {
 struct DivideOperator;
 
 impl FhirPathOperator for DivideOperator {
-    fn symbol(&self) -> &str { "/" }
-    fn human_friendly_name(&self) -> &str { "Division" }
-    fn precedence(&self) -> u8 { 7 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "/"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Division"
+    }
+    fn precedence(&self) -> u8 {
+        7
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("/", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("/", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("/", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("/", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("/", TypeInfo::Quantity, TypeInfo::Integer, TypeInfo::Quantity),
-                OperatorSignature::binary("/", TypeInfo::Quantity, TypeInfo::Decimal, TypeInfo::Quantity),
-                OperatorSignature::binary("/", TypeInfo::Quantity, TypeInfo::Quantity, TypeInfo::Quantity),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Quantity,
+                    TypeInfo::Integer,
+                    TypeInfo::Quantity,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Quantity,
+                    TypeInfo::Decimal,
+                    TypeInfo::Quantity,
+                ),
+                OperatorSignature::binary(
+                    "/",
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                    TypeInfo::Quantity,
+                ),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
@@ -798,11 +1031,13 @@ impl FhirPathOperator for DivideOperator {
                 // Divide two quantities with UCUM unit division
                 self.divide_quantities(q1, q2)?
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -811,7 +1046,11 @@ impl FhirPathOperator for DivideOperator {
 
 impl DivideOperator {
     /// Divide two quantities with UCUM unit division
-    fn divide_quantities(&self, q1: &fhirpath_model::quantity::Quantity, q2: &fhirpath_model::quantity::Quantity) -> OperatorResult<FhirPathValue> {
+    fn divide_quantities(
+        &self,
+        q1: &fhirpath_model::quantity::Quantity,
+        q2: &fhirpath_model::quantity::Quantity,
+    ) -> OperatorResult<FhirPathValue> {
         let result_value = q1.value / q2.value;
 
         let result_unit = match (&q1.unit, &q2.unit) {
@@ -850,24 +1089,56 @@ impl DivideOperator {
 struct IntegerDivideOperator;
 
 impl FhirPathOperator for IntegerDivideOperator {
-    fn symbol(&self) -> &str { "div" }
-    fn human_friendly_name(&self) -> &str { "Integer Division" }
-    fn precedence(&self) -> u8 { 7 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "div"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Integer Division"
+    }
+    fn precedence(&self) -> u8 {
+        7
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("div", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("div", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Integer),
-                OperatorSignature::binary("div", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Integer),
-                OperatorSignature::binary("div", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Integer),
+                OperatorSignature::binary(
+                    "div",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "div",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "div",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "div",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
@@ -904,11 +1175,13 @@ impl FhirPathOperator for IntegerDivideOperator {
                 let result = (a / b_dec).trunc();
                 FhirPathValue::Integer(result.to_i64().unwrap_or(0))
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -919,24 +1192,56 @@ impl FhirPathOperator for IntegerDivideOperator {
 struct ModuloOperator;
 
 impl FhirPathOperator for ModuloOperator {
-    fn symbol(&self) -> &str { "mod" }
-    fn human_friendly_name(&self) -> &str { "Modulo" }
-    fn precedence(&self) -> u8 { 7 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "mod"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Modulo"
+    }
+    fn precedence(&self) -> u8 {
+        7
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("mod", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("mod", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("mod", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("mod", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
+                OperatorSignature::binary(
+                    "mod",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "mod",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "mod",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "mod",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
@@ -969,11 +1274,13 @@ impl FhirPathOperator for ModuloOperator {
                 let b_dec = rust_decimal::Decimal::from(*b);
                 FhirPathValue::Decimal(a % b_dec)
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -984,24 +1291,56 @@ impl FhirPathOperator for ModuloOperator {
 struct PowerOperator;
 
 impl FhirPathOperator for PowerOperator {
-    fn symbol(&self) -> &str { "**" }
-    fn human_friendly_name(&self) -> &str { "Power" }
-    fn precedence(&self) -> u8 { 8 }  // Higher than multiplication
-    fn associativity(&self) -> Associativity { Associativity::Right }
+    fn symbol(&self) -> &str {
+        "**"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Power"
+    }
+    fn precedence(&self) -> u8 {
+        8
+    } // Higher than multiplication
+    fn associativity(&self) -> Associativity {
+        Associativity::Right
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("**", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer),
-                OperatorSignature::binary("**", TypeInfo::Decimal, TypeInfo::Integer, TypeInfo::Decimal),
-                OperatorSignature::binary("**", TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::Decimal),
-                OperatorSignature::binary("**", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Decimal),
+                OperatorSignature::binary(
+                    "**",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                ),
+                OperatorSignature::binary(
+                    "**",
+                    TypeInfo::Decimal,
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "**",
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
+                OperatorSignature::binary(
+                    "**",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                ),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Handle empty operands per FHIRPath specification
         if left.is_empty() || right.is_empty() {
             return Ok(FhirPathValue::Empty);
@@ -1014,13 +1353,17 @@ impl FhirPathOperator for PowerOperator {
                     let base_f64 = *base as f64;
                     let exp_f64 = *exp as f64;
                     let result = base_f64.powf(exp_f64);
-                    FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                    FhirPathValue::Decimal(
+                        rust_decimal::Decimal::from_f64(result).unwrap_or_default(),
+                    )
                 } else if *exp > 32 {
                     // Large exponents use f64 to avoid overflow
                     let base_f64 = *base as f64;
                     let exp_f64 = *exp as f64;
                     let result = base_f64.powf(exp_f64);
-                    FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                    FhirPathValue::Decimal(
+                        rust_decimal::Decimal::from_f64(result).unwrap_or_default(),
+                    )
                 } else {
                     // For small positive exponents, try to keep as integer
                     match base.checked_pow(*exp as u32) {
@@ -1030,7 +1373,9 @@ impl FhirPathOperator for PowerOperator {
                             let base_f64 = *base as f64;
                             let exp_f64 = *exp as f64;
                             let result = base_f64.powf(exp_f64);
-                            FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
+                            FhirPathValue::Decimal(
+                                rust_decimal::Decimal::from_f64(result).unwrap_or_default(),
+                            )
                         }
                     }
                 }
@@ -1053,11 +1398,13 @@ impl FhirPathOperator for PowerOperator {
                 let result = base_f64.powf(exp_f64);
                 FhirPathValue::Decimal(rust_decimal::Decimal::from_f64(result).unwrap_or_default())
             }
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::collection(vec![result]))
@@ -1070,21 +1417,36 @@ impl FhirPathOperator for PowerOperator {
 struct EqualOperator;
 
 impl FhirPathOperator for EqualOperator {
-    fn symbol(&self) -> &str { "=" }
-    fn human_friendly_name(&self) -> &str { "Equality" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "="
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Equality"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("=", TypeInfo::Any, TypeInfo::Any, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "=",
+                TypeInfo::Any,
+                TypeInfo::Any,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // FHIRPath equality has special semantics:
         // - If both operands are empty, return empty
         // - If one operand is empty and the other is not, return false
@@ -1094,7 +1456,7 @@ impl FhirPathOperator for EqualOperator {
         // Handle empty cases according to FHIRPath specification
         match (left.is_empty(), right.is_empty()) {
             (true, true) => return Ok(FhirPathValue::Empty),
-            (true, false) | (false, true) => return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)])),
+            (true, false) | (false, true) => return Ok(FhirPathValue::Boolean(false)),
             (false, false) => {} // Continue with normal comparison
         }
 
@@ -1109,12 +1471,8 @@ impl FhirPathOperator for EqualOperator {
             (FhirPathValue::Time(l), FhirPathValue::Time(r)) => l == r,
 
             // Cross-type numeric comparisons (Integer vs Decimal)
-            (FhirPathValue::Integer(l), FhirPathValue::Decimal(r)) => {
-                Decimal::from(*l) == *r
-            }
-            (FhirPathValue::Decimal(l), FhirPathValue::Integer(r)) => {
-                *l == Decimal::from(*r)
-            }
+            (FhirPathValue::Integer(l), FhirPathValue::Decimal(r)) => Decimal::from(*l) == *r,
+            (FhirPathValue::Decimal(l), FhirPathValue::Integer(r)) => *l == Decimal::from(*r),
 
             // Quantity comparisons with unit conversion
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
@@ -1122,20 +1480,25 @@ impl FhirPathOperator for EqualOperator {
             }
 
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
-                l.len() == r.len() && l.iter().zip(r.iter()).all(|(a, b)| {
-                    self.compare_values_equal(a, b).unwrap_or(false)
-                })
+                l.len() == r.len()
+                    && l.iter()
+                        .zip(r.iter())
+                        .all(|(a, b)| self.compare_values_equal(a, b).unwrap_or(false))
             }
             _ => false,
         };
 
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 
 impl EqualOperator {
     /// Compare two values for equality without recursion
-    fn compare_values_equal(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<bool> {
+    fn compare_values_equal(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<bool> {
         let result = match (left, right) {
             (FhirPathValue::Boolean(l), FhirPathValue::Boolean(r)) => l == r,
             (FhirPathValue::Integer(l), FhirPathValue::Integer(r)) => l == r,
@@ -1146,12 +1509,8 @@ impl EqualOperator {
             (FhirPathValue::Time(l), FhirPathValue::Time(r)) => l == r,
 
             // Cross-type numeric comparisons (Integer vs Decimal)
-            (FhirPathValue::Integer(l), FhirPathValue::Decimal(r)) => {
-                Decimal::from(*l) == *r
-            }
-            (FhirPathValue::Decimal(l), FhirPathValue::Integer(r)) => {
-                *l == Decimal::from(*r)
-            }
+            (FhirPathValue::Integer(l), FhirPathValue::Decimal(r)) => Decimal::from(*l) == *r,
+            (FhirPathValue::Decimal(l), FhirPathValue::Integer(r)) => *l == Decimal::from(*r),
 
             // Quantity comparisons with unit conversion
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
@@ -1167,7 +1526,11 @@ impl EqualOperator {
     }
 
     /// Compare two quantities for equality, handling unit conversion
-    fn compare_quantities_equal(&self, q1: &fhirpath_model::Quantity, q2: &fhirpath_model::Quantity) -> OperatorResult<bool> {
+    fn compare_quantities_equal(
+        &self,
+        q1: &fhirpath_model::Quantity,
+        q2: &fhirpath_model::Quantity,
+    ) -> OperatorResult<bool> {
         // If units are the same, compare values directly
         if q1.unit == q2.unit {
             return Ok(q1.value == q2.value);
@@ -1190,30 +1553,52 @@ impl EqualOperator {
 struct NotEqualOperator;
 
 impl FhirPathOperator for NotEqualOperator {
-    fn symbol(&self) -> &str { "!=" }
-    fn human_friendly_name(&self) -> &str { "Not Equal" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "!="
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Not Equal"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("!=", TypeInfo::Any, TypeInfo::Any, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "!=",
+                TypeInfo::Any,
+                TypeInfo::Any,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         match EqualOperator.evaluate_binary(left, right)? {
             FhirPathValue::Empty => Ok(FhirPathValue::Empty), // If equal returns empty, != also returns empty
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                match items.get(0) {
-                    Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)])),
-                    _ => unreachable!("Equal operator should always return boolean"),
-                }
-            }
-            _ => unreachable!("Equal operator should return empty or collection with one boolean"),
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(!b)), // Handle direct boolean return
+            FhirPathValue::Collection(items) if items.len() == 1 => match items.get(0) {
+                Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::Boolean(!b)),
+                _ => Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                }),
+            },
+            _ => Err(OperatorError::InvalidOperandTypes {
+                operator: self.symbol().to_string(),
+                left_type: left.type_name().to_string(),
+                right_type: right.type_name().to_string(),
+            }),
         }
     }
 }
@@ -1222,26 +1607,58 @@ impl FhirPathOperator for NotEqualOperator {
 struct LessThanOperator;
 
 impl FhirPathOperator for LessThanOperator {
-    fn symbol(&self) -> &str { "<" }
-    fn human_friendly_name(&self) -> &str { "Less Than" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "<"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Less Than"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("<", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Boolean),
-                OperatorSignature::binary("<", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Boolean),
-                OperatorSignature::binary("<", TypeInfo::String, TypeInfo::String, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    "<",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    "<",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    "<",
+                    TypeInfo::String,
+                    TypeInfo::String,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary("<", TypeInfo::Date, TypeInfo::Date, TypeInfo::Boolean),
-                OperatorSignature::binary("<", TypeInfo::DateTime, TypeInfo::DateTime, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    "<",
+                    TypeInfo::DateTime,
+                    TypeInfo::DateTime,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary("<", TypeInfo::Time, TypeInfo::Time, TypeInfo::Boolean),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a < b,
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a < b,
@@ -1249,13 +1666,17 @@ impl FhirPathOperator for LessThanOperator {
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a < b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a < b,
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a < b,
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            result,
+        )]))
     }
 }
 
@@ -1263,26 +1684,58 @@ impl FhirPathOperator for LessThanOperator {
 struct LessThanOrEqualOperator;
 
 impl FhirPathOperator for LessThanOrEqualOperator {
-    fn symbol(&self) -> &str { "<=" }
-    fn human_friendly_name(&self) -> &str { "Less Than or Equal" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "<="
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Less Than or Equal"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary("<=", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Boolean),
-                OperatorSignature::binary("<=", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Boolean),
-                OperatorSignature::binary("<=", TypeInfo::String, TypeInfo::String, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    "<=",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    "<=",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    "<=",
+                    TypeInfo::String,
+                    TypeInfo::String,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary("<=", TypeInfo::Date, TypeInfo::Date, TypeInfo::Boolean),
-                OperatorSignature::binary("<=", TypeInfo::DateTime, TypeInfo::DateTime, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    "<=",
+                    TypeInfo::DateTime,
+                    TypeInfo::DateTime,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary("<=", TypeInfo::Time, TypeInfo::Time, TypeInfo::Boolean),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a <= b,
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a <= b,
@@ -1290,13 +1743,17 @@ impl FhirPathOperator for LessThanOrEqualOperator {
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a <= b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a <= b,
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a <= b,
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            result,
+        )]))
     }
 }
 
@@ -1304,26 +1761,58 @@ impl FhirPathOperator for LessThanOrEqualOperator {
 struct GreaterThanOperator;
 
 impl FhirPathOperator for GreaterThanOperator {
-    fn symbol(&self) -> &str { ">" }
-    fn human_friendly_name(&self) -> &str { "Greater Than" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        ">"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Greater Than"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary(">", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Boolean),
-                OperatorSignature::binary(">", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Boolean),
-                OperatorSignature::binary(">", TypeInfo::String, TypeInfo::String, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    ">",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    ">",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    ">",
+                    TypeInfo::String,
+                    TypeInfo::String,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary(">", TypeInfo::Date, TypeInfo::Date, TypeInfo::Boolean),
-                OperatorSignature::binary(">", TypeInfo::DateTime, TypeInfo::DateTime, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    ">",
+                    TypeInfo::DateTime,
+                    TypeInfo::DateTime,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary(">", TypeInfo::Time, TypeInfo::Time, TypeInfo::Boolean),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a > b,
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a > b,
@@ -1331,13 +1820,17 @@ impl FhirPathOperator for GreaterThanOperator {
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a > b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a > b,
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a > b,
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            result,
+        )]))
     }
 }
 
@@ -1345,26 +1838,58 @@ impl FhirPathOperator for GreaterThanOperator {
 struct GreaterThanOrEqualOperator;
 
 impl FhirPathOperator for GreaterThanOrEqualOperator {
-    fn symbol(&self) -> &str { ">=" }
-    fn human_friendly_name(&self) -> &str { "Greater Than or Equal" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        ">="
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Greater Than or Equal"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![
-                OperatorSignature::binary(">=", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Boolean),
-                OperatorSignature::binary(">=", TypeInfo::Decimal, TypeInfo::Decimal, TypeInfo::Boolean),
-                OperatorSignature::binary(">=", TypeInfo::String, TypeInfo::String, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    ">=",
+                    TypeInfo::Integer,
+                    TypeInfo::Integer,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    ">=",
+                    TypeInfo::Decimal,
+                    TypeInfo::Decimal,
+                    TypeInfo::Boolean,
+                ),
+                OperatorSignature::binary(
+                    ">=",
+                    TypeInfo::String,
+                    TypeInfo::String,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary(">=", TypeInfo::Date, TypeInfo::Date, TypeInfo::Boolean),
-                OperatorSignature::binary(">=", TypeInfo::DateTime, TypeInfo::DateTime, TypeInfo::Boolean),
+                OperatorSignature::binary(
+                    ">=",
+                    TypeInfo::DateTime,
+                    TypeInfo::DateTime,
+                    TypeInfo::Boolean,
+                ),
                 OperatorSignature::binary(">=", TypeInfo::Time, TypeInfo::Time, TypeInfo::Boolean),
             ]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let result = match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a >= b,
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a >= b,
@@ -1372,13 +1897,17 @@ impl FhirPathOperator for GreaterThanOrEqualOperator {
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a >= b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a >= b,
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a >= b,
-            _ => return Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+            _ => {
+                return Err(OperatorError::InvalidOperandTypes {
+                    operator: self.symbol().to_string(),
+                    left_type: left.type_name().to_string(),
+                    right_type: right.type_name().to_string(),
+                });
+            }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(result)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            result,
+        )]))
     }
 }
 
@@ -1388,23 +1917,40 @@ impl FhirPathOperator for GreaterThanOrEqualOperator {
 struct EquivalentOperator;
 
 impl FhirPathOperator for EquivalentOperator {
-    fn symbol(&self) -> &str { "~" }
-    fn human_friendly_name(&self) -> &str { "Equivalent" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "~"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Equivalent"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("~", TypeInfo::Any, TypeInfo::Any, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "~",
+                TypeInfo::Any,
+                TypeInfo::Any,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // TODO: Implement proper equivalence logic (case-insensitive strings, etc.)
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left == right)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            left == right,
+        )]))
     }
 }
 
@@ -1412,23 +1958,40 @@ impl FhirPathOperator for EquivalentOperator {
 struct NotEquivalentOperator;
 
 impl FhirPathOperator for NotEquivalentOperator {
-    fn symbol(&self) -> &str { "!~" }
-    fn human_friendly_name(&self) -> &str { "Not Equivalent" }
-    fn precedence(&self) -> u8 { 6 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "!~"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Not Equivalent"
+    }
+    fn precedence(&self) -> u8 {
+        6
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("!~", TypeInfo::Any, TypeInfo::Any, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "!~",
+                TypeInfo::Any,
+                TypeInfo::Any,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // TODO: Implement proper equivalence logic
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left != right)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            left != right,
+        )]))
     }
 }
 
@@ -1438,21 +2001,36 @@ impl FhirPathOperator for NotEquivalentOperator {
 struct AndOperator;
 
 impl FhirPathOperator for AndOperator {
-    fn symbol(&self) -> &str { "and" }
-    fn human_friendly_name(&self) -> &str { "Logical And" }
-    fn precedence(&self) -> u8 { 2 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "and"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Logical And"
+    }
+    fn precedence(&self) -> u8 {
+        2
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("and", TypeInfo::Boolean, TypeInfo::Boolean, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "and",
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // FHIRPath logical AND semantics:
         // - true and true = true
         // - true and false = false
@@ -1465,21 +2043,19 @@ impl FhirPathOperator for AndOperator {
         // - empty and empty = empty
 
         match (left, right) {
-            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a && *b)]))
-            }
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Ok(
+                FhirPathValue::collection(vec![FhirPathValue::Boolean(*a && *b)]),
+            ),
             // If left is false, result is always false (short-circuit)
-            (FhirPathValue::Boolean(false), _) if right.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
-            }
+            (FhirPathValue::Boolean(false), _) if right.is_empty() => Ok(
+                FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]),
+            ),
             // If right is false, result is always false (short-circuit)
-            (_, FhirPathValue::Boolean(false)) if left.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]))
-            }
+            (_, FhirPathValue::Boolean(false)) if left.is_empty() => Ok(FhirPathValue::collection(
+                vec![FhirPathValue::Boolean(false)],
+            )),
             // If either operand is empty (and the other is not false), result is empty
-            _ if left.is_empty() || right.is_empty() => {
-                Ok(FhirPathValue::Empty)
-            }
+            _ if left.is_empty() || right.is_empty() => Ok(FhirPathValue::Empty),
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
@@ -1493,21 +2069,36 @@ impl FhirPathOperator for AndOperator {
 struct OrOperator;
 
 impl FhirPathOperator for OrOperator {
-    fn symbol(&self) -> &str { "or" }
-    fn human_friendly_name(&self) -> &str { "Logical Or" }
-    fn precedence(&self) -> u8 { 1 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "or"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Logical Or"
+    }
+    fn precedence(&self) -> u8 {
+        1
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("or", TypeInfo::Boolean, TypeInfo::Boolean, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "or",
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // FHIRPath logical OR semantics:
         // - true or true = true
         // - true or false = true
@@ -1520,21 +2111,19 @@ impl FhirPathOperator for OrOperator {
         // - empty or empty = empty
 
         match (left, right) {
-            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a || *b)]))
-            }
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Ok(
+                FhirPathValue::collection(vec![FhirPathValue::Boolean(*a || *b)]),
+            ),
             // If left is true, result is always true (short-circuit)
-            (FhirPathValue::Boolean(true), _) if right.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
-            }
+            (FhirPathValue::Boolean(true), _) if right.is_empty() => Ok(FhirPathValue::collection(
+                vec![FhirPathValue::Boolean(true)],
+            )),
             // If right is true, result is always true (short-circuit)
-            (_, FhirPathValue::Boolean(true)) if left.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
-            }
+            (_, FhirPathValue::Boolean(true)) if left.is_empty() => Ok(FhirPathValue::collection(
+                vec![FhirPathValue::Boolean(true)],
+            )),
             // If either operand is empty (and the other is not true), result is empty
-            _ if left.is_empty() || right.is_empty() => {
-                Ok(FhirPathValue::Empty)
-            }
+            _ if left.is_empty() || right.is_empty() => Ok(FhirPathValue::Empty),
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
@@ -1548,29 +2137,42 @@ impl FhirPathOperator for OrOperator {
 struct XorOperator;
 
 impl FhirPathOperator for XorOperator {
-    fn symbol(&self) -> &str { "xor" }
-    fn human_friendly_name(&self) -> &str { "Exclusive Or" }
-    fn precedence(&self) -> u8 { 1 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "xor"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Exclusive Or"
+    }
+    fn precedence(&self) -> u8 {
+        1
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("xor", TypeInfo::Boolean, TypeInfo::Boolean, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "xor",
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         match (left, right) {
-            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(*a ^ *b)]))
-            }
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Ok(
+                FhirPathValue::collection(vec![FhirPathValue::Boolean(*a ^ *b)]),
+            ),
             // If either operand is empty, result is empty
-            _ if left.is_empty() || right.is_empty() => {
-                Ok(FhirPathValue::Empty)
-            }
+            _ if left.is_empty() || right.is_empty() => Ok(FhirPathValue::Empty),
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
@@ -1584,38 +2186,53 @@ impl FhirPathOperator for XorOperator {
 struct ImpliesOperator;
 
 impl FhirPathOperator for ImpliesOperator {
-    fn symbol(&self) -> &str { "implies" }
-    fn human_friendly_name(&self) -> &str { "Implies" }
-    fn precedence(&self) -> u8 { 1 }
-    fn associativity(&self) -> Associativity { Associativity::Right }
+    fn symbol(&self) -> &str {
+        "implies"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Implies"
+    }
+    fn precedence(&self) -> u8 {
+        1
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Right
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("implies", TypeInfo::Boolean, TypeInfo::Boolean, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "implies",
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => {
                 // A implies B is equivalent to (not A) or B
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!*a || *b)]))
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                    !*a || *b,
+                )]))
             }
             // false implies empty = true (because false implies anything is true)
-            (FhirPathValue::Boolean(false), _) if right.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
-            }
+            (FhirPathValue::Boolean(false), _) if right.is_empty() => Ok(
+                FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]),
+            ),
             // empty implies true = true (because empty is considered false-like, so !empty || true = true)
-            (_, FhirPathValue::Boolean(true)) if left.is_empty() => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(true)]))
-            }
+            (_, FhirPathValue::Boolean(true)) if left.is_empty() => Ok(FhirPathValue::collection(
+                vec![FhirPathValue::Boolean(true)],
+            )),
             // If either operand is empty (and not handled above), result is empty
-            _ if left.is_empty() || right.is_empty() => {
-                Ok(FhirPathValue::Empty)
-            }
+            _ if left.is_empty() || right.is_empty() => Ok(FhirPathValue::Empty),
             _ => Err(OperatorError::InvalidOperandTypes {
                 operator: self.symbol().to_string(),
                 left_type: left.type_name().to_string(),
@@ -1629,21 +2246,35 @@ impl FhirPathOperator for ImpliesOperator {
 struct NotOperator;
 
 impl FhirPathOperator for NotOperator {
-    fn symbol(&self) -> &str { "not" }
-    fn human_friendly_name(&self) -> &str { "Logical Not" }
-    fn precedence(&self) -> u8 { 8 }
-    fn associativity(&self) -> Associativity { Associativity::Right }
+    fn symbol(&self) -> &str {
+        "not"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Logical Not"
+    }
+    fn precedence(&self) -> u8 {
+        8
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Right
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::unary("not", TypeInfo::Boolean, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::unary(
+                "not",
+                TypeInfo::Boolean,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        _left: &FhirPathValue,
+        _right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         Err(OperatorError::EvaluationError {
             operator: self.symbol().to_string(),
             message: "NOT is a unary operator".to_string(),
@@ -1652,7 +2283,9 @@ impl FhirPathOperator for NotOperator {
 
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
         match operand {
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!*b)])),
+            FhirPathValue::Boolean(b) => {
+                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!*b)]))
+            }
             _ => Err(OperatorError::InvalidUnaryOperandType {
                 operator: self.symbol().to_string(),
                 operand_type: operand.type_name().to_string(),
@@ -1667,24 +2300,41 @@ impl FhirPathOperator for NotOperator {
 struct ConcatenateOperator;
 
 impl FhirPathOperator for ConcatenateOperator {
-    fn symbol(&self) -> &str { "&" }
-    fn human_friendly_name(&self) -> &str { "Concatenate" }
-    fn precedence(&self) -> u8 { 5 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "&"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Concatenate"
+    }
+    fn precedence(&self) -> u8 {
+        5
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("&", TypeInfo::String, TypeInfo::String, TypeInfo::String),
-            ]
+            vec![OperatorSignature::binary(
+                "&",
+                TypeInfo::String,
+                TypeInfo::String,
+                TypeInfo::String,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let left_str = left.to_string_value().unwrap_or_default();
         let right_str = right.to_string_value().unwrap_or_default();
-        Ok(FhirPathValue::collection(vec![FhirPathValue::String(left_str + &right_str)]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::String(
+            left_str + &right_str,
+        )]))
     }
 }
 
@@ -1694,21 +2344,36 @@ impl FhirPathOperator for ConcatenateOperator {
 struct UnionOperator;
 
 impl FhirPathOperator for UnionOperator {
-    fn symbol(&self) -> &str { "|" }
-    fn human_friendly_name(&self) -> &str { "Union" }
-    fn precedence(&self) -> u8 { 5 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "|"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Union"
+    }
+    fn precedence(&self) -> u8 {
+        5
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("|", TypeInfo::Any, TypeInfo::Any, TypeInfo::Collection(Box::new(TypeInfo::Any))),
-            ]
+            vec![OperatorSignature::binary(
+                "|",
+                TypeInfo::Any,
+                TypeInfo::Any,
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         let mut result = left.clone().to_collection();
         result.extend(right.clone().to_collection());
         Ok(FhirPathValue::Collection(result.into()))
@@ -1719,21 +2384,36 @@ impl FhirPathOperator for UnionOperator {
 struct InOperator;
 
 impl FhirPathOperator for InOperator {
-    fn symbol(&self) -> &str { "in" }
-    fn human_friendly_name(&self) -> &str { "In" }
-    fn precedence(&self) -> u8 { 4 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "in"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "In"
+    }
+    fn precedence(&self) -> u8 {
+        4
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("in", TypeInfo::Any, TypeInfo::Collection(Box::new(TypeInfo::Any)), TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "in",
+                TypeInfo::Any,
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Per FHIRPath spec for 'in' operator:
         // - If left operand is empty, return empty
         // - If right operand is empty, return [false]
@@ -1744,7 +2424,9 @@ impl FhirPathOperator for InOperator {
         }
 
         if right.is_empty() {
-            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
+            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                false,
+            )]));
         }
 
         // For multi-item left operand, each item is tested individually
@@ -1758,7 +2440,9 @@ impl FhirPathOperator for InOperator {
 
         // Single item test
         if let Some(single_item) = left_collection.first() {
-            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(right_collection.contains(single_item))]))
+            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                right_collection.contains(single_item),
+            )]))
         } else {
             Ok(FhirPathValue::Empty)
         }
@@ -1769,21 +2453,36 @@ impl FhirPathOperator for InOperator {
 struct ContainsOperator;
 
 impl FhirPathOperator for ContainsOperator {
-    fn symbol(&self) -> &str { "contains" }
-    fn human_friendly_name(&self) -> &str { "Contains" }
-    fn precedence(&self) -> u8 { 4 }
-    fn associativity(&self) -> Associativity { Associativity::Left }
+    fn symbol(&self) -> &str {
+        "contains"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Contains"
+    }
+    fn precedence(&self) -> u8 {
+        4
+    }
+    fn associativity(&self) -> Associativity {
+        Associativity::Left
+    }
 
     fn signatures(&self) -> &[OperatorSignature] {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
-            vec![
-                OperatorSignature::binary("contains", TypeInfo::Collection(Box::new(TypeInfo::Any)), TypeInfo::Any, TypeInfo::Boolean),
-            ]
+            vec![OperatorSignature::binary(
+                "contains",
+                TypeInfo::Collection(Box::new(TypeInfo::Any)),
+                TypeInfo::Any,
+                TypeInfo::Boolean,
+            )]
         });
         &SIGS
     }
 
-    fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue) -> OperatorResult<FhirPathValue> {
+    fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> OperatorResult<FhirPathValue> {
         // Per FHIRPath spec for 'contains' operator:
         // - If both operands are empty, return empty
         // - If left operand is empty (but right is not), return [false]
@@ -1794,7 +2493,9 @@ impl FhirPathOperator for ContainsOperator {
         }
 
         if left.is_empty() {
-            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
+            return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                false,
+            )]));
         }
 
         if right.is_empty() {
@@ -1802,15 +2503,17 @@ impl FhirPathOperator for ContainsOperator {
         }
 
         let left_collection = left.clone().to_collection();
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(left_collection.contains(right))]))
+        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+            left_collection.contains(right),
+        )]))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{DateTime, FixedOffset, NaiveDate, TimeZone};
     use fhirpath_model::quantity::Quantity;
-    use chrono::{NaiveDate, DateTime, FixedOffset, TimeZone};
     use rust_decimal::Decimal;
 
     #[test]
@@ -1859,36 +2562,45 @@ mod tests {
 
         // Test with invalid units
         let quantity_invalid = Quantity::new(Decimal::from(1), Some("meter".to_string()));
-        let result = add_op.evaluate_binary(&date_value, &FhirPathValue::Quantity(quantity_invalid));
+        let result =
+            add_op.evaluate_binary(&date_value, &FhirPathValue::Quantity(quantity_invalid));
         assert!(result.is_ok());
         // Should return Collection([Empty]) for invalid units
         if let Ok(FhirPathValue::Collection(ref items)) = result {
             assert_eq!(items.len(), 1);
             assert_eq!(items.get(0), Some(&FhirPathValue::Empty));
         } else {
-            panic!("Expected Collection([Empty]) result for invalid unit, got: {:?}", result);
+            panic!(
+                "Expected Collection([Empty]) result for invalid unit, got: {:?}",
+                result
+            );
         }
     }
 
     #[test]
     fn test_add_datetime_quantity_with_ucum() {
         let add_op = AddOperator;
-        let test_datetime = FixedOffset::east_opt(0).unwrap()
-            .with_ymd_and_hms(2023, 6, 15, 14, 30, 0).unwrap();
+        let test_datetime = FixedOffset::east_opt(0)
+            .unwrap()
+            .with_ymd_and_hms(2023, 6, 15, 14, 30, 0)
+            .unwrap();
         let datetime_value = FhirPathValue::DateTime(test_datetime);
 
         // Test with UCUM standard units
         let quantity_hour = Quantity::new(Decimal::from(2), Some("h".to_string()));
-        let result = add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_hour));
+        let result =
+            add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_hour));
         assert!(result.is_ok());
 
         let quantity_minute = Quantity::new(Decimal::from(30), Some("min".to_string()));
-        let result = add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_minute));
+        let result =
+            add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_minute));
         assert!(result.is_ok());
 
         // Test with traditional units (backward compatibility)
         let quantity_seconds = Quantity::new(Decimal::from(45), Some("seconds".to_string()));
-        let result = add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_seconds));
+        let result =
+            add_op.evaluate_binary(&datetime_value, &FhirPathValue::Quantity(quantity_seconds));
         assert!(result.is_ok());
     }
 }

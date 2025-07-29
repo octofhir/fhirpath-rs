@@ -1,16 +1,19 @@
 //! Function registry and built-in functions
 
-use crate::signature::{FunctionSignature, ParameterInfo};
 use crate::functions::*;
+use crate::signature::FunctionSignature;
 
 // Re-export commonly used function types for external crates
 // Note: Lambda evaluation is not yet fully implemented
 // pub use crate::functions::boolean::{AllFunction, AnyFunction};
 // pub use crate::functions::collection::ExistsFunction;
-use fhirpath_model::{FhirPathValue, TypeInfo, FhirResource};
+use fhirpath_model::{FhirPathValue, TypeInfo};
 use rustc_hash::FxHashMap;
-use rust_decimal::prelude::{ToPrimitive, FromPrimitive};
+use std::hash::BuildHasherDefault;
 use std::sync::Arc;
+
+type VarMap =
+    std::collections::HashMap<String, FhirPathValue, BuildHasherDefault<rustc_hash::FxHasher>>;
 use thiserror::Error;
 
 // For expression evaluation in lambda functions
@@ -59,7 +62,16 @@ pub enum FunctionError {
 }
 
 /// Lambda evaluator type - takes an expression and context and returns a result
-pub type LambdaEvaluator<'a> = dyn Fn(&ExpressionNode, &FhirPathValue) -> Result<FhirPathValue, FunctionError> + 'a;
+pub type LambdaEvaluator<'a> =
+    dyn Fn(&ExpressionNode, &FhirPathValue) -> Result<FhirPathValue, FunctionError> + 'a;
+
+/// Enhanced lambda evaluator type that supports additional variables injection  
+pub type EnhancedLambdaEvaluator<'a> = dyn for<'r> Fn(
+        &'r ExpressionNode,
+        &'r FhirPathValue,
+        &'r VarMap,
+    ) -> Result<FhirPathValue, FunctionError>
+    + 'a;
 
 /// Context for function evaluation
 #[derive(Debug, Clone)]
@@ -78,6 +90,8 @@ pub struct LambdaEvaluationContext<'a> {
     pub context: &'a EvaluationContext,
     /// Lambda expression evaluator
     pub evaluator: &'a LambdaEvaluator<'a>,
+    /// Enhanced lambda expression evaluator with variable injection support
+    pub enhanced_evaluator: Option<&'a EnhancedLambdaEvaluator<'a>>,
 }
 
 impl EvaluationContext {
@@ -103,7 +117,11 @@ pub trait FhirPathFunction: Send + Sync {
     fn signature(&self) -> &FunctionSignature;
 
     /// Evaluate the function with given arguments
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue>;
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
 
     /// Get function documentation
     fn documentation(&self) -> &str {
@@ -187,7 +205,10 @@ impl FunctionRegistry {
         let signature = function.signature().clone();
 
         self.functions.insert(name.clone(), Arc::new(function));
-        self.signatures.entry(name).or_insert_with(Vec::new).push(signature);
+        self.signatures
+            .entry(name)
+            .or_insert_with(Vec::new)
+            .push(signature);
     }
 
     /// Get a function by name
@@ -211,7 +232,11 @@ impl FunctionRegistry {
     }
 
     /// Get function by name and argument types
-    pub fn get_function_for_types(&self, name: &str, arg_types: &[TypeInfo]) -> Option<Arc<dyn FhirPathFunction>> {
+    pub fn get_function_for_types(
+        &self,
+        name: &str,
+        arg_types: &[TypeInfo],
+    ) -> Option<Arc<dyn FhirPathFunction>> {
         if let Some(function) = self.get(name) {
             let sig = function.signature();
             if sig.matches(arg_types) {
@@ -222,7 +247,11 @@ impl FunctionRegistry {
     }
 
     /// Get best matching signature for given argument types
-    pub fn get_best_signature(&self, name: &str, arg_types: &[TypeInfo]) -> Option<&FunctionSignature> {
+    pub fn get_best_signature(
+        &self,
+        name: &str,
+        arg_types: &[TypeInfo],
+    ) -> Option<&FunctionSignature> {
         self.get_signatures(name)?
             .iter()
             .find(|sig| sig.matches(arg_types))
@@ -315,6 +344,9 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     registry.register(ConvertsToDecimalFunction);
     registry.register(ConvertsToStringFunction);
     registry.register(ConvertsToBooleanFunction);
+    registry.register(ConvertsToDateFunction);
+    registry.register(ConvertsToDateTimeFunction);
+    registry.register(ConvertsToTimeFunction);
 
     // Filtering functions
     registry.register(WhereFunction);

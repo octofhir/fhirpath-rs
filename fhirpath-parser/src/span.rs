@@ -22,17 +22,17 @@ impl<T> Spanned<T> {
     pub fn new(value: T, start: usize, end: usize) -> Self {
         Self { value, start, end }
     }
-    
+
     /// Get the span length
     pub fn len(&self) -> usize {
         self.end - self.start
     }
-    
+
     /// Check if span is empty
     pub fn is_empty(&self) -> bool {
         self.start == self.end
     }
-    
+
     /// Map the value while preserving the span
     pub fn map<U, F>(self, f: F) -> Spanned<U>
     where
@@ -44,7 +44,7 @@ impl<T> Spanned<T> {
             end: self.end,
         }
     }
-    
+
     /// Get a reference to the inner value
     pub fn as_ref(&self) -> Spanned<&T> {
         Spanned {
@@ -64,28 +64,24 @@ impl<T: fmt::Display> fmt::Display for Spanned<T> {
 /// Helper functions for working with spans
 pub mod helpers {
     use super::*;
-    
+
     /// Get the position offset from a span
     pub fn position<'a>(span: &Span<'a>) -> usize {
         span.location_offset()
     }
-    
+
     /// Get the line number from a span (1-indexed)
     pub fn line<'a>(span: &Span<'a>) -> u32 {
         span.location_line()
     }
-    
+
     /// Get the column number from a span (1-indexed)
     pub fn column<'a>(span: &Span<'a>) -> usize {
         span.get_utf8_column()
     }
-    
+
     /// Create a spanned value from a span and value
     pub fn spanned<'a, T>(start: &Span<'a>, end: &Span<'a>, value: T) -> Spanned<T> {
-        Spanned::new(
-            value,
-            position(start),
-            position(end),
-        )
+        Spanned::new(value, position(start), position(end))
     }
 }

@@ -4,7 +4,7 @@
 //! using the complete integrated stack of all fhirpath-* crates together.
 
 use fhirpath_ast::ExpressionNode;
-use fhirpath_evaluator::{FhirPathEngine, EvaluationError};
+use fhirpath_evaluator::{EvaluationError, FhirPathEngine};
 use fhirpath_model::{FhirPathValue, FhirResource};
 use fhirpath_parser::parse_expression;
 use fhirpath_registry::create_standard_registries;
@@ -65,18 +65,11 @@ pub enum TestResult {
     /// Test passed
     Passed,
     /// Test failed with actual vs expected values
-    Failed {
-        expected: Value,
-        actual: Value,
-    },
+    Failed { expected: Value, actual: Value },
     /// Test errored during execution
-    Error {
-        error: String,
-    },
+    Error { error: String },
     /// Test was skipped
-    Skipped {
-        reason: String,
-    },
+    Skipped { reason: String },
 }
 
 /// Statistics for test run results
@@ -138,15 +131,23 @@ impl IntegrationTestRunner {
     }
 
     /// Load a test suite from a JSON file
-    pub fn load_test_suite<P: AsRef<Path>>(&self, path: P) -> Result<TestSuite, Box<dyn std::error::Error>> {
+    pub fn load_test_suite<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<TestSuite, Box<dyn std::error::Error>> {
         let full_path = if path.as_ref().is_absolute() {
             path.as_ref().to_path_buf()
         } else {
             self.base_path.join(path)
         };
 
-        let content = fs::read_to_string(&full_path)
-            .map_err(|e| format!("Failed to read test suite file {}: {}", full_path.display(), e))?;
+        let content = fs::read_to_string(&full_path).map_err(|e| {
+            format!(
+                "Failed to read test suite file {}: {}",
+                full_path.display(),
+                e
+            )
+        })?;
 
         let suite: TestSuite = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse test suite JSON: {}", e))?;
@@ -155,7 +156,10 @@ impl IntegrationTestRunner {
     }
 
     /// Load input data from a file (with caching)
-    fn load_input_data(&mut self, filename: &str) -> Result<FhirResource, Box<dyn std::error::Error>> {
+    fn load_input_data(
+        &mut self,
+        filename: &str,
+    ) -> Result<FhirResource, Box<dyn std::error::Error>> {
         if let Some(cached) = self.input_cache.get(filename) {
             return Ok(cached.clone());
         }
@@ -164,7 +168,12 @@ impl IntegrationTestRunner {
         let possible_paths = vec![
             self.base_path.join("input").join(filename),
             self.base_path.join("tests").join("input").join(filename),
-            self.base_path.join("specs").join("fhirpath").join("tests").join("input").join(filename),
+            self.base_path
+                .join("specs")
+                .join("fhirpath")
+                .join("tests")
+                .join("input")
+                .join(filename),
         ];
 
         let mut content = None;
@@ -179,9 +188,15 @@ impl IntegrationTestRunner {
         }
 
         let content = content.ok_or_else(|| {
-            format!("Failed to find input file {} in any of: {}",
-                   filename,
-                   possible_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "))
+            format!(
+                "Failed to find input file {} in any of: {}",
+                filename,
+                possible_paths
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         })?;
 
         let json_value: Value = serde_json::from_str(&content)
@@ -190,10 +205,15 @@ impl IntegrationTestRunner {
         let resource = FhirResource::from_json(json_value);
 
         if self.verbose {
-            println!("Loaded input file {} from {}", filename, used_path.unwrap().display());
+            println!(
+                "Loaded input file {} from {}",
+                filename,
+                used_path.unwrap().display()
+            );
         }
 
-        self.input_cache.insert(filename.to_string(), resource.clone());
+        self.input_cache
+            .insert(filename.to_string(), resource.clone());
         Ok(resource)
     }
 
@@ -226,9 +246,8 @@ impl IntegrationTestRunner {
                 if arr.is_empty() {
                     FhirPathValue::Empty
                 } else {
-                    let values: Vec<FhirPathValue> = arr.iter()
-                        .map(|v| self.convert_expected_value(v))
-                        .collect();
+                    let values: Vec<FhirPathValue> =
+                        arr.iter().map(|v| self.convert_expected_value(v)).collect();
                     FhirPathValue::collection(values)
                 }
             }
@@ -246,15 +265,34 @@ impl IntegrationTestRunner {
         // Handle empty collections vs empty values
         match (actual, &expected_value) {
             (FhirPathValue::Empty, FhirPathValue::Empty) => true,
-            (FhirPathValue::Collection(actual_items), FhirPathValue::Empty) => actual_items.is_empty(),
-            (FhirPathValue::Empty, FhirPathValue::Collection(expected_items)) => expected_items.is_empty(),
-            (FhirPathValue::Collection(actual_items), FhirPathValue::Collection(expected_items)) => {
+            (FhirPathValue::Collection(actual_items), FhirPathValue::Empty) => {
+                actual_items.is_empty()
+            }
+            (FhirPathValue::Empty, FhirPathValue::Collection(expected_items)) => {
+                expected_items.is_empty()
+            }
+            (
+                FhirPathValue::Collection(actual_items),
+                FhirPathValue::Collection(expected_items),
+            ) => {
                 if actual_items.len() != expected_items.len() {
                     return false;
                 }
-                actual_items.iter().zip(expected_items.iter()).all(|(a, e)| a == e)
+                actual_items
+                    .iter()
+                    .zip(expected_items.iter())
+                    .all(|(a, e)| a == e)
             }
-            _ => actual == &expected_value
+            // Handle single value vs single-item collection (common in FHIRPath tests)
+            (single_val, FhirPathValue::Collection(expected_items))
+                if expected_items.len() == 1 =>
+            {
+                single_val == expected_items.first().unwrap()
+            }
+            (FhirPathValue::Collection(actual_items), single_val) if actual_items.len() == 1 => {
+                actual_items.first().unwrap() == single_val
+            }
+            _ => actual == &expected_value,
         }
     }
 
@@ -267,14 +305,14 @@ impl IntegrationTestRunner {
 
         // Load input data
         let input_data = match &test.inputfile {
-            Some(filename) => {
-                match self.load_input_data(filename) {
-                    Ok(data) => FhirPathValue::Resource(data),
-                    Err(e) => return TestResult::Error {
-                        error: format!("Failed to load input from {}: {}", filename, e)
-                    },
+            Some(filename) => match self.load_input_data(filename) {
+                Ok(data) => FhirPathValue::Resource(data),
+                Err(e) => {
+                    return TestResult::Error {
+                        error: format!("Failed to load input from {}: {}", filename, e),
+                    };
                 }
-            }
+            },
             None => {
                 match &test.input {
                     Some(input_val) => {
@@ -285,9 +323,12 @@ impl IntegrationTestRunner {
                             FhirPathValue::from(input_val.clone())
                         }
                     }
-                    None => return TestResult::Error {
-                        error: "No input data provided (neither inputfile nor input)".to_string()
-                    },
+                    None => {
+                        return TestResult::Error {
+                            error: "No input data provided (neither inputfile nor input)"
+                                .to_string(),
+                        };
+                    }
                 }
             }
         };
@@ -301,14 +342,19 @@ impl IntegrationTestRunner {
         // Evaluate expression using integrated engine
         let result = match self.engine.evaluate(&ast, input_data) {
             Ok(result) => result,
-            Err(e) => return TestResult::Error {
-                error: format!("Evaluation error: {}", e)
-            },
+            Err(e) => {
+                return TestResult::Error {
+                    error: format!("Evaluation error: {}", e),
+                };
+            }
         };
 
         if self.verbose {
             println!("Result: {:?}", result);
-            println!("Expected: {}", serde_json::to_string(&test.expected).unwrap_or_default());
+            println!(
+                "Expected: {}",
+                serde_json::to_string(&test.expected).unwrap_or_default()
+            );
         }
 
         // Compare results
@@ -332,26 +378,47 @@ impl IntegrationTestRunner {
             FhirPathValue::Integer(i) => Value::Array(vec![Value::Number((*i).into())]),
             FhirPathValue::Decimal(d) => {
                 use rust_decimal::prelude::ToPrimitive;
-                let num = Value::Number(serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
-                    .unwrap_or_else(|| serde_json::Number::from(0)));
+                let num = Value::Number(
+                    serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                );
                 Value::Array(vec![num])
             }
             FhirPathValue::String(s) => Value::Array(vec![Value::String(s.clone())]),
-            FhirPathValue::Date(d) => Value::Array(vec![Value::String(format!("@{}", d.format("%Y-%m-%d")))]),
-            FhirPathValue::DateTime(dt) => Value::Array(vec![Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))]),
-            FhirPathValue::Time(t) => Value::Array(vec![Value::String(format!("@T{}", t.format("%H:%M:%S")))]),
+            FhirPathValue::Date(d) => {
+                Value::Array(vec![Value::String(format!("@{}", d.format("%Y-%m-%d")))])
+            }
+            FhirPathValue::DateTime(dt) => Value::Array(vec![Value::String(format!(
+                "@{}",
+                dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")
+            ))]),
+            FhirPathValue::Time(t) => {
+                Value::Array(vec![Value::String(format!("@T{}", t.format("%H:%M:%S")))])
+            }
             FhirPathValue::Quantity(q) => Value::Array(vec![q.to_json()]),
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     Value::Array(vec![])
                 } else {
-                    Value::Array(items.iter().map(|item| self.fhirpath_value_to_json_item(item)).collect())
+                    Value::Array(
+                        items
+                            .iter()
+                            .map(|item| self.fhirpath_value_to_json_item(item))
+                            .collect(),
+                    )
                 }
             }
             FhirPathValue::Empty => Value::Array(vec![]),
             FhirPathValue::Resource(resource) => {
                 // Convert back to JSON representation
                 Value::Array(vec![resource.to_json()])
+            }
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                // Convert TypeInfo to JSON object
+                let mut obj = serde_json::Map::new();
+                obj.insert("namespace".to_string(), Value::String(namespace.clone()));
+                obj.insert("name".to_string(), Value::String(name.clone()));
+                Value::Array(vec![Value::Object(obj)])
             }
         }
     }
@@ -363,23 +430,39 @@ impl IntegrationTestRunner {
             FhirPathValue::Integer(i) => Value::Number((*i).into()),
             FhirPathValue::Decimal(d) => {
                 use rust_decimal::prelude::ToPrimitive;
-                Value::Number(serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
-                    .unwrap_or_else(|| serde_json::Number::from(0)))
+                Value::Number(
+                    serde_json::Number::from_f64(d.to_f64().unwrap_or(0.0))
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                )
             }
             FhirPathValue::String(s) => Value::String(s.clone()),
             FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
-            FhirPathValue::DateTime(dt) => Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z"))),
+            FhirPathValue::DateTime(dt) => {
+                Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))
+            }
             FhirPathValue::Time(t) => Value::String(format!("@T{}", t.format("%H:%M:%S"))),
             FhirPathValue::Quantity(q) => q.to_json(),
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     Value::Array(vec![])
                 } else {
-                    Value::Array(items.iter().map(|item| self.fhirpath_value_to_json_item(item)).collect())
+                    Value::Array(
+                        items
+                            .iter()
+                            .map(|item| self.fhirpath_value_to_json_item(item))
+                            .collect(),
+                    )
                 }
             }
             FhirPathValue::Empty => Value::Null,
             FhirPathValue::Resource(resource) => resource.to_json(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                // Convert TypeInfo to JSON object
+                let mut obj = serde_json::Map::new();
+                obj.insert("namespace".to_string(), Value::String(namespace.clone()));
+                obj.insert("name".to_string(), Value::String(name.clone()));
+                Value::Object(obj)
+            }
         }
     }
 
@@ -403,7 +486,10 @@ impl IntegrationTestRunner {
     }
 
     /// Run tests from a JSON file and return results
-    pub fn run_tests_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<HashMap<String, TestResult>, Box<dyn std::error::Error>> {
+    pub fn run_tests_from_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<HashMap<String, TestResult>, Box<dyn std::error::Error>> {
         let suite = self.load_test_suite(path)?;
         Ok(self.run_test_suite(&suite))
     }
@@ -426,7 +512,10 @@ impl IntegrationTestRunner {
     }
 
     /// Run tests and print detailed results to console
-    pub fn run_and_report<P: AsRef<Path>>(&mut self, path: P) -> Result<TestStats, Box<dyn std::error::Error>> {
+    pub fn run_and_report<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<TestStats, Box<dyn std::error::Error>> {
         let suite = self.load_test_suite(&path)?;
         println!("🧪 FHIRPath Integration Test Suite: {}", suite.name);
         println!("📝 Description: {}", suite.description);
@@ -448,7 +537,6 @@ impl IntegrationTestRunner {
                 TestResult::Error { .. } => ("ERROR", "⚠️"),
                 TestResult::Skipped { .. } => ("SKIP", "⊘"),
             };
-
             println!("{} {} {}", icon, status, test.name);
 
             if self.verbose || !matches!(result, TestResult::Passed) {
@@ -463,10 +551,16 @@ impl IntegrationTestRunner {
 
             match result {
                 TestResult::Failed { expected, actual } => {
-                    println!("   Expected: {}", serde_json::to_string_pretty(expected).unwrap_or_default());
+                    println!(
+                        "   Expected: {}",
+                        serde_json::to_string_pretty(expected).unwrap_or_default()
+                    );
                     // Convert FhirPathValue to serde_json::Value to use the proper format
                     let actual_json: serde_json::Value = actual.clone().into();
-                    println!("   Actual:   {}", serde_json::to_string_pretty(&actual_json).unwrap_or_default());
+                    println!(
+                        "   Actual:   {}",
+                        serde_json::to_string_pretty(&actual_json).unwrap_or_default()
+                    );
                 }
                 TestResult::Error { error } => {
                     println!("   Error: {}", error);
@@ -488,16 +582,25 @@ impl IntegrationTestRunner {
         println!("Total:   {}", stats.total);
         println!("✅ Passed:  {} ({:.1}%)", stats.passed, stats.pass_rate());
         if stats.failed > 0 {
-            println!("❌ Failed:  {} ({:.1}%)", stats.failed,
-                    (stats.failed as f64 / stats.total as f64) * 100.0);
+            println!(
+                "❌ Failed:  {} ({:.1}%)",
+                stats.failed,
+                (stats.failed as f64 / stats.total as f64) * 100.0
+            );
         }
         if stats.errored > 0 {
-            println!("⚠️  Errors:  {} ({:.1}%)", stats.errored,
-                    (stats.errored as f64 / stats.total as f64) * 100.0);
+            println!(
+                "⚠️  Errors:  {} ({:.1}%)",
+                stats.errored,
+                (stats.errored as f64 / stats.total as f64) * 100.0
+            );
         }
         if stats.skipped > 0 {
-            println!("⊘ Skipped: {} ({:.1}%)", stats.skipped,
-                    (stats.skipped as f64 / stats.total as f64) * 100.0);
+            println!(
+                "⊘ Skipped: {} ({:.1}%)",
+                stats.skipped,
+                (stats.skipped as f64 / stats.total as f64) * 100.0
+            );
         }
 
         let success = stats.failed == 0 && stats.errored == 0;
@@ -511,7 +614,10 @@ impl IntegrationTestRunner {
     }
 
     /// Run multiple test files and provide consolidated report
-    pub fn run_multiple_test_files<P: AsRef<Path>>(&mut self, test_files: &[P]) -> Result<TestStats, Box<dyn std::error::Error>> {
+    pub fn run_multiple_test_files<P: AsRef<Path>>(
+        &mut self,
+        test_files: &[P],
+    ) -> Result<TestStats, Box<dyn std::error::Error>> {
         let mut consolidated_stats = TestStats::default();
 
         println!("🚀 Running FHIRPath Integration Test Suite");
@@ -519,8 +625,16 @@ impl IntegrationTestRunner {
         println!();
 
         for (i, test_file) in test_files.iter().enumerate() {
-            println!("📄 [{}/{}] Running {}", i + 1, test_files.len(),
-                    test_file.as_ref().file_name().unwrap_or_default().to_string_lossy());
+            println!(
+                "📄 [{}/{}] Running {}",
+                i + 1,
+                test_files.len(),
+                test_file
+                    .as_ref()
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            );
 
             match self.run_and_report(test_file) {
                 Ok(stats) => {
@@ -542,14 +656,24 @@ impl IntegrationTestRunner {
         println!("🏁 === Consolidated Summary ===");
         println!("Total suites: {}", test_files.len());
         println!("Total tests:  {}", consolidated_stats.total);
-        println!("✅ Passed:     {} ({:.1}%)", consolidated_stats.passed, consolidated_stats.pass_rate());
+        println!(
+            "✅ Passed:     {} ({:.1}%)",
+            consolidated_stats.passed,
+            consolidated_stats.pass_rate()
+        );
         if consolidated_stats.failed > 0 {
-            println!("❌ Failed:     {} ({:.1}%)", consolidated_stats.failed,
-                    (consolidated_stats.failed as f64 / consolidated_stats.total as f64) * 100.0);
+            println!(
+                "❌ Failed:     {} ({:.1}%)",
+                consolidated_stats.failed,
+                (consolidated_stats.failed as f64 / consolidated_stats.total as f64) * 100.0
+            );
         }
         if consolidated_stats.errored > 0 {
-            println!("⚠️  Errors:     {} ({:.1}%)", consolidated_stats.errored,
-                    (consolidated_stats.errored as f64 / consolidated_stats.total as f64) * 100.0);
+            println!(
+                "⚠️  Errors:     {} ({:.1}%)",
+                consolidated_stats.errored,
+                (consolidated_stats.errored as f64 / consolidated_stats.total as f64) * 100.0
+            );
         }
 
         Ok(consolidated_stats)
@@ -570,10 +694,22 @@ mod tests {
     fn test_convert_expected_value() {
         let runner = IntegrationTestRunner::new();
 
-        assert_eq!(runner.convert_expected_value(&Value::Bool(true)), FhirPathValue::Boolean(true));
-        assert_eq!(runner.convert_expected_value(&Value::from(42)), FhirPathValue::Integer(42));
-        assert_eq!(runner.convert_expected_value(&Value::from("test")), FhirPathValue::String("test".to_string()));
-        assert_eq!(runner.convert_expected_value(&Value::Array(vec![])), FhirPathValue::Empty);
+        assert_eq!(
+            runner.convert_expected_value(&Value::Bool(true)),
+            FhirPathValue::Boolean(true)
+        );
+        assert_eq!(
+            runner.convert_expected_value(&Value::from(42)),
+            FhirPathValue::Integer(42)
+        );
+        assert_eq!(
+            runner.convert_expected_value(&Value::from("test")),
+            FhirPathValue::String("test".to_string())
+        );
+        assert_eq!(
+            runner.convert_expected_value(&Value::Array(vec![])),
+            FhirPathValue::Empty
+        );
     }
 
     #[test]
@@ -587,12 +723,9 @@ mod tests {
         // Test collection comparison
         let collection = FhirPathValue::collection(vec![
             FhirPathValue::String("test".to_string()),
-            FhirPathValue::Integer(42)
+            FhirPathValue::Integer(42),
         ]);
-        let expected = Value::Array(vec![
-            Value::String("test".to_string()),
-            Value::from(42)
-        ]);
+        let expected = Value::Array(vec![Value::String("test".to_string()), Value::from(42)]);
         assert!(runner.compare_results(&collection, &expected));
     }
 
@@ -602,13 +735,19 @@ mod tests {
         let mut results = HashMap::new();
 
         results.insert("test1".to_string(), TestResult::Passed);
-        results.insert("test2".to_string(), TestResult::Failed {
-            expected: Value::Bool(true),
-            actual: Value::Bool(false)
-        });
-        results.insert("test3".to_string(), TestResult::Error {
-            error: "Test error".to_string()
-        });
+        results.insert(
+            "test2".to_string(),
+            TestResult::Failed {
+                expected: Value::Bool(true),
+                actual: Value::Bool(false),
+            },
+        );
+        results.insert(
+            "test3".to_string(),
+            TestResult::Error {
+                error: "Test error".to_string(),
+            },
+        );
 
         let stats = runner.calculate_stats(&results);
         assert_eq!(stats.total, 3);

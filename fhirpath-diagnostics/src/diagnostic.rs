@@ -38,7 +38,7 @@ pub enum DiagnosticCode {
     UnknownFunction,
     /// Invalid escape sequence
     InvalidEscape,
-    
+
     // Type errors
     /// Type mismatch
     TypeMismatch { expected: String, actual: String },
@@ -48,7 +48,7 @@ pub enum DiagnosticCode {
     InvalidArgumentTypes,
     /// Cannot convert between types
     ConversionError,
-    
+
     // Semantic errors
     /// Wrong number of arguments
     InvalidArity,
@@ -58,7 +58,7 @@ pub enum DiagnosticCode {
     UndefinedVariable,
     /// Invalid type specifier
     InvalidTypeSpecifier,
-    
+
     // Runtime errors
     /// Division by zero
     DivisionByZero,
@@ -68,7 +68,7 @@ pub enum DiagnosticCode {
     ArithmeticOverflow,
     /// Invalid regular expression
     InvalidRegex,
-    
+
     // Custom error code
     /// Custom error with a string code
     Custom(String),

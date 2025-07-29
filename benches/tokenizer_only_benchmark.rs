@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use fhirpath_parser::tokenizer::Tokenizer;
 
 fn benchmark_optimized_tokenizer_only(c: &mut Criterion) {
@@ -51,10 +51,10 @@ fn benchmark_multiple_expressions(c: &mut Criterion) {
 
 fn benchmark_operations_per_second(c: &mut Criterion) {
     let expression = "Patient.name.where(use = 'official').given";
-    
+
     let mut group = c.benchmark_group("operations_per_second");
     group.sample_size(10000); // More samples for accurate measurement
-    
+
     group.bench_function("tokenizer_ops_per_sec", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(expression));
@@ -65,13 +65,13 @@ fn benchmark_operations_per_second(c: &mut Criterion) {
             black_box(token_count)
         })
     });
-    
+
     group.finish();
 }
 
 criterion_group!(
-    benches, 
-    benchmark_optimized_tokenizer_only, 
+    benches,
+    benchmark_optimized_tokenizer_only,
     benchmark_optimized_tokenizer_complete,
     benchmark_multiple_expressions,
     benchmark_operations_per_second

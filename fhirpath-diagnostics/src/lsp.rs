@@ -128,8 +128,11 @@ mod tests {
             .build();
 
         let lsp_diag = to_lsp_diagnostic(&diagnostic);
-        
-        assert_eq!(lsp_diag.severity, Some(lsp_types::DiagnosticSeverity::ERROR));
+
+        assert_eq!(
+            lsp_diag.severity,
+            Some(lsp_types::DiagnosticSeverity::ERROR)
+        );
         assert_eq!(lsp_diag.message, "Unknown function 'foo'");
         assert_eq!(lsp_diag.range.start.line, 5);
         assert_eq!(lsp_diag.range.start.character, 10);

@@ -20,7 +20,9 @@ fn print_usage() {
     println!("    test_runner [OPTIONS] <TEST_FILE_OR_DIRECTORY>");
     println!();
     println!("ARGS:");
-    println!("    <TEST_FILE_OR_DIRECTORY>    Path to JSON test file or directory containing tests");
+    println!(
+        "    <TEST_FILE_OR_DIRECTORY>    Path to JSON test file or directory containing tests"
+    );
     println!();
     println!("OPTIONS:");
     println!("    -v, --verbose               Enable verbose output");
@@ -35,7 +37,7 @@ fn print_usage() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() < 2 {
         print_usage();
         process::exit(1);
@@ -91,7 +93,7 @@ fn main() {
 
     // Create test runner
     let mut runner = IntegrationTestRunner::new().with_verbose(verbose);
-    
+
     if let Some(base) = base_path {
         runner = runner.with_base_path(base);
     }
@@ -129,7 +131,10 @@ fn main() {
             }
         }
     } else {
-        eprintln!("Error: Path is neither a file nor a directory: {}", test_path.display());
+        eprintln!(
+            "Error: Path is neither a file nor a directory: {}",
+            test_path.display()
+        );
         process::exit(1);
     };
 
@@ -154,11 +159,11 @@ fn main() {
 /// Find all JSON test files in a directory
 fn find_test_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let mut test_files = Vec::new();
-    
+
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(extension) = path.extension() {
                 if extension == "json" {
@@ -167,7 +172,7 @@ fn find_test_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Er
             }
         }
     }
-    
+
     // Sort for consistent ordering
     test_files.sort();
     Ok(test_files)

@@ -12,6 +12,5 @@ pub use fhirpath_registry as registry;
 
 pub mod engine;
 pub mod error;
-pub mod value_ext;
 pub mod types;
-
+pub mod value_ext;

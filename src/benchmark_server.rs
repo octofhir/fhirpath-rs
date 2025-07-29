@@ -1,15 +1,15 @@
-use std::path::{Path, PathBuf};
-use std::fs;
-use warp::Filter;
 use serde_json::Value;
+use std::fs;
+use std::path::{Path, PathBuf};
+use warp::Filter;
 
 #[tokio::main]
 async fn main() {
     let criterion_path = get_criterion_path();
-    
+
     println!("🚀 Starting FHIRPath Benchmark Server");
     println!("📊 Serving reports from: {}", criterion_path.display());
-    
+
     // Routes
     let routes = home_route()
         .or(benchmark_list_route(criterion_path.clone()))
@@ -19,10 +19,8 @@ async fn main() {
 
     println!("🌐 Server running at http://localhost:3030");
     println!("📈 Visit http://localhost:3030 to view benchmark results");
-    
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030))
-        .await;
+
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
 
 fn get_criterion_path() -> PathBuf {
@@ -32,14 +30,13 @@ fn get_criterion_path() -> PathBuf {
 
 // Home page route
 fn home_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path::end()
-        .map(|| {
-            warp::reply::html(generate_home_page())
-        })
+    warp::path::end().map(|| warp::reply::html(generate_home_page()))
 }
 
 // Benchmark list API route
-fn benchmark_list_route(criterion_path: PathBuf) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn benchmark_list_route(
+    criterion_path: PathBuf,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path("api")
         .and(warp::path("benchmarks"))
         .and(warp::path::end())
@@ -50,13 +47,16 @@ fn benchmark_list_route(criterion_path: PathBuf) -> impl Filter<Extract = impl w
 }
 
 // Static files route for serving HTML reports, SVGs, etc.
-fn static_files_route(criterion_path: PathBuf) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path("reports")
-        .and(warp::fs::dir(criterion_path))
+fn static_files_route(
+    criterion_path: PathBuf,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("reports").and(warp::fs::dir(criterion_path))
 }
 
 // Benchmark detail route
-fn benchmark_detail_route(criterion_path: PathBuf) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn benchmark_detail_route(
+    criterion_path: PathBuf,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path("benchmark")
         .and(warp::path::param::<String>())
         .and(warp::path::end())
@@ -68,7 +68,7 @@ fn benchmark_detail_route(criterion_path: PathBuf) -> impl Filter<Extract = impl
 
 fn get_benchmark_list(criterion_path: &Path) -> Vec<Value> {
     let mut benchmarks = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(criterion_path) {
         for entry in entries.flatten() {
             if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
@@ -84,7 +84,7 @@ fn get_benchmark_list(criterion_path: &Path) -> Vec<Value> {
             }
         }
     }
-    
+
     benchmarks.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
     benchmarks
 }
@@ -104,7 +104,7 @@ fn get_benchmark_summary(path: &Path) -> Value {
             });
         }
     }
-    
+
     serde_json::json!({
         "status": "available"
     })
@@ -307,7 +307,8 @@ fn generate_home_page() -> String {
 }
 
 fn generate_benchmark_page(name: &str, data: &Value) -> String {
-    format!(r#"
+    format!(
+        r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -358,5 +359,9 @@ fn generate_benchmark_page(name: &str, data: &Value) -> String {
     </div>
 </body>
 </html>
-"#, name, name, serde_json::to_string_pretty(data).unwrap_or_else(|_| "No data available".to_string()))
+"#,
+        name,
+        name,
+        serde_json::to_string_pretty(data).unwrap_or_else(|_| "No data available".to_string())
+    )
 }

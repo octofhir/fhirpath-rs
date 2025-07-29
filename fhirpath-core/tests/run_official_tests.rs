@@ -29,14 +29,22 @@ fn test_run_basics_suite() {
     let basics_path = specs_path.join("basics.json");
 
     if !basics_path.exists() {
-        println!("Skipping basics test - file not found: {}", basics_path.display());
+        println!(
+            "Skipping basics test - file not found: {}",
+            basics_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&basics_path) {
         Ok(stats) => {
             println!("Basics test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
 
             // For now, we don't assert success since we're still implementing features
             // In the future, this could be: assert_eq!(stats.failed + stats.errored, 0);
@@ -58,14 +66,22 @@ fn test_run_literals_suite() {
     let literals_path = specs_path.join("literals.json");
 
     if !literals_path.exists() {
-        println!("Skipping literals test - file not found: {}", literals_path.display());
+        println!(
+            "Skipping literals test - file not found: {}",
+            literals_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&literals_path) {
         Ok(stats) => {
             println!("Literals test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
         }
         Err(e) => {
             println!("Failed to run literals test suite: {}", e);
@@ -98,8 +114,14 @@ fn test_simple_expression_parsing() {
         }
         integration_test_runner::TestResult::Failed { expected, actual } => {
             println!("❌ Simple expression test failed:");
-            println!("  Expected: {}", serde_json::to_string_pretty(&expected).unwrap());
-            println!("  Actual: {}", serde_json::to_string_pretty(&actual).unwrap());
+            println!(
+                "  Expected: {}",
+                serde_json::to_string_pretty(&expected).unwrap()
+            );
+            println!(
+                "  Actual: {}",
+                serde_json::to_string_pretty(&actual).unwrap()
+            );
         }
         integration_test_runner::TestResult::Error { error } => {
             println!("⚠️ Simple expression test errored: {}", error);
@@ -128,7 +150,12 @@ fn test_run_abs_suite() {
     match runner.run_and_report(&abs_path) {
         Ok(stats) => {
             println!("Abs test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -149,14 +176,22 @@ fn test_run_ceiling_suite() {
     let ceiling_path = specs_path.join("ceiling.json");
 
     if !ceiling_path.exists() {
-        println!("Skipping ceiling test - file not found: {}", ceiling_path.display());
+        println!(
+            "Skipping ceiling test - file not found: {}",
+            ceiling_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&ceiling_path) {
         Ok(stats) => {
             println!("Ceiling test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -177,14 +212,22 @@ fn test_run_floor_suite() {
     let floor_path = specs_path.join("floor.json");
 
     if !floor_path.exists() {
-        println!("Skipping floor test - file not found: {}", floor_path.display());
+        println!(
+            "Skipping floor test - file not found: {}",
+            floor_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&floor_path) {
         Ok(stats) => {
             println!("Floor test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -205,14 +248,22 @@ fn test_run_round_suite() {
     let round_path = specs_path.join("round.json");
 
     if !round_path.exists() {
-        println!("Skipping round test - file not found: {}", round_path.display());
+        println!(
+            "Skipping round test - file not found: {}",
+            round_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&round_path) {
         Ok(stats) => {
             println!("Round test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -233,14 +284,22 @@ fn test_run_take_suite() {
     let take_path = specs_path.join("take.json");
 
     if !take_path.exists() {
-        println!("Skipping take test - file not found: {}", take_path.display());
+        println!(
+            "Skipping take test - file not found: {}",
+            take_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&take_path) {
         Ok(stats) => {
             println!("Take test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -270,7 +329,8 @@ fn test_run_multiple_official_suites() {
         "count.json",
     ];
 
-    let test_paths: Vec<PathBuf> = test_files.into_iter()
+    let test_paths: Vec<PathBuf> = test_files
+        .into_iter()
         .map(|f| specs_path.join(f))
         .filter(|p| p.exists()) // Only include files that exist
         .collect();
@@ -315,14 +375,22 @@ fn test_run_equality_suite() {
     let equality_path = specs_path.join("equality.json");
 
     if !equality_path.exists() {
-        println!("Skipping equality test - file not found: {}", equality_path.display());
+        println!(
+            "Skipping equality test - file not found: {}",
+            equality_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&equality_path) {
         Ok(stats) => {
             println!("Equality test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -343,14 +411,22 @@ fn test_run_equivalent_suite() {
     let equivalent_path = specs_path.join("equivalent.json");
 
     if !equivalent_path.exists() {
-        println!("Skipping equivalent test - file not found: {}", equivalent_path.display());
+        println!(
+            "Skipping equivalent test - file not found: {}",
+            equivalent_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&equivalent_path) {
         Ok(stats) => {
             println!("Equivalent test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -371,14 +447,22 @@ fn test_run_not_equivalent_suite() {
     let not_equivalent_path = specs_path.join("not-equivalent.json");
 
     if !not_equivalent_path.exists() {
-        println!("Skipping not-equivalent test - file not found: {}", not_equivalent_path.display());
+        println!(
+            "Skipping not-equivalent test - file not found: {}",
+            not_equivalent_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&not_equivalent_path) {
         Ok(stats) => {
             println!("Not-equivalent test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -399,14 +483,22 @@ fn test_run_not_equal_suite() {
     let not_equal_path = specs_path.join("n-equality.json");
 
     if !not_equal_path.exists() {
-        println!("Skipping n-equality test - file not found: {}", not_equal_path.display());
+        println!(
+            "Skipping n-equality test - file not found: {}",
+            not_equal_path.display()
+        );
         return;
     }
 
     match runner.run_and_report(&not_equal_path) {
         Ok(stats) => {
             println!("N-equality (not equal) test suite completed:");
-            println!("  Passed: {}/{} ({:.1}%)", stats.passed, stats.total, stats.pass_rate());
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
             println!("  Failed: {}", stats.failed);
             println!("  Errors: {}", stats.errored);
         }
@@ -416,7 +508,7 @@ fn test_run_not_equal_suite() {
     }
 }
 
-/// Run all equality-related test suites 
+/// Run all equality-related test suites
 #[test]
 fn test_run_all_equality_suites() {
     let specs_path = get_specs_path();
@@ -427,12 +519,13 @@ fn test_run_all_equality_suites() {
     // List of equality-related test files
     let equality_test_files = vec![
         "equality.json",
-        "equivalent.json", 
+        "equivalent.json",
         "not-equivalent.json",
-        "n-equality.json"
+        "n-equality.json",
     ];
 
-    let test_paths: Vec<PathBuf> = equality_test_files.into_iter()
+    let test_paths: Vec<PathBuf> = equality_test_files
+        .into_iter()
         .map(|f| specs_path.join(f))
         .filter(|p| p.exists()) // Only include files that exist
         .collect();
@@ -471,7 +564,7 @@ fn test_run_all_equality_suites() {
 /// Example of how to create and run a custom test suite
 #[test]
 fn test_custom_test_creation() {
-    use integration_test_runner::{TestSuite, TestCase};
+    use integration_test_runner::{TestCase, TestSuite};
 
     let custom_suite = TestSuite {
         name: "Custom Test Suite".to_string(),

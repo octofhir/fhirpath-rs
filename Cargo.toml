@@ -23,8 +23,10 @@ harness = false
 name = "benchmark_server"
 path = "src/benchmark_server.rs"
 
+
 [dependencies]
 fhirpath-parser = { path = "fhirpath-parser" }
+fhirpath-core = { path = "fhirpath-core" }
 criterion = { workspace = true }
 tokio = { workspace = true }
 warp = { workspace = true }
@@ -53,10 +55,10 @@ description = "A FHIRPath implementation in Rust"
 
 [workspace.dependencies]
 # Common dependencies for all crates
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "2.0"
-anyhow = "1.0"
-criterion = "0.5"
-tokio = { version = "1.0", features = ["full"] }
-warp = "0.3"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.141"
+thiserror = "2.0.12"
+anyhow = "1.0.98"
+criterion = "0.7.0"
+tokio = { version = "1.47.0", features = ["full"] }
+warp = "0.3.7"

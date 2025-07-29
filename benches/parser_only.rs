@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use fhirpath_parser::parse_expression;
 use fhirpath_parser::tokenizer::Tokenizer;
 
@@ -6,9 +6,7 @@ fn benchmark_parser_complete(c: &mut Criterion) {
     let expression = "Patient.name.where(use = 'official').given";
 
     c.bench_function("parser_complete", |b| {
-        b.iter(|| {
-            black_box(parse_expression(black_box(expression)))
-        })
+        b.iter(|| black_box(parse_expression(black_box(expression))))
     });
 }
 
@@ -34,9 +32,7 @@ fn benchmark_performance_target(c: &mut Criterion) {
     group.sample_size(10000);
 
     group.bench_function("parser_1M_ops_target", |b| {
-        b.iter(|| {
-            black_box(parse_expression(black_box(expression)))
-        })
+        b.iter(|| black_box(parse_expression(black_box(expression))))
     });
 
     group.bench_function("tokenizer_11M_ops_target", |b| {

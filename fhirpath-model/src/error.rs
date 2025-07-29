@@ -76,9 +76,7 @@ impl ModelError {
 
     /// Create an invalid unit error
     pub fn invalid_unit(unit: impl Into<String>) -> Self {
-        Self::InvalidUnit {
-            unit: unit.into(),
-        }
+        Self::InvalidUnit { unit: unit.into() }
     }
 
     /// Create an incompatible units error

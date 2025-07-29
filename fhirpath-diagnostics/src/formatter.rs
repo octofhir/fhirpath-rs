@@ -1,7 +1,6 @@
 //! Formatting diagnostics for different output formats
 
-use crate::diagnostic::{Diagnostic, Severity};
-use std::fmt;
+use crate::diagnostic::Diagnostic;
 
 /// Output format for diagnostics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,13 +65,11 @@ impl DiagnosticFormatter {
     /// Format multiple diagnostics
     pub fn format_all(&self, diagnostics: &[Diagnostic]) -> String {
         match self.format {
-            Format::Text => {
-                diagnostics
-                    .iter()
-                    .map(|d| self.format_text(d))
-                    .collect::<Vec<_>>()
-                    .join("\n\n")
-            }
+            Format::Text => diagnostics
+                .iter()
+                .map(|d| self.format_text(d))
+                .collect::<Vec<_>>()
+                .join("\n\n"),
             Format::Json => {
                 #[cfg(feature = "serde")]
                 {
@@ -87,13 +84,11 @@ impl DiagnosticFormatter {
                     format!("{:?}", diagnostics)
                 }
             }
-            Format::Compact => {
-                diagnostics
-                    .iter()
-                    .map(|d| self.format_compact(d))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+            Format::Compact => diagnostics
+                .iter()
+                .map(|d| self.format_compact(d))
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 
@@ -111,11 +106,7 @@ impl DiagnosticFormatter {
                 Severity::Hint => "hint".green().bold(),
             };
 
-            result.push_str(&format!(
-                "{}: {}",
-                severity_str,
-                diagnostic.message.bold()
-            ));
+            result.push_str(&format!("{}: {}", severity_str, diagnostic.message.bold()));
         } else {
             result.push_str(&format!("{}: {}", diagnostic.severity, diagnostic.message));
         }
@@ -194,7 +185,10 @@ impl DiagnosticFormatter {
         if !diagnostic.related.is_empty() {
             result.push_str("\nrelated:\n");
             for related in &diagnostic.related {
-                result.push_str(&format!("  - {} at {}\n", related.message, related.location));
+                result.push_str(&format!(
+                    "  - {} at {}\n",
+                    related.message, related.location
+                ));
             }
         }
 
@@ -222,10 +216,7 @@ impl DiagnosticFormatter {
 
         format!(
             "{}: {}: {}{}",
-            diagnostic.location,
-            diagnostic.severity,
-            code,
-            diagnostic.message
+            diagnostic.location, diagnostic.severity, code, diagnostic.message
         )
     }
 }

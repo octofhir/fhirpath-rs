@@ -41,93 +41,211 @@ impl FhirTypeRegistry {
     fn initialize_type_hierarchy(&mut self) {
         // System types (primitive types)
         let system_types = vec![
-            "System.Boolean", "System.Integer", "System.Decimal", "System.String",
-            "System.Date", "System.DateTime", "System.Time", "System.Quantity"
+            "System.Boolean",
+            "System.Integer",
+            "System.Decimal",
+            "System.String",
+            "System.Date",
+            "System.DateTime",
+            "System.Time",
+            "System.Quantity",
         ];
 
         // FHIR primitive types
         let primitive_types = vec![
-            "boolean", "integer", "decimal", "string", "date", "dateTime", "time",
-            "instant", "uri", "url", "canonical", "oid", "uuid", "id", "markdown",
-            "base64Binary", "code", "unsignedInt", "positiveInt", "xhtml"
+            "boolean",
+            "integer",
+            "decimal",
+            "string",
+            "date",
+            "dateTime",
+            "time",
+            "instant",
+            "uri",
+            "url",
+            "canonical",
+            "oid",
+            "uuid",
+            "id",
+            "markdown",
+            "base64Binary",
+            "code",
+            "unsignedInt",
+            "positiveInt",
+            "xhtml",
         ];
 
         // FHIR complex types (inherit from Element)
         let complex_types = vec![
-            "Quantity", "CodeableConcept", "Coding", "Identifier", "HumanName",
-            "Address", "ContactPoint", "Period", "Range", "Ratio", "SampledData",
-            "Attachment", "Annotation", "Signature", "Money", "Duration", "Count",
-            "Distance", "Age", "SimpleQuantity", "Timing", "Dosage", "Meta",
-            "Narrative", "Extension", "Reference", "ContactDetail", "Contributor",
-            "DataRequirement", "Expression", "ParameterDefinition", "RelatedArtifact",
-            "TriggerDefinition", "UsageContext"
+            "Quantity",
+            "CodeableConcept",
+            "Coding",
+            "Identifier",
+            "HumanName",
+            "Address",
+            "ContactPoint",
+            "Period",
+            "Range",
+            "Ratio",
+            "SampledData",
+            "Attachment",
+            "Annotation",
+            "Signature",
+            "Money",
+            "Duration",
+            "Count",
+            "Distance",
+            "Age",
+            "SimpleQuantity",
+            "Timing",
+            "Dosage",
+            "Meta",
+            "Narrative",
+            "Extension",
+            "Reference",
+            "ContactDetail",
+            "Contributor",
+            "DataRequirement",
+            "Expression",
+            "ParameterDefinition",
+            "RelatedArtifact",
+            "TriggerDefinition",
+            "UsageContext",
         ];
 
         // FHIR resources (all inherit from Resource)
         let resource_types = vec![
             // Base resources
-            "Resource", "DomainResource",
-
+            "Resource",
+            "DomainResource",
             // Clinical resources
-            "Patient", "Practitioner", "PractitionerRole", "Organization", "Location",
-            "HealthcareService", "Endpoint", "Person", "RelatedPerson", "Group",
-
+            "Patient",
+            "Practitioner",
+            "PractitionerRole",
+            "Organization",
+            "Location",
+            "HealthcareService",
+            "Endpoint",
+            "Person",
+            "RelatedPerson",
+            "Group",
             // Clinical summary
-            "AllergyIntolerance", "Condition", "Procedure", "FamilyMemberHistory",
-            "ClinicalImpression", "DetectedIssue", "RiskAssessment",
-
+            "AllergyIntolerance",
+            "Condition",
+            "Procedure",
+            "FamilyMemberHistory",
+            "ClinicalImpression",
+            "DetectedIssue",
+            "RiskAssessment",
             // Diagnostics
-            "Observation", "DiagnosticReport", "ImagingStudy", "Specimen", "BodyStructure",
-            "Media", "DocumentReference", "DocumentManifest",
-
+            "Observation",
+            "DiagnosticReport",
+            "ImagingStudy",
+            "Specimen",
+            "BodyStructure",
+            "Media",
+            "DocumentReference",
+            "DocumentManifest",
             // Medications
-            "Medication", "MedicationRequest", "MedicationDispense", "MedicationStatement",
-            "MedicationAdministration", "MedicationKnowledge", "Immunization",
-            "ImmunizationEvaluation", "ImmunizationRecommendation",
-
+            "Medication",
+            "MedicationRequest",
+            "MedicationDispense",
+            "MedicationStatement",
+            "MedicationAdministration",
+            "MedicationKnowledge",
+            "Immunization",
+            "ImmunizationEvaluation",
+            "ImmunizationRecommendation",
             // Care provision
-            "CarePlan", "CareTeam", "Goal", "ServiceRequest", "NutritionOrder",
-            "VisionPrescription", "RequestGroup", "Communication", "CommunicationRequest",
-
+            "CarePlan",
+            "CareTeam",
+            "Goal",
+            "ServiceRequest",
+            "NutritionOrder",
+            "VisionPrescription",
+            "RequestGroup",
+            "Communication",
+            "CommunicationRequest",
             // Request & response
-            "DeviceRequest", "DeviceUseStatement", "GuidanceResponse", "SupplyRequest",
-            "SupplyDelivery", "Task",
-
+            "DeviceRequest",
+            "DeviceUseStatement",
+            "GuidanceResponse",
+            "SupplyRequest",
+            "SupplyDelivery",
+            "Task",
             // Foundation
-            "Encounter", "EpisodeOfCare", "Flag", "List", "Library", "Basic",
-
+            "Encounter",
+            "EpisodeOfCare",
+            "Flag",
+            "List",
+            "Library",
+            "Basic",
             // Security
-            "AuditEvent", "Provenance", "Consent",
-
+            "AuditEvent",
+            "Provenance",
+            "Consent",
             // Documents
-            "Composition", "Bundle",
-
+            "Composition",
+            "Bundle",
             // Financial
-            "Account", "Coverage", "CoverageEligibilityRequest", "CoverageEligibilityResponse",
-            "EnrollmentRequest", "EnrollmentResponse", "Claim", "ClaimResponse",
-            "Invoice", "PaymentNotice", "PaymentReconciliation", "ExplanationOfBenefit",
-
+            "Account",
+            "Coverage",
+            "CoverageEligibilityRequest",
+            "CoverageEligibilityResponse",
+            "EnrollmentRequest",
+            "EnrollmentResponse",
+            "Claim",
+            "ClaimResponse",
+            "Invoice",
+            "PaymentNotice",
+            "PaymentReconciliation",
+            "ExplanationOfBenefit",
             // Workflow
-            "Appointment", "AppointmentResponse", "Schedule", "Slot", "VerificationResult",
-
+            "Appointment",
+            "AppointmentResponse",
+            "Schedule",
+            "Slot",
+            "VerificationResult",
             // Specialized
-            "ResearchStudy", "ResearchSubject", "ActivityDefinition", "DeviceDefinition",
-            "EventDefinition", "ObservationDefinition", "PlanDefinition", "Questionnaire",
-            "QuestionnaireResponse", "Measure", "MeasureReport", "TestScript", "TestReport",
-
+            "ResearchStudy",
+            "ResearchSubject",
+            "ActivityDefinition",
+            "DeviceDefinition",
+            "EventDefinition",
+            "ObservationDefinition",
+            "PlanDefinition",
+            "Questionnaire",
+            "QuestionnaireResponse",
+            "Measure",
+            "MeasureReport",
+            "TestScript",
+            "TestReport",
             // Terminology
-            "CodeSystem", "ValueSet", "ConceptMap", "NamingSystem", "TerminologyCapabilities",
-
+            "CodeSystem",
+            "ValueSet",
+            "ConceptMap",
+            "NamingSystem",
+            "TerminologyCapabilities",
             // Conformance
-            "CapabilityStatement", "StructureDefinition", "ImplementationGuide",
-            "SearchParameter", "MessageDefinition", "OperationDefinition", "CompartmentDefinition",
-            "StructureMap", "GraphDefinition", "ExampleScenario",
-
+            "CapabilityStatement",
+            "StructureDefinition",
+            "ImplementationGuide",
+            "SearchParameter",
+            "MessageDefinition",
+            "OperationDefinition",
+            "CompartmentDefinition",
+            "StructureMap",
+            "GraphDefinition",
+            "ExampleScenario",
             // Operations
-            "Parameters", "OperationOutcome",
-
+            "Parameters",
+            "OperationOutcome",
             // Infrastructure
-            "Binary", "MessageHeader", "Subscription", "SubscriptionStatus", "SubscriptionTopic"
+            "Binary",
+            "MessageHeader",
+            "Subscription",
+            "SubscriptionStatus",
+            "SubscriptionTopic",
         ];
 
         // Add all types to known_types set
@@ -147,20 +265,27 @@ impl FhirTypeRegistry {
         // Set up inheritance hierarchy
         // Complex types inherit from Element
         for type_name in &complex_types {
-            self.type_hierarchy.insert(type_name.to_string(), "Element".to_string());
+            self.type_hierarchy
+                .insert(type_name.to_string(), "Element".to_string());
         }
 
         // All resources inherit from Resource
         for type_name in &resource_types {
             if *type_name != "Resource" {
                 if *type_name == "DomainResource" {
-                    self.type_hierarchy.insert(type_name.to_string(), "Resource".to_string());
-                } else if !matches!(*type_name, "Binary" | "Bundle" | "Parameters" | "OperationOutcome") {
+                    self.type_hierarchy
+                        .insert(type_name.to_string(), "Resource".to_string());
+                } else if !matches!(
+                    *type_name,
+                    "Binary" | "Bundle" | "Parameters" | "OperationOutcome"
+                ) {
                     // Most resources inherit from DomainResource
-                    self.type_hierarchy.insert(type_name.to_string(), "DomainResource".to_string());
+                    self.type_hierarchy
+                        .insert(type_name.to_string(), "DomainResource".to_string());
                 } else {
                     // Some resources inherit directly from Resource
-                    self.type_hierarchy.insert(type_name.to_string(), "Resource".to_string());
+                    self.type_hierarchy
+                        .insert(type_name.to_string(), "Resource".to_string());
                 }
             }
         }
@@ -168,24 +293,68 @@ impl FhirTypeRegistry {
         // Add base types
         self.known_types.insert("Element".to_string());
         self.known_types.insert("BackboneElement".to_string());
-        self.type_hierarchy.insert("BackboneElement".to_string(), "Element".to_string());
+        self.type_hierarchy
+            .insert("BackboneElement".to_string(), "Element".to_string());
     }
 
     /// Initialize polymorphic element mappings
     fn initialize_polymorphic_elements(&mut self) {
         // Common FHIR polymorphic elements with their possible type suffixes
         let polymorphic_mappings = vec![
-            ("value", vec!["Boolean", "Integer", "Decimal", "String", "Date", "DateTime", "Time",
-                          "Instant", "Uri", "Canonical", "Base64Binary", "Code", "Oid", "Id",
-                          "UnsignedInt", "PositiveInt", "Markdown", "Uuid", "Url", "Quantity",
-                          "CodeableConcept", "Coding", "Attachment", "Reference", "Period",
-                          "Range", "Ratio", "SampledData", "Signature", "HumanName", "Address",
-                          "ContactPoint", "Timing", "Meta", "Identifier"]),
+            (
+                "value",
+                vec![
+                    "Boolean",
+                    "Integer",
+                    "Decimal",
+                    "String",
+                    "Date",
+                    "DateTime",
+                    "Time",
+                    "Instant",
+                    "Uri",
+                    "Canonical",
+                    "Base64Binary",
+                    "Code",
+                    "Oid",
+                    "Id",
+                    "UnsignedInt",
+                    "PositiveInt",
+                    "Markdown",
+                    "Uuid",
+                    "Url",
+                    "Quantity",
+                    "CodeableConcept",
+                    "Coding",
+                    "Attachment",
+                    "Reference",
+                    "Period",
+                    "Range",
+                    "Ratio",
+                    "SampledData",
+                    "Signature",
+                    "HumanName",
+                    "Address",
+                    "ContactPoint",
+                    "Timing",
+                    "Meta",
+                    "Identifier",
+                ],
+            ),
             ("effective", vec!["DateTime", "Period", "Timing", "Instant"]),
-            ("onset", vec!["DateTime", "Age", "Period", "Range", "String"]),
-            ("abatement", vec!["DateTime", "Age", "Boolean", "Period", "Range", "String"]),
+            (
+                "onset",
+                vec!["DateTime", "Age", "Period", "Range", "String"],
+            ),
+            (
+                "abatement",
+                vec!["DateTime", "Age", "Boolean", "Period", "Range", "String"],
+            ),
             ("occurrence", vec!["DateTime", "Period", "Timing"]),
-            ("performed", vec!["DateTime", "Period", "String", "Age", "Range"]),
+            (
+                "performed",
+                vec!["DateTime", "Period", "String", "Age", "Range"],
+            ),
             ("deceased", vec!["Boolean", "DateTime"]),
             ("multipleBirth", vec!["Boolean", "Integer"]),
             ("bodySite", vec!["CodeableConcept", "Reference"]),
@@ -198,7 +367,10 @@ impl FhirTypeRegistry {
         ];
 
         for (base_name, suffixes) in polymorphic_mappings {
-            self.polymorphic_elements.insert(base_name.to_string(), suffixes.into_iter().map(|s| s.to_string()).collect());
+            self.polymorphic_elements.insert(
+                base_name.to_string(),
+                suffixes.into_iter().map(|s| s.to_string()).collect(),
+            );
         }
     }
 
@@ -264,7 +436,11 @@ impl FhirTypeRegistry {
     }
 
     /// Find polymorphic property in a JSON object
-    pub fn find_polymorphic_property_name(&self, properties: &std::collections::BTreeMap<String, serde_json::Value>, base_name: &str) -> Option<String> {
+    pub fn find_polymorphic_property_name(
+        &self,
+        properties: &std::collections::BTreeMap<String, serde_json::Value>,
+        base_name: &str,
+    ) -> Option<String> {
         if let Some(suffixes) = self.get_polymorphic_suffixes(base_name) {
             for suffix in suffixes {
                 let property_name = format!("{}{}", base_name, suffix);
@@ -335,7 +511,10 @@ mod tests {
     fn test_normalize_type_name() {
         let registry = FhirTypeRegistry::new();
 
-        assert_eq!(registry.normalize_type_name("System.String"), "System.String");
+        assert_eq!(
+            registry.normalize_type_name("System.String"),
+            "System.String"
+        );
         assert_eq!(registry.normalize_type_name("FHIR.Patient"), "Patient");
         assert_eq!(registry.normalize_type_name("Patient"), "Patient");
     }

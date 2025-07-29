@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 4: Try to load a FHIR resource (if available)
     println!("📝 Example 4: FHIR Resource Navigation");
-    
+
     // Create a simple patient resource
     let patient_json = serde_json::json!({
         "resourceType": "Patient",
@@ -115,13 +115,13 @@ fn run_simple_test(
     expected_desc: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("  Testing: {}", expression);
-    
+
     let ast = fhirpath_parser::parse(expression)?;
     let result = engine.evaluate(&ast, input)?;
-    
+
     println!("  Result: {:?}", result);
     println!("  Expected: {}", expected_desc);
     println!();
-    
+
     Ok(())
 }

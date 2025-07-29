@@ -72,12 +72,12 @@ full = ["async-schema", "lsp-diagnostics"]
 # Testing framework dependencies
 pretty_assertions = "1.4.0"
 rstest = "0.18.2"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 
 # XML parsing for some test formats
 quick-xml = "0.31"
 serde-xml-rs = "0.6"
 
 # For enhanced formatting and output
-colored = "2.0"
+colored = "3.0"
 comfy-table = "7.0"

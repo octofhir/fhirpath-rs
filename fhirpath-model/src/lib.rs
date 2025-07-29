@@ -6,18 +6,18 @@
 #![warn(missing_docs)]
 
 pub mod error;
-pub mod value;
-pub mod resource;
-pub mod quantity;
-pub mod types;
 pub mod provider;
+pub mod quantity;
+pub mod resource;
+pub mod types;
+pub mod value;
 
 pub use error::{ModelError, Result};
-pub use value::{FhirPathValue, Collection};
-pub use resource::FhirResource;
+pub use provider::{FhirVersion, ModelProvider};
 pub use quantity::Quantity;
+pub use resource::FhirResource;
 pub use types::TypeInfo;
-pub use provider::{ModelProvider, FhirVersion};
+pub use value::{Collection, FhirPathValue};
 
 // Re-export FHIR Schema types when async-schema feature is enabled
 #[cfg(feature = "async-schema")]

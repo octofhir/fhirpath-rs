@@ -3,11 +3,11 @@
 //! This module defines the core value types used in FHIRPath expressions.
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use octofhir_ucum_core::{self, OwnedUnitExpr};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use octofhir_ucum_core::{self, OwnedUnitExpr};
 
 /// Core value type for FHIRPath expressions
 ///
@@ -106,7 +106,7 @@ impl FhirResource {
         if path.contains('.') {
             let parts: Vec<&str> = path.split('.').collect();
             let mut current = &self.data;
-            
+
             for part in parts {
                 match current {
                     Value::Object(obj) => {
@@ -155,7 +155,8 @@ impl FhirPathValue {
         use std::sync::{Mutex, OnceLock};
 
         // Static cache for parsed UCUM units
-        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<OwnedUnitExpr>>>>> = OnceLock::new();
+        static UCUM_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<OwnedUnitExpr>>>>> =
+            OnceLock::new();
 
         // Early validation to prevent potential issues
         if unit_str.is_empty() {
@@ -203,7 +204,7 @@ impl FhirPathValue {
             Ok(Ok(expr)) => {
                 log::debug!("Successfully parsed UCUM unit: {}", unit_str);
                 Some(Arc::new(expr))
-            },
+            }
             Ok(Err(e)) => {
                 log::debug!("Failed to parse UCUM unit '{}': {}", unit_str, e);
                 None
@@ -230,14 +231,21 @@ impl FhirPathValue {
     /// Check if two quantities have compatible dimensions
     pub fn has_compatible_dimensions(&self, other: &FhirPathValue) -> bool {
         match (self, other) {
-            (Self::Quantity { unit: Some(unit1), .. }, Self::Quantity { unit: Some(unit2), .. }) => {
+            (
+                Self::Quantity {
+                    unit: Some(unit1), ..
+                },
+                Self::Quantity {
+                    unit: Some(unit2), ..
+                },
+            ) => {
                 // Use the UCUM library to check if units are comparable
                 octofhir_ucum_core::is_comparable(unit1, unit2).unwrap_or(false)
-            },
+            }
             (Self::Quantity { unit: None, .. }, Self::Quantity { unit: None, .. }) => {
                 // Unitless quantities are comparable
                 true
-            },
+            }
             _ => false,
         }
     }
@@ -245,7 +253,11 @@ impl FhirPathValue {
     /// Convert a quantity to a different unit
     pub fn convert_to_unit(&self, target_unit: &str) -> Result<Self, crate::error::FhirPathError> {
         match self {
-            Self::Quantity { value, unit: Some(unit), ucum_expr: _ } => {
+            Self::Quantity {
+                value,
+                unit: Some(unit),
+                ucum_expr: _,
+            } => {
                 // Validate the target unit
                 match octofhir_ucum_core::validate(target_unit) {
                     Ok(_) => {
@@ -254,46 +266,51 @@ impl FhirPathValue {
                             Ok(true) => {
                                 // If units are the same, no conversion needed
                                 if unit == target_unit {
-                                    return Ok(Self::quantity(value.clone(), Some(target_unit.to_string())));
+                                    return Ok(Self::quantity(
+                                        value.clone(),
+                                        Some(target_unit.to_string()),
+                                    ));
                                 }
 
                                 // For different units, we'll return an error for now to avoid freezing
                                 // This is a temporary solution until we can implement proper UCUM conversion
                                 Err(crate::error::FhirPathError::conversion_error(
                                     format!("Unit conversion not yet implemented"),
-                                    format!("from {} to {}", unit, target_unit)
+                                    format!("from {} to {}", unit, target_unit),
                                 ))
-                            },
+                            }
                             Ok(false) => Err(crate::error::FhirPathError::conversion_error(
                                 format!("Units are not comparable"),
-                                format!("{} and {}", unit, target_unit)
+                                format!("{} and {}", unit, target_unit),
                             )),
                             Err(e) => Err(crate::error::FhirPathError::conversion_error(
                                 format!("Error checking unit compatibility"),
-                                format!("{}: {}", unit, e)
+                                format!("{}: {}", unit, e),
                             )),
                         }
-                    },
+                    }
                     Err(e) => Err(crate::error::FhirPathError::conversion_error(
                         format!("Invalid target unit"),
-                        format!("{}: {}", target_unit, e)
+                        format!("{}: {}", target_unit, e),
                     )),
                 }
-            },
-            Self::Quantity { value, unit: None, .. } => {
+            }
+            Self::Quantity {
+                value, unit: None, ..
+            } => {
                 // Unitless quantity - can only convert to another unitless quantity
                 if target_unit.is_empty() {
                     Ok(Self::quantity(value.clone(), None))
                 } else {
                     Err(crate::error::FhirPathError::conversion_error(
                         format!("Cannot convert unitless quantity"),
-                        format!("to {}", target_unit)
+                        format!("to {}", target_unit),
                     ))
                 }
-            },
+            }
             _ => Err(crate::error::FhirPathError::conversion_error(
                 format!("Cannot convert non-quantity value"),
-                format!("to unit {}", target_unit)
+                format!("to unit {}", target_unit),
             )),
         }
     }
@@ -301,7 +318,14 @@ impl FhirPathValue {
     /// Get the most granular unit between two quantities
     pub fn most_granular_unit(&self, other: &FhirPathValue) -> Option<String> {
         match (self, other) {
-            (Self::Quantity { unit: Some(unit1), .. }, Self::Quantity { unit: Some(unit2), .. }) => {
+            (
+                Self::Quantity {
+                    unit: Some(unit1), ..
+                },
+                Self::Quantity {
+                    unit: Some(unit2), ..
+                },
+            ) => {
                 // For now, we'll use a simple heuristic: longer unit strings are likely more granular
                 // In a more sophisticated implementation, we would use UCUM to determine granularity
                 if unit1.len() >= unit2.len() {
@@ -309,10 +333,19 @@ impl FhirPathValue {
                 } else {
                     Some(unit2.clone())
                 }
-            },
-            (Self::Quantity { unit: Some(unit), .. }, _) | (_, Self::Quantity { unit: Some(unit), .. }) => {
-                Some(unit.clone())
-            },
+            }
+            (
+                Self::Quantity {
+                    unit: Some(unit), ..
+                },
+                _,
+            )
+            | (
+                _,
+                Self::Quantity {
+                    unit: Some(unit), ..
+                },
+            ) => Some(unit.clone()),
             _ => None,
         }
     }
@@ -448,10 +481,13 @@ impl From<Value> for FhirPathValue {
             }
             Value::Object(ref obj) => {
                 // Check if this looks like a Quantity
-                if obj.contains_key("value") && (obj.contains_key("unit") || obj.contains_key("code")) {
+                if obj.contains_key("value")
+                    && (obj.contains_key("unit") || obj.contains_key("code"))
+                {
                     if let Some(value_json) = obj.get("value") {
                         if let Some(value_num) = value_json.as_f64() {
-                            let unit = obj.get("unit")
+                            let unit = obj
+                                .get("unit")
                                 .or_else(|| obj.get("code"))
                                 .and_then(|u| u.as_str())
                                 .map(|s| s.to_string());
@@ -499,9 +535,7 @@ impl std::fmt::Display for FhirPathValue {
                 }
             }
             Self::Collection(items) => {
-                let item_strings: Vec<String> = items.iter()
-                    .map(|item| item.to_string())
-                    .collect();
+                let item_strings: Vec<String> = items.iter().map(|item| item.to_string()).collect();
                 write!(f, "[{}]", item_strings.join(", "))
             }
             Self::Resource(resource) => write!(f, "{}", resource.data),

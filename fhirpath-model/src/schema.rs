@@ -1,9 +1,9 @@
 //! FHIR Schema support for model provider
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 use crate::error::{ModelError, Result};
 use crate::provider::{FhirVersion, ModelProvider, SearchParameter};
@@ -114,7 +114,9 @@ impl FhirSchemaProvider {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(config.timeout_seconds))
             .build()
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                ModelError::schema_load_error(format!("Failed to create HTTP client: {}", e))
+            })?;
 
         let mut last_error = None;
 
@@ -126,16 +128,17 @@ impl FhirSchemaProvider {
                     last_error = Some(e);
                     if attempt < config.max_retries {
                         // Exponential backoff
-                        let delay = Duration::from_millis(config.retry_delay_ms * (2_u64.pow(attempt - 1)));
+                        let delay =
+                            Duration::from_millis(config.retry_delay_ms * (2_u64.pow(attempt - 1)));
                         tokio::time::sleep(delay).await;
                     }
                 }
             }
         }
 
-        Err(last_error.unwrap_or_else(||
+        Err(last_error.unwrap_or_else(|| {
             ModelError::schema_load_error("Unknown error during schema loading".to_string())
-        ))
+        }))
     }
 
     /// Internal method to fetch schema with HTTP client
@@ -157,10 +160,9 @@ impl FhirSchemaProvider {
             request = request.header(key, value);
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to fetch schema from {}: {}", url, e)))?;
+        let response = request.send().await.map_err(|e| {
+            ModelError::schema_load_error(format!("Failed to fetch schema from {}: {}", url, e))
+        })?;
 
         // Check response status
         if !response.status().is_success() {
@@ -171,13 +173,13 @@ impl FhirSchemaProvider {
             )));
         }
 
-        let schema_text = response
-            .text()
-            .await
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to read response body: {}", e)))?;
+        let schema_text = response.text().await.map_err(|e| {
+            ModelError::schema_load_error(format!("Failed to read response body: {}", e))
+        })?;
 
-        let schema: FhirSchema = serde_json::from_str(&schema_text)
-            .map_err(|e| ModelError::schema_load_error(format!("Failed to parse schema JSON: {}", e)))?;
+        let schema: FhirSchema = serde_json::from_str(&schema_text).map_err(|e| {
+            ModelError::schema_load_error(format!("Failed to parse schema JSON: {}", e))
+        })?;
 
         let version = detect_fhir_version(&schema);
 
@@ -270,7 +272,9 @@ impl ModelProvider for FhirSchemaProvider {
         };
 
         // Cache the result
-        self.type_cache.write().insert(type_name.to_string(), type_info.clone());
+        self.type_cache
+            .write()
+            .insert(type_name.to_string(), type_info.clone());
 
         Some(type_info)
     }
@@ -315,9 +319,7 @@ impl ModelProvider for FhirSchemaProvider {
             type_def
                 .elements
                 .iter()
-                .map(|(name, element)| {
-                    (name.clone(), self.element_to_type_info(element))
-                })
+                .map(|(name, element)| (name.clone(), self.element_to_type_info(element)))
                 .collect()
         } else {
             Vec::new()
@@ -369,6 +371,9 @@ mod tests {
             code: "Quantity".to_string(),
             target_profiles: None,
         };
-        assert_eq!(provider.type_ref_to_type_info(&quantity_ref), TypeInfo::Quantity);
+        assert_eq!(
+            provider.type_ref_to_type_info(&quantity_ref),
+            TypeInfo::Quantity
+        );
     }
 }

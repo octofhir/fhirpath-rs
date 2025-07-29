@@ -1,6 +1,6 @@
 //! Mathematical functions
 
-use crate::function::{FhirPathFunction, FunctionError, FunctionResult, EvaluationContext};
+use crate::function::{EvaluationContext, FhirPathFunction, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use fhirpath_model::{FhirPathValue, TypeInfo};
 use rust_decimal::prelude::*;
@@ -9,26 +9,27 @@ use rust_decimal::prelude::*;
 pub struct AbsFunction;
 
 impl FhirPathFunction for AbsFunction {
-    fn name(&self) -> &str { "abs" }
-    fn human_friendly_name(&self) -> &str { "Absolute Value" }
+    fn name(&self) -> &str {
+        "abs"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Absolute Value"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "abs",
-                vec![],
-                TypeInfo::Any,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("abs", vec![], TypeInfo::Any));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         // Handle single-element collections (common in method calls like (-5).abs())
         let input_value = match &context.input {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.get(0).unwrap()
-            }
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap(),
             other => other,
         };
 
@@ -37,11 +38,13 @@ impl FhirPathFunction for AbsFunction {
             FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(d.abs())),
             FhirPathValue::Quantity(q) => {
                 if q.value < rust_decimal::Decimal::ZERO {
-                    Ok(FhirPathValue::Quantity(q.multiply_scalar(rust_decimal::Decimal::from(-1))))
+                    Ok(FhirPathValue::Quantity(
+                        q.multiply_scalar(rust_decimal::Decimal::from(-1)),
+                    ))
                 } else {
                     Ok(FhirPathValue::Quantity(q.clone()))
                 }
-            },
+            }
             FhirPathValue::Collection(collection) => {
                 let mut results = Vec::new();
                 for item in collection.iter() {
@@ -50,21 +53,27 @@ impl FhirPathFunction for AbsFunction {
                         FhirPathValue::Decimal(d) => results.push(FhirPathValue::Decimal(d.abs())),
                         FhirPathValue::Quantity(q) => {
                             if q.value < rust_decimal::Decimal::ZERO {
-                                results.push(FhirPathValue::Quantity(q.multiply_scalar(rust_decimal::Decimal::from(-1))));
+                                results.push(FhirPathValue::Quantity(
+                                    q.multiply_scalar(rust_decimal::Decimal::from(-1)),
+                                ));
                             } else {
                                 results.push(FhirPathValue::Quantity(q.clone()));
                             }
-                        },
-                        _ => return Err(FunctionError::InvalidArgumentType {
-                            name: self.name().to_string(),
-                            index: 0,
-                            expected: "Number or Quantity".to_string(),
-                            actual: format!("{:?}", item),
-                        }),
+                        }
+                        _ => {
+                            return Err(FunctionError::InvalidArgumentType {
+                                name: self.name().to_string(),
+                                index: 0,
+                                expected: "Number or Quantity".to_string(),
+                                actual: format!("{:?}", item),
+                            });
+                        }
                     }
                 }
-                Ok(FhirPathValue::Collection(fhirpath_model::Collection::from_vec(results)))
-            },
+                Ok(FhirPathValue::Collection(
+                    fhirpath_model::Collection::from_vec(results),
+                ))
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
                 name: self.name().to_string(),
@@ -80,26 +89,28 @@ impl FhirPathFunction for AbsFunction {
 pub struct CeilingFunction;
 
 impl FhirPathFunction for CeilingFunction {
-    fn name(&self) -> &str { "ceiling" }
-    fn human_friendly_name(&self) -> &str { "Ceiling" }
+    fn name(&self) -> &str {
+        "ceiling"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Ceiling"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "ceiling",
-                vec![],
-                TypeInfo::Integer,
-            )
+            FunctionSignature::new("ceiling", vec![], TypeInfo::Integer)
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         // Handle single-element collections (common in method calls like (1.5).ceiling())
         let input_value = match &context.input {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.get(0).unwrap()
-            }
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap(),
             other => other,
         };
 
@@ -121,32 +132,35 @@ impl FhirPathFunction for CeilingFunction {
 pub struct FloorFunction;
 
 impl FhirPathFunction for FloorFunction {
-    fn name(&self) -> &str { "floor" }
-    fn human_friendly_name(&self) -> &str { "Floor" }
+    fn name(&self) -> &str {
+        "floor"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Floor"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "floor",
-                vec![],
-                TypeInfo::Integer,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("floor", vec![], TypeInfo::Integer));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         // Handle single-element collections (common in method calls like (1.5).floor())
         let input_value = match &context.input {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.get(0).unwrap()
-            }
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap(),
             other => other,
         };
 
         match input_value {
             FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Integer(d.floor().to_i64().unwrap_or(0))),
+            FhirPathValue::Decimal(d) => {
+                Ok(FhirPathValue::Integer(d.floor().to_i64().unwrap_or(0)))
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
                 name: self.name().to_string(),
@@ -162,8 +176,12 @@ impl FhirPathFunction for FloorFunction {
 pub struct RoundFunction;
 
 impl FhirPathFunction for RoundFunction {
-    fn name(&self) -> &str { "round" }
-    fn human_friendly_name(&self) -> &str { "Round" }
+    fn name(&self) -> &str {
+        "round"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Round"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
@@ -174,14 +192,16 @@ impl FhirPathFunction for RoundFunction {
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         // Handle single-element collections (common in method calls like (1.5).round())
         let input_value = match &context.input {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.get(0).unwrap()
-            }
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap(),
             other => other,
         };
 
@@ -209,30 +229,32 @@ impl FhirPathFunction for RoundFunction {
 pub struct SqrtFunction;
 
 impl FhirPathFunction for SqrtFunction {
-    fn name(&self) -> &str { "sqrt" }
-    fn human_friendly_name(&self) -> &str { "Square Root" }
+    fn name(&self) -> &str {
+        "sqrt"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Square Root"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "sqrt",
-                vec![],
-                TypeInfo::Decimal,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("sqrt", vec![], TypeInfo::Decimal));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
             FhirPathValue::Integer(i) => {
                 if *i < 0 {
-                    return Err(FunctionError::EvaluationError {
-                        name: self.name().to_string(),
-                        message: "Cannot take square root of negative number".to_string(),
-                    });
+                    return Ok(FhirPathValue::Empty);
                 }
                 let result = (*i as f64).sqrt();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Decimal(d) => {
                 if d.is_sign_negative() {
@@ -242,7 +264,9 @@ impl FhirPathFunction for SqrtFunction {
                     });
                 }
                 let result = d.to_f64().unwrap_or(0.0).sqrt();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
@@ -259,23 +283,29 @@ impl FhirPathFunction for SqrtFunction {
 pub struct TruncateFunction;
 
 impl FhirPathFunction for TruncateFunction {
-    fn name(&self) -> &str { "truncate" }
-    fn human_friendly_name(&self) -> &str { "Truncate" }
+    fn name(&self) -> &str {
+        "truncate"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Truncate"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "truncate",
-                vec![],
-                TypeInfo::Integer,
-            )
+            FunctionSignature::new("truncate", vec![], TypeInfo::Integer)
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
             FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Integer(d.trunc().to_i64().unwrap_or(0))),
+            FhirPathValue::Decimal(d) => {
+                Ok(FhirPathValue::Integer(d.trunc().to_i64().unwrap_or(0)))
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
                 name: self.name().to_string(),
@@ -291,28 +321,35 @@ impl FhirPathFunction for TruncateFunction {
 pub struct ExpFunction;
 
 impl FhirPathFunction for ExpFunction {
-    fn name(&self) -> &str { "exp" }
-    fn human_friendly_name(&self) -> &str { "Exponential" }
+    fn name(&self) -> &str {
+        "exp"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Exponential"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "exp",
-                vec![],
-                TypeInfo::Decimal,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("exp", vec![], TypeInfo::Decimal));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
             FhirPathValue::Integer(i) => {
                 let result = (*i as f64).exp();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Decimal(d) => {
                 let result = d.to_f64().unwrap_or(0.0).exp();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
@@ -329,19 +366,22 @@ impl FhirPathFunction for ExpFunction {
 pub struct LnFunction;
 
 impl FhirPathFunction for LnFunction {
-    fn name(&self) -> &str { "ln" }
-    fn human_friendly_name(&self) -> &str { "Natural Logarithm" }
+    fn name(&self) -> &str {
+        "ln"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Natural Logarithm"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "ln",
-                vec![],
-                TypeInfo::Decimal,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("ln", vec![], TypeInfo::Decimal));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
             FhirPathValue::Integer(i) => {
@@ -352,7 +392,9 @@ impl FhirPathFunction for LnFunction {
                     });
                 }
                 let result = (*i as f64).ln();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Decimal(d) => {
                 if d.is_sign_negative() || d.is_zero() {
@@ -362,7 +404,9 @@ impl FhirPathFunction for LnFunction {
                     });
                 }
                 let result = d.to_f64().unwrap_or(0.0).ln();
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
@@ -379,8 +423,12 @@ impl FhirPathFunction for LnFunction {
 pub struct LogFunction;
 
 impl FhirPathFunction for LogFunction {
-    fn name(&self) -> &str { "log" }
-    fn human_friendly_name(&self) -> &str { "Logarithm" }
+    fn name(&self) -> &str {
+        "log"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Logarithm"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
@@ -391,17 +439,23 @@ impl FhirPathFunction for LogFunction {
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         let base = match &args[0] {
             FhirPathValue::Integer(i) => *i as f64,
             FhirPathValue::Decimal(d) => d.to_f64().unwrap_or(0.0),
-            _ => return Err(FunctionError::InvalidArgumentType {
-                name: self.name().to_string(),
-                index: 0,
-                expected: "Number".to_string(),
-                actual: format!("{:?}", args[0]),
-            }),
+            _ => {
+                return Err(FunctionError::InvalidArgumentType {
+                    name: self.name().to_string(),
+                    index: 0,
+                    expected: "Number".to_string(),
+                    actual: format!("{:?}", args[0]),
+                });
+            }
         };
 
         if base <= 0.0 || base == 1.0 {
@@ -420,7 +474,9 @@ impl FhirPathFunction for LogFunction {
                     });
                 }
                 let result = (*i as f64).log(base);
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Decimal(d) => {
                 if d.is_sign_negative() || d.is_zero() {
@@ -430,7 +486,9 @@ impl FhirPathFunction for LogFunction {
                     });
                 }
                 let result = d.to_f64().unwrap_or(0.0).log(base);
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
@@ -447,8 +505,12 @@ impl FhirPathFunction for LogFunction {
 pub struct PowerFunction;
 
 impl FhirPathFunction for PowerFunction {
-    fn name(&self) -> &str { "power" }
-    fn human_friendly_name(&self) -> &str { "Power" }
+    fn name(&self) -> &str {
+        "power"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Power"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
@@ -459,17 +521,23 @@ impl FhirPathFunction for PowerFunction {
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         let exponent = match &args[0] {
             FhirPathValue::Integer(i) => *i as f64,
             FhirPathValue::Decimal(d) => d.to_f64().unwrap_or(0.0),
-            _ => return Err(FunctionError::InvalidArgumentType {
-                name: self.name().to_string(),
-                index: 0,
-                expected: "Number".to_string(),
-                actual: format!("{:?}", args[0]),
-            }),
+            _ => {
+                return Err(FunctionError::InvalidArgumentType {
+                    name: self.name().to_string(),
+                    index: 0,
+                    expected: "Number".to_string(),
+                    actual: format!("{:?}", args[0]),
+                });
+            }
         };
 
         match &context.input {
@@ -479,12 +547,16 @@ impl FhirPathFunction for PowerFunction {
                     // Integer result for integer exponents
                     Ok(FhirPathValue::Integer(result as i64))
                 } else {
-                    Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        Decimal::from_f64(result).unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Decimal(d) => {
                 let result = d.to_f64().unwrap_or(0.0).powf(exponent);
-                Ok(FhirPathValue::Decimal(Decimal::from_f64(result).unwrap_or_default()))
+                Ok(FhirPathValue::Decimal(
+                    Decimal::from_f64(result).unwrap_or_default(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
@@ -501,19 +573,22 @@ impl FhirPathFunction for PowerFunction {
 pub struct SumFunction;
 
 impl FhirPathFunction for SumFunction {
-    fn name(&self) -> &str { "sum" }
-    fn human_friendly_name(&self) -> &str { "Sum" }
+    fn name(&self) -> &str {
+        "sum"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Sum"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "sum",
-                vec![],
-                TypeInfo::Any,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("sum", vec![], TypeInfo::Any));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         let items = match &context.input {
@@ -552,12 +627,14 @@ impl FhirPathFunction for SumFunction {
                 FhirPathValue::Empty => {
                     // Skip empty values
                 }
-                _ => return Err(FunctionError::InvalidArgumentType {
-                    name: self.name().to_string(),
-                    index: 0,
-                    expected: "Number".to_string(),
-                    actual: format!("{:?}", item),
-                }),
+                _ => {
+                    return Err(FunctionError::InvalidArgumentType {
+                        name: self.name().to_string(),
+                        index: 0,
+                        expected: "Number".to_string(),
+                        actual: format!("{:?}", item),
+                    });
+                }
             }
         }
 
@@ -575,19 +652,22 @@ impl FhirPathFunction for SumFunction {
 pub struct AvgFunction;
 
 impl FhirPathFunction for AvgFunction {
-    fn name(&self) -> &str { "avg" }
-    fn human_friendly_name(&self) -> &str { "Average" }
+    fn name(&self) -> &str {
+        "avg"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Average"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "avg",
-                vec![],
-                TypeInfo::Decimal,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("avg", vec![], TypeInfo::Decimal));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         let items = match &context.input {
@@ -616,12 +696,14 @@ impl FhirPathFunction for AvgFunction {
                 FhirPathValue::Empty => {
                     // Skip empty values
                 }
-                _ => return Err(FunctionError::InvalidArgumentType {
-                    name: self.name().to_string(),
-                    index: 0,
-                    expected: "Number".to_string(),
-                    actual: format!("{:?}", item),
-                }),
+                _ => {
+                    return Err(FunctionError::InvalidArgumentType {
+                        name: self.name().to_string(),
+                        index: 0,
+                        expected: "Number".to_string(),
+                        actual: format!("{:?}", item),
+                    });
+                }
             }
         }
 
@@ -637,19 +719,22 @@ impl FhirPathFunction for AvgFunction {
 pub struct MinFunction;
 
 impl FhirPathFunction for MinFunction {
-    fn name(&self) -> &str { "min" }
-    fn human_friendly_name(&self) -> &str { "Minimum" }
+    fn name(&self) -> &str {
+        "min"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Minimum"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "min",
-                vec![],
-                TypeInfo::Any,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("min", vec![], TypeInfo::Any));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         let items = match &context.input {
@@ -690,7 +775,11 @@ impl FhirPathFunction for MinFunction {
 }
 
 impl MinFunction {
-    fn compare_values(&self, a: &FhirPathValue, b: &FhirPathValue) -> Result<std::cmp::Ordering, FunctionError> {
+    fn compare_values(
+        &self,
+        a: &FhirPathValue,
+        b: &FhirPathValue,
+    ) -> Result<std::cmp::Ordering, FunctionError> {
         use std::cmp::Ordering;
 
         match (a, b) {
@@ -716,19 +805,22 @@ impl MinFunction {
 pub struct MaxFunction;
 
 impl FhirPathFunction for MaxFunction {
-    fn name(&self) -> &str { "max" }
-    fn human_friendly_name(&self) -> &str { "Maximum" }
+    fn name(&self) -> &str {
+        "max"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Maximum"
+    }
     fn signature(&self) -> &FunctionSignature {
-        static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "max",
-                vec![],
-                TypeInfo::Any,
-            )
-        });
+        static SIG: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature::new("max", vec![], TypeInfo::Any));
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         let items = match &context.input {
@@ -769,7 +861,11 @@ impl FhirPathFunction for MaxFunction {
 }
 
 impl MaxFunction {
-    fn compare_values(&self, a: &FhirPathValue, b: &FhirPathValue) -> Result<std::cmp::Ordering, FunctionError> {
+    fn compare_values(
+        &self,
+        a: &FhirPathValue,
+        b: &FhirPathValue,
+    ) -> Result<std::cmp::Ordering, FunctionError> {
         use std::cmp::Ordering;
 
         match (a, b) {
@@ -795,19 +891,23 @@ impl MaxFunction {
 pub struct PrecisionFunction;
 
 impl FhirPathFunction for PrecisionFunction {
-    fn name(&self) -> &str { "precision" }
-    fn human_friendly_name(&self) -> &str { "Precision" }
+    fn name(&self) -> &str {
+        "precision"
+    }
+    fn human_friendly_name(&self) -> &str {
+        "Precision"
+    }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
-                "precision",
-                vec![],
-                TypeInfo::Integer,
-            )
+            FunctionSignature::new("precision", vec![], TypeInfo::Integer)
         });
         &SIG
     }
-    fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
 
         // Get the value to evaluate precision for
@@ -824,7 +924,11 @@ impl FhirPathFunction for PrecisionFunction {
         match value {
             FhirPathValue::Integer(i) => {
                 // For integers, precision is the number of digits
-                let precision = if *i == 0 { 1 } else { i.abs().to_string().len() };
+                let precision = if *i == 0 {
+                    1
+                } else {
+                    i.abs().to_string().len()
+                };
                 Ok(FhirPathValue::Integer(precision as i64))
             }
             FhirPathValue::Decimal(d) => {
@@ -913,7 +1017,8 @@ impl PrecisionFunction {
         // Expected: 2014-01-05T10:30:00.000 -> 17
 
         // Remove separators and count meaningful characters
-        let chars_only: String = datetime_str.chars()
+        let chars_only: String = datetime_str
+            .chars()
             .filter(|&c| c.is_ascii_digit())
             .collect();
 
@@ -928,7 +1033,8 @@ impl PrecisionFunction {
         // Expected: T10:30:00.000 -> 9 (10, 30, 00, 000)
 
         // Remove 'T' prefix and separators, count digits
-        let chars_only: String = time_str.trim_start_matches('T')
+        let chars_only: String = time_str
+            .trim_start_matches('T')
             .chars()
             .filter(|&c| c.is_ascii_digit())
             .collect();
@@ -941,7 +1047,7 @@ impl PrecisionFunction {
 mod tests {
     use super::*;
     use crate::function::EvaluationContext;
-    use fhirpath_model::{FhirPathValue, Collection};
+    use fhirpath_model::{Collection, FhirPathValue};
     use rust_decimal::Decimal;
     use std::str::FromStr;
 

@@ -1,12 +1,11 @@
 //! Core value types for FHIRPath expressions
 
-use chrono::{DateTime, NaiveDate, NaiveTime, Utc, FixedOffset};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;
 
-use crate::error::{ModelError, Result};
 use crate::quantity::Quantity;
 use crate::resource::FhirResource;
 use crate::types::TypeInfo;
@@ -47,6 +46,9 @@ pub enum FhirPathValue {
 
     /// FHIR Resource or complex object
     Resource(FhirResource),
+
+    /// Type information object with namespace and name properties
+    TypeInfoObject { namespace: String, name: String },
 
     /// Empty value (equivalent to an empty collection)
     Empty,
@@ -251,6 +253,7 @@ impl FhirPathValue {
             Self::Quantity(_) => "Quantity",
             Self::Collection(_) => "Collection",
             Self::Resource(_) => "Resource",
+            Self::TypeInfoObject { .. } => "TypeInfo",
             Self::Empty => "Empty",
         }
     }
@@ -274,10 +277,11 @@ impl FhirPathValue {
                     // Use the type of the first element
                     TypeInfo::Collection(Box::new(items.first().unwrap().to_type_info()))
                 }
-            },
+            }
             Self::Resource(resource) => {
                 TypeInfo::Resource(resource.resource_type().unwrap_or("Unknown").to_string())
-            },
+            }
+            Self::TypeInfoObject { .. } => TypeInfo::Any, // TypeInfo objects don't have a type themselves
             Self::Empty => TypeInfo::Any,
         }
     }
@@ -329,6 +333,7 @@ impl FhirPathValue {
                 | (DateTime(_), DateTime(_))
                 | (Time(_), Time(_))
                 | (Quantity(_), Quantity(_))
+                | (TypeInfoObject { .. }, TypeInfoObject { .. })
         )
     }
 }
@@ -371,7 +376,9 @@ impl From<Value> for FhirPathValue {
             }
             Value::Object(ref obj) => {
                 // Check if this looks like a Quantity
-                if obj.contains_key("value") && (obj.contains_key("unit") || obj.contains_key("code")) {
+                if obj.contains_key("value")
+                    && (obj.contains_key("unit") || obj.contains_key("code"))
+                {
                     if let Some(value_json) = obj.get("value") {
                         if let Some(value_num) = value_json.as_f64() {
                             let unit = obj
@@ -384,6 +391,19 @@ impl From<Value> for FhirPathValue {
                                 return Self::Quantity(Quantity::new(decimal_value, unit));
                             }
                         }
+                    }
+                }
+
+                // Check if this looks like a TypeInfo object
+                if obj.contains_key("namespace") && obj.contains_key("name") {
+                    if let (Some(namespace), Some(name)) = (
+                        obj.get("namespace").and_then(|v| v.as_str()),
+                        obj.get("name").and_then(|v| v.as_str()),
+                    ) {
+                        return Self::TypeInfoObject {
+                            namespace: namespace.to_string(),
+                            name: name.to_string(),
+                        };
                     }
                 }
 
@@ -415,7 +435,9 @@ impl From<FhirPathValue> for Value {
             }
             FhirPathValue::String(s) => Value::String(s),
             FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
-            FhirPathValue::DateTime(dt) => Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z"))),
+            FhirPathValue::DateTime(dt) => {
+                Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))
+            }
             FhirPathValue::Time(t) => Value::String(format!("@T{}", t.format("%H:%M:%S"))),
             FhirPathValue::Quantity(q) => q.to_json(),
             FhirPathValue::Collection(items) => {
@@ -423,6 +445,12 @@ impl From<FhirPathValue> for Value {
                 Value::Array(json_items)
             }
             FhirPathValue::Resource(resource) => resource.to_json(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                let mut obj = serde_json::Map::new();
+                obj.insert("namespace".to_string(), Value::String(namespace));
+                obj.insert("name".to_string(), Value::String(name));
+                Value::Object(obj)
+            }
             FhirPathValue::Empty => Value::Null,
         }
     }
@@ -445,6 +473,9 @@ impl fmt::Display for FhirPathValue {
                 write!(f, "[{}]", item_strings.join(", "))
             }
             Self::Resource(resource) => write!(f, "{}", resource.to_json()),
+            Self::TypeInfoObject { namespace, name } => {
+                write!(f, "TypeInfo({}.{})", namespace, name)
+            }
             Self::Empty => write!(f, ""),
         }
     }
@@ -477,10 +508,14 @@ impl fmt::Debug for FhirPathValue {
             Self::Quantity(q) => write!(f, "Quantity({})", q),
             Self::Collection(items) => {
                 // Show the collection contents without nested Collection wrapper
-                let item_strings: Vec<String> = items.iter().map(|item| format!("{:?}", item)).collect();
+                let item_strings: Vec<String> =
+                    items.iter().map(|item| format!("{:?}", item)).collect();
                 write!(f, "Collection([{}])", item_strings.join(", "))
             }
             Self::Resource(resource) => write!(f, "Resource({})", resource.to_json()),
+            Self::TypeInfoObject { namespace, name } => {
+                write!(f, "TypeInfo({}.{})", namespace, name)
+            }
             Self::Empty => write!(f, "Empty"),
         }
     }

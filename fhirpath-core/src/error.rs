@@ -60,11 +60,11 @@ pub enum FhirPathError {
     /// Generic error for compatibility
     #[error("FHIRPath error: {message}")]
     Generic { message: String },
-    
+
     /// Unknown operator
     #[error("Unknown operator: '{operator}'")]
     UnknownOperator { operator: String },
-    
+
     /// Invalid operand types for operator
     #[error("Invalid operand types for operator '{operator}': {left_type} and {right_type}")]
     InvalidOperandTypes {
@@ -72,26 +72,26 @@ pub enum FhirPathError {
         left_type: String,
         right_type: String,
     },
-    
+
     /// Incompatible units
     #[error("Incompatible units: '{left_unit}' and '{right_unit}'")]
     IncompatibleUnits {
         left_unit: String,
         right_unit: String,
     },
-    
+
     /// Division by zero
     #[error("Division by zero")]
     DivisionByZero,
-    
+
     /// Arithmetic overflow
     #[error("Arithmetic overflow in {operation}")]
     ArithmeticOverflow { operation: String },
-    
+
     /// Invalid type specifier
     #[error("Invalid type specifier")]
     InvalidTypeSpecifier,
-    
+
     /// Invalid function arity
     #[error("Function '{name}' expects {min_arity}{} arguments, got {actual}", 
             max_arity.map(|m| format!("-{}", m)).unwrap_or_else(|| String::from(" or more")))]
@@ -187,14 +187,14 @@ impl FhirPathError {
             message: message.into(),
         }
     }
-    
+
     /// Create an unknown operator error
     pub fn unknown_operator(operator: impl Into<String>) -> Self {
         Self::UnknownOperator {
             operator: operator.into(),
         }
     }
-    
+
     /// Create an invalid operand types error
     pub fn invalid_operand_types(
         operator: impl Into<String>,
@@ -207,35 +207,32 @@ impl FhirPathError {
             right_type: right_type.into(),
         }
     }
-    
+
     /// Create an incompatible units error
-    pub fn incompatible_units(
-        left_unit: impl Into<String>,
-        right_unit: impl Into<String>,
-    ) -> Self {
+    pub fn incompatible_units(left_unit: impl Into<String>, right_unit: impl Into<String>) -> Self {
         Self::IncompatibleUnits {
             left_unit: left_unit.into(),
             right_unit: right_unit.into(),
         }
     }
-    
+
     /// Create a division by zero error
     pub fn division_by_zero() -> Self {
         Self::DivisionByZero
     }
-    
+
     /// Create an arithmetic overflow error
     pub fn arithmetic_overflow(operation: impl Into<String>) -> Self {
         Self::ArithmeticOverflow {
             operation: operation.into(),
         }
     }
-    
+
     /// Create an invalid type specifier error
     pub fn invalid_type_specifier() -> Self {
         Self::InvalidTypeSpecifier
     }
-    
+
     /// Create an invalid arity error
     pub fn invalid_arity(
         name: impl Into<String>,

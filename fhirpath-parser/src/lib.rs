@@ -8,11 +8,13 @@
 pub mod error;
 pub mod lexer;
 pub mod parser;
+pub mod pratt;
 pub mod span;
 pub mod tokenizer;
 
 pub use error::{ParseError, ParseResult};
 pub use parser::parse_expression;
+pub use pratt::parse_expression_pratt;
 pub use span::{Span, Spanned};
 
 /// Parse an FHIRPath expression string into an AST

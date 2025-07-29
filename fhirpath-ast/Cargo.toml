@@ -15,4 +15,4 @@ default = []
 serde = ["dep:serde"]
 
 [dev-dependencies]
-pretty_assertions = "1.4"
+pretty_assertions = "1.4.1"

@@ -1,7 +1,7 @@
 // Error types for FHIRPath evaluation
 
-use thiserror::Error;
 use fhirpath_diagnostics::Diagnostic;
+use thiserror::Error;
 
 /// Result type for evaluation operations
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
@@ -88,11 +88,9 @@ impl EvaluationError {
                     .with_message(&format!("Variable {} not found", name))
                     .build()
             }
-            _ => {
-                DiagnosticBuilder::error(DiagnosticCode::Custom("evaluation_error".to_string()))
-                    .with_message(&self.to_string())
-                    .build()
-            }
+            _ => DiagnosticBuilder::error(DiagnosticCode::Custom("evaluation_error".to_string()))
+                .with_message(&self.to_string())
+                .build(),
         }
     }
 }

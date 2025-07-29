@@ -97,10 +97,7 @@ impl Quantity {
             ));
         }
 
-        Ok(Quantity::new(
-            self.value + other.value,
-            self.unit.clone(),
-        ))
+        Ok(Quantity::new(self.value + other.value, self.unit.clone()))
     }
 
     /// Subtract two quantities
@@ -112,10 +109,7 @@ impl Quantity {
             ));
         }
 
-        Ok(Quantity::new(
-            self.value - other.value,
-            self.unit.clone(),
-        ))
+        Ok(Quantity::new(self.value - other.value, self.unit.clone()))
     }
 
     /// Multiply by a scalar

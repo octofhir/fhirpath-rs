@@ -51,11 +51,8 @@ pub trait Visitor: Sized {
     fn visit_index(&mut self, _base: &ExpressionNode, _index: &ExpressionNode) -> Self::Result;
 
     /// Visit a filter expression
-    fn visit_filter(
-        &mut self,
-        _base: &ExpressionNode,
-        _condition: &ExpressionNode,
-    ) -> Self::Result;
+    fn visit_filter(&mut self, _base: &ExpressionNode, _condition: &ExpressionNode)
+    -> Self::Result;
 
     /// Visit a union expression
     fn visit_union(&mut self, _left: &ExpressionNode, _right: &ExpressionNode) -> Self::Result;
@@ -179,11 +176,7 @@ pub trait MutVisitor: Sized {
     }
 
     /// Visit a filter expression
-    fn visit_filter_mut(
-        &mut self,
-        base: &mut ExpressionNode,
-        condition: &mut ExpressionNode,
-    ) {
+    fn visit_filter_mut(&mut self, base: &mut ExpressionNode, condition: &mut ExpressionNode) {
         self.visit_expression_mut(base);
         self.visit_expression_mut(condition);
     }

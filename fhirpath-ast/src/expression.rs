@@ -167,7 +167,11 @@ impl ExpressionNode {
     }
 
     /// Create a method call expression
-    pub fn method_call(base: ExpressionNode, method: impl Into<String>, args: Vec<ExpressionNode>) -> Self {
+    pub fn method_call(
+        base: ExpressionNode,
+        method: impl Into<String>,
+        args: Vec<ExpressionNode>,
+    ) -> Self {
         Self::MethodCall {
             base: Box::new(base),
             method: method.into(),
@@ -302,10 +306,7 @@ mod tests {
     fn test_expression_creation() {
         let literal = ExpressionNode::literal(LiteralValue::Integer(42));
         assert!(literal.is_literal());
-        assert_eq!(
-            literal.as_literal(),
-            Some(&LiteralValue::Integer(42))
-        );
+        assert_eq!(literal.as_literal(), Some(&LiteralValue::Integer(42)));
 
         let identifier = ExpressionNode::identifier("name");
         assert!(identifier.is_identifier());

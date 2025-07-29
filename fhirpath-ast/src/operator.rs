@@ -99,10 +99,7 @@ impl BinaryOperator {
             | Self::LessThanOrEqual
             | Self::GreaterThan
             | Self::GreaterThanOrEqual => 5,
-            Self::Equal
-            | Self::NotEqual
-            | Self::Equivalent
-            | Self::NotEquivalent => 4,
+            Self::Equal | Self::NotEqual | Self::Equivalent | Self::NotEquivalent => 4,
             Self::Contains | Self::In | Self::Is => 4,
             Self::Concatenate => 3,
             Self::And => 3,
@@ -189,7 +186,10 @@ mod tests {
     #[test]
     fn test_operator_associativity() {
         assert_eq!(BinaryOperator::Add.associativity(), Associativity::Left);
-        assert_eq!(BinaryOperator::Implies.associativity(), Associativity::Right);
+        assert_eq!(
+            BinaryOperator::Implies.associativity(),
+            Associativity::Right
+        );
     }
 
     #[test]

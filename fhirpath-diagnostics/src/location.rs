@@ -139,7 +139,13 @@ impl Span {
 impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.start.line == self.end.line {
-            write!(f, "{}:{}-{}", self.start.line + 1, self.start.column + 1, self.end.column + 1)
+            write!(
+                f,
+                "{}:{}-{}",
+                self.start.line + 1,
+                self.start.column + 1,
+                self.end.column + 1
+            )
         } else {
             write!(f, "{}-{}", self.start, self.end)
         }
@@ -246,7 +252,7 @@ mod tests {
     #[test]
     fn test_position_from_offset() {
         let source = "hello\nworld\ntest";
-        
+
         assert_eq!(Position::from_offset(source, 0), Position::new(0, 0));
         assert_eq!(Position::from_offset(source, 5), Position::new(0, 5));
         assert_eq!(Position::from_offset(source, 6), Position::new(1, 0));
@@ -256,7 +262,7 @@ mod tests {
     #[test]
     fn test_span_contains() {
         let span = Span::new(Position::new(1, 5), Position::new(1, 10));
-        
+
         assert!(span.contains(Position::new(1, 5)));
         assert!(span.contains(Position::new(1, 7)));
         assert!(!span.contains(Position::new(1, 10))); // End is exclusive
@@ -268,7 +274,7 @@ mod tests {
     fn test_span_merge() {
         let span1 = Span::new(Position::new(1, 5), Position::new(1, 10));
         let span2 = Span::new(Position::new(1, 8), Position::new(2, 3));
-        
+
         let merged = span1.merge(&span2);
         assert_eq!(merged.start, Position::new(1, 5));
         assert_eq!(merged.end, Position::new(2, 3));
@@ -279,7 +285,7 @@ mod tests {
         let source = "line 1\nline 2\nline 3\nline 4\nline 5";
         let span = Span::new(Position::new(2, 0), Position::new(2, 6));
         let location = SourceLocation::new(span);
-        
+
         let snippet = location.get_snippet(source, 1);
         assert!(snippet.contains("line 2"));
         assert!(snippet.contains("line 3"));

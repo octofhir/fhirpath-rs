@@ -4,7 +4,6 @@
 // It implements the evaluation engine following the FHIRPath specification.
 
 #[warn(missing_docs)]
-
 mod context;
 mod engine;
 mod error;

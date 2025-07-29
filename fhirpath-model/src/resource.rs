@@ -142,7 +142,7 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(json);
-        
+
         assert_eq!(resource.get_property("id"), Some(&json!("123")));
         assert_eq!(resource.get_property("active"), Some(&json!(true)));
         assert!(resource.has_property("name"));
@@ -163,7 +163,7 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(json);
-        
+
         assert_eq!(
             resource.get_property_deep("code.text"),
             Some(&json!("Test Code"))
@@ -184,7 +184,7 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(json);
-        
+
         assert!(resource.is_primitive_extension("id"));
         assert!(resource.get_primitive_extension("id").is_some());
         assert!(!resource.is_primitive_extension("resourceType"));

@@ -13,10 +13,10 @@ serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
 # Optional LSP support
-lsp-types = { version = "0.97", optional = true }
+lsp-types = { version = "0.97.0", optional = true }
 
 # For colored terminal output
-colored = { version = "3", optional = true }
+colored = { version = "3.0.0", optional = true }
 
 [features]
 default = []
@@ -25,4 +25,4 @@ lsp = ["lsp-types"]
 terminal = ["colored"]
 
 [dev-dependencies]
-pretty_assertions = "1.4"
+pretty_assertions = "1.4.1"

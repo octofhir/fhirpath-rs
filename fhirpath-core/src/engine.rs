@@ -1,11 +1,11 @@
 //! FHIRPath engine - the main entry point for FHIRPath evaluation
 
-use fhirpath_ast::ExpressionNode;
 use crate::error::Result;
-use fhirpath_evaluator::{FhirPathEngine as EvaluatorEngine, EvaluationContext};
+use fhirpath_ast::ExpressionNode;
+use fhirpath_evaluator::FhirPathEngine as EvaluatorEngine;
 use fhirpath_model::FhirPathValue;
-use fhirpath_registry::create_standard_registries;
 use fhirpath_parser::parse_expression;
+use fhirpath_registry::create_standard_registries;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,10 +31,7 @@ impl FhirPathEngine {
     /// Create a new FHIRPath engine
     pub fn new() -> Self {
         let (functions, operators) = create_standard_registries();
-        let evaluator = EvaluatorEngine::with_registries(
-            Arc::new(functions),
-            Arc::new(operators),
-        );
+        let evaluator = EvaluatorEngine::with_registries(Arc::new(functions), Arc::new(operators));
 
         Self {
             evaluator,
@@ -50,7 +47,9 @@ impl FhirPathEngine {
 
         match self.evaluator.evaluate(&ast, input_value) {
             Ok(result) => Ok(result),
-            Err(eval_error) => Err(crate::error::FhirPathError::evaluation_error(eval_error.to_string())),
+            Err(eval_error) => Err(crate::error::FhirPathError::evaluation_error(
+                eval_error.to_string(),
+            )),
         }
     }
 
