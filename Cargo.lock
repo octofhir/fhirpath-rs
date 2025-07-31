@@ -1336,7 +1336,7 @@ dependencies = [
  "octofhir-ucum-fhir",
  "parking_lot",
  "pretty_assertions",
- "quick-xml 0.31.0",
+ "quick-xml 0.38.0",
  "regex",
  "reqwest",
  "rstest",
