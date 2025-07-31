@@ -8,8 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   test:
@@ -36,8 +34,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Cache Rust toolchain
         uses: actions/cache@v4
@@ -106,8 +102,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Cache Rust toolchain
         uses: actions/cache@v4
@@ -174,8 +168,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Cache Rust toolchain
         uses: actions/cache@v4

@@ -7,8 +7,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   canary-release:
@@ -26,8 +24,6 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Cache Rust toolchain
         uses: actions/cache@v4
