@@ -84,7 +84,7 @@ reqwest = { version = "0.12.22", features = ["json"], optional = true }
 tokio = { version = "1.47.0", features = ["full"], optional = true }
 
 # CLI dependencies
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 human-panic = "2.0"
 
 [dev-dependencies]
