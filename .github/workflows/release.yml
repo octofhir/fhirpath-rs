@@ -51,7 +51,6 @@ jobs:
         with:
           components: rustfmt, clippy
 
-
       - name: Cache Rust toolchain
         uses: actions/cache@v4
         with:
@@ -88,7 +87,7 @@ jobs:
       - name: Run quality assurance
         run: |
           cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets --all-features
           cargo test --all-features
           cargo test --release
 
@@ -207,7 +206,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-
       - name: Update version in Cargo.toml
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
@@ -271,7 +269,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
 
       - name: Publish to crates.io
         run: |

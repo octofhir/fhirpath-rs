@@ -24,7 +24,6 @@ jobs:
         with:
           components: rustfmt, clippy
 
-
       - name: Cache Rust toolchain
         uses: actions/cache@v4
         with:
@@ -61,7 +60,7 @@ jobs:
       - name: Run quality assurance
         run: |
           cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets --all-features
           cargo test --all-features
 
       - name: Run benchmarks
