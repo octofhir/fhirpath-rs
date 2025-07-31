@@ -140,8 +140,63 @@ cli-help:
 cli *ARGS:
     cargo run --bin octofhir-fhirpath -- {{ARGS}}
     
+# Code coverage with tarpaulin
+coverage:
+    @echo "📊 Generating Code Coverage Report"
+    @echo "=================================="
+    cargo tarpaulin --lib --all-features --timeout 300 --out html
+    @echo "✅ Coverage report generated in target/tarpaulin/tarpaulin-report.html"
+
+coverage-ci:
+    @echo "📊 Generating Code Coverage Report (CI mode)"
+    @echo "============================================="
+    cargo tarpaulin --all-features --workspace --timeout 300 --out html
+    @echo "✅ Coverage report generated in target/tarpaulin/tarpaulin-report.html"
+
+# Security audit
+audit:
+    @echo "🔒 Security Audit"
+    @echo "================="
+    cargo audit
+
+# Install development tools
+install-tools:
+    @echo "🔧 Installing Development Tools"
+    @echo "==============================="
+    cargo install cargo-tarpaulin
+    cargo install cargo-audit
+    cargo install cargo-watch
+    cargo install cargo-expand
+    @echo "✅ Development tools installed!"
+
+# Watch for changes and run tests
+watch:
+    @echo "👀 Watching for changes..."
+    cargo watch -x test
+
+watch-check:
+    @echo "👀 Watching for changes (check only)..."
+    cargo watch -x check
+
+# Expand macros for debugging
+expand ITEM="":
+    @if [ "{{ITEM}}" = "" ]; then \
+        echo "📝 Expanding all macros..."; \
+        cargo expand; \
+    else \
+        echo "📝 Expanding {{ITEM}}..."; \
+        cargo expand {{ITEM}}; \
+    fi
+
+# Performance profiling
+profile EXPRESSION="Patient.name":
+    @echo "🔬 Profiling FHIRPath expression: {{EXPRESSION}}"
+    @echo "================================================"
+    cargo build --release
+    perf record --call-graph=dwarf target/release/octofhir-fhirpath evaluate "{{EXPRESSION}}" || echo "⚠️  perf not available, install linux-perf-tools"
+
 # Release preparation
-release-prep: qa test-coverage docs
+release-prep: qa test-coverage docs audit
     @echo "🚀 Release preparation complete!"
     @echo "📋 Checklist:"
     @echo "  ✅ Code formatted"
@@ -150,3 +205,4 @@ release-prep: qa test-coverage docs
     @echo "  ✅ Test coverage updated"
     @echo "  ✅ API documentation generated"
     @echo "  ✅ Benchmark documentation updated"
+    @echo "  ✅ Security audit passed"

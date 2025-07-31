@@ -293,11 +293,11 @@ mod tests {
 
         // These should share memory since they're identical
         assert!(interned1.shares_memory_with(&interned2));
-        
+
         // Create a different expression to verify they don't share memory
         let expr3 = ExpressionNode::literal(LiteralValue::Integer(unique_val + 1));
         let interned3 = intern_expr(expr3);
-        
+
         assert!(!interned1.shares_memory_with(&interned3));
     }
 
