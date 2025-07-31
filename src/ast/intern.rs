@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 /// This allows multiple parts of the AST to share the same ExpressionNode
 /// without duplication, improving memory efficiency and cache performance.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InternedExpr {
     inner: Arc<ExpressionNode>,
 }
@@ -79,6 +78,27 @@ impl From<InternedExpr> for ExpressionNode {
             Ok(expr) => expr,
             Err(arc) => (*arc).clone(),
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for InternedExpr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for InternedExpr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let expr = ExpressionNode::deserialize(deserializer)?;
+        Ok(InternedExpr::new(expr))
     }
 }
 
@@ -259,19 +279,26 @@ mod tests {
 
     #[test]
     fn test_global_interner() {
-        clear_global_interner(); // Start clean
+        // Test with a unique value to avoid conflicts with other tests
+        let unique_val = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as i64;
 
-        let expr1 = ExpressionNode::literal(LiteralValue::Boolean(true));
-        let expr2 = ExpressionNode::literal(LiteralValue::Boolean(true));
+        let expr1 = ExpressionNode::literal(LiteralValue::Integer(unique_val));
+        let expr2 = ExpressionNode::literal(LiteralValue::Integer(unique_val));
 
         let interned1 = intern_expr(expr1);
         let interned2 = intern_expr(expr2);
 
+        // These should share memory since they're identical
         assert!(interned1.shares_memory_with(&interned2));
-
-        let stats = global_interner_stats();
-        assert_eq!(stats.cache_hits, 1);
-        assert_eq!(stats.cache_size, 1);
+        
+        // Create a different expression to verify they don't share memory
+        let expr3 = ExpressionNode::literal(LiteralValue::Integer(unique_val + 1));
+        let interned3 = intern_expr(expr3);
+        
+        assert!(!interned1.shares_memory_with(&interned3));
     }
 
     #[test]

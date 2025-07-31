@@ -9,6 +9,36 @@ use super::error::{ModelError, Result};
 use super::provider::{FhirVersion, ModelProvider, SearchParameter};
 use super::types::TypeInfo;
 
+/// Configuration for loading FHIR schemas from URLs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaLoadConfig {
+    /// Request timeout in seconds
+    pub timeout_seconds: u64,
+    /// Maximum number of retry attempts
+    pub max_retries: u32,
+    /// Base delay between retries in milliseconds
+    pub retry_delay_ms: u64,
+    /// Optional authorization header
+    pub auth_header: Option<String>,
+    /// Custom HTTP headers
+    pub custom_headers: HashMap<String, String>,
+    /// Whether to follow redirects
+    pub follow_redirects: bool,
+}
+
+impl Default for SchemaLoadConfig {
+    fn default() -> Self {
+        Self {
+            timeout_seconds: 30,
+            max_retries: 3,
+            retry_delay_ms: 1000,
+            auth_header: None,
+            custom_headers: HashMap::new(),
+            follow_redirects: true,
+        }
+    }
+}
+
 /// FHIR Schema representation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FhirSchema {

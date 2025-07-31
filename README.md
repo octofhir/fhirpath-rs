@@ -1,4 +1,4 @@
-# FHIRPath-rs
+# octofhir-fhirpath
 
 [![Crates.io](https://img.shields.io/crates/v/octofhir-fhirpath.svg)](https://crates.io/crates/octofhir-fhirpath)
 [![Documentation](https://docs.rs/octofhir-fhirpath/badge.svg)](https://docs.rs/octofhir-fhirpath)
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 The `FhirPathEngine` is the main entry point for evaluating FHIRPath expressions:
 
 ```rust
-use fhirpath_rs::FhirPathEngine;
+use octofhir_fhirpath::FhirPathEngine;
 
 let engine = FhirPathEngine::new();
 let result = engine.evaluate("Patient.name.family", &fhir_resource)?;
@@ -84,7 +84,7 @@ let result = engine.evaluate("Patient.name.family", &fhir_resource)?;
 FHIRPath expressions return `FhirPathValue` which represents various FHIR data types:
 
 ```rust
-use fhirpath_rs::FhirPathValue;
+use octofhir_fhirpath::FhirPathValue;
 
 match result {
     FhirPathValue::String(s) => println!("String: {}", s),
@@ -100,7 +100,7 @@ match result {
 Parse and analyze FHIRPath expressions:
 
 ```rust
-use fhirpath_rs::parser::parse;
+use octofhir_fhirpath::parser::parse;
 
 let expression = parse("Patient.name.where(use = 'official').given")?;
 println!("Parsed AST: {:#?}", expression);
@@ -180,7 +180,7 @@ Current compliance with official FHIRPath specification test suites:
 
 ```bash
 # Install CLI tools
-cargo install fhirpath-rs
+cargo install octofhir-fhirpath
 
 # Evaluate expressions
 echo '{"resourceType": "Patient", "name": [{"given": ["John"]}]}' | \
@@ -214,7 +214,7 @@ just qa
 
 ## 🚀 Performance
 
-FHIRPath-rs is optimized for high-performance use cases:
+octofhir-fhirpath is optimized for high-performance use cases:
 
 - **Tokenizer**: 10M+ operations/second
 - **Parser**: 1M+ operations/second  
@@ -229,7 +229,7 @@ just bench  # Run comprehensive performance tests
 
 ## 🏗️ Architecture
 
-FHIRPath-rs uses a modular architecture:
+octofhir-fhirpath uses a modular architecture:
 
 ```
 src/
@@ -301,8 +301,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 ## 🔗 Links
 
-- **Crates.io**: https://crates.io/crates/fhirpath-rs
-- **Documentation**: https://docs.rs/fhirpath-rs
+- **Crates.io**: https://crates.io/crates/octofhir-fhirpath
+- **Documentation**: https://docs.rs/octofhir-fhirpath
 - **Repository**: https://github.com/octofhir/fhirpath-rs
 - **FHIRPath Specification**: http://hl7.org/fhirpath/
 - **FHIR Specification**: https://hl7.org/fhir/

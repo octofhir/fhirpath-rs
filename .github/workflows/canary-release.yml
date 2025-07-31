@@ -62,7 +62,7 @@ jobs:
         run: cargo build --release
 
       - name: Create canary release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: canary-${{ steps.version.outputs.version }}
           name: Canary Release ${{ steps.version.outputs.version }}

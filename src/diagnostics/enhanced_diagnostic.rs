@@ -1,9 +1,12 @@
 //! Enhanced diagnostic system with contextual help and intelligent suggestions
 
 use super::{
-    diagnostic::{Diagnostic, DiagnosticCode, Severity},
+    diagnostic::{Diagnostic, DiagnosticCode},
     location::SourceLocation,
 };
+
+#[cfg(test)]
+use super::diagnostic::Severity;
 use std::collections::HashMap;
 use std::fmt;
 /// Enhanced diagnostic with contextual help and intelligent suggestions

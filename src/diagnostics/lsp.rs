@@ -1,7 +1,9 @@
 //! LSP (Language Server Protocol) integration
 
-use super::diagnostic::{Diagnostic, DiagnosticCode, Severity};
+use super::diagnostic::{Diagnostic, Severity};
+use super::location::SourceLocation;
 use lsp_types;
+use std::str::FromStr;
 
 /// Convert a diagnostic to LSP diagnostic
 pub fn to_lsp_diagnostic(diagnostic: &Diagnostic) -> lsp_types::Diagnostic {
@@ -21,7 +23,7 @@ pub fn to_lsp_diagnostic(diagnostic: &Diagnostic) -> lsp_types::Diagnostic {
                     .iter()
                     .map(|r| lsp_types::DiagnosticRelatedInformation {
                         location: lsp_types::Location {
-                            uri: lsp_types::Url::parse("file:///").unwrap(), // TODO: proper URI
+                            uri: lsp_types::Uri::from_str("file:///").unwrap(), // TODO: proper URI
                             range: to_lsp_range(&r.location),
                         },
                         message: r.message.clone(),
@@ -45,7 +47,7 @@ fn to_lsp_severity(severity: Severity) -> lsp_types::DiagnosticSeverity {
 }
 
 /// Convert source location to LSP range
-fn to_lsp_range(location: &crate::location::SourceLocation) -> lsp_types::Range {
+fn to_lsp_range(location: &SourceLocation) -> lsp_types::Range {
     lsp_types::Range {
         start: lsp_types::Position {
             line: location.span.start.line as u32,
@@ -61,7 +63,7 @@ fn to_lsp_range(location: &crate::location::SourceLocation) -> lsp_types::Range 
 /// Convert suggestions to LSP code actions
 pub fn to_lsp_code_actions(
     diagnostic: &Diagnostic,
-    uri: &lsp_types::Url,
+    uri: &lsp_types::Uri,
 ) -> Vec<lsp_types::CodeAction> {
     diagnostic
         .suggestions
@@ -106,7 +108,7 @@ pub struct LspDiagnostic {
 
 impl From<&Diagnostic> for LspDiagnostic {
     fn from(diagnostic: &Diagnostic) -> Self {
-        let uri = lsp_types::Url::parse("file:///").unwrap(); // TODO: proper URI handling
+        let uri = lsp_types::Uri::from_str("file:///").unwrap(); // TODO: proper URI handling
         Self {
             diagnostic: to_lsp_diagnostic(diagnostic),
             code_actions: to_lsp_code_actions(diagnostic, &uri),
@@ -148,7 +150,7 @@ mod tests {
             .suggest("Did you mean 'first'?", Some("first".to_string()))
             .build();
 
-        let uri = lsp_types::Url::parse("file:///test.fhirpath").unwrap();
+        let uri = lsp_types::Uri::from_str("file:///test.fhirpath").unwrap();
         let actions = to_lsp_code_actions(&diagnostic, &uri);
 
         assert_eq!(actions.len(), 2);

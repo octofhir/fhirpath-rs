@@ -1,6 +1,6 @@
 //! Formatting diagnostics for different output formats
 
-use super::diagnostic::Diagnostic;
+use super::diagnostic::{Diagnostic, Severity};
 
 /// Output format for diagnostics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

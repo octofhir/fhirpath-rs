@@ -98,7 +98,7 @@ fmt:
     cargo fmt
 
 clippy:
-    cargo clippy
+    cargo clippy --all
 
 check:
     cargo check

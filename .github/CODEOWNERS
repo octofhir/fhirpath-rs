@@ -1,0 +1,31 @@
+# CODEOWNERS file for octofhir-fhirpath
+# 
+# This file defines the default reviewers for pull requests in this repository.
+# For more information about CODEOWNERS files, see:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners - these users will be automatically requested for review on all PRs
+* @octofhir/fhirpath-maintainers
+
+# Specific file patterns
+Cargo.toml @octofhir/fhirpath-maintainers
+Cargo.lock @octofhir/fhirpath-maintainers
+
+# Source code
+src/ @octofhir/fhirpath-maintainers
+
+# Documentation
+*.md @octofhir/fhirpath-maintainers
+docs/ @octofhir/fhirpath-maintainers
+
+# CI/CD and workflows
+.github/ @octofhir/fhirpath-maintainers
+justfile @octofhir/fhirpath-maintainers
+
+# Benchmarks and performance
+benches/ @octofhir/fhirpath-maintainers
+BENCHMARKS.md @octofhir/fhirpath-maintainers
+
+# Tests
+tests/ @octofhir/fhirpath-maintainers
+specs/ @octofhir/fhirpath-maintainers
