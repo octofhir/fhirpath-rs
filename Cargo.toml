@@ -43,10 +43,6 @@ harness = false
 name = "octofhir-fhirpath"
 path = "src/bin/octofhir_fhirpath.rs"
 
-[[bin]]
-name = "extract_benchmark_metrics"
-path = "src/bin/extract_benchmark_metrics.rs"
-
 [dependencies]
 # Core dependencies
 anyhow = "1.0.98"
