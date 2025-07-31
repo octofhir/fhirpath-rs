@@ -10,7 +10,7 @@ documentation = "https://docs.rs/octofhir-fhirpath"
 description = "A high-performance FHIRPath implementation in Rust with comprehensive spec compliance"
 readme = "README.md"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
-categories = ["parser-implementations", "data-structures", "healthcare"]
+categories = ["parser-implementations", "data-structures", "science"]
 include = [
     "src/**/*",
     "specs/**/*",
