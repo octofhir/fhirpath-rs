@@ -6,9 +6,11 @@
 #![warn(missing_docs)]
 
 mod expression;
+mod intern;
 mod operator;
 mod visitor;
 
 pub use expression::*;
+pub use intern::*;
 pub use operator::*;
 pub use visitor::*;

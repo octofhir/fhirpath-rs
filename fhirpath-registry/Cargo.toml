@@ -20,6 +20,7 @@ serde_json.workspace = true
 # Data structures
 rustc-hash = "2.1.0"
 indexmap = "2.10.0"
+dashmap = "6.1.0"
 
 # String processing
 regex = "1.11.1"

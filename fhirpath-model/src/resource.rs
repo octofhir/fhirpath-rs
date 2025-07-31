@@ -46,7 +46,25 @@ impl FhirResource {
     pub fn get_property(&self, path: &str) -> Option<&Value> {
         // Handle simple property access on JSON objects
         match &self.data {
-            Value::Object(obj) => obj.get(path),
+            Value::Object(obj) => {
+                // First try direct property access
+                if let Some(value) = obj.get(path) {
+                    return Some(value);
+                }
+                
+                // Handle FHIR polymorphic properties (e.g., value -> valueString, valueInteger, etc.)
+                if path == "value" {
+                    // Look for value[x] properties
+                    for key in obj.keys() {
+                        if key.starts_with("value") && key.len() > 5 {
+                            // Found a value[x] property (like valueString, valueInteger, etc.)
+                            return obj.get(key);
+                        }
+                    }
+                }
+                
+                None
+            }
             _ => None,
         }
     }

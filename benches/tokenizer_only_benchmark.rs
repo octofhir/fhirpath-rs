@@ -22,7 +22,11 @@ fn benchmark_optimized_tokenizer_complete(c: &mut Criterion) {
     c.bench_function("optimized_tokenizer_complete", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(expression));
-            black_box(tokenizer.tokenize_all())
+            let mut tokens = Vec::new();
+            while let Ok(Some(token)) = tokenizer.next_token() {
+                tokens.push(token);
+            }
+            black_box(tokens)
         })
     });
 }
@@ -43,7 +47,11 @@ fn benchmark_multiple_expressions(c: &mut Criterion) {
         c.bench_function(&format!("expr_{}_tokenizer", i), |b| {
             b.iter(|| {
                 let mut tokenizer = Tokenizer::new(black_box(expression));
-                black_box(tokenizer.tokenize_all())
+                let mut tokens = Vec::new();
+                while let Ok(Some(token)) = tokenizer.next_token() {
+                    tokens.push(token);
+                }
+                black_box(tokens)
             })
         });
     }

@@ -6,18 +6,33 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod error_recovery;
 pub mod lexer;
-pub mod parser;
 pub mod pratt;
 pub mod span;
 pub mod tokenizer;
 
 pub use error::{ParseError, ParseResult};
-pub use parser::parse_expression;
+pub use error_recovery::{
+    parse_with_recovery, analyze_recovery_potential, RecoveryResult, RecoveryStrategy, RecoveryAnalysis
+};
 pub use pratt::parse_expression_pratt;
 pub use span::{Span, Spanned};
 
-/// Parse an FHIRPath expression string into an AST
+// Re-export parser function for compatibility
+pub use pratt::parse_expression_pratt as parse_expression;
+
+/// Parse an FHIRPath expression string into an AST using the optimized Pratt parser
 pub fn parse(input: &str) -> ParseResult<fhirpath_ast::ExpressionNode> {
-    parse_expression(input)
+    parse_expression_pratt(input)
+}
+
+/// Parse with IDE-friendly error recovery and enhanced diagnostics
+pub fn parse_for_ide(input: &str) -> RecoveryResult {
+    parse_with_recovery(input, RecoveryStrategy::Aggressive)
+}
+
+/// Parse with custom recovery strategy
+pub fn parse_with_strategy(input: &str, strategy: RecoveryStrategy) -> RecoveryResult {
+    parse_with_recovery(input, strategy)
 }

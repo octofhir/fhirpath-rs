@@ -17,6 +17,11 @@ pub enum Severity {
     Error,
 }
 
+impl Default for Severity {
+    fn default() -> Self {
+        Severity::Info
+    }
+}
 /// Diagnostic error codes
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -41,7 +46,12 @@ pub enum DiagnosticCode {
 
     // Type errors
     /// Type mismatch
-    TypeMismatch { expected: String, actual: String },
+    TypeMismatch { 
+        /// Expected type name
+        expected: String, 
+        /// Actual type found
+        actual: String 
+    },
     /// Invalid operand types for operator
     InvalidOperandTypes,
     /// Invalid argument types for function

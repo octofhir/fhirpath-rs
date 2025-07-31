@@ -12,39 +12,85 @@ pub type ParseResult<T> = Result<T, ParseError>;
 pub enum ParseError {
     /// Syntax error at a specific location
     #[error("Syntax error at position {position}: {message}")]
-    SyntaxError { position: usize, message: String },
+    SyntaxError { 
+        /// Position where the error occurred
+        position: usize, 
+        /// Error message describing the syntax error
+        message: String 
+    },
 
     /// Unexpected token
     #[error("Unexpected token '{token}' at position {position}")]
-    UnexpectedToken { token: String, position: usize },
+    UnexpectedToken { 
+        /// The unexpected token that was found
+        token: String, 
+        /// Position where the token was found
+        position: usize 
+    },
 
     /// Unexpected end of input
     #[error("Unexpected end of input")]
     UnexpectedEof,
 
+    /// Expected token
+    #[error("Expected {expected} at position {position}")]
+    ExpectedToken {
+        /// The expected token description
+        expected: String,
+        /// Position where the token was expected  
+        position: usize,
+    },
+
+    /// Unexpected end of input at specific position
+    #[error("Unexpected end of input at position {position}")]
+    UnexpectedEndOfInput {
+        /// Position where more input was expected
+        position: usize,
+    },
     /// Invalid literal value
     #[error("Invalid {literal_type} literal at position {position}: {value}")]
     InvalidLiteral {
+        /// Type of literal that failed to parse
         literal_type: String,
+        /// The invalid value that was encountered
         value: String,
+        /// Position where the invalid literal was found
         position: usize,
     },
 
     /// Invalid escape sequence
     #[error("Invalid escape sequence at position {position}: {sequence}")]
-    InvalidEscape { sequence: String, position: usize },
+    InvalidEscape { 
+        /// The invalid escape sequence
+        sequence: String, 
+        /// Position where the escape sequence was found
+        position: usize 
+    },
 
     /// Unclosed string literal
     #[error("Unclosed string literal starting at position {position}")]
-    UnclosedString { position: usize },
+    UnclosedString { 
+        /// Position where the unclosed string started
+        position: usize 
+    },
 
     /// Invalid identifier
     #[error("Invalid identifier at position {position}: {identifier}")]
-    InvalidIdentifier { identifier: String, position: usize },
+    InvalidIdentifier { 
+        /// The invalid identifier
+        identifier: String, 
+        /// Position where the identifier was found
+        position: usize 
+    },
 
     /// Generic nom error
     #[error("Parse error at position {position}: {kind:?}")]
-    NomError { position: usize, kind: ErrorKind },
+    NomError { 
+        /// Position where the parse error occurred
+        position: usize, 
+        /// The nom error kind
+        kind: ErrorKind 
+    },
 }
 
 impl ParseError {
@@ -66,6 +112,18 @@ impl ParseError {
             ParseError::UnexpectedEof => DiagnosticBuilder::error(DiagnosticCode::UnexpectedToken)
                 .with_message("Unexpected end of input")
                 .build(),
+            ParseError::ExpectedToken { expected, position } => {
+                DiagnosticBuilder::error(DiagnosticCode::ExpectedToken(expected.clone()))
+                    .with_message(&format!("Expected {}", expected))
+                    .with_location(0, *position, 0, *position)
+                    .build()
+            }
+            ParseError::UnexpectedEndOfInput { position } => {
+                DiagnosticBuilder::error(DiagnosticCode::UnexpectedToken)
+                    .with_message("Unexpected end of input")
+                    .with_location(0, *position, 0, *position)
+                    .build()
+            }
             ParseError::InvalidLiteral {
                 literal_type,
                 value,

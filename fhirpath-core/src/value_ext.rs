@@ -112,7 +112,7 @@ impl FhirResource {
                     Value::Object(obj) => {
                         current = obj.get(part)?;
                     }
-                    Value::Array(arr) => {
+                    Value::Array(_arr) => {
                         // For arrays, collect results from each element
                         // This is handled by the caller in evaluate_path_navigation
                         return None;

@@ -15,8 +15,9 @@ harness = false
 name = "parser_benchmark"
 harness = false
 
+
 [[bench]]
-name = "parser_only"
+name = "core_performance_benchmark"
 harness = false
 
 [[bin]]

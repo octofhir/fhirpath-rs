@@ -14,3 +14,6 @@ pub mod engine;
 pub mod error;
 pub mod types;
 pub mod value_ext;
+
+// Re-export commonly used types
+pub use engine::FhirPathEngine as Engine;

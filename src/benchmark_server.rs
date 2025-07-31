@@ -13,6 +13,7 @@ async fn main() {
     // Routes
     let routes = home_route()
         .or(benchmark_list_route(criterion_path.clone()))
+        .or(performance_stats_route(criterion_path.clone()))
         .or(static_files_route(criterion_path.clone()))
         .or(benchmark_detail_route(criterion_path))
         .with(warp::cors().allow_any_origin());
@@ -43,6 +44,19 @@ fn benchmark_list_route(
         .map(move || {
             let benchmarks = get_benchmark_list(&criterion_path);
             warp::reply::json(&benchmarks)
+        })
+}
+
+// Performance stats API route
+fn performance_stats_route(
+    criterion_path: PathBuf,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("stats"))
+        .and(warp::path::end())
+        .map(move || {
+            let stats = get_performance_stats(&criterion_path);
+            warp::reply::json(&stats)
         })
 }
 
@@ -87,6 +101,106 @@ fn get_benchmark_list(criterion_path: &Path) -> Vec<Value> {
 
     benchmarks.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
     benchmarks
+}
+
+fn get_performance_stats(criterion_path: &Path) -> Value {
+    let mut stats = serde_json::json!({
+        "tokenizer": {
+            "ops_per_second": "N/A",
+            "avg_time": "N/A",
+            "status": "No Data"
+        },
+        "parser": {
+            "ops_per_second": "N/A", 
+            "avg_time": "N/A",
+            "status": "No Data"
+        },
+        "evaluator": {
+            "ops_per_second": "N/A",
+            "avg_time": "N/A", 
+            "status": "No Data"
+        }
+    });
+
+    // Look for benchmark results
+    let tokenizer_simple = criterion_path.join("tokenizer").join("tokenize").join("simple").join("new").join("estimates.json");
+    let parser_simple = criterion_path.join("parser").join("parse").join("simple").join("new").join("estimates.json");
+    let evaluator_simple = criterion_path.join("evaluator").join("evaluate").join("simple").join("new").join("estimates.json");
+
+    // Get tokenizer performance
+    if let Ok(tokenizer_data) = fs::read_to_string(&tokenizer_simple) {
+        if let Ok(estimates) = serde_json::from_str::<Value>(&tokenizer_data) {
+            if let Some(mean_ns) = estimates["mean"]["point_estimate"].as_f64() {
+                let ops_per_sec = 1_000_000_000.0 / mean_ns;
+                
+                let ops_formatted = if ops_per_sec >= 1_000_000.0 {
+                    format!("{:.1}M", ops_per_sec / 1_000_000.0)
+                } else if ops_per_sec >= 1_000.0 {
+                    format!("{:.1}K", ops_per_sec / 1_000.0)
+                } else {
+                    format!("{:.0}", ops_per_sec)
+                };
+                
+                stats["tokenizer"]["ops_per_second"] = serde_json::json!(ops_formatted);
+                stats["tokenizer"]["avg_time"] = serde_json::json!(format!("{:.0}ns", mean_ns));
+                stats["tokenizer"]["status"] = serde_json::json!("Fast");
+            }
+        }
+    }
+
+    // Get parser performance  
+    if let Ok(parser_data) = fs::read_to_string(&parser_simple) {
+        if let Ok(estimates) = serde_json::from_str::<Value>(&parser_data) {
+            if let Some(mean_ns) = estimates["mean"]["point_estimate"].as_f64() {
+                let ops_per_sec = 1_000_000_000.0 / mean_ns;
+                
+                let ops_formatted = if ops_per_sec >= 1_000_000.0 {
+                    format!("{:.1}M", ops_per_sec / 1_000_000.0)
+                } else if ops_per_sec >= 1_000.0 {
+                    format!("{:.1}K", ops_per_sec / 1_000.0)
+                } else {
+                    format!("{:.0}", ops_per_sec)
+                };
+                
+                stats["parser"]["ops_per_second"] = serde_json::json!(ops_formatted);
+                stats["parser"]["avg_time"] = serde_json::json!(format!("{:.0}ns", mean_ns));
+                stats["parser"]["status"] = serde_json::json!("Fast");
+            }
+        }
+    }
+
+    // Get evaluator performance
+    if let Ok(evaluator_data) = fs::read_to_string(&evaluator_simple) {
+        if let Ok(estimates) = serde_json::from_str::<Value>(&evaluator_data) {
+            if let Some(mean_ns) = estimates["mean"]["point_estimate"].as_f64() {
+                let ops_per_sec = 1_000_000_000.0 / mean_ns;
+                
+                // Format ops/sec based on magnitude for better readability
+                let ops_formatted = if ops_per_sec >= 1_000_000.0 {
+                    format!("{:.1}M", ops_per_sec / 1_000_000.0)
+                } else if ops_per_sec >= 1_000.0 {
+                    format!("{:.1}K", ops_per_sec / 1_000.0)
+                } else {
+                    format!("{:.0}", ops_per_sec)
+                };
+                
+                // Format time based on magnitude
+                let time_formatted = if mean_ns >= 1_000_000.0 {
+                    format!("{:.0}μs", mean_ns / 1_000.0)
+                } else if mean_ns >= 1_000.0 {
+                    format!("{:.1}μs", mean_ns / 1_000.0)
+                } else {
+                    format!("{:.0}ns", mean_ns)
+                };
+                
+                stats["evaluator"]["ops_per_second"] = serde_json::json!(ops_formatted);
+                stats["evaluator"]["avg_time"] = serde_json::json!(time_formatted);
+                stats["evaluator"]["status"] = serde_json::json!("Active");
+            }
+        }
+    }
+
+    stats
 }
 
 fn has_benchmark_data(path: &Path) -> bool {
@@ -164,17 +278,29 @@ fn generate_home_page() -> String {
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             text-align: center;
         }
+        .stat-header {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
         .stat-number {
-            font-size: 2.5em;
+            font-size: 2.2em;
             font-weight: bold;
             color: #667eea;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .stat-label {
             color: #666;
             font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .stat-status {
+            color: #28a745;
+            font-size: 0.8em;
             text-transform: uppercase;
             letter-spacing: 1px;
+            font-weight: 600;
         }
         .benchmarks {
             background: white;
@@ -187,6 +313,27 @@ fn generate_home_page() -> String {
             margin: 0;
             padding: 20px;
             border-bottom: 1px solid #eee;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .benchmarks h2:hover {
+            background: #e9ecef;
+        }
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        .benchmark-content {
+            transition: max-height 0.3s ease;
+            overflow: hidden;
+        }
+        .benchmark-content.collapsed {
+            max-height: 0;
         }
         .benchmark-list {
             padding: 0;
@@ -245,26 +392,33 @@ fn generate_home_page() -> String {
 
     <div class="stats">
         <div class="stat-card">
-            <div class="stat-number">4.4M</div>
-            <div class="stat-label">Operations/Second</div>
+            <div class="stat-header">⚡ Tokenizer</div>
+            <div class="stat-number" id="tokenizer-ops">Loading...</div>
+            <div class="stat-label" id="tokenizer-time">Loading...</div>
+            <div class="stat-status" id="tokenizer-status">Loading...</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">226ns</div>
-            <div class="stat-label">Avg Parse Time</div>
+            <div class="stat-header">🔍 Parser</div>
+            <div class="stat-number" id="parser-ops">Loading...</div>
+            <div class="stat-label" id="parser-time">Loading...</div>
+            <div class="stat-status" id="parser-status">Loading...</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">19x</div>
-            <div class="stat-label">Performance Gain</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">Zero</div>
-            <div class="stat-label">Allocations</div>
+            <div class="stat-header">⚙️ Evaluator</div>
+            <div class="stat-number" id="evaluator-ops">Loading...</div>
+            <div class="stat-label" id="evaluator-time">Loading...</div>
+            <div class="stat-status" id="evaluator-status">Loading...</div>
         </div>
     </div>
 
     <div class="benchmarks">
-        <h2>📊 Available Benchmark Reports</h2>
-        <div id="benchmark-list" class="loading">Loading benchmarks...</div>
+        <h2 onclick="toggleBenchmarks()">
+            📊 Available Benchmark Reports
+            <span class="collapse-icon collapsed">▼</span>
+        </h2>
+        <div id="benchmark-content" class="benchmark-content collapsed">
+            <div id="benchmark-list" class="loading">Loading benchmarks...</div>
+        </div>
     </div>
 
     <div class="footer">
@@ -272,6 +426,45 @@ fn generate_home_page() -> String {
     </div>
 
     <script>
+        async function loadPerformanceStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                // Update tokenizer stats
+                document.getElementById('tokenizer-ops').textContent = stats.tokenizer.ops_per_second;
+                document.getElementById('tokenizer-time').textContent = stats.tokenizer.avg_time;
+                document.getElementById('tokenizer-status').textContent = stats.tokenizer.status;
+                
+                // Update parser stats
+                document.getElementById('parser-ops').textContent = stats.parser.ops_per_second;
+                document.getElementById('parser-time').textContent = stats.parser.avg_time;
+                document.getElementById('parser-status').textContent = stats.parser.status;
+                
+                // Update evaluator stats
+                document.getElementById('evaluator-ops').textContent = stats.evaluator.ops_per_second;
+                document.getElementById('evaluator-time').textContent = stats.evaluator.avg_time;
+                document.getElementById('evaluator-status').textContent = stats.evaluator.status;
+                
+            } catch (error) {
+                console.error('Failed to load performance stats:', error);
+                // Set error state for all components
+                ['tokenizer', 'parser', 'evaluator'].forEach(component => {
+                    document.getElementById(component + '-ops').textContent = 'N/A';
+                    document.getElementById(component + '-time').textContent = 'N/A';
+                    document.getElementById(component + '-status').textContent = 'Error';
+                });
+            }
+        }
+
+        function toggleBenchmarks() {
+            const content = document.getElementById('benchmark-content');
+            const icon = document.querySelector('.collapse-icon');
+            
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed');
+        }
+
         async function loadBenchmarks() {
             try {
                 const response = await fetch('/api/benchmarks');
@@ -299,7 +492,8 @@ fn generate_home_page() -> String {
             }
         }
         
-        loadBenchmarks();
+        // Load both performance stats and benchmarks
+        Promise.all([loadPerformanceStats(), loadBenchmarks()]);
     </script>
 </body>
 </html>

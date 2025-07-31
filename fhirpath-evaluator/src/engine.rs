@@ -2,9 +2,8 @@
 
 use crate::{EvaluationContext, EvaluationError, EvaluationResult};
 use fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
-use fhirpath_model::{FhirPathValue, FhirResource};
+use fhirpath_model::FhirPathValue;
 use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
-use serde_json::Value;
 // Lambda functions are not yet fully implemented
 // use fhirpath_registry::function::{AllFunction, AnyFunction, ExistsFunction};
 use rust_decimal::Decimal;
@@ -73,7 +72,13 @@ impl FhirPathEngine {
     ) -> EvaluationResult<FhirPathValue> {
         let context = EvaluationContext::new(input, self.functions.clone(), self.operators.clone());
 
-        self.evaluate_with_context(expression, &context)
+        // Check if expression needs variable scoping - if so, use threaded evaluation  
+        if self.needs_variable_scoping(expression) {
+            let (result, _) = self.evaluate_with_context_threaded(expression, context)?;
+            Ok(result)
+        } else {
+            self.evaluate_with_context(expression, &context)
+        }
     }
 
     /// Evaluate with explicit context and return updated context for defineVariable chains
@@ -83,20 +88,20 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> EvaluationResult<(FhirPathValue, EvaluationContext)> {
         match expression {
-            ExpressionNode::MethodCall { base, method, args } if method == "defineVariable" => {
+            ExpressionNode::MethodCall(data) if data.method == "defineVariable" => {
                 // Special handling for defineVariable to thread context through method chains
-                let base_result = self.evaluate_with_context(base, context)?;
+                let base_result = self.evaluate_with_context(&data.base, context)?;
                 let define_context = context.with_input(base_result.clone());
 
-                if args.len() != 2 {
+                if data.args.is_empty() || data.args.len() > 2 {
                     return Err(EvaluationError::InvalidOperation {
-                        message: "defineVariable requires exactly 2 arguments: name and value"
+                        message: "defineVariable requires 1-2 arguments: name and optional value"
                             .to_string(),
                     });
                 }
 
                 // Evaluate variable name and value
-                let name_value = self.evaluate_with_context(&args[0], &define_context)?;
+                let name_value = self.evaluate_with_context(&data.args[0], &define_context)?;
                 let var_name = match name_value {
                     FhirPathValue::String(name) => name,
                     FhirPathValue::Collection(items) if items.len() == 1 => match items.get(0) {
@@ -115,7 +120,12 @@ impl FhirPathEngine {
                     }
                 };
 
-                let var_value = self.evaluate_with_context(&args[1], &define_context)?;
+                let var_value = if data.args.len() == 2 {
+                    self.evaluate_with_context(&data.args[1], &define_context)?
+                } else {
+                    // If no value provided, use current base result
+                    base_result.clone()
+                };
 
                 // Create new context with variable set
                 let mut new_context = define_context.clone();
@@ -138,14 +148,14 @@ impl FhirPathEngine {
         context: EvaluationContext,
     ) -> EvaluationResult<(FhirPathValue, EvaluationContext)> {
         match expression {
-            ExpressionNode::MethodCall { base, method, args } if method == "defineVariable" => {
+            ExpressionNode::MethodCall(data) if data.method == "defineVariable" => {
                 // Special handling for defineVariable to thread context properly
                 let (base_value, mut updated_context) =
-                    self.evaluate_with_context_threaded(base, context)?;
+                    self.evaluate_with_context_threaded(&data.base, context)?;
 
-                if args.len() != 2 {
+                if data.args.is_empty() || data.args.len() > 2 {
                     return Err(EvaluationError::InvalidOperation {
-                        message: "defineVariable requires exactly 2 arguments: name and value"
+                        message: "defineVariable requires 1-2 arguments: name and optional value"
                             .to_string(),
                     });
                 }
@@ -155,7 +165,7 @@ impl FhirPathEngine {
 
                 // Evaluate variable name and value
                 let (name_value, _) =
-                    self.evaluate_with_context_threaded(&args[0], define_context.clone())?;
+                    self.evaluate_with_context_threaded(&data.args[0], define_context.clone())?;
                 let var_name = match name_value {
                     FhirPathValue::String(name) => name,
                     FhirPathValue::Collection(items) if items.len() == 1 => match items.get(0) {
@@ -174,25 +184,86 @@ impl FhirPathEngine {
                     }
                 };
 
-                let (var_value, _) =
-                    self.evaluate_with_context_threaded(&args[1], define_context)?;
+                // Check for protected system variables
+                if self.is_protected_variable(&var_name) {
+                    return Err(EvaluationError::InvalidOperation {
+                        message: format!("Cannot redefine system variable '{}'", var_name),
+                    });
+                }
+
+                let (var_value, _) = if data.args.len() == 2 {
+                    self.evaluate_with_context_threaded(&data.args[1], define_context)?
+                } else {
+                    // If no value provided, use current base value
+                    (base_value.clone(), updated_context.clone())
+                };
 
                 // Store the variable in the context
-                updated_context.set_variable(var_name, var_value);
+                updated_context.set_variable(var_name.clone(), var_value.clone());
 
-                // Return the base value with updated context
-                let result = match &base_value {
-                    FhirPathValue::Empty => FhirPathValue::collection(vec![FhirPathValue::Empty]),
-                    _ => base_value,
+                // Return the input value with updated context (defineVariable returns its input, not the variable value)
+                Ok((base_value, updated_context))
+            }
+
+            ExpressionNode::FunctionCall(data) if data.name == "defineVariable" => {
+                // Special handling for defineVariable function call
+                if data.args.is_empty() || data.args.len() > 2 {
+                    return Err(EvaluationError::InvalidOperation {
+                        message: "defineVariable requires 1-2 arguments: name and optional value"
+                            .to_string(),
+                    });
+                }
+
+                // Evaluate variable name and value
+                let (name_value, _) =
+                    self.evaluate_with_context_threaded(&data.args[0], context.clone())?;
+                let var_name = match name_value {
+                    FhirPathValue::String(name) => name,
+                    FhirPathValue::Collection(items) if items.len() == 1 => match items.get(0) {
+                        Some(FhirPathValue::String(name)) => name.clone(),
+                        _ => {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: "defineVariable first argument must be a string"
+                                    .to_string(),
+                            });
+                        }
+                    },
+                    _ => {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: "defineVariable first argument must be a string".to_string(),
+                        });
+                    }
                 };
-                Ok((result, updated_context))
+
+                // Check for protected system variables
+                if self.is_protected_variable(&var_name) {
+                    return Err(EvaluationError::InvalidOperation {
+                        message: format!("Cannot redefine system variable '{}'", var_name),
+                    });
+                }
+
+                let (var_value, mut updated_context) = if data.args.len() == 2 {
+                    self.evaluate_with_context_threaded(&data.args[1], context.clone())?
+                } else {
+                    // If no value provided, use current input
+                    (context.input.clone(), context.clone())
+                };
+
+                // Store the variable in the context
+                updated_context.set_variable(var_name.clone(), var_value.clone());
+
+                // Return the input value with updated context (defineVariable returns its input)
+                Ok((context.input.clone(), updated_context))
             }
 
             ExpressionNode::Union { left, right } => {
-                // For union operations, evaluate each side with the same initial context
-                // but isolated variable scoping will happen during defineVariable evaluation
-                let (left_val, _) = self.evaluate_with_context_threaded(left, context.clone())?;
-                let (right_val, _) = self.evaluate_with_context_threaded(right, context.clone())?;
+                // For union operations, evaluate each side with isolated variable scopes
+                // This prevents variables defined in one side from affecting the other
+                let left_context = context.with_fresh_variable_scope();
+                let right_context = context.with_fresh_variable_scope();
+                
+                let (left_val, _) = self.evaluate_with_context_threaded(left, left_context)?;
+                let (right_val, _) = self.evaluate_with_context_threaded(right, right_context)?;
 
                 let mut items = Vec::new();
 
@@ -223,12 +294,12 @@ impl FhirPathEngine {
                 Ok((FhirPathValue::collection(items), context))
             }
 
-            ExpressionNode::MethodCall { base, method, args } => {
+            ExpressionNode::MethodCall(data) => {
                 // For other method calls, thread context through base evaluation
                 let (base_value, updated_context) =
-                    self.evaluate_with_context_threaded(base, context)?;
+                    self.evaluate_with_context_threaded(&data.base, context)?;
                 let method_context = updated_context.with_input(base_value);
-                let result = self.evaluate_method_call_direct(method, args, &method_context)?;
+                let result = self.evaluate_method_call_direct(&data.method, &data.args, &method_context)?;
                 Ok((result, updated_context))
             }
 
@@ -268,12 +339,12 @@ impl FhirPathEngine {
 
             ExpressionNode::Variable(name) => self.evaluate_variable(name, context),
 
-            ExpressionNode::FunctionCall { name, args } => {
-                self.evaluate_function_call(name, args, context)
+            ExpressionNode::FunctionCall(data) => {
+                self.evaluate_function_call(&data.name, &data.args, context)
             }
 
-            ExpressionNode::MethodCall { base, method, args } => {
-                self.evaluate_method_call(base, method, args, context)
+            ExpressionNode::MethodCall(data) => {
+                self.evaluate_method_call(&data.base, &data.method, &data.args, context)
             }
 
             ExpressionNode::BinaryOp { op, left, right } => {
@@ -302,17 +373,13 @@ impl FhirPathEngine {
                 type_name,
             } => self.evaluate_type_cast(expression, type_name, context),
 
-            ExpressionNode::Lambda { param: _, body } => {
+            ExpressionNode::Lambda(data) => {
                 // Lambda expressions are context-dependent
                 // For now, evaluate body directly
-                self.evaluate_with_context_old(body, context)
+                self.evaluate_with_context_old(&data.body, context)
             }
 
-            ExpressionNode::Conditional {
-                condition,
-                then_expr,
-                else_expr,
-            } => self.evaluate_conditional(condition, then_expr, else_expr.as_deref(), context),
+            ExpressionNode::Conditional(data) => self.evaluate_conditional(&data.condition, &data.then_expr, data.else_expr.as_deref(), context),
         }
     }
 
@@ -335,11 +402,11 @@ impl FhirPathEngine {
     /// Check if an expression needs variable scoping (contains defineVariable or union)
     fn needs_variable_scoping(&self, expression: &ExpressionNode) -> bool {
         match expression {
-            ExpressionNode::MethodCall {
-                method,
-                base,
-                args: _,
-            } => method == "defineVariable" || self.needs_variable_scoping(base),
+            ExpressionNode::MethodCall(data) => {
+                data.method == "defineVariable" 
+                || self.needs_variable_scoping(&data.base)
+                || data.args.iter().any(|arg| self.needs_variable_scoping(arg))
+            },
             ExpressionNode::Union { left, right } => {
                 self.needs_variable_scoping(left) || self.needs_variable_scoping(right)
             }
@@ -354,18 +421,14 @@ impl FhirPathEngine {
             ExpressionNode::Filter { base, condition } => {
                 self.needs_variable_scoping(base) || self.needs_variable_scoping(condition)
             }
-            ExpressionNode::FunctionCall { args, name: _ } => {
-                args.iter().any(|arg| self.needs_variable_scoping(arg))
+            ExpressionNode::FunctionCall(data) => {
+                data.name == "defineVariable" || data.args.iter().any(|arg| self.needs_variable_scoping(arg))
             }
-            ExpressionNode::Lambda { body, param: _ } => self.needs_variable_scoping(body),
-            ExpressionNode::Conditional {
-                condition,
-                then_expr,
-                else_expr,
-            } => {
-                self.needs_variable_scoping(condition)
-                    || self.needs_variable_scoping(then_expr)
-                    || else_expr
+            ExpressionNode::Lambda(data) => self.needs_variable_scoping(&data.body),
+            ExpressionNode::Conditional(data) => {
+                self.needs_variable_scoping(&data.condition)
+                    || self.needs_variable_scoping(&data.then_expr)
+                    || data.else_expr
                         .as_ref()
                         .map_or(false, |e| self.needs_variable_scoping(e))
             }
@@ -441,6 +504,25 @@ impl FhirPathEngine {
         name: &str,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
+        // Handle special namespace identifiers first
+        match name {
+            "FHIR" => {
+                // Return a TypeInfoObject that represents the FHIR namespace
+                return Ok(FhirPathValue::TypeInfoObject {
+                    namespace: "FHIR".to_string(),
+                    name: "namespace".to_string(),
+                });
+            }
+            "System" => {
+                // Return a TypeInfoObject that represents the System namespace
+                return Ok(FhirPathValue::TypeInfoObject {
+                    namespace: "System".to_string(),
+                    name: "namespace".to_string(),
+                });
+            }
+            _ => {}
+        }
+
         match &context.input {
             FhirPathValue::Resource(resource) => {
                 // First check if the identifier matches the resource type
@@ -492,9 +574,37 @@ impl FhirPathEngine {
                 name: type_name,
             } => {
                 // Handle property access on TypeInfo objects
+                if type_name == "namespace" {
+                    // This is a namespace object - accessing any property returns the type name
+                    // For FHIR namespace, return the qualified type name for is() function
+                    if namespace == "FHIR" {
+                        return Ok(FhirPathValue::String(format!("FHIR.{}", name)));
+                    } else if namespace == "System" {
+                        return Ok(FhirPathValue::String(format!("System.{}", name)));
+                    }
+                }
+                
+                // Regular TypeInfo object property access
                 match name {
                     "namespace" => Ok(FhirPathValue::String(namespace.clone())),
                     "name" => Ok(FhirPathValue::String(type_name.clone())),
+                    _ => Ok(FhirPathValue::Empty),
+                }
+            }
+            FhirPathValue::Quantity(quantity) => {
+                // Handle property access on Quantity objects
+                match name {
+                    "value" => {
+                        // Return the numeric value of the quantity
+                        Ok(FhirPathValue::Decimal(quantity.value))
+                    }
+                    "unit" => {
+                        // Return the unit string if it exists
+                        match &quantity.unit {
+                            Some(unit) => Ok(FhirPathValue::String(unit.clone())),
+                            None => Ok(FhirPathValue::Empty),
+                        }
+                    }
                     _ => Ok(FhirPathValue::Empty),
                 }
             }
@@ -509,15 +619,32 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
         match name {
-            "$this" | "$" => Ok(context.input.clone()),
-            "$$" => Ok(context.root.clone()),
+            "$this" | "$" | "this" => Ok(context.input.clone()),
+            "$$" | "$resource" | "resource" => Ok(context.root.clone()),
+            "$total" | "total" => {
+                // $total is used in aggregate functions - check for it in variables
+                if let Some(value) = context.get_variable("total") {
+                    Ok(value.clone())
+                } else {
+                    // If $total is not defined, return empty
+                    Ok(FhirPathValue::Empty)
+                }
+            }
+            "$index" | "index" => {
+                // $index is used in lambda functions - check for it in variables
+                if let Some(value) = context.get_variable("index") {
+                    Ok(value.clone())
+                } else {
+                    // If $index is not defined, return empty
+                    Ok(FhirPathValue::Empty)
+                }
+            }
             _ => {
-                // Check for variables in the context
+                // Environment variables parsed as Variable("name") where % is stripped by parser
                 if let Some(value) = context.get_variable(name) {
                     Ok(value.clone())
                 } else {
                     // Variable not found - return empty per FHIRPath spec
-                    // This ensures proper scoping where undefined variables evaluate to empty
                     Ok(FhirPathValue::Empty)
                 }
             }
@@ -551,9 +678,9 @@ impl FhirPathEngine {
         for arg in args {
             let value = self.evaluate_with_context(arg, context)?;
 
-            // Special handling for 'is' function: if an argument evaluates to Empty,
+            // Special handling for type-related functions: if an argument evaluates to Empty,
             // check if it represents a type name (identifier or dotted path) and treat as string literal
-            if name == "is" && matches!(value, FhirPathValue::Empty) {
+            if (name == "is" || name == "as" || name == "ofType") && matches!(value, FhirPathValue::Empty) {
                 if let Some(type_name) = self.extract_type_name(arg) {
                     arg_values.push(FhirPathValue::String(type_name));
                 } else {
@@ -584,7 +711,7 @@ impl FhirPathEngine {
     /// Evaluate a lambda function with unevaluated expression arguments
     fn evaluate_lambda_function(
         &self,
-        function: std::sync::Arc<dyn fhirpath_registry::function::FhirPathFunction>,
+        function: &fhirpath_registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
@@ -594,7 +721,10 @@ impl FhirPathEngine {
              item_context: &FhirPathValue|
              -> Result<FhirPathValue, fhirpath_registry::function::FunctionError> {
                 // Create a new evaluation context with the item as input
-                let item_eval_context = context.with_input(item_context.clone());
+                let mut item_eval_context = context.with_input(item_context.clone());
+
+                // Explicitly set $this to the current item for lambda functions
+                item_eval_context.set_variable("this".to_string(), item_context.clone());
 
                 // Evaluate the expression in the item context
                 self.evaluate_with_context_threaded(expr, item_eval_context.clone())
@@ -615,6 +745,10 @@ impl FhirPathEngine {
              -> Result<FhirPathValue, fhirpath_registry::function::FunctionError> {
                 // Create a new evaluation context with the item as input
                 let mut item_eval_context = context.with_input(item_context.clone());
+
+                // Explicitly set $this to the current item for lambda functions
+                item_eval_context.set_variable("this".to_string(), item_context.clone());
+                
 
                 // Inject additional variables into the context
                 for (name, value) in additional_vars {
@@ -642,10 +776,11 @@ impl FhirPathEngine {
             .variables
             .extend(context.variable_scope.collect_all_variables());
         registry_context.root = context.root.clone();
+        
         let lambda_context = fhirpath_registry::function::LambdaEvaluationContext {
             context: &registry_context,
             evaluator: &evaluator,
-            enhanced_evaluator: None, // Temporarily disabled due to lifetime issues
+            enhanced_evaluator: Some(&enhanced_evaluator),
         };
 
         // Check if function implements LambdaFunction trait
@@ -672,6 +807,27 @@ impl FhirPathEngine {
                     .evaluate_with_lambda(args, &lambda_context)
                     .map_err(|e| EvaluationError::Function(e))
             }
+            "aggregate" => {
+                use fhirpath_registry::functions::collection::AggregateFunction;
+                let aggregate_fn = AggregateFunction;
+                aggregate_fn
+                    .evaluate_with_lambda(args, &lambda_context)
+                    .map_err(|e| EvaluationError::Function(e))
+            }
+            "sort" => {
+                use fhirpath_registry::functions::collection::SortFunction;
+                let sort_fn = SortFunction;
+                sort_fn
+                    .evaluate_with_lambda(args, &lambda_context)
+                    .map_err(|e| EvaluationError::Function(e))
+            }
+            "exists" => {
+                use fhirpath_registry::functions::collection::ExistsFunction;
+                let exists_fn = ExistsFunction;
+                exists_fn
+                    .evaluate_with_lambda(args, &lambda_context)
+                    .map_err(|e| EvaluationError::Function(e))
+            }
             _ => {
                 // Fall back to regular function evaluation for other functions
                 self.evaluate_function_call_regular(function, args, context)
@@ -682,7 +838,7 @@ impl FhirPathEngine {
     /// Regular function evaluation for functions that don't support lambdas
     fn evaluate_function_call_regular(
         &self,
-        function: std::sync::Arc<dyn fhirpath_registry::function::FhirPathFunction>,
+        function: &fhirpath_registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
@@ -717,9 +873,16 @@ impl FhirPathEngine {
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        // First evaluate the base expression to get the context for the method call
-        let base_value = self.evaluate_with_context(base, context)?;
-        self.evaluate_method_call_direct(method, args, &context.with_input(base_value))
+        // Check if we need to thread context through the method call chain
+        if self.needs_variable_scoping(base) {
+            // Use threaded context evaluation to preserve variables from defineVariable calls
+            let (base_value, updated_context) = self.evaluate_with_context_threaded(base, context.clone())?;
+            self.evaluate_method_call_direct(method, args, &updated_context.with_input(base_value))
+        } else {
+            // First evaluate the base expression to get the context for the method call
+            let base_value = self.evaluate_with_context(base, context)?;
+            self.evaluate_method_call_direct(method, args, &context.with_input(base_value))
+        }
     }
 
     /// Evaluate a method call with already-evaluated base value
@@ -736,7 +899,10 @@ impl FhirPathEngine {
             "allTrue" | "anyTrue" | "allFalse" | "anyFalse" | "aggregate" |
             "select" | "where" | "all" | "any" |  // Lambda functions should operate on collections
             "first" | "last" | "tail" | "skip" | "take" |  // Collection navigation functions
-            "join" // String functions that operate on collections
+            "join" | // String functions that operate on collections
+            "subsetOf" | "supersetOf" | "intersect" | "exclude" | "combine" | // Set operations
+            "sort" | // Sort function should operate on the entire collection
+            "repeat"  // Repeat function should operate on the entire collection
         );
 
         // For collection-level functions, always operate on the entire collection
@@ -1200,15 +1366,32 @@ fn unwrap_function_arguments(args: Vec<FhirPathValue>) -> Vec<FhirPathValue> {
         .collect()
 }
 
-/// Parse a FHIRPath date literal (format: @YYYY-MM-DD)
+/// Parse a FHIRPath date literal (supports partial dates: @YYYY, @YYYY-MM, @YYYY-MM-DD)
 fn parse_fhirpath_date(s: &str) -> Result<chrono::NaiveDate, chrono::ParseError> {
     // Remove the @ prefix
     let date_str = s.strip_prefix('@').unwrap_or(s);
+    
+    // Try full date format first
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        return Ok(date);
+    }
+    
+    // Try year-month format (default to first day of month)
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(&format!("{}-01", date_str), "%Y-%m-%d") {
+        return Ok(date);
+    }
+    
+    // Try year-only format (default to January 1st)
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(&format!("{}-01-01", date_str), "%Y-%m-%d") {
+        return Ok(date);
+    }
+    
+    // If none work, return error with the original string for better error reporting
     chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
 }
 
-/// Parse a FHIRPath datetime literal (format: @YYYY-MM-DDTHH:MM:SS.sss+ZZ:ZZ)
-fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::Utc>, chrono::ParseError> {
+/// Parse a FHIRPath datetime literal (supports partial: @YYYY, @YYYY-MM, @YYYY-MM-DD, @YYYY-MM-DDTHH, etc.)
+fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::FixedOffset>, chrono::ParseError> {
     use chrono::TimeZone;
 
     // Remove the @ prefix
@@ -1216,24 +1399,56 @@ fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::Utc>, chr
 
     // Try different datetime formats
     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(datetime_str) {
-        return Ok(dt.with_timezone(&chrono::Utc));
+        return Ok(dt.fixed_offset());
     }
 
     // Try format with timezone offset
     if let Ok(dt) = chrono::DateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S%.3f%z") {
-        return Ok(dt.with_timezone(&chrono::Utc));
+        return Ok(dt.fixed_offset());
+    }
+
+    // Try format with timezone offset (hour:minute only, no seconds)
+    if let Ok(dt) = chrono::DateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M%z") {
+        return Ok(dt.fixed_offset());
     }
 
     // Try format without timezone (assume UTC)
     if let Ok(naive_dt) =
         chrono::NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S%.3f")
     {
-        return Ok(chrono::Utc.from_utc_datetime(&naive_dt));
+        return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
     }
 
     // Try basic format without milliseconds
     if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(chrono::Utc.from_utc_datetime(&naive_dt));
+        return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
+    }
+
+    // Try format with just hour and minute
+    if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%dT%H:%M") {
+        return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
+    }
+
+    // Try format with just hour
+    if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(&format!("{}:00:00", datetime_str), "%Y-%m-%dT%H:%M:%S") {
+        return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
+    }
+
+    // Handle partial datetime formats ending with T
+    if datetime_str.ends_with('T') {
+        let date_part = datetime_str.trim_end_matches('T');
+        
+        // Try to parse as a date and convert to datetime
+        if let Ok(date) = parse_fhirpath_date(&format!("@{}", date_part)) {
+            let naive_dt = date.and_hms_opt(0, 0, 0).unwrap();
+            return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
+        }
+    }
+
+    // Handle date-only parts as datetime (midnight)
+    if let Ok(date) = parse_fhirpath_date(&format!("@{}", datetime_str)) {
+        let naive_dt = date.and_hms_opt(0, 0, 0).unwrap();
+        return Ok(chrono::Utc.from_utc_datetime(&naive_dt).fixed_offset());
     }
 
     // Return a simple parse error by trying an invalid format to get a real ParseError
@@ -1242,12 +1457,12 @@ fn parse_fhirpath_datetime(s: &str) -> Result<chrono::DateTime<chrono::Utc>, chr
             chrono::Utc.from_utc_datetime(&chrono::NaiveDateTime::new(
                 chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
                 chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-            ))
+            )).fixed_offset()
         })
         .map_err(|e| e)
 }
 
-/// Parse a FHIRPath time literal (format: @THH:MM:SS.sss)
+/// Parse a FHIRPath time literal (supports partial: @T14, @T14:30, @THH:MM:SS.sss)
 fn parse_fhirpath_time(s: &str) -> Result<chrono::NaiveTime, chrono::ParseError> {
     // Remove the @T prefix
     let time_str = s
@@ -1261,10 +1476,40 @@ fn parse_fhirpath_time(s: &str) -> Result<chrono::NaiveTime, chrono::ParseError>
     }
 
     // Try basic format without milliseconds
+    if let Ok(time) = chrono::NaiveTime::parse_from_str(time_str, "%H:%M:%S") {
+        return Ok(time);
+    }
+
+    // Try hour and minute format (default seconds to 0)
+    if let Ok(time) = chrono::NaiveTime::parse_from_str(time_str, "%H:%M") {
+        return Ok(time);
+    }
+
+    // Try hour-only format (default minutes and seconds to 0)
+    if let Ok(hour) = time_str.parse::<u32>() {
+        if let Some(time) = chrono::NaiveTime::from_hms_opt(hour, 0, 0) {
+            return Ok(time);
+        }
+    }
+
+    // If none work, return error with the original format for better error reporting
     chrono::NaiveTime::parse_from_str(time_str, "%H:%M:%S")
 }
 
 /// Check if a function name corresponds to a lambda function
 fn is_lambda_function(name: &str) -> bool {
-    matches!(name, "all" | "any" | "exists" | "select" | "where")
+    matches!(name, "all" | "any" | "exists" | "select" | "where" | "aggregate" | "sort")
+}
+
+impl FhirPathEngine {
+    /// Check if a variable name is protected (system variable that cannot be redefined)
+    fn is_protected_variable(&self, name: &str) -> bool {
+        matches!(name, 
+            "context" | "resource" | "rootResource" | 
+            "this" | "index" | "total" |
+            "$context" | "$resource" | "$rootResource" |
+            "$this" | "$index" | "$total" |
+            "ucum" | "$ucum"
+        )
+    }
 }

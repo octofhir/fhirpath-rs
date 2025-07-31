@@ -49,6 +49,25 @@ impl Precedence {
         self as u8
     }
 
+    /// Get the next higher precedence level for left-associative operators
+    #[inline(always)]
+    pub const fn next_level(self) -> Self {
+        match self {
+            Precedence::Implies => Precedence::Or,
+            Precedence::Or => Precedence::And,
+            Precedence::And => Precedence::Membership,
+            Precedence::Membership => Precedence::Equality,
+            Precedence::Equality => Precedence::Inequality,
+            Precedence::Inequality => Precedence::Union,
+            Precedence::Union => Precedence::Type,
+            Precedence::Type => Precedence::Additive,
+            Precedence::Additive => Precedence::Multiplicative,
+            Precedence::Multiplicative => Precedence::Unary,
+            Precedence::Unary => Precedence::Invocation,
+            Precedence::Invocation => Precedence::Invocation, // Already highest
+        }
+    }
+
     /// Check if this precedence is right associative
     #[inline(always)]
     pub const fn is_right_associative(self) -> bool {
@@ -77,41 +96,53 @@ impl Precedence {
 #[inline(always)]
 fn get_precedence<'input>(token: &Token<'input>) -> Option<Precedence> {
     match token {
-        // Multiplicative operators (highest precedence of binary ops)
-        Token::Multiply | Token::Divide | Token::Div | Token::Mod => {
-            Some(Precedence::Multiplicative)
-        }
+        // Most common operators first for branch prediction optimization
 
-        // Additive operators and concatenation
-        Token::Plus | Token::Minus | Token::Ampersand => Some(Precedence::Additive),
+        // Invocation operators (most frequent in FHIRPath)
+        Token::Dot => Some(Precedence::Invocation),
+        Token::LeftBracket => Some(Precedence::Invocation),
+
+        // Equality operators (very common)
+        Token::Equal => Some(Precedence::Equality),
+        Token::NotEqual => Some(Precedence::Equality),
+        Token::Equivalent => Some(Precedence::Equality),
+        Token::NotEquivalent => Some(Precedence::Equality),
+
+        // Additive operators (common)
+        Token::Plus => Some(Precedence::Additive),
+        Token::Minus => Some(Precedence::Additive),
+        Token::Ampersand => Some(Precedence::Additive),
+
+        // Logical operators
+        Token::And => Some(Precedence::And),
+        Token::Or => Some(Precedence::Or),
+        Token::Xor => Some(Precedence::Or),
+
+        // Multiplicative operators
+        Token::Multiply => Some(Precedence::Multiplicative),
+        Token::Divide => Some(Precedence::Multiplicative),
+        Token::Div => Some(Precedence::Multiplicative),
+        Token::Mod => Some(Precedence::Multiplicative),
+
+        // Inequality operators
+        Token::LessThan => Some(Precedence::Inequality),
+        Token::LessThanOrEqual => Some(Precedence::Inequality),
+        Token::GreaterThan => Some(Precedence::Inequality),
+        Token::GreaterThanOrEqual => Some(Precedence::Inequality),
+
+        // Membership operators
+        Token::In => Some(Precedence::Membership),
+        Token::Contains => Some(Precedence::Membership),
 
         // Type operators
-        Token::Is | Token::As => Some(Precedence::Type),
+        Token::Is => Some(Precedence::Type),
+        Token::As => Some(Precedence::Type),
 
         // Union operator
         Token::Union => Some(Precedence::Union),
 
-        // Inequality operators
-        Token::LessThan
-        | Token::LessThanOrEqual
-        | Token::GreaterThan
-        | Token::GreaterThanOrEqual => Some(Precedence::Inequality),
-
-        // Equality operators
-        Token::Equal | Token::NotEqual | Token::Equivalent | Token::NotEquivalent => {
-            Some(Precedence::Equality)
-        }
-
-        // Membership operators
-        Token::In | Token::Contains => Some(Precedence::Membership),
-
-        // Logical operators
-        Token::And => Some(Precedence::And),
-        Token::Or | Token::Xor => Some(Precedence::Or),
+        // Implies (least common)
         Token::Implies => Some(Precedence::Implies),
-
-        // Invocation operators
-        Token::Dot | Token::LeftBracket => Some(Precedence::Invocation),
 
         // Non-operator tokens
         _ => None,
@@ -119,31 +150,38 @@ fn get_precedence<'input>(token: &Token<'input>) -> Option<Precedence> {
 }
 
 /// Convert token to binary operator with zero-cost abstraction
+/// Optimized ordering based on operator frequency in typical FHIRPath expressions
 #[inline(always)]
 fn token_to_binary_op<'input>(token: &Token<'input>) -> Option<BinaryOperator> {
     match token {
-        Token::Plus => Some(BinaryOperator::Add),
-        Token::Minus => Some(BinaryOperator::Subtract),
-        Token::Multiply => Some(BinaryOperator::Multiply),
-        Token::Divide => Some(BinaryOperator::Divide),
-        Token::Div => Some(BinaryOperator::IntegerDivide),
-        Token::Mod => Some(BinaryOperator::Modulo),
+        // Most common operators first for better branch prediction
         Token::Equal => Some(BinaryOperator::Equal),
         Token::NotEqual => Some(BinaryOperator::NotEqual),
+        Token::Plus => Some(BinaryOperator::Add),
+        Token::Minus => Some(BinaryOperator::Subtract),
+        Token::And => Some(BinaryOperator::And),
+        Token::Or => Some(BinaryOperator::Or),
+
+        // Moderately common operators
         Token::Equivalent => Some(BinaryOperator::Equivalent),
         Token::NotEquivalent => Some(BinaryOperator::NotEquivalent),
         Token::LessThan => Some(BinaryOperator::LessThan),
         Token::LessThanOrEqual => Some(BinaryOperator::LessThanOrEqual),
         Token::GreaterThan => Some(BinaryOperator::GreaterThan),
         Token::GreaterThanOrEqual => Some(BinaryOperator::GreaterThanOrEqual),
-        Token::And => Some(BinaryOperator::And),
-        Token::Or => Some(BinaryOperator::Or),
-        Token::Xor => Some(BinaryOperator::Xor),
-        Token::Implies => Some(BinaryOperator::Implies),
         Token::In => Some(BinaryOperator::In),
         Token::Contains => Some(BinaryOperator::Contains),
+
+        // Less common operators
+        Token::Multiply => Some(BinaryOperator::Multiply),
+        Token::Divide => Some(BinaryOperator::Divide),
+        Token::Div => Some(BinaryOperator::IntegerDivide),
+        Token::Mod => Some(BinaryOperator::Modulo),
         Token::Union => Some(BinaryOperator::Union),
         Token::Ampersand => Some(BinaryOperator::Concatenate),
+        Token::Xor => Some(BinaryOperator::Xor),
+        Token::Implies => Some(BinaryOperator::Implies),
+
         _ => None,
     }
 }
@@ -272,6 +310,11 @@ impl<'input> PrattParser<'input> {
                 // Check for function call
                 if let Some(Token::LeftParen) = self.current() {
                     self.parse_function_call(name)
+                } else if let Some(Token::Arrow) = self.current() {
+                    // Single parameter lambda: param => expression
+                    self.advance()?; // consume =>
+                    let body = self.parse_expression_with_precedence(Precedence::Implies)?;
+                    Ok(ExpressionNode::lambda_single(name, body))
                 } else {
                     Ok(ExpressionNode::identifier(name))
                 }
@@ -307,8 +350,12 @@ impl<'input> PrattParser<'input> {
             Some(Token::String(value)) => {
                 let value = *value;
                 self.advance()?;
+
+                // Process escape sequences including Unicode escapes
+                let processed_string = Self::process_string_escapes(value)?;
+
                 Ok(ExpressionNode::literal(LiteralValue::String(
-                    value.to_string(),
+                    processed_string,
                 )))
             }
 
@@ -373,12 +420,107 @@ impl<'input> PrattParser<'input> {
                 )))
             }
 
-            // Parenthesized expressions
+            // Parenthesized expressions or multi-parameter lambdas
             Some(Token::LeftParen) => {
                 self.advance()?;
-                let expr = self.parse_expression_with_precedence(Precedence::Implies)?;
-                self.expect(Token::RightParen)?;
-                Ok(expr)
+
+                // Check for empty parameter list: () => expression
+                if let Some(Token::RightParen) = self.current() {
+                    self.advance()?; // consume )
+                    if let Some(Token::Arrow) = self.current() {
+                        // Anonymous lambda: () => expression
+                        self.advance()?; // consume =>
+                        let body = self.parse_expression_with_precedence(Precedence::Implies)?;
+                        return Ok(ExpressionNode::lambda_anonymous(body));
+                    } else {
+                        // This should not happen in valid FHIRPath - empty parentheses without =>
+                        return Err(ParseError::UnexpectedToken {
+                            token: "Empty parentheses are not valid in FHIRPath".to_string(),
+                            position: 0,
+                        });
+                    }
+                }
+
+                // Try to parse as parameter list or regular expression
+                // First, check if it looks like parameters (identifier followed by comma or ))
+                if let Some(Token::Identifier(first_param)) = self.current() {
+                    let first_param = *first_param;
+                    self.advance()?;
+
+                    if let Some(Token::Comma) = self.current() {
+                        // Multi-parameter lambda: (param1, param2, ...) => expression
+                        let mut params = vec![first_param.to_string()];
+
+                        while let Some(Token::Comma) = self.current() {
+                            self.advance()?; // consume comma
+                            if let Some(Token::Identifier(param)) = self.current() {
+                                params.push(param.to_string());
+                                self.advance()?;
+                            } else {
+                                return Err(ParseError::UnexpectedToken {
+                                    token: "Expected parameter name in lambda parameter list"
+                                        .to_string(),
+                                    position: 0,
+                                });
+                            }
+                        }
+
+                        self.expect(Token::RightParen)?;
+                        self.expect(Token::Arrow)?;
+                        let body = self.parse_expression_with_precedence(Precedence::Implies)?;
+                        Ok(ExpressionNode::lambda(params, body))
+                    } else if let Some(Token::RightParen) = self.current() {
+                        // Could be single parameter lambda: (param) => expression
+                        self.advance()?; // consume )
+                        if let Some(Token::Arrow) = self.current() {
+                            self.advance()?; // consume =>
+                            let body =
+                                self.parse_expression_with_precedence(Precedence::Implies)?;
+                            Ok(ExpressionNode::lambda_single(first_param, body))
+                        } else {
+                            // Regular parenthesized identifier
+                            Ok(ExpressionNode::identifier(first_param))
+                        }
+                    } else {
+                        // Regular parenthesized expression starting with identifier
+                        // We have already consumed the identifier, so we need to manually
+                        // continue the expression parsing from this point
+                        let mut left = ExpressionNode::identifier(first_param);
+                        left = self.parse_postfix(left)?;
+
+                        // Process binary operators manually for this special case
+                        while let Some(current_token) = self.current() {
+                            if matches!(current_token, Token::RightParen) {
+                                break;
+                            }
+
+                            // Handle binary operators within parentheses
+                            if let Some(op) = token_to_binary_op(current_token) {
+                                self.advance()?; // consume operator
+                                let right =
+                                    self.parse_expression_with_precedence(Precedence::Implies)?;
+                                left = ExpressionNode::binary_op(op, left, right);
+                                break; // For simplicity, only handle one binary operator for now
+                            } else {
+                                return Err(ParseError::UnexpectedToken {
+                                    token: format!(
+                                        "Unexpected token in parentheses: {:?}",
+                                        current_token
+                                    ),
+                                    position: 0,
+                                });
+                            }
+                        }
+
+                        self.expect(Token::RightParen)?;
+                        Ok(left)
+                    }
+                } else {
+                    // Regular parenthesized expression
+                    let expr = self.parse_expression_with_precedence(Precedence::Implies)?;
+                    self.expect(Token::RightParen)?;
+                    Ok(expr)
+                }
             }
 
             // Variable references
@@ -396,18 +538,82 @@ impl<'input> PrattParser<'input> {
                 }
             }
 
+            // Special variable references
+            Some(Token::DollarThis) => {
+                self.advance()?;
+                Ok(ExpressionNode::variable("this"))
+            }
+
+            Some(Token::DollarIndex) => {
+                self.advance()?;
+                Ok(ExpressionNode::variable("index"))
+            }
+
+            Some(Token::DollarTotal) => {
+                self.advance()?;
+                Ok(ExpressionNode::variable("total"))
+            }
+
             // Context variables
             Some(Token::Percent) => {
                 self.advance()?;
-                if let Some(Token::Identifier(name)) = self.current() {
-                    let var_name = *name;
-                    self.advance()?;
-                    Ok(ExpressionNode::variable(var_name))
-                } else {
-                    Err(ParseError::UnexpectedToken {
+                match self.current() {
+                    Some(Token::Identifier(name)) => {
+                        let var_name = *name;
+                        self.advance()?;
+                        Ok(ExpressionNode::variable(var_name))
+                    }
+                    Some(Token::Backtick) => {
+                        self.advance()?; // consume opening backtick
+
+                        // Collect all tokens until closing backtick to form the variable name
+                        let mut var_name_parts = Vec::new();
+
+                        while let Some(token) = self.current() {
+                            match token {
+                                Token::Backtick => {
+                                    // Found closing backtick
+                                    self.advance()?; // consume closing backtick
+                                    break;
+                                }
+                                Token::Identifier(name) => {
+                                    var_name_parts.push(*name);
+                                    self.advance()?;
+                                }
+                                Token::Minus => {
+                                    var_name_parts.push("-");
+                                    self.advance()?;
+                                }
+                                _ => {
+                                    return Err(ParseError::UnexpectedToken {
+                                        token: format!(
+                                            "Unexpected token in backtick variable name: {:?}",
+                                            token
+                                        ),
+                                        position: 0,
+                                    });
+                                }
+                            }
+                        }
+
+                        if var_name_parts.is_empty() {
+                            return Err(ParseError::UnexpectedToken {
+                                token: "Empty variable name in backticks".to_string(),
+                                position: 0,
+                            });
+                        }
+
+                        // For now, we'll use a heap-allocated string for complex variable names
+                        // This is a limitation of the current AST design
+                        let var_name = var_name_parts.join("");
+                        Ok(ExpressionNode::variable(Box::leak(
+                            var_name.into_boxed_str(),
+                        )))
+                    }
+                    _ => Err(ParseError::UnexpectedToken {
                         token: "Expected variable name after '%'".to_string(),
                         position: 0,
-                    })
+                    }),
                 }
             }
 
@@ -469,6 +675,13 @@ impl<'input> PrattParser<'input> {
             Some(Token::Take) => self.parse_builtin_function("take"),
             Some(Token::Skip) => self.parse_builtin_function("skip"),
             Some(Token::Distinct) => self.parse_builtin_function("distinct"),
+
+            // Anonymous lambda: => expression
+            Some(Token::Arrow) => {
+                self.advance()?; // consume =>
+                let body = self.parse_expression_with_precedence(Precedence::Implies)?;
+                Ok(ExpressionNode::lambda_anonymous(body))
+            }
 
             None => Err(ParseError::UnexpectedToken {
                 token: "Unexpected end of input".to_string(),
@@ -681,14 +894,68 @@ impl<'input> PrattParser<'input> {
             match current_token {
                 Token::Is => {
                     self.advance()?;
-                    if let Some(Token::Identifier(type_name)) = self.current() {
-                        let type_name = type_name.to_string();
+
+                    // Handle parenthesized type names like is(DateTime) or plain type names like is DateTime
+                    let type_name = if let Some(Token::LeftParen) = self.current() {
+                        // Handle is(Type) form
+                        self.advance()?; // consume (
+                        if let Some(Token::Identifier(first_part)) = self.current() {
+                            let mut type_name = first_part.to_string();
+                            self.advance()?;
+
+                            // Handle qualified names with dots (e.g., System.Boolean)
+                            while let Some(Token::Dot) = self.current() {
+                                self.advance()?; // consume dot
+                                if let Some(Token::Identifier(next_part)) = self.current() {
+                                    type_name.push('.');
+                                    type_name.push_str(next_part);
+                                    self.advance()?;
+                                } else {
+                                    return Err(ParseError::UnexpectedToken {
+                                        token: format!(
+                                            "Expected identifier after '.' in qualified type name, got: {:?}",
+                                            self.current()
+                                        ),
+                                        position: 0,
+                                    });
+                                }
+                            }
+
+                            self.expect(Token::RightParen)?; // consume )
+                            type_name
+                        } else {
+                            return Err(ParseError::UnexpectedToken {
+                                token: format!(
+                                    "Expected type name in parentheses after 'is' operator, got: {:?}",
+                                    self.current()
+                                ),
+                                position: 0,
+                            });
+                        }
+                    } else if let Some(Token::Identifier(first_part)) = self.current() {
+                        // Handle is Type form
+                        let mut type_name = first_part.to_string();
                         self.advance()?;
-                        left = ExpressionNode::TypeCheck {
-                            expression: Box::new(left),
-                            type_name,
-                        };
-                        continue;
+
+                        // Handle qualified names with dots (e.g., System.Boolean)
+                        while let Some(Token::Dot) = self.current() {
+                            self.advance()?; // consume dot
+                            if let Some(Token::Identifier(next_part)) = self.current() {
+                                type_name.push('.');
+                                type_name.push_str(next_part);
+                                self.advance()?;
+                            } else {
+                                return Err(ParseError::UnexpectedToken {
+                                    token: format!(
+                                        "Expected identifier after '.' in qualified type name, got: {:?}",
+                                        self.current()
+                                    ),
+                                    position: 0,
+                                });
+                            }
+                        }
+
+                        type_name
                     } else {
                         return Err(ParseError::UnexpectedToken {
                             token: format!(
@@ -698,18 +965,78 @@ impl<'input> PrattParser<'input> {
                             ),
                             position: 0,
                         });
-                    }
+                    };
+
+                    left = ExpressionNode::TypeCheck {
+                        expression: Box::new(left),
+                        type_name,
+                    };
+                    continue;
                 }
                 Token::As => {
                     self.advance()?;
-                    if let Some(Token::Identifier(type_name)) = self.current() {
-                        let type_name = type_name.to_string();
+
+                    // Handle parenthesized type names like as(Type) or plain type names like as Type
+                    let type_name = if let Some(Token::LeftParen) = self.current() {
+                        // Handle as(Type) form
+                        self.advance()?; // consume (
+                        if let Some(Token::Identifier(first_part)) = self.current() {
+                            let mut type_name = first_part.to_string();
+                            self.advance()?;
+
+                            // Handle qualified names with dots (e.g., System.Boolean)
+                            while let Some(Token::Dot) = self.current() {
+                                self.advance()?; // consume dot
+                                if let Some(Token::Identifier(next_part)) = self.current() {
+                                    type_name.push('.');
+                                    type_name.push_str(next_part);
+                                    self.advance()?;
+                                } else {
+                                    return Err(ParseError::UnexpectedToken {
+                                        token: format!(
+                                            "Expected identifier after '.' in qualified type name, got: {:?}",
+                                            self.current()
+                                        ),
+                                        position: 0,
+                                    });
+                                }
+                            }
+
+                            self.expect(Token::RightParen)?; // consume )
+                            type_name
+                        } else {
+                            return Err(ParseError::UnexpectedToken {
+                                token: format!(
+                                    "Expected type name in parentheses after 'as' operator, got: {:?}",
+                                    self.current()
+                                ),
+                                position: 0,
+                            });
+                        }
+                    } else if let Some(Token::Identifier(first_part)) = self.current() {
+                        // Handle as Type form
+                        let mut type_name = first_part.to_string();
                         self.advance()?;
-                        left = ExpressionNode::TypeCast {
-                            expression: Box::new(left),
-                            type_name,
-                        };
-                        continue;
+
+                        // Handle qualified names with dots (e.g., System.Boolean)
+                        while let Some(Token::Dot) = self.current() {
+                            self.advance()?; // consume dot
+                            if let Some(Token::Identifier(next_part)) = self.current() {
+                                type_name.push('.');
+                                type_name.push_str(next_part);
+                                self.advance()?;
+                            } else {
+                                return Err(ParseError::UnexpectedToken {
+                                    token: format!(
+                                        "Expected identifier after '.' in qualified type name, got: {:?}",
+                                        self.current()
+                                    ),
+                                    position: 0,
+                                });
+                            }
+                        }
+
+                        type_name
                     } else {
                         return Err(ParseError::UnexpectedToken {
                             token: format!(
@@ -719,7 +1046,13 @@ impl<'input> PrattParser<'input> {
                             ),
                             position: 0,
                         });
-                    }
+                    };
+
+                    left = ExpressionNode::TypeCast {
+                        expression: Box::new(left),
+                        type_name,
+                    };
+                    continue;
                 }
                 _ => {}
             }
@@ -734,24 +1067,11 @@ impl<'input> PrattParser<'input> {
             self.advance()?;
 
             // Calculate next minimum precedence (handles associativity)
+            // For left associative operators, use next higher precedence level
             let next_min_precedence = if precedence.is_right_associative() {
                 precedence
             } else {
-                // For left associative, increment by one level
-                match precedence as u8 {
-                    1 => Precedence::Or,
-                    2 => Precedence::And,
-                    3 => Precedence::Membership,
-                    4 => Precedence::Equality,
-                    5 => Precedence::Inequality,
-                    6 => Precedence::Union,
-                    7 => Precedence::Type,
-                    8 => Precedence::Additive,
-                    9 => Precedence::Multiplicative,
-                    10 => Precedence::Unary,
-                    11 => Precedence::Invocation,
-                    _ => Precedence::Invocation, // Already highest
-                }
+                precedence.next_level()
             };
 
             // Parse right-hand side recursively
@@ -784,6 +1104,76 @@ impl<'input> PrattParser<'input> {
         }
 
         Ok(expr)
+    }
+
+    /// Process escape sequences in string literals, including Unicode escapes
+    fn process_string_escapes(input: &str) -> ParseResult<String> {
+        let mut result = String::with_capacity(input.len());
+        let mut chars = input.chars();
+
+        while let Some(ch) = chars.next() {
+            if ch == '\\' {
+                match chars.next() {
+                    Some('n') => result.push('\n'),
+                    Some('t') => result.push('\t'),
+                    Some('r') => result.push('\r'),
+                    Some('\\') => result.push('\\'),
+                    Some('\'') => result.push('\''),
+                    Some('\"') => result.push('\"'),
+                    Some('u') => {
+                        // Unicode escape sequence \uXXXX
+                        let mut hex_chars = String::new();
+                        for _ in 0..4 {
+                            match chars.next() {
+                                Some(hex_ch) if hex_ch.is_ascii_hexdigit() => {
+                                    hex_chars.push(hex_ch);
+                                }
+                                _ => {
+                                    return Err(ParseError::InvalidEscape {
+                                        sequence: "\\u".to_string(),
+                                        position: 0,
+                                    });
+                                }
+                            }
+                        }
+
+                        // Parse hex digits to Unicode code point
+                        match u32::from_str_radix(&hex_chars, 16) {
+                            Ok(code_point) => match char::from_u32(code_point) {
+                                Some(unicode_char) => result.push(unicode_char),
+                                None => {
+                                    return Err(ParseError::InvalidEscape {
+                                        sequence: format!("\\u{}", hex_chars),
+                                        position: 0,
+                                    });
+                                }
+                            },
+                            Err(_) => {
+                                return Err(ParseError::InvalidEscape {
+                                    sequence: format!("\\u{}", hex_chars),
+                                    position: 0,
+                                });
+                            }
+                        }
+                    }
+                    Some(escaped_ch) => {
+                        // Unknown escape sequence - treat literally for compatibility
+                        result.push('\\');
+                        result.push(escaped_ch);
+                    }
+                    None => {
+                        return Err(ParseError::InvalidEscape {
+                            sequence: "\\".to_string(),
+                            position: 0,
+                        });
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        Ok(result)
     }
 }
 

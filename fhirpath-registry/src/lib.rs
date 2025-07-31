@@ -5,9 +5,12 @@
 
 #![warn(missing_docs)]
 
+pub mod cache;
+pub mod extension;
 pub mod function;
 pub mod functions;
 pub mod operator;
+pub mod operators;
 pub mod signature;
 
 pub use function::{FhirPathFunction, FunctionRegistry};

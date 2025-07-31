@@ -1,32 +1,33 @@
 #!/bin/bash
 
 # FHIRPath Performance Benchmark Runner
-# Runs benchmarks and displays key performance metrics
+# Runs simplified benchmarks focusing on 3 core components
 
 set -e
 
-echo "🚀 FHIRPath Performance Benchmarks"
-echo "=================================="
+echo "🚀 FHIRPath Core Performance Benchmarks"
+echo "======================================="
 echo ""
 
-# Run compact performance benchmark for quick overview
-echo "📊 Running Compact Performance Benchmark..."
-echo "This provides focused tokenizer and parser performance metrics"
+# Run core performance benchmark for complete overview
+echo "📊 Running Core Performance Benchmark..."
+echo "This tests all 3 components: tokenizer, parser, and evaluator"
 echo ""
 
-cargo bench --bench compact_performance_benchmark
+cargo bench --bench core_performance_benchmark
 
 echo ""
 echo "📈 Performance Summary:"
 echo "----------------------"
 echo "✓ Tokenizer: Optimized for 10M+ operations/second"
 echo "✓ Parser: Optimized for 1M+ operations/second"  
-echo "✓ Pratt Parser: High-performance precedence climbing"
+echo "✓ Evaluator: Context operations and evaluation"
+echo "✓ Full Pipeline: Complete tokenize → parse → evaluate workflow"
 echo ""
 
-# Optional: Run specific benchmarks if requested
+# Optional: Run individual component benchmarks if requested
 if [[ "$1" == "--full" ]]; then
-    echo "🔬 Running Full Benchmark Suite..."
+    echo "🔬 Running Individual Component Benchmarks..."
     echo ""
     
     echo "📝 Tokenizer Only Benchmark:"
@@ -37,15 +38,15 @@ if [[ "$1" == "--full" ]]; then
     cargo bench --bench parser_benchmark
     echo ""
     
-    echo "📝 Parser Only Benchmark:"
-    cargo bench --bench parser_only
+    echo "📝 Evaluator Benchmark:"
+    cargo bench --bench evaluation_context_benchmark
     echo ""
 fi
 
 echo "✅ Benchmarks Complete!"
 echo ""
 echo "💡 Tips:"
-echo "   - Run with --full for comprehensive benchmarks"
+echo "   - Run with --full for individual component benchmarks"
 echo "   - Results are stored in target/criterion/"
 echo "   - HTML reports available for detailed analysis"
 echo ""

@@ -40,6 +40,11 @@ cd fhirpath-core && cargo test run_official_tests -- --ignored --nocapture
 cargo bench
 ```
 
+For debuggin parser error create simple test instead of dedicated binary 
+
+Run specifigc json test case 
+cargo run -p fhirpath-core specs/fhirpath/tests/{test-case-name}.json
+
 ### Performance and Quality
 ```bash
 # Run clippy linting

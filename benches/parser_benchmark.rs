@@ -1,11 +1,11 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use fhirpath_parser::{parse_expression, tokenizer::Tokenizer};
+use fhirpath_parser::{parse, tokenizer::Tokenizer};
 
 fn benchmark_parser(c: &mut Criterion) {
     let expression = "Patient.name.where(use = 'official').given";
 
     c.bench_function("parser", |b| {
-        b.iter(|| black_box(parse_expression(black_box(expression))))
+        b.iter(|| black_box(parse(black_box(expression))))
     });
 }
 
@@ -56,7 +56,7 @@ fn benchmark_multiple_expressions(c: &mut Criterion) {
         });
 
         c.bench_function(&format!("expr_{}_parser", i), |b| {
-            b.iter(|| black_box(parse_expression(black_box(expression))))
+            b.iter(|| black_box(parse(black_box(expression))))
         });
     }
 }
@@ -79,7 +79,7 @@ fn benchmark_operations_per_second(c: &mut Criterion) {
     });
 
     group.bench_function("parser_ops_per_sec", |b| {
-        b.iter(|| black_box(parse_expression(black_box(expression))))
+        b.iter(|| black_box(parse(black_box(expression))))
     });
 
     group.finish();
@@ -107,7 +107,7 @@ fn benchmark_parser_vs_tokenizer_comparison(c: &mut Criterion) {
         });
 
         group.bench_function("parser", |b| {
-            b.iter(|| black_box(parse_expression(black_box(expression))))
+            b.iter(|| black_box(parse(black_box(expression))))
         });
 
         group.finish();

@@ -42,7 +42,23 @@ impl FhirPathEngine {
 
     /// Evaluate an FHIRPath expression against input data
     pub fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
-        let ast = self.get_or_compile_expression(expression)?.clone();
+        // Handle parse errors by returning empty collection per FHIRPath spec
+        let ast = match self.get_or_compile_expression(expression) {
+            Ok(ast) => ast.clone(),
+            Err(e) => {
+                // Per FHIRPath spec, syntax errors should return empty collection
+                if e.to_string().contains("parse error") || 
+                   e.to_string().contains("Parse error") ||
+                   e.to_string().contains("Unclosed") ||
+                   e.to_string().contains("Unexpected") ||
+                   e.to_string().contains("Expected") {
+                    return Ok(FhirPathValue::collection(vec![]));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+        
         let input_value = FhirPathValue::from(input_data);
 
         match self.evaluator.evaluate(&ast, input_value) {

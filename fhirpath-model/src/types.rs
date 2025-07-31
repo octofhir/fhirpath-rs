@@ -6,13 +6,21 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeInfo {
     /// Primitive types
+    /// Boolean value (true/false)
     Boolean,
+    /// Integer numeric value
     Integer,
+    /// Decimal numeric value with arbitrary precision
     Decimal,
+    /// String value
     String,
+    /// Date value (YYYY-MM-DD)
     Date,
+    /// DateTime value with timezone information
     DateTime,
+    /// Time value (HH:MM:SS)
     Time,
+    /// Quantity value with unit and magnitude
     Quantity,
 
     /// Collection type with element type
@@ -31,8 +39,32 @@ pub enum TypeInfo {
     Optional(Box<TypeInfo>),
 
     /// System types
+    /// Simple primitive type
     SimpleType,
+    /// Complex class type
     ClassType,
+
+    /// Type information object type (for reflection)
+    TypeInfo,
+
+    /// Function type (for higher-order functions)
+    Function {
+        /// Function parameter types
+        parameters: Vec<TypeInfo>,
+        /// Function return type
+        return_type: Box<TypeInfo>,
+    },
+
+    /// Tuple type
+    Tuple(Vec<TypeInfo>),
+
+    /// Named type with namespace
+    Named {
+        /// Type namespace
+        namespace: String,
+        /// Type name
+        name: String,
+    },
 }
 
 impl TypeInfo {
@@ -46,6 +78,16 @@ impl TypeInfo {
             (TypeInfo::Collection(a), TypeInfo::Collection(b)) => a.is_compatible_with(b),
             (TypeInfo::Union(types), other) => types.iter().any(|t| t.is_compatible_with(other)),
             (other, TypeInfo::Union(types)) => types.iter().any(|t| other.is_compatible_with(t)),
+            // Numeric type conversions
+            (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => true,
+            // Type coercion for strings and primitives
+            (TypeInfo::String, TypeInfo::Boolean) | (TypeInfo::Boolean, TypeInfo::String) => true,
+            (TypeInfo::String, TypeInfo::Integer) | (TypeInfo::Integer, TypeInfo::String) => true,
+            (TypeInfo::String, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::String) => true,
+            // Named types with same name are compatible
+            (TypeInfo::Named { name: n1, .. }, TypeInfo::Named { name: n2, .. }) => n1 == n2,
+            // Resource types with inheritance
+            (TypeInfo::Resource(r1), TypeInfo::Resource(r2)) => self.is_resource_subtype(r1, r2),
             _ => self == other,
         }
     }
@@ -65,6 +107,47 @@ impl TypeInfo {
             self,
             TypeInfo::Boolean
                 | TypeInfo::Integer
+                | TypeInfo::Decimal
+                | TypeInfo::String
+                | TypeInfo::Date
+                | TypeInfo::DateTime
+                | TypeInfo::Time
+                | TypeInfo::Quantity
+        )
+    }
+
+    /// Check if this type is numeric
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, TypeInfo::Integer | TypeInfo::Decimal | TypeInfo::Quantity)
+    }
+
+    /// Check if this type can be converted to boolean
+    pub fn can_convert_to_boolean(&self) -> bool {
+        matches!(
+            self,
+            TypeInfo::Boolean
+                | TypeInfo::Integer
+                | TypeInfo::Decimal
+                | TypeInfo::String
+                | TypeInfo::Collection(_)
+        )
+    }
+
+    /// Check if this type can be converted to string
+    pub fn can_convert_to_string(&self) -> bool {
+        self.is_primitive() || matches!(self, TypeInfo::Resource(_))
+    }
+
+    /// Check if this type supports equality comparison
+    pub fn supports_equality(&self) -> bool {
+        self.is_primitive() || matches!(self, TypeInfo::Resource(_) | TypeInfo::TypeInfo)
+    }
+
+    /// Check if this type supports ordering comparison
+    pub fn supports_ordering(&self) -> bool {
+        matches!(
+            self,
+            TypeInfo::Integer
                 | TypeInfo::Decimal
                 | TypeInfo::String
                 | TypeInfo::Date
@@ -105,6 +188,22 @@ impl TypeInfo {
             TypeInfo::Optional(inner) => format!("Optional<{}>", inner.type_name()),
             TypeInfo::SimpleType => "SimpleType".to_string(),
             TypeInfo::ClassType => "ClassType".to_string(),
+            TypeInfo::TypeInfo => "TypeInfo".to_string(),
+            TypeInfo::Function { parameters, return_type } => {
+                let param_names: Vec<String> = parameters.iter().map(|t| t.type_name()).collect();
+                format!("Function<({}) -> {}>", param_names.join(", "), return_type.type_name())
+            }
+            TypeInfo::Tuple(types) => {
+                let type_names: Vec<String> = types.iter().map(|t| t.type_name()).collect();
+                format!("Tuple<{}>", type_names.join(", "))
+            }
+            TypeInfo::Named { namespace, name } => {
+                if namespace.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{}.{}", namespace, name)
+                }
+            }
         }
     }
 
@@ -137,6 +236,76 @@ impl TypeInfo {
             flattened.into_iter().next().unwrap()
         } else {
             TypeInfo::Union(flattened)
+        }
+    }
+
+    /// Create a function type
+    pub fn function(parameters: Vec<TypeInfo>, return_type: TypeInfo) -> Self {
+        TypeInfo::Function {
+            parameters,
+            return_type: Box::new(return_type),
+        }
+    }
+
+    /// Create a tuple type
+    pub fn tuple(types: Vec<TypeInfo>) -> Self {
+        TypeInfo::Tuple(types)
+    }
+
+    /// Create a named type
+    pub fn named(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+        TypeInfo::Named {
+            namespace: namespace.into(),
+            name: name.into(),
+        }
+    }
+
+    /// Get the fully qualified name for a type
+    pub fn qualified_name(&self) -> String {
+        match self {
+            TypeInfo::Named { namespace, name } => {
+                if namespace.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{}.{}", namespace, name)
+                }
+            }
+            TypeInfo::Resource(name) => format!("FHIR.{}", name),
+            _ => self.type_name(),
+        }
+    }
+
+    /// Check if one resource type is a subtype of another
+    fn is_resource_subtype(&self, child: &str, parent: &str) -> bool {
+        // Basic FHIR resource hierarchy - in a complete implementation,
+        // this would consult the FHIR structure definitions
+        if child == parent {
+            return true;
+        }
+        
+        // Example hierarchies
+        match (child, parent) {
+            ("Patient", "DomainResource") => true,
+            ("Observation", "DomainResource") => true,
+            ("DomainResource", "Resource") => true,
+            _ => false,
+        }
+    }
+
+    /// Get the conversion priority for type coercion
+    pub fn conversion_priority(&self) -> u8 {
+        match self {
+            TypeInfo::String => 1,
+            TypeInfo::Boolean => 2,
+            TypeInfo::Integer => 3,
+            TypeInfo::Decimal => 4,
+            TypeInfo::Quantity => 5,
+            TypeInfo::Date => 6,
+            TypeInfo::DateTime => 7,
+            TypeInfo::Time => 8,
+            TypeInfo::Collection(_) => 9,
+            TypeInfo::Resource(_) => 10,
+            _ => 255,
         }
     }
 }

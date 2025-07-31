@@ -8,11 +8,21 @@
 
 pub mod builder;
 pub mod diagnostic;
+pub mod diagnostic_reporter;
+pub mod enhanced_diagnostic;
 pub mod formatter;
 pub mod location;
 
 pub use builder::DiagnosticBuilder;
-pub use diagnostic::{Diagnostic, DiagnosticCode, Severity};
+pub use diagnostic::{Diagnostic, DiagnosticCode, Severity, Suggestion, RelatedInformation};
+pub use diagnostic_reporter::{
+    DiagnosticReporter, DiagnosticReport, DiagnosticSummary, GroupedDiagnostics,
+    DiagnosticAnalysis, ErrorPattern, RootCause, WorkflowStep, ReporterConfig
+};
+pub use enhanced_diagnostic::{
+    EnhancedDiagnostic, SmartSuggestion, SuggestionCategory, DocumentationLink, 
+    QuickFix, SuggestionGenerator
+};
 pub use formatter::{DiagnosticFormatter, Format};
 pub use location::{Position, SourceLocation, Span};
 

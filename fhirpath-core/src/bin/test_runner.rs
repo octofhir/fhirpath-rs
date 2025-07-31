@@ -93,16 +93,15 @@ fn main() {
 
     // Create test runner
     let mut runner = IntegrationTestRunner::new().with_verbose(verbose);
-
     if let Some(base) = base_path {
         runner = runner.with_base_path(base);
     }
 
     // Check if test path exists
-    if !test_path.exists() {
-        eprintln!("Error: Test path does not exist: {}", test_path.display());
-        process::exit(1);
-    }
+    // if !test_path.exists() {
+    //     eprintln!("Error: Test path does not exist: {}", test_path.display());
+    //     process::exit(1);
+    // }
 
     // Run tests
     println!("🚀 FHIRPath Test Runner");

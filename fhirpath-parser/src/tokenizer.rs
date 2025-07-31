@@ -13,76 +13,150 @@ use crate::span::Spanned;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<'input> {
     // Literals - numbers parsed on demand for performance
+    /// Integer literal (e.g., 42, 123)
     Integer(i64),
-    Decimal(&'input str), // Parse to rust_decimal::Decimal on demand
-    String(&'input str),  // Zero-copy string slice
+    /// Decimal literal as string slice, parsed on demand (e.g., 3.14, 0.5)
+    Decimal(&'input str),
+    /// String literal as zero-copy slice (e.g., 'hello', 'world')
+    String(&'input str),
+    /// Boolean literal value
     Boolean(bool),
-    Date(&'input str),     // Parse to chrono::NaiveDate on demand
-    DateTime(&'input str), // Parse to chrono::DateTime on demand
-    Time(&'input str),     // Parse to chrono::NaiveTime on demand
+    /// Date literal as string slice, parsed on demand (e.g., @2023-01-01)
+    Date(&'input str),
+    /// DateTime literal as string slice, parsed on demand (e.g., @2023-01-01T12:00:00)
+    DateTime(&'input str),
+    /// Time literal as string slice, parsed on demand (e.g., @T12:00:00)
+    Time(&'input str),
+    /// Quantity literal with value and unit (e.g., 5 'mg', 10.5 'kg')
     Quantity {
+        /// Numeric value of the quantity
         value: &'input str,
+        /// Unit of measurement for the quantity
         unit: &'input str,
     },
 
     // Identifiers - zero-copy string slices
+    /// Identifier token (variable names, function names, property names)
     Identifier(&'input str),
 
     // Unit tokens (zero memory overhead)
+    /// Addition operator (+)
     Plus,
+    /// Subtraction operator (-)
     Minus,
+    /// Multiplication operator (*)
     Multiply,
+    /// Division operator (/)
     Divide,
+    /// Modulo operator (mod keyword)
     Mod,
+    /// Integer division operator (div keyword)
     Div,
+    /// Power operator (^)
     Power,
+    /// Equality operator (=)
     Equal,
+    /// Inequality operator (!=)
     NotEqual,
+    /// Less than operator (<)
     LessThan,
+    /// Less than or equal operator (<=)
     LessThanOrEqual,
+    /// Greater than operator (>)
     GreaterThan,
+    /// Greater than or equal operator (>=)
     GreaterThanOrEqual,
+    /// Equivalence operator (~ or ==)
     Equivalent,
+    /// Non-equivalence operator (!~)
     NotEquivalent,
+    /// Logical AND operator (and keyword)
     And,
+    /// Logical OR operator (or keyword)
     Or,
+    /// Logical XOR operator (xor keyword)
     Xor,
+    /// Logical implication operator (implies keyword)
     Implies,
+    /// Logical NOT operator (not keyword)
     Not,
+    /// Union operator (| or union keyword)
     Union,
+    /// Membership operator (in keyword)
     In,
+    /// Contains operator (contains keyword)
     Contains,
+    /// Ampersand operator (&) for string concatenation
     Ampersand,
+    /// Type checking operator (is keyword)
     Is,
+    /// Type casting operator (as keyword)
     As,
+    /// Left parenthesis (
     LeftParen,
+    /// Right parenthesis )
     RightParen,
+    /// Left square bracket [
     LeftBracket,
+    /// Right square bracket ]
     RightBracket,
+    /// Left curly brace {
     LeftBrace,
+    /// Right curly brace }
     RightBrace,
+    /// Dot operator (.) for property access
     Dot,
+    /// Comma separator (,)
     Comma,
+    /// Colon (:)
     Colon,
+    /// Semicolon (;)
     Semicolon,
+    /// Arrow operator (=> or ->) for lambda expressions
     Arrow,
+    /// Dollar sign ($) for variables
     Dollar,
+    /// Percent sign (%)
     Percent,
+    /// Backtick (`)
     Backtick,
+    
+    // Special variables
+    /// Special variable $this representing current context
+    DollarThis,
+    /// Special variable $index representing current iteration index
+    DollarIndex,
+    /// Special variable $total representing total count in iteration
+    DollarTotal,
+    /// Boolean literal true
     True,
+    /// Boolean literal false
     False,
+    /// Empty collection literal
     Empty,
+    /// Define keyword for variable definitions
     Define,
+    /// Where keyword for filtering
     Where,
+    /// Select keyword for projection/transformation
     Select,
+    /// All function keyword
     All,
+    /// First function keyword
     First,
+    /// Last function keyword
     Last,
+    /// Tail function keyword
     Tail,
+    /// Skip function keyword
     Skip,
+    /// Take function keyword
     Take,
+    /// Distinct function keyword
     Distinct,
+    /// Count function keyword
     Count,
+    /// OfType function keyword
     OfType,
 }
 
@@ -142,6 +216,7 @@ pub struct Tokenizer<'input> {
 }
 
 impl<'input> Tokenizer<'input> {
+    /// Create a new tokenizer for the given input string
     #[inline]
     pub fn new(input: &'input str) -> Self {
         let bytes = input.as_bytes();
@@ -227,19 +302,13 @@ impl<'input> Tokenizer<'input> {
     }
 
     /// Parse number (integer or decimal) and return appropriate token
+    /// Optimized number parsing with batch processing for better performance
     #[inline]
     fn parse_number(&mut self) -> Token<'input> {
         let start = self.position;
 
-        // Parse integer part
-        while self.position < self.length {
-            let ch = self.bytes[self.position];
-            if ch >= b'0' && ch <= b'9' {
-                self.position += 1;
-            } else {
-                break;
-            }
-        }
+        // Fast batch processing of digits - process multiple bytes at once when possible
+        self.skip_digits_fast();
 
         // Check for decimal point
         if self.position < self.length && self.bytes[self.position] == b'.' {
@@ -249,28 +318,66 @@ impl<'input> Tokenizer<'input> {
                 && self.bytes[self.position + 1] <= b'9'
             {
                 self.position += 1; // consume decimal point
-
-                // Parse fractional part
-                while self.position < self.length {
-                    let ch = self.bytes[self.position];
-                    if ch >= b'0' && ch <= b'9' {
-                        self.position += 1;
-                    } else {
-                        break;
-                    }
-                }
-
+                // Parse fractional part with fast processing
+                self.skip_digits_fast();
                 // Return decimal token
                 Token::Decimal(&self.input[start..self.position])
             } else {
                 // It's an integer followed by something else (like a method call)
                 let int_str = &self.input[start..self.position];
-                Token::Integer(int_str.parse().unwrap_or(0))
+                // Fast integer parsing - avoid unwrap_or for better performance
+                Token::Integer(self.parse_int_fast(int_str))
             }
         } else {
             // It's an integer
             let int_str = &self.input[start..self.position];
-            Token::Integer(int_str.parse().unwrap_or(0))
+            Token::Integer(self.parse_int_fast(int_str))
+        }
+    }
+
+    /// Fast digit skipping with batch processing optimization
+    #[inline(always)]
+    fn skip_digits_fast(&mut self) {
+        // Process digits in batches for better performance
+        while self.position < self.length {
+            let remaining = self.length - self.position;
+            
+            // Process up to 8 bytes at once for better cache utilization
+            let batch_size = remaining.min(8);
+            let mut batch_pos = 0;
+            
+            // Check batch for non-digits
+            while batch_pos < batch_size {
+                let ch = self.bytes[self.position + batch_pos];
+                if ch >= b'0' && ch <= b'9' {
+                    batch_pos += 1;
+                } else {
+                    break;
+                }
+            }
+            
+            if batch_pos == 0 {
+                break; // No more digits
+            }
+            
+            self.position += batch_pos;
+            
+            // If we didn't process the full batch, we hit a non-digit
+            if batch_pos < batch_size {
+                break;
+            }
+        }
+    }
+
+    /// Fast integer parsing with error handling
+    #[inline(always)]
+    fn parse_int_fast(&self, s: &str) -> i64 {
+        // Fast path for small integers (most common case)
+        if s.len() <= 10 {
+            s.parse().unwrap_or(0)
+        } else {
+            // Handle potential overflow gracefully
+            s.parse().unwrap_or(i64::MAX)
         }
     }
 
@@ -390,6 +497,9 @@ impl<'input> Tokenizer<'input> {
                 if self.position + 1 < self.length && self.bytes[self.position + 1] == b'=' {
                     self.position += 2;
                     Token::Equivalent
+                } else if self.position + 1 < self.length && self.bytes[self.position + 1] == b'>' {
+                    self.position += 2;
+                    Token::Arrow
                 } else {
                     self.position += 1;
                     Token::Equal
@@ -522,8 +632,39 @@ impl<'input> Tokenizer<'input> {
                 Token::Ampersand
             }
             b'$' => {
-                self.position += 1;
-                Token::Dollar
+                // Check for special variables: $this, $index, $total
+                if self.position + 5 <= self.length && &self.bytes[self.position..self.position + 5] == b"$this" {
+                    // Check that it's followed by a non-identifier character
+                    if self.position + 5 >= self.length || !Self::is_id_continue(self.bytes[self.position + 5]) {
+                        self.position += 5;
+                        Token::DollarThis
+                    } else {
+                        self.position += 1;
+                        Token::Dollar
+                    }
+                } else if self.position + 6 <= self.length && &self.bytes[self.position..self.position + 6] == b"$index" {
+                    // Check that it's followed by a non-identifier character
+                    if self.position + 6 >= self.length || !Self::is_id_continue(self.bytes[self.position + 6]) {
+                        self.position += 6;
+                        Token::DollarIndex
+                    } else {
+                        self.position += 1;
+                        Token::Dollar
+                    }
+                } else if self.position + 6 <= self.length && &self.bytes[self.position..self.position + 6] == b"$total" {
+                    // Check that it's followed by a non-identifier character
+                    if self.position + 6 >= self.length || !Self::is_id_continue(self.bytes[self.position + 6]) {
+                        self.position += 6;
+                        Token::DollarTotal
+                    } else {
+                        self.position += 1;
+                        Token::Dollar
+                    }
+                } else {
+                    // Default to Dollar token
+                    self.position += 1;
+                    Token::Dollar
+                }
             }
             b'%' => {
                 self.position += 1;
@@ -776,8 +917,18 @@ impl<'input> Tokenizer<'input> {
     fn is_time_char(&self, ch: u8) -> bool {
         ch.is_ascii_digit() || ch == b':' || ch == b'.' || ch == b'Z' || ch == b'+' || ch == b'-'
     }
-}
 
+    /// Peek at the next token without consuming it
+    pub fn peek(&self) -> ParseResult<Token<'input>> {
+        let mut temp_tokenizer = self.clone();
+        temp_tokenizer.next_token()?.ok_or_else(|| ParseError::UnexpectedEof)
+    }
+
+    /// Get the current position in the input
+    pub fn position(&self) -> usize {
+        self.position
+    }
+}
 /// Fast tokenize function
 #[inline]
 pub fn tokenize(input: &str) -> ParseResult<Vec<Spanned<Token>>> {
@@ -830,7 +981,7 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let mut tokenizer = Tokenizer::new("= != < <= > >= == !~");
+        let mut tokenizer = Tokenizer::new("= != < <= > >= == !~ ->");
 
         assert_eq!(tokenizer.next_token().unwrap().unwrap(), Token::Equal);
         assert_eq!(tokenizer.next_token().unwrap().unwrap(), Token::NotEqual);
@@ -849,6 +1000,7 @@ mod tests {
             tokenizer.next_token().unwrap().unwrap(),
             Token::NotEquivalent
         );
+        assert_eq!(tokenizer.next_token().unwrap().unwrap(), Token::Arrow);
     }
 
     #[test]
@@ -872,5 +1024,45 @@ mod tests {
             Token::Integer(123)
         );
         assert_eq!(tokenizer.next_token().unwrap().unwrap(), Token::Integer(0));
+    }
+
+    #[test]
+    fn test_arrow_token_simple() {
+        let mut tokenizer = Tokenizer::new("=>");
+        let token = tokenizer.next_token().unwrap().unwrap();
+        println!("Arrow token test: {:?}", token);
+        assert_eq!(token, Token::Arrow);
+    }
+
+    #[test] 
+    fn test_lambda_expression_tokens() {
+        // First test just the arrow token in isolation
+        let mut tokenizer = Tokenizer::new("=>");
+        let arrow_token = tokenizer.next_token().unwrap().unwrap();
+        assert_eq!(arrow_token, Token::Arrow);
+        
+        // Then test the full expression
+        let mut tokenizer = Tokenizer::new("x => x.value > 5");
+
+        let token1 = tokenizer.next_token().unwrap().unwrap();
+        assert!(matches!(token1, Token::Identifier("x")));
+        
+        let token2 = tokenizer.next_token().unwrap().unwrap();
+        assert_eq!(token2, Token::Arrow);
+        
+        let token3 = tokenizer.next_token().unwrap().unwrap();
+        assert!(matches!(token3, Token::Identifier("x")));
+        
+        let token4 = tokenizer.next_token().unwrap().unwrap();
+        assert_eq!(token4, Token::Dot);
+        
+        let token5 = tokenizer.next_token().unwrap().unwrap();
+        assert!(matches!(token5, Token::Identifier("value")));
+        
+        let token6 = tokenizer.next_token().unwrap().unwrap();
+        assert_eq!(token6, Token::GreaterThan);
+        
+        let token7 = tokenizer.next_token().unwrap().unwrap();
+        assert_eq!(token7, Token::Integer(5));
     }
 }

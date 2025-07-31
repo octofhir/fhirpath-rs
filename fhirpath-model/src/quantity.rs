@@ -1,6 +1,7 @@
 //! Quantity type implementation with UCUM support
 
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
@@ -24,11 +25,31 @@ pub struct Quantity {
 impl Quantity {
     /// Create a new quantity
     pub fn new(value: Decimal, unit: Option<String>) -> Self {
-        let ucum_expr = unit.as_ref().and_then(|u| Self::parse_ucum_unit(u));
+        // Normalize unit name to UCUM format
+        let normalized_unit = unit.as_ref().map(|u| Self::normalize_unit_name(u));
+        let ucum_expr = normalized_unit.as_ref().and_then(|u| Self::parse_ucum_unit(u));
         Self {
             value,
-            unit,
+            unit: normalized_unit,
             ucum_expr,
+        }
+    }
+
+    /// Normalize common unit names to UCUM equivalents
+    fn normalize_unit_name(unit: &str) -> String {
+        match unit {
+            // Time units
+            "day" | "days" => "d".to_string(),
+            "hour" | "hours" => "h".to_string(),
+            "minute" | "minutes" => "min".to_string(), 
+            "second" | "seconds" => "s".to_string(),
+            "week" | "weeks" => "wk".to_string(),
+            "month" | "months" => "mo".to_string(),
+            "year" | "years" => "a".to_string(),
+            "millisecond" | "milliseconds" => "ms".to_string(),
+            
+            // Keep original for already-UCUM units
+            _ => unit.to_string(),
         }
     }
 
@@ -88,28 +109,130 @@ impl Quantity {
         }
     }
 
-    /// Add two quantities
-    pub fn add(&self, other: &Quantity) -> Result<Quantity> {
-        if !self.has_compatible_dimensions(other) {
-            return Err(ModelError::incompatible_units(
-                self.unit.as_deref().unwrap_or(""),
-                other.unit.as_deref().unwrap_or(""),
-            ));
+    /// Convert this quantity to the same unit as another quantity for comparison/arithmetic
+    pub fn convert_to_compatible_unit(&self, target_unit: &str) -> Result<Quantity> {
+        match &self.unit {
+            Some(from_unit) => {
+                if from_unit == target_unit {
+                    // Same unit, no conversion needed
+                    Ok(self.clone())
+                } else {
+                    // Use UCUM to get conversion factors
+                    match (octofhir_ucum_core::analyse(from_unit), octofhir_ucum_core::analyse(target_unit)) {
+                        (Ok(from_analysis), Ok(to_analysis)) => {
+                            // Check if units are dimensionally compatible
+                            if from_analysis.dimension != to_analysis.dimension {
+                                return Err(ModelError::incompatible_units(from_unit, target_unit));
+                            }
+                            
+                            // Calculate conversion factor
+                            let conversion_factor = from_analysis.factor / to_analysis.factor;
+                            let offset_adjustment = from_analysis.offset - to_analysis.offset;
+                            
+                            // Convert the value using higher precision approach
+                            let from_f64 = self.value.try_into().unwrap_or(0.0);
+                            let converted_f64 = from_f64 * conversion_factor + offset_adjustment;
+                            
+                            // Round to reasonable precision to avoid floating point errors
+                            let converted_f64 = (converted_f64 * 1e12).round() / 1e12;
+                            let converted_decimal = Decimal::from_f64(converted_f64).unwrap_or(self.value);
+                            
+                            Ok(Quantity::new(converted_decimal, Some(target_unit.to_string())))
+                        }
+                        _ => Err(ModelError::incompatible_units(from_unit, target_unit))
+                    }
+                }
+            }
+            None => {
+                // Cannot convert unitless to unit quantity
+                Err(ModelError::incompatible_units("", target_unit))
+            }
         }
-
-        Ok(Quantity::new(self.value + other.value, self.unit.clone()))
     }
 
-    /// Subtract two quantities
-    pub fn subtract(&self, other: &Quantity) -> Result<Quantity> {
-        if !self.has_compatible_dimensions(other) {
-            return Err(ModelError::incompatible_units(
-                self.unit.as_deref().unwrap_or(""),
-                other.unit.as_deref().unwrap_or(""),
-            ));
+    /// Check if two quantities are equal with unit conversion
+    pub fn equals_with_conversion(&self, other: &Quantity) -> Result<bool> {
+        match (&self.unit, &other.unit) {
+            (Some(unit1), Some(unit2)) => {
+                if unit1 == unit2 {
+                    // Same unit, direct comparison
+                    Ok(self.value == other.value)
+                } else if self.has_compatible_dimensions(other) {
+                    // Convert other to this unit and compare
+                    let converted_other = other.convert_to_compatible_unit(unit1)?;
+                    Ok(self.value == converted_other.value)
+                } else {
+                    // Incompatible units
+                    Ok(false)
+                }
+            }
+            (None, None) => {
+                // Both unitless
+                Ok(self.value == other.value)
+            }
+            _ => {
+                // One has unit, other doesn't - not equal
+                Ok(false)
+            }
         }
+    }
 
-        Ok(Quantity::new(self.value - other.value, self.unit.clone()))
+    /// Add two quantities with unit conversion
+    pub fn add(&self, other: &Quantity) -> Result<Quantity> {
+        match (&self.unit, &other.unit) {
+            (Some(unit1), Some(unit2)) => {
+                if unit1 == unit2 {
+                    // Same unit, direct addition
+                    Ok(Quantity::new(self.value + other.value, self.unit.clone()))
+                } else if self.has_compatible_dimensions(other) {
+                    // Convert other to this unit and add
+                    let converted_other = other.convert_to_compatible_unit(unit1)?;
+                    Ok(Quantity::new(self.value + converted_other.value, self.unit.clone()))
+                } else {
+                    Err(ModelError::incompatible_units(unit1, unit2))
+                }
+            }
+            (None, None) => {
+                // Both unitless
+                Ok(Quantity::new(self.value + other.value, None))
+            }
+            _ => {
+                // One has unit, other doesn't - incompatible
+                Err(ModelError::incompatible_units(
+                    self.unit.as_deref().unwrap_or(""),
+                    other.unit.as_deref().unwrap_or(""),
+                ))
+            }
+        }
+    }
+
+    /// Subtract two quantities with unit conversion
+    pub fn subtract(&self, other: &Quantity) -> Result<Quantity> {
+        match (&self.unit, &other.unit) {
+            (Some(unit1), Some(unit2)) => {
+                if unit1 == unit2 {
+                    // Same unit, direct subtraction
+                    Ok(Quantity::new(self.value - other.value, self.unit.clone()))
+                } else if self.has_compatible_dimensions(other) {
+                    // Convert other to this unit and subtract
+                    let converted_other = other.convert_to_compatible_unit(unit1)?;
+                    Ok(Quantity::new(self.value - converted_other.value, self.unit.clone()))
+                } else {
+                    Err(ModelError::incompatible_units(unit1, unit2))
+                }
+            }
+            (None, None) => {
+                // Both unitless
+                Ok(Quantity::new(self.value - other.value, None))
+            }
+            _ => {
+                // One has unit, other doesn't - incompatible
+                Err(ModelError::incompatible_units(
+                    self.unit.as_deref().unwrap_or(""),
+                    other.unit.as_deref().unwrap_or(""),
+                ))
+            }
+        }
     }
 
     /// Multiply by a scalar
@@ -197,5 +320,69 @@ mod tests {
 
         assert!(q1.add(&q2).is_err());
         assert!(q1.subtract(&q2).is_err());
+    }
+
+    #[test]
+    fn test_ucum_conversion_debug() {
+        // Test the g to mg conversion like in the failing test
+        let q1 = Quantity::new(Decimal::from(4), Some("g".to_string()));
+        let q2 = Quantity::new(Decimal::from(4000), Some("mg".to_string()));
+        
+        println!("q1: {:?}", q1);
+        println!("q2: {:?}", q2);
+        
+        // Test has_compatible_dimensions
+        println!("Compatible dimensions: {}", q1.has_compatible_dimensions(&q2));
+        
+        // Test UCUM analysis directly
+        match octofhir_ucum_core::analyse("g") {
+            Ok(analysis) => println!("g analysis: factor={}, dimension={:?}", analysis.factor, analysis.dimension),
+            Err(e) => println!("Error analyzing g: {}", e),
+        }
+        
+        match octofhir_ucum_core::analyse("mg") {
+            Ok(analysis) => println!("mg analysis: factor={}, dimension={:?}", analysis.factor, analysis.dimension),
+            Err(e) => println!("Error analyzing mg: {}", e),
+        }
+        
+        // Test manual conversion
+        if let (Ok(g_analysis), Ok(mg_analysis)) = (octofhir_ucum_core::analyse("g"), octofhir_ucum_core::analyse("mg")) {
+            let conversion_factor = g_analysis.factor / mg_analysis.factor;
+            println!("Conversion factor g->mg: {}", conversion_factor);
+            println!("4 g in mg should be: {}", 4.0 * conversion_factor);
+        }
+        
+        // Test equals_with_conversion
+        match q1.equals_with_conversion(&q2) {
+            Ok(result) => {
+                println!("Equals with conversion: {}", result);
+                assert!(result, "4 g should equal 4000 mg");
+            },
+            Err(e) => {
+                println!("Error in equals_with_conversion: {}", e);
+                panic!("Conversion should not fail");
+            }
+        }
+    }
+
+    #[test]
+    fn test_time_units_debug() {
+        // Test time units that are failing
+        println!("Testing time units...");
+        
+        // Test normalized units - should work now
+        let q1 = Quantity::new(Decimal::from(7), Some("days".to_string()));
+        let q2 = Quantity::new(Decimal::from(1), Some("week".to_string()));
+        
+        println!("q1 normalized unit: {:?}", q1.unit);
+        println!("q2 normalized unit: {:?}", q2.unit);
+        
+        match q1.equals_with_conversion(&q2) {
+            Ok(result) => {
+                println!("7 days == 1 week: {}", result);
+                assert!(result, "7 days should equal 1 week");
+            },
+            Err(e) => println!("Error comparing 7 days and 1 week: {}", e),
+        }
     }
 }

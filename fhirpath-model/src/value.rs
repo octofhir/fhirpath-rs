@@ -48,7 +48,12 @@ pub enum FhirPathValue {
     Resource(FhirResource),
 
     /// Type information object with namespace and name properties
-    TypeInfoObject { namespace: String, name: String },
+    TypeInfoObject { 
+        /// Type namespace
+        namespace: String, 
+        /// Type name
+        name: String 
+    },
 
     /// Empty value (equivalent to an empty collection)
     Empty,
@@ -382,8 +387,8 @@ impl From<Value> for FhirPathValue {
                     if let Some(value_json) = obj.get("value") {
                         if let Some(value_num) = value_json.as_f64() {
                             let unit = obj
-                                .get("unit")
-                                .or_else(|| obj.get("code"))
+                                .get("code")
+                                .or_else(|| obj.get("unit"))
                                 .and_then(|u| u.as_str())
                                 .map(|s| s.to_string());
 
@@ -465,7 +470,21 @@ impl fmt::Display for FhirPathValue {
             Self::Integer(i) => write!(f, "{}", i),
             Self::Decimal(d) => write!(f, "{}", d),
             Self::Date(d) => write!(f, "@{}", d.format("%Y-%m-%d")),
-            Self::DateTime(dt) => write!(f, "@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")),
+            Self::DateTime(dt) => {
+                let formatted = dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+                // Convert timezone format from +0000 to +00:00
+                let formatted = if formatted.len() >= 5 {
+                    let (main, tz) = formatted.split_at(formatted.len() - 5);
+                    if tz.len() == 5 && (tz.starts_with('+') || tz.starts_with('-')) {
+                        format!("{}{}:{}", main, &tz[..3], &tz[3..])
+                    } else {
+                        formatted
+                    }
+                } else {
+                    formatted
+                };
+                write!(f, "@{}", formatted)
+            },
             Self::Time(t) => write!(f, "@T{}", t.format("%H:%M:%S")),
             Self::Quantity(q) => write!(f, "{}", q),
             Self::Collection(items) => {

@@ -64,7 +64,7 @@ pub trait Visitor: Sized {
     fn visit_type_cast(&mut self, _expr: &ExpressionNode, _type_name: &str) -> Self::Result;
 
     /// Visit a lambda expression
-    fn visit_lambda(&mut self, _param: &str, _body: &ExpressionNode) -> Self::Result;
+    fn visit_lambda(&mut self, _params: &[String], _body: &ExpressionNode) -> Self::Result;
 
     /// Visit a conditional expression
     fn visit_conditional(
@@ -83,9 +83,9 @@ pub fn walk_expression<V: Visitor>(visitor: &mut V, expr: &ExpressionNode) -> V:
     match expr {
         ExpressionNode::Literal(lit) => visitor.visit_literal(lit),
         ExpressionNode::Identifier(name) => visitor.visit_identifier(name),
-        ExpressionNode::FunctionCall { name, args } => visitor.visit_function_call(name, args),
-        ExpressionNode::MethodCall { base, method, args } => {
-            visitor.visit_method_call(base, method, args)
+        ExpressionNode::FunctionCall(func_data) => visitor.visit_function_call(&func_data.name, &func_data.args),
+        ExpressionNode::MethodCall(method_data) => {
+            visitor.visit_method_call(&method_data.base, &method_data.method, &method_data.args)
         }
         ExpressionNode::BinaryOp { op, left, right } => visitor.visit_binary_op(op, left, right),
         ExpressionNode::UnaryOp { op, operand } => visitor.visit_unary_op(op, operand),
@@ -101,12 +101,8 @@ pub fn walk_expression<V: Visitor>(visitor: &mut V, expr: &ExpressionNode) -> V:
             expression,
             type_name,
         } => visitor.visit_type_cast(expression, type_name),
-        ExpressionNode::Lambda { param, body } => visitor.visit_lambda(param, body),
-        ExpressionNode::Conditional {
-            condition,
-            then_expr,
-            else_expr,
-        } => visitor.visit_conditional(condition, then_expr, else_expr.as_deref()),
+        ExpressionNode::Lambda(lambda_data) => visitor.visit_lambda(&lambda_data.params, &lambda_data.body),
+        ExpressionNode::Conditional(cond_data) => visitor.visit_conditional(&cond_data.condition, &cond_data.then_expr, cond_data.else_expr.as_deref()),
         ExpressionNode::Variable(name) => visitor.visit_variable(name),
     }
 }
@@ -198,7 +194,7 @@ pub trait MutVisitor: Sized {
     }
 
     /// Visit a lambda expression
-    fn visit_lambda_mut(&mut self, _param: &mut String, body: &mut ExpressionNode) {
+    fn visit_lambda_mut(&mut self, _params: &mut Vec<String>, body: &mut ExpressionNode) {
         self.visit_expression_mut(body);
     }
 
@@ -225,9 +221,9 @@ pub fn walk_expression_mut<V: MutVisitor>(visitor: &mut V, expr: &mut Expression
     match expr {
         ExpressionNode::Literal(lit) => visitor.visit_literal_mut(lit),
         ExpressionNode::Identifier(name) => visitor.visit_identifier_mut(name),
-        ExpressionNode::FunctionCall { name, args } => visitor.visit_function_call_mut(name, args),
-        ExpressionNode::MethodCall { base, method, args } => {
-            visitor.visit_method_call_mut(base, method, args)
+        ExpressionNode::FunctionCall(func_data) => visitor.visit_function_call_mut(&mut func_data.name, &mut func_data.args),
+        ExpressionNode::MethodCall(method_data) => {
+            visitor.visit_method_call_mut(&mut method_data.base, &mut method_data.method, &mut method_data.args)
         }
         ExpressionNode::BinaryOp { op, left, right } => {
             visitor.visit_binary_op_mut(op, left, right)
@@ -245,12 +241,8 @@ pub fn walk_expression_mut<V: MutVisitor>(visitor: &mut V, expr: &mut Expression
             expression,
             type_name,
         } => visitor.visit_type_cast_mut(expression, type_name),
-        ExpressionNode::Lambda { param, body } => visitor.visit_lambda_mut(param, body),
-        ExpressionNode::Conditional {
-            condition,
-            then_expr,
-            else_expr,
-        } => visitor.visit_conditional_mut(condition, then_expr, else_expr),
+        ExpressionNode::Lambda(lambda_data) => visitor.visit_lambda_mut(&mut lambda_data.params, &mut lambda_data.body),
+        ExpressionNode::Conditional(cond_data) => visitor.visit_conditional_mut(&mut cond_data.condition, &mut cond_data.then_expr, &mut cond_data.else_expr),
         ExpressionNode::Variable(name) => visitor.visit_variable_mut(name),
     }
 }

@@ -80,7 +80,7 @@ pub enum UnaryOperator {
 }
 
 /// Operator associativity
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Associativity {
     /// Left-to-right associativity
     Left,

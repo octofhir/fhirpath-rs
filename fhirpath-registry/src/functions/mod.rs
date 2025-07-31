@@ -1,4 +1,4 @@
-//! Function implementations organized by category
+//! Function implementations for FHIRPath expressions
 
 pub mod boolean;
 pub mod collection;
@@ -9,6 +9,7 @@ pub mod math;
 pub mod string;
 pub mod type_conversion;
 pub mod utility;
+pub mod cda;
 
 // Re-export all functions for convenience
 pub use boolean::*;
@@ -20,3 +21,4 @@ pub use math::*;
 pub use string::*;
 pub use type_conversion::*;
 pub use utility::*;
+pub use cda::*;

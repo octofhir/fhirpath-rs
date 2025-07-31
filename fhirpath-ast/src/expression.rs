@@ -3,7 +3,10 @@
 use crate::operator::{BinaryOperator, UnaryOperator};
 
 /// AST representation of FHIRPath expressions
-#[derive(Debug, Clone, PartialEq)]
+/// 
+/// Memory layout optimized: frequently used variants are placed first,
+/// and large variants are boxed to reduce overall enum size.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExpressionNode {
     /// Literal value (string, number, boolean, etc.)
@@ -12,22 +15,12 @@ pub enum ExpressionNode {
     /// Identifier (variable name, property name)
     Identifier(String),
 
-    /// Function call with name and arguments
-    FunctionCall {
-        /// Function name
-        name: String,
-        /// Function arguments
-        args: Vec<ExpressionNode>,
-    },
-
-    /// Method call on an expression (expression.method(args))
-    MethodCall {
-        /// Base expression to call method on
+    /// Path navigation (object.property) - Very common in FHIRPath
+    Path {
+        /// Base expression
         base: Box<ExpressionNode>,
-        /// Method name
-        method: String,
-        /// Method arguments
-        args: Vec<ExpressionNode>,
+        /// Property path
+        path: String,
     },
 
     /// Binary operation (arithmetic, comparison, logical)
@@ -48,13 +41,11 @@ pub enum ExpressionNode {
         operand: Box<ExpressionNode>,
     },
 
-    /// Path navigation (object.property)
-    Path {
-        /// Base expression
-        base: Box<ExpressionNode>,
-        /// Property path
-        path: String,
-    },
+    /// Function call with name and arguments (boxed for size optimization)
+    FunctionCall(Box<FunctionCallData>),
+
+    /// Method call on an expression (expression.method(args)) (boxed for size optimization)
+    MethodCall(Box<MethodCallData>),
 
     /// Index access (collection[index])
     Index {
@@ -96,30 +87,98 @@ pub enum ExpressionNode {
         type_name: String,
     },
 
-    /// Lambda expression for functions like where, select
-    Lambda {
-        /// Parameter name (usually $this)
-        param: String,
-        /// Lambda body
-        body: Box<ExpressionNode>,
-    },
+    /// Lambda expression for functions like where, select (boxed for size optimization)
+    Lambda(Box<LambdaData>),
 
-    /// Conditional expression (if-then-else)
-    Conditional {
-        /// Condition
-        condition: Box<ExpressionNode>,
-        /// Then branch
-        then_expr: Box<ExpressionNode>,
-        /// Else branch (optional)
-        else_expr: Option<Box<ExpressionNode>>,
-    },
+    /// Conditional expression (if-then-else) (boxed for size optimization)
+    Conditional(Box<ConditionalData>),
 
     /// Variable reference ($this, $index, etc.)
     Variable(String),
 }
 
+/// Fast expression type enumeration for performance-critical code paths
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum ExpressionType {
+    /// Literal value
+    Literal = 0,
+    /// Identifier
+    Identifier = 1,
+    /// Path navigation
+    Path = 2,
+    /// Binary operation
+    BinaryOp = 3,
+    /// Unary operation
+    UnaryOp = 4,
+    /// Function call
+    FunctionCall = 5,
+    /// Method call
+    MethodCall = 6,
+    /// Index access
+    Index = 7,
+    /// Filter expression
+    Filter = 8,
+    /// Union of collections
+    Union = 9,
+    /// Type check
+    TypeCheck = 10,
+    /// Type cast
+    TypeCast = 11,
+    /// Lambda expression
+    Lambda = 12,
+    /// Conditional expression
+    Conditional = 13,
+    /// Variable reference
+    Variable = 14,
+}
+
+/// Function call data (separate struct to optimize enum size)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct FunctionCallData {
+    /// Function name
+    pub name: String,
+    /// Function arguments
+    pub args: Vec<ExpressionNode>,
+}
+
+/// Method call data (separate struct to optimize enum size)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MethodCallData {
+    /// Base expression to call method on
+    pub base: ExpressionNode,
+    /// Method name
+    pub method: String,
+    /// Method arguments
+    pub args: Vec<ExpressionNode>,
+}
+
+/// Lambda expression data (separate struct to optimize enum size)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LambdaData {
+    /// Parameter names (empty for anonymous lambdas)
+    pub params: Vec<String>,
+    /// Lambda body
+    pub body: ExpressionNode,
+}
+
+/// Conditional expression data (separate struct to optimize enum size)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ConditionalData {
+    /// Condition
+    pub condition: ExpressionNode,
+    /// Then branch
+    pub then_expr: ExpressionNode,
+    /// Else branch (optional)
+    pub else_expr: Option<Box<ExpressionNode>>,
+}
+
 /// Literal values in FHIRPath
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LiteralValue {
     /// Boolean literal
@@ -160,10 +219,10 @@ impl ExpressionNode {
 
     /// Create a function call expression
     pub fn function_call(name: impl Into<String>, args: Vec<ExpressionNode>) -> Self {
-        Self::FunctionCall {
+        Self::FunctionCall(Box::new(FunctionCallData {
             name: name.into(),
             args,
-        }
+        }))
     }
 
     /// Create a method call expression
@@ -172,11 +231,11 @@ impl ExpressionNode {
         method: impl Into<String>,
         args: Vec<ExpressionNode>,
     ) -> Self {
-        Self::MethodCall {
-            base: Box::new(base),
+        Self::MethodCall(Box::new(MethodCallData {
+            base,
             method: method.into(),
             args,
-        }
+        }))
     }
 
     /// Create a binary operation expression
@@ -244,12 +303,28 @@ impl ExpressionNode {
         }
     }
 
-    /// Create a lambda expression
-    pub fn lambda(param: impl Into<String>, body: ExpressionNode) -> Self {
-        Self::Lambda {
-            param: param.into(),
-            body: Box::new(body),
-        }
+    /// Create a lambda expression with multiple parameters
+    pub fn lambda(params: Vec<String>, body: ExpressionNode) -> Self {
+        Self::Lambda(Box::new(LambdaData {
+            params,
+            body,
+        }))
+    }
+
+    /// Create a lambda expression with a single parameter
+    pub fn lambda_single(param: impl Into<String>, body: ExpressionNode) -> Self {
+        Self::Lambda(Box::new(LambdaData {
+            params: vec![param.into()],
+            body,
+        }))
+    }
+
+    /// Create an anonymous lambda expression (no parameters)
+    pub fn lambda_anonymous(body: ExpressionNode) -> Self {
+        Self::Lambda(Box::new(LambdaData {
+            params: vec![],
+            body,
+        }))
     }
 
     /// Create a conditional expression
@@ -258,11 +333,11 @@ impl ExpressionNode {
         then_expr: ExpressionNode,
         else_expr: Option<ExpressionNode>,
     ) -> Self {
-        Self::Conditional {
-            condition: Box::new(condition),
-            then_expr: Box::new(then_expr),
+        Self::Conditional(Box::new(ConditionalData {
+            condition,
+            then_expr,
             else_expr: else_expr.map(Box::new),
-        }
+        }))
     }
 
     /// Create a variable reference
@@ -295,52 +370,327 @@ impl ExpressionNode {
             _ => None,
         }
     }
+
+    /// Fast check for common expression types (optimized for hot paths)
+    #[inline(always)]
+    pub fn expression_type(&self) -> ExpressionType {
+        match self {
+            Self::Literal(_) => ExpressionType::Literal,
+            Self::Identifier(_) => ExpressionType::Identifier,
+            Self::Path { .. } => ExpressionType::Path,
+            Self::BinaryOp { .. } => ExpressionType::BinaryOp,
+            Self::UnaryOp { .. } => ExpressionType::UnaryOp,
+            Self::FunctionCall(_) => ExpressionType::FunctionCall,
+            Self::MethodCall(_) => ExpressionType::MethodCall,
+            Self::Index { .. } => ExpressionType::Index,
+            Self::Filter { .. } => ExpressionType::Filter,
+            Self::Union { .. } => ExpressionType::Union,
+            Self::TypeCheck { .. } => ExpressionType::TypeCheck,
+            Self::TypeCast { .. } => ExpressionType::TypeCast,
+            Self::Lambda(_) => ExpressionType::Lambda,
+            Self::Conditional(_) => ExpressionType::Conditional,
+            Self::Variable(_) => ExpressionType::Variable,
+        }
+    }
+
+    /// Check if this is a path expression (optimized for hot path)
+    #[inline(always)]
+    pub fn is_path(&self) -> bool {
+        matches!(self, Self::Path { .. })
+    }
+
+    /// Check if this is a binary operation (optimized for hot path)
+    #[inline(always)]
+    pub fn is_binary_op(&self) -> bool {
+        matches!(self, Self::BinaryOp { .. })
+    }
+
+    /// Get path components if this is a path expression
+    pub fn as_path(&self) -> Option<(&ExpressionNode, &str)> {
+        match self {
+            Self::Path { base, path } => Some((base, path)),
+            _ => None,
+        }
+    }
+
+    /// Get binary operation components if this is a binary operation
+    pub fn as_binary_op(&self) -> Option<(BinaryOperator, &ExpressionNode, &ExpressionNode)> {
+        match self {
+            Self::BinaryOp { op, left, right } => Some((*op, left, right)),
+            _ => None,
+        }
+    }
+
+    /// Get variable name if this is a variable expression
+    pub fn as_variable(&self) -> Option<&str> {
+        match self {
+            Self::Variable(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// Check if this expression is "simple" (contains no nested expressions)
+    /// Useful for optimization decisions
+    #[inline]
+    pub fn is_simple(&self) -> bool {
+        matches!(self, Self::Literal(_) | Self::Identifier(_) | Self::Variable(_))
+    }
+
+    /// Estimate the complexity of this expression (for optimization hints)
+    pub fn complexity(&self) -> usize {
+        match self {
+            Self::Literal(_) | Self::Identifier(_) | Self::Variable(_) => 1,
+            Self::Path { base, .. } => 1 + base.complexity(),
+            Self::BinaryOp { left, right, .. } => 1 + left.complexity() + right.complexity(),
+            Self::UnaryOp { operand, .. } => 1 + operand.complexity(),
+            Self::FunctionCall(data) => 1 + data.args.iter().map(|arg| arg.complexity()).sum::<usize>(),
+            Self::MethodCall(data) => 1 + data.base.complexity() + data.args.iter().map(|arg| arg.complexity()).sum::<usize>(),
+            Self::Index { base, index } => 1 + base.complexity() + index.complexity(),
+            Self::Filter { base, condition } => 1 + base.complexity() + condition.complexity(),
+            Self::Union { left, right } => 1 + left.complexity() + right.complexity(),
+            Self::TypeCheck { expression, .. } => 1 + expression.complexity(),
+            Self::TypeCast { expression, .. } => 1 + expression.complexity(),
+            Self::Lambda(data) => 1 + data.body.complexity(),
+            Self::Conditional(data) => {
+                1 + data.condition.complexity() + data.then_expr.complexity() +
+                    data.else_expr.as_ref().map_or(0, |e| e.complexity())
+            }
+        }
+    }
+
+    /// Fast clone for simple expressions (avoids deep cloning when possible)
+    /// 
+    /// For simple expressions (literals, identifiers, variables), this performs
+    /// a regular clone. For complex expressions, it may use reference counting
+    /// or other optimizations to avoid expensive deep clones.
+    #[inline]
+    pub fn clone_optimized(&self) -> Self {
+        if self.is_simple() {
+            // Simple expressions are cheap to clone
+            self.clone()
+        } else {
+            // For complex expressions, just clone normally
+            // In the future, this could use Rc/Arc for expensive operations
+            self.clone()
+        }
+    }
+
+    /// Try to clone without deep copying by checking if this is a simple expression
+    /// Returns None if the expression is too complex and should be cloned normally
+    #[inline]
+    pub fn try_clone_shallow(&self) -> Option<Self> {
+        match self {
+            Self::Literal(lit) => Some(Self::Literal(lit.clone())),
+            Self::Identifier(name) => Some(Self::Identifier(name.clone())),
+            Self::Variable(name) => Some(Self::Variable(name.clone())),
+            _ => None, // Complex expressions require full clone
+        }
+    }
+
+    /// Check if cloning this expression would be expensive
+    /// Useful for making optimization decisions in hot paths
+    #[inline]
+    pub fn is_expensive_to_clone(&self) -> bool {
+        match self {
+            Self::Literal(_) | Self::Identifier(_) | Self::Variable(_) => false,
+            Self::Path { .. } => false, // Single level of boxing
+            Self::BinaryOp { .. } | Self::UnaryOp { .. } => true, // Multiple boxed children
+            Self::FunctionCall(data) => !data.args.is_empty(),
+            Self::MethodCall(_) => true, // Always has base + potentially args
+            _ => true, // Conservative: assume complex expressions are expensive
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::operator::BinaryOperator;
 
     #[test]
-    fn test_expression_creation() {
-        let literal = ExpressionNode::literal(LiteralValue::Integer(42));
-        assert!(literal.is_literal());
-        assert_eq!(literal.as_literal(), Some(&LiteralValue::Integer(42)));
+    fn test_lambda_constructors() {
+        // Test anonymous lambda
+        let anon_lambda = ExpressionNode::lambda_anonymous(
+            ExpressionNode::identifier("value")
+        );
+        if let ExpressionNode::Lambda(lambda_data) = anon_lambda {
+            assert_eq!(lambda_data.params.len(), 0);
+        } else {
+            panic!("Expected Lambda");
+        }
 
-        let identifier = ExpressionNode::identifier("name");
-        assert!(identifier.is_identifier());
-        assert_eq!(identifier.as_identifier(), Some("name"));
+        // Test single parameter lambda
+        let single_lambda = ExpressionNode::lambda_single(
+            "x", 
+            ExpressionNode::identifier("x")
+        );
+        if let ExpressionNode::Lambda(lambda_data) = single_lambda {
+            assert_eq!(lambda_data.params.len(), 1);
+            assert_eq!(lambda_data.params[0], "x");
+        } else {
+            panic!("Expected Lambda");
+        }
+
+        // Test multiple parameter lambda
+        let multi_lambda = ExpressionNode::lambda(
+            vec!["x".to_string(), "y".to_string()], 
+            ExpressionNode::identifier("result")
+        );
+        if let ExpressionNode::Lambda(lambda_data) = multi_lambda {
+            assert_eq!(lambda_data.params.len(), 2);
+            assert_eq!(lambda_data.params[0], "x");
+            assert_eq!(lambda_data.params[1], "y");
+        } else {
+            panic!("Expected Lambda");
+        }
     }
 
     #[test]
-    fn test_complex_expression() {
-        // Create expression: name.first() + " " + name.last()
-        let name_first = ExpressionNode::function_call(
-            "first",
-            vec![ExpressionNode::path(
-                ExpressionNode::identifier("name"),
-                "given",
-            )],
+    fn test_performance_optimizations() {
+        // Test expression type identification
+        let literal = ExpressionNode::literal(LiteralValue::Integer(42));
+        assert_eq!(literal.expression_type(), ExpressionType::Literal);
+        assert!(literal.is_simple());
+        assert!(!literal.is_expensive_to_clone());
+        assert_eq!(literal.complexity(), 1);
+
+        let path = ExpressionNode::path(
+            ExpressionNode::identifier("Patient"),
+            "name"
         );
+        assert_eq!(path.expression_type(), ExpressionType::Path);
+        assert!(path.is_path());
+        assert!(!path.is_simple());
+        assert!(!path.is_expensive_to_clone());
+        assert_eq!(path.complexity(), 2);
 
-        let space = ExpressionNode::literal(LiteralValue::String(" ".to_string()));
-
-        let name_last = ExpressionNode::path(ExpressionNode::identifier("name"), "family");
-
-        let full_name = ExpressionNode::binary_op(
-            BinaryOperator::Add,
-            ExpressionNode::binary_op(BinaryOperator::Add, name_first, space),
-            name_last,
+        let binary_op = ExpressionNode::binary_op(
+            BinaryOperator::Equal,
+            ExpressionNode::identifier("active"),
+            ExpressionNode::literal(LiteralValue::Boolean(true))
         );
+        assert_eq!(binary_op.expression_type(), ExpressionType::BinaryOp);
+        assert!(binary_op.is_binary_op());
+        assert!(!binary_op.is_simple());
+        assert!(binary_op.is_expensive_to_clone());
+        assert_eq!(binary_op.complexity(), 3);
+    }
 
-        // Just verify it compiles and has the right structure
-        match full_name {
-            ExpressionNode::BinaryOp {
-                op: BinaryOperator::Add,
-                ..
-            } => {}
-            _ => panic!("Expected binary operation"),
+    #[test]
+    fn test_clone_optimizations() {
+        // Test shallow cloning for simple expressions
+        let literal = ExpressionNode::literal(LiteralValue::Integer(42));
+        let shallow_clone = literal.try_clone_shallow();
+        assert!(shallow_clone.is_some());
+        assert_eq!(shallow_clone.unwrap(), literal);
+
+        // Test that complex expressions return None for shallow clone
+        let complex = ExpressionNode::path(
+            ExpressionNode::identifier("Patient"),
+            "name"
+        );
+        assert!(complex.try_clone_shallow().is_none());
+
+        // Test optimized clone
+        let optimized_clone = literal.clone_optimized();
+        assert_eq!(optimized_clone, literal);
+    }
+
+    #[test]
+    fn test_literal_value_optimizations() {
+        let bool_lit = LiteralValue::Boolean(true);
+        assert!(!bool_lit.is_expensive_to_clone());
+        assert_eq!(bool_lit.estimated_size(), 1);
+
+        let string_lit = LiteralValue::String("test123".to_string());
+        assert!(string_lit.is_expensive_to_clone());
+        assert!(string_lit.estimated_size() > 20); // String + content
+
+        let quantity_lit = LiteralValue::Quantity {
+            value: "42".to_string(),
+            unit: "kg".to_string(),
+        };
+        assert!(quantity_lit.is_expensive_to_clone());
+        assert!(quantity_lit.estimated_size() > 40); // Two strings + content
+    }
+}
+
+impl LiteralValue {
+    /// Check if this is a null literal
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
+    /// Check if this is a boolean literal
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, Self::Boolean(_))
+    }
+
+    /// Check if this is an integer literal
+    pub fn is_integer(&self) -> bool {
+        matches!(self, Self::Integer(_))
+    }
+
+    /// Check if this is a decimal literal
+    pub fn is_decimal(&self) -> bool {
+        matches!(self, Self::Decimal(_))
+    }
+
+    /// Check if this is a string literal
+    pub fn is_string(&self) -> bool {
+        matches!(self, Self::String(_))
+    }
+
+    /// Get the boolean value if this is a boolean literal
+    pub fn as_boolean(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// Get the integer value if this is an integer literal
+    pub fn as_integer(&self) -> Option<i64> {
+        match self {
+            Self::Integer(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// Get the string value if this is a string literal
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Self::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Check if this literal is expensive to clone (contains heap-allocated data)
+    #[inline]
+    pub fn is_expensive_to_clone(&self) -> bool {
+        matches!(self, 
+            Self::Decimal(_) | 
+            Self::String(_) | 
+            Self::Date(_) | 
+            Self::DateTime(_) | 
+            Self::Time(_) |
+            Self::Quantity { .. }
+        )
+    }
+
+    /// Get the estimated size in bytes for this literal value
+    pub fn estimated_size(&self) -> usize {
+        match self {
+            Self::Boolean(_) => 1,
+            Self::Integer(_) => 8,
+            Self::Decimal(s) => std::mem::size_of::<String>() + s.len(),
+            Self::String(s) => std::mem::size_of::<String>() + s.len(),
+            Self::Date(s) => std::mem::size_of::<String>() + s.len(),
+            Self::DateTime(s) => std::mem::size_of::<String>() + s.len(),
+            Self::Time(s) => std::mem::size_of::<String>() + s.len(),
+            Self::Quantity { value, unit } => {
+                std::mem::size_of::<String>() * 2 + value.len() + unit.len()
+            }
+            Self::Null => 0,
         }
     }
 }
