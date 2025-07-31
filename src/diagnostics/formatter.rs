@@ -1,6 +1,8 @@
 //! Formatting diagnostics for different output formats
 
-use super::diagnostic::{Diagnostic, Severity};
+use super::diagnostic::Diagnostic;
+#[cfg(feature = "terminal")]
+use super::diagnostic::Severity;
 
 /// Output format for diagnostics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

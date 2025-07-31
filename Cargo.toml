@@ -14,6 +14,8 @@ categories = ["parser-implementations", "data-structures", "healthcare"]
 include = [
     "src/**/*",
     "specs/**/*",
+    "tests/**/*",
+    "benches/**/*",
     "Cargo.toml",
     "README.md",
     "LICENSE",
@@ -36,10 +38,6 @@ harness = false
 name = "core_performance_benchmark"
 harness = false
 
-
-[[bin]]
-name = "test_runner"
-path = "src/bin/test_runner.rs"
 
 [[bin]]
 name = "octofhir-fhirpath"

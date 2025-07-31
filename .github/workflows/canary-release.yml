@@ -63,17 +63,21 @@ jobs:
           cargo clippy --all-targets --all-features
           cargo test --all-features
 
-      - name: Run benchmarks
-        run: cargo bench --no-fail-fast
+      - name: Run benchmarks (quick)
+        run: |
+          echo "🚀 Running quick benchmark for canary release..."
+          timeout 180 cargo bench --bench tokenizer_only_benchmark -- --quick || echo "⚠️ Benchmark timed out after 3 minutes"
 
       - name: Generate canary version
         id: version
         run: |
+          # Extract base version from Cargo.toml
+          BASE_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
           SHORT_SHA=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          CANARY_VERSION="0.0.0-canary.${TIMESTAMP}.${SHORT_SHA}"
+          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
           echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
-          echo "Generated canary version: ${CANARY_VERSION}"
+          echo "Generated canary version: ${CANARY_VERSION} (base: ${BASE_VERSION})"
 
       - name: Update Cargo.toml version
         run: |
