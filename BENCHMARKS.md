@@ -1,223 +1,139 @@
-# FHIRPath Performance Benchmarks
+# FHIRPath Benchmark Results
 
-This document describes the simplified benchmark suite focusing on the 3 core components: tokenizer, parser, and evaluator.
+Last updated: Thu Jul 31 19:21:22 UTC 2025
 
-## 🚀 Quick Start
+## Performance Overview
 
-### Run Core Performance Benchmark (Recommended)
-```bash
-# Using Just (recommended)
-just bench
+This document contains the latest benchmark results for the FHIRPath implementation.
 
-# Or directly with cargo
-just bench
-```
+### Core Components
 
-### Run Individual Component Benchmarks
-```bash
-# Using Just commands
-just bench-tokenizer    # Tokenizer only
-just bench-parser       # Parser benchmark
-just bench-evaluator    # Evaluator benchmark
-just bench-full         # All individual benchmarks
+The following components have been benchmarked with their current performance metrics:
 
-# Or directly with cargo
-cargo bench --bench tokenizer_only_benchmark
-cargo bench --bench parser_benchmark
-cargo bench --bench evaluation_context_benchmark
-```
+#### Criterion
 
-## 📊 Performance Targets & Results
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Parser | 703.04 ns | 1.42M ops/sec | 701.24 ns |
+| Tokenizer | 84.08 ns | 11.89M ops/sec | 83.27 ns |
+| Parser | 274.37 ns | 3.64M ops/sec | 267.49 ns |
+| Tokenizer | 37.88 ns | 26.40M ops/sec | 37.71 ns |
+| Parser | 159.29 ns | 6.28M ops/sec | 160.13 ns |
+| Tokenizer | 24.77 ns | 40.38M ops/sec | 24.64 ns |
+| Engine_creation | 109.80 μs | 9.11K ops/sec | 106.72 μs |
+| Evaluation_simple | 107.19 μs | 9.33K ops/sec | 107.27 μs |
+| Evaluator_ops_per_sec | 122.16 μs | 8.19K ops/sec | 114.55 μs |
+| Parser_ops_per_sec | 709.68 ns | 1.41M ops/sec | 700.51 ns |
+| Tokenizer_ops_per_sec | 84.00 ns | 11.90M ops/sec | 82.86 ns |
+| Parser_1m_ops_target | 710.95 ns | 1.41M ops/sec | 726.19 ns |
+| Tokenizer_11m_ops_target | 84.06 ns | 11.90M ops/sec | 82.85 ns |
+| Parser_1m_target | 714.19 ns | 1.40M ops/sec | 635.02 ns |
+| Tokenizer_10m_target | 79.97 ns | 12.50M ops/sec | 75.11 ns |
 
-### Current Performance (as of 2025-07-31 - Simplified Codebase)
+#### Evaluation_types
 
-| Component | Target | Achieved | Status | Notes |
-|-----------|--------|----------|---------|-------|
-| **Tokenizer** | 10M ops/sec | **5.8M+ ops/sec** | ✅ **Met** | Consistent performance after simplification |
-| **Parser** | 1M ops/sec | **1.1-6.1M ops/sec** | ✅ **Exceeded** | Strong performance across all expression types |
-| **Evaluator** | 10K ops/sec | **7.7-8.7K ops/sec** | ✅ **Met** | Good performance maintained after cleanup |
-| **Full Pipeline** | 10K ops/sec | **8.5-8.9K ops/sec** | ✅ **Met** | Complete tokenize → parse → evaluate performance |
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Boolean | 120.18 μs | 8.32K ops/sec | 118.39 μs |
+| Number | 112.34 μs | 8.90K ops/sec | 113.48 μs |
+| String | 110.31 μs | 9.06K ops/sec | 109.33 μs |
 
-#### Recent Performance Results (2025-07-31 - Simplified Codebase)
+#### Evaluator
 
-| Expression Type | Tokenizer Performance | Parser Performance | Evaluator Performance | Full Pipeline Performance | Expression Example |
-|---|---|---|---|---|---|
-| **Simple** | 5.8M ops/sec | 6.1M ops/sec | 7.7K ops/sec | 8.9K ops/sec | `Patient.name` |
-| **Medium** | 5.8M ops/sec | 1.6M ops/sec | 8.4K ops/sec | 8.7K ops/sec | `Patient.name.where(use = 'official')` |
-| **Complex** | 4.5M ops/sec | 1.1M ops/sec | 8.7K ops/sec | 8.7K ops/sec | `Patient.name.where(use = 'official').given.first()` |
-| **Operations/sec** | 5.8M tokenizer ops | N/A | N/A | N/A | High-throughput tokenization |
-| **Memory Usage** | Low allocation | Efficient parsing | Standard context | Clean pipeline | Simplified architecture benefits |
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Complex | 125.83 μs | 7.95K ops/sec | 122.04 μs |
+| Medium | 115.95 μs | 8.62K ops/sec | 112.21 μs |
+| Simple | 114.79 μs | 8.71K ops/sec | 114.27 μs |
 
-#### Performance Analysis (After Simplification - 2025-07-31)
-- **Tokenizer Consistency**: Stable performance (4.5-5.8M ops/sec) maintained after removing complex optimizations
-- **Parser Efficiency**: Improved simple expression parsing (6.1M ops/sec), good scaling for complex expressions
-- **Evaluator Performance**: Steady performance (7.7-8.7K ops/sec) with reduced complexity overhead
-- **Full Pipeline**: Complete tokenize → parse → evaluate achieves 8.5-8.9K ops/sec
-- **Performance Improvements**: Complex evaluations showing 13.8% improvement after simplification
-- **Simplification Benefits**: Reduced code complexity without performance loss
-- **Correctness**: Maintained 79.3% test coverage (797/1005 tests passing)
-- **Architecture**: Single engine implementation, cleaner codebase, easier maintenance
+#### Expression_complexity
 
-### Test Expressions
-Standard benchmark expressions range from simple to complex:
-- **Simple**: `"Patient.name"`
-- **Medium**: `"Patient.name.given"`  
-- **Complex**: `"Patient.name.where(use = 'official').given.first()"`
-- **Arithmetic**: `"2 + 3 * 4 - 1"`
-- **Mixed Logic**: `"Patient.age > 18 and Patient.active = true"`
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Arithmetic | 117.63 μs | 8.50K ops/sec | 114.99 μs |
+| Literal | 119.18 μs | 8.39K ops/sec | 117.88 μs |
+| Simple_path | 118.06 μs | 8.47K ops/sec | 115.69 μs |
 
-## 🏗️ Architecture Improvements
+#### Full_pipeline
 
-### Pratt Parser Implementation
-- **Performance Gain**: 1.16x improvement over recursive descent
-- **Precedence Levels**: 12 levels (Implies to Invocation)
-- **Optimizations**: Zero-allocation parsing, aggressive inlining, branch prediction optimization
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Complex | 127.79 μs | 7.83K ops/sec | 117.16 μs |
+| Medium | 123.54 μs | 8.09K ops/sec | 119.16 μs |
+| Simple | 122.56 μs | 8.16K ops/sec | 118.73 μs |
 
-### Tokenizer Optimizations
-- **Zero-copy**: String slices with lifetime parameters
-- **Hot Path**: Most common tokens optimized for branch prediction
-- **Memory**: Minimal allocations during tokenization
+#### Parser
 
-## 📈 Benchmark Descriptions
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Complex | 832.94 ns | 1.20M ops/sec | 835.58 ns |
+| Medium | 595.10 ns | 1.68M ops/sec | 592.14 ns |
+| Simple | 168.19 ns | 5.95M ops/sec | 167.29 ns |
 
-### 1. Core Performance Benchmark (`core_performance_benchmark.rs`)
-**🔧 Primary benchmark for development**
-- **Three Components**: Tokenizer, Parser, and Evaluator performance
-- **Multi-complexity**: Tests simple to complex expressions
+#### Target
+
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Expr_0_parser | 162.85 ns | 6.14M ops/sec | 161.65 ns |
+| Expr_0_tokenizer | 85.46 ns | 11.70M ops/sec | 84.96 ns |
+| Expr_1_parser | 281.48 ns | 3.55M ops/sec | 283.02 ns |
+| Expr_1_tokenizer | 124.96 ns | 8.00M ops/sec | 122.83 ns |
+| Expr_2_parser | 593.54 ns | 1.68M ops/sec | 599.08 ns |
+| Expr_2_tokenizer | 168.69 ns | 5.93M ops/sec | 166.78 ns |
+| Expr_3_parser | 730.52 ns | 1.37M ops/sec | 742.13 ns |
+| Expr_3_tokenizer | 188.85 ns | 5.30M ops/sec | 187.01 ns |
+| Expr_4_parser | 711.35 ns | 1.41M ops/sec | 723.26 ns |
+| Expr_4_tokenizer | 188.94 ns | 5.29M ops/sec | 187.48 ns |
+| Expr_5_parser | 436.17 ns | 2.29M ops/sec | 386.74 ns |
+| Expr_5_tokenizer | 142.13 ns | 7.04M ops/sec | 139.80 ns |
+| Expr_6_parser | 162.61 ns | 6.15M ops/sec | 162.11 ns |
+| Expr_6_tokenizer | 86.94 ns | 11.50M ops/sec | 86.39 ns |
+| Expr_7_parser | 279.79 ns | 3.57M ops/sec | 275.43 ns |
+| Expr_7_tokenizer | 126.31 ns | 7.92M ops/sec | 124.58 ns |
+| Optimized_tokenizer_complete | 222.86 ns | 4.49M ops/sec | 216.76 ns |
+| Optimized_tokenizer_only | 85.04 ns | 11.76M ops/sec | 84.13 ns |
+| Parser | 748.17 ns | 1.34M ops/sec | 730.34 ns |
+| Parser_complete | 743.45 ns | 1.35M ops/sec | 743.05 ns |
+| Tokenizer_complete | 187.91 ns | 5.32M ops/sec | 186.65 ns |
+| Tokenizer_only | 83.53 ns | 11.97M ops/sec | 82.91 ns |
+
+#### Tokenizer
+
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| Complex | 218.32 ns | 4.58M ops/sec | 217.09 ns |
+| Medium | 177.86 ns | 5.62M ops/sec | 167.54 ns |
+| Simple | 94.00 ns | 10.64M ops/sec | 85.59 ns |
+
+### Performance Summary
+
+**Key Metrics:**
+- **Tokenizer**: Processes FHIRPath expressions into tokens
+- **Parser**: Builds AST from tokens using Pratt parsing
+- **Evaluator**: Executes FHIRPath expressions against data
 - **Full Pipeline**: Complete tokenize → parse → evaluate workflow
-- **Operations/Second**: Clear performance metrics for each component
 
-### 2. Tokenizer Only Benchmark (`tokenizer_only_benchmark.rs`)
-- **Focused**: Pure tokenization performance
-- **Expressions**: Multiple complexity levels  
-- **Metrics**: Token count and operations/second
+### Detailed Results
 
-### 3. Parser Benchmark (`parser_benchmark.rs`)
-- **Combined**: Both tokenizer and parser performance
-- **Comprehensive**: Multiple expression types
-- **Comparison**: Direct tokenizer vs parser comparison
+For detailed benchmark results, charts, and statistical analysis, see the HTML reports in `target/criterion/`.
 
-### 4. Evaluation Context Benchmark (`evaluation_context_benchmark.rs`)
-- **Evaluator Focus**: Context creation, cloning, and variable operations
-- **Performance Testing**: Standard vs optimized evaluation contexts
-- **Stress Testing**: Heavy context usage scenarios
+### Running Benchmarks
 
-## 🎯 Performance Optimization Guidelines
-
-### For Tokenizer Performance
-- Use zero-copy string slices
-- Optimize hot paths (identifiers, operators)
-- Minimize allocations in tight loops
-- Pre-allocate buffers where possible
-
-### For Parser Performance
-- Leverage Pratt parsing for operator precedence
-- Use compile-time precedence tables (`#[repr(u8)]`)
-- Aggressive inlining on hot functions (`#[inline(always)]`)
-- Branch prediction friendly code organization
-
-### For Evaluator Performance
-- Optimize context creation and cloning operations
-- Cache frequently accessed variables and functions
-- Minimize memory allocations during evaluation
-- Use efficient data structures for context management
-
-## 🧪 Expression Complexity Levels
-
-| Level | Expression | Use Case |
-|-------|------------|----------|
-| **Simple** | `Patient.name` | Basic property access |
-| **Medium** | `Patient.name.where(use = 'official')` | Filtered access |
-| **Complex** | `Patient.name.where(use = 'official').given.first()` | Chained operations |
-| **Very Complex** | `Bundle.entry.resource.where($this is Patient).name.where(use = 'official').given` | Real-world complexity |
-
-## 🔧 Running Custom Benchmarks
-
-### Quick Performance Test
-For immediate performance feedback, run our custom performance test:
 ```bash
-# Run comprehensive performance measurement
-cd fhirpath-parser && cargo run --example performance_test --release
+# Run core benchmarks
+just bench
+
+# Run full benchmark suite
+just bench-full
+
+# Update this documentation
+just bench-update-docs
 ```
 
-### Add New Benchmark
-1. Create benchmark file in `benches/` directory
-2. Add `[[bench]]` section to `Cargo.toml`
-3. Use `std::hint::black_box()` (not deprecated `criterion::black_box`)
-4. Follow the pattern in `core_performance_benchmark.rs`
+### Benchmark Infrastructure
 
-### Example Custom Benchmark
-```rust
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, Throughput}; 
-use std::hint::black_box;
-use fhirpath_parser::parse_expression;
+- **Framework**: Criterion.rs v0.7
+- **Statistical Analysis**: Includes confidence intervals, outlier detection
+- **Sample Sizes**: Adaptive sampling for statistical significance
+- **Measurement**: Wall-clock time with warm-up cycles
 
-fn my_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("my_group");
-    group.throughput(Throughput::Elements(1));
-    
-    group.bench_function("my_test", |b| {
-        b.iter(|| {
-            black_box(parse_expression(black_box("Patient.name")))
-        })
-    });
-    
-    group.finish();
-}
-
-criterion_group!(benches, my_benchmark);
-criterion_main!(benches);
-```
-
-## 🎯 Performance Monitoring
-
-### Continuous Integration
-- Benchmarks run on every significant parser change
-- Performance regression detection
-- Target validation (must meet minimum thresholds)
-
-### Local Development
-- Use `just bench` for quick validation of all 3 components
-- Profile individual components with specific benchmarks
-- HTML reports available in `target/criterion/`
-
-## 📝 Notes
-
-### Dependencies
-- **Fixed Deprecation**: Replaced `criterion::black_box` with `std::hint::black_box`
-- **Updated Libraries**: All dependencies updated to latest versions
-- **Clean Compilation**: No deprecation warnings
-
-### Best Practices
-- Always use `black_box()` to prevent compiler optimizations
-- Test with realistic expression complexity
-- Monitor both absolute performance and relative comparisons
-- Use appropriate sample sizes for statistical significance
-
----
-
-## 📊 Latest Benchmark Results (Post-Simplification)
-
-### Full Pipeline Performance 
-- **Simple expressions**: 8.9K ops/sec (tokenize → parse → evaluate) - **Improved!**
-- **Medium expressions**: 8.7K ops/sec (tokenize → parse → evaluate)
-- **Complex expressions**: 8.7K ops/sec (tokenize → parse → evaluate) - **13.8% improvement!**
-
-### Component Breakdown (Operations per Second)
-- **Tokenizer standalone**: 5.8M ops/sec (simple), 4.5M ops/sec (complex) - **Consistent performance**
-- **Parser standalone**: 6.1M ops/sec (simple), 1.6M ops/sec (medium), 1.1M ops/sec (complex)
-- **Evaluator standalone**: 7.7K ops/sec (simple), 8.4K ops/sec (medium), 8.7K ops/sec (complex)
-
-### Simplification Benefits
-- **Reduced Complexity**: Removed 8+ optimization modules without performance loss
-- **Better Maintainability**: Single engine implementation instead of multiple variants
-- **Performance Gains**: Complex expressions improved by 13.8% after removing overhead
-- **Clean Architecture**: Simplified codebase while maintaining 79.3% test coverage
-
----
-
-*Benchmarks last updated: 2025-07-31 (Post-Simplification)*  
-*Command: `cargo bench`*  
-*Architecture: Simplified single-engine implementation*
-
-*For questions about benchmarks, see the implementation in `benches/` directory. Run `just bench` for a comprehensive performance overview of all 3 core components.*

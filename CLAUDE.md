@@ -4,67 +4,124 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a modular FHIRPath implementation in Rust using a workspace structure:
+This is a FHIRPath implementation in Rust as a single consolidated crate with modular structure:
 
-- **fhirpath-core**: Main library crate that re-exports and orchestrates all components
-- **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
-- **fhirpath-ast**: Abstract syntax tree definitions and visitor pattern
-- **fhirpath-evaluator**: Expression evaluation engine with context management
-- **fhirpath-registry**: Function registry and built-in function implementations
-- **fhirpath-model**: Value types, resources, and FHIR data model
-- **fhirpath-diagnostics**: Error handling and diagnostic reporting
+- **src/ast/**: Abstract syntax tree definitions and visitor pattern
+- **src/parser/**: Tokenizer and parser using nom library (version 8)
+- **src/evaluator/**: Expression evaluation engine with context management
+- **src/registry/**: Function registry and built-in function implementations
+- **src/model/**: Value types, resources, and FHIR data model
+- **src/diagnostics/**: Error handling and diagnostic reporting
+- **src/engine.rs**: Main evaluation engine
+- **src/error.rs**: Core error types
+- **src/types.rs**: Core type definitions
 
 ## Development Commands
 
 ### Building and Testing
 ```bash
 # Build entire workspace
-cargo build
+just build
 
 # Build with release optimization  
-cargo build --release
+just build-release
 
 # Run all tests
-cargo test
-
-# Run specific test
-cargo test test_name
+just test
 
 # Run integration tests (official FHIRPath test suites)
-cd fhirpath-core && cargo test run_official_tests -- --ignored --nocapture
+just test-official
 
 # Update test coverage report
-./scripts/update-test-coverage.sh
+just test-coverage
 
 # Run benchmarks
-cargo bench
+just bench
+
+# Run full benchmark suite
+just bench-full
+
+# Update benchmark documentation
+just bench-update-docs
 ```
-
-For debuggin parser error create simple test instead of dedicated binary 
-
-Run specifigc json test case 
-cargo run -p fhirpath-core specs/fhirpath/tests/{test-case-name}.json
 
 ### Performance and Quality
 ```bash
 # Run clippy linting
-cargo clippy
+just clippy
 
 # Format code
-cargo fmt
+just fmt
 
-# Run specific benchmark
-cargo bench tokenizer_only_benchmark
-cargo bench parser_benchmark
+# Check code without building
+just check
+
+# Quality assurance (format + lint + test)
+just qa
+
+# Run specific benchmarks
+just bench-tokenizer
+just bench-parser
+
+# Clean build artifacts
+just clean
+just clean-bench
+```
+
+### Test-Specific Commands
+```bash
+# Run specific test case
+just test-case test-case-name
+
+# Run failed expression tests
+just test-failed
+
+# Release preparation (full QA + docs)
+just release-prep
+```
+
+### Documentation Commands
+```bash
+# Generate API documentation
+just doc
+
+# Generate complete documentation (including dependencies)
+just doc-all
+
+# Generate all documentation (API + benchmarks)
+just docs
+```
+
+### CLI Commands
+```bash
+# Evaluate FHIRPath expression (read FHIR resource from stdin)
+just cli-evaluate "Patient.name.given"
+
+# Evaluate FHIRPath expression with specific file
+just cli-evaluate "Patient.name.given" path/to/resource.json
+
+# Parse FHIRPath expression to AST
+just cli-parse "Patient.name.given"
+
+# Validate FHIRPath expression syntax
+just cli-validate "Patient.name.given"
+
+# Show CLI help
+just cli-help
+
+# Run CLI with custom arguments
+just cli [arguments...]
 ```
 
 ### Debug Utilities
-The project includes debug binaries for troubleshooting specific issues:
+For debugging parser errors, create simple tests instead of dedicated binaries. 
+The project includes utilities for troubleshooting:
 ```bash
-cargo run --bin debug_simple_variable
-cargo run --bin debug_lambda_variables
-cargo run --bin debug_context_flow
-# See Cargo.toml for full list of debug binaries
+# Run specific test case from official FHIRPath test suite
+just test-case test-case-name
+
+# Example: just test-case literals
+# This runs specs/fhirpath/tests/literals.json
 ```
 
 ## Guidelines
@@ -109,13 +166,30 @@ To track progress and maintain visibility into implementation completeness:
 ### Updating Test Coverage Report
 Run the automated test coverage generator:
 ```bash
-./scripts/update-test-coverage.sh
+just test-coverage
 ```
 
-This script:
+This command:
 - Builds the test infrastructure 
 - Runs all official FHIRPath test suites
-- Generates a comprehensive report in `fhirpath-core/TEST_COVERAGE.md`
+- Generates a comprehensive report in `TEST_COVERAGE.md`
 - Provides statistics on pass rates and identifies missing functionality
 
 The coverage report should be updated after completing any major functionality to track progress.
+
+## Library Usage
+
+The consolidated crate provides a clean API:
+
+```rust
+use fhirpath::{FhirPathEngine, FhirPathValue};
+
+let engine = FhirPathEngine::new();
+let result = engine.evaluate("Patient.name.given", &patient_resource)?;
+```
+
+Main exports:
+- `FhirPathEngine`: Main evaluation engine
+- `FhirPathValue`: Value types
+- `parse()`: Parse FHIRPath expressions
+- `FunctionRegistry`: Function registry for extensions

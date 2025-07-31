@@ -1,0 +1,95 @@
+name: Canary Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  canary-release:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run quality assurance
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo test --all-features
+
+      - name: Run benchmarks
+        run: cargo bench --no-fail-fast
+
+      - name: Generate canary version
+        id: version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          CANARY_VERSION="0.0.0-canary.${TIMESTAMP}.${SHORT_SHA}"
+          echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
+          echo "Generated canary version: ${CANARY_VERSION}"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
+          cat Cargo.toml | grep version
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Create canary release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: canary-${{ steps.version.outputs.version }}
+          name: Canary Release ${{ steps.version.outputs.version }}
+          body: |
+            🚀 **Canary Release** - Automated build from main branch
+
+            **Commit:** ${{ github.sha }}
+            **Version:** ${{ steps.version.outputs.version }}
+            **Branch:** ${{ github.ref_name }}
+
+            > ⚠️ This is a canary release for testing purposes. Use at your own risk.
+
+            ## Recent Changes
+            ${{ github.event.head_commit.message }}
+
+            **Author:** ${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>
+            **Timestamp:** ${{ github.event.head_commit.timestamp }}
+          prerelease: true
+          generate_release_notes: false
+          files: |
+            target/release/octofhir-fhirpath*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish canary to crates.io
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Publishing canary version to crates.io..."
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+        continue-on-error: true

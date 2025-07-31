@@ -1,11 +1,29 @@
 [package]
-name = "fhirpath-rs"
+name = "octofhir-fhirpath"
 version = "0.2.0"
 edition = "2024"
+rust-version = "1.87.0"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/octofhir/fhirpath-rs"
-description = "A FHIRPath implementation in Rust"
+homepage = "https://github.com/octofhir/fhirpath-rs"
+documentation = "https://docs.rs/octofhir-fhirpath"
+description = "A high-performance FHIRPath implementation in Rust with comprehensive spec compliance"
+readme = "README.md"
+keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
+categories = ["parser-implementations", "data-structures", "healthcare"]
+include = [
+    "src/**/*",
+    "specs/**/*",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+]
+
+[lib]
+name = "octofhir_fhirpath"
+path = "src/lib.rs"
 
 [[bench]]
 name = "tokenizer_only_benchmark"
@@ -15,51 +33,74 @@ harness = false
 name = "parser_benchmark"
 harness = false
 
-
 [[bench]]
 name = "core_performance_benchmark"
 harness = false
 
-[[bin]]
-name = "benchmark_server"
-path = "src/benchmark_server.rs"
 
+[[bin]]
+name = "test_runner"
+path = "src/bin/test_runner.rs"
+
+[[bin]]
+name = "octofhir-fhirpath"
+path = "src/bin/octofhir_fhirpath.rs"
+
+[[bin]]
+name = "extract_benchmark_metrics"
+path = "src/bin/extract_benchmark_metrics.rs"
 
 [dependencies]
-fhirpath-parser = { path = "fhirpath-parser" }
-fhirpath-core = { path = "fhirpath-core" }
-criterion = { workspace = true }
-tokio = { workspace = true }
-warp = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-
-[workspace]
-resolver = "3"
-members = [
-    "fhirpath-ast",
-    "fhirpath-model",
-    "fhirpath-diagnostics",
-    "fhirpath-core",
-    "fhirpath-parser",
-    "fhirpath-registry",
-    "fhirpath-evaluator",
-]
-
-[workspace.package]
-version = "0.2.0"
-edition = "2024"
-authors = ["OctoFHIR Team <funyloony@gmail.com>"]
-license = "Apache-2.0"
-repository = "https://github.com/octofhir/fhirpath-rs"
-description = "A FHIRPath implementation in Rust"
-
-[workspace.dependencies]
-# Common dependencies for all crates
+# Core dependencies
+anyhow = "1.0.98"
+base64 = "0.22.1"
+chrono = { version = "0.4.41", features = ["serde"] }
+dashmap = "6.1.0"
+glob = "0.3"
+hex = "0.4"
+indexmap = "2.10.0"
+log = "0.4.20"
+lru = "0.16"
+nom = "8.0.0"
+nom_locate = "5.0.0-beta.5"
+octofhir-ucum-core = "0.4.0"
+octofhir-ucum-fhir = { version = "0.4.0", features = ["serde"] }
+parking_lot = "0.12.4"
+quick-xml = "0.31"
+regex = "1.11.1"
+rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
+rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
+smallvec = { version = "1.11", features = ["serde"] }
 thiserror = "2.0.12"
-anyhow = "1.0.98"
-criterion = "0.7.0"
-tokio = { version = "1.47.0", features = ["full"] }
-warp = "0.3.7"
+thread_local = "1.1"
+unicode-xid = "0.2.6"
+
+# Optional dependencies
+colored = { version = "3.0.0", optional = true }
+lsp-types = { version = "0.97.0", optional = true }
+reqwest = { version = "0.12.22", features = ["json"], optional = true }
+tokio = { version = "1.47.0", features = ["full"], optional = true }
+
+# CLI dependencies
+clap = { version = "4.4", features = ["derive"] }
+human-panic = "2.0"
+
+[dev-dependencies]
+comfy-table = "7.0"
+criterion = { version = "0.7.0", features = ["html_reports"] }
+pretty_assertions = "1.4.1"
+rstest = "0.23.0"
+serde-xml-rs = "0.6"
+colored = "3.0.0"
+glob = "0.3"
+
+[features]
+default = []
+lsp = ["lsp-types", "colored"]
+network = ["reqwest", "tokio"]
+diagnostics = ["colored"]
+serde = []
+terminal = ["colored"]
+async-schema = ["tokio"]

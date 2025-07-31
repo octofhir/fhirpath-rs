@@ -1,6 +1,13 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use fhirpath_parser::tokenizer::Tokenizer;
+//! Optimized tokenizer benchmarks
+//!
+//! This benchmark suite focuses exclusively on tokenizer performance optimizations
+//! and measures different tokenization strategies.
 
+use criterion::{Criterion, criterion_group, criterion_main};
+use octofhir_fhirpath::parser::tokenizer::Tokenizer;
+use std::hint::black_box;
+
+/// Benchmark optimized tokenizer performance by counting tokens only
 fn benchmark_optimized_tokenizer_only(c: &mut Criterion) {
     let expression = "Patient.name.where(use = 'official').given";
 
@@ -16,6 +23,7 @@ fn benchmark_optimized_tokenizer_only(c: &mut Criterion) {
     });
 }
 
+/// Benchmark optimized tokenizer performance by collecting all tokens
 fn benchmark_optimized_tokenizer_complete(c: &mut Criterion) {
     let expression = "Patient.name.where(use = 'official').given";
 
@@ -44,7 +52,7 @@ fn benchmark_multiple_expressions(c: &mut Criterion) {
     ];
 
     for (i, expression) in expressions.into_iter().enumerate() {
-        c.bench_function(&format!("expr_{}_tokenizer", i), |b| {
+        c.bench_function(&format!("expr_{i}_tokenizer"), |b| {
             b.iter(|| {
                 let mut tokenizer = Tokenizer::new(black_box(expression));
                 let mut tokens = Vec::new();

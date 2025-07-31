@@ -1,0 +1,256 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate version format
+      id: validate
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
+        if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$ ]]; then
+          echo "Invalid version format: $VERSION"
+          echo "Expected format: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-PRERELEASE"
+          exit 1
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Valid version: $VERSION"
+
+  test-and-build:
+    runs-on: ubuntu-latest
+    needs: validate-version
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Run quality assurance
+      run: |
+        cargo fmt --all -- --check
+        cargo clippy --all-targets --all-features -- -D warnings
+        cargo test --all-features
+        cargo test --release
+
+    - name: Run benchmarks
+      run: cargo bench --no-fail-fast
+
+    - name: Run integration tests
+      run: |
+        if [ -f "justfile" ]; then
+          # Install just if available
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin || true
+          just test-official || cargo test --features=official-tests || echo "Official tests not available"
+        fi
+
+  generate-changelog:
+    runs-on: ubuntu-latest
+    needs: [validate-version, test-and-build]
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      contributors: ${{ steps.contributors.outputs.contributors }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get last release tag
+      id: last-release
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          echo "No previous release found, using first commit"
+          LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+        fi
+        echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+        echo "Last release: $LAST_TAG"
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        VERSION="${{ needs.validate-version.outputs.version }}"
+        LAST_TAG="${{ steps.last-release.outputs.last_tag }}"
+        
+        echo "## What's Changed in v$VERSION" > changelog.md
+        echo "" >> changelog.md
+        
+        # Get commits since last release
+        if [ "$LAST_TAG" != "" ]; then
+          COMMITS=$(git log --pretty=format:"- %s (@%an)" ${LAST_TAG}..HEAD --reverse)
+        else
+          COMMITS=$(git log --pretty=format:"- %s (@%an)" --reverse)
+        fi
+        
+        # Categorize commits
+        echo "### 🚀 Features" >> changelog.md
+        echo "$COMMITS" | grep -E "^- (feat|feature)" || echo "- No new features" >> changelog.md
+        echo "" >> changelog.md
+        
+        echo "### 🐛 Bug Fixes" >> changelog.md
+        echo "$COMMITS" | grep -E "^- (fix|bugfix)" || echo "- No bug fixes" >> changelog.md
+        echo "" >> changelog.md
+        
+        echo "### 🔧 Improvements" >> changelog.md
+        echo "$COMMITS" | grep -E "^- (chore|refactor|perf|improve)" || echo "- No improvements" >> changelog.md
+        echo "" >> changelog.md
+        
+        echo "### 📚 Documentation" >> changelog.md
+        echo "$COMMITS" | grep -E "^- (docs|doc)" || echo "- No documentation changes" >> changelog.md
+        echo "" >> changelog.md
+        
+        echo "### Other Changes" >> changelog.md
+        echo "$COMMITS" | grep -vE "^- (feat|feature|fix|bugfix|chore|refactor|perf|improve|docs|doc)" || echo "- No other changes" >> changelog.md
+        echo "" >> changelog.md
+        
+        # Save changelog
+        CHANGELOG=$(cat changelog.md)
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Get contributors
+      id: contributors
+      run: |
+        LAST_TAG="${{ steps.last-release.outputs.last_tag }}"
+        
+        if [ "$LAST_TAG" != "" ]; then
+          CONTRIBUTORS=$(git log --pretty=format:"%an <%ae>" ${LAST_TAG}..HEAD | sort -u | head -10)
+        else
+          CONTRIBUTORS=$(git log --pretty=format:"%an <%ae>" | sort -u | head -10)
+        fi
+        
+        echo "## 👥 Contributors" > contributors.md
+        echo "" >> contributors.md
+        echo "Thanks to all contributors who made this release possible:" >> contributors.md
+        echo "" >> contributors.md
+        while IFS= read -r contributor; do
+          if [ ! -z "$contributor" ]; then
+            echo "- $contributor" >> contributors.md
+          fi
+        done <<< "$CONTRIBUTORS"
+        
+        CONTRIBUTORS_MD=$(cat contributors.md)
+        echo "contributors<<EOF" >> $GITHUB_OUTPUT
+        echo "$CONTRIBUTORS_MD" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [validate-version, test-and-build, generate-changelog]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Update version in Cargo.toml
+      run: |
+        VERSION="${{ needs.validate-version.outputs.version }}"
+        sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add Cargo.toml
+        git commit -m "chore: bump version to $VERSION" || true
+
+    - name: Build release
+      run: |
+        cargo build --release
+        cargo test --release
+
+    - name: Create and push tag
+      run: |
+        VERSION="${{ needs.validate-version.outputs.version }}"
+        git tag -a "v$VERSION" -m "Release v$VERSION"
+        git push origin "v$VERSION"
+
+    - name: Create GitHub release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.validate-version.outputs.version }}
+        name: Release v${{ needs.validate-version.outputs.version }}
+        body: |
+          ${{ needs.generate-changelog.outputs.changelog }}
+          
+          ${{ needs.generate-changelog.outputs.contributors }}
+          
+          ---
+          
+          🚀 **Installation**
+          
+          Add to your `Cargo.toml`:
+          ```toml
+          [dependencies]
+          octofhir-fhirpath = "${{ needs.validate-version.outputs.version }}"
+          ```
+          
+          📦 **Crates.io**: https://crates.io/crates/octofhir-fhirpath
+          
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: false
+        files: |
+          target/release/octofhir-fhirpath*
+          Cargo.toml
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-crates:
+    runs-on: ubuntu-latest
+    needs: [validate-version, create-release]
+    if: success()
+    steps:
+    - name: Checkout code with tag
+      uses: actions/checkout@v4
+      with:
+        ref: v${{ needs.validate-version.outputs.version }}
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Publish to crates.io
+      run: |
+        echo "Publishing release v${{ needs.validate-version.outputs.version }} to crates.io..."
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

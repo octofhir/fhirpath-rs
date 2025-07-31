@@ -1,3 +1,129 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Architecture
+
+This is a FHIRPath implementation in Rust as a single consolidated crate with modular structure:
+
+- **src/ast/**: Abstract syntax tree definitions and visitor pattern
+- **src/parser/**: Tokenizer and parser using nom library (version 8)
+- **src/evaluator/**: Expression evaluation engine with context management
+- **src/registry/**: Function registry and built-in function implementations
+- **src/model/**: Value types, resources, and FHIR data model
+- **src/diagnostics/**: Error handling and diagnostic reporting
+- **src/engine.rs**: Main evaluation engine
+- **src/error.rs**: Core error types
+- **src/types.rs**: Core type definitions
+
+## Development Commands
+
+### Building and Testing
+```bash
+# Build entire workspace
+just build
+
+# Build with release optimization  
+just build-release
+
+# Run all tests
+just test
+
+# Run integration tests (official FHIRPath test suites)
+just test-official
+
+# Update test coverage report
+just test-coverage
+
+# Run benchmarks
+just bench
+
+# Run full benchmark suite
+just bench-full
+
+# Update benchmark documentation
+just bench-update-docs
+```
+
+### Performance and Quality
+```bash
+# Run clippy linting
+just clippy
+
+# Format code
+just fmt
+
+# Check code without building
+just check
+
+# Quality assurance (format + lint + test)
+just qa
+
+# Run specific benchmarks
+just bench-tokenizer
+just bench-parser
+
+# Clean build artifacts
+just clean
+just clean-bench
+```
+
+### Test-Specific Commands
+```bash
+# Run specific test case
+just test-case test-case-name
+
+# Run failed expression tests
+just test-failed
+
+# Release preparation (full QA + docs)
+just release-prep
+```
+
+### Documentation Commands
+```bash
+# Generate API documentation
+just doc
+
+# Generate complete documentation (including dependencies)
+just doc-all
+
+# Generate all documentation (API + benchmarks)
+just docs
+```
+
+### CLI Commands
+```bash
+# Evaluate FHIRPath expression (read FHIR resource from stdin)
+just cli-evaluate "Patient.name.given"
+
+# Evaluate FHIRPath expression with specific file
+just cli-evaluate "Patient.name.given" path/to/resource.json
+
+# Parse FHIRPath expression to AST
+just cli-parse "Patient.name.given"
+
+# Validate FHIRPath expression syntax
+just cli-validate "Patient.name.given"
+
+# Show CLI help
+just cli-help
+
+# Run CLI with custom arguments
+just cli [arguments...]
+```
+
+### Debug Utilities
+For debugging parser errors, create simple tests instead of dedicated binaries. 
+The project includes utilities for troubleshooting:
+```bash
+# Run specific test case from official FHIRPath test suite
+just test-case test-case-name
+
+# Example: just test-case literals
+# This runs specs/fhirpath/tests/literals.json
+```
+
 ## Guidelines
 
 Apply the following guidelines when developing fhirpath-core:
@@ -6,15 +132,22 @@ Apply the following guidelines when developing fhirpath-core:
 - [Rust Coding Guidelines](https://rust-lang.github.io/rust-clippy/master/index.html)
 - [Rust Style Guide](https://rust-lang.github.io/rust-style-guide/)
 
+## Specifications and Dependencies
 
-Spec reference  in `specs` folder
-FHIRSchema spec - https://fhir-schema.github.io/fhir-schema/intro.html
+- FHIRPath specification reference in `specs/` folder
+- Official test cases in `specs/fhirpath/tests/` 
+- FHIRSchema spec: https://fhir-schema.github.io/fhir-schema/intro.html
+- Uses nom library version 8 for parsing
+- For UCUM units: use https://github.com/octofhir/ucum-rs or local path `./…/ucum-rs`
+- Criterion version 0.7
 
-Before implementing big features prepare ADR(https://github.com/joelparkerhenderson/architecture-decision-record) and only after that start writing code
 
-For parsing we use nom library version 8.
+## Architecture Decision Records (ADRs)
 
-For work with units and converts unit use our library https://github.com/octofhir/ucum-rs or in local path ./…/ucum-rs if any error is found, you can fix them in a library directly and use a local library for development
+Before implementing major features:
+1. Create ADR following: https://github.com/joelparkerhenderson/architecture-decision-record
+2. Split implementation into phases/tasks stored in `tasks/` directory  
+3. Update task files with implementation status
 
 ## Planing Phase
 
@@ -33,73 +166,30 @@ To track progress and maintain visibility into implementation completeness:
 ### Updating Test Coverage Report
 Run the automated test coverage generator:
 ```bash
-./scripts/update-test-coverage.sh
+just test-coverage
 ```
 
-This script:
+This command:
 - Builds the test infrastructure 
 - Runs all official FHIRPath test suites
-- Generates a comprehensive report in `fhirpath-core/TEST_COVERAGE.md`
+- Generates a comprehensive report in `TEST_COVERAGE.md`
 - Provides statistics on pass rates and identifies missing functionality
 
 The coverage report should be updated after completing any major functionality to track progress.
 
+## Library Usage
 
-You are a Rust Performance Optimization Expert specializing in high-performance systems development, particularly for Language Server Protocol (LSP) implementations and FHIRPath processing. Your expertise encompasses advanced Rust optimization techniques, memory management, algorithmic efficiency, and LSP architecture patterns.
+The consolidated crate provides a clean API:
 
-Before making ANY code changes, you MUST:
+```rust
+use fhirpath::{FhirPathEngine, FhirPathValue};
 
-Thoroughly review the specifications in the specs folder to understand functional requirements
-Verify that proposed optimizations will not break existing functionality
-Ensure compliance with FHIRPath specification requirements
-Reference the Rust Performance Book, API Guidelines, Coding Guidelines, and Style Guide from the project's CLAUDE.md
-Your optimization approach follows this methodology:
+let engine = FhirPathEngine::new();
+let result = engine.evaluate("Patient.name.given", &patient_resource)?;
+```
 
-Analysis Phase:
-
-Profile and benchmark existing code to identify bottlenecks
-Analyze algorithmic complexity and data structures
-Identify memory allocation patterns and potential improvements
-Review for unnecessary clones, allocations, and string operations
-Check for suboptimal iterator usage and collection operations
-Optimization Strategies:
-
-Apply zero-cost abstractions and compile-time optimizations
-Optimize memory layout and cache locality
-Use efficient data structures (Vec, HashMap, BTreeMap as appropriate)
-Implement lazy evaluation and streaming where beneficial
-Leverage Rust's ownership system for memory efficiency
-Apply SIMD optimizations when applicable
-Use const generics and compile-time computation
-Optimize string handling with Cow, intern pools, or custom string types
-LSP-Specific Optimizations:
-
-Implement incremental parsing and caching strategies
-Design efficient symbol tables and indexing structures
-Optimize request/response serialization and deserialization
-Use async/await patterns effectively for non-blocking operations
-Implement smart debouncing and batching for editor events
-Design efficient diff algorithms for document synchronization
-Quality Assurance:
-
-Maintain 100% safety (no unsafe code unless absolutely critical)
-Preserve all existing functionality and API contracts
-Ensure optimizations don't compromise code readability
-Add comprehensive benchmarks to measure improvements
-Validate against specification compliance tests
-Implementation Guidelines:
-
-Follow Rust API Guidelines for consistent interfaces
-Apply Clippy suggestions and style guide requirements
-Use nom parser combinators efficiently for parsing tasks
-Integrate with ucum-rs library for unit conversions when needed
-Structure code for maximum compiler optimization opportunities
-When presenting optimizations:
-
-Explain the performance bottleneck being addressed
-Show before/after benchmark results when possible
-Justify each optimization technique used
-Highlight any trade-offs or considerations
-Provide clear implementation steps
-Suggest additional profiling or testing approaches
-Your goal is to achieve best-in-class performance that enables smooth, responsive FHIRPath language server experiences across VS Code, Zed, and IntelliJ IDEA while maintaining code safety, correctness, and maintainability.
+Main exports:
+- `FhirPathEngine`: Main evaluation engine
+- `FhirPathValue`: Value types
+- `parse()`: Parse FHIRPath expressions
+- `FunctionRegistry`: Function registry for extensions
