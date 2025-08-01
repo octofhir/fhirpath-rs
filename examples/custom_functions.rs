@@ -1,5 +1,5 @@
 //! Custom Function Examples
-//! 
+//!
 //! This example demonstrates how to extend the FHIRPath engine with custom functions.
 //! Note: This is a conceptual example showing how custom functions might be implemented.
 //! The actual API may vary based on the current implementation.
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "use": "work"
             },
             {
-                "system": "phone", 
+                "system": "phone",
                 "value": "+1-555-123-4567",
                 "use": "home"
             }
@@ -45,59 +45,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Built-in string functions
     println!("1️⃣  String Functions");
     println!("--------------------");
-    
-    let result = engine.evaluate(
-        "Patient.name.family.upper()",
-        patient.clone()
-    )?;
+
+    let result = engine.evaluate("Patient.name.family.upper()", patient.clone())?;
     print_result("Patient.name.family.upper()", &result);
 
-    let result = engine.evaluate(
-        "Patient.name.family.lower()",
-        patient.clone()
-    )?;
+    let result = engine.evaluate("Patient.name.family.lower()", patient.clone())?;
     print_result("Patient.name.family.lower()", &result);
 
     let result = engine.evaluate(
         "Patient.telecom.where(system = 'email').value.contains('@')",
-        patient.clone()
+        patient.clone(),
     )?;
-    print_result("Patient.telecom.where(system = 'email').value.contains('@')", &result);
+    print_result(
+        "Patient.telecom.where(system = 'email').value.contains('@')",
+        &result,
+    );
 
     // Example 2: Mathematical functions
     println!("2️⃣  Mathematical Functions");
     println!("---------------------------");
-    
-    let result = engine.evaluate(
-        "Patient.name.count() * 10",
-        patient.clone()
-    )?;
+
+    let result = engine.evaluate("Patient.name.count() * 10", patient.clone())?;
     print_result("Patient.name.count() * 10", &result);
 
     // Example 3: Date functions
     println!("3️⃣  Date Functions");
     println!("------------------");
-    
-    let result = engine.evaluate(
-        "Patient.birthDate",
-        patient.clone()
-    )?;
+
+    let result = engine.evaluate("Patient.birthDate", patient.clone())?;
     print_result("Patient.birthDate", &result);
 
     // Example 4: Type conversion functions
     println!("4️⃣  Type Conversion Functions");
     println!("------------------------------");
-    
-    let result = engine.evaluate(
-        "Patient.name.count().toString()",
-        patient.clone()
-    )?;
+
+    let result = engine.evaluate("Patient.name.count().toString()", patient.clone())?;
     print_result("Patient.name.count().toString()", &result);
 
     // Example 5: Aggregate functions
     println!("5️⃣  Aggregate Functions");
     println!("-----------------------");
-    
+
     let bundle = json!({
         "resourceType": "Bundle",
         "entry": [
@@ -109,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             {
                 "resource": {
-                    "resourceType": "Observation", 
+                    "resourceType": "Observation",
                     "valueQuantity": { "value": 80.2 }
                 }
             },
@@ -124,25 +112,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = engine.evaluate(
         "Bundle.entry.resource.valueQuantity.value.sum()",
-        bundle.clone()
+        bundle.clone(),
     )?;
     print_result("Bundle.entry.resource.valueQuantity.value.sum()", &result);
 
     let result = engine.evaluate(
         "Bundle.entry.resource.valueQuantity.value.avg()",
-        bundle.clone()
+        bundle.clone(),
     )?;
     print_result("Bundle.entry.resource.valueQuantity.value.avg()", &result);
 
     // Example 6: Advanced functions
     println!("6️⃣  Advanced Functions");
     println!("-----------------------");
-    
+
     let result = engine.evaluate(
         "Bundle.entry.resource.valueQuantity.value.distinct().count()",
-        bundle.clone()
+        bundle.clone(),
     )?;
-    print_result("Bundle.entry.resource.valueQuantity.value.distinct().count()", &result);
+    print_result(
+        "Bundle.entry.resource.valueQuantity.value.distinct().count()",
+        &result,
+    );
 
     println!("\n📝 Custom Function Implementation");
     println!("==================================");
@@ -152,7 +143,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Example custom function structure:");
     println!("----------------------------------");
-    println!(r#"
+    println!(
+        r#"
 // Pseudo-code for custom function implementation:
 struct FullNameFunction;
 
@@ -168,7 +160,8 @@ impl Function for FullNameFunction {{
 
 // Usage in expressions:
 // Patient.name.fullName() -> "John William Smith"
-"#);
+"#
+    );
 
     Ok(())
 }
@@ -178,7 +171,9 @@ fn print_result(expression: &str, result: &octofhir_fhirpath::FhirPathValue) {
     println!("Expression: {}", expression);
     match result {
         octofhir_fhirpath::FhirPathValue::Empty => println!("Result: (empty)"),
-        octofhir_fhirpath::FhirPathValue::Collection(items) if items.is_empty() => println!("Result: (empty collection)"),
+        octofhir_fhirpath::FhirPathValue::Collection(items) if items.is_empty() => {
+            println!("Result: (empty collection)")
+        }
         octofhir_fhirpath::FhirPathValue::Collection(items) if items.len() == 1 => {
             println!("Result: {:?}", items.get(0).unwrap());
         }

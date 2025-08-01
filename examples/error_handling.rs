@@ -1,5 +1,5 @@
 //! Error Handling Examples
-//! 
+//!
 //! This example demonstrates how to handle various types of errors that can occur
 //! when working with FHIRPath expressions, including parse errors, evaluation errors,
 //! and data type mismatches.
@@ -33,18 +33,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 1: Syntax errors in expressions
     let invalid_expressions = [
-        "Patient.name.where(",           // Unclosed parenthesis
-        "Patient.name..family",          // Double dot
-        "Patient.name.where(use =)",     // Incomplete comparison
+        "Patient.name.where(",                 // Unclosed parenthesis
+        "Patient.name..family",                // Double dot
+        "Patient.name.where(use =)",           // Incomplete comparison
         "Patient.name.where(use = 'official'", // Missing closing parenthesis
-        "Patient.[name",                 // Invalid bracket syntax
+        "Patient.[name",                       // Invalid bracket syntax
     ];
 
     for expr in &invalid_expressions {
         println!("Testing invalid expression: {}", expr);
         match engine.evaluate(*expr, patient.clone()) {
             Ok(result) => {
-                println!("  ✅ Parsed successfully (returned empty per FHIRPath spec): {:?}", result);
+                println!(
+                    "  ✅ Parsed successfully (returned empty per FHIRPath spec): {:?}",
+                    result
+                );
             }
             Err(error) => {
                 println!("  ❌ Parse error: {}", error);
@@ -58,10 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 2: Type mismatches and invalid operations
     let problematic_expressions = [
-        "Patient.name + Patient.birthDate",     // String + Date
-        "Patient.active * 5",                   // Boolean * Number
-        "Patient.name.unknownFunction()",       // Unknown function
-        "Patient.nonExistentProperty.value",    // Non-existent property
+        "Patient.name + Patient.birthDate",  // String + Date
+        "Patient.active * 5",                // Boolean * Number
+        "Patient.name.unknownFunction()",    // Unknown function
+        "Patient.nonExistentProperty.value", // Non-existent property
     ];
 
     for expr in &problematic_expressions {
@@ -88,10 +91,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let expressions_for_missing_data = [
-        "Patient.name.family",              // Missing name
-        "Patient.birthDate",                // Missing birthDate
+        "Patient.name.family",                     // Missing name
+        "Patient.birthDate",                       // Missing birthDate
         "Patient.telecom.where(system = 'email')", // Missing telecom
-        "Patient.contact.name.family",      // Deeply nested missing data
+        "Patient.contact.name.family",             // Deeply nested missing data
     ];
 
     for expr in &expressions_for_missing_data {
@@ -142,11 +145,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (expr, description) in &expressions_to_test {
         println!("{}: {}", description, expr);
-        
+
         // Strategy 1: Default to empty result
-        let result = engine.evaluate(expr, patient.clone()).unwrap_or_else(|_| {
-            octofhir_fhirpath::FhirPathValue::collection(vec![])
-        });
+        let result = engine
+            .evaluate(expr, patient.clone())
+            .unwrap_or_else(|_| octofhir_fhirpath::FhirPathValue::collection(vec![]));
         println!("  Strategy 1 (default empty): {:?}", result);
 
         // Strategy 2: Try alternative expression
@@ -166,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             println!("  Strategy 3: Expression appears valid for evaluation");
         }
-        
+
         println!();
     }
 

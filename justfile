@@ -95,13 +95,13 @@ bench-update-docs:
 
 # Development commands
 fmt:
-    cargo fmt
+    cargo fmt --all
 
 clippy:
     cargo clippy --all
 
 check:
-    cargo check
+    cargo check --all
 
 # Quality assurance
 qa: fmt clippy test
