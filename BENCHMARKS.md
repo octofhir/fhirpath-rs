@@ -1,6 +1,6 @@
 # FHIRPath Benchmark Results
 
-Last updated: Thu Jul 31 19:21:22 UTC 2025
+Last updated: Fri Aug 01 12:30:50 UTC 2025
 
 ## Performance Overview
 
@@ -14,96 +14,89 @@ The following components have been benchmarked with their current performance me
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Parser | 703.04 ns | 1.42M ops/sec | 701.24 ns |
-| Tokenizer | 84.08 ns | 11.89M ops/sec | 83.27 ns |
-| Parser | 274.37 ns | 3.64M ops/sec | 267.49 ns |
-| Tokenizer | 37.88 ns | 26.40M ops/sec | 37.71 ns |
-| Parser | 159.29 ns | 6.28M ops/sec | 160.13 ns |
-| Tokenizer | 24.77 ns | 40.38M ops/sec | 24.64 ns |
-| Engine_creation | 109.80 μs | 9.11K ops/sec | 106.72 μs |
-| Evaluation_simple | 107.19 μs | 9.33K ops/sec | 107.27 μs |
-| Evaluator_ops_per_sec | 122.16 μs | 8.19K ops/sec | 114.55 μs |
-| Parser_ops_per_sec | 709.68 ns | 1.41M ops/sec | 700.51 ns |
-| Tokenizer_ops_per_sec | 84.00 ns | 11.90M ops/sec | 82.86 ns |
-| Parser_1m_ops_target | 710.95 ns | 1.41M ops/sec | 726.19 ns |
-| Tokenizer_11m_ops_target | 84.06 ns | 11.90M ops/sec | 82.85 ns |
-| Parser_1m_target | 714.19 ns | 1.40M ops/sec | 635.02 ns |
-| Tokenizer_10m_target | 79.97 ns | 12.50M ops/sec | 75.11 ns |
-
-#### Evaluation_types
-
-| Complexity | Mean Time | Throughput | Median Time |
-|------------|-----------|------------|-------------|
-| Boolean | 120.18 μs | 8.32K ops/sec | 118.39 μs |
-| Number | 112.34 μs | 8.90K ops/sec | 113.48 μs |
-| String | 110.31 μs | 9.06K ops/sec | 109.33 μs |
+| Parser | 690.68 ns | 1.45M ops/sec | 682.84 ns |
+| Tokenizer | 90.91 ns | 11.00M ops/sec | 93.07 ns |
+| Parser | 288.99 ns | 3.46M ops/sec | 277.69 ns |
+| Tokenizer | 38.74 ns | 25.81M ops/sec | 38.64 ns |
+| Parser | 166.09 ns | 6.02M ops/sec | 168.12 ns |
+| Tokenizer | 25.24 ns | 39.62M ops/sec | 25.19 ns |
+| Parse_batch | 344.31 ns | 2.90M ops/sec | 341.53 ns |
+| Parse_batch | 1.07 μs | 934.12K ops/sec | 1.02 μs |
+| Parse_function_calls | 8.27 μs | 120.89K ops/sec | 8.02 μs |
+| Evaluator_ops_per_sec | 109.94 μs | 9.10K ops/sec | 108.45 μs |
+| Parser_ops_per_sec | 676.93 ns | 1.48M ops/sec | 684.07 ns |
+| Tokenizer_ops_per_sec | 84.70 ns | 11.81M ops/sec | 84.30 ns |
+| Parse_complex_operations | 3.90 μs | 256.46K ops/sec | 3.90 μs |
+| Interning_tokenizer | 1.44 μs | 695.82K ops/sec | 1.46 μs |
+| Standard_tokenizer | 244.85 ns | 4.08M ops/sec | 240.22 ns |
 
 #### Evaluator
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Complex | 125.83 μs | 7.95K ops/sec | 122.04 μs |
-| Medium | 115.95 μs | 8.62K ops/sec | 112.21 μs |
-| Simple | 114.79 μs | 8.71K ops/sec | 114.27 μs |
-
-#### Expression_complexity
-
-| Complexity | Mean Time | Throughput | Median Time |
-|------------|-----------|------------|-------------|
-| Arithmetic | 117.63 μs | 8.50K ops/sec | 114.99 μs |
-| Literal | 119.18 μs | 8.39K ops/sec | 117.88 μs |
-| Simple_path | 118.06 μs | 8.47K ops/sec | 115.69 μs |
+| Complex | 112.93 μs | 8.85K ops/sec | 111.43 μs |
+| Medium | 109.28 μs | 9.15K ops/sec | 109.43 μs |
+| Simple | 109.86 μs | 9.10K ops/sec | 107.89 μs |
 
 #### Full_pipeline
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Complex | 127.79 μs | 7.83K ops/sec | 117.16 μs |
-| Medium | 123.54 μs | 8.09K ops/sec | 119.16 μs |
-| Simple | 122.56 μs | 8.16K ops/sec | 118.73 μs |
+| Complex | 111.77 μs | 8.95K ops/sec | 110.37 μs |
+| Medium | 108.43 μs | 9.22K ops/sec | 108.28 μs |
+| Simple | 109.06 μs | 9.17K ops/sec | 107.86 μs |
+
+#### Memory_layout
+
+| Complexity | Mean Time | Throughput | Median Time |
+|------------|-----------|------------|-------------|
+| 0 | 1.15 μs | 869.83K ops/sec | 1.15 μs |
+| 1 | 1.24 μs | 807.67K ops/sec | 1.09 μs |
+| 2 | 923.57 ns | 1.08M ops/sec | 934.21 ns |
+| 3 | 1.42 μs | 706.20K ops/sec | 1.33 μs |
+| 4 | 1.56 μs | 639.33K ops/sec | 1.43 μs |
 
 #### Parser
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Complex | 832.94 ns | 1.20M ops/sec | 835.58 ns |
-| Medium | 595.10 ns | 1.68M ops/sec | 592.14 ns |
-| Simple | 168.19 ns | 5.95M ops/sec | 167.29 ns |
+| Complex | 812.05 ns | 1.23M ops/sec | 805.52 ns |
+| Medium | 533.93 ns | 1.87M ops/sec | 542.30 ns |
+| Simple | 155.38 ns | 6.44M ops/sec | 154.76 ns |
 
 #### Target
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Expr_0_parser | 162.85 ns | 6.14M ops/sec | 161.65 ns |
-| Expr_0_tokenizer | 85.46 ns | 11.70M ops/sec | 84.96 ns |
-| Expr_1_parser | 281.48 ns | 3.55M ops/sec | 283.02 ns |
-| Expr_1_tokenizer | 124.96 ns | 8.00M ops/sec | 122.83 ns |
-| Expr_2_parser | 593.54 ns | 1.68M ops/sec | 599.08 ns |
-| Expr_2_tokenizer | 168.69 ns | 5.93M ops/sec | 166.78 ns |
-| Expr_3_parser | 730.52 ns | 1.37M ops/sec | 742.13 ns |
-| Expr_3_tokenizer | 188.85 ns | 5.30M ops/sec | 187.01 ns |
-| Expr_4_parser | 711.35 ns | 1.41M ops/sec | 723.26 ns |
-| Expr_4_tokenizer | 188.94 ns | 5.29M ops/sec | 187.48 ns |
-| Expr_5_parser | 436.17 ns | 2.29M ops/sec | 386.74 ns |
-| Expr_5_tokenizer | 142.13 ns | 7.04M ops/sec | 139.80 ns |
-| Expr_6_parser | 162.61 ns | 6.15M ops/sec | 162.11 ns |
-| Expr_6_tokenizer | 86.94 ns | 11.50M ops/sec | 86.39 ns |
-| Expr_7_parser | 279.79 ns | 3.57M ops/sec | 275.43 ns |
-| Expr_7_tokenizer | 126.31 ns | 7.92M ops/sec | 124.58 ns |
-| Optimized_tokenizer_complete | 222.86 ns | 4.49M ops/sec | 216.76 ns |
-| Optimized_tokenizer_only | 85.04 ns | 11.76M ops/sec | 84.13 ns |
-| Parser | 748.17 ns | 1.34M ops/sec | 730.34 ns |
-| Parser_complete | 743.45 ns | 1.35M ops/sec | 743.05 ns |
-| Tokenizer_complete | 187.91 ns | 5.32M ops/sec | 186.65 ns |
-| Tokenizer_only | 83.53 ns | 11.97M ops/sec | 82.91 ns |
+| Expr_0_parser | 157.19 ns | 6.36M ops/sec | 158.90 ns |
+| Expr_0_tokenizer | 83.48 ns | 11.98M ops/sec | 83.47 ns |
+| Expr_1_parser | 275.62 ns | 3.63M ops/sec | 274.90 ns |
+| Expr_1_tokenizer | 121.46 ns | 8.23M ops/sec | 121.38 ns |
+| Expr_2_parser | 546.08 ns | 1.83M ops/sec | 541.95 ns |
+| Expr_2_tokenizer | 169.19 ns | 5.91M ops/sec | 167.82 ns |
+| Expr_3_parser | 679.76 ns | 1.47M ops/sec | 684.89 ns |
+| Expr_3_tokenizer | 190.19 ns | 5.26M ops/sec | 189.98 ns |
+| Expr_4_parser | 693.13 ns | 1.44M ops/sec | 687.34 ns |
+| Expr_4_tokenizer | 198.74 ns | 5.03M ops/sec | 191.64 ns |
+| Expr_5_parser | 389.45 ns | 2.57M ops/sec | 386.68 ns |
+| Expr_5_tokenizer | 140.64 ns | 7.11M ops/sec | 139.69 ns |
+| Expr_6_parser | 162.47 ns | 6.16M ops/sec | 162.42 ns |
+| Expr_6_tokenizer | 84.20 ns | 11.88M ops/sec | 84.14 ns |
+| Expr_7_parser | 272.19 ns | 3.67M ops/sec | 273.05 ns |
+| Expr_7_tokenizer | 127.13 ns | 7.87M ops/sec | 128.65 ns |
+| Optimized_tokenizer_complete | 224.33 ns | 4.46M ops/sec | 220.59 ns |
+| Optimized_tokenizer_only | 92.90 ns | 10.76M ops/sec | 92.12 ns |
+| Parser | 720.79 ns | 1.39M ops/sec | 721.43 ns |
+| Tokenizer_complete | 188.28 ns | 5.31M ops/sec | 187.23 ns |
+| Tokenizer_only | 87.11 ns | 11.48M ops/sec | 85.75 ns |
 
 #### Tokenizer
 
 | Complexity | Mean Time | Throughput | Median Time |
 |------------|-----------|------------|-------------|
-| Complex | 218.32 ns | 4.58M ops/sec | 217.09 ns |
-| Medium | 177.86 ns | 5.62M ops/sec | 167.54 ns |
-| Simple | 94.00 ns | 10.64M ops/sec | 85.59 ns |
+| Complex | 220.64 ns | 4.53M ops/sec | 220.18 ns |
+| Medium | 174.33 ns | 5.74M ops/sec | 172.19 ns |
+| Simple | 86.67 ns | 11.54M ops/sec | 84.21 ns |
 
 ### Performance Summary
 

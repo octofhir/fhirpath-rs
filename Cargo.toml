@@ -38,6 +38,10 @@ harness = false
 name = "core_performance_benchmark"
 harness = false
 
+[[bench]]
+name = "phase1_optimizations_benchmark"
+harness = false
+
 
 [[bin]]
 name = "octofhir-fhirpath"

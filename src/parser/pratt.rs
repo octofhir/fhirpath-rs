@@ -75,78 +75,168 @@ impl Precedence {
     }
 }
 
-/// Fast precedence lookup using direct pattern matching
-///
-/// This approach is actually faster than hash table lookup for small sets
-/// and has better cache locality and branch prediction.
-///
-/// ## Adding New Operators
-///
-/// To add a new binary operator:
-/// 1. Add the token variant to `Token` enum in `tokenizer.rs`
-/// 2. Add the operator to the appropriate precedence level in this function
-/// 3. Handle the operator in the main parsing loop if it needs special treatment
-///
-/// Example: Adding a new equality operator `===`:
-/// ```text
-/// Token::StrictEqual => Some(Precedence::Equality),
-/// ```
-///
-/// The operators are ordered by frequency for branch prediction optimization.
+/// Token kind for efficient precedence lookup - zero-overhead abstraction
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TokenKind {
+    // Invocation operators (most frequent)
+    Dot = 0,
+    LeftBracket = 1,
+    
+    // Equality operators (very common)
+    Equal = 2,
+    NotEqual = 3,
+    Equivalent = 4,
+    NotEquivalent = 5,
+    
+    // Additive operators (common)
+    Plus = 6,
+    Minus = 7,
+    Ampersand = 8,
+    
+    // Logical operators
+    And = 9,
+    Or = 10,
+    Xor = 11,
+    
+    // Multiplicative operators
+    Multiply = 12,
+    Divide = 13,
+    Div = 14,
+    Mod = 15,
+    
+    // Inequality operators
+    LessThan = 16,
+    LessThanOrEqual = 17,
+    GreaterThan = 18,
+    GreaterThanOrEqual = 19,
+    
+    // Membership operators
+    In = 20,
+    Contains = 21,
+    
+    // Type operators
+    Is = 22,
+    As = 23,
+    
+    // Union operator
+    Union = 24,
+    
+    // Implies (least common)
+    Implies = 25,
+}
+
+/// Const precedence lookup table - O(1) array access with branch-free lookup
+/// Ordered by frequency for optimal branch prediction and cache performance
+const PRECEDENCE_TABLE: &[Precedence; 26] = &[
+    // Most common operators first (indices 0-1)
+    Precedence::Invocation,     // 0: Dot
+    Precedence::Invocation,     // 1: LeftBracket
+    
+    // Equality operators (indices 2-5)
+    Precedence::Equality,       // 2: Equal
+    Precedence::Equality,       // 3: NotEqual  
+    Precedence::Equality,       // 4: Equivalent
+    Precedence::Equality,       // 5: NotEquivalent
+    
+    // Additive operators (indices 6-8)
+    Precedence::Additive,       // 6: Plus
+    Precedence::Additive,       // 7: Minus
+    Precedence::Additive,       // 8: Ampersand
+    
+    // Logical operators (indices 9-11)
+    Precedence::And,            // 9: And
+    Precedence::Or,             // 10: Or
+    Precedence::Or,             // 11: Xor
+    
+    // Multiplicative operators (indices 12-15)
+    Precedence::Multiplicative, // 12: Multiply
+    Precedence::Multiplicative, // 13: Divide
+    Precedence::Multiplicative, // 14: Div
+    Precedence::Multiplicative, // 15: Mod
+    
+    // Inequality operators (indices 16-19)
+    Precedence::Inequality,     // 16: LessThan
+    Precedence::Inequality,     // 17: LessThanOrEqual
+    Precedence::Inequality,     // 18: GreaterThan
+    Precedence::Inequality,     // 19: GreaterThanOrEqual
+    
+    // Membership operators (indices 20-21)
+    Precedence::Membership,     // 20: In
+    Precedence::Membership,     // 21: Contains
+    
+    // Type operators (indices 22-23)
+    Precedence::Type,           // 22: Is
+    Precedence::Type,           // 23: As
+    
+    // Union operator (index 24)
+    Precedence::Union,          // 24: Union
+    
+    // Implies (index 25, least common)
+    Precedence::Implies,        // 25: Implies
+];
+
+/// Convert token to token kind for table lookup - branch-free when possible
 #[inline(always)]
-fn get_precedence<'input>(token: &Token<'input>) -> Option<Precedence> {
+fn token_to_kind<'input>(token: &Token<'input>) -> Option<TokenKind> {
     match token {
         // Most common operators first for branch prediction optimization
-
-        // Invocation operators (most frequent in FHIRPath)
-        Token::Dot => Some(Precedence::Invocation),
-        Token::LeftBracket => Some(Precedence::Invocation),
-
-        // Equality operators (very common)
-        Token::Equal => Some(Precedence::Equality),
-        Token::NotEqual => Some(Precedence::Equality),
-        Token::Equivalent => Some(Precedence::Equality),
-        Token::NotEquivalent => Some(Precedence::Equality),
-
-        // Additive operators (common)
-        Token::Plus => Some(Precedence::Additive),
-        Token::Minus => Some(Precedence::Additive),
-        Token::Ampersand => Some(Precedence::Additive),
-
-        // Logical operators
-        Token::And => Some(Precedence::And),
-        Token::Or => Some(Precedence::Or),
-        Token::Xor => Some(Precedence::Or),
-
-        // Multiplicative operators
-        Token::Multiply => Some(Precedence::Multiplicative),
-        Token::Divide => Some(Precedence::Multiplicative),
-        Token::Div => Some(Precedence::Multiplicative),
-        Token::Mod => Some(Precedence::Multiplicative),
-
-        // Inequality operators
-        Token::LessThan => Some(Precedence::Inequality),
-        Token::LessThanOrEqual => Some(Precedence::Inequality),
-        Token::GreaterThan => Some(Precedence::Inequality),
-        Token::GreaterThanOrEqual => Some(Precedence::Inequality),
-
-        // Membership operators
-        Token::In => Some(Precedence::Membership),
-        Token::Contains => Some(Precedence::Membership),
-
-        // Type operators
-        Token::Is => Some(Precedence::Type),
-        Token::As => Some(Precedence::Type),
-
-        // Union operator
-        Token::Union => Some(Precedence::Union),
-
-        // Implies (least common)
-        Token::Implies => Some(Precedence::Implies),
-
-        // Non-operator tokens
+        Token::Dot => Some(TokenKind::Dot),
+        Token::LeftBracket => Some(TokenKind::LeftBracket),
+        Token::Equal => Some(TokenKind::Equal),
+        Token::NotEqual => Some(TokenKind::NotEqual),
+        Token::Equivalent => Some(TokenKind::Equivalent),
+        Token::NotEquivalent => Some(TokenKind::NotEquivalent),
+        Token::Plus => Some(TokenKind::Plus),
+        Token::Minus => Some(TokenKind::Minus),
+        Token::Ampersand => Some(TokenKind::Ampersand),
+        Token::And => Some(TokenKind::And),
+        Token::Or => Some(TokenKind::Or),
+        Token::Xor => Some(TokenKind::Xor),
+        Token::Multiply => Some(TokenKind::Multiply),
+        Token::Divide => Some(TokenKind::Divide),
+        Token::Div => Some(TokenKind::Div),
+        Token::Mod => Some(TokenKind::Mod),
+        Token::LessThan => Some(TokenKind::LessThan),
+        Token::LessThanOrEqual => Some(TokenKind::LessThanOrEqual),
+        Token::GreaterThan => Some(TokenKind::GreaterThan),
+        Token::GreaterThanOrEqual => Some(TokenKind::GreaterThanOrEqual),
+        Token::In => Some(TokenKind::In),
+        Token::Contains => Some(TokenKind::Contains),
+        Token::Is => Some(TokenKind::Is),
+        Token::As => Some(TokenKind::As),
+        Token::Union => Some(TokenKind::Union),
+        Token::Implies => Some(TokenKind::Implies),
         _ => None,
     }
+}
+
+/// High-performance precedence lookup using const lookup table
+/// 
+/// This implementation provides O(1) precedence lookup with:
+/// - Compile-time const lookup table for zero runtime cost
+/// - Branch prediction optimization through frequency-ordered matching
+/// - Cache-friendly memory layout with sequential array access
+/// - Zero bounds checking overhead due to known table size
+///
+/// ## Performance Benefits:
+/// - **O(1) lookup**: Direct array access after token kind conversion
+/// - **Cache efficient**: Single cache line access for entire precedence table
+/// - **Branch predictable**: Most common operators handled first
+/// - **Zero allocations**: Entirely stack-based with const data
+///
+/// ## Adding New Operators:
+/// 1. Add token variant to `TokenKind` enum with appropriate index
+/// 2. Add corresponding precedence to `PRECEDENCE_TABLE` at same index
+/// 3. Add token-to-kind mapping in `token_to_kind` function
+/// 4. Update table size in const array declaration
+#[inline(always)]
+fn get_precedence<'input>(token: &Token<'input>) -> Option<Precedence> {
+    // Convert token to kind and perform O(1) table lookup
+    token_to_kind(token).map(|kind| {
+        // Safe: TokenKind values are guaranteed to be valid table indices
+        unsafe { *PRECEDENCE_TABLE.get_unchecked(kind as usize) }
+    })
 }
 
 /// Convert token to binary operator with zero-cost abstraction
@@ -259,19 +349,101 @@ impl<'input> PrattParser<'input> {
     #[inline(always)]
     fn expect(&mut self, expected: Token<'input>) -> ParseResult<()> {
         match &self.current_token {
-            Some(token) if std::mem::discriminant(token) == std::mem::discriminant(&expected) => {
+            Some(token) if Self::tokens_match(token, &expected) => {
                 self.advance()
             }
             Some(token) => Err(ParseError::UnexpectedToken {
                 token: format!(
                     "Expected {expected:?}, found {token:?}. Context: parsing expression"
-                ),
+                ).into(),
                 position: 0,
             }),
             None => Err(ParseError::UnexpectedToken {
-                token: "Unexpected end of input while parsing expression".to_string(),
+                token: std::borrow::Cow::Borrowed("Unexpected end of input while parsing expression"),
                 position: 0,
             }),
+        }
+    }
+
+    /// Fast token type matching using direct pattern matching
+    #[inline(always)]
+    fn tokens_match(token: &Token<'input>, expected: &Token<'input>) -> bool {
+        match (token, expected) {
+            // Literals
+            (Token::Integer(_), Token::Integer(_)) => true,
+            (Token::Decimal(_), Token::Decimal(_)) => true,
+            (Token::String(_), Token::String(_)) => true,
+            (Token::Boolean(_), Token::Boolean(_)) => true,
+            (Token::Date(_), Token::Date(_)) => true,
+            (Token::DateTime(_), Token::DateTime(_)) => true,
+            (Token::Time(_), Token::Time(_)) => true,
+            (Token::Quantity { .. }, Token::Quantity { .. }) => true,
+            
+            // Identifiers
+            (Token::Identifier(_), Token::Identifier(_)) => true,
+            
+            // Unit tokens (exact matches)
+            (Token::Plus, Token::Plus) => true,
+            (Token::Minus, Token::Minus) => true,
+            (Token::Multiply, Token::Multiply) => true,
+            (Token::Divide, Token::Divide) => true,
+            (Token::Mod, Token::Mod) => true,
+            (Token::Div, Token::Div) => true,
+            (Token::Power, Token::Power) => true,
+            (Token::Equal, Token::Equal) => true,
+            (Token::NotEqual, Token::NotEqual) => true,
+            (Token::LessThan, Token::LessThan) => true,
+            (Token::LessThanOrEqual, Token::LessThanOrEqual) => true,
+            (Token::GreaterThan, Token::GreaterThan) => true,
+            (Token::GreaterThanOrEqual, Token::GreaterThanOrEqual) => true,
+            (Token::Equivalent, Token::Equivalent) => true,
+            (Token::NotEquivalent, Token::NotEquivalent) => true,
+            (Token::And, Token::And) => true,
+            (Token::Or, Token::Or) => true,
+            (Token::Xor, Token::Xor) => true,
+            (Token::Implies, Token::Implies) => true,
+            (Token::Not, Token::Not) => true,
+            (Token::Union, Token::Union) => true,
+            (Token::In, Token::In) => true,
+            (Token::Contains, Token::Contains) => true,
+            (Token::Ampersand, Token::Ampersand) => true,
+            (Token::Is, Token::Is) => true,
+            (Token::As, Token::As) => true,
+            (Token::LeftParen, Token::LeftParen) => true,
+            (Token::RightParen, Token::RightParen) => true,
+            (Token::LeftBracket, Token::LeftBracket) => true,
+            (Token::RightBracket, Token::RightBracket) => true,
+            (Token::LeftBrace, Token::LeftBrace) => true,
+            (Token::RightBrace, Token::RightBrace) => true,
+            (Token::Dot, Token::Dot) => true,
+            (Token::Comma, Token::Comma) => true,
+            (Token::Colon, Token::Colon) => true,
+            (Token::Semicolon, Token::Semicolon) => true,
+            (Token::Arrow, Token::Arrow) => true,
+            (Token::Dollar, Token::Dollar) => true,
+            (Token::Percent, Token::Percent) => true,
+            (Token::Backtick, Token::Backtick) => true,
+            (Token::DollarThis, Token::DollarThis) => true,
+            (Token::DollarIndex, Token::DollarIndex) => true,
+            (Token::DollarTotal, Token::DollarTotal) => true,
+            (Token::True, Token::True) => true,
+            (Token::False, Token::False) => true,
+            (Token::Empty, Token::Empty) => true,
+            (Token::Define, Token::Define) => true,
+            (Token::Where, Token::Where) => true,
+            (Token::Select, Token::Select) => true,
+            (Token::All, Token::All) => true,
+            (Token::First, Token::First) => true,
+            (Token::Last, Token::Last) => true,
+            (Token::Tail, Token::Tail) => true,
+            (Token::Skip, Token::Skip) => true,
+            (Token::Take, Token::Take) => true,
+            (Token::Distinct, Token::Distinct) => true,
+            (Token::Count, Token::Count) => true,
+            (Token::OfType, Token::OfType) => true,
+            
+            // No match
+            _ => false,
         }
     }
 
@@ -434,7 +606,7 @@ impl<'input> PrattParser<'input> {
                     } else {
                         // This should not happen in valid FHIRPath - empty parentheses without =>
                         return Err(ParseError::UnexpectedToken {
-                            token: "Empty parentheses are not valid in FHIRPath".to_string(),
+                            token: std::borrow::Cow::Borrowed("Empty parentheses are not valid in FHIRPath"),
                             position: 0,
                         });
                     }
@@ -457,8 +629,7 @@ impl<'input> PrattParser<'input> {
                                 self.advance()?;
                             } else {
                                 return Err(ParseError::UnexpectedToken {
-                                    token: "Expected parameter name in lambda parameter list"
-                                        .to_string(),
+                                    token: std::borrow::Cow::Borrowed("Expected parameter name in lambda parameter list"),
                                     position: 0,
                                 });
                             }
@@ -500,7 +671,7 @@ impl<'input> PrattParser<'input> {
                                     return Err(ParseError::UnexpectedToken {
                                         token: format!(
                                             "Unexpected token in parentheses: {current_token:?}"
-                                        ),
+                                        ).into(),
                                         position: 0,
                                     });
                                 }
@@ -527,7 +698,7 @@ impl<'input> PrattParser<'input> {
                     Ok(ExpressionNode::variable(var_name))
                 } else {
                     Err(ParseError::UnexpectedToken {
-                        token: "Expected variable name after '$'".to_string(),
+                        token: std::borrow::Cow::Borrowed("Expected variable name after '$'"),
                         position: 0,
                     })
                 }
@@ -583,7 +754,7 @@ impl<'input> PrattParser<'input> {
                                     return Err(ParseError::UnexpectedToken {
                                         token: format!(
                                             "Unexpected token in backtick variable name: {token:?}"
-                                        ),
+                                        ).into(),
                                         position: 0,
                                     });
                                 }
@@ -592,7 +763,7 @@ impl<'input> PrattParser<'input> {
 
                         if var_name_parts.is_empty() {
                             return Err(ParseError::UnexpectedToken {
-                                token: "Empty variable name in backticks".to_string(),
+                                token: std::borrow::Cow::Borrowed("Empty variable name in backticks"),
                                 position: 0,
                             });
                         }
@@ -605,7 +776,7 @@ impl<'input> PrattParser<'input> {
                         )))
                     }
                     _ => Err(ParseError::UnexpectedToken {
-                        token: "Expected variable name after '%'".to_string(),
+                        token: std::borrow::Cow::Borrowed("Expected variable name after '%'"),
                         position: 0,
                     }),
                 }
@@ -647,7 +818,7 @@ impl<'input> PrattParser<'input> {
                     Some(Token::False) => "false",
                     _ => {
                         return Err(ParseError::UnexpectedToken {
-                            token: "Expected identifier after backtick".to_string(),
+                            token: std::borrow::Cow::Borrowed("Expected identifier after backtick"),
                             position: 0,
                         });
                     }
@@ -678,12 +849,12 @@ impl<'input> PrattParser<'input> {
             }
 
             None => Err(ParseError::UnexpectedToken {
-                token: "Unexpected end of input".to_string(),
+                token: std::borrow::Cow::Borrowed("Unexpected end of input"),
                 position: 0,
             }),
 
             Some(token) => Err(ParseError::UnexpectedToken {
-                token: format!("Unexpected token: {token:?}"),
+                token: format!("Unexpected token: {token:?}").into(),
                 position: 0,
             }),
         }
@@ -730,7 +901,7 @@ impl<'input> PrattParser<'input> {
                 }
                 _ => {
                     return Err(ParseError::UnexpectedToken {
-                        token: "Expected ',' or ')' in function arguments".to_string(),
+                        token: std::borrow::Cow::Borrowed("Expected ',' or ')' in function arguments"),
                         position: 0,
                     });
                 }
@@ -799,7 +970,7 @@ impl<'input> PrattParser<'input> {
                     Some(Token::False) => "false",
                     _ => {
                         return Err(ParseError::UnexpectedToken {
-                            token: "Expected identifier after backtick".to_string(),
+                            token: std::borrow::Cow::Borrowed("Expected identifier after backtick"),
                             position: 0,
                         });
                     }
@@ -810,7 +981,7 @@ impl<'input> PrattParser<'input> {
             }
             _ => {
                 return Err(ParseError::UnexpectedToken {
-                    token: format!("Expected identifier after dot: {:?}", self.current()),
+                    token: format!("Expected identifier after dot: {:?}", self.current()).into(),
                     position: 0,
                 });
             }
@@ -851,7 +1022,7 @@ impl<'input> PrattParser<'input> {
                     }
                     _ => {
                         return Err(ParseError::UnexpectedToken {
-                            token: "Expected ',' or ')' in method arguments".to_string(),
+                            token: std::borrow::Cow::Borrowed("Expected ',' or ')' in method arguments"),
                             position: 0,
                         });
                     }
@@ -909,7 +1080,7 @@ impl<'input> PrattParser<'input> {
                                         token: format!(
                                             "Expected identifier after '.' in qualified type name, got: {:?}",
                                             self.current()
-                                        ),
+                                        ).into(),
                                         position: 0,
                                     });
                                 }
@@ -922,7 +1093,7 @@ impl<'input> PrattParser<'input> {
                                 token: format!(
                                     "Expected type name in parentheses after 'is' operator, got: {:?}",
                                     self.current()
-                                ),
+                                ).into(),
                                 position: 0,
                             });
                         }
@@ -943,7 +1114,7 @@ impl<'input> PrattParser<'input> {
                                     token: format!(
                                         "Expected identifier after '.' in qualified type name, got: {:?}",
                                         self.current()
-                                    ),
+                                    ).into(),
                                     position: 0,
                                 });
                             }
@@ -956,7 +1127,7 @@ impl<'input> PrattParser<'input> {
                                 "Expected type name after 'is' operator in type check expression, got: {:?}. Context: {}",
                                 self.current(),
                                 Self::precedence_context(precedence)
-                            ),
+                            ).into(),
                             position: 0,
                         });
                     };
@@ -990,7 +1161,7 @@ impl<'input> PrattParser<'input> {
                                         token: format!(
                                             "Expected identifier after '.' in qualified type name, got: {:?}",
                                             self.current()
-                                        ),
+                                        ).into(),
                                         position: 0,
                                     });
                                 }
@@ -1003,7 +1174,7 @@ impl<'input> PrattParser<'input> {
                                 token: format!(
                                     "Expected type name in parentheses after 'as' operator, got: {:?}",
                                     self.current()
-                                ),
+                                ).into(),
                                 position: 0,
                             });
                         }
@@ -1024,7 +1195,7 @@ impl<'input> PrattParser<'input> {
                                     token: format!(
                                         "Expected identifier after '.' in qualified type name, got: {:?}",
                                         self.current()
-                                    ),
+                                    ).into(),
                                     position: 0,
                                 });
                             }
@@ -1037,7 +1208,7 @@ impl<'input> PrattParser<'input> {
                                 "Expected type name after 'as' operator in type cast expression, got: {:?}. Context: {}",
                                 self.current(),
                                 Self::precedence_context(precedence)
-                            ),
+                            ).into(),
                             position: 0,
                         });
                     };
@@ -1054,7 +1225,7 @@ impl<'input> PrattParser<'input> {
             // Get binary operator
             let op =
                 token_to_binary_op(current_token).ok_or_else(|| ParseError::UnexpectedToken {
-                    token: format!("Expected binary operator, got {current_token:?}"),
+                    token: format!("Expected binary operator, got {current_token:?}").into(),
                     position: 0,
                 })?;
 
@@ -1092,7 +1263,7 @@ impl<'input> PrattParser<'input> {
         // Ensure we consumed all input
         if self.current_token.is_some() {
             return Err(ParseError::UnexpectedToken {
-                token: format!("Unexpected token: {:?}", self.current_token),
+                token: format!("Unexpected token: {:?}", self.current_token).into(),
                 position: 0,
             });
         }
@@ -1124,7 +1295,7 @@ impl<'input> PrattParser<'input> {
                                 }
                                 _ => {
                                     return Err(ParseError::InvalidEscape {
-                                        sequence: "\\u".to_string(),
+                                        sequence: std::borrow::Cow::Borrowed("\\u"),
                                         position: 0,
                                     });
                                 }
@@ -1137,14 +1308,14 @@ impl<'input> PrattParser<'input> {
                                 Some(unicode_char) => result.push(unicode_char),
                                 None => {
                                     return Err(ParseError::InvalidEscape {
-                                        sequence: format!("\\u{hex_chars}"),
+                                        sequence: format!("\\u{hex_chars}").into(),
                                         position: 0,
                                     });
                                 }
                             },
                             Err(_) => {
                                 return Err(ParseError::InvalidEscape {
-                                    sequence: format!("\\u{hex_chars}"),
+                                    sequence: format!("\\u{hex_chars}").into(),
                                     position: 0,
                                 });
                             }
@@ -1157,7 +1328,7 @@ impl<'input> PrattParser<'input> {
                     }
                     None => {
                         return Err(ParseError::InvalidEscape {
-                            sequence: "\\".to_string(),
+                            sequence: std::borrow::Cow::Borrowed("\\"),
                             position: 0,
                         });
                     }
@@ -1201,23 +1372,18 @@ mod tests {
 
         let result = parse_expression_pratt("2 + 3 * 4").unwrap();
         // Should parse as: 2 + (3 * 4) due to precedence
-        if let ExpressionNode::BinaryOp {
-            op: BinaryOperator::Add,
-            left,
-            right,
-        } = result
+        if let ExpressionNode::BinaryOp(data) = result
         {
+            assert_eq!(data.op, BinaryOperator::Add);
             assert!(matches!(
-                *left,
+                data.left,
                 ExpressionNode::Literal(LiteralValue::Integer(2))
             ));
-            assert!(matches!(
-                *right,
-                ExpressionNode::BinaryOp {
-                    op: BinaryOperator::Multiply,
-                    ..
-                }
-            ));
+            if let ExpressionNode::BinaryOp(inner_data) = &data.right {
+                assert_eq!(inner_data.op, BinaryOperator::Multiply);
+            } else {
+                panic!("Expected multiplication on right side");
+            }
         } else {
             panic!("Expected addition with multiplication on right");
         }
@@ -1227,20 +1393,15 @@ mod tests {
     fn test_associativity() {
         let result = parse_expression_pratt("a implies b implies c").unwrap();
         // Should parse as: a implies (b implies c) due to right associativity
-        if let ExpressionNode::BinaryOp {
-            op: BinaryOperator::Implies,
-            left,
-            right,
-        } = result
+        if let ExpressionNode::BinaryOp(data) = result
         {
-            assert!(matches!(*left, ExpressionNode::Identifier(_)));
-            assert!(matches!(
-                *right,
-                ExpressionNode::BinaryOp {
-                    op: BinaryOperator::Implies,
-                    ..
-                }
-            ));
+            assert_eq!(data.op, BinaryOperator::Implies);
+            assert!(matches!(data.left, ExpressionNode::Identifier(_)));
+            if let ExpressionNode::BinaryOp(inner_data) = &data.right {
+                assert_eq!(inner_data.op, BinaryOperator::Implies);
+            } else {
+                panic!("Expected nested implies on right side");
+            }
         } else {
             panic!("Expected right-associative implies");
         }

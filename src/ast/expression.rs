@@ -1,6 +1,7 @@
 //! Expression AST node definitions
 
 use super::operator::{BinaryOperator, UnaryOperator};
+use smallvec::SmallVec;
 
 /// AST representation of FHIRPath expressions
 ///
@@ -23,15 +24,8 @@ pub enum ExpressionNode {
         path: String,
     },
 
-    /// Binary operation (arithmetic, comparison, logical)
-    BinaryOp {
-        /// The operator
-        op: BinaryOperator,
-        /// Left operand
-        left: Box<ExpressionNode>,
-        /// Right operand
-        right: Box<ExpressionNode>,
-    },
+    /// Binary operation (arithmetic, comparison, logical) (boxed for size optimization)
+    BinaryOp(Box<BinaryOpData>),
 
     /// Unary operation (negation, not)
     UnaryOp {
@@ -133,14 +127,26 @@ pub enum ExpressionType {
     Variable = 14,
 }
 
+/// Binary operation data (separate struct to optimize enum size)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BinaryOpData {
+    /// The operator
+    pub op: BinaryOperator,
+    /// Left operand
+    pub left: ExpressionNode,
+    /// Right operand  
+    pub right: ExpressionNode,
+}
+
 /// Function call data (separate struct to optimize enum size)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FunctionCallData {
     /// Function name
     pub name: String,
-    /// Function arguments
-    pub args: Vec<ExpressionNode>,
+    /// Function arguments (SmallVec for common case of 2-4 args)
+    pub args: SmallVec<[ExpressionNode; 4]>,
 }
 
 /// Method call data (separate struct to optimize enum size)
@@ -151,16 +157,16 @@ pub struct MethodCallData {
     pub base: ExpressionNode,
     /// Method name
     pub method: String,
-    /// Method arguments
-    pub args: Vec<ExpressionNode>,
+    /// Method arguments (SmallVec for common case of 2-4 args)
+    pub args: SmallVec<[ExpressionNode; 4]>,
 }
 
 /// Lambda expression data (separate struct to optimize enum size)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LambdaData {
-    /// Parameter names (empty for anonymous lambdas)
-    pub params: Vec<String>,
+    /// Parameter names (SmallVec for common case of 0-2 params)
+    pub params: SmallVec<[String; 2]>,
     /// Lambda body
     pub body: ExpressionNode,
 }
@@ -218,10 +224,10 @@ impl ExpressionNode {
     }
 
     /// Create a function call expression
-    pub fn function_call(name: impl Into<String>, args: Vec<ExpressionNode>) -> Self {
+    pub fn function_call(name: impl Into<String>, args: impl Into<SmallVec<[ExpressionNode; 4]>>) -> Self {
         Self::FunctionCall(Box::new(FunctionCallData {
             name: name.into(),
-            args,
+            args: args.into(),
         }))
     }
 
@@ -229,22 +235,22 @@ impl ExpressionNode {
     pub fn method_call(
         base: ExpressionNode,
         method: impl Into<String>,
-        args: Vec<ExpressionNode>,
+        args: impl Into<SmallVec<[ExpressionNode; 4]>>,
     ) -> Self {
         Self::MethodCall(Box::new(MethodCallData {
             base,
             method: method.into(),
-            args,
+            args: args.into(),
         }))
     }
 
     /// Create a binary operation expression
     pub fn binary_op(op: BinaryOperator, left: ExpressionNode, right: ExpressionNode) -> Self {
-        Self::BinaryOp {
+        Self::BinaryOp(Box::new(BinaryOpData {
             op,
-            left: Box::new(left),
-            right: Box::new(right),
-        }
+            left,
+            right,
+        }))
     }
 
     /// Create a unary operation expression
@@ -304,14 +310,14 @@ impl ExpressionNode {
     }
 
     /// Create a lambda expression with multiple parameters
-    pub fn lambda(params: Vec<String>, body: ExpressionNode) -> Self {
-        Self::Lambda(Box::new(LambdaData { params, body }))
+    pub fn lambda(params: impl Into<SmallVec<[String; 2]>>, body: ExpressionNode) -> Self {
+        Self::Lambda(Box::new(LambdaData { params: params.into(), body }))
     }
 
     /// Create a lambda expression with a single parameter
     pub fn lambda_single(param: impl Into<String>, body: ExpressionNode) -> Self {
         Self::Lambda(Box::new(LambdaData {
-            params: vec![param.into()],
+            params: vec![param.into()].into(),
             body,
         }))
     }
@@ -319,7 +325,7 @@ impl ExpressionNode {
     /// Create an anonymous lambda expression (no parameters)
     pub fn lambda_anonymous(body: ExpressionNode) -> Self {
         Self::Lambda(Box::new(LambdaData {
-            params: vec![],
+            params: SmallVec::new(),
             body,
         }))
     }
@@ -375,7 +381,7 @@ impl ExpressionNode {
             Self::Literal(_) => ExpressionType::Literal,
             Self::Identifier(_) => ExpressionType::Identifier,
             Self::Path { .. } => ExpressionType::Path,
-            Self::BinaryOp { .. } => ExpressionType::BinaryOp,
+            Self::BinaryOp(..) => ExpressionType::BinaryOp,
             Self::UnaryOp { .. } => ExpressionType::UnaryOp,
             Self::FunctionCall(_) => ExpressionType::FunctionCall,
             Self::MethodCall(_) => ExpressionType::MethodCall,
@@ -399,7 +405,7 @@ impl ExpressionNode {
     /// Check if this is a binary operation (optimized for hot path)
     #[inline(always)]
     pub fn is_binary_op(&self) -> bool {
-        matches!(self, Self::BinaryOp { .. })
+        matches!(self, Self::BinaryOp(..))
     }
 
     /// Get path components if this is a path expression
@@ -413,7 +419,7 @@ impl ExpressionNode {
     /// Get binary operation components if this is a binary operation
     pub fn as_binary_op(&self) -> Option<(BinaryOperator, &ExpressionNode, &ExpressionNode)> {
         match self {
-            Self::BinaryOp { op, left, right } => Some((*op, left, right)),
+            Self::BinaryOp(data) => Some((data.op, &data.left, &data.right)),
             _ => None,
         }
     }
@@ -441,7 +447,7 @@ impl ExpressionNode {
         match self {
             Self::Literal(_) | Self::Identifier(_) | Self::Variable(_) => 1,
             Self::Path { base, .. } => 1 + base.complexity(),
-            Self::BinaryOp { left, right, .. } => 1 + left.complexity() + right.complexity(),
+            Self::BinaryOp(data) => 1 + data.left.complexity() + data.right.complexity(),
             Self::UnaryOp { operand, .. } => 1 + operand.complexity(),
             Self::FunctionCall(data) => {
                 1 + data.args.iter().map(|arg| arg.complexity()).sum::<usize>()
@@ -500,7 +506,7 @@ impl ExpressionNode {
         match self {
             Self::Literal(_) | Self::Identifier(_) | Self::Variable(_) => false,
             Self::Path { .. } => false, // Single level of boxing
-            Self::BinaryOp { .. } | Self::UnaryOp { .. } => true, // Multiple boxed children
+            Self::BinaryOp(..) | Self::UnaryOp { .. } => true, // Multiple boxed children
             Self::FunctionCall(data) => !data.args.is_empty(),
             Self::MethodCall(_) => true, // Always has base + potentially args
             _ => true,                   // Conservative: assume complex expressions are expensive

@@ -1,6 +1,7 @@
 //! Visitor pattern for AST traversal
 
 use super::expression::ExpressionNode;
+use smallvec::SmallVec;
 
 /// Trait for visiting AST nodes
 pub trait Visitor: Sized {
@@ -89,7 +90,7 @@ pub fn walk_expression<V: Visitor>(visitor: &mut V, expr: &ExpressionNode) -> V:
         ExpressionNode::MethodCall(method_data) => {
             visitor.visit_method_call(&method_data.base, &method_data.method, &method_data.args)
         }
-        ExpressionNode::BinaryOp { op, left, right } => visitor.visit_binary_op(op, left, right),
+        ExpressionNode::BinaryOp(data) => visitor.visit_binary_op(&data.op, &data.left, &data.right),
         ExpressionNode::UnaryOp { op, operand } => visitor.visit_unary_op(op, operand),
         ExpressionNode::Path { base, path } => visitor.visit_path(base, path),
         ExpressionNode::Index { base, index } => visitor.visit_index(base, index),
@@ -129,7 +130,7 @@ pub trait MutVisitor: Sized {
     fn visit_identifier_mut(&mut self, _name: &mut String) {}
 
     /// Visit a function call
-    fn visit_function_call_mut(&mut self, _name: &mut String, args: &mut Vec<ExpressionNode>) {
+    fn visit_function_call_mut(&mut self, _name: &mut String, args: &mut SmallVec<[ExpressionNode; 4]>) {
         for arg in args {
             self.visit_expression_mut(arg);
         }
@@ -140,7 +141,7 @@ pub trait MutVisitor: Sized {
         &mut self,
         base: &mut ExpressionNode,
         _method: &mut String,
-        args: &mut Vec<ExpressionNode>,
+        args: &mut SmallVec<[ExpressionNode; 4]>,
     ) {
         self.visit_expression_mut(base);
         for arg in args {
@@ -202,7 +203,7 @@ pub trait MutVisitor: Sized {
     }
 
     /// Visit a lambda expression
-    fn visit_lambda_mut(&mut self, _params: &mut Vec<String>, body: &mut ExpressionNode) {
+    fn visit_lambda_mut(&mut self, _params: &mut SmallVec<[String; 2]>, body: &mut ExpressionNode) {
         self.visit_expression_mut(body);
     }
 
@@ -237,8 +238,8 @@ pub fn walk_expression_mut<V: MutVisitor>(visitor: &mut V, expr: &mut Expression
             &mut method_data.method,
             &mut method_data.args,
         ),
-        ExpressionNode::BinaryOp { op, left, right } => {
-            visitor.visit_binary_op_mut(op, left, right)
+        ExpressionNode::BinaryOp(data) => {
+            visitor.visit_binary_op_mut(&mut data.op, &mut data.left, &mut data.right)
         }
         ExpressionNode::UnaryOp { op, operand } => visitor.visit_unary_op_mut(op, operand),
         ExpressionNode::Path { base, path } => visitor.visit_path_mut(base, path),

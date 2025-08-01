@@ -348,8 +348,8 @@ impl FhirPathEngine {
                 self.evaluate_method_call(&data.base, &data.method, &data.args, context)
             }
 
-            ExpressionNode::BinaryOp { op, left, right } => {
-                self.evaluate_binary_op(op, left, right, context)
+            ExpressionNode::BinaryOp(data) => {
+                self.evaluate_binary_op(&data.op, &data.left, &data.right, context)
             }
 
             ExpressionNode::UnaryOp { op, operand } => self.evaluate_unary_op(op, operand, context),
@@ -416,8 +416,8 @@ impl FhirPathEngine {
             ExpressionNode::Union { left, right } => {
                 self.needs_variable_scoping(left) || self.needs_variable_scoping(right)
             }
-            ExpressionNode::BinaryOp { left, right, op: _ } => {
-                self.needs_variable_scoping(left) || self.needs_variable_scoping(right)
+            ExpressionNode::BinaryOp(data) => {
+                self.needs_variable_scoping(&data.left) || self.needs_variable_scoping(&data.right)
             }
             ExpressionNode::UnaryOp { operand, op: _ } => self.needs_variable_scoping(operand),
             ExpressionNode::Path { base, path: _ } => self.needs_variable_scoping(base),

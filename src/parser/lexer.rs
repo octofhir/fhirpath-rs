@@ -81,13 +81,95 @@ impl<'input> TokenStream<'input> {
     /// Expect a specific token type
     pub fn expect(&mut self, expected: Token<'input>) -> Result<Spanned<Token<'input>>, String> {
         if let Some(token) = self.peek() {
-            if std::mem::discriminant(&token.value) == std::mem::discriminant(&expected) {
+            if Self::tokens_match(&token.value, &expected) {
                 Ok(self.next().unwrap())
             } else {
                 Err(format!("Expected {:?}, found {:?}", expected, token.value))
             }
         } else {
             Err(format!("Expected {expected:?}, found EOF"))
+        }
+    }
+
+    /// Fast token type matching using direct pattern matching
+    #[inline(always)]
+    fn tokens_match(token: &Token<'input>, expected: &Token<'input>) -> bool {
+        match (token, expected) {
+            // Literals
+            (Token::Integer(_), Token::Integer(_)) => true,
+            (Token::Decimal(_), Token::Decimal(_)) => true,
+            (Token::String(_), Token::String(_)) => true,
+            (Token::Boolean(_), Token::Boolean(_)) => true,
+            (Token::Date(_), Token::Date(_)) => true,
+            (Token::DateTime(_), Token::DateTime(_)) => true,
+            (Token::Time(_), Token::Time(_)) => true,
+            (Token::Quantity { .. }, Token::Quantity { .. }) => true,
+            
+            // Identifiers
+            (Token::Identifier(_), Token::Identifier(_)) => true,
+            
+            // Unit tokens (exact matches)
+            (Token::Plus, Token::Plus) => true,
+            (Token::Minus, Token::Minus) => true,
+            (Token::Multiply, Token::Multiply) => true,
+            (Token::Divide, Token::Divide) => true,
+            (Token::Mod, Token::Mod) => true,
+            (Token::Div, Token::Div) => true,
+            (Token::Power, Token::Power) => true,
+            (Token::Equal, Token::Equal) => true,
+            (Token::NotEqual, Token::NotEqual) => true,
+            (Token::LessThan, Token::LessThan) => true,
+            (Token::LessThanOrEqual, Token::LessThanOrEqual) => true,
+            (Token::GreaterThan, Token::GreaterThan) => true,
+            (Token::GreaterThanOrEqual, Token::GreaterThanOrEqual) => true,
+            (Token::Equivalent, Token::Equivalent) => true,
+            (Token::NotEquivalent, Token::NotEquivalent) => true,
+            (Token::And, Token::And) => true,
+            (Token::Or, Token::Or) => true,
+            (Token::Xor, Token::Xor) => true,
+            (Token::Implies, Token::Implies) => true,
+            (Token::Not, Token::Not) => true,
+            (Token::Union, Token::Union) => true,
+            (Token::In, Token::In) => true,
+            (Token::Contains, Token::Contains) => true,
+            (Token::Ampersand, Token::Ampersand) => true,
+            (Token::Is, Token::Is) => true,
+            (Token::As, Token::As) => true,
+            (Token::LeftParen, Token::LeftParen) => true,
+            (Token::RightParen, Token::RightParen) => true,
+            (Token::LeftBracket, Token::LeftBracket) => true,
+            (Token::RightBracket, Token::RightBracket) => true,
+            (Token::LeftBrace, Token::LeftBrace) => true,
+            (Token::RightBrace, Token::RightBrace) => true,
+            (Token::Dot, Token::Dot) => true,
+            (Token::Comma, Token::Comma) => true,
+            (Token::Colon, Token::Colon) => true,
+            (Token::Semicolon, Token::Semicolon) => true,
+            (Token::Arrow, Token::Arrow) => true,
+            (Token::Dollar, Token::Dollar) => true,
+            (Token::Percent, Token::Percent) => true,
+            (Token::Backtick, Token::Backtick) => true,
+            (Token::DollarThis, Token::DollarThis) => true,
+            (Token::DollarIndex, Token::DollarIndex) => true,
+            (Token::DollarTotal, Token::DollarTotal) => true,
+            (Token::True, Token::True) => true,
+            (Token::False, Token::False) => true,
+            (Token::Empty, Token::Empty) => true,
+            (Token::Define, Token::Define) => true,
+            (Token::Where, Token::Where) => true,
+            (Token::Select, Token::Select) => true,
+            (Token::All, Token::All) => true,
+            (Token::First, Token::First) => true,
+            (Token::Last, Token::Last) => true,
+            (Token::Tail, Token::Tail) => true,
+            (Token::Skip, Token::Skip) => true,
+            (Token::Take, Token::Take) => true,
+            (Token::Distinct, Token::Distinct) => true,
+            (Token::Count, Token::Count) => true,
+            (Token::OfType, Token::OfType) => true,
+            
+            // No match
+            _ => false,
         }
     }
 }

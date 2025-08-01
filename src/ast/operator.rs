@@ -1,6 +1,7 @@
 //! Operator definitions for FHIRPath
 
 /// Binary operators in FHIRPath
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BinaryOperator {
@@ -68,6 +69,7 @@ pub enum BinaryOperator {
 }
 
 /// Unary operators in FHIRPath
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UnaryOperator {
@@ -80,6 +82,7 @@ pub enum UnaryOperator {
 }
 
 /// Operator associativity
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Associativity {
     /// Left-to-right associativity
