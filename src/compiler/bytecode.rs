@@ -376,16 +376,16 @@ impl Instruction {
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::PushConstant(idx) => write!(f, "PUSH_CONST {}", idx),
+            Self::PushConstant(idx) => write!(f, "PUSH_CONST {idx}"),
             Self::PushInput => write!(f, "PUSH_INPUT"),
             Self::Duplicate => write!(f, "DUP"),
             Self::Pop => write!(f, "POP"),
             Self::Swap => write!(f, "SWAP"),
-            Self::LoadProperty(idx) => write!(f, "LOAD_PROP {}", idx),
-            Self::LoadIndexedProperty(idx) => write!(f, "LOAD_INDEXED_PROP {}", idx),
+            Self::LoadProperty(idx) => write!(f, "LOAD_PROP {idx}"),
+            Self::LoadIndexedProperty(idx) => write!(f, "LOAD_INDEXED_PROP {idx}"),
             Self::IndexAccess => write!(f, "INDEX"),
-            Self::CallFunction(func_idx, arity) => write!(f, "CALL {} {}", func_idx, arity),
-            Self::CallMethod(name_idx, arity) => write!(f, "CALL_METHOD {} {}", name_idx, arity),
+            Self::CallFunction(func_idx, arity) => write!(f, "CALL {func_idx} {arity}"),
+            Self::CallMethod(name_idx, arity) => write!(f, "CALL_METHOD {name_idx} {arity}"),
             Self::Add => write!(f, "ADD"),
             Self::Subtract => write!(f, "SUB"),
             Self::Multiply => write!(f, "MUL"),
@@ -401,30 +401,30 @@ impl fmt::Display for Instruction {
             Self::And => write!(f, "AND"),
             Self::Or => write!(f, "OR"),
             Self::Not => write!(f, "NOT"),
-            Self::MakeCollection(count) => write!(f, "MAKE_COLLECTION {}", count),
+            Self::MakeCollection(count) => write!(f, "MAKE_COLLECTION {count}"),
             Self::Union => write!(f, "UNION"),
             Self::Flatten => write!(f, "FLATTEN"),
             Self::IsEmpty => write!(f, "IS_EMPTY"),
             Self::Count => write!(f, "COUNT"),
             Self::Any => write!(f, "ANY"),
             Self::All => write!(f, "ALL"),
-            Self::Jump(offset) => write!(f, "JUMP {}", offset),
-            Self::JumpIfFalse(offset) => write!(f, "JMP_FALSE {}", offset),
-            Self::JumpIfTrue(offset) => write!(f, "JMP_TRUE {}", offset),
+            Self::Jump(offset) => write!(f, "JUMP {offset}"),
+            Self::JumpIfFalse(offset) => write!(f, "JMP_FALSE {offset}"),
+            Self::JumpIfTrue(offset) => write!(f, "JMP_TRUE {offset}"),
             Self::BeginLambda => write!(f, "BEGIN_LAMBDA"),
             Self::EndLambda => write!(f, "END_LAMBDA"),
-            Self::BindParameter(idx) => write!(f, "BIND_PARAM {}", idx),
-            Self::LoadVariable(idx) => write!(f, "LOAD_VAR {}", idx),
-            Self::StoreVariable(idx) => write!(f, "STORE_VAR {}", idx),
-            Self::IsType(idx) => write!(f, "IS_TYPE {}", idx),
-            Self::AsType(idx) => write!(f, "AS_TYPE {}", idx),
+            Self::BindParameter(idx) => write!(f, "BIND_PARAM {idx}"),
+            Self::LoadVariable(idx) => write!(f, "LOAD_VAR {idx}"),
+            Self::StoreVariable(idx) => write!(f, "STORE_VAR {idx}"),
+            Self::IsType(idx) => write!(f, "IS_TYPE {idx}"),
+            Self::AsType(idx) => write!(f, "AS_TYPE {idx}"),
             Self::Filter => write!(f, "FILTER"),
             Self::Select => write!(f, "SELECT"),
             Self::Where => write!(f, "WHERE"),
             Self::Nop => write!(f, "NOP"),
             Self::Return => write!(f, "RETURN"),
-            Self::FastProperty(idx) => write!(f, "FAST_PROP {}", idx),
-            Self::FastConstant(idx) => write!(f, "FAST_CONST {}", idx),
+            Self::FastProperty(idx) => write!(f, "FAST_PROP {idx}"),
+            Self::FastConstant(idx) => write!(f, "FAST_CONST {idx}"),
         }
     }
 }
@@ -549,7 +549,7 @@ impl Bytecode {
         output.push_str("=== BYTECODE DISASSEMBLY ===\n");
 
         if let Some(source) = &self.metadata.source {
-            output.push_str(&format!("Source: {}\n", source));
+            output.push_str(&format!("Source: {source}\n"));
         }
 
         output.push_str(&format!(
@@ -562,17 +562,17 @@ impl Bytecode {
         output.push_str("\n--- CONSTANTS ---\n");
 
         for (i, constant) in self.constants.iter().enumerate() {
-            output.push_str(&format!("{:4}: {:?}\n", i, constant));
+            output.push_str(&format!("{i:4}: {constant:?}\n"));
         }
 
         output.push_str("\n--- STRINGS ---\n");
         for (i, string) in self.strings.iter().enumerate() {
-            output.push_str(&format!("{:4}: \"{}\"\n", i, string));
+            output.push_str(&format!("{i:4}: \"{string}\"\n"));
         }
 
         output.push_str("\n--- INSTRUCTIONS ---\n");
         for (i, instruction) in self.instructions.iter().enumerate() {
-            output.push_str(&format!("{:4}: {}\n", i, instruction));
+            output.push_str(&format!("{i:4}: {instruction}\n"));
         }
 
         output
@@ -669,11 +669,11 @@ impl BytecodeBuilder {
             let target_pos = self
                 .label_targets
                 .get(&label)
-                .ok_or_else(|| format!("Undefined label: {}", label))?;
+                .ok_or_else(|| format!("Undefined label: {label}"))?;
 
             let offset = *target_pos as i32 - instruction_pos as i32;
             if offset < i16::MIN as i32 || offset > i16::MAX as i32 {
-                return Err(format!("Jump offset too large: {}", offset));
+                return Err(format!("Jump offset too large: {offset}"));
             }
 
             let new_instruction = match jump_type {

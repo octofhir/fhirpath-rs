@@ -275,12 +275,12 @@ impl<'input> Tokenizer<'input> {
             (4, 0x0000_0000_7473616C) => Some(Token::Last), // "last"
 
             // Length 5 - exact u64 comparison for full 5-byte words
-            (5, 0x0000_6573_6C6166) => Some(Token::False), // "false"
-            (5, 0x0000_7473_7269) => Some(Token::First),   // "first"
-            (5, 0x0000_7974_706D) => Some(Token::Empty),   // "empty"
-            (5, 0x0000_6572_6568) => Some(Token::Where),   // "where"
-            (5, 0x0000_746E_756F) => Some(Token::Count),   // "count"
-            (5, 0x0000_6F69_6E75) => Some(Token::Union),   // "union"
+            (5, 0x0065_736c_6166) => Some(Token::False), // "false"
+            (5, 0x0074_7372_6966) => Some(Token::First), // "first"
+            (5, 0x0079_7470_6d65) => Some(Token::Empty), // "empty"
+            (5, 0x0065_7265_6877) => Some(Token::Where), // "where"
+            (5, 0x0074_6e75_6f63) => Some(Token::Count), // "count"
+            (5, 0x006e_6f69_6e75) => Some(Token::Union), // "union"
 
             // Length 6 - exact u64 comparison for 6-byte words
             (6, 0x656E_6966_6564) => Some(Token::Define), // "define"
@@ -684,7 +684,7 @@ impl<'input> Tokenizer<'input> {
                     1
                 } else {
                     let mut len = if *n < 0 { 1 } else { 0 }; // negative sign
-                    let mut abs_n = n.abs() as u64;
+                    let mut abs_n = n.unsigned_abs();
                     while abs_n > 0 {
                         abs_n /= 10;
                         len += 1;

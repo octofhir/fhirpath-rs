@@ -269,7 +269,7 @@ mod tests {
             .suggest("Did you mean 'for'?", Some("for".to_string()))
             .build();
 
-        let formatter = DiagnosticFormatter::new(Format::Text);
+        let formatter = DiagnosticFormatter::new(Format::Text).with_code(false);
         let output = formatter.format(&diagnostic);
 
         assert!(output.contains("error: Unknown function 'foo'"));

@@ -26,16 +26,21 @@ pub struct FhirPathEngine {
     functions: Arc<FunctionRegistry>,
     /// Operator registry
     operators: Arc<OperatorRegistry>,
+    /// Reusable virtual machine for bytecode execution
+    vm: crate::compiler::VirtualMachine,
 }
 
 impl FhirPathEngine {
     /// Create a new engine with default built-in functions and operators
     pub fn new() -> Self {
         let (functions, operators) = crate::registry::create_standard_registries();
+        let functions = Arc::new(functions);
+        let operators = Arc::new(operators);
 
         Self {
-            functions: Arc::new(functions),
-            operators: Arc::new(operators),
+            vm: crate::compiler::VirtualMachine::new(functions.clone(), operators.clone()),
+            functions,
+            operators,
         }
     }
 
@@ -45,6 +50,7 @@ impl FhirPathEngine {
         operators: Arc<OperatorRegistry>,
     ) -> Self {
         Self {
+            vm: crate::compiler::VirtualMachine::new(functions.clone(), operators.clone()),
             functions,
             operators,
         }
@@ -117,7 +123,7 @@ impl FhirPathEngine {
         expression: &ExpressionNode,
         input: FhirPathValue,
     ) -> EvaluationResult<FhirPathValue> {
-        use crate::compiler::{ExpressionCompiler, VirtualMachine};
+        use crate::compiler::ExpressionCompiler;
 
         // Compile expression to bytecode
         let mut compiler = ExpressionCompiler::new(self.functions.clone());
@@ -125,14 +131,14 @@ impl FhirPathEngine {
             compiler
                 .compile(expression)
                 .map_err(|e| EvaluationError::InvalidOperation {
-                    message: format!("Compilation failed: {}", e),
+                    message: format!("Compilation failed: {e}"),
                 })?;
 
-        // Execute on VM
-        let vm = VirtualMachine::new(self.functions.clone(), self.operators.clone());
-        vm.execute(&bytecode, &input)
+        // Execute on VM (reuse the cached VM instance)
+        self.vm
+            .execute(&bytecode, &input)
             .map_err(|e| EvaluationError::InvalidOperation {
-                message: format!("VM execution failed: {}", e),
+                message: format!("VM execution failed: {e}"),
             })
     }
 

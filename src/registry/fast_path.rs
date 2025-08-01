@@ -23,6 +23,12 @@ pub trait FastPathFunction {
 /// Fast path implementation for the count() function
 pub struct FastCountFunction;
 
+impl Default for FastCountFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FastCountFunction {
     /// Create a new fast count function implementation
     pub fn new() -> Self {
@@ -58,6 +64,12 @@ impl FastPathFunction for FastCountFunction {
 /// Fast path implementation for the exists() function
 pub struct FastExistsFunction;
 
+impl Default for FastExistsFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FastExistsFunction {
     /// Create a new fast exists function implementation
     pub fn new() -> Self {
@@ -92,6 +104,12 @@ impl FastPathFunction for FastExistsFunction {
 
 /// Fast path implementation for the first() function
 pub struct FastFirstFunction;
+
+impl Default for FastFirstFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FastFirstFunction {
     /// Create a new fast first function implementation
@@ -132,6 +150,12 @@ impl FastPathFunction for FastFirstFunction {
 
 /// Fast path implementation for the last() function
 pub struct FastLastFunction;
+
+impl Default for FastLastFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FastLastFunction {
     /// Create a new fast last function implementation  

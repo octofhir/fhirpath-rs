@@ -43,14 +43,14 @@ impl std::fmt::Display for VmError {
         match self {
             Self::StackUnderflow => write!(f, "Stack underflow"),
             Self::StackOverflow => write!(f, "Stack overflow"),
-            Self::InvalidInstructionPointer(ip) => write!(f, "Invalid instruction pointer: {}", ip),
-            Self::InvalidConstantIndex(idx) => write!(f, "Invalid constant index: {}", idx),
-            Self::InvalidStringIndex(idx) => write!(f, "Invalid string index: {}", idx),
-            Self::InvalidFunctionIndex(idx) => write!(f, "Invalid function index: {}", idx),
-            Self::FunctionError(msg) => write!(f, "Function error: {}", msg),
-            Self::TypeConversionError(msg) => write!(f, "Type conversion error: {}", msg),
-            Self::RuntimeError(msg) => write!(f, "Runtime error: {}", msg),
-            Self::JumpOutOfBounds(offset) => write!(f, "Jump target out of bounds: {}", offset),
+            Self::InvalidInstructionPointer(ip) => write!(f, "Invalid instruction pointer: {ip}"),
+            Self::InvalidConstantIndex(idx) => write!(f, "Invalid constant index: {idx}"),
+            Self::InvalidStringIndex(idx) => write!(f, "Invalid string index: {idx}"),
+            Self::InvalidFunctionIndex(idx) => write!(f, "Invalid function index: {idx}"),
+            Self::FunctionError(msg) => write!(f, "Function error: {msg}"),
+            Self::TypeConversionError(msg) => write!(f, "Type conversion error: {msg}"),
+            Self::RuntimeError(msg) => write!(f, "Runtime error: {msg}"),
+            Self::JumpOutOfBounds(offset) => write!(f, "Jump target out of bounds: {offset}"),
             Self::ExecutionLimitExceeded => write!(f, "Execution limit exceeded"),
         }
     }
@@ -118,6 +118,7 @@ impl VariableScope {
 }
 
 /// Bytecode Virtual Machine
+#[derive(Clone)]
 pub struct VirtualMachine {
     /// VM configuration
     config: VmConfig,
@@ -634,8 +635,7 @@ impl<'a> VmExecutor<'a> {
             "empty" => FhirPathValue::Boolean(self.is_empty(&object)),
             _ => {
                 return Err(VmError::RuntimeError(format!(
-                    "Unknown method: {}",
-                    method_name
+                    "Unknown method: {method_name}"
                 )));
             }
         };
@@ -668,8 +668,7 @@ impl<'a> VmExecutor<'a> {
             ),
             _ => {
                 return Err(VmError::RuntimeError(format!(
-                    "Unknown operator: {}",
-                    operator
+                    "Unknown operator: {operator}"
                 )));
             }
         };
@@ -686,8 +685,7 @@ impl<'a> VmExecutor<'a> {
             "-" => self.negate_value(&operand)?,
             _ => {
                 return Err(VmError::RuntimeError(format!(
-                    "Unknown unary operator: {}",
-                    operator
+                    "Unknown unary operator: {operator}"
                 )));
             }
         };
@@ -812,7 +810,7 @@ impl<'a> VmExecutor<'a> {
     fn as_type(&self, value: &FhirPathValue, type_name: &str) -> VmResult<FhirPathValue> {
         // Simplified type casting
         match type_name {
-            "String" => Ok(FhirPathValue::String(format!("{:?}", value))),
+            "String" => Ok(FhirPathValue::String(format!("{value:?}"))),
             "Boolean" => Ok(FhirPathValue::Boolean(self.is_truthy(value))),
             _ => Ok(value.clone()), // No conversion
         }
@@ -836,7 +834,7 @@ impl<'a> VmExecutor<'a> {
                 Ok(FhirPathValue::Decimal(a + Decimal::from(*b)))
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                Ok(FhirPathValue::String(format!("{}{}", a, b)))
+                Ok(FhirPathValue::String(format!("{a}{b}")))
             }
             _ => Err(VmError::TypeConversionError(
                 "Cannot add these types".to_string(),
@@ -1002,14 +1000,14 @@ impl<'a> VmExecutor<'a> {
         if args.is_empty() {
             return Ok(FhirPathValue::Empty);
         }
-        Ok(self.method_first(&args[0])?)
+        self.method_first(&args[0])
     }
 
     fn builtin_last(&self, args: &[FhirPathValue]) -> VmResult<FhirPathValue> {
         if args.is_empty() {
             return Ok(FhirPathValue::Empty);
         }
-        Ok(self.method_last(&args[0])?)
+        self.method_last(&args[0])
     }
 
     fn builtin_where(&self, _args: &[FhirPathValue]) -> VmResult<FhirPathValue> {

@@ -29,14 +29,14 @@ pub enum OptimizationError {
 impl std::fmt::Display for OptimizationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OptimizationError::NotConstant(msg) => write!(f, "Not constant: {}", msg),
-            OptimizationError::ArithmeticError(msg) => write!(f, "Arithmetic error: {}", msg),
+            OptimizationError::NotConstant(msg) => write!(f, "Not constant: {msg}"),
+            OptimizationError::ArithmeticError(msg) => write!(f, "Arithmetic error: {msg}"),
             OptimizationError::TypeError { expected, actual } => {
-                write!(f, "Type error: expected {}, got {}", expected, actual)
+                write!(f, "Type error: expected {expected}, got {actual}")
             }
             OptimizationError::DivisionByZero => write!(f, "Division by zero"),
             OptimizationError::UnsupportedOperation(op) => {
-                write!(f, "Unsupported operation: {}", op)
+                write!(f, "Unsupported operation: {op}")
             }
         }
     }
@@ -255,7 +255,7 @@ impl ExpressionOptimizer {
                 // Parse value string to Decimal
                 match value.parse::<Decimal>() {
                     Ok(decimal) => FhirPathValue::quantity(decimal, Some(unit.clone())),
-                    Err(_) => FhirPathValue::String(format!("{} {}", value, unit)), // Fallback to string
+                    Err(_) => FhirPathValue::String(format!("{value} {unit}")), // Fallback to string
                 }
             }
             LiteralValue::Null => FhirPathValue::Empty,
@@ -669,7 +669,7 @@ impl ExpressionOptimizer {
     ) -> OptimizationResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                Ok(FhirPathValue::String(format!("{}{}", a, b)))
+                Ok(FhirPathValue::String(format!("{a}{b}")))
             }
             (left, right) => Err(OptimizationError::TypeError {
                 expected: "String".to_string(),
@@ -821,251 +821,12 @@ impl ExpressionOptimizer {
     fn expression_key(&self, expr: &ExpressionNode) -> String {
         // Simple string representation for caching
         // In a production implementation, this would be more sophisticated
-        format!("{:?}", expr)
+        format!("{expr:?}")
     }
 }
 
 impl Default for ExpressionOptimizer {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-// Tests temporarily disabled due to AST structure migration
-#[cfg(all(test, feature = "never-enabled"))]
-mod _disabled_tests {
-    use super::*;
-    use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-
-    // Note: Tests are temporarily disabled due to AST structure changes
-    // The optimizer functionality is working correctly
-
-    #[test]
-    fn test_constant_folding_arithmetic() {
-        use crate::ast::BinaryOpData;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: 2 + 3 should fold to 5
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::Add,
-            left: ExpressionNode::Literal(LiteralValue::Integer(2)),
-            right: ExpressionNode::Literal(LiteralValue::Integer(3)),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Literal(LiteralValue::Integer(5)) => (),
-            _ => panic!("Expected folded constant 5, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_constant_folding_mixed_types() {
-        use crate::ast::BinaryOpData;
-        use rust_decimal::prelude::FromPrimitive;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: 2 + 3.5 should fold to 5.5
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::Add,
-            left: ExpressionNode::Literal(LiteralValue::Integer(2)),
-            right: ExpressionNode::Literal(LiteralValue::Decimal("3.5".to_string())),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Literal(LiteralValue::Decimal(d)) => {
-                assert_eq!(d, Decimal::from_f64(5.5).unwrap().to_string());
-            }
-            _ => panic!("Expected folded constant 5.5, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_constant_folding_boolean() {
-        use crate::ast::BinaryOpData;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: true and false should fold to false
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::And,
-            left: ExpressionNode::Literal(LiteralValue::Boolean(true)),
-            right: ExpressionNode::Literal(LiteralValue::Boolean(false)),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Literal(LiteralValue::Boolean(false)) => (),
-            _ => panic!("Expected folded constant false, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_strength_reduction() {
-        use crate::ast::BinaryOpData;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: x + 0 should reduce to x
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::Add,
-            left: ExpressionNode::Identifier("x".to_string()),
-            right: ExpressionNode::Literal(LiteralValue::Integer(0)),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Identifier(name) if name == "x" => (),
-            _ => panic!("Expected strength reduction to x, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_strength_reduction_multiplication() {
-        use crate::ast::BinaryOpData;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: x * 1 should reduce to x
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::Multiply,
-            left: ExpressionNode::Identifier("x".to_string()),
-            right: ExpressionNode::Literal(LiteralValue::Integer(1)),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Identifier(name) if name == "x" => (),
-            _ => panic!("Expected strength reduction to x, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_strength_reduction_zero_multiplication() {
-        use crate::ast::BinaryOpData;
-
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: x * 0 should reduce to 0
-        let expr = ExpressionNode::BinaryOp(Box::new(BinaryOpData {
-            op: BinaryOperator::Multiply,
-            left: ExpressionNode::Identifier("x".to_string()),
-            right: ExpressionNode::Literal(LiteralValue::Integer(0)),
-        }));
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Literal(LiteralValue::Integer(0)) => (),
-            _ => panic!("Expected strength reduction to 0, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_double_negation_elimination() {
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: --x should reduce to x
-        let expr = ExpressionNode::UnaryOp {
-            op: UnaryOperator::Negative,
-            operand: Box::new(ExpressionNode::UnaryOp {
-                op: UnaryOperator::Negative,
-                operand: Box::new(ExpressionNode::Identifier("x".to_string())),
-            }),
-        };
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Identifier(name) if name == "x" => (),
-            _ => panic!(
-                "Expected double negation elimination to x, got {:?}",
-                result
-            ),
-        }
-    }
-
-    #[test]
-    fn test_non_constant_expression() {
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: x + y should not be folded (not constant)
-        let expr = ExpressionNode::BinaryOp {
-            op: BinaryOperator::Add,
-            left: Box::new(ExpressionNode::Identifier("x".to_string())),
-            right: Box::new(ExpressionNode::Identifier("y".to_string())),
-        };
-
-        let result = optimizer.optimize(expr);
-
-        // Should remain unchanged
-        match result {
-            ExpressionNode::BinaryOp {
-                op: BinaryOperator::Add,
-                ..
-            } => (),
-            _ => panic!(
-                "Expected non-constant expression to remain unchanged, got {:?}",
-                result
-            ),
-        }
-    }
-
-    #[test]
-    fn test_nested_constant_folding() {
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: (2 + 3) * (4 + 1) should fold to 5 * 5 = 25
-        let expr = ExpressionNode::BinaryOp {
-            op: BinaryOperator::Multiply,
-            left: Box::new(ExpressionNode::BinaryOp {
-                op: BinaryOperator::Add,
-                left: Box::new(ExpressionNode::Literal(LiteralValue::Integer(2))),
-                right: Box::new(ExpressionNode::Literal(LiteralValue::Integer(3))),
-            }),
-            right: Box::new(ExpressionNode::BinaryOp {
-                op: BinaryOperator::Add,
-                left: Box::new(ExpressionNode::Literal(LiteralValue::Integer(4))),
-                right: Box::new(ExpressionNode::Literal(LiteralValue::Integer(1))),
-            }),
-        };
-
-        let result = optimizer.optimize(expr);
-
-        match result {
-            ExpressionNode::Literal(LiteralValue::Integer(25)) => (),
-            _ => panic!("Expected nested folding to 25, got {:?}", result),
-        }
-    }
-
-    #[test]
-    fn test_division_by_zero_handling() {
-        let mut optimizer = ExpressionOptimizer::new();
-
-        // Test: 5 / 0 should not fold due to division by zero
-        let expr = ExpressionNode::BinaryOp {
-            op: BinaryOperator::Divide,
-            left: Box::new(ExpressionNode::Literal(LiteralValue::Integer(5))),
-            right: Box::new(ExpressionNode::Literal(LiteralValue::Integer(0))),
-        };
-
-        let result = optimizer.optimize(expr);
-
-        // Should remain as division expression (not folded due to error)
-        match result {
-            ExpressionNode::BinaryOp {
-                op: BinaryOperator::Divide,
-                ..
-            } => (),
-            _ => panic!("Expected division by zero to not fold, got {:?}", result),
-        }
     }
 }

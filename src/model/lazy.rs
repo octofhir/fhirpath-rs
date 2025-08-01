@@ -414,7 +414,7 @@ impl Iterator for LazyIterator {
                     base_iter,
                     predicate,
                 } => {
-                    while let Some(value) = base_iter.next() {
+                    for value in base_iter.by_ref() {
                         if predicate(&value) {
                             self.stack.push(state);
                             return Some(value);
@@ -446,7 +446,7 @@ impl Iterator for LazyIterator {
                     }
 
                     // Get next collection from base iterator
-                    while let Some(next_collection) = base_iter.next() {
+                    for next_collection in base_iter.by_ref() {
                         match next_collection {
                             FhirPathValue::Collection(collection) => {
                                 let lazy_collection =
@@ -492,9 +492,7 @@ impl Iterator for LazyIterator {
                 } => {
                     // Skip remaining elements
                     while *remaining > 0 {
-                        if base_iter.next().is_none() {
-                            return None;
-                        }
+                        base_iter.next()?;
                         *remaining -= 1;
                     }
 
@@ -525,7 +523,7 @@ impl Iterator for LazyIterator {
                 }
 
                 IteratorState::Distinct { base_iter, seen } => {
-                    while let Some(value) = base_iter.next() {
+                    for value in base_iter.by_ref() {
                         let key = value.to_string();
                         if seen.insert(key) {
                             self.stack.push(state);
@@ -549,13 +547,13 @@ impl fmt::Debug for LazyCollection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Materialized(values) => write!(f, "Materialized({} items)", values.len()),
-            Self::Filtered { base, .. } => write!(f, "Filtered({:?})", base),
-            Self::Mapped { base, .. } => write!(f, "Mapped({:?})", base),
-            Self::Flattened { base } => write!(f, "Flattened({:?})", base),
-            Self::Take { base, count } => write!(f, "Take({:?}, {})", base, count),
-            Self::Skip { base, count } => write!(f, "Skip({:?}, {})", base, count),
-            Self::Concat { first, second } => write!(f, "Concat({:?}, {:?})", first, second),
-            Self::Distinct { base } => write!(f, "Distinct({:?})", base),
+            Self::Filtered { base, .. } => write!(f, "Filtered({base:?})"),
+            Self::Mapped { base, .. } => write!(f, "Mapped({base:?})"),
+            Self::Flattened { base } => write!(f, "Flattened({base:?})"),
+            Self::Take { base, count } => write!(f, "Take({base:?}, {count})"),
+            Self::Skip { base, count } => write!(f, "Skip({base:?}, {count})"),
+            Self::Concat { first, second } => write!(f, "Concat({first:?}, {second:?})"),
+            Self::Distinct { base } => write!(f, "Distinct({base:?})"),
             Self::Empty => write!(f, "Empty"),
         }
     }

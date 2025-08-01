@@ -140,5 +140,5 @@ The fhirpath-rs implementation currently passes approximately **82.7% of all FHI
 
 ---
 
-*Report generated on: 2025-08-01 18:29:06*  
+*Report generated on: 2025-08-01 19:55:18*  
 *Command: `cargo test run_coverage_report -- --ignored --nocapture`*

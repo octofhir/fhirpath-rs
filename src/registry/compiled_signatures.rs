@@ -407,7 +407,7 @@ impl CompiledSignatureRegistry {
                     // Create dummy args for validation (this is for pre-warming only)
                     let dummy_args: Vec<FhirPathValue> = arg_types
                         .iter()
-                        .map(|t| Self::create_dummy_value_for_type(t))
+                        .map(Self::create_dummy_value_for_type)
                         .collect();
 
                     if signature.validates_fast(&dummy_args) {

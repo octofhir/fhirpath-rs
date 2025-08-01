@@ -42,7 +42,7 @@ pub enum CompilationError {
 impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::UnknownFunction(name) => write!(f, "Unknown function: {}", name),
+            Self::UnknownFunction(name) => write!(f, "Unknown function: {name}"),
             Self::InvalidArity {
                 function,
                 expected,
@@ -50,13 +50,12 @@ impl std::fmt::Display for CompilationError {
             } => {
                 write!(
                     f,
-                    "Function {} expects {} arguments, got {}",
-                    function, expected, got
+                    "Function {function} expects {expected} arguments, got {got}"
                 )
             }
-            Self::UnsupportedExpression(desc) => write!(f, "Unsupported expression: {}", desc),
-            Self::InternalError(msg) => write!(f, "Internal compiler error: {}", msg),
-            Self::JumpTargetOutOfRange(offset) => write!(f, "Jump target out of range: {}", offset),
+            Self::UnsupportedExpression(desc) => write!(f, "Unsupported expression: {desc}"),
+            Self::InternalError(msg) => write!(f, "Internal compiler error: {msg}"),
+            Self::JumpTargetOutOfRange(offset) => write!(f, "Jump target out of range: {offset}"),
             Self::MaxRecursionDepthExceeded => write!(f, "Maximum recursion depth exceeded"),
         }
     }
@@ -172,7 +171,7 @@ impl ExpressionCompiler {
         // Finalize bytecode
         let mut bytecode = builder
             .finalize()
-            .map_err(|e| CompilationError::InternalError(e))?;
+            .map_err(CompilationError::InternalError)?;
 
         // Set metadata
         bytecode.metadata = BytecodeMetadata {

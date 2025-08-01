@@ -583,9 +583,7 @@ impl ParseError {
 
     /// Create a lazy context error with dynamic context information  
     pub fn lazy_context_error(position: usize, context: String, details: String) -> Self {
-        Self::lazy_format(position, move || {
-            format!("Error in {}: {}", context, details)
-        })
+        Self::lazy_format(position, move || format!("Error in {context}: {details}"))
     }
 
     /// Create a lazy error for complex validation failures
@@ -596,10 +594,7 @@ impl ParseError {
         actual: String,
     ) -> Self {
         Self::lazy_format(position, move || {
-            format!(
-                "Validation failed for '{}': expected '{}', got '{}'",
-                field, expected, actual
-            )
+            format!("Validation failed for '{field}': expected '{expected}', got '{actual}'")
         })
     }
 
