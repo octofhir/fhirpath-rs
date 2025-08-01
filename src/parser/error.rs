@@ -2,15 +2,15 @@
 
 use crate::diagnostics::{Diagnostic, DiagnosticBuilder, DiagnosticCode};
 use nom::error::{ErrorKind, ParseError as NomParseError};
-use thiserror::Error;
 use std::borrow::Cow;
+use thiserror::Error;
 
 /// Pre-allocated common error messages for performance
 pub mod common_messages {
     /// Common literal type error messages
     pub const INTEGER: &str = "integer";
     /// Decimal literal type name
-    pub const DECIMAL: &str = "decimal"; 
+    pub const DECIMAL: &str = "decimal";
     /// String literal type name
     pub const STRING: &str = "string";
     /// Boolean literal type name
@@ -23,7 +23,7 @@ pub mod common_messages {
     pub const TIME: &str = "time";
     /// Quantity literal type name
     pub const QUANTITY: &str = "quantity";
-    
+
     /// Common token expectation messages
     pub const EXPECTED_IDENTIFIER: &str = "identifier";
     /// Expected expression error message
@@ -48,7 +48,7 @@ pub mod common_messages {
     pub const EXPECTED_STRING_LITERAL: &str = "string literal";
     /// Expected number error message
     pub const EXPECTED_NUMBER: &str = "number";
-    
+
     /// Common syntax error messages  
     pub const INVALID_ESCAPE_SEQUENCE: &str = "Invalid escape sequence";
     /// Unclosed string literal error message
@@ -182,7 +182,11 @@ impl std::fmt::Debug for ParseError {
                 .debug_struct("UnexpectedEndOfInput")
                 .field("position", position)
                 .finish(),
-            Self::InvalidLiteral { literal_type, value, position } => f
+            Self::InvalidLiteral {
+                literal_type,
+                value,
+                position,
+            } => f
                 .debug_struct("InvalidLiteral")
                 .field("literal_type", literal_type)
                 .field("value", value)
@@ -197,7 +201,10 @@ impl std::fmt::Debug for ParseError {
                 .debug_struct("UnclosedString")
                 .field("position", position)
                 .finish(),
-            Self::InvalidIdentifier { identifier, position } => f
+            Self::InvalidIdentifier {
+                identifier,
+                position,
+            } => f
                 .debug_struct("InvalidIdentifier")
                 .field("identifier", identifier)
                 .field("position", position)
@@ -262,7 +269,10 @@ impl Clone for ParseError {
                 position: *position,
                 kind: *kind,
             },
-            Self::LazyFormatted { format_fn, position } => {
+            Self::LazyFormatted {
+                format_fn,
+                position,
+            } => {
                 // Convert lazy error to a syntax error when cloning to avoid function pointer issues
                 Self::SyntaxError {
                     message: Cow::Owned(format_fn()),
@@ -277,45 +287,94 @@ impl PartialEq for ParseError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                Self::SyntaxError { position: p1, message: m1 },
-                Self::SyntaxError { position: p2, message: m2 },
+                Self::SyntaxError {
+                    position: p1,
+                    message: m1,
+                },
+                Self::SyntaxError {
+                    position: p2,
+                    message: m2,
+                },
             ) => p1 == p2 && m1 == m2,
             (
-                Self::UnexpectedToken { token: t1, position: p1 },
-                Self::UnexpectedToken { token: t2, position: p2 },
+                Self::UnexpectedToken {
+                    token: t1,
+                    position: p1,
+                },
+                Self::UnexpectedToken {
+                    token: t2,
+                    position: p2,
+                },
             ) => t1 == t2 && p1 == p2,
             (Self::UnexpectedEof, Self::UnexpectedEof) => true,
             (
-                Self::ExpectedToken { expected: e1, position: p1 },
-                Self::ExpectedToken { expected: e2, position: p2 },
+                Self::ExpectedToken {
+                    expected: e1,
+                    position: p1,
+                },
+                Self::ExpectedToken {
+                    expected: e2,
+                    position: p2,
+                },
             ) => e1 == e2 && p1 == p2,
             (
                 Self::UnexpectedEndOfInput { position: p1 },
                 Self::UnexpectedEndOfInput { position: p2 },
             ) => p1 == p2,
             (
-                Self::InvalidLiteral { literal_type: lt1, value: v1, position: p1 },
-                Self::InvalidLiteral { literal_type: lt2, value: v2, position: p2 },
+                Self::InvalidLiteral {
+                    literal_type: lt1,
+                    value: v1,
+                    position: p1,
+                },
+                Self::InvalidLiteral {
+                    literal_type: lt2,
+                    value: v2,
+                    position: p2,
+                },
             ) => lt1 == lt2 && v1 == v2 && p1 == p2,
             (
-                Self::InvalidEscape { sequence: s1, position: p1 },
-                Self::InvalidEscape { sequence: s2, position: p2 },
+                Self::InvalidEscape {
+                    sequence: s1,
+                    position: p1,
+                },
+                Self::InvalidEscape {
+                    sequence: s2,
+                    position: p2,
+                },
             ) => s1 == s2 && p1 == p2,
+            (Self::UnclosedString { position: p1 }, Self::UnclosedString { position: p2 }) => {
+                p1 == p2
+            }
             (
-                Self::UnclosedString { position: p1 },
-                Self::UnclosedString { position: p2 },
-            ) => p1 == p2,
-            (
-                Self::InvalidIdentifier { identifier: i1, position: p1 },
-                Self::InvalidIdentifier { identifier: i2, position: p2 },
+                Self::InvalidIdentifier {
+                    identifier: i1,
+                    position: p1,
+                },
+                Self::InvalidIdentifier {
+                    identifier: i2,
+                    position: p2,
+                },
             ) => i1 == i2 && p1 == p2,
             (
-                Self::NomError { position: p1, kind: k1 },
-                Self::NomError { position: p2, kind: k2 },
+                Self::NomError {
+                    position: p1,
+                    kind: k1,
+                },
+                Self::NomError {
+                    position: p2,
+                    kind: k2,
+                },
             ) => p1 == p2 && k1 == k2,
             (
-                Self::LazyFormatted { format_fn: f1, position: p1 },
-                Self::LazyFormatted { format_fn: f2, position: p2 },
+                Self::LazyFormatted {
+                    format_fn: f1,
+                    position: p1,
+                },
+                Self::LazyFormatted {
+                    format_fn: f2,
+                    position: p2,
+                },
             ) => {
                 // Compare by formatting the messages (expensive but necessary for equality)
                 p1 == p2 && f1() == f2()
@@ -389,26 +448,31 @@ impl ParseError {
                     .with_location(0, *position, 0, *position)
                     .build()
             }
-            ParseError::LazyFormatted { format_fn, position } => {
-                DiagnosticBuilder::error(DiagnosticCode::UnexpectedToken)
-                    .with_message(format_fn())
-                    .with_location(0, *position, 0, *position)
-                    .build()
-            }
+            ParseError::LazyFormatted {
+                format_fn,
+                position,
+            } => DiagnosticBuilder::error(DiagnosticCode::UnexpectedToken)
+                .with_message(format_fn())
+                .with_location(0, *position, 0, *position)
+                .build(),
         }
     }
 
     /// Convenience constructors using pre-allocated messages for common error patterns
-    
+
     /// Create an invalid literal error with pre-allocated literal type (zero-allocation)
-    pub fn invalid_literal_prealloc(literal_type: &'static str, value: String, position: usize) -> Self {
+    pub fn invalid_literal_prealloc(
+        literal_type: &'static str,
+        value: String,
+        position: usize,
+    ) -> Self {
         ParseError::InvalidLiteral {
             literal_type: Cow::Borrowed(literal_type),
             value: Cow::Owned(value),
             position,
         }
     }
-    
+
     /// Create an expected token error with pre-allocated token type (zero-allocation)
     pub fn expected_token_prealloc(expected: &'static str, position: usize) -> Self {
         ParseError::ExpectedToken {
@@ -416,7 +480,7 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create a syntax error with pre-allocated message (zero-allocation)
     pub fn syntax_error_prealloc(message: &'static str, position: usize) -> Self {
         ParseError::SyntaxError {
@@ -424,7 +488,7 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create error variants with dynamic strings when needed
     pub fn syntax_error_dynamic(message: String, position: usize) -> Self {
         ParseError::SyntaxError {
@@ -432,7 +496,7 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create an unexpected token error with a dynamically allocated token string
     pub fn unexpected_token_dynamic(token: String, position: usize) -> Self {
         ParseError::UnexpectedToken {
@@ -440,7 +504,7 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create an expected token error with a dynamically allocated expected string
     pub fn expected_token_dynamic(expected: String, position: usize) -> Self {
         ParseError::ExpectedToken {
@@ -448,59 +512,59 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create common error patterns with zero-allocation static strings
     /// These methods avoid String allocation for the most common cases
-    
+
     /// Create an error for when an identifier was expected but not found
     pub fn expected_identifier(position: usize) -> Self {
         Self::expected_token_prealloc(common_messages::EXPECTED_IDENTIFIER, position)
     }
-    
+
     /// Create an error for when an expression was expected but not found
     pub fn expected_expression(position: usize) -> Self {
         Self::expected_token_prealloc(common_messages::EXPECTED_EXPRESSION, position)
     }
-    
+
     /// Create an error for when a left parenthesis '(' was expected but not found
     pub fn expected_left_paren(position: usize) -> Self {
         Self::expected_token_prealloc(common_messages::EXPECTED_LEFT_PAREN, position)
     }
-    
+
     /// Create an error for when a right parenthesis ')' was expected but not found
     pub fn expected_right_paren(position: usize) -> Self {
         Self::expected_token_prealloc(common_messages::EXPECTED_RIGHT_PAREN, position)
     }
-    
+
     /// Create an error for an invalid integer literal
     pub fn invalid_integer_literal(value: String, position: usize) -> Self {
         Self::invalid_literal_prealloc(common_messages::INTEGER, value, position)
     }
-    
+
     /// Create an error for an invalid decimal literal
     pub fn invalid_decimal_literal(value: String, position: usize) -> Self {
         Self::invalid_literal_prealloc(common_messages::DECIMAL, value, position)
     }
-    
+
     /// Create an error for an invalid string literal
     pub fn invalid_string_literal(value: String, position: usize) -> Self {
         Self::invalid_literal_prealloc(common_messages::STRING, value, position)
     }
-    
+
     /// Create an error for an unclosed string literal
     pub fn unclosed_string_literal(position: usize) -> Self {
         Self::syntax_error_prealloc(common_messages::UNCLOSED_STRING, position)
     }
-    
+
     /// Create an error for an invalid number format
     pub fn invalid_number_format(position: usize) -> Self {
         Self::syntax_error_prealloc(common_messages::INVALID_NUMBER_FORMAT, position)
     }
-    
+
     /// Lazy formatting constructors - defer expensive string operations until display time
-    
+
     /// Create a lazy formatted error with a closure that generates the message on demand
-    pub fn lazy_format<F>(position: usize, format_fn: F) -> Self 
+    pub fn lazy_format<F>(position: usize, format_fn: F) -> Self
     where
         F: Fn() -> String + Send + Sync + 'static,
     {
@@ -509,32 +573,43 @@ impl ParseError {
             position,
         }
     }
-    
+
     /// Create a lazy "expected one of" error message
     pub fn lazy_expected_one_of(position: usize, tokens: Vec<&'static str>) -> Self {
         Self::lazy_format(position, move || {
             format!("Expected one of: {}", tokens.join(", "))
         })
     }
-    
+
     /// Create a lazy context error with dynamic context information  
     pub fn lazy_context_error(position: usize, context: String, details: String) -> Self {
         Self::lazy_format(position, move || {
             format!("Error in {}: {}", context, details)
         })
     }
-    
+
     /// Create a lazy error for complex validation failures
-    pub fn lazy_validation_error(position: usize, field: String, expected: String, actual: String) -> Self {
+    pub fn lazy_validation_error(
+        position: usize,
+        field: String,
+        expected: String,
+        actual: String,
+    ) -> Self {
         Self::lazy_format(position, move || {
-            format!("Validation failed for '{}': expected '{}', got '{}'", field, expected, actual)
+            format!(
+                "Validation failed for '{}': expected '{}', got '{}'",
+                field, expected, actual
+            )
         })
     }
-    
+
     /// Create a lazy error for missing required elements with context
     pub fn lazy_missing_required(position: usize, required_elements: Vec<String>) -> Self {
         Self::lazy_format(position, move || {
-            format!("Missing required elements: {}", required_elements.join(", "))
+            format!(
+                "Missing required elements: {}",
+                required_elements.join(", ")
+            )
         })
     }
 }

@@ -66,7 +66,7 @@ jobs:
       - name: Run benchmarks (quick)
         run: |
           echo "🚀 Running quick benchmark for canary release..."
-          timeout 180 cargo bench --bench tokenizer_only_benchmark -- --quick || echo "⚠️ Benchmark timed out after 3 minutes"
+          timeout 180 cargo bench --bench fhirpath_benchmark -- --quick || echo "⚠️ Benchmark timed out after 3 minutes"
 
       - name: Generate canary version
         id: version

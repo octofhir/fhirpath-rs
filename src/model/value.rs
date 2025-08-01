@@ -4,7 +4,9 @@ use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::borrow::Cow;
 use std::fmt;
+use std::sync::Arc;
 
 use super::quantity::Quantity;
 use super::resource::FhirResource;
@@ -59,19 +61,19 @@ pub enum FhirPathValue {
     Empty,
 }
 
-/// Collection type that wraps a vector of values
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub struct Collection(Vec<FhirPathValue>);
+/// Collection type that wraps an Arc slice for zero-copy operations
+#[derive(Clone, PartialEq)]
+pub struct Collection(Arc<[FhirPathValue]>);
 
 impl Collection {
     /// Create a new empty collection
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(Arc::from([]))
     }
 
     /// Create a collection from a vector
     pub fn from_vec(values: Vec<FhirPathValue>) -> Self {
-        Self(values)
+        Self(values.into())
     }
 
     /// Get the length of the collection
@@ -90,18 +92,25 @@ impl Collection {
     }
 
     /// Get a mutable iterator over the values
+    /// Note: This requires making a mutable copy due to Arc
     pub fn iter_mut(&mut self) -> std::slice::IterMut<FhirPathValue> {
-        self.0.iter_mut()
+        Arc::make_mut(&mut self.0).iter_mut()
     }
 
     /// Push a value to the collection
+    /// Note: This creates a new Arc with the added value
     pub fn push(&mut self, value: FhirPathValue) {
-        self.0.push(value);
+        let mut vec: Vec<FhirPathValue> = self.0.to_vec();
+        vec.push(value);
+        self.0 = vec.into();
     }
 
     /// Extend the collection with another
+    /// Note: This creates a new Arc with the combined values
     pub fn extend(&mut self, other: Collection) {
-        self.0.extend(other.0);
+        let mut vec: Vec<FhirPathValue> = self.0.to_vec();
+        vec.extend(other.0.iter().cloned());
+        self.0 = vec.into();
     }
 
     /// Get the first value
@@ -116,7 +125,7 @@ impl Collection {
 
     /// Take ownership of the inner vector
     pub fn into_vec(self) -> Vec<FhirPathValue> {
-        self.0
+        self.0.to_vec()
     }
 
     /// Check if the collection contains a value
@@ -128,6 +137,78 @@ impl Collection {
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
         self.0.get(index)
     }
+
+    /// Create a new collection from a slice without cloning (zero-copy)
+    pub fn from_slice(slice: &[FhirPathValue]) -> Self
+    where
+        FhirPathValue: Clone,
+    {
+        Self(slice.to_vec().into())
+    }
+
+    /// Get a reference to the underlying Arc slice
+    pub fn as_arc(&self) -> &Arc<[FhirPathValue]> {
+        &self.0
+    }
+
+    /// Create a collection that shares data with this one (zero-copy clone)
+    pub fn share(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+
+    /// Append a value, creating a new collection (preserves immutability)
+    pub fn append(&self, value: FhirPathValue) -> Self {
+        let mut vec = self.0.to_vec();
+        vec.push(value);
+        Self(vec.into())
+    }
+
+    /// Concatenate two collections efficiently
+    pub fn concat(&self, other: &Collection) -> Self {
+        if self.is_empty() {
+            return other.share();
+        }
+        if other.is_empty() {
+            return self.share();
+        }
+        let mut vec = self.0.to_vec();
+        vec.extend(other.0.iter().cloned());
+        Self(vec.into())
+    }
+
+    /// Filter the collection, creating a new one
+    pub fn filter<F>(&self, predicate: F) -> Self
+    where
+        F: Fn(&FhirPathValue) -> bool,
+    {
+        let filtered: Vec<FhirPathValue> =
+            self.0.iter().filter(|v| predicate(v)).cloned().collect();
+        Self(filtered.into())
+    }
+
+    /// Map over the collection, creating a new one
+    pub fn map<F>(&self, mapper: F) -> Self
+    where
+        F: Fn(&FhirPathValue) -> FhirPathValue,
+    {
+        let mapped: Vec<FhirPathValue> = self.0.iter().map(mapper).collect();
+        Self(mapped.into())
+    }
+
+    /// Flatten a collection of collections
+    pub fn flatten(&self) -> Self {
+        let mut result = Vec::new();
+        for value in self.0.iter() {
+            match value {
+                FhirPathValue::Collection(inner) => {
+                    result.extend(inner.0.iter().cloned());
+                }
+                FhirPathValue::Empty => {}
+                other => result.push(other.clone()),
+            }
+        }
+        Self(result.into())
+    }
 }
 
 impl Default for Collection {
@@ -138,7 +219,7 @@ impl Default for Collection {
 
 impl From<Vec<FhirPathValue>> for Collection {
     fn from(values: Vec<FhirPathValue>) -> Self {
-        Self(values)
+        Self(values.into())
     }
 }
 
@@ -147,7 +228,7 @@ impl IntoIterator for Collection {
     type IntoIter = std::vec::IntoIter<FhirPathValue>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.0.to_vec().into_iter()
     }
 }
 
@@ -548,6 +629,129 @@ impl fmt::Debug for Collection {
     }
 }
 
+/// Custom serialization for Collection to handle Arc
+impl Serialize for Collection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+/// Custom deserialization for Collection to handle Arc
+impl<'de> Deserialize<'de> for Collection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let vec = Vec::<FhirPathValue>::deserialize(deserializer)?;
+        Ok(Self(vec.into()))
+    }
+}
+
+/// A reference wrapper for FhirPathValue that enables zero-copy operations
+///
+/// ValueRef uses Cow (Clone-on-Write) semantics to avoid unnecessary cloning
+/// when working with FhirPathValue instances. It can hold either a borrowed
+/// reference or an owned value, converting to owned only when necessary.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValueRef<'a> {
+    value: Cow<'a, FhirPathValue>,
+}
+
+impl<'a> ValueRef<'a> {
+    /// Create a ValueRef from a borrowed FhirPathValue
+    pub fn borrowed(value: &'a FhirPathValue) -> Self {
+        Self {
+            value: Cow::Borrowed(value),
+        }
+    }
+
+    /// Create a ValueRef from an owned FhirPathValue
+    pub fn owned(value: FhirPathValue) -> Self {
+        Self {
+            value: Cow::Owned(value),
+        }
+    }
+
+    /// Get a reference to the inner value
+    pub fn as_ref(&self) -> &FhirPathValue {
+        &self.value
+    }
+
+    /// Convert to an owned FhirPathValue
+    pub fn into_owned(self) -> FhirPathValue {
+        self.value.into_owned()
+    }
+
+    /// Check if this ValueRef owns its value
+    pub fn is_owned(&self) -> bool {
+        matches!(self.value, Cow::Owned(_))
+    }
+
+    /// Check if this ValueRef borrows its value
+    pub fn is_borrowed(&self) -> bool {
+        matches!(self.value, Cow::Borrowed(_))
+    }
+
+    /// Convert to owned if borrowed, no-op if already owned
+    pub fn to_mut(&mut self) -> &mut FhirPathValue {
+        self.value.to_mut()
+    }
+
+    /// Map the value, creating a new owned ValueRef
+    pub fn map<F>(self, f: F) -> ValueRef<'a>
+    where
+        F: FnOnce(FhirPathValue) -> FhirPathValue,
+    {
+        ValueRef::owned(f(self.into_owned()))
+    }
+
+    /// Try to get a borrowed string value
+    pub fn as_string(&self) -> Option<&str> {
+        self.value.as_string()
+    }
+
+    /// Try to get an integer value
+    pub fn as_integer(&self) -> Option<i64> {
+        self.value.as_integer()
+    }
+
+    /// Try to get a boolean value
+    pub fn as_boolean(&self) -> Option<bool> {
+        self.value.as_boolean()
+    }
+
+    /// Check if the value is empty
+    pub fn is_empty(&self) -> bool {
+        self.value.is_empty()
+    }
+
+    /// Get the type name
+    pub fn type_name(&self) -> &'static str {
+        self.value.type_name()
+    }
+}
+
+impl<'a> From<&'a FhirPathValue> for ValueRef<'a> {
+    fn from(value: &'a FhirPathValue) -> Self {
+        Self::borrowed(value)
+    }
+}
+
+impl<'a> From<FhirPathValue> for ValueRef<'a> {
+    fn from(value: FhirPathValue) -> Self {
+        Self::owned(value)
+    }
+}
+
+impl<'a> fmt::Display for ValueRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -593,5 +797,57 @@ mod tests {
         if let Some(first) = collection.first() {
             assert_eq!(*first, FhirPathValue::Integer(1));
         }
+    }
+
+    #[test]
+    fn test_value_ref_borrowed() {
+        let value = FhirPathValue::Integer(42);
+        let value_ref = ValueRef::borrowed(&value);
+
+        assert!(value_ref.is_borrowed());
+        assert!(!value_ref.is_owned());
+        assert_eq!(value_ref.as_integer(), Some(42));
+        assert_eq!(value_ref.type_name(), "Integer");
+    }
+
+    #[test]
+    fn test_value_ref_owned() {
+        let value = FhirPathValue::String("hello".to_string());
+        let value_ref = ValueRef::owned(value);
+
+        assert!(!value_ref.is_borrowed());
+        assert!(value_ref.is_owned());
+        assert_eq!(value_ref.as_string(), Some("hello"));
+    }
+
+    #[test]
+    fn test_value_ref_map() {
+        let value = FhirPathValue::Integer(10);
+        let value_ref = ValueRef::borrowed(&value);
+
+        let mapped = value_ref.map(|v| {
+            if let FhirPathValue::Integer(i) = v {
+                FhirPathValue::Integer(i * 2)
+            } else {
+                v
+            }
+        });
+
+        assert!(mapped.is_owned());
+        assert_eq!(mapped.as_integer(), Some(20));
+    }
+
+    #[test]
+    fn test_collection_zero_copy() {
+        let items = vec![
+            FhirPathValue::Integer(1),
+            FhirPathValue::Integer(2),
+            FhirPathValue::Integer(3),
+        ];
+        let collection1 = Collection::from_vec(items);
+        let collection2 = collection1.share();
+
+        // Both collections should point to the same Arc
+        assert!(Arc::ptr_eq(collection1.as_arc(), collection2.as_arc()));
     }
 }

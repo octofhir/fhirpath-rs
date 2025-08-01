@@ -15,9 +15,10 @@ FHIRPath is a path-based navigation and extraction language for FHIR (Fast Healt
 
 - ✅ **High Specification Compliance**: 82.7% pass rate on official FHIRPath test suites (831/1005 tests)
 - 🚀 **High Performance**: Optimized tokenizer (10M+ ops/sec), parser (1M+ ops/sec), and evaluator
-- 🔒 **Memory Safe**: Zero-copy parsing with safe Rust memory management
-- 🛠️ **Complete Toolchain**: Parser, evaluator, CLI tools, and comprehensive diagnostics
-- 📊 **Production Ready**: Extensive test coverage and benchmarking
+- ⚡ **Bytecode Compiler**: Advanced compilation to bytecode with VM execution for maximum performance
+- 🔒 **Memory Safe**: Zero-copy parsing with safe Rust memory management and arena allocation
+- 🛠️ **Complete Toolchain**: Parser, evaluator, compiler, CLI tools, and comprehensive diagnostics
+- 📊 **Production Ready**: Extensive test coverage, simplified benchmarking, and zero warnings
 - 🔧 **Developer Friendly**: Rich error messages, IDE integration support, and comprehensive documentation
 
 ## 🚀 Quick Start
@@ -219,13 +220,21 @@ octofhir-fhirpath is optimized for high-performance use cases:
 - **Tokenizer**: 10M+ operations/second
 - **Parser**: 1M+ operations/second  
 - **Evaluator**: Efficient context management and caching
+- **Bytecode VM**: High-performance virtual machine execution
 - **Memory**: Zero-copy parsing with minimal allocations
+- **Optimization**: Constant folding, strength reduction, and dead code elimination
 
 ### Benchmark Results
 
 ```bash
-just bench  # Run comprehensive performance tests
+just bench  # Run simplified, comprehensive performance tests
 ```
+
+Benchmarks are simplified into a single unified suite testing all components:  
+- Tokenizer performance across complexity levels
+- Parser performance with various expressions
+- Evaluator performance with context management
+- Throughput testing for high-volume operations
 
 ## 🏗️ Architecture
 
@@ -236,11 +245,19 @@ src/
 ├── ast/           # Abstract syntax tree definitions
 ├── parser/        # Tokenizer and parser (nom-based)
 ├── evaluator/     # Expression evaluation engine  
+├── compiler/      # Bytecode compiler and virtual machine
 ├── registry/      # Function registry and built-ins
 ├── model/         # Value types and FHIR data model
 ├── diagnostics/   # Error handling and reporting
 └── bin/           # CLI tools and utilities
 ```
+
+### Performance Architecture
+
+- **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
+- **Bytecode compilation**: AST compilation to optimized bytecode with VM execution
+- **Registry system**: Modular function and operator registration with caching
+- **Memory optimization**: Specialized evaluators, memory pools, and streaming evaluation
 
 ## 🔍 Error Handling
 

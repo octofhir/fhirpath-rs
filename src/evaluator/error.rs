@@ -57,6 +57,10 @@ pub enum EvaluationError {
         /// Error message
         message: String,
     },
+
+    /// VM execution error
+    #[error("VM error: {0}")]
+    Vm(#[from] crate::compiler::vm::VmError),
 }
 
 impl EvaluationError {

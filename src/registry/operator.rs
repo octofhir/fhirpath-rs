@@ -93,6 +93,7 @@ pub trait FhirPathOperator: Send + Sync {
 }
 
 /// Registry for FHIRPath operators
+#[derive(Clone)]
 pub struct OperatorRegistry {
     binary_operators: FxHashMap<String, Arc<dyn FhirPathOperator>>,
     unary_operators: FxHashMap<String, Arc<dyn FhirPathOperator>>,

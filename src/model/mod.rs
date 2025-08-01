@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod lazy;
 pub mod provider;
 pub mod quantity;
 pub mod resource;
@@ -13,11 +14,12 @@ pub mod types;
 pub mod value;
 
 pub use error::{ModelError, Result};
+pub use lazy::{LazyCollection, LazyIterator, ToLazy};
 pub use provider::{FhirVersion, ModelProvider};
 pub use quantity::Quantity;
 pub use resource::FhirResource;
 pub use types::TypeInfo;
-pub use value::{Collection, FhirPathValue};
+pub use value::{Collection, FhirPathValue, ValueRef};
 
 // Re-export FHIR Schema types when async-schema feature is enabled
 #[cfg(feature = "async-schema")]

@@ -4,6 +4,7 @@
 use crate::registry::cache::{
     CacheConfig, FunctionCacheKey, FunctionResolutionCache, FunctionResultCache,
 };
+use crate::registry::compiled_signatures::{CompilationStats, CompiledSignatureRegistry};
 use crate::registry::functions::boolean::*;
 use crate::registry::functions::cda::*;
 use crate::registry::functions::collection::*;
@@ -115,6 +116,299 @@ impl EvaluationContext {
             input,
             variables: FxHashMap::default(),
         }
+    }
+}
+
+/// Const generic trait for arity-specific functions with compile-time argument count checking
+pub trait AritySpecificFunction<const ARITY: usize>: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+
+    /// Get the human-friendly name for the function (for LSP and documentation)  
+    fn human_friendly_name(&self) -> &str;
+
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+
+    /// Evaluate the function with exactly ARITY arguments (compile-time checked)
+    fn evaluate(
+        &self,
+        args: [FhirPathValue; ARITY],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+
+    /// Check if this function is pure (deterministic with no side effects)
+    fn is_pure(&self) -> bool {
+        false // Default to non-pure for safety
+    }
+}
+
+/// Wrapper that converts arity-specific functions to the general FhirPathFunction trait
+pub struct ArityWrapper<T, const ARITY: usize> {
+    inner: T,
+}
+
+impl<T: AritySpecificFunction<ARITY>, const ARITY: usize> ArityWrapper<T, ARITY> {
+    /// Create a new arity wrapper
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
+}
+
+impl<T: AritySpecificFunction<ARITY>, const ARITY: usize> FhirPathFunction
+    for ArityWrapper<T, ARITY>
+{
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn human_friendly_name(&self) -> &str {
+        self.inner.human_friendly_name()
+    }
+
+    fn signature(&self) -> &FunctionSignature {
+        self.inner.signature()
+    }
+
+    fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        // Compile-time arity checking - convert slice to array
+        if args.len() != ARITY {
+            return Err(FunctionError::InvalidArity {
+                name: self.name().to_string(),
+                min: ARITY,
+                max: Some(ARITY),
+                actual: args.len(),
+            });
+        }
+
+        // Convert slice to array - this is safe because we checked the length
+        let array_args: [FhirPathValue; ARITY] =
+            args.to_vec()
+                .try_into()
+                .map_err(|_| FunctionError::EvaluationError {
+                    name: self.name().to_string(),
+                    message: "Failed to convert arguments to fixed-size array".to_string(),
+                })?;
+
+        self.inner.evaluate(array_args, context)
+    }
+
+    fn documentation(&self) -> &str {
+        self.inner.documentation()
+    }
+
+    fn is_pure(&self) -> bool {
+        self.inner.is_pure()
+    }
+}
+
+/// Specialized traits for common arities with more ergonomic interfaces
+
+/// Nullary function (no arguments)
+pub trait NullaryFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+    /// Get the human-readable function name
+    fn human_friendly_name(&self) -> &str;
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+    /// Evaluate the function with no arguments
+    fn evaluate(&self, context: &EvaluationContext) -> FunctionResult<FhirPathValue>;
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+    /// Check if function is pure (no side effects)
+    fn is_pure(&self) -> bool {
+        false
+    }
+}
+
+/// Unary function (one argument)
+pub trait UnaryFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+    /// Get the human-readable function name
+    fn human_friendly_name(&self) -> &str;
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+    /// Evaluate the function with one argument
+    fn evaluate(
+        &self,
+        arg: FhirPathValue,
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+    /// Check if function is pure (no side effects)
+    fn is_pure(&self) -> bool {
+        false
+    }
+}
+
+/// Binary function (two arguments)
+pub trait BinaryFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+    /// Get the human-readable function name
+    fn human_friendly_name(&self) -> &str;
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+    /// Evaluate the function with two arguments
+    fn evaluate(
+        &self,
+        arg1: FhirPathValue,
+        arg2: FhirPathValue,
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+    /// Check if function is pure (no side effects)
+    fn is_pure(&self) -> bool {
+        false
+    }
+}
+
+/// Ternary function (three arguments)
+pub trait TernaryFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+    /// Get the human-readable function name
+    fn human_friendly_name(&self) -> &str;
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+    /// Evaluate the function with three arguments
+    fn evaluate(
+        &self,
+        arg1: FhirPathValue,
+        arg2: FhirPathValue,
+        arg3: FhirPathValue,
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+    /// Check if function is pure (no side effects)
+    fn is_pure(&self) -> bool {
+        false
+    }
+}
+
+// Implement AritySpecificFunction for the specialized traits
+impl<T: NullaryFunction> AritySpecificFunction<0> for T {
+    fn name(&self) -> &str {
+        self.name()
+    }
+    fn human_friendly_name(&self) -> &str {
+        self.human_friendly_name()
+    }
+    fn signature(&self) -> &FunctionSignature {
+        self.signature()
+    }
+    fn evaluate(
+        &self,
+        _args: [FhirPathValue; 0],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        self.evaluate(context)
+    }
+    fn documentation(&self) -> &str {
+        self.documentation()
+    }
+    fn is_pure(&self) -> bool {
+        self.is_pure()
+    }
+}
+
+impl<T: UnaryFunction> AritySpecificFunction<1> for T {
+    fn name(&self) -> &str {
+        self.name()
+    }
+    fn human_friendly_name(&self) -> &str {
+        self.human_friendly_name()
+    }
+    fn signature(&self) -> &FunctionSignature {
+        self.signature()
+    }
+    fn evaluate(
+        &self,
+        args: [FhirPathValue; 1],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        let [arg] = args;
+        self.evaluate(arg, context)
+    }
+    fn documentation(&self) -> &str {
+        self.documentation()
+    }
+    fn is_pure(&self) -> bool {
+        self.is_pure()
+    }
+}
+
+impl<T: BinaryFunction> AritySpecificFunction<2> for T {
+    fn name(&self) -> &str {
+        self.name()
+    }
+    fn human_friendly_name(&self) -> &str {
+        self.human_friendly_name()
+    }
+    fn signature(&self) -> &FunctionSignature {
+        self.signature()
+    }
+    fn evaluate(
+        &self,
+        args: [FhirPathValue; 2],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        let [arg1, arg2] = args;
+        self.evaluate(arg1, arg2, context)
+    }
+    fn documentation(&self) -> &str {
+        self.documentation()
+    }
+    fn is_pure(&self) -> bool {
+        self.is_pure()
+    }
+}
+
+impl<T: TernaryFunction> AritySpecificFunction<3> for T {
+    fn name(&self) -> &str {
+        self.name()
+    }
+    fn human_friendly_name(&self) -> &str {
+        self.human_friendly_name()
+    }
+    fn signature(&self) -> &FunctionSignature {
+        self.signature()
+    }
+    fn evaluate(
+        &self,
+        args: [FhirPathValue; 3],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        let [arg1, arg2, arg3] = args;
+        self.evaluate(arg1, arg2, arg3, context)
+    }
+    fn documentation(&self) -> &str {
+        self.documentation()
+    }
+    fn is_pure(&self) -> bool {
+        self.is_pure()
     }
 }
 
@@ -340,16 +634,31 @@ pub struct FunctionRegistry {
     result_cache: Arc<FunctionResultCache>,
     /// Cache configuration
     cache_config: Arc<CacheConfig>,
+    /// Pre-compiled signatures for ultra-fast dispatch
+    compiled_signatures: Arc<std::sync::Mutex<CompiledSignatureRegistry>>,
 }
 
 impl std::fmt::Debug for FunctionRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let compilation_stats = if let Ok(compiled) = self.compiled_signatures.lock() {
+            compiled.compilation_stats()
+        } else {
+            CompilationStats {
+                total_functions: 0,
+                total_signatures: 0,
+                specialized_count: 0,
+                dispatch_entries: 0,
+                avg_signatures_per_function: 0.0,
+            }
+        };
+
         f.debug_struct("FunctionRegistry")
             .field("function_count", &self.functions.len())
             .field("signature_count", &self.signatures.len())
             .field("resolution_cache", &self.resolution_cache)
             .field("result_cache", &self.result_cache)
             .field("cache_config", &self.cache_config)
+            .field("compiled_signatures_stats", &compilation_stats.to_string())
             .finish()
     }
 }
@@ -371,6 +680,7 @@ impl FunctionRegistry {
             resolution_cache,
             result_cache,
             cache_config: Arc::new(config),
+            compiled_signatures: Arc::new(std::sync::Mutex::new(CompiledSignatureRegistry::new())),
         }
     }
 
@@ -381,7 +691,15 @@ impl FunctionRegistry {
         let func_impl = FunctionImpl::Trait(Arc::new(function));
 
         self.functions.insert(name.clone(), func_impl);
-        self.signatures.entry(name).or_default().push(signature);
+        self.signatures
+            .entry(name.clone())
+            .or_default()
+            .push(signature.clone());
+
+        // Compile the signature for fast dispatch
+        if let Ok(mut compiled) = self.compiled_signatures.lock() {
+            compiled.register_signature(name, signature);
+        }
     }
 
     /// Register a closure-based function (new hybrid approach)
@@ -408,7 +726,15 @@ impl FunctionRegistry {
         };
 
         self.functions.insert(name.clone(), func_impl);
-        self.signatures.entry(name).or_default().push(signature);
+        self.signatures
+            .entry(name.clone())
+            .or_default()
+            .push(signature.clone());
+
+        // Compile the signature for fast dispatch
+        if let Ok(mut compiled) = self.compiled_signatures.lock() {
+            compiled.register_signature(name, signature);
+        }
     }
 
     /// Register a simple closure-based function with minimal boilerplate
@@ -461,6 +787,35 @@ impl FunctionRegistry {
             format!("Auto-generated function: {name_str}"),
             func,
         );
+    }
+
+    /// Register an arity-specific function using const generics
+    pub fn register_arity<F: AritySpecificFunction<ARITY> + 'static, const ARITY: usize>(
+        &mut self,
+        function: F,
+    ) {
+        let wrapper = ArityWrapper::new(function);
+        self.register(wrapper);
+    }
+
+    /// Register a nullary function (0 arguments)
+    pub fn register_nullary<F: NullaryFunction + 'static>(&mut self, function: F) {
+        self.register_arity::<_, 0>(function);
+    }
+
+    /// Register a unary function (1 argument)
+    pub fn register_unary<F: UnaryFunction + 'static>(&mut self, function: F) {
+        self.register_arity::<_, 1>(function);
+    }
+
+    /// Register a binary function (2 arguments)
+    pub fn register_binary<F: BinaryFunction + 'static>(&mut self, function: F) {
+        self.register_arity::<_, 2>(function);
+    }
+
+    /// Register a ternary function (3 arguments)
+    pub fn register_ternary<F: TernaryFunction + 'static>(&mut self, function: F) {
+        self.register_arity::<_, 3>(function);
     }
 
     /// Get a function by name
@@ -528,6 +883,16 @@ impl FunctionRegistry {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> FunctionResult<FhirPathValue> {
+        // Try fast validation first using compiled signatures
+        if let Ok(compiled) = self.compiled_signatures.lock() {
+            if !compiled.validates_fast(name, args) {
+                // Use compiled signatures for detailed error reporting
+                return compiled
+                    .validate_with_errors(name, args)
+                    .map(|_| unreachable!());
+            }
+        }
+
         // Get argument types for cache lookup
         let arg_types: Vec<TypeInfo> = args.iter().map(|v| v.to_type_info()).collect();
 
@@ -538,9 +903,6 @@ impl FunctionRegistry {
                 name: name.to_string(),
                 message: "Function not found or type mismatch".to_string(),
             })?;
-
-        // Validate arguments
-        function.validate_args(args)?;
 
         // For pure functions, check result cache
         if self.is_pure_function(name) && self.cache_config.enable_result_caching {
@@ -588,6 +950,29 @@ impl FunctionRegistry {
             self.resolution_cache.stats().summary(),
             self.result_cache.stats().summary(),
         )
+    }
+
+    /// Get compiled signature statistics
+    pub fn compiled_signature_stats(&self) -> Option<CompilationStats> {
+        self.compiled_signatures
+            .lock()
+            .ok()
+            .map(|registry| registry.compilation_stats())
+    }
+
+    /// Warm compiled signature dispatch table with common type combinations
+    pub fn warm_compiled_signatures(&self, common_combinations: Vec<(String, Vec<TypeInfo>)>) {
+        if let Ok(mut compiled) = self.compiled_signatures.lock() {
+            compiled.warm_dispatch_table(common_combinations);
+        }
+    }
+
+    /// Fast validation using compiled signatures (useful for pre-validation)
+    pub fn validates_fast(&self, name: &str, args: &[FhirPathValue]) -> bool {
+        self.compiled_signatures
+            .lock()
+            .map(|registry| registry.validates_fast(name, args))
+            .unwrap_or(false)
     }
 
     /// Generate documentation from function traits
@@ -883,6 +1268,7 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     // Warm cache with common function lookups if enabled
     if registry.cache_config.warm_cache_on_init {
         warm_function_cache(registry);
+        warm_compiled_signatures(registry);
     }
 }
 
@@ -930,6 +1316,82 @@ fn warm_function_cache(registry: &FunctionRegistry) {
             let _ = registry.get_function_for_types(function_name, arg_types);
         }
     }
+}
+
+/// Warm the compiled signature dispatch table with common type combinations
+fn warm_compiled_signatures(registry: &FunctionRegistry) {
+    // Common type combinations for frequently used functions
+    let common_combinations = vec![
+        // Collection functions (nullary)
+        ("count".to_string(), vec![]),
+        ("empty".to_string(), vec![]),
+        ("exists".to_string(), vec![]),
+        ("first".to_string(), vec![]),
+        ("last".to_string(), vec![]),
+        ("length".to_string(), vec![]),
+        // Unary functions with various types
+        ("toString".to_string(), vec![TypeInfo::Integer]),
+        ("toString".to_string(), vec![TypeInfo::Decimal]),
+        ("toString".to_string(), vec![TypeInfo::Boolean]),
+        ("toInteger".to_string(), vec![TypeInfo::String]),
+        ("toInteger".to_string(), vec![TypeInfo::Decimal]),
+        ("abs".to_string(), vec![TypeInfo::Integer]),
+        ("abs".to_string(), vec![TypeInfo::Decimal]),
+        ("floor".to_string(), vec![TypeInfo::Decimal]),
+        ("ceiling".to_string(), vec![TypeInfo::Decimal]),
+        // Binary string functions
+        (
+            "substring".to_string(),
+            vec![TypeInfo::String, TypeInfo::Integer],
+        ),
+        (
+            "substring".to_string(),
+            vec![TypeInfo::String, TypeInfo::Integer, TypeInfo::Integer],
+        ),
+        (
+            "startsWith".to_string(),
+            vec![TypeInfo::String, TypeInfo::String],
+        ),
+        (
+            "endsWith".to_string(),
+            vec![TypeInfo::String, TypeInfo::String],
+        ),
+        (
+            "contains".to_string(),
+            vec![TypeInfo::String, TypeInfo::String],
+        ),
+        // Collection with various element types
+        (
+            "count".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::String))],
+        ),
+        (
+            "count".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::Integer))],
+        ),
+        (
+            "first".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::Any))],
+        ),
+        (
+            "last".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::Any))],
+        ),
+        // Math operations
+        ("abs".to_string(), vec![TypeInfo::Integer]),
+        ("abs".to_string(), vec![TypeInfo::Decimal]),
+        // Boolean operations
+        (
+            "all".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::Boolean))],
+        ),
+        (
+            "any".to_string(),
+            vec![TypeInfo::Collection(Box::new(TypeInfo::Boolean))],
+        ),
+    ];
+
+    registry.warm_compiled_signatures(common_combinations);
 }
 
 #[cfg(test)]
@@ -1171,5 +1633,284 @@ mod tests {
         // Test non-existent function
         let single_doc = registry.generate_function_doc("nonexistent");
         assert!(single_doc.is_none());
+    }
+
+    // Test const generic arity-specific functions
+    #[derive(Debug)]
+    struct TestNullaryFunction;
+
+    impl NullaryFunction for TestNullaryFunction {
+        fn name(&self) -> &str {
+            "testNullary"
+        }
+        fn human_friendly_name(&self) -> &str {
+            "Test Nullary Function"
+        }
+        fn signature(&self) -> &FunctionSignature {
+            static SIGNATURE: std::sync::OnceLock<FunctionSignature> = std::sync::OnceLock::new();
+            SIGNATURE.get_or_init(|| FunctionSignature {
+                name: "testNullary".to_string(),
+                min_arity: 0,
+                max_arity: Some(0),
+                parameters: vec![],
+                return_type: TypeInfo::Integer,
+            })
+        }
+        fn evaluate(&self, _context: &EvaluationContext) -> FunctionResult<FhirPathValue> {
+            Ok(FhirPathValue::Integer(42))
+        }
+        fn documentation(&self) -> &str {
+            "Returns 42"
+        }
+        fn is_pure(&self) -> bool {
+            true
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestUnaryFunction;
+
+    impl UnaryFunction for TestUnaryFunction {
+        fn name(&self) -> &str {
+            "testUnary"
+        }
+        fn human_friendly_name(&self) -> &str {
+            "Test Unary Function"
+        }
+        fn signature(&self) -> &FunctionSignature {
+            static SIGNATURE: std::sync::OnceLock<FunctionSignature> = std::sync::OnceLock::new();
+            SIGNATURE.get_or_init(|| FunctionSignature {
+                name: "testUnary".to_string(),
+                min_arity: 1,
+                max_arity: Some(1),
+                parameters: vec![ParameterInfo::required("x", TypeInfo::Integer)],
+                return_type: TypeInfo::Integer,
+            })
+        }
+        fn evaluate(
+            &self,
+            arg: FhirPathValue,
+            _context: &EvaluationContext,
+        ) -> FunctionResult<FhirPathValue> {
+            if let FhirPathValue::Integer(n) = arg {
+                Ok(FhirPathValue::Integer(n + 1))
+            } else {
+                Err(FunctionError::EvaluationError {
+                    name: UnaryFunction::name(self).to_string(),
+                    message: "Expected integer".to_string(),
+                })
+            }
+        }
+        fn documentation(&self) -> &str {
+            "Adds 1 to the input"
+        }
+        fn is_pure(&self) -> bool {
+            true
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestBinaryFunction;
+
+    impl BinaryFunction for TestBinaryFunction {
+        fn name(&self) -> &str {
+            "testBinary"
+        }
+        fn human_friendly_name(&self) -> &str {
+            "Test Binary Function"
+        }
+        fn signature(&self) -> &FunctionSignature {
+            static SIGNATURE: std::sync::OnceLock<FunctionSignature> = std::sync::OnceLock::new();
+            SIGNATURE.get_or_init(|| FunctionSignature {
+                name: "testBinary".to_string(),
+                min_arity: 2,
+                max_arity: Some(2),
+                parameters: vec![
+                    ParameterInfo::required("x", TypeInfo::Integer),
+                    ParameterInfo::required("y", TypeInfo::Integer),
+                ],
+                return_type: TypeInfo::Integer,
+            })
+        }
+        fn evaluate(
+            &self,
+            arg1: FhirPathValue,
+            arg2: FhirPathValue,
+            _context: &EvaluationContext,
+        ) -> FunctionResult<FhirPathValue> {
+            if let (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) = (arg1, arg2) {
+                Ok(FhirPathValue::Integer(a + b))
+            } else {
+                Err(FunctionError::EvaluationError {
+                    name: BinaryFunction::name(self).to_string(),
+                    message: "Expected integers".to_string(),
+                })
+            }
+        }
+        fn documentation(&self) -> &str {
+            "Adds two integers"
+        }
+        fn is_pure(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn test_const_generic_nullary_function() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_nullary(TestNullaryFunction);
+
+        assert!(registry.contains("testNullary"));
+
+        let context = EvaluationContext::new(FhirPathValue::Empty);
+
+        // Test valid call (no arguments)
+        let result = registry
+            .evaluate_function("testNullary", &[], &context)
+            .unwrap();
+        assert_eq!(result, FhirPathValue::Integer(42));
+
+        // Test invalid call (with arguments)
+        let invalid_result =
+            registry.evaluate_function("testNullary", &[FhirPathValue::Integer(1)], &context);
+        assert!(invalid_result.is_err());
+        if let Err(FunctionError::InvalidArity {
+            min, max, actual, ..
+        }) = invalid_result
+        {
+            assert_eq!(min, 0);
+            assert_eq!(max, Some(0));
+            assert_eq!(actual, 1);
+        }
+    }
+
+    #[test]
+    fn test_const_generic_unary_function() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_unary(TestUnaryFunction);
+
+        assert!(registry.contains("testUnary"));
+
+        let context = EvaluationContext::new(FhirPathValue::Empty);
+
+        // Test valid call
+        let result = registry
+            .evaluate_function("testUnary", &[FhirPathValue::Integer(41)], &context)
+            .unwrap();
+        assert_eq!(result, FhirPathValue::Integer(42));
+
+        // Test invalid arity (no arguments)
+        let invalid_result = registry.evaluate_function("testUnary", &[], &context);
+        assert!(invalid_result.is_err());
+
+        // Test invalid arity (too many arguments)
+        let invalid_result2 = registry.evaluate_function(
+            "testUnary",
+            &[FhirPathValue::Integer(1), FhirPathValue::Integer(2)],
+            &context,
+        );
+        assert!(invalid_result2.is_err());
+    }
+
+    #[test]
+    fn test_const_generic_binary_function() {
+        let mut registry = FunctionRegistry::new();
+        registry.register_binary(TestBinaryFunction);
+
+        assert!(registry.contains("testBinary"));
+
+        let context = EvaluationContext::new(FhirPathValue::Empty);
+
+        // Test valid call
+        let result = registry
+            .evaluate_function(
+                "testBinary",
+                &[FhirPathValue::Integer(20), FhirPathValue::Integer(22)],
+                &context,
+            )
+            .unwrap();
+        assert_eq!(result, FhirPathValue::Integer(42));
+
+        // Test invalid arity (one argument)
+        let invalid_result =
+            registry.evaluate_function("testBinary", &[FhirPathValue::Integer(1)], &context);
+        assert!(invalid_result.is_err());
+
+        // Test invalid arity (three arguments)
+        let invalid_result2 = registry.evaluate_function(
+            "testBinary",
+            &[
+                FhirPathValue::Integer(1),
+                FhirPathValue::Integer(2),
+                FhirPathValue::Integer(3),
+            ],
+            &context,
+        );
+        assert!(invalid_result2.is_err());
+    }
+
+    #[test]
+    fn test_arity_wrapper_functionality() {
+        let nullary_func = TestNullaryFunction;
+        let wrapper = ArityWrapper::<_, 0>::new(nullary_func);
+
+        // Test that wrapper implements FhirPathFunction correctly
+        assert_eq!(wrapper.name(), "testNullary");
+        assert_eq!(wrapper.human_friendly_name(), "Test Nullary Function");
+        assert_eq!(wrapper.documentation(), "Returns 42");
+        assert!(wrapper.is_pure());
+
+        let context = EvaluationContext::new(FhirPathValue::Empty);
+        let result = wrapper.evaluate(&[], &context).unwrap();
+        assert_eq!(result, FhirPathValue::Integer(42));
+    }
+
+    #[test]
+    fn test_mixed_arity_functions() {
+        let mut registry = FunctionRegistry::new();
+
+        // Register functions with different arities
+        registry.register_nullary(TestNullaryFunction);
+        registry.register_unary(TestUnaryFunction);
+        registry.register_binary(TestBinaryFunction);
+
+        let context = EvaluationContext::new(FhirPathValue::Empty);
+
+        // Test that all functions work correctly
+        let result0 = registry
+            .evaluate_function("testNullary", &[], &context)
+            .unwrap();
+        assert_eq!(result0, FhirPathValue::Integer(42));
+
+        let result1 = registry
+            .evaluate_function("testUnary", &[FhirPathValue::Integer(10)], &context)
+            .unwrap();
+        assert_eq!(result1, FhirPathValue::Integer(11));
+
+        let result2 = registry
+            .evaluate_function(
+                "testBinary",
+                &[FhirPathValue::Integer(5), FhirPathValue::Integer(7)],
+                &context,
+            )
+            .unwrap();
+        assert_eq!(result2, FhirPathValue::Integer(12));
+
+        // Test that arity checking still works correctly
+        assert!(
+            registry
+                .evaluate_function("testNullary", &[FhirPathValue::Integer(1)], &context)
+                .is_err()
+        );
+        assert!(
+            registry
+                .evaluate_function("testUnary", &[], &context)
+                .is_err()
+        );
+        assert!(
+            registry
+                .evaluate_function("testBinary", &[FhirPathValue::Integer(1)], &context)
+                .is_err()
+        );
     }
 }

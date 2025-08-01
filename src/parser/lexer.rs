@@ -104,10 +104,10 @@ impl<'input> TokenStream<'input> {
             (Token::DateTime(_), Token::DateTime(_)) => true,
             (Token::Time(_), Token::Time(_)) => true,
             (Token::Quantity { .. }, Token::Quantity { .. }) => true,
-            
+
             // Identifiers
             (Token::Identifier(_), Token::Identifier(_)) => true,
-            
+
             // Unit tokens (exact matches)
             (Token::Plus, Token::Plus) => true,
             (Token::Minus, Token::Minus) => true,
@@ -167,7 +167,7 @@ impl<'input> TokenStream<'input> {
             (Token::Distinct, Token::Distinct) => true,
             (Token::Count, Token::Count) => true,
             (Token::OfType, Token::OfType) => true,
-            
+
             // No match
             _ => false,
         }

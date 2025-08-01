@@ -224,7 +224,10 @@ impl ExpressionNode {
     }
 
     /// Create a function call expression
-    pub fn function_call(name: impl Into<String>, args: impl Into<SmallVec<[ExpressionNode; 4]>>) -> Self {
+    pub fn function_call(
+        name: impl Into<String>,
+        args: impl Into<SmallVec<[ExpressionNode; 4]>>,
+    ) -> Self {
         Self::FunctionCall(Box::new(FunctionCallData {
             name: name.into(),
             args: args.into(),
@@ -246,11 +249,7 @@ impl ExpressionNode {
 
     /// Create a binary operation expression
     pub fn binary_op(op: BinaryOperator, left: ExpressionNode, right: ExpressionNode) -> Self {
-        Self::BinaryOp(Box::new(BinaryOpData {
-            op,
-            left,
-            right,
-        }))
+        Self::BinaryOp(Box::new(BinaryOpData { op, left, right }))
     }
 
     /// Create a unary operation expression
@@ -311,7 +310,10 @@ impl ExpressionNode {
 
     /// Create a lambda expression with multiple parameters
     pub fn lambda(params: impl Into<SmallVec<[String; 2]>>, body: ExpressionNode) -> Self {
-        Self::Lambda(Box::new(LambdaData { params: params.into(), body }))
+        Self::Lambda(Box::new(LambdaData {
+            params: params.into(),
+            body,
+        }))
     }
 
     /// Create a lambda expression with a single parameter

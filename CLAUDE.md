@@ -4,17 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust as a single consolidated crate with modular structure:
+This is a FHIRPath implementation in Rust as a single consolidated crate (`octofhir-fhirpath`) with modular structure:
 
 - **src/ast/**: Abstract syntax tree definitions and visitor pattern
 - **src/parser/**: Tokenizer and parser using nom library (version 8)
-- **src/evaluator/**: Expression evaluation engine with context management
-- **src/registry/**: Function registry and built-in function implementations
-- **src/model/**: Value types, resources, and FHIR data model
-- **src/diagnostics/**: Error handling and diagnostic reporting
+- **src/evaluator/**: Expression evaluation engine with context management and performance optimizations
+- **src/compiler/**: Bytecode compilation and VM for performance optimization (includes optimizer)
+- **src/registry/**: Function registry with built-in functions, operators, and extension system
+- **src/model/**: Value types, resources, FHIR data model, and lazy evaluation
+- **src/diagnostics/**: Error handling, diagnostic reporting, and LSP support
 - **src/engine.rs**: Main evaluation engine
 - **src/error.rs**: Core error types
 - **src/types.rs**: Core type definitions
+
+### Key Architecture Components
+
+- **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
+- **Bytecode compilation**: AST compilation to bytecode with VM execution and optimization passes
+- **Registry system**: Modular function and operator registration with caching and fast-path optimizations
+- **Performance optimization**: Specialized evaluators, memory pools, and streaming evaluation
+- **Extension framework**: Support for custom functions and CDA/FHIR-specific extensions
+- **Zero warnings**: Clean codebase with all compiler warnings resolved
 
 ## Development Commands
 
@@ -35,10 +45,10 @@ just test-official
 # Update test coverage report
 just test-coverage
 
-# Run benchmarks
+# Run simplified unified benchmark suite
 just bench
 
-# Run full benchmark suite
+# Run full benchmark suite (same as bench - simplified)
 just bench-full
 
 # Update benchmark documentation
@@ -59,9 +69,8 @@ just check
 # Quality assurance (format + lint + test)
 just qa
 
-# Run specific benchmarks
-just bench-tokenizer
-just bench-parser
+# All benchmarks now unified in single suite
+# (legacy commands removed - use 'just bench')
 
 # Clean build artifacts
 just clean
@@ -149,14 +158,13 @@ Before implementing major features:
 2. Split implementation into phases/tasks stored in `tasks/` directory  
 3. Update task files with implementation status
 
-## Planing Phase
+## Planning Phase
 
-For every ADR implementation split record into phases/tasks and store in `tasks` directory. Maintain a specific task file when working on it. Before starting on the first task, create all tasks for future use. After implementing features from a task file update it status
-For debugging cases create a simple test inside the test directory and delete it after resolving the issue
+For every ADR implementation split record into phases/tasks and store in `tasks/` directory. Maintain a specific task file when working on it. Before starting on the first task, create all tasks for future use. After implementing features from a task file update its status.
+For debugging cases create a simple test inside the test directory and delete it after resolving the issue.
 
-
-## Task executing phase
-Update task file for aligh with implemented features
+## Task Execution Phase
+Update task file to align with implemented features.
 
 
 ## Test Coverage
@@ -191,5 +199,17 @@ let result = engine.evaluate("Patient.name.given", &patient_resource)?;
 Main exports:
 - `FhirPathEngine`: Main evaluation engine
 - `FhirPathValue`: Value types
-- `parse()`: Parse FHIRPath expressions
+- `parse()`: Parse FHIRPath expressions  
 - `FunctionRegistry`: Function registry for extensions
+- `EvaluationContext`: Context for expression evaluation
+
+## Performance Characteristics
+
+This implementation is optimized for high-performance with:
+- **Tokenizer**: 10M+ operations/second
+- **Parser**: 1M+ operations/second  
+- **Evaluator**: Arena-based memory management with specialized evaluation paths
+- **Bytecode VM**: High-performance virtual machine with optimization passes
+- **Benchmarks**: Simplified unified suite testing all components efficiently
+- **Test Coverage**: 82.7% specification compliance (831/1005 official tests pass)
+- **Code Quality**: Zero compiler warnings with clean, maintainable codebase

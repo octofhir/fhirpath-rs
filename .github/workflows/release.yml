@@ -94,7 +94,7 @@ jobs:
       - name: Run benchmarks (quick)
         run: |
           echo "🚀 Running quick benchmark for release validation..."
-          timeout 300 cargo bench --bench tokenizer_only_benchmark -- --quick || echo "⚠️ Benchmark timed out after 5 minutes"
+          timeout 300 cargo bench --bench fhirpath_benchmark -- --quick || echo "⚠️ Benchmark timed out after 5 minutes"
 
       - name: Run integration tests
         run: |

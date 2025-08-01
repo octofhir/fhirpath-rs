@@ -90,7 +90,9 @@ pub fn walk_expression<V: Visitor>(visitor: &mut V, expr: &ExpressionNode) -> V:
         ExpressionNode::MethodCall(method_data) => {
             visitor.visit_method_call(&method_data.base, &method_data.method, &method_data.args)
         }
-        ExpressionNode::BinaryOp(data) => visitor.visit_binary_op(&data.op, &data.left, &data.right),
+        ExpressionNode::BinaryOp(data) => {
+            visitor.visit_binary_op(&data.op, &data.left, &data.right)
+        }
         ExpressionNode::UnaryOp { op, operand } => visitor.visit_unary_op(op, operand),
         ExpressionNode::Path { base, path } => visitor.visit_path(base, path),
         ExpressionNode::Index { base, index } => visitor.visit_index(base, index),
@@ -130,7 +132,11 @@ pub trait MutVisitor: Sized {
     fn visit_identifier_mut(&mut self, _name: &mut String) {}
 
     /// Visit a function call
-    fn visit_function_call_mut(&mut self, _name: &mut String, args: &mut SmallVec<[ExpressionNode; 4]>) {
+    fn visit_function_call_mut(
+        &mut self,
+        _name: &mut String,
+        args: &mut SmallVec<[ExpressionNode; 4]>,
+    ) {
         for arg in args {
             self.visit_expression_mut(arg);
         }

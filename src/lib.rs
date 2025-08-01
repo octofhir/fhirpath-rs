@@ -3,6 +3,7 @@
 //! A complete implementation of FHIRPath expression language for FHIR resources.
 
 pub mod ast;
+pub mod compiler;
 pub mod diagnostics;
 pub mod evaluator;
 pub mod model;

@@ -65,7 +65,37 @@ impl FhirPathEngine {
     }
 
     /// Evaluate an FHIRPath expression against input data
+    ///
+    /// This method automatically selects the optimal evaluation strategy:
+    /// - Simple expressions: Fast AST interpretation
+    /// - Complex expressions: High-performance bytecode VM with fallback
+    ///
+    /// The selection is transparent and provides optimal performance without configuration.
     pub fn evaluate(
+        &self,
+        expression: &ExpressionNode,
+        input: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Analyze expression complexity for optimal strategy selection
+        let complexity = self.estimate_expression_complexity(expression);
+
+        // For complex expressions, try VM compilation first
+        if complexity >= 15 {
+            match self.try_vm_evaluation(expression, input.clone()) {
+                Ok(result) => return Ok(result),
+                Err(_) => {
+                    // VM failed, fall back to traditional interpretation
+                    // This ensures reliability - we never fail due to VM issues
+                }
+            }
+        }
+
+        // Use traditional AST interpretation (simple expressions or VM fallback)
+        self.evaluate_traditional(expression, input)
+    }
+
+    /// Traditional AST interpretation (internal method)
+    fn evaluate_traditional(
         &self,
         expression: &ExpressionNode,
         input: FhirPathValue,
@@ -79,6 +109,31 @@ impl FhirPathEngine {
         } else {
             self.evaluate_with_context(expression, &context)
         }
+    }
+
+    /// VM-based evaluation (internal method)
+    fn try_vm_evaluation(
+        &self,
+        expression: &ExpressionNode,
+        input: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        use crate::compiler::{ExpressionCompiler, VirtualMachine};
+
+        // Compile expression to bytecode
+        let mut compiler = ExpressionCompiler::new(self.functions.clone());
+        let bytecode =
+            compiler
+                .compile(expression)
+                .map_err(|e| EvaluationError::InvalidOperation {
+                    message: format!("Compilation failed: {}", e),
+                })?;
+
+        // Execute on VM
+        let vm = VirtualMachine::new(self.functions.clone(), self.operators.clone());
+        vm.execute(&bytecode, &input)
+            .map_err(|e| EvaluationError::InvalidOperation {
+                message: format!("VM execution failed: {}", e),
+            })
     }
 
     /// Evaluate with explicit context and return updated context for defineVariable chains
@@ -1537,5 +1592,92 @@ impl FhirPathEngine {
                 | "ucum"
                 | "$ucum"
         )
+    }
+
+    /// Estimate the computational complexity of an expression for optimization decisions
+    ///
+    /// Returns a complexity score that helps determine whether bytecode compilation
+    /// would be beneficial. Higher scores indicate more complex expressions.
+    pub fn estimate_expression_complexity(&self, expression: &ExpressionNode) -> usize {
+        match expression {
+            // Simple operations - low complexity
+            ExpressionNode::Literal(_) => 1,
+            ExpressionNode::Identifier(_) => 1,
+            ExpressionNode::Variable(_) => 1,
+
+            // Function and method calls - moderate complexity
+            ExpressionNode::FunctionCall(data) => {
+                let args_complexity: usize = data
+                    .args
+                    .iter()
+                    .map(|arg| self.estimate_expression_complexity(arg))
+                    .sum();
+                5 + args_complexity // Function calls have significant overhead
+            }
+            ExpressionNode::MethodCall(data) => {
+                let base_complexity = self.estimate_expression_complexity(&data.base);
+                let args_complexity: usize = data
+                    .args
+                    .iter()
+                    .map(|arg| self.estimate_expression_complexity(arg))
+                    .sum();
+                base_complexity + 5 + args_complexity
+            }
+
+            // Binary and unary operations - low to moderate complexity
+            ExpressionNode::BinaryOp(data) => {
+                let left_complexity = self.estimate_expression_complexity(&data.left);
+                let right_complexity = self.estimate_expression_complexity(&data.right);
+                3 + left_complexity + right_complexity
+            }
+            ExpressionNode::UnaryOp { operand, .. } => {
+                2 + self.estimate_expression_complexity(operand)
+            }
+
+            // Path operations - moderate complexity
+            ExpressionNode::Path { base, .. } => 3 + self.estimate_expression_complexity(base),
+            ExpressionNode::Index { base, index } => {
+                let base_complexity = self.estimate_expression_complexity(base);
+                let index_complexity = self.estimate_expression_complexity(index);
+                4 + base_complexity + index_complexity
+            }
+
+            // High-complexity operations that benefit most from compilation
+            ExpressionNode::Filter { base, condition } => {
+                let base_complexity = self.estimate_expression_complexity(base);
+                let condition_complexity = self.estimate_expression_complexity(condition);
+                // Filters are expensive - they potentially iterate over large collections
+                15 + base_complexity + condition_complexity
+            }
+            ExpressionNode::Union { left, right } => {
+                let left_complexity = self.estimate_expression_complexity(left);
+                let right_complexity = self.estimate_expression_complexity(right);
+                8 + left_complexity + right_complexity
+            }
+            ExpressionNode::Lambda(data) => {
+                // Lambda expressions are very expensive and benefit greatly from compilation
+                25 + self.estimate_expression_complexity(&data.body)
+            }
+
+            // Control flow - moderate complexity
+            ExpressionNode::Conditional(data) => {
+                let condition_complexity = self.estimate_expression_complexity(&data.condition);
+                let then_complexity = self.estimate_expression_complexity(&data.then_expr);
+                let else_complexity = data
+                    .else_expr
+                    .as_ref()
+                    .map(|e| self.estimate_expression_complexity(e))
+                    .unwrap_or(0);
+                5 + condition_complexity + then_complexity + else_complexity
+            }
+
+            // Type operations - low to moderate complexity
+            ExpressionNode::TypeCheck { expression, .. } => {
+                3 + self.estimate_expression_complexity(expression)
+            }
+            ExpressionNode::TypeCast { expression, .. } => {
+                4 + self.estimate_expression_complexity(expression)
+            }
+        }
     }
 }

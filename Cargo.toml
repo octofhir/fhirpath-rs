@@ -21,26 +21,18 @@ include = [
     "LICENSE",
     "CHANGELOG.md",
 ]
+exclude = [
+    "src/bin/extract_benchmark_metrics.rs",
+]
 
 [lib]
 name = "octofhir_fhirpath"
 path = "src/lib.rs"
 
 [[bench]]
-name = "tokenizer_only_benchmark"
+name = "fhirpath_benchmark"
 harness = false
 
-[[bench]]
-name = "parser_benchmark"
-harness = false
-
-[[bench]]
-name = "core_performance_benchmark"
-harness = false
-
-[[bench]]
-name = "phase1_optimizations_benchmark"
-harness = false
 
 
 [[bin]]
@@ -101,3 +93,4 @@ diagnostics = ["colored"]
 serde = []
 terminal = ["colored"]
 async-schema = ["tokio"]
+never-enabled = []

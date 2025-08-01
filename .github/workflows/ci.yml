@@ -90,7 +90,7 @@ jobs:
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
         run: |
           echo "🚀 Running quick benchmark check..."
-          timeout 300 cargo bench --bench tokenizer_only_benchmark -- --quick || echo "⚠️ Benchmark timed out after 5 minutes"
+          timeout 300 cargo bench --bench fhirpath_benchmark -- --quick || echo "⚠️ Benchmark timed out after 5 minutes"
 
   coverage:
     name: Code Coverage

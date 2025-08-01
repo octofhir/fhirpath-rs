@@ -31,39 +31,22 @@ test-official:
 test-failed:
     cargo test failed_expressions_tests -- --nocapture
 
-# Benchmark commands - Simplified 3-component focus
+# Benchmark commands - Simplified single benchmark
 bench:
-    @echo "🚀 FHIRPath Core Performance Benchmarks"
-    @echo "======================================="
-    @echo "📊 Running Core Performance Benchmark..."
-    @echo "This tests all 3 components: tokenizer, parser, and evaluator"
-    cargo bench --bench core_performance_benchmark
+    @echo "🚀 FHIRPath Performance Benchmarks"
+    @echo "=================================="
+    @echo "📊 Running unified benchmark suite..."
+    @echo "This tests all components: tokenizer, parser, evaluator, and throughput"
+    cargo bench --bench fhirpath_benchmark
     @echo "📈 Performance Summary:"
     @echo "✓ Tokenizer: Optimized for 10M+ operations/second"
     @echo "✓ Parser: Optimized for 1M+ operations/second"  
     @echo "✓ Evaluator: Context operations and evaluation"
-    @echo "✓ Full Pipeline: Complete tokenize → parse → evaluate workflow"
+    @echo "✓ Throughput: High-volume operation testing"
 
-bench-full:
-    @echo "🚀 FHIRPath Complete Performance Analysis"
-    @echo "========================================"
-    @echo "📊 Running Core Performance Benchmark..."
-    cargo bench --bench core_performance_benchmark
-    @echo "🔬 Running Individual Component Benchmarks..."
-    @echo "📝 Tokenizer Only Benchmark:"
-    cargo bench --bench tokenizer_only_benchmark
-    @echo "📝 Parser Benchmark:"
-    cargo bench --bench parser_benchmark
-    @echo "✅ Benchmarks Complete!"
+bench-full: bench
+    @echo "✅ Complete benchmark suite finished!"
     @echo "💡 Results stored in target/criterion/"
-
-bench-tokenizer:
-    @echo "📝 Running Tokenizer Benchmark"
-    cargo bench --bench tokenizer_only_benchmark
-
-bench-parser:
-    @echo "📝 Running Parser Benchmark" 
-    cargo bench --bench parser_benchmark
 
 # Documentation commands
 doc:
@@ -89,7 +72,7 @@ bench-update-docs:
     @echo "📊 Updating Benchmark Documentation"
     @echo "==================================="
     @echo "🚀 Running benchmarks..."
-    just bench-full
+    just bench
     @echo "📝 Extracting metrics and generating benchmark report..."
     cargo run --bin extract_benchmark_metrics
 
