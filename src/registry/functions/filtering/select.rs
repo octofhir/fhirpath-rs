@@ -67,7 +67,7 @@ impl LambdaFunction for SelectFunction {
         // Get the collection to iterate over
         let items = match &context.context.input {
             FhirPathValue::Collection(items) => items.iter().collect::<Vec<_>>(),
-            FhirPathValue::Empty => return Ok(FhirPathValue::collection(vec![])), // Empty collection returns empty
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty), // Empty returns empty
             single => vec![single], // Single item treated as collection
         };
 

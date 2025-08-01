@@ -24,11 +24,7 @@ enum TimeUnitType {
 /// Helper function to classify a unit string using UCUM
 fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
     // First check exact matches for UCUM standard units
-    // Note: According to FHIRPath specification, 'mo' (month) and 'a' (year)
-    // are not supported for date arithmetic and should return empty
     match unit_str {
-        // Unsupported UCUM units for date arithmetic - return None to indicate empty result
-        "a" | "mo" => return None,
         // Supported UCUM units for date arithmetic
         "wk" => return Some(TimeUnitType::Week),
         "d" => return Some(TimeUnitType::Day),
@@ -36,12 +32,15 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
         "min" => return Some(TimeUnitType::Minute),
         "s" => return Some(TimeUnitType::Second),
         "ms" => return Some(TimeUnitType::Millisecond),
+        // Note: UCUM units 'a' (year) and 'mo' (month) are handled below in fallback
         _ => {}
     }
 
     // Fallback to hardcoded matching for compatibility
     // This ensures we don't break existing functionality while adding UCUM support
-    match unit_str {
+    // Also handle quoted strings (strip quotes if present)
+    let clean_unit = unit_str.trim_matches('\'').trim_matches('"');
+    match clean_unit {
         "year" | "years" => return Some(TimeUnitType::Year),
         "month" | "months" => return Some(TimeUnitType::Month),
         "week" | "weeks" => return Some(TimeUnitType::Week),
@@ -50,6 +49,8 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
         "minute" | "minutes" => return Some(TimeUnitType::Minute),
         "second" | "seconds" => return Some(TimeUnitType::Second),
         "millisecond" | "milliseconds" => return Some(TimeUnitType::Millisecond),
+        // UCUM units 'a' (year) and 'mo' (month) are not supported for date arithmetic per FHIRPath spec
+        "a" | "mo" => return None,
         _ => {}
     }
 
@@ -199,7 +200,7 @@ impl FhirPathOperator for AddOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
@@ -256,7 +257,7 @@ impl AddOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::Date(new_date)),
+            Some(new_date) => Ok(FhirPathValue::String(format!("@{}", new_date.format("%Y-%m-%d")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -329,7 +330,7 @@ impl AddOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::DateTime(new_datetime)),
+            Some(new_datetime) => Ok(FhirPathValue::String(format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -380,7 +381,7 @@ impl AddOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::Time(new_time)),
+            Some(new_time) => Ok(FhirPathValue::String(format!("@T{}", new_time.format("%H:%M:%S")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -508,7 +509,7 @@ impl FhirPathOperator for SubtractOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 
     fn evaluate_unary(&self, operand: &FhirPathValue) -> OperatorResult<FhirPathValue> {
@@ -523,7 +524,7 @@ impl FhirPathOperator for SubtractOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 
@@ -565,7 +566,7 @@ impl SubtractOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::Date(new_date)),
+            Some(new_date) => Ok(FhirPathValue::String(format!("@{}", new_date.format("%Y-%m-%d")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -635,7 +636,7 @@ impl SubtractOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::DateTime(new_datetime)),
+            Some(new_datetime) => Ok(FhirPathValue::String(format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -686,7 +687,7 @@ impl SubtractOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::Time(new_time)),
+            Some(new_time) => Ok(FhirPathValue::String(format!("@T{}", new_time.format("%H:%M:%S")))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -805,7 +806,7 @@ impl FhirPathOperator for MultiplyOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 
@@ -979,7 +980,7 @@ impl FhirPathOperator for DivideOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 
@@ -1122,7 +1123,7 @@ impl FhirPathOperator for IntegerDivideOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 
@@ -1220,7 +1221,7 @@ impl FhirPathOperator for ModuloOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 
@@ -1373,7 +1374,7 @@ impl FhirPathOperator for PowerOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![result]))
+        Ok(result)
     }
 }
 

@@ -7,6 +7,7 @@ use crate::registry::function::{
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
 use chrono::{DateTime, FixedOffset, NaiveDate, TimeZone, Timelike};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 
 /// lowBoundary() function - returns the lower bound of a value based on precision
 pub struct LowBoundaryFunction;
@@ -61,7 +62,14 @@ impl FhirPathFunction for LowBoundaryFunction {
 
         match &context.input {
             FhirPathValue::Decimal(d) => match calculate_low_boundary(d, precision) {
-                Ok(low_bound) => Ok(FhirPathValue::Decimal(low_bound)),
+                Ok(low_bound) => {
+                    // If precision is 0, return Integer; otherwise return Decimal
+                    if precision == Some(0) {
+                        Ok(FhirPathValue::Integer(low_bound.to_i64().unwrap_or(0)))
+                    } else {
+                        Ok(FhirPathValue::Decimal(low_bound))
+                    }
+                }
                 Err(FunctionError::EvaluationError { message, .. })
                     if message.contains("Precision exceeds maximum") =>
                 {
@@ -72,7 +80,14 @@ impl FhirPathFunction for LowBoundaryFunction {
             FhirPathValue::Integer(i) => {
                 let decimal = Decimal::from(*i);
                 match calculate_low_boundary(&decimal, precision) {
-                    Ok(low_bound) => Ok(FhirPathValue::Decimal(low_bound)),
+                    Ok(low_bound) => {
+                        // If precision is 0, return Integer; otherwise return Decimal
+                        if precision == Some(0) {
+                            Ok(FhirPathValue::Integer(low_bound.to_i64().unwrap_or(*i)))
+                        } else {
+                            Ok(FhirPathValue::Decimal(low_bound))
+                        }
+                    }
                     Err(FunctionError::EvaluationError { message, .. })
                         if message.contains("Precision exceeds maximum") =>
                     {
@@ -84,6 +99,28 @@ impl FhirPathFunction for LowBoundaryFunction {
             FhirPathValue::Date(d) => {
                 let low_bound = calculate_date_low_boundary(d)?;
                 Ok(FhirPathValue::DateTime(low_bound))
+            }
+            FhirPathValue::Quantity(q) => {
+                match calculate_low_boundary(&q.value, precision) {
+                    Ok(low_bound) => {
+                        // If precision is 0, return Integer Quantity; otherwise return Decimal Quantity
+                        let new_value = if precision == Some(0) {
+                            rust_decimal::Decimal::from(low_bound.to_i64().unwrap_or(0))
+                        } else {
+                            low_bound
+                        };
+                        Ok(FhirPathValue::Quantity(crate::model::quantity::Quantity::new(
+                            new_value,
+                            q.unit.clone(),
+                        )))
+                    }
+                    Err(FunctionError::EvaluationError { message, .. })
+                        if message.contains("Precision exceeds maximum") =>
+                    {
+                        Ok(FhirPathValue::Empty)
+                    }
+                    Err(e) => Err(e),
+                }
             }
             FhirPathValue::DateTime(dt) => {
                 let low_bound = calculate_datetime_low_boundary(dt)?;
@@ -148,7 +185,14 @@ impl FhirPathFunction for HighBoundaryFunction {
 
         match &context.input {
             FhirPathValue::Decimal(d) => match calculate_high_boundary(d, precision) {
-                Ok(high_bound) => Ok(FhirPathValue::Decimal(high_bound)),
+                Ok(high_bound) => {
+                    // If precision is 0, return Integer; otherwise return Decimal
+                    if precision == Some(0) {
+                        Ok(FhirPathValue::Integer(high_bound.to_i64().unwrap_or(0)))
+                    } else {
+                        Ok(FhirPathValue::Decimal(high_bound))
+                    }
+                }
                 Err(FunctionError::EvaluationError { message, .. })
                     if message.contains("Precision exceeds maximum") =>
                 {
@@ -159,7 +203,14 @@ impl FhirPathFunction for HighBoundaryFunction {
             FhirPathValue::Integer(i) => {
                 let decimal = Decimal::from(*i);
                 match calculate_high_boundary(&decimal, precision) {
-                    Ok(high_bound) => Ok(FhirPathValue::Decimal(high_bound)),
+                    Ok(high_bound) => {
+                        // If precision is 0, return Integer; otherwise return Decimal
+                        if precision == Some(0) {
+                            Ok(FhirPathValue::Integer(high_bound.to_i64().unwrap_or(*i)))
+                        } else {
+                            Ok(FhirPathValue::Decimal(high_bound))
+                        }
+                    }
                     Err(FunctionError::EvaluationError { message, .. })
                         if message.contains("Precision exceeds maximum") =>
                     {
@@ -171,6 +222,28 @@ impl FhirPathFunction for HighBoundaryFunction {
             FhirPathValue::Date(d) => {
                 let high_bound = calculate_date_high_boundary(d)?;
                 Ok(FhirPathValue::DateTime(high_bound))
+            }
+            FhirPathValue::Quantity(q) => {
+                match calculate_high_boundary(&q.value, precision) {
+                    Ok(high_bound) => {
+                        // If precision is 0, return Integer Quantity; otherwise return Decimal Quantity
+                        let new_value = if precision == Some(0) {
+                            rust_decimal::Decimal::from(high_bound.to_i64().unwrap_or(0))
+                        } else {
+                            high_bound
+                        };
+                        Ok(FhirPathValue::Quantity(crate::model::quantity::Quantity::new(
+                            new_value,
+                            q.unit.clone(),
+                        )))
+                    }
+                    Err(FunctionError::EvaluationError { message, .. })
+                        if message.contains("Precision exceeds maximum") =>
+                    {
+                        Ok(FhirPathValue::Empty)
+                    }
+                    Err(e) => Err(e),
+                }
             }
             FhirPathValue::DateTime(dt) => {
                 let high_bound = calculate_datetime_high_boundary(dt)?;
@@ -184,8 +257,8 @@ impl FhirPathFunction for HighBoundaryFunction {
 
 fn calculate_low_boundary(value: &Decimal, precision: Option<u32>) -> FunctionResult<Decimal> {
     let scale = precision.unwrap_or_else(|| {
-        // Default precision: use the scale of the input value + 1
-        value.scale() + 1
+        // Default precision: use at least 8 for Decimal as per FHIRPath spec
+        std::cmp::max(8, value.scale())
     });
 
     // Check for maximum precision limit (28 is Decimal's limit)
@@ -197,24 +270,45 @@ fn calculate_low_boundary(value: &Decimal, precision: Option<u32>) -> FunctionRe
     }
 
     if scale == 0 {
-        // For integer precision, subtract 1 from the integer part
+        // For integer precision, the low boundary represents the range that could truncate to this integer
+        // For positive numbers: truncate towards zero, so 1 comes from [1, 2), low boundary is 1
+        // For negative numbers: truncate towards zero, so -1 comes from [-2, -1), low boundary is -2
         let truncated = value.trunc();
-        Ok(truncated - Decimal::ONE)
-    } else if scale >= value.scale() {
-        // We're adding precision or keeping same, subtract half ULP at the new scale
-        let truncated = value.trunc_with_scale(scale);
-        let half_ulp = Decimal::new(5, scale + 1); // 0.5 at the given scale
-        Ok(truncated - half_ulp)
+        if value.is_sign_negative() && *value != truncated {
+            // For negative non-integers, the range is [trunc-1, trunc), so low boundary is trunc-1
+            Ok(truncated - Decimal::ONE)
+        } else {
+            // For integers or positive numbers, low boundary is the truncated value
+            Ok(truncated)
+        }
     } else {
-        // We're reducing precision - truncate to the given scale
-        Ok(value.trunc_with_scale(scale))
+        // Calculate the low boundary
+        let input_scale = value.scale();
+        if scale <= input_scale {
+            // Reducing precision
+            let truncated = value.trunc_with_scale(scale);
+            if value.is_sign_negative() {
+                // For negative numbers, low boundary is truncated minus one ULP (further from zero)
+                let ulp = Decimal::new(1, scale);
+                Ok(truncated - ulp)
+            } else {
+                // For positive numbers, low boundary is just truncated
+                Ok(truncated)
+            }
+        } else {
+            // Adding precision - the low boundary is the value extended with zeros,
+            // then subtract half ULP at the next digit position
+            let extended = value.trunc_with_scale(scale);
+            let half_ulp = Decimal::new(5, input_scale + 1); // 0.5 at the next position after original precision
+            Ok(extended - half_ulp)
+        }
     }
 }
 
 fn calculate_high_boundary(value: &Decimal, precision: Option<u32>) -> FunctionResult<Decimal> {
     let scale = precision.unwrap_or_else(|| {
-        // Default precision: use the scale of the input value + 1
-        value.scale() + 1
+        // Default precision: use at least 8 for Decimal as per FHIRPath spec
+        std::cmp::max(8, value.scale())
     });
 
     // Check for maximum precision limit (28 is Decimal's limit)
@@ -226,19 +320,38 @@ fn calculate_high_boundary(value: &Decimal, precision: Option<u32>) -> FunctionR
     }
 
     if scale == 0 {
-        // For integer precision, add 1 to the integer part
+        // For integer precision, the high boundary represents the range that could truncate to this integer
+        // For positive numbers: truncate towards zero, so 1 comes from [1, 2), high boundary is 2
+        // For negative numbers: truncate towards zero, so -1 comes from [-2, -1), high boundary is -1
         let truncated = value.trunc();
-        Ok(truncated + Decimal::ONE)
-    } else if scale >= value.scale() {
-        // We're adding precision or keeping same, add half ULP at the new scale
-        let truncated = value.trunc_with_scale(scale);
-        let half_ulp = Decimal::new(5, scale + 1); // 0.5 at the given scale
-        Ok(truncated + half_ulp)
+        if value.is_sign_negative() && *value != truncated {
+            // For negative non-integers, the range is [trunc-1, trunc), so high boundary is trunc
+            Ok(truncated)
+        } else {
+            // For integers or positive numbers, high boundary is trunc + 1
+            Ok(truncated + Decimal::ONE)
+        }
     } else {
-        // We're reducing precision - truncate and add one ULP
-        let truncated = value.trunc_with_scale(scale);
-        let ulp = Decimal::new(1, scale);
-        Ok(truncated + ulp)
+        // Calculate the high boundary
+        let input_scale = value.scale();
+        if scale <= input_scale {
+            // Reducing precision
+            let truncated = value.trunc_with_scale(scale);
+            if value.is_sign_negative() {
+                // For negative numbers, high boundary is just truncated (closer to zero)
+                Ok(truncated)
+            } else {
+                // For positive numbers, high boundary is truncated plus one ULP
+                let ulp = Decimal::new(1, scale);
+                Ok(truncated + ulp)
+            }
+        } else {
+            // Adding precision - the high boundary is the value extended with zeros,
+            // then add half ULP at the next digit position
+            let extended = value.trunc_with_scale(scale);
+            let half_ulp = Decimal::new(5, input_scale + 1); // 0.5 at the next position after original precision
+            Ok(extended + half_ulp)
+        }
     }
 }
 

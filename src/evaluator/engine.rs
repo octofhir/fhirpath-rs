@@ -563,8 +563,8 @@ impl FhirPathEngine {
             LiteralValue::Null => return Ok(FhirPathValue::Empty),
         };
 
-        // In FHIRPath, all values are conceptually collections
-        Ok(FhirPathValue::collection(vec![value]))
+        // Return the literal value directly - literals are not automatically collections
+        Ok(value)
     }
 
     /// Evaluate an identifier (property access)
