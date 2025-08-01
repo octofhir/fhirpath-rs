@@ -257,7 +257,10 @@ impl AddOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::String(format!("@{}", new_date.format("%Y-%m-%d")))),
+            Some(new_date) => Ok(FhirPathValue::String(format!(
+                "@{}",
+                new_date.format("%Y-%m-%d")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -330,7 +333,10 @@ impl AddOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::String(format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")))),
+            Some(new_datetime) => Ok(FhirPathValue::String(format!(
+                "@{}",
+                new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -381,7 +387,10 @@ impl AddOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::String(format!("@T{}", new_time.format("%H:%M:%S")))),
+            Some(new_time) => Ok(FhirPathValue::String(format!(
+                "@T{}",
+                new_time.format("%H:%M:%S")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -566,7 +575,10 @@ impl SubtractOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::String(format!("@{}", new_date.format("%Y-%m-%d")))),
+            Some(new_date) => Ok(FhirPathValue::String(format!(
+                "@{}",
+                new_date.format("%Y-%m-%d")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -636,7 +648,10 @@ impl SubtractOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::String(format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")))),
+            Some(new_datetime) => Ok(FhirPathValue::String(format!(
+                "@{}",
+                new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -687,7 +702,10 @@ impl SubtractOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::String(format!("@T{}", new_time.format("%H:%M:%S")))),
+            Some(new_time) => Ok(FhirPathValue::String(format!(
+                "@T{}",
+                new_time.format("%H:%M:%S")
+            ))),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }

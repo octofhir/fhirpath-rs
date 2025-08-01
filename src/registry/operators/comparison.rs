@@ -68,7 +68,8 @@ impl FhirPathOperator for EqualOperator {
                     // Check if this is a case where precision differs significantly
                     // If times are 5+ hours apart, it's likely a timezone precision issue
                     let time_diff = (l.timestamp() - r.timestamp()).abs();
-                    if time_diff >= 5 * 3600 {  // 5 hours in seconds
+                    if time_diff >= 5 * 3600 {
+                        // 5 hours in seconds
                         return Ok(FhirPathValue::Empty);
                     }
                 }
@@ -135,7 +136,8 @@ impl EqualOperator {
                     // Check if this is a case where precision differs significantly
                     // If times are 5+ hours apart, it's likely a timezone precision issue
                     let time_diff = (l.timestamp() - r.timestamp()).abs();
-                    if time_diff >= 5 * 3600 {  // 5 hours in seconds
+                    if time_diff >= 5 * 3600 {
+                        // 5 hours in seconds
                         return Ok(FhirPathValue::Empty);
                     }
                 }

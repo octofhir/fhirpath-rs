@@ -109,10 +109,9 @@ impl FhirPathFunction for LowBoundaryFunction {
                         } else {
                             low_bound
                         };
-                        Ok(FhirPathValue::Quantity(crate::model::quantity::Quantity::new(
-                            new_value,
-                            q.unit.clone(),
-                        )))
+                        Ok(FhirPathValue::Quantity(
+                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()),
+                        ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })
                         if message.contains("Precision exceeds maximum") =>
@@ -232,10 +231,9 @@ impl FhirPathFunction for HighBoundaryFunction {
                         } else {
                             high_bound
                         };
-                        Ok(FhirPathValue::Quantity(crate::model::quantity::Quantity::new(
-                            new_value,
-                            q.unit.clone(),
-                        )))
+                        Ok(FhirPathValue::Quantity(
+                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()),
+                        ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })
                         if message.contains("Precision exceeds maximum") =>
