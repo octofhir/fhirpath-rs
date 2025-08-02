@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Helper function to print FhirPathValue in a readable format
 fn print_result(expression: &str, result: &FhirPathValue) {
-    println!("Expression: {}", expression);
+    println!("Expression: {expression}");
     match result {
         FhirPathValue::Empty => println!("Result: (empty)"),
         FhirPathValue::Collection(items) if items.is_empty() => {
@@ -153,7 +153,7 @@ fn print_result(expression: &str, result: &FhirPathValue) {
         FhirPathValue::Collection(items) if items.len() == 1 => {
             println!("Result: {:?}", items.get(0).unwrap());
         }
-        _ => println!("Result: {:?}", result),
+        _ => println!("Result: {result:?}"),
     }
     println!();
 }

@@ -10,10 +10,8 @@ use integration_test_runner::IntegrationTestRunner;
 
 /// Helper function to get the path to the specs directory
 fn get_specs_path() -> PathBuf {
-    // Go up from fhirpath-core/tests to project root, then to specs
+    // From project root to specs
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
         .join("specs")
         .join("fhirpath")
         .join("tests")
@@ -557,6 +555,42 @@ fn test_run_all_equality_suites() {
         }
         Err(e) => {
             println!("Failed to run equality test suites: {e}");
+        }
+    }
+}
+
+/// Test sort function specifically
+#[test]
+fn test_run_sort_suite() {
+    let specs_path = get_specs_path();
+    let mut runner = IntegrationTestRunner::new()
+        .with_base_path(&specs_path)
+        .with_verbose(true);
+
+    let sort_path = specs_path.join("sort.json");
+
+    if !sort_path.exists() {
+        println!(
+            "Skipping sort test - file not found: {}",
+            sort_path.display()
+        );
+        return;
+    }
+
+    match runner.run_and_report(&sort_path) {
+        Ok(stats) => {
+            println!("Sort test suite completed:");
+            println!(
+                "  Passed: {}/{} ({:.1}%)",
+                stats.passed,
+                stats.total,
+                stats.pass_rate()
+            );
+            println!("  Failed: {}", stats.failed);
+            println!("  Errors: {}", stats.errored);
+        }
+        Err(e) => {
+            println!("Failed to run sort test suite: {e}");
         }
     }
 }

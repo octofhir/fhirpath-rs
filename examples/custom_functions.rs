@@ -168,7 +168,7 @@ impl Function for FullNameFunction {{
 
 /// Helper function to print results
 fn print_result(expression: &str, result: &octofhir_fhirpath::FhirPathValue) {
-    println!("Expression: {}", expression);
+    println!("Expression: {expression}");
     match result {
         octofhir_fhirpath::FhirPathValue::Empty => println!("Result: (empty)"),
         octofhir_fhirpath::FhirPathValue::Collection(items) if items.is_empty() => {
@@ -177,7 +177,7 @@ fn print_result(expression: &str, result: &octofhir_fhirpath::FhirPathValue) {
         octofhir_fhirpath::FhirPathValue::Collection(items) if items.len() == 1 => {
             println!("Result: {:?}", items.get(0).unwrap());
         }
-        _ => println!("Result: {:?}", result),
+        _ => println!("Result: {result:?}"),
     }
     println!();
 }

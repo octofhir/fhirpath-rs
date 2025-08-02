@@ -349,19 +349,29 @@ impl FhirPathOperator for LessThanOperator {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => a < b,
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a < b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a < b,
-            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = a.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                date_as_datetime < *b
             }
-            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = b.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                *a < date_as_datetime
             }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a < b,
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                // For quantity comparison, units must be compatible
-                if a.unit == b.unit {
-                    a.value < b.value
+                // For quantity comparison, check if units are compatible
+                if a.has_compatible_dimensions(b) {
+                    // Convert b to a's unit for comparison
+                    match b.convert_to_compatible_unit(a.unit.as_deref().unwrap_or("")) {
+                        Ok(converted_b) => a.value < converted_b.value,
+                        Err(_) => return Ok(FhirPathValue::Empty),
+                    }
                 } else {
                     // Different units - return empty per FHIRPath spec for incompatible comparisons
                     return Ok(FhirPathValue::Empty);
@@ -376,9 +386,7 @@ impl FhirPathOperator for LessThanOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            result,
-        )]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 
@@ -475,19 +483,29 @@ impl FhirPathOperator for LessThanOrEqualOperator {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => a <= b,
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a <= b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a <= b,
-            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = a.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                date_as_datetime <= *b
             }
-            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = b.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                *a <= date_as_datetime
             }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a <= b,
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                // For quantity comparison, units must be compatible
-                if a.unit == b.unit {
-                    a.value <= b.value
+                // For quantity comparison, check if units are compatible
+                if a.has_compatible_dimensions(b) {
+                    // Convert b to a's unit for comparison
+                    match b.convert_to_compatible_unit(a.unit.as_deref().unwrap_or("")) {
+                        Ok(converted_b) => a.value <= converted_b.value,
+                        Err(_) => return Ok(FhirPathValue::Empty),
+                    }
                 } else {
                     // Different units - return empty per FHIRPath spec for incompatible comparisons
                     return Ok(FhirPathValue::Empty);
@@ -501,9 +519,7 @@ impl FhirPathOperator for LessThanOrEqualOperator {
                 });
             }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            result,
-        )]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 
@@ -600,20 +616,29 @@ impl FhirPathOperator for GreaterThanOperator {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => a > b,
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a > b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a > b,
-            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = a.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                date_as_datetime > *b
             }
-            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = b.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                *a > date_as_datetime
             }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a > b,
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                // For quantity comparison, units must be compatible
-                // For now, we'll do a simple comparison - more sophisticated unit conversion would be needed for full UCUM support
-                if a.unit == b.unit {
-                    a.value > b.value
+                // For quantity comparison, check if units are compatible
+                if a.has_compatible_dimensions(b) {
+                    // Convert b to a's unit for comparison
+                    match b.convert_to_compatible_unit(a.unit.as_deref().unwrap_or("")) {
+                        Ok(converted_b) => a.value > converted_b.value,
+                        Err(_) => return Ok(FhirPathValue::Empty),
+                    }
                 } else {
                     // Different units - return empty per FHIRPath spec for incompatible comparisons
                     return Ok(FhirPathValue::Empty);
@@ -627,9 +652,7 @@ impl FhirPathOperator for GreaterThanOperator {
                 });
             }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            result,
-        )]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 
@@ -726,19 +749,29 @@ impl FhirPathOperator for GreaterThanOrEqualOperator {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => a >= b,
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a >= b,
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a >= b,
-            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::Date(a), FhirPathValue::DateTime(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = a.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                date_as_datetime >= *b
             }
-            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
-                // Per FHIRPath spec: different precision levels return empty
-                return Ok(FhirPathValue::Empty);
+            (FhirPathValue::DateTime(a), FhirPathValue::Date(b)) => {
+                // Convert date to datetime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone, Utc};
+                let start_of_day = b.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let date_as_datetime = Utc.from_utc_datetime(&start_of_day);
+                *a >= date_as_datetime
             }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a >= b,
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                // For quantity comparison, units must be compatible
-                if a.unit == b.unit {
-                    a.value >= b.value
+                // For quantity comparison, check if units are compatible
+                if a.has_compatible_dimensions(b) {
+                    // Convert b to a's unit for comparison
+                    match b.convert_to_compatible_unit(a.unit.as_deref().unwrap_or("")) {
+                        Ok(converted_b) => a.value >= converted_b.value,
+                        Err(_) => return Ok(FhirPathValue::Empty),
+                    }
                 } else {
                     // Different units - return empty per FHIRPath spec for incompatible comparisons
                     return Ok(FhirPathValue::Empty);
@@ -752,9 +785,7 @@ impl FhirPathOperator for GreaterThanOrEqualOperator {
                 });
             }
         };
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            result,
-        )]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 
@@ -818,9 +849,7 @@ impl FhirPathOperator for EquivalentOperator {
             }
         };
 
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            result,
-        )]))
+        Ok(FhirPathValue::Boolean(result))
     }
 }
 

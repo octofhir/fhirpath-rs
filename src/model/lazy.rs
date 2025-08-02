@@ -782,7 +782,7 @@ mod tests {
     #[test]
     fn test_lazy_evaluation_performance() {
         // Create a large collection
-        let values: Vec<FhirPathValue> = (0..10000).map(|i| FhirPathValue::Integer(i)).collect();
+        let values: Vec<FhirPathValue> = (0..10000).map(FhirPathValue::Integer).collect();
 
         // Apply operations that should be lazy
         let lazy = LazyCollection::from_vec(values)
@@ -799,7 +799,7 @@ mod tests {
 
         // Verify the results are correct
         let expected: Vec<FhirPathValue> =
-            (5001..5006).map(|i| FhirPathValue::Integer(i)).collect();
+            (5001..5006).map(FhirPathValue::Integer).collect();
         assert_eq!(result, expected);
     }
 

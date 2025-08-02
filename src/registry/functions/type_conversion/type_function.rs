@@ -152,6 +152,6 @@ impl FhirPathFunction for TypeFunction {
             },
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
         };
-        Ok(FhirPathValue::collection(vec![type_info]))
+        Ok(type_info)
     }
 }

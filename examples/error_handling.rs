@@ -41,16 +41,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for expr in &invalid_expressions {
-        println!("Testing invalid expression: {}", expr);
-        match engine.evaluate(*expr, patient.clone()) {
+        println!("Testing invalid expression: {expr}");
+        match engine.evaluate(expr, patient.clone()) {
             Ok(result) => {
                 println!(
-                    "  ✅ Parsed successfully (returned empty per FHIRPath spec): {:?}",
-                    result
+                    "  ✅ Parsed successfully (returned empty per FHIRPath spec): {result:?}"
                 );
             }
             Err(error) => {
-                println!("  ❌ Parse error: {}", error);
+                println!("  ❌ Parse error: {error}");
             }
         }
         println!();
@@ -68,13 +67,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for expr in &problematic_expressions {
-        println!("Testing problematic expression: {}", expr);
-        match engine.evaluate(*expr, patient.clone()) {
+        println!("Testing problematic expression: {expr}");
+        match engine.evaluate(expr, patient.clone()) {
             Ok(result) => {
-                println!("  ✅ Evaluated successfully: {:?}", result);
+                println!("  ✅ Evaluated successfully: {result:?}");
             }
             Err(error) => {
-                println!("  ❌ Evaluation error: {}", error);
+                println!("  ❌ Evaluation error: {error}");
             }
         }
         println!();
@@ -98,13 +97,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for expr in &expressions_for_missing_data {
-        println!("Testing expression with missing data: {}", expr);
-        match engine.evaluate(*expr, incomplete_patient.clone()) {
+        println!("Testing expression with missing data: {expr}");
+        match engine.evaluate(expr, incomplete_patient.clone()) {
             Ok(result) => {
-                println!("  ✅ Handled gracefully: {:?}", result);
+                println!("  ✅ Handled gracefully: {result:?}");
             }
             Err(error) => {
-                println!("  ❌ Error: {}", error);
+                println!("  ❌ Error: {error}");
             }
         }
         println!();
@@ -121,13 +120,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for expr in &defensive_expressions {
-        println!("Defensive expression: {}", expr);
-        match engine.evaluate(*expr, patient.clone()) {
+        println!("Defensive expression: {expr}");
+        match engine.evaluate(expr, patient.clone()) {
             Ok(result) => {
-                println!("  ✅ Result: {:?}", result);
+                println!("  ✅ Result: {result:?}");
             }
             Err(error) => {
-                println!("  ❌ Error: {}", error);
+                println!("  ❌ Error: {error}");
             }
         }
         println!();
@@ -144,19 +143,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for (expr, description) in &expressions_to_test {
-        println!("{}: {}", description, expr);
+        println!("{description}: {expr}");
 
         // Strategy 1: Default to empty result
         let result = engine
             .evaluate(expr, patient.clone())
             .unwrap_or_else(|_| octofhir_fhirpath::FhirPathValue::collection(vec![]));
-        println!("  Strategy 1 (default empty): {:?}", result);
+        println!("  Strategy 1 (default empty): {result:?}");
 
         // Strategy 2: Try alternative expression
         if expr.contains("invalidProperty") {
             let alternative = "Patient.id"; // Use a known property instead
             match engine.evaluate(alternative, patient.clone()) {
-                Ok(alt_result) => println!("  Strategy 2 (alternative): {:?}", alt_result),
+                Ok(alt_result) => println!("  Strategy 2 (alternative): {alt_result:?}"),
                 Err(_) => println!("  Strategy 2 (alternative): Failed"),
             }
         }

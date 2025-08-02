@@ -5,7 +5,7 @@ use super::super::operator::{
 };
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::signature::OperatorSignature;
-use octofhir_ucum_core;
+use octofhir_ucum;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 
 /// Time unit classification for date/datetime arithmetic
@@ -21,6 +21,54 @@ enum TimeUnitType {
     Millisecond,
 }
 
+/// Map FHIRPath calendar units to UCUM equivalents
+static CALENDAR_TO_UCUM: &[(&str, &str)] = &[
+    ("year", "a"),         // annum
+    ("month", "mo"),       // month
+    ("week", "wk"),        // week
+    ("day", "d"),          // day
+    ("hour", "h"),         // hour
+    ("minute", "min"),     // minute
+    ("second", "s"),       // second
+    ("millisecond", "ms"), // millisecond
+];
+
+/// Convert FHIRPath calendar unit to UCUM equivalent
+pub fn fhirpath_to_ucum(fhirpath_unit: &str) -> Option<&'static str> {
+    // Check static mapping first for performance
+    CALENDAR_TO_UCUM
+        .iter()
+        .find(|(fhir, _)| *fhir == fhirpath_unit)
+        .map(|(_, ucum)| *ucum)
+}
+
+/// Convert UCUM unit to FHIRPath calendar unit equivalent
+pub fn ucum_to_fhirpath(ucum_unit: &str) -> Option<&'static str> {
+    CALENDAR_TO_UCUM
+        .iter()
+        .find(|(_, ucum)| *ucum == ucum_unit)
+        .map(|(fhir, _)| *fhir)
+}
+
+/// Get canonical form of a unit using UCUM library
+pub fn get_canonical_unit(unit: &str) -> String {
+    // First try FHIRPath calendar mapping
+    if let Some(ucum_unit) = fhirpath_to_ucum(unit) {
+        return ucum_unit.to_string();
+    }
+
+    // Then try UCUM canonicalization
+    match octofhir_ucum::canonicalize_expression(unit) {
+        Ok(canonical) => canonical.to_string(),
+        Err(_) => unit.to_string(), // Fallback to original
+    }
+}
+
+/// Check if a unit is a valid UCUM unit
+pub fn is_valid_ucum_unit(unit: &str) -> bool {
+    octofhir_ucum::validate(unit).is_ok()
+}
+
 /// Helper function to classify a unit string using UCUM
 fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
     // First check exact matches for UCUM standard units
@@ -32,7 +80,9 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
         "min" => return Some(TimeUnitType::Minute),
         "s" => return Some(TimeUnitType::Second),
         "ms" => return Some(TimeUnitType::Millisecond),
-        // Note: UCUM units 'a' (year) and 'mo' (month) are handled below in fallback
+        // Additional UCUM units handled via mapping
+        "a" => return Some(TimeUnitType::Year), // annum (year)
+        "mo" => return Some(TimeUnitType::Month), // month
         _ => {}
     }
 
@@ -49,15 +99,13 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
         "minute" | "minutes" => return Some(TimeUnitType::Minute),
         "second" | "seconds" => return Some(TimeUnitType::Second),
         "millisecond" | "milliseconds" => return Some(TimeUnitType::Millisecond),
-        // UCUM units 'a' (year) and 'mo' (month) are not supported for date arithmetic per FHIRPath spec
-        "a" | "mo" => return None,
         _ => {}
     }
 
     // Try to parse with UCUM for validation only
     // Since all time units are mutually comparable in UCUM, we can't use comparability
     // to determine the specific unit type. We only use UCUM to validate that it's a valid unit.
-    if let Ok(_unit_expr) = octofhir_ucum_core::parse_expression(unit_str) {
+    if let Ok(_unit_expr) = octofhir_ucum::parse_expression(unit_str) {
         // If it parses as a valid UCUM unit but we don't recognize it as a time unit,
         // it's probably not a time unit (e.g., "meter", "kg", etc.)
         None
@@ -840,7 +888,7 @@ impl MultiplyOperator {
         let result_unit = match (&q1.unit, &q2.unit) {
             (Some(unit1), Some(unit2)) => {
                 // Use UCUM to multiply the units
-                match octofhir_ucum_core::unit_multiply(unit1, unit2) {
+                match octofhir_ucum::unit_multiply(unit1, unit2) {
                     Ok(result) => Some(result.expression),
                     Err(_) => {
                         // Fallback: basic unit multiplication
@@ -1014,7 +1062,7 @@ impl DivideOperator {
         let result_unit = match (&q1.unit, &q2.unit) {
             (Some(unit1), Some(unit2)) => {
                 // Use UCUM to divide the units
-                match octofhir_ucum_core::unit_divide(unit1, unit2) {
+                match octofhir_ucum::unit_divide(unit1, unit2) {
                     Ok(result) => {
                         // Handle the special case where units cancel out to dimensionless "1"
                         if result.expression == "1" || result.expression.is_empty() {
@@ -1405,4 +1453,75 @@ pub fn register_arithmetic_operators(registry: &mut OperatorRegistry) {
     registry.register(IntegerDivideOperator);
     registry.register(ModuloOperator);
     registry.register(PowerOperator);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fhirpath_to_ucum_mapping() {
+        assert_eq!(fhirpath_to_ucum("year"), Some("a"));
+        assert_eq!(fhirpath_to_ucum("month"), Some("mo"));
+        assert_eq!(fhirpath_to_ucum("week"), Some("wk"));
+        assert_eq!(fhirpath_to_ucum("day"), Some("d"));
+        assert_eq!(fhirpath_to_ucum("hour"), Some("h"));
+        assert_eq!(fhirpath_to_ucum("minute"), Some("min"));
+        assert_eq!(fhirpath_to_ucum("second"), Some("s"));
+        assert_eq!(fhirpath_to_ucum("millisecond"), Some("ms"));
+        assert_eq!(fhirpath_to_ucum("invalid"), None);
+    }
+
+    #[test]
+    fn test_ucum_to_fhirpath_mapping() {
+        assert_eq!(ucum_to_fhirpath("a"), Some("year"));
+        assert_eq!(ucum_to_fhirpath("mo"), Some("month"));
+        assert_eq!(ucum_to_fhirpath("wk"), Some("week"));
+        assert_eq!(ucum_to_fhirpath("d"), Some("day"));
+        assert_eq!(ucum_to_fhirpath("h"), Some("hour"));
+        assert_eq!(ucum_to_fhirpath("min"), Some("minute"));
+        assert_eq!(ucum_to_fhirpath("s"), Some("second"));
+        assert_eq!(ucum_to_fhirpath("ms"), Some("millisecond"));
+        assert_eq!(ucum_to_fhirpath("invalid"), None);
+    }
+
+    #[test]
+    fn test_classify_time_unit_ucum() {
+        // Test UCUM units
+        assert_eq!(classify_time_unit("a"), Some(TimeUnitType::Year));
+        assert_eq!(classify_time_unit("mo"), Some(TimeUnitType::Month));
+        assert_eq!(classify_time_unit("wk"), Some(TimeUnitType::Week));
+        assert_eq!(classify_time_unit("d"), Some(TimeUnitType::Day));
+        assert_eq!(classify_time_unit("h"), Some(TimeUnitType::Hour));
+        assert_eq!(classify_time_unit("min"), Some(TimeUnitType::Minute));
+        assert_eq!(classify_time_unit("s"), Some(TimeUnitType::Second));
+        assert_eq!(classify_time_unit("ms"), Some(TimeUnitType::Millisecond));
+    }
+
+    #[test]
+    fn test_classify_time_unit_fhirpath() {
+        // Test FHIRPath calendar units
+        assert_eq!(classify_time_unit("year"), Some(TimeUnitType::Year));
+        assert_eq!(classify_time_unit("years"), Some(TimeUnitType::Year));
+        assert_eq!(classify_time_unit("month"), Some(TimeUnitType::Month));
+        assert_eq!(classify_time_unit("months"), Some(TimeUnitType::Month));
+        assert_eq!(classify_time_unit("week"), Some(TimeUnitType::Week));
+        assert_eq!(classify_time_unit("weeks"), Some(TimeUnitType::Week));
+        assert_eq!(classify_time_unit("day"), Some(TimeUnitType::Day));
+        assert_eq!(classify_time_unit("days"), Some(TimeUnitType::Day));
+        assert_eq!(classify_time_unit("hour"), Some(TimeUnitType::Hour));
+        assert_eq!(classify_time_unit("hours"), Some(TimeUnitType::Hour));
+        assert_eq!(classify_time_unit("minute"), Some(TimeUnitType::Minute));
+        assert_eq!(classify_time_unit("minutes"), Some(TimeUnitType::Minute));
+        assert_eq!(classify_time_unit("second"), Some(TimeUnitType::Second));
+        assert_eq!(classify_time_unit("seconds"), Some(TimeUnitType::Second));
+        assert_eq!(
+            classify_time_unit("millisecond"),
+            Some(TimeUnitType::Millisecond)
+        );
+        assert_eq!(
+            classify_time_unit("milliseconds"),
+            Some(TimeUnitType::Millisecond)
+        );
+    }
 }

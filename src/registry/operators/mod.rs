@@ -1,6 +1,6 @@
 //! Operator implementations for FHIRPath expressions
 
-mod arithmetic;
+pub mod arithmetic;
 mod collection;
 mod comparison;
 mod logical;

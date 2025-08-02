@@ -688,7 +688,15 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
         match name {
-            "$this" | "$" | "this" => Ok(context.input.clone()),
+            "$this" | "$" | "this" => {
+                // Check if $this is set as a variable first (for lambda functions)
+                if let Some(value) = context.get_variable("this") {
+                    Ok(value.clone())
+                } else {
+                    // Fall back to root for regular function arguments
+                    Ok(context.root.clone())
+                }
+            }
             "$$" | "$resource" | "resource" => Ok(context.root.clone()),
             "$total" | "total" => {
                 // $total is used in aggregate functions - check for it in variables

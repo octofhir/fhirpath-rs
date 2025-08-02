@@ -34,33 +34,23 @@ impl FhirPathFunction for NotFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
-            FhirPathValue::Boolean(b) => {
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)]))
-            }
+            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(!b)),
             FhirPathValue::Integer(i) => {
                 // Per FHIRPath spec: 0 is false, non-zero is true
                 let bool_val = *i != 0;
-                Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                    !bool_val,
-                )]))
+                Ok(FhirPathValue::Boolean(!bool_val))
             }
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     // Empty collection is false, not becomes true
-                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                        true,
-                    )]))
+                    Ok(FhirPathValue::Boolean(true))
                 } else if items.len() == 1 {
                     match items.iter().next() {
-                        Some(FhirPathValue::Boolean(b)) => {
-                            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)]))
-                        }
+                        Some(FhirPathValue::Boolean(b)) => Ok(FhirPathValue::Boolean(!b)),
                         Some(FhirPathValue::Integer(i)) => {
                             // Per FHIRPath spec: 0 is false, non-zero is true
                             let bool_val = *i != 0;
-                            Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                                !bool_val,
-                            )]))
+                            Ok(FhirPathValue::Boolean(!bool_val))
                         }
                         _ => Ok(FhirPathValue::Empty),
                     }
@@ -69,9 +59,7 @@ impl FhirPathFunction for NotFunction {
                     Ok(FhirPathValue::Empty)
                 }
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                true,
-            )])),
+            FhirPathValue::Empty => Ok(FhirPathValue::Boolean(true)),
             _ => Ok(FhirPathValue::Empty),
         }
     }

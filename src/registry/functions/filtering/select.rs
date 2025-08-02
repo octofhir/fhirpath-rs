@@ -110,6 +110,11 @@ impl LambdaFunction for SelectFunction {
             }
         }
 
-        Ok(FhirPathValue::collection(results))
+        // If no results, return Empty instead of empty collection
+        if results.is_empty() {
+            Ok(FhirPathValue::Empty)
+        } else {
+            Ok(FhirPathValue::collection(results))
+        }
     }
 }

@@ -265,7 +265,7 @@ fn classify_time_unit(unit_str: &str) -> Option<TimeUnitType> {
     // Try to parse with UCUM for validation only
     // Since all time units are mutually comparable in UCUM, we can't use comparability
     // to determine the specific unit type. We only use UCUM to validate that it's a valid unit.
-    if let Ok(_unit_expr) = octofhir_ucum_core::parse_expression(unit_str) {
+    if let Ok(_unit_expr) = octofhir_ucum::parse_expression(unit_str) {
         // If it parses as a valid UCUM unit but we don't recognize it as a time unit,
         // it's probably not a time unit (e.g., "meter", "kg", etc.)
         None
@@ -849,7 +849,7 @@ impl MultiplyOperator {
         let result_unit = match (&q1.unit, &q2.unit) {
             (Some(unit1), Some(unit2)) => {
                 // Use UCUM to multiply the units
-                match octofhir_ucum_core::unit_multiply(unit1, unit2) {
+                match octofhir_ucum::unit_multiply(unit1, unit2) {
                     Ok(result) => Some(result.expression),
                     Err(_) => {
                         // Fallback: basic unit multiplication
@@ -1024,7 +1024,7 @@ impl DivideOperator {
         let result_unit = match (&q1.unit, &q2.unit) {
             (Some(unit1), Some(unit2)) => {
                 // Use UCUM to divide the units
-                match octofhir_ucum_core::unit_divide(unit1, unit2) {
+                match octofhir_ucum::unit_divide(unit1, unit2) {
                     Ok(result) => {
                         // Handle the special case where units cancel out to dimensionless "1"
                         if result.expression == "1" || result.expression.is_empty() {

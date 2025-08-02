@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
 
-use octofhir_ucum_core::{self, OwnedUnitExpr};
+use octofhir_ucum::{self, OwnedUnitExpr};
 
 use super::error::{ModelError, Result};
 
@@ -39,8 +39,9 @@ impl Quantity {
 
     /// Normalize common unit names to UCUM equivalents
     fn normalize_unit_name(unit: &str) -> String {
+        // First check calendar units for FHIRPath compatibility
         match unit {
-            // Time units
+            // Time units - FHIRPath calendar units to UCUM
             "day" | "days" => "d".to_string(),
             "hour" | "hours" => "h".to_string(),
             "minute" | "minutes" => "min".to_string(),
@@ -50,8 +51,15 @@ impl Quantity {
             "year" | "years" => "a".to_string(),
             "millisecond" | "milliseconds" => "ms".to_string(),
 
-            // Keep original for already-UCUM units
-            _ => unit.to_string(),
+            _ => {
+                // Check if it's already a valid UCUM unit - if so, keep it as-is
+                // This preserves units like "g", "mg", "m", "cm", etc. without
+                // converting them to base SI units
+                match octofhir_ucum::validate(unit) {
+                    Ok(_) => unit.to_string(),  // Valid UCUM unit, keep as-is
+                    Err(_) => unit.to_string(), // Invalid or unknown, keep original
+                }
+            }
         }
     }
 
@@ -86,9 +94,7 @@ impl Quantity {
         }
 
         // Parse the unit
-        let result = octofhir_ucum_core::parse_expression(unit_str)
-            .ok()
-            .map(Arc::new);
+        let result = octofhir_ucum::parse_expression(unit_str).ok().map(Arc::new);
 
         // Cache the result
         let mut cache_guard = cache.lock();
@@ -104,7 +110,7 @@ impl Quantity {
     pub fn has_compatible_dimensions(&self, other: &Quantity) -> bool {
         match (&self.unit, &other.unit) {
             (Some(unit1), Some(unit2)) => {
-                octofhir_ucum_core::is_comparable(unit1, unit2).unwrap_or(false)
+                octofhir_ucum::is_comparable(unit1, unit2).unwrap_or(false)
             }
             (None, None) => true, // Unitless quantities are comparable
             _ => false,
@@ -121,8 +127,8 @@ impl Quantity {
                 } else {
                     // Use UCUM to get conversion factors
                     match (
-                        octofhir_ucum_core::analyse(from_unit),
-                        octofhir_ucum_core::analyse(target_unit),
+                        octofhir_ucum::analyse(from_unit),
+                        octofhir_ucum::analyse(target_unit),
                     ) {
                         (Ok(from_analysis), Ok(to_analysis)) => {
                             // Check if units are dimensionally compatible
@@ -139,7 +145,7 @@ impl Quantity {
                             let converted_f64 = from_f64 * conversion_factor + offset_adjustment;
 
                             // Round to reasonable precision to avoid floating point errors
-                            let converted_f64 = (converted_f64 * 1e12).round() / 1e12;
+                            let converted_f64 = (converted_f64 * 1e12_f64).round() / 1e12_f64;
                             let converted_decimal =
                                 Decimal::from_f64(converted_f64).unwrap_or(self.value);
 
@@ -353,7 +359,7 @@ mod tests {
         );
 
         // Test UCUM analysis directly
-        match octofhir_ucum_core::analyse("g") {
+        match octofhir_ucum::analyse("g") {
             Ok(analysis) => println!(
                 "g analysis: factor={}, dimension={:?}",
                 analysis.factor, analysis.dimension
@@ -361,7 +367,7 @@ mod tests {
             Err(e) => println!("Error analyzing g: {e}"),
         }
 
-        match octofhir_ucum_core::analyse("mg") {
+        match octofhir_ucum::analyse("mg") {
             Ok(analysis) => println!(
                 "mg analysis: factor={}, dimension={:?}",
                 analysis.factor, analysis.dimension
@@ -370,10 +376,9 @@ mod tests {
         }
 
         // Test manual conversion
-        if let (Ok(g_analysis), Ok(mg_analysis)) = (
-            octofhir_ucum_core::analyse("g"),
-            octofhir_ucum_core::analyse("mg"),
-        ) {
+        if let (Ok(g_analysis), Ok(mg_analysis)) =
+            (octofhir_ucum::analyse("g"), octofhir_ucum::analyse("mg"))
+        {
             let conversion_factor = g_analysis.factor / mg_analysis.factor;
             println!("Conversion factor g->mg: {conversion_factor}");
             println!("4 g in mg should be: {}", 4.0 * conversion_factor);

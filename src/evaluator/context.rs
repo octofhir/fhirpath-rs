@@ -1026,7 +1026,7 @@ mod tests {
 
         // Add variables up to capacity
         for i in 0..5 {
-            scope.set_variable(format!("var{}", i), FhirPathValue::Integer(i));
+            scope.set_variable(format!("var{i}"), FhirPathValue::Integer(i));
         }
 
         assert_eq!(scope.local_count(), 5);

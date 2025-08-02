@@ -1,6 +1,6 @@
 //! sort() function implementation
 
-use crate::ast::ExpressionNode;
+use crate::ast::{ExpressionNode, UnaryOperator};
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
     EvaluationContext, FhirPathFunction, FunctionError, FunctionResult, LambdaEvaluationContext,
@@ -12,6 +12,58 @@ use std::hash::BuildHasherDefault;
 
 type VarMap =
     std::collections::HashMap<String, FhirPathValue, BuildHasherDefault<rustc_hash::FxHasher>>;
+
+/// Helper function to determine if an expression is a reverse sort (e.g., -$this)
+fn is_reverse_sort(expr: &ExpressionNode) -> bool {
+    matches!(
+        expr,
+        ExpressionNode::UnaryOp {
+            op: UnaryOperator::Minus,
+            ..
+        }
+    )
+}
+
+/// Helper function to get the inner expression from a reverse sort (strip the minus)
+fn get_inner_expression(expr: &ExpressionNode) -> &ExpressionNode {
+    match expr {
+        ExpressionNode::UnaryOp { operand, .. } => operand,
+        _ => expr,
+    }
+}
+
+/// Helper function to compare FhirPathValue instances for sorting with reverse handling
+/// In FHIRPath:
+/// - In ascending order, null/empty values come last  
+/// - In descending order, null/empty values come first
+fn compare_values_with_reverse(a: &FhirPathValue, b: &FhirPathValue, reverse: bool) -> Ordering {
+    match (a, b) {
+        (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
+        (FhirPathValue::Empty, _) => {
+            // In descending order, empty comes first (is "less")
+            // In ascending order, empty comes last (is "greater")
+            if reverse {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        }
+        (_, FhirPathValue::Empty) => {
+            // In descending order, empty comes first, so non-empty is "greater"
+            // In ascending order, empty comes last, so non-empty is "less"
+            if reverse {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        }
+        _ => {
+            // For non-empty values, use standard comparison with reverse logic
+            let cmp = compare_values(a, b);
+            if reverse { cmp.reverse() } else { cmp }
+        }
+    }
+}
 
 /// Helper function to compare FhirPathValue instances for sorting
 fn compare_values(a: &FhirPathValue, b: &FhirPathValue) -> Ordering {
@@ -74,9 +126,9 @@ impl FhirPathFunction for SortFunction {
     }
     fn signature(&self) -> &FunctionSignature {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature::new(
+            FunctionSignature::variadic(
                 "sort",
-                vec![ParameterInfo::optional("expression", TypeInfo::Any)],
+                vec![ParameterInfo::optional("expressions", TypeInfo::Any)],
                 TypeInfo::Collection(Box::new(TypeInfo::Any)),
             )
         });
@@ -111,15 +163,6 @@ impl LambdaFunction for SortFunction {
         args: &[ExpressionNode],
         context: &LambdaEvaluationContext,
     ) -> FunctionResult<FhirPathValue> {
-        if args.len() > 1 {
-            return Err(FunctionError::InvalidArity {
-                name: self.name().to_string(),
-                min: 0,
-                max: Some(1),
-                actual: args.len(),
-            });
-        }
-
         let items = match &context.context.input {
             FhirPathValue::Collection(items) => items.iter().collect::<Vec<_>>(),
             FhirPathValue::Empty => return Ok(FhirPathValue::collection(vec![])),
@@ -132,39 +175,74 @@ impl LambdaFunction for SortFunction {
             items_vec.sort_by(compare_values);
             Ok(FhirPathValue::collection(items_vec))
         } else {
-            // Sort with custom expression
-            let sort_expr = &args[0];
-            let mut items_with_keys: Vec<(FhirPathValue, FhirPathValue)> = Vec::new();
+            // Sort with custom expressions (can be multiple)
+            let mut items_with_keys: Vec<(FhirPathValue, Vec<(FhirPathValue, bool)>)> = Vec::new();
 
-            // Evaluate sort key for each item
+            // Evaluate sort keys for each item
             for item in &items {
-                let sort_key = if let Some(enhanced_evaluator) = context.enhanced_evaluator {
-                    // Use enhanced evaluator with $this variable
-                    let mut additional_vars: VarMap =
-                        std::collections::HashMap::with_hasher(BuildHasherDefault::<
-                            rustc_hash::FxHasher,
-                        >::default(
-                        ));
+                let mut sort_keys = Vec::new();
 
-                    // Include all variables from outer context
-                    for (name, value) in &context.context.variables {
-                        additional_vars.insert(name.clone(), value.clone());
-                    }
+                for sort_expr in args {
+                    let is_reverse = is_reverse_sort(sort_expr);
+                    let inner_expr = get_inner_expression(sort_expr);
 
-                    // Add $this variable for current item (parser strips $ prefix)
-                    additional_vars.insert("this".to_string(), (*item).clone());
+                    let sort_key = if let Some(enhanced_evaluator) = context.enhanced_evaluator {
+                        // Use enhanced evaluator with $this variable
+                        let mut additional_vars: VarMap =
+                            std::collections::HashMap::with_hasher(BuildHasherDefault::<
+                                rustc_hash::FxHasher,
+                            >::default(
+                            ));
 
-                    enhanced_evaluator(sort_expr, item, &additional_vars)?
-                } else {
-                    // Fall back to regular evaluator
-                    (context.evaluator)(sort_expr, item)?
-                };
+                        // Include all variables from outer context
+                        for (name, value) in &context.context.variables {
+                            additional_vars.insert(name.clone(), value.clone());
+                        }
 
-                items_with_keys.push(((*item).clone(), sort_key));
+                        // Add $this variable for current item (parser strips $ prefix)
+                        additional_vars.insert("this".to_string(), (*item).clone());
+
+                        enhanced_evaluator(inner_expr, item, &additional_vars)?
+                    } else {
+                        // Fall back to regular evaluator
+                        (context.evaluator)(inner_expr, item)?
+                    };
+
+                    // Take first value from collection if it's a collection
+                    let key_value = match sort_key {
+                        FhirPathValue::Collection(ref items) if !items.is_empty() => {
+                            items.iter().next().unwrap().clone()
+                        }
+                        FhirPathValue::Collection(_) => {
+                            // Empty collection should be treated as Empty for sorting
+                            FhirPathValue::Empty
+                        }
+                        other => other,
+                    };
+
+                    sort_keys.push((key_value, is_reverse));
+                }
+
+                items_with_keys.push(((*item).clone(), sort_keys));
             }
 
-            // Sort by the evaluated keys
-            items_with_keys.sort_by(|a, b| compare_values(&a.1, &b.1));
+            // Sort by the evaluated keys (handling multiple keys and reverse order)
+            items_with_keys.sort_by(|a, b| {
+                for ((key_a, reverse_a), (key_b, reverse_b)) in a.1.iter().zip(b.1.iter()) {
+                    // Both keys should have the same reverse flag for a given sort expression
+                    // since they come from the same expression
+                    debug_assert_eq!(
+                        reverse_a, reverse_b,
+                        "Sort keys from same expression should have same reverse flag"
+                    );
+                    let cmp = compare_values_with_reverse(key_a, key_b, *reverse_a);
+
+                    if cmp != Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                Ordering::Equal
+            });
 
             // Extract the sorted items
             let sorted_items: Vec<FhirPathValue> =

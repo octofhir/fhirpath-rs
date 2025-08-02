@@ -65,6 +65,11 @@
           "code" : "internal-label"
         },
         "value" : "From Paragon Labs"
+      }],
+      "concept" : [{
+        "code" : "chol-mmol",
+        "display" : "SChol (mmol/L) - nested",
+        "definition" : "Nested Serum Cholesterol, in mmol/L"
       }]
     },
     {

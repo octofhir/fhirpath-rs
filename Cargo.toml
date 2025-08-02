@@ -21,9 +21,7 @@ include = [
     "LICENSE",
     "CHANGELOG.md",
 ]
-exclude = [
-    "src/bin/extract_benchmark_metrics.rs",
-]
+exclude = ["src/bin/extract_benchmark_metrics.rs", "src/bin/test_runner.rs"]
 
 [lib]
 name = "octofhir_fhirpath"
@@ -32,7 +30,6 @@ path = "src/lib.rs"
 [[bench]]
 name = "fhirpath_benchmark"
 harness = false
-
 
 
 [[bin]]
@@ -52,8 +49,7 @@ log = "0.4.20"
 lru = "0.16"
 nom = "8.0.0"
 nom_locate = "5.0.0-beta.5"
-octofhir-ucum-core = "0.4.0"
-octofhir-ucum-fhir = { version = "0.4.0", features = ["serde"] }
+octofhir-ucum = { version = "0.5.0", features = ["fhir", "serde"] }
 parking_lot = "0.12.4"
 quick-xml = "0.38"
 regex = "1.11.1"

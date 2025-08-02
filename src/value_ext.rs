@@ -3,7 +3,7 @@
 //! This module defines the core value types used in FHIRPath expressions.
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-use octofhir_ucum_core::{self, OwnedUnitExpr};
+use octofhir_ucum::{self, OwnedUnitExpr};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -195,7 +195,7 @@ impl FhirPathValue {
 
         // Spawn a thread with timeout for UCUM parsing
         thread::spawn(move || {
-            let result = octofhir_ucum_core::parse_expression(&unit_str_owned);
+            let result = octofhir_ucum::parse_expression(&unit_str_owned);
             let _ = tx.send(result);
         });
 
@@ -240,7 +240,7 @@ impl FhirPathValue {
                 },
             ) => {
                 // Use the UCUM library to check if units are comparable
-                octofhir_ucum_core::is_comparable(unit1, unit2).unwrap_or(false)
+                octofhir_ucum::is_comparable(unit1, unit2).unwrap_or(false)
             }
             (Self::Quantity { unit: None, .. }, Self::Quantity { unit: None, .. }) => {
                 // Unitless quantities are comparable
@@ -259,10 +259,10 @@ impl FhirPathValue {
                 ucum_expr: _,
             } => {
                 // Validate the target unit
-                match octofhir_ucum_core::validate(target_unit) {
+                match octofhir_ucum::validate(target_unit) {
                     Ok(_) => {
                         // Check if units are comparable
-                        match octofhir_ucum_core::is_comparable(unit, target_unit) {
+                        match octofhir_ucum::is_comparable(unit, target_unit) {
                             Ok(true) => {
                                 // If units are the same, no conversion needed
                                 if unit == target_unit {

@@ -1241,7 +1241,7 @@ mod tests {
         let input = FhirPathValue::Empty;
         let result = vm.execute(&bytecode, &input);
 
-        assert!(matches!(result, Err(_))); // Should fail with stack overflow
+        assert!(result.is_err()); // Should fail with stack overflow
     }
 
     #[test]
@@ -1267,6 +1267,6 @@ mod tests {
         let input = FhirPathValue::Empty;
         let result = vm.execute(&bytecode, &input);
 
-        assert!(matches!(result, Err(_))); // Should fail with execution limit exceeded
+        assert!(result.is_err()); // Should fail with execution limit exceeded
     }
 }
