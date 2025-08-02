@@ -183,9 +183,20 @@ Current compliance with official FHIRPath specification test suites:
 # Install CLI tools
 cargo install octofhir-fhirpath
 
-# Evaluate expressions
+# Evaluate expressions with JSON input from stdin
 echo '{"resourceType": "Patient", "name": [{"given": ["John"]}]}' | \
   octofhir-fhirpath evaluate "Patient.name.given"
+
+# Evaluate expressions with direct JSON string input
+octofhir-fhirpath evaluate "Patient.name.given" \
+  --input '{"resourceType": "Patient", "name": [{"given": ["John"]}]}'
+
+# Evaluate expressions with file input
+octofhir-fhirpath evaluate "Patient.name.given" --input "patient.json"
+
+# Evaluate expressions without any input (empty context)
+octofhir-fhirpath evaluate "true"
+octofhir-fhirpath evaluate "1 + 2"
 
 # Parse expressions to AST
 octofhir-fhirpath parse "Patient.name.where(use = 'official')"

@@ -26,9 +26,9 @@ enum Commands {
     Evaluate {
         /// FHIRPath expression to evaluate
         expression: String,
-        /// JSON file containing FHIR resource (reads from stdin if not provided)
+        /// JSON file containing FHIR resource, or JSON string directly (reads from stdin if not provided)
         #[arg(short, long)]
-        file: Option<String>,
+        input: Option<String>,
         /// Pretty-print JSON output
         #[arg(short, long)]
         pretty: bool,
@@ -63,11 +63,11 @@ fn main() {
     match cli.command {
         Commands::Evaluate {
             expression,
-            file,
+            input,
             pretty,
             quiet,
         } => {
-            handle_evaluate(&expression, file.as_deref(), pretty, quiet);
+            handle_evaluate(&expression, input.as_deref(), pretty, quiet);
         }
         Commands::Parse { expression, quiet } => {
             handle_parse(&expression, quiet);
@@ -78,15 +78,21 @@ fn main() {
     }
 }
 
-fn handle_evaluate(expression: &str, file: Option<&str>, pretty: bool, quiet: bool) {
+fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: bool) {
     // Get resource data
-    let resource_data = if let Some(filename) = file {
-        // Read from file
-        match fs::read_to_string(filename) {
-            Ok(content) => content,
-            Err(e) => {
-                eprintln!("Error reading file '{filename}': {e}");
-                process::exit(1);
+    let resource_data = if let Some(input_str) = input {
+        // Check if input is a file path or JSON string
+        if input_str.starts_with('{') || input_str.starts_with('[') || input_str.trim().is_empty() {
+            // Treat as JSON string directly
+            input_str.to_string()
+        } else {
+            // Treat as file path
+            match fs::read_to_string(input_str) {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("Error reading file '{input_str}': {e}");
+                    process::exit(1);
+                }
             }
         }
     } else {
@@ -99,12 +105,18 @@ fn handle_evaluate(expression: &str, file: Option<&str>, pretty: bool, quiet: bo
         buffer
     };
 
-    // Parse JSON resource
-    let resource: JsonValue = match parse_json(&resource_data) {
-        Ok(json) => json,
-        Err(e) => {
-            eprintln!("Error parsing JSON resource: {e}");
-            process::exit(1);
+    // Handle empty input case
+    let resource: JsonValue = if resource_data.trim().is_empty() {
+        // Use empty object for empty input
+        JsonValue::Object(serde_json::Map::new())
+    } else {
+        // Parse JSON resource
+        match parse_json(&resource_data) {
+            Ok(json) => json,
+            Err(e) => {
+                eprintln!("Error parsing JSON resource: {e}");
+                process::exit(1);
+            }
         }
     };
 

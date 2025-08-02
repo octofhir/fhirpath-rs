@@ -798,8 +798,7 @@ mod tests {
         assert_eq!(result.len(), 5);
 
         // Verify the results are correct
-        let expected: Vec<FhirPathValue> =
-            (5001..5006).map(FhirPathValue::Integer).collect();
+        let expected: Vec<FhirPathValue> = (5001..5006).map(FhirPathValue::Integer).collect();
         assert_eq!(result, expected);
     }
 

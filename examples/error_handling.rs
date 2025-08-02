@@ -44,9 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Testing invalid expression: {expr}");
         match engine.evaluate(expr, patient.clone()) {
             Ok(result) => {
-                println!(
-                    "  ✅ Parsed successfully (returned empty per FHIRPath spec): {result:?}"
-                );
+                println!("  ✅ Parsed successfully (returned empty per FHIRPath spec): {result:?}");
             }
             Err(error) => {
                 println!("  ❌ Parse error: {error}");

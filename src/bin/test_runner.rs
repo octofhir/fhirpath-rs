@@ -69,9 +69,7 @@ fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
             }
         }
         (Value::Bool(exp), FhirPathValue::Boolean(act)) => exp == act,
-        (Value::Number(exp), FhirPathValue::Integer(act)) => {
-            exp.as_i64() == Some(*act)
-        }
+        (Value::Number(exp), FhirPathValue::Integer(act)) => exp.as_i64() == Some(*act),
         (Value::Number(exp), FhirPathValue::Decimal(act)) => {
             use rust_decimal::prelude::ToPrimitive;
             exp.as_f64()
