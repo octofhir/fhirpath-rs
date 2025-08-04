@@ -1316,9 +1316,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-ucum"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50531db1c6c62ffd21e8237dc2f35272fbf5b189c6073b698af9aa32131c4e18"
+checksum = "cdb44771f028ac703058c7e3429ed57fc7c6b37eb8cd8ea9f3291f73e3c83afc"
 dependencies = [
  "fuzzy-matcher",
  "lazy_static",
