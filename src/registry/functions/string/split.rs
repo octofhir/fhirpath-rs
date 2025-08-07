@@ -39,8 +39,9 @@ impl AsyncFhirPathFunction for SplitFunction {
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(separator)) => {
                 let parts: Vec<FhirPathValue> = s
-                    .split(separator)
-                    .map(|part| FhirPathValue::String(part.to_string()))
+                    .as_ref()
+                    .split(separator.as_ref())
+                    .map(|part| FhirPathValue::String(part.to_string().into()))
                     .collect();
                 Ok(FhirPathValue::collection(parts))
             }

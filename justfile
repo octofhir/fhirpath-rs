@@ -181,12 +181,39 @@ expand ITEM="":
         cargo expand {{ITEM}}; \
     fi
 
-# Performance profiling
+# Performance profiling commands
 profile EXPRESSION="Patient.name":
     @echo "🔬 Profiling FHIRPath expression: {{EXPRESSION}}"
     @echo "================================================"
-    cargo build --release
-    perf record --call-graph=dwarf target/release/octofhir-fhirpath evaluate "{{EXPRESSION}}" || echo "⚠️  perf not available, install linux-perf-tools"
+    cargo build --release --bin perf_test
+    @echo "Running performance profiling..."
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --release --bin perf_test -- "{{EXPRESSION}}"
+
+# Generate flamegraph for expression profiling (requires flamegraph tool)
+flamegraph EXPRESSION="Patient.name.where(family.exists())":
+    @echo "🔥 Generating flamegraph for: {{EXPRESSION}}"
+    @echo "=============================================="
+    @echo "Building release with debug symbols..."
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --bin perf_test
+    @echo "Generating flamegraph..."
+    cargo flamegraph --bin perf_test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
+    @echo "🔥 Flamegraph saved as flamegraph.svg"
+
+# Profile where() function specifically with sample data
+profile-where:
+    @echo "🔬 Profiling .where() function performance"
+    @echo "==========================================="
+    @echo "Testing complex where expressions..."
+    just flamegraph "Patient.name.where(family.exists())"
+    @echo "✅ Where function profiling complete!"
+
+# Install profiling tools
+install-profiling-tools:
+    @echo "🔧 Installing Performance Profiling Tools"
+    @echo "=========================================="
+    cargo install flamegraph
+    @echo "✅ Flamegraph installed!"
+    @echo "💡 For better profiling on Linux, also install: sudo apt install linux-perf-tools"
 
 # Release preparation
 release-prep: qa test-coverage docs audit

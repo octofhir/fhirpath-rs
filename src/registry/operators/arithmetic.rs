@@ -211,12 +211,12 @@ impl FhirPathOperator for AddOperator {
                 FhirPathValue::Decimal(a + rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                FhirPathValue::String(format!("{a}{b}"))
+                FhirPathValue::String(format!("{a}{b}").into())
             }
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // Try to add quantities using UCUM unit conversion
                 match a.add(b) {
-                    Ok(result) => FhirPathValue::Quantity(result),
+                    Ok(result) => FhirPathValue::Quantity(result.into()),
                     Err(_) => {
                         return Err(OperatorError::IncompatibleUnits {
                             left_unit: a.unit.clone().unwrap_or_default(),
@@ -305,10 +305,9 @@ impl AddOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::String(format!(
-                "@{}",
-                new_date.format("%Y-%m-%d")
-            ))),
+            Some(new_date) => Ok(FhirPathValue::String(
+                format!("@{}", new_date.format("%Y-%m-%d")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -381,10 +380,9 @@ impl AddOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::String(format!(
-                "@{}",
-                new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")
-            ))),
+            Some(new_datetime) => Ok(FhirPathValue::String(
+                format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -435,10 +433,9 @@ impl AddOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::String(format!(
-                "@T{}",
-                new_time.format("%H:%M:%S")
-            ))),
+            Some(new_time) => Ok(FhirPathValue::String(
+                format!("@T{}", new_time.format("%H:%M:%S")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -535,7 +532,7 @@ impl FhirPathOperator for SubtractOperator {
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // Try to subtract quantities using UCUM unit conversion
                 match a.subtract(b) {
-                    Ok(result) => FhirPathValue::Quantity(result),
+                    Ok(result) => FhirPathValue::Quantity(result.into()),
                     Err(_) => {
                         return Err(OperatorError::IncompatibleUnits {
                             left_unit: a.unit.clone().unwrap_or_default(),
@@ -623,10 +620,9 @@ impl SubtractOperator {
         };
 
         match result_date {
-            Some(new_date) => Ok(FhirPathValue::String(format!(
-                "@{}",
-                new_date.format("%Y-%m-%d")
-            ))),
+            Some(new_date) => Ok(FhirPathValue::String(
+                format!("@{}", new_date.format("%Y-%m-%d")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -696,10 +692,9 @@ impl SubtractOperator {
         };
 
         match result_datetime {
-            Some(new_datetime) => Ok(FhirPathValue::String(format!(
-                "@{}",
-                new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")
-            ))),
+            Some(new_datetime) => Ok(FhirPathValue::String(
+                format!("@{}", new_datetime.format("%Y-%m-%dT%H:%M:%S%.3f%:z")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -750,10 +745,9 @@ impl SubtractOperator {
         };
 
         match result_time {
-            Some(new_time) => Ok(FhirPathValue::String(format!(
-                "@T{}",
-                new_time.format("%H:%M:%S")
-            ))),
+            Some(new_time) => Ok(FhirPathValue::String(
+                format!("@T{}", new_time.format("%H:%M:%S")).into(),
+            )),
             None => Ok(FhirPathValue::Empty), // Invalid operation returns empty
         }
     }
@@ -850,14 +844,15 @@ impl FhirPathOperator for MultiplyOperator {
                 FhirPathValue::Decimal(a * rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Integer(n)) => {
-                let mut result = q.clone();
-                result.value = q.value * rust_decimal::Decimal::from(*n);
-                FhirPathValue::Quantity(result)
+                let result = crate::model::Quantity::new(
+                    q.value * rust_decimal::Decimal::from(*n),
+                    q.unit.clone(),
+                );
+                FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Decimal(d)) => {
-                let mut result = q.clone();
-                result.value = q.value * d;
-                FhirPathValue::Quantity(result)
+                let result = crate::model::Quantity::new(q.value * d, q.unit.clone());
+                FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
                 // Multiply two quantities with UCUM unit multiplication
@@ -907,7 +902,7 @@ impl MultiplyOperator {
         };
 
         let result_quantity = crate::model::quantity::Quantity::new(result_value, result_unit);
-        Ok(FhirPathValue::Quantity(result_quantity))
+        Ok(FhirPathValue::Quantity(result_quantity.into()))
     }
 }
 
@@ -1018,17 +1013,18 @@ impl FhirPathOperator for DivideOperator {
                 if *n == 0 {
                     return Ok(FhirPathValue::Empty);
                 }
-                let mut result = q.clone();
-                result.value = q.value / rust_decimal::Decimal::from(*n);
-                FhirPathValue::Quantity(result)
+                let result = crate::model::Quantity::new(
+                    q.value / rust_decimal::Decimal::from(*n),
+                    q.unit.clone(),
+                );
+                FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Decimal(d)) => {
                 if d.is_zero() {
                     return Ok(FhirPathValue::Empty);
                 }
-                let mut result = q.clone();
-                result.value = q.value / d;
-                FhirPathValue::Quantity(result)
+                let result = crate::model::Quantity::new(q.value / d, q.unit.clone());
+                FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
                 if q2.value.is_zero() {
@@ -1087,7 +1083,7 @@ impl DivideOperator {
         };
 
         let result_quantity = crate::model::quantity::Quantity::new(result_value, result_unit);
-        Ok(FhirPathValue::Quantity(result_quantity))
+        Ok(FhirPathValue::Quantity(result_quantity.into()))
     }
 }
 

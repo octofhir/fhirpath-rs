@@ -619,7 +619,7 @@ impl ExpressionCompiler {
             LiteralValue::Boolean(b) => FhirPathValue::Boolean(*b),
             LiteralValue::Integer(i) => FhirPathValue::Integer(*i),
             LiteralValue::Decimal(d) => FhirPathValue::Decimal(d.parse().unwrap_or_default()),
-            LiteralValue::String(s) => FhirPathValue::String(s.clone()),
+            LiteralValue::String(s) => FhirPathValue::interned_string(s),
             LiteralValue::Date(d) => {
                 // Parse date string to NaiveDate
                 match d.parse() {
@@ -645,7 +645,7 @@ impl ExpressionCompiler {
                 // Create a Quantity object
                 let decimal_value: Decimal = value.parse().unwrap_or_default();
                 let quantity = Quantity::new(decimal_value, Some(unit.clone()));
-                FhirPathValue::Quantity(quantity)
+                FhirPathValue::Quantity(quantity.into())
             }
             LiteralValue::Null => FhirPathValue::Empty,
         }

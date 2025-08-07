@@ -57,7 +57,7 @@ impl AsyncFhirPathFunction for SubstringFunction {
         }
 
         let input_string = match &context.input {
-            FhirPathValue::String(s) => s.clone(),
+            FhirPathValue::String(s) => s.as_ref().to_string(),
             FhirPathValue::Resource(r) => {
                 // Try to extract string value from FhirResource
                 match r.as_json() {
@@ -104,7 +104,7 @@ impl AsyncFhirPathFunction for SubstringFunction {
                         return Ok(FhirPathValue::Empty);
                     }
                     let len = *len_int as usize;
-                    chars.iter().skip(start).take(len).collect()
+                    chars.iter().skip(start).take(len).collect::<String>()
                 }
                 FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
                 _ => {
@@ -117,9 +117,9 @@ impl AsyncFhirPathFunction for SubstringFunction {
                 }
             }
         } else {
-            chars.iter().skip(start).collect()
+            chars.iter().skip(start).collect::<String>()
         };
 
-        Ok(FhirPathValue::String(result))
+        Ok(FhirPathValue::String(result.into()))
     }
 }

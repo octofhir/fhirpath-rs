@@ -664,10 +664,10 @@ mod tests {
 
         // Acquire again - should reuse the pooled context
         {
-            let ctx = pool.acquire(FhirPathValue::String("hello".to_string()));
+            let ctx = pool.acquire(FhirPathValue::String("hello".to_string().into()));
             // Variables should be cleared
             assert!(ctx.get_variable("test").is_none());
-            assert_eq!(ctx.input, FhirPathValue::String("hello".to_string()));
+            assert_eq!(ctx.input, FhirPathValue::String("hello".to_string().into()));
         }
 
         // Pool should still have one context
@@ -722,8 +722,11 @@ mod tests {
         let ctx = pool.acquire(input.clone());
 
         // Create child contexts
-        let child = ctx.with_input(FhirPathValue::String("child".to_string()));
-        assert_eq!(child.input, FhirPathValue::String("child".to_string()));
+        let child = ctx.with_input(FhirPathValue::String("child".to_string().into()));
+        assert_eq!(
+            child.input,
+            FhirPathValue::String("child".to_string().into())
+        );
         assert_eq!(child.root, input); // Root should be preserved
 
         let fresh = ctx.with_fresh_variable_scope();
@@ -744,7 +747,7 @@ mod tests {
         assert_eq!(stack_ctx.root, &input);
 
         // Test variable operations
-        let var_value = FhirPathValue::String("test".to_string());
+        let var_value = FhirPathValue::String("test".to_string().into());
         stack_ctx.set_variable("test_var", &var_value);
         assert_eq!(stack_ctx.get_variable("test_var"), Some(&var_value));
         assert_eq!(stack_ctx.get_variable("nonexistent"), None);
@@ -763,7 +766,7 @@ mod tests {
         let operators = OperatorRegistry::new();
 
         let input = FhirPathValue::Integer(42);
-        let var_value = FhirPathValue::String("test".to_string());
+        let var_value = FhirPathValue::String("test".to_string().into());
 
         let mut stack_ctx = StackContext::new(&input, &functions, &operators);
         stack_ctx.set_variable("test_var", &var_value);
@@ -860,7 +863,7 @@ mod tests {
         parent_scope.set_variable("parent_var".to_string(), FhirPathValue::Integer(42));
         parent_scope.set_variable(
             "shared_var".to_string(),
-            FhirPathValue::String("parent".to_string()),
+            FhirPathValue::String("parent".to_string().into()),
         );
 
         // Create child scope - should not copy variables immediately
@@ -873,7 +876,7 @@ mod tests {
         );
         assert_eq!(
             child_scope.get_variable("shared_var"),
-            Some(&FhirPathValue::String("parent".to_string()))
+            Some(&FhirPathValue::String("parent".to_string().into()))
         );
 
         // Child starts with zero local variables
@@ -896,17 +899,17 @@ mod tests {
         // Overriding a parent variable should work
         child_scope.set_variable(
             "shared_var".to_string(),
-            FhirPathValue::String("child".to_string()),
+            FhirPathValue::String("child".to_string().into()),
         );
         assert_eq!(
             child_scope.get_variable("shared_var"),
-            Some(&FhirPathValue::String("child".to_string()))
+            Some(&FhirPathValue::String("child".to_string().into()))
         );
 
         // Parent should still have original value
         assert_eq!(
             parent_scope.get_variable("shared_var"),
-            Some(&FhirPathValue::String("parent".to_string()))
+            Some(&FhirPathValue::String("parent".to_string().into()))
         );
     }
 
@@ -942,14 +945,14 @@ mod tests {
         parent.set_variable("parent_var".to_string(), FhirPathValue::Integer(42));
         parent.set_variable(
             "shared_var".to_string(),
-            FhirPathValue::String("parent".to_string()),
+            FhirPathValue::String("parent".to_string().into()),
         );
 
         let mut child = VariableScope::child_from_shared(Arc::new(parent));
         child.set_variable("child_var".to_string(), FhirPathValue::Boolean(true));
         child.set_variable(
             "shared_var".to_string(),
-            FhirPathValue::String("child".to_string()),
+            FhirPathValue::String("child".to_string().into()),
         );
 
         let all_vars = child.collect_all_variables();
@@ -964,7 +967,7 @@ mod tests {
         );
         assert_eq!(
             all_vars.get("shared_var"),
-            Some(&FhirPathValue::String("child".to_string()))
+            Some(&FhirPathValue::String("child".to_string().into()))
         ); // Child overrides parent
     }
 
@@ -1002,7 +1005,7 @@ mod tests {
 
         parent_ctx.set_variable(
             "parent_var".to_string(),
-            FhirPathValue::String("parent".to_string()),
+            FhirPathValue::String("parent".to_string().into()),
         );
 
         // Create child context with inherited scope
@@ -1011,7 +1014,7 @@ mod tests {
         // Child should see parent variables
         assert_eq!(
             child_ctx.get_variable("parent_var"),
-            Some(&FhirPathValue::String("parent".to_string()))
+            Some(&FhirPathValue::String("parent".to_string().into()))
         );
         assert_eq!(child_ctx.input, FhirPathValue::Boolean(true));
 

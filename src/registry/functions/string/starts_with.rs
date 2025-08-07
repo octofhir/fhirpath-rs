@@ -40,9 +40,9 @@ impl AsyncFhirPathFunction for StartsWithFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
-            (FhirPathValue::String(s), FhirPathValue::String(prefix)) => {
-                Ok(FhirPathValue::Boolean(s.starts_with(prefix)))
-            }
+            (FhirPathValue::String(s), FhirPathValue::String(prefix)) => Ok(
+                FhirPathValue::Boolean(s.as_ref().starts_with(prefix.as_ref())),
+            ),
             (FhirPathValue::Empty, _) => Ok(FhirPathValue::Empty),
             // Handle empty collections - return empty when any parameter is an empty collection
             (FhirPathValue::Collection(items), _) if items.is_empty() => Ok(FhirPathValue::Empty),

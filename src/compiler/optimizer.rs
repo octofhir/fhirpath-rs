@@ -222,15 +222,15 @@ impl ExpressionOptimizer {
                 // Parse decimal string to Decimal type
                 match d.parse::<Decimal>() {
                     Ok(decimal) => FhirPathValue::Decimal(decimal),
-                    Err(_) => FhirPathValue::String(d.clone()), // Fallback to string
+                    Err(_) => FhirPathValue::String(d.clone().into()), // Fallback to string
                 }
             }
-            LiteralValue::String(s) => FhirPathValue::String(s.clone()),
+            LiteralValue::String(s) => FhirPathValue::interned_string(s),
             LiteralValue::Date(d) => {
                 // Parse date string to NaiveDate
                 match chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d") {
                     Ok(date) => FhirPathValue::Date(date),
-                    Err(_) => FhirPathValue::String(d.clone()), // Fallback to string
+                    Err(_) => FhirPathValue::String(d.clone().into()), // Fallback to string
                 }
             }
             LiteralValue::DateTime(dt) => {
@@ -241,21 +241,21 @@ impl ExpressionOptimizer {
                             .with_timezone(&chrono::Utc)
                             .with_timezone(&chrono::FixedOffset::east_opt(0).unwrap()),
                     ),
-                    Err(_) => FhirPathValue::String(dt.clone()), // Fallback to string
+                    Err(_) => FhirPathValue::String(dt.clone().into()), // Fallback to string
                 }
             }
             LiteralValue::Time(t) => {
                 // Parse time string to NaiveTime
                 match chrono::NaiveTime::parse_from_str(t, "%H:%M:%S") {
                     Ok(time) => FhirPathValue::Time(time),
-                    Err(_) => FhirPathValue::String(t.clone()), // Fallback to string
+                    Err(_) => FhirPathValue::String(t.clone().into()), // Fallback to string
                 }
             }
             LiteralValue::Quantity { value, unit } => {
                 // Parse value string to Decimal
                 match value.parse::<Decimal>() {
                     Ok(decimal) => FhirPathValue::quantity(decimal, Some(unit.clone())),
-                    Err(_) => FhirPathValue::String(format!("{value} {unit}")), // Fallback to string
+                    Err(_) => FhirPathValue::String(format!("{value} {unit}").into()), // Fallback to string
                 }
             }
             LiteralValue::Null => FhirPathValue::Empty,
@@ -268,7 +268,7 @@ impl ExpressionOptimizer {
             FhirPathValue::Boolean(b) => LiteralValue::Boolean(b),
             FhirPathValue::Integer(i) => LiteralValue::Integer(i),
             FhirPathValue::Decimal(d) => LiteralValue::Decimal(d.to_string()),
-            FhirPathValue::String(s) => LiteralValue::String(s),
+            FhirPathValue::String(s) => LiteralValue::String(s.as_ref().to_string()),
             FhirPathValue::Date(d) => LiteralValue::Date(d.format("%Y-%m-%d").to_string()),
             FhirPathValue::DateTime(dt) => LiteralValue::DateTime(dt.to_rfc3339()),
             FhirPathValue::Time(t) => LiteralValue::Time(t.format("%H:%M:%S").to_string()),
@@ -669,7 +669,7 @@ impl ExpressionOptimizer {
     ) -> OptimizationResult<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                Ok(FhirPathValue::String(format!("{a}{b}")))
+                Ok(FhirPathValue::String(format!("{a}{b}").into()))
             }
             (left, right) => Err(OptimizationError::TypeError {
                 expected: "String".to_string(),

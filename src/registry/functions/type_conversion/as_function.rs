@@ -46,7 +46,7 @@ impl AsyncFhirPathFunction for AsFunction {
 
         // Get the type name from the argument
         let type_name = match &args[0] {
-            FhirPathValue::String(s) => s.as_str(),
+            FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 return Err(FunctionError::InvalidArgumentType {
                     name: self.name().to_string(),
@@ -115,7 +115,7 @@ impl AsyncFhirPathFunction for AsFunction {
                 Ok(FhirPathValue::Boolean(*b))
             }
             (FhirPathValue::String(s), "boolean" | "Boolean" | "System.Boolean") => {
-                match s.as_str() {
+                match s.as_ref() {
                     "true" => Ok(FhirPathValue::Boolean(true)),
                     "false" => Ok(FhirPathValue::Boolean(false)),
                     _ => Ok(FhirPathValue::Empty),

@@ -38,7 +38,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(format)) => {
-                match format.as_str() {
+                match format.as_ref() {
                     "uri" => {
                         // URL percent encoding
                         let encoded = s
@@ -51,7 +51,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
                                 _ => format!("%{:02X}", c as u32),
                             })
                             .collect::<String>();
-                        Ok(FhirPathValue::String(encoded))
+                        Ok(FhirPathValue::String(encoded.into()))
                     }
                     "html" => {
                         // HTML entity encoding
@@ -66,7 +66,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
                                 _ => c.to_string(),
                             })
                             .collect::<String>();
-                        Ok(FhirPathValue::String(encoded))
+                        Ok(FhirPathValue::String(encoded.into()))
                     }
                     "base64" => {
                         // Base64 encoding
@@ -97,7 +97,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
                             });
                         }
 
-                        Ok(FhirPathValue::String(result))
+                        Ok(FhirPathValue::String(result.into()))
                     }
                     "hex" => {
                         // Hexadecimal encoding
@@ -106,7 +106,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
                             .iter()
                             .map(|b| format!("{b:02X}"))
                             .collect::<String>();
-                        Ok(FhirPathValue::String(encoded))
+                        Ok(FhirPathValue::String(encoded.into()))
                     }
                     "urlbase64" => {
                         // URL-safe Base64 encoding (RFC 4648) with padding
@@ -137,7 +137,7 @@ impl AsyncFhirPathFunction for EncodeFunction {
                             });
                         }
 
-                        Ok(FhirPathValue::String(result))
+                        Ok(FhirPathValue::String(result.into()))
                     }
                     _ => Err(FunctionError::EvaluationError {
                         name: self.name().to_string(),

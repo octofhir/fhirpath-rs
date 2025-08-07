@@ -44,8 +44,8 @@ impl AsyncFhirPathFunction for TypeFunction {
             FhirPathValue::Collection(items) => {
                 if items.len() > 1 {
                     return Err(FunctionError::EvaluationError {
-                        name: self.name().to_string(),
-                        message: "Input collection contains multiple items".to_string(),
+                        name: self.name().into(),
+                        message: "Input collection contains multiple items".into(),
                     });
                 } else if items.is_empty() {
                     return Ok(FhirPathValue::Empty);
@@ -59,36 +59,36 @@ impl AsyncFhirPathFunction for TypeFunction {
 
         let type_info = match input_item {
             FhirPathValue::String(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "String".to_string(),
+                namespace: "System".into(),
+                name: "String".into(),
             },
             FhirPathValue::Integer(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Integer".to_string(),
+                namespace: "System".into(),
+                name: "Integer".into(),
             },
             FhirPathValue::Decimal(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Decimal".to_string(),
+                namespace: "System".into(),
+                name: "Decimal".into(),
             },
             FhirPathValue::Boolean(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Boolean".to_string(),
+                namespace: "System".into(),
+                name: "Boolean".into(),
             },
             FhirPathValue::Date(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Date".to_string(),
+                namespace: "System".into(),
+                name: "Date".into(),
             },
             FhirPathValue::DateTime(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "DateTime".to_string(),
+                namespace: "System".into(),
+                name: "DateTime".into(),
             },
             FhirPathValue::Time(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Time".to_string(),
+                namespace: "System".into(),
+                name: "Time".into(),
             },
             FhirPathValue::Quantity(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Quantity".to_string(),
+                namespace: "System".into(),
+                name: "Quantity".into(),
             },
             FhirPathValue::Resource(resource) => {
                 // For FHIR resources, determine the appropriate type
@@ -98,8 +98,8 @@ impl AsyncFhirPathFunction for TypeFunction {
                 if let Some(_json_value) = resource.as_json().as_bool() {
                     // Boolean primitive in FHIR context
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: "boolean".to_string(),
+                        namespace: "FHIR".into(),
+                        name: "boolean".into(),
                     }
                 } else if let Some(json_value) = resource.as_json().as_str() {
                     // String-based FHIR primitive
@@ -115,42 +115,42 @@ impl AsyncFhirPathFunction for TypeFunction {
                         "string"
                     };
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: fhir_type.to_string(),
+                        namespace: "FHIR".into(),
+                        name: fhir_type.into(),
                     }
                 } else if let Some(_json_value) = resource.as_json().as_i64() {
                     // Integer primitive in FHIR context
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: "integer".to_string(),
+                        namespace: "FHIR".into(),
+                        name: "integer".into(),
                     }
                 } else if let Some(_json_value) = resource.as_json().as_f64() {
                     // Decimal primitive in FHIR context
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: "decimal".to_string(),
+                        namespace: "FHIR".into(),
+                        name: "decimal".into(),
                     }
                 } else if resource_type.is_some() {
                     // This is a complex FHIR resource with a resourceType
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: resource_type.unwrap().to_string(),
+                        namespace: "FHIR".into(),
+                        name: resource_type.unwrap().into(),
                     }
                 } else {
                     // Unknown resource type
                     FhirPathValue::TypeInfoObject {
-                        namespace: "FHIR".to_string(),
-                        name: "Unknown".to_string(),
+                        namespace: "FHIR".into(),
+                        name: "Unknown".into(),
                     }
                 }
             }
             FhirPathValue::Collection(_) => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "Collection".to_string(),
+                namespace: "System".into(),
+                name: "Collection".into(),
             },
             FhirPathValue::TypeInfoObject { .. } => FhirPathValue::TypeInfoObject {
-                namespace: "System".to_string(),
-                name: "TypeInfo".to_string(),
+                namespace: "System".into(),
+                name: "TypeInfo".into(),
             },
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
         };

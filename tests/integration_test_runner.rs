@@ -240,7 +240,7 @@ impl IntegrationTestRunner {
                     FhirPathValue::Empty
                 }
             }
-            Value::String(s) => FhirPathValue::String(s.clone()),
+            Value::String(s) => FhirPathValue::String(s.clone().into()),
             Value::Array(arr) => {
                 if arr.is_empty() {
                     FhirPathValue::Empty
@@ -305,7 +305,7 @@ impl IntegrationTestRunner {
         // Load input data
         let input_data = match &test.inputfile {
             Some(filename) => match self.load_input_data(filename) {
-                Ok(data) => FhirPathValue::Resource(data),
+                Ok(data) => FhirPathValue::Resource(data.into()),
                 Err(e) => {
                     return TestResult::Error {
                         error: format!("Failed to load input from {filename}: {e}"),
@@ -401,7 +401,7 @@ impl IntegrationTestRunner {
                 );
                 Value::Array(vec![num])
             }
-            FhirPathValue::String(s) => Value::Array(vec![Value::String(s.clone())]),
+            FhirPathValue::String(s) => Value::Array(vec![Value::String(s.to_string())]),
             FhirPathValue::Date(d) => {
                 Value::Array(vec![Value::String(format!("@{}", d.format("%Y-%m-%d")))])
             }
@@ -433,8 +433,11 @@ impl IntegrationTestRunner {
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 // Convert TypeInfo to JSON object
                 let mut obj = serde_json::Map::new();
-                obj.insert("namespace".to_string(), Value::String(namespace.clone()));
-                obj.insert("name".to_string(), Value::String(name.clone()));
+                obj.insert(
+                    "namespace".to_string(),
+                    Value::String(namespace.to_string()),
+                );
+                obj.insert("name".to_string(), Value::String(name.to_string()));
                 Value::Array(vec![Value::Object(obj)])
             }
         }
@@ -452,7 +455,7 @@ impl IntegrationTestRunner {
                         .unwrap_or_else(|| serde_json::Number::from(0)),
                 )
             }
-            FhirPathValue::String(s) => Value::String(s.clone()),
+            FhirPathValue::String(s) => Value::String(s.to_string()),
             FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
             FhirPathValue::DateTime(dt) => {
                 Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))
@@ -476,8 +479,11 @@ impl IntegrationTestRunner {
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 // Convert TypeInfo to JSON object
                 let mut obj = serde_json::Map::new();
-                obj.insert("namespace".to_string(), Value::String(namespace.clone()));
-                obj.insert("name".to_string(), Value::String(name.clone()));
+                obj.insert(
+                    "namespace".to_string(),
+                    Value::String(namespace.to_string()),
+                );
+                obj.insert("name".to_string(), Value::String(name.to_string()));
                 Value::Object(obj)
             }
         }
@@ -721,7 +727,7 @@ mod tests {
         );
         assert_eq!(
             runner.convert_expected_value(&Value::from("test")),
-            FhirPathValue::String("test".to_string())
+            FhirPathValue::String("test".into())
         );
         assert_eq!(
             runner.convert_expected_value(&Value::Array(vec![])),
@@ -739,7 +745,7 @@ mod tests {
 
         // Test collection comparison
         let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("test".to_string()),
+            FhirPathValue::String("test".into()),
             FhirPathValue::Integer(42),
         ]);
         let expected = Value::Array(vec![Value::String("test".to_string()), Value::from(42)]);

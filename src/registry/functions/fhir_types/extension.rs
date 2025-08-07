@@ -131,9 +131,9 @@ fn value_to_fhir_path_value(value: &Value) -> FhirPathValue {
         }
         Value::Object(_) => {
             let resource = FhirResource::from_json(value.clone());
-            FhirPathValue::Resource(resource)
+            FhirPathValue::Resource(resource.into())
         }
-        Value::String(s) => FhirPathValue::String(s.clone()),
+        Value::String(s) => FhirPathValue::String(s.clone().into()),
         Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 FhirPathValue::Integer(i)

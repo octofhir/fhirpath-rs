@@ -35,8 +35,9 @@ impl AsyncFhirPathFunction for ToCharsFunction {
         match &context.input {
             FhirPathValue::String(s) => {
                 let chars: Vec<FhirPathValue> = s
+                    .as_ref()
                     .chars()
-                    .map(|c| FhirPathValue::String(c.to_string()))
+                    .map(|c| FhirPathValue::String(c.to_string().into()))
                     .collect();
                 Ok(FhirPathValue::collection(chars))
             }

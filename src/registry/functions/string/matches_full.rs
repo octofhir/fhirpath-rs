@@ -41,18 +41,19 @@ impl AsyncFhirPathFunction for MatchesFullFunction {
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(pattern)) => {
                 // Add anchors if not present
-                let full_pattern = if pattern.starts_with('^') && pattern.ends_with('$') {
-                    pattern.clone()
-                } else if pattern.starts_with('^') {
-                    format!("{pattern}$")
-                } else if pattern.ends_with('$') {
-                    format!("^{pattern}")
-                } else {
-                    format!("^{pattern}$")
-                };
+                let full_pattern =
+                    if pattern.as_ref().starts_with('^') && pattern.as_ref().ends_with('$') {
+                        pattern.as_ref().to_string()
+                    } else if pattern.as_ref().starts_with('^') {
+                        format!("{pattern}$")
+                    } else if pattern.as_ref().ends_with('$') {
+                        format!("^{pattern}")
+                    } else {
+                        format!("^{pattern}$")
+                    };
 
                 match Regex::new(&full_pattern) {
-                    Ok(re) => Ok(FhirPathValue::Boolean(re.is_match(s))),
+                    Ok(re) => Ok(FhirPathValue::Boolean(re.is_match(s.as_ref()))),
                     Err(e) => Err(FunctionError::EvaluationError {
                         name: self.name().to_string(),
                         message: format!("Invalid regex pattern: {e}"),

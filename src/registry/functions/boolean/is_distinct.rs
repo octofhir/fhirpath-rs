@@ -5,6 +5,7 @@ use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, Functi
 use crate::registry::signature::FunctionSignature;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// isDistinct() function - returns true if the collection contains no duplicates
 pub struct IsDistinctFunction;
@@ -16,7 +17,7 @@ enum ValueDiscriminant {
     Boolean(bool),
     Integer(i64),
     Decimal(String), // Use string representation for decimal
-    String(String),
+    String(Arc<str>),
     Date(String),
     DateTime(String),
     Time(String),
@@ -50,7 +51,7 @@ impl IsDistinctFunction {
                 ValueDiscriminant::Resource(r.resource_type().unwrap_or("Unknown").to_string())
             }
             FhirPathValue::TypeInfoObject { namespace, name } => {
-                ValueDiscriminant::String(format!("TypeInfo({namespace}.{name})"))
+                ValueDiscriminant::String(format!("TypeInfo({namespace}.{name})").into())
             } // FhirPathValue::Lambda variant doesn't exist yet
               // FhirPathValue::Lambda(_) => ValueDiscriminant::Lambda,
         }

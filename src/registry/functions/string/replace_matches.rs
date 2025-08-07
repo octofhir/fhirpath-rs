@@ -49,13 +49,15 @@ impl AsyncFhirPathFunction for ReplaceMatchesFunction {
                 FhirPathValue::String(substitution),
             ) => {
                 // Handle empty pattern - return original string unchanged
-                if pattern.is_empty() {
+                if pattern.as_ref().is_empty() {
                     return Ok(FhirPathValue::String(s.clone()));
                 }
 
-                match Regex::new(pattern) {
+                match Regex::new(pattern.as_ref()) {
                     Ok(re) => Ok(FhirPathValue::String(
-                        re.replace_all(s, substitution).to_string(),
+                        re.replace_all(s.as_ref(), substitution.as_ref())
+                            .to_string()
+                            .into(),
                     )),
                     Err(e) => Err(FunctionError::EvaluationError {
                         name: self.name().to_string(),

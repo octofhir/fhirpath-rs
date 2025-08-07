@@ -41,9 +41,9 @@ impl AsyncFhirPathFunction for EndsWithFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
-            (FhirPathValue::String(s), FhirPathValue::String(suffix)) => {
-                Ok(FhirPathValue::Boolean(s.ends_with(suffix)))
-            }
+            (FhirPathValue::String(s), FhirPathValue::String(suffix)) => Ok(
+                FhirPathValue::Boolean(s.as_ref().ends_with(suffix.as_ref())),
+            ),
             (FhirPathValue::Empty, _) => Ok(FhirPathValue::Empty),
             // Handle empty collections - return empty when any parameter is an empty collection
             (FhirPathValue::Collection(items), _) if items.is_empty() => Ok(FhirPathValue::Empty),

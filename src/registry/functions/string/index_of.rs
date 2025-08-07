@@ -41,7 +41,7 @@ impl AsyncFhirPathFunction for IndexOfFunction {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(substring)) => {
-                match s.find(substring) {
+                match s.as_ref().find(substring.as_ref()) {
                     Some(index) => Ok(FhirPathValue::Integer(index as i64)),
                     None => Ok(FhirPathValue::Integer(-1)),
                 }

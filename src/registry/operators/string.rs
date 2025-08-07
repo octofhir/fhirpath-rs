@@ -40,7 +40,7 @@ impl FhirPathOperator for ConcatenateOperator {
         let left_str = left.to_string_value().unwrap_or_default();
         let right_str = right.to_string_value().unwrap_or_default();
         Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-            left_str + &right_str,
+            (left_str + &right_str).into(),
         )]))
     }
 }

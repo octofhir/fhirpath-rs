@@ -74,7 +74,7 @@ impl AsyncFhirPathFunction for DefineVariableFunction {
 
         // For validation, check if variable name is reserved
         if matches!(
-            var_name.as_str(),
+            var_name.as_ref(),
             "$this" | "$" | "$$" | "$resource" | "$total" | "context"
         ) {
             // Return empty for reserved variable names as per spec

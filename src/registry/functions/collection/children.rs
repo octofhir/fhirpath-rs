@@ -84,9 +84,9 @@ impl AsyncFhirPathFunction for ChildrenFunction {
                 }
                 serde_json::Value::Object(_) => {
                     let resource = FhirResource::from_json(value.clone());
-                    FhirPathValue::Resource(resource)
+                    FhirPathValue::Resource(resource.into())
                 }
-                serde_json::Value::String(s) => FhirPathValue::String(s.clone()),
+                serde_json::Value::String(s) => FhirPathValue::String(s.clone().into()),
                 serde_json::Value::Number(n) => {
                     if let Some(i) = n.as_i64() {
                         FhirPathValue::Integer(i)

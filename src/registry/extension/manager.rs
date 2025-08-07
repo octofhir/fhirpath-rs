@@ -296,7 +296,7 @@ mod tests {
             _args: &[FhirPathValue],
             _context: &EvaluationContext,
         ) -> FunctionResult<FhirPathValue> {
-            Ok(FhirPathValue::String("Hello, World!".to_string()))
+            Ok(FhirPathValue::String("Hello, World!".into()))
         }
     }
 

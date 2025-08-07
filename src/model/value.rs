@@ -17,7 +17,7 @@ use super::types::TypeInfo;
 /// This enum represents all possible values that can be produced by FHIRPath expressions.
 /// All values in FHIRPath are conceptual collections, but single values are represented
 /// directly for performance reasons.
-#[derive(Clone, PartialEq, Deserialize)]
+#[derive(Clone, PartialEq)]
 pub enum FhirPathValue {
     /// Boolean value
     Boolean(bool),
@@ -29,7 +29,7 @@ pub enum FhirPathValue {
     Decimal(Decimal),
 
     /// String value
-    String(String),
+    String(Arc<str>),
 
     /// Date value (without time)
     Date(NaiveDate),
@@ -41,24 +41,139 @@ pub enum FhirPathValue {
     Time(NaiveTime),
 
     /// Quantity value with optional unit
-    Quantity(Quantity),
+    Quantity(Arc<Quantity>),
 
     /// Collection of values (the fundamental FHIRPath concept)
     Collection(Collection),
 
     /// FHIR Resource or complex object
-    Resource(FhirResource),
+    Resource(Arc<FhirResource>),
 
     /// Type information object with namespace and name properties
     TypeInfoObject {
         /// Type namespace
-        namespace: String,
+        namespace: Arc<str>,
         /// Type name
-        name: String,
+        name: Arc<str>,
     },
 
     /// Empty value (equivalent to an empty collection)
     Empty,
+}
+
+/// Custom deserialization for FhirPathValue to handle Arc<str>
+impl<'de> Deserialize<'de> for FhirPathValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, MapAccess, Visitor};
+        use std::fmt;
+
+        struct FhirPathValueVisitor;
+
+        impl<'de> Visitor<'de> for FhirPathValueVisitor {
+            type Value = FhirPathValue;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a FhirPathValue")
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::Boolean(value))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::Integer(value))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                if let Ok(d) = Decimal::try_from(value) {
+                    Ok(FhirPathValue::Decimal(d))
+                } else {
+                    Ok(FhirPathValue::String(Arc::from(value.to_string())))
+                }
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::String(Arc::from(value)))
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::String(Arc::from(value.as_str())))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut vec = Vec::new();
+                while let Some(value) = seq.next_element()? {
+                    vec.push(value);
+                }
+                Ok(FhirPathValue::Collection(Collection::from_vec(vec)))
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut obj = serde_json::Map::new();
+                while let Some((key, value)) = map.next_entry::<String, serde_json::Value>()? {
+                    obj.insert(key, value);
+                }
+
+                // Check for special object types
+                if obj.contains_key("namespace") && obj.contains_key("name") {
+                    if let (Some(namespace), Some(name)) = (
+                        obj.get("namespace").and_then(|v| v.as_str()),
+                        obj.get("name").and_then(|v| v.as_str()),
+                    ) {
+                        return Ok(FhirPathValue::TypeInfoObject {
+                            namespace: Arc::from(namespace),
+                            name: Arc::from(name),
+                        });
+                    }
+                }
+
+                // Otherwise treat as resource
+                Ok(FhirPathValue::Resource(Arc::new(FhirResource::from_json(
+                    serde_json::Value::Object(obj),
+                ))))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::Empty)
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(FhirPathValue::Empty)
+            }
+        }
+
+        deserializer.deserialize_any(FhirPathValueVisitor)
+    }
 }
 
 /// Collection type that wraps an Arc slice for zero-copy operations
@@ -74,6 +189,16 @@ impl Collection {
     /// Create a collection from a vector
     pub fn from_vec(values: Vec<FhirPathValue>) -> Self {
         Self(values.into())
+    }
+
+    /// Create a collection from an iterator (more efficient than collect + from_vec)
+    pub fn from_iter<I: IntoIterator<Item = FhirPathValue>>(iter: I) -> Self {
+        Self(iter.into_iter().collect::<Vec<_>>().into())
+    }
+
+    /// Create a collection by reserving capacity (prevents reallocations)
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity).into())
     }
 
     /// Get the length of the collection
@@ -108,6 +233,17 @@ impl Collection {
     /// Extend the collection with another
     /// Note: This creates a new Arc with the combined values
     pub fn extend(&mut self, other: Collection) {
+        // Optimize for common cases
+        if self.is_empty() {
+            // If self is empty, just replace with other
+            self.0 = other.0;
+            return;
+        }
+        if other.is_empty() {
+            // If other is empty, nothing to do
+            return;
+        }
+
         let mut vec: Vec<FhirPathValue> = self.0.to_vec();
         vec.extend(other.0.iter().cloned());
         self.0 = vec.into();
@@ -248,9 +384,49 @@ impl FhirPathValue {
         Self::Collection(Collection::from_vec(vec![value]))
     }
 
-    /// Create a quantity value
+    /// Create a quantity value with optimization for common values
     pub fn quantity(value: Decimal, unit: Option<String>) -> Self {
-        Self::Quantity(Quantity::new(value, unit))
+        // Optimize common unitless values
+        if unit.is_none() {
+            use once_cell::sync::Lazy;
+            use rust_decimal::Decimal;
+            use std::collections::HashMap;
+            use std::sync::Arc;
+
+            static COMMON_QUANTITIES: Lazy<HashMap<String, Arc<Quantity>>> = Lazy::new(|| {
+                let mut map = HashMap::new();
+                map.insert("0".to_string(), Arc::new(Quantity::unitless(Decimal::ZERO)));
+                map.insert("1".to_string(), Arc::new(Quantity::unitless(Decimal::ONE)));
+                map.insert(
+                    "-1".to_string(),
+                    Arc::new(Quantity::unitless(-Decimal::ONE)),
+                );
+                map
+            });
+
+            let value_str = value.to_string();
+            if let Some(cached) = COMMON_QUANTITIES.get(&value_str) {
+                return Self::Quantity(Arc::clone(cached));
+            }
+        }
+
+        Self::Quantity(Arc::new(Quantity::new(value, unit)))
+    }
+
+    /// Create an interned string value (more memory efficient for common strings)
+    pub fn interned_string<S: AsRef<str>>(s: S) -> Self {
+        use super::intern_string;
+        Self::String(intern_string(s))
+    }
+
+    /// Create a resource value from JSON (Arc-wrapped for sharing)
+    pub fn resource_from_json(data: Value) -> Self {
+        Self::Resource(Arc::new(FhirResource::from_json(data)))
+    }
+
+    /// Create a resource value from an existing FhirResource (Arc-wrapped)
+    pub fn resource(resource: FhirResource) -> Self {
+        Self::Resource(Arc::new(resource))
     }
 
     /// Check if the value is empty (empty collection or Empty variant)
@@ -314,7 +490,7 @@ impl FhirPathValue {
     /// Convert to string representation
     pub fn to_string_value(&self) -> Option<String> {
         match self {
-            Self::String(s) => Some(s.clone()),
+            Self::String(s) => Some(s.as_ref().to_string()),
             Self::Boolean(b) => Some(b.to_string()),
             Self::Integer(i) => Some(i.to_string()),
             Self::Decimal(d) => Some(d.to_string()),
@@ -391,7 +567,7 @@ impl FhirPathValue {
     /// Try to convert to a string
     pub fn as_string(&self) -> Option<&str> {
         match self {
-            Self::String(s) => Some(s),
+            Self::String(s) => Some(s.as_ref()),
             _ => None,
         }
     }
@@ -436,10 +612,10 @@ impl From<Value> for FhirPathValue {
                     if let Ok(d) = Decimal::try_from(f) {
                         Self::Decimal(d)
                     } else {
-                        Self::String(n.to_string())
+                        Self::String(n.to_string().into())
                     }
                 } else {
-                    Self::String(n.to_string())
+                    Self::String(n.to_string().into())
                 }
             }
             Value::String(s) => {
@@ -453,7 +629,7 @@ impl From<Value> for FhirPathValue {
                 } else if let Ok(time) = NaiveTime::parse_from_str(&s, "%H:%M:%S%.f") {
                     Self::Time(time)
                 } else {
-                    Self::String(s)
+                    Self::String(Arc::from(s.as_str()))
                 }
             }
             Value::Array(arr) => {
@@ -474,7 +650,10 @@ impl From<Value> for FhirPathValue {
                                 .map(|s| s.to_string());
 
                             if let Ok(decimal_value) = Decimal::try_from(value_num) {
-                                return Self::Quantity(Quantity::new(decimal_value, unit));
+                                return Self::Quantity(Arc::new(Quantity::new(
+                                    decimal_value,
+                                    unit,
+                                )));
                             }
                         }
                     }
@@ -487,14 +666,14 @@ impl From<Value> for FhirPathValue {
                         obj.get("name").and_then(|v| v.as_str()),
                     ) {
                         return Self::TypeInfoObject {
-                            namespace: namespace.to_string(),
-                            name: name.to_string(),
+                            namespace: Arc::from(namespace),
+                            name: Arc::from(name),
                         };
                     }
                 }
 
                 // Otherwise treat as a resource
-                Self::Resource(FhirResource::from_json(value))
+                Self::Resource(Arc::new(FhirResource::from_json(value)))
             }
             Value::Null => Self::Empty,
         }
@@ -519,7 +698,7 @@ impl From<FhirPathValue> for Value {
                     Value::String(d.to_string())
                 }
             }
-            FhirPathValue::String(s) => Value::String(s),
+            FhirPathValue::String(s) => Value::String(s.as_ref().to_string()),
             FhirPathValue::Date(d) => Value::String(format!("@{}", d.format("%Y-%m-%d"))),
             FhirPathValue::DateTime(dt) => {
                 Value::String(format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3f%z")))
@@ -533,8 +712,11 @@ impl From<FhirPathValue> for Value {
             FhirPathValue::Resource(resource) => resource.to_json(),
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 let mut obj = serde_json::Map::new();
-                obj.insert("namespace".to_string(), Value::String(namespace));
-                obj.insert("name".to_string(), Value::String(name));
+                obj.insert(
+                    "namespace".to_string(),
+                    Value::String(namespace.as_ref().to_string()),
+                );
+                obj.insert("name".to_string(), Value::String(name.as_ref().to_string()));
                 Value::Object(obj)
             }
             FhirPathValue::Empty => Value::Null,
@@ -546,7 +728,7 @@ impl From<FhirPathValue> for Value {
 impl fmt::Display for FhirPathValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::String(s) => write!(f, "{s}"),
+            Self::String(s) => write!(f, "{}", s.as_ref()),
             Self::Boolean(b) => write!(f, "{b}"),
             Self::Integer(i) => write!(f, "{i}"),
             Self::Decimal(d) => write!(f, "{d}"),
@@ -598,7 +780,7 @@ impl Serialize for FhirPathValue {
 impl fmt::Debug for FhirPathValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::String(s) => write!(f, "String({s})"),
+            Self::String(s) => write!(f, "String({})", s.as_ref()),
             Self::Boolean(b) => write!(f, "Boolean({b})"),
             Self::Integer(i) => write!(f, "Integer({i})"),
             Self::Decimal(d) => write!(f, "Decimal({d})"),
@@ -752,6 +934,49 @@ impl<'a> fmt::Display for ValueRef<'a> {
     }
 }
 
+// Convenience From implementations for string types
+impl From<String> for FhirPathValue {
+    fn from(s: String) -> Self {
+        Self::String(Arc::from(s.as_str()))
+    }
+}
+
+impl From<&str> for FhirPathValue {
+    fn from(s: &str) -> Self {
+        Self::String(Arc::from(s))
+    }
+}
+
+impl From<Arc<str>> for FhirPathValue {
+    fn from(s: Arc<str>) -> Self {
+        Self::String(s)
+    }
+}
+
+impl From<FhirResource> for FhirPathValue {
+    fn from(resource: FhirResource) -> Self {
+        Self::Resource(Arc::new(resource))
+    }
+}
+
+impl From<Arc<FhirResource>> for FhirPathValue {
+    fn from(resource: Arc<FhirResource>) -> Self {
+        Self::Resource(resource)
+    }
+}
+
+impl From<Quantity> for FhirPathValue {
+    fn from(quantity: Quantity) -> Self {
+        Self::Quantity(Arc::new(quantity))
+    }
+}
+
+impl From<Arc<Quantity>> for FhirPathValue {
+    fn from(quantity: Arc<Quantity>) -> Self {
+        Self::Quantity(quantity)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -812,7 +1037,7 @@ mod tests {
 
     #[test]
     fn test_value_ref_owned() {
-        let value = FhirPathValue::String("hello".to_string());
+        let value = FhirPathValue::String(Arc::from("hello"));
         let value_ref = ValueRef::owned(value);
 
         assert!(!value_ref.is_borrowed());
@@ -849,5 +1074,147 @@ mod tests {
 
         // Both collections should point to the same Arc
         assert!(Arc::ptr_eq(collection1.as_arc(), collection2.as_arc()));
+    }
+
+    #[test]
+    fn test_resource_sharing() {
+        use serde_json::json;
+
+        let patient_json = json!({
+            "resourceType": "Patient",
+            "id": "123",
+            "name": [{
+                "given": ["John"],
+                "family": "Doe"
+            }]
+        });
+
+        // Test resource sharing with Arc
+        let resource = FhirResource::from_json(patient_json.clone());
+        let shared_arc = Arc::new(resource);
+
+        let value1 = FhirPathValue::from(Arc::clone(&shared_arc));
+        let value2 = FhirPathValue::from(Arc::clone(&shared_arc));
+        let value3 = FhirPathValue::from(Arc::clone(&shared_arc));
+
+        if let (
+            FhirPathValue::Resource(arc1),
+            FhirPathValue::Resource(arc2),
+            FhirPathValue::Resource(arc3),
+        ) = (&value1, &value2, &value3)
+        {
+            // All three should point to the same Arc
+            assert!(Arc::ptr_eq(arc1, arc2));
+            assert!(Arc::ptr_eq(arc2, arc3));
+            assert_eq!(Arc::strong_count(arc1), 4); // shared_arc + 3 values
+        }
+
+        // Test convenience constructors
+        let resource2 = FhirResource::from_json(patient_json);
+        let value_from_resource = FhirPathValue::resource(resource2.clone());
+        let value_from_into = FhirPathValue::from(resource2);
+
+        // Both should be valid resource values
+        assert!(matches!(value_from_resource, FhirPathValue::Resource(_)));
+        assert!(matches!(value_from_into, FhirPathValue::Resource(_)));
+
+        // Test access still works with Arc
+        if let FhirPathValue::Resource(arc_resource) = &value1 {
+            assert_eq!(arc_resource.resource_type(), Some("Patient"));
+            assert!(arc_resource.has_property("name"));
+        }
+    }
+
+    #[test]
+    fn test_quantity_sharing() {
+        use rust_decimal::Decimal;
+
+        // Test common quantity optimization
+        let zero1 = FhirPathValue::quantity(Decimal::ZERO, None);
+        let zero2 = FhirPathValue::quantity(Decimal::ZERO, None);
+        let one1 = FhirPathValue::quantity(Decimal::ONE, None);
+        let one2 = FhirPathValue::quantity(Decimal::ONE, None);
+        let neg_one1 = FhirPathValue::quantity(-Decimal::ONE, None);
+        let neg_one2 = FhirPathValue::quantity(-Decimal::ONE, None);
+
+        if let (FhirPathValue::Quantity(arc1), FhirPathValue::Quantity(arc2)) = (&zero1, &zero2) {
+            // Common quantities should share the same Arc
+            assert!(Arc::ptr_eq(arc1, arc2));
+        }
+
+        if let (FhirPathValue::Quantity(arc1), FhirPathValue::Quantity(arc2)) = (&one1, &one2) {
+            assert!(Arc::ptr_eq(arc1, arc2));
+        }
+
+        if let (FhirPathValue::Quantity(arc1), FhirPathValue::Quantity(arc2)) =
+            (&neg_one1, &neg_one2)
+        {
+            assert!(Arc::ptr_eq(arc1, arc2));
+        }
+
+        // Test quantities with units don't use shared optimization
+        let meter1 = FhirPathValue::quantity(Decimal::ONE, Some("m".to_string()));
+        let meter2 = FhirPathValue::quantity(Decimal::ONE, Some("m".to_string()));
+
+        if let (FhirPathValue::Quantity(arc1), FhirPathValue::Quantity(arc2)) = (&meter1, &meter2) {
+            // Different Arc instances for quantities with units
+            assert!(!Arc::ptr_eq(arc1, arc2));
+        }
+
+        // Test From implementations work correctly
+        let q = Quantity::unitless(Decimal::from(42));
+        let value_from_quantity = FhirPathValue::from(q.clone());
+        let value_from_arc = FhirPathValue::from(Arc::new(q));
+
+        assert!(matches!(value_from_quantity, FhirPathValue::Quantity(_)));
+        assert!(matches!(value_from_arc, FhirPathValue::Quantity(_)));
+    }
+
+    #[test]
+    fn test_typeinfo_object_arc_usage() {
+        // Test TypeInfoObject creation and usage with Arc<str>
+        let type_info1 = FhirPathValue::TypeInfoObject {
+            namespace: Arc::from("FHIR"),
+            name: Arc::from("Patient"),
+        };
+
+        let type_info2 = FhirPathValue::TypeInfoObject {
+            namespace: Arc::from("FHIR"),
+            name: Arc::from("Patient"),
+        };
+
+        // Test pattern matching works correctly
+        if let FhirPathValue::TypeInfoObject { namespace, name } = &type_info1 {
+            assert_eq!(namespace.as_ref(), "FHIR");
+            assert_eq!(name.as_ref(), "Patient");
+        }
+
+        // Test JSON serialization/deserialization works with Arc<str>
+        if let (
+            FhirPathValue::TypeInfoObject {
+                namespace: ns1,
+                name: n1,
+            },
+            FhirPathValue::TypeInfoObject {
+                namespace: ns2,
+                name: n2,
+            },
+        ) = (&type_info1, &type_info2)
+        {
+            // Arc<str> comparison works correctly
+            assert_eq!(ns1.as_ref(), ns2.as_ref());
+            assert_eq!(n1.as_ref(), n2.as_ref());
+        }
+
+        // Test that .into() works for creating TypeInfoObject fields
+        let type_info_from_str = FhirPathValue::TypeInfoObject {
+            namespace: "System".into(),
+            name: "String".into(),
+        };
+
+        if let FhirPathValue::TypeInfoObject { namespace, name } = type_info_from_str {
+            assert_eq!(namespace.as_ref(), "System");
+            assert_eq!(name.as_ref(), "String");
+        }
     }
 }

@@ -437,7 +437,7 @@ impl CompiledSignatureRegistry {
         match type_info {
             TypeInfo::Integer => FhirPathValue::Integer(0),
             TypeInfo::Decimal => FhirPathValue::Decimal("0.0".parse().unwrap()),
-            TypeInfo::String => FhirPathValue::String("".to_string()),
+            TypeInfo::String => FhirPathValue::String("".into()),
             TypeInfo::Boolean => FhirPathValue::Boolean(false),
             TypeInfo::Date => FhirPathValue::Date("2000-01-01".parse().unwrap()),
             TypeInfo::DateTime => FhirPathValue::DateTime("2000-01-01T00:00:00Z".parse().unwrap()),
@@ -445,7 +445,7 @@ impl CompiledSignatureRegistry {
             TypeInfo::Quantity => {
                 use crate::model::quantity::Quantity;
                 use rust_decimal::Decimal;
-                FhirPathValue::Quantity(Quantity::new(Decimal::ZERO, Some("1".to_string())))
+                FhirPathValue::Quantity(Quantity::new(Decimal::ZERO, Some("1".to_string())).into())
             }
             TypeInfo::Collection(_) => FhirPathValue::collection(vec![]),
             TypeInfo::Resource(_) => FhirPathValue::Empty, // Can't create meaningful dummy resource
@@ -522,7 +522,7 @@ mod tests {
 
         let valid_args2 = vec![
             FhirPathValue::Integer(42),
-            FhirPathValue::String("test".to_string()),
+            FhirPathValue::String("test".into()),
         ];
         assert!(compiled.validates_fast(&valid_args2));
 
@@ -530,7 +530,7 @@ mod tests {
         let invalid_args = vec![]; // Too few
         assert!(!compiled.validates_fast(&invalid_args));
 
-        let invalid_args2 = vec![FhirPathValue::String("wrong".to_string())]; // Wrong type
+        let invalid_args2 = vec![FhirPathValue::String("wrong".into())]; // Wrong type
         assert!(!compiled.validates_fast(&invalid_args2));
     }
 
@@ -552,7 +552,7 @@ mod tests {
         let specialized = SpecializedSignature::from_signature(unary_sig);
         assert!(matches!(specialized, SpecializedSignature::UnaryAny));
         assert!(specialized.validates_fast(&[FhirPathValue::Integer(42)]));
-        assert!(specialized.validates_fast(&[FhirPathValue::String("test".to_string())]));
+        assert!(specialized.validates_fast(&[FhirPathValue::String("test".into())]));
         assert!(!specialized.validates_fast(&[]));
         assert!(
             !specialized.validates_fast(&[FhirPathValue::Integer(1), FhirPathValue::Integer(2)])
@@ -575,10 +575,10 @@ mod tests {
         assert!(
             specialized.validates_fast(&[FhirPathValue::Integer(1), FhirPathValue::Integer(2)])
         );
-        assert!(!specialized.validates_fast(&[
-            FhirPathValue::String("1".to_string()),
-            FhirPathValue::Integer(2)
-        ]));
+        assert!(
+            !specialized
+                .validates_fast(&[FhirPathValue::String("1".into()), FhirPathValue::Integer(2)])
+        );
     }
 
     #[test]
@@ -598,7 +598,7 @@ mod tests {
         assert!(registry.validates_fast("double", &valid_args));
         assert!(registry.validate_with_errors("double", &valid_args).is_ok());
 
-        let invalid_args = vec![FhirPathValue::String("not a number".to_string())];
+        let invalid_args = vec![FhirPathValue::String("not a number".into())];
         assert!(!registry.validates_fast("double", &invalid_args));
         assert!(
             registry

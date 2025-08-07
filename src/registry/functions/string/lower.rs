@@ -38,7 +38,7 @@ impl AsyncFhirPathFunction for LowerFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
-            FhirPathValue::String(s) => Ok(FhirPathValue::String(s.to_lowercase())),
+            FhirPathValue::String(s) => Ok(FhirPathValue::String(s.as_ref().to_lowercase().into())),
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
                 name: self.name().to_string(),

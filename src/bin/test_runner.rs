@@ -76,7 +76,7 @@ fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
             exp.as_f64()
                 .is_some_and(|e| (e - act.to_f64().unwrap_or(0.0)).abs() < 1e-10)
         }
-        (Value::String(exp), FhirPathValue::String(act)) => exp == act,
+        (Value::String(exp), FhirPathValue::String(act)) => exp == act.as_ref(),
         (Value::Null, FhirPathValue::Empty) => true,
         _ => {
             // Try JSON conversion for complex comparisons

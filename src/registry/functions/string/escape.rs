@@ -38,7 +38,7 @@ impl AsyncFhirPathFunction for EscapeFunction {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(escape_type)) => {
-                match escape_type.as_str() {
+                match escape_type.as_ref() {
                     "json" => {
                         let escaped = s
                             .chars()
@@ -51,7 +51,7 @@ impl AsyncFhirPathFunction for EscapeFunction {
                                 _ => c.to_string(),
                             })
                             .collect::<String>();
-                        Ok(FhirPathValue::String(escaped))
+                        Ok(FhirPathValue::String(escaped.into()))
                     }
                     "html" => {
                         let escaped = s
@@ -65,7 +65,7 @@ impl AsyncFhirPathFunction for EscapeFunction {
                                 _ => c.to_string(),
                             })
                             .collect::<String>();
-                        Ok(FhirPathValue::String(escaped))
+                        Ok(FhirPathValue::String(escaped.into()))
                     }
                     _ => Err(FunctionError::EvaluationError {
                         name: self.name().to_string(),

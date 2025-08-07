@@ -32,7 +32,9 @@ impl AsyncFhirPathFunction for TrimFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match &context.input {
-            FhirPathValue::String(s) => Ok(FhirPathValue::String(s.trim().to_string())),
+            FhirPathValue::String(s) => {
+                Ok(FhirPathValue::String(s.as_ref().trim().to_string().into()))
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FunctionError::InvalidArgumentType {
                 name: self.name().to_string(),

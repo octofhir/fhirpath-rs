@@ -55,7 +55,7 @@ impl AsyncFhirPathFunction for IsFunction {
             let clean_name = parts[1].trim_matches('`');
             (Some(parts[0]), clean_name)
         } else {
-            (None, target_type.as_str())
+            (None, target_type.as_ref())
         };
 
         let result = match &context.input {

@@ -37,7 +37,7 @@ impl AsyncFhirPathFunction for JoinFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         let separator = match args.first() {
-            Some(FhirPathValue::String(s)) => s.as_str(),
+            Some(FhirPathValue::String(s)) => s.as_ref(),
             Some(_) => {
                 return Err(FunctionError::InvalidArgumentType {
                     name: self.name().to_string(),
@@ -53,7 +53,7 @@ impl AsyncFhirPathFunction for JoinFunction {
         let strings: Vec<String> = items
             .into_iter()
             .map(|item| match item {
-                FhirPathValue::String(s) => s.clone(),
+                FhirPathValue::String(s) => s.as_ref().to_string(),
                 FhirPathValue::Integer(i) => i.to_string(),
                 FhirPathValue::Decimal(d) => d.to_string(),
                 FhirPathValue::Boolean(b) => b.to_string(),
@@ -76,6 +76,8 @@ impl AsyncFhirPathFunction for JoinFunction {
             })
             .collect();
 
-        Ok(FhirPathValue::String(strings.join(separator)))
+        Ok(FhirPathValue::String(
+            strings.join(separator.as_ref()).into(),
+        ))
     }
 }

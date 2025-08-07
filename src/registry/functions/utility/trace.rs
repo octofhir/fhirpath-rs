@@ -37,7 +37,7 @@ impl AsyncFhirPathFunction for TraceFunction {
         self.validate_args(args)?;
 
         let _name = match &args[0] {
-            FhirPathValue::String(s) => s.clone(),
+            FhirPathValue::String(s) => s.as_ref().to_string(),
             _ => "trace".to_string(),
         };
 

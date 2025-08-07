@@ -52,7 +52,7 @@ impl AsyncFhirPathFunction for AbsFunction {
             FhirPathValue::Quantity(q) => {
                 if q.value < rust_decimal::Decimal::ZERO {
                     Ok(FhirPathValue::Quantity(
-                        q.multiply_scalar(rust_decimal::Decimal::from(-1)),
+                        q.multiply_scalar(rust_decimal::Decimal::from(-1)).into(),
                     ))
                 } else {
                     Ok(FhirPathValue::Quantity(q.clone()))
@@ -67,7 +67,7 @@ impl AsyncFhirPathFunction for AbsFunction {
                         FhirPathValue::Quantity(q) => {
                             if q.value < rust_decimal::Decimal::ZERO {
                                 results.push(FhirPathValue::Quantity(
-                                    q.multiply_scalar(rust_decimal::Decimal::from(-1)),
+                                    q.multiply_scalar(rust_decimal::Decimal::from(-1)).into(),
                                 ));
                             } else {
                                 results.push(FhirPathValue::Quantity(q.clone()));

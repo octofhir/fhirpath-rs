@@ -286,13 +286,13 @@ mod tests {
     #[test]
     fn test_result_cache_key_generation() {
         let key1 =
-            generate_result_cache_key("test", &[FhirPathValue::String("hello".to_string())], 12345);
+            generate_result_cache_key("test", &[FhirPathValue::String("hello".into())], 12345);
 
         let key2 =
-            generate_result_cache_key("test", &[FhirPathValue::String("hello".to_string())], 12345);
+            generate_result_cache_key("test", &[FhirPathValue::String("hello".into())], 12345);
 
         let key3 =
-            generate_result_cache_key("test", &[FhirPathValue::String("world".to_string())], 12345);
+            generate_result_cache_key("test", &[FhirPathValue::String("world".into())], 12345);
 
         assert_eq!(key1, key2);
         assert_ne!(key1, key3);

@@ -10,6 +10,7 @@ pub mod lazy;
 pub mod provider;
 pub mod quantity;
 pub mod resource;
+pub mod string_intern;
 pub mod types;
 pub mod value;
 
@@ -18,6 +19,7 @@ pub use lazy::{LazyCollection, LazyIterator, ToLazy};
 pub use provider::{FhirVersion, ModelProvider};
 pub use quantity::Quantity;
 pub use resource::FhirResource;
+pub use string_intern::{InternerStats, global_interner_stats, intern_string};
 pub use types::TypeInfo;
 pub use value::{Collection, FhirPathValue, ValueRef};
 

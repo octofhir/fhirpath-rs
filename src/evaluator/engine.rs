@@ -237,7 +237,7 @@ impl FhirPathEngine {
 
                 // Create new context with variable set
                 let mut new_context = define_context.clone();
-                new_context.set_variable(var_name, var_value);
+                new_context.set_variable(var_name.to_string(), var_value);
 
                 Ok((base_result, new_context))
             }
@@ -320,7 +320,7 @@ impl FhirPathEngine {
                     };
 
                     // Store the variable in the context
-                    updated_context.set_variable(var_name.clone(), var_value.clone());
+                    updated_context.set_variable(var_name.to_string(), var_value.clone());
 
                     // Return the input value with updated context (defineVariable returns its input, not the variable value)
                     Ok((base_value, updated_context))
@@ -377,7 +377,7 @@ impl FhirPathEngine {
                     };
 
                     // Store the variable in the context
-                    updated_context.set_variable(var_name.clone(), var_value.clone());
+                    updated_context.set_variable(var_name.to_string(), var_value.clone());
 
                     // Return the input value with updated context (defineVariable returns its input)
                     Ok((context.input.clone(), updated_context))
@@ -526,7 +526,7 @@ impl FhirPathEngine {
                 };
 
                 // Store the variable in the context
-                updated_context.set_variable(var_name.clone(), var_value.clone());
+                updated_context.set_variable(var_name.to_string(), var_value.clone());
 
                 // Return the input value with updated context (defineVariable returns its input, not the variable value)
                 Ok((base_value, updated_context))
@@ -577,7 +577,7 @@ impl FhirPathEngine {
                 };
 
                 // Store the variable in the context
-                updated_context.set_variable(var_name.clone(), var_value.clone());
+                updated_context.set_variable(var_name.to_string(), var_value.clone());
 
                 // Return the input value with updated context (defineVariable returns its input)
                 Ok((context.input.clone(), updated_context))
@@ -864,7 +864,9 @@ impl FhirPathEngine {
                     match (type_name.as_str(), &value) {
                         ("String", _) => {
                             if let Some(s) = value.to_string_value() {
-                                Ok(FhirPathValue::collection(vec![FhirPathValue::String(s)]))
+                                Ok(FhirPathValue::collection(vec![FhirPathValue::String(
+                                    s.into(),
+                                )]))
                             } else {
                                 Ok(FhirPathValue::collection(vec![]))
                             }
@@ -1043,7 +1045,7 @@ impl FhirPathEngine {
                     });
                 }
             },
-            LiteralValue::String(s) => FhirPathValue::String(s.clone()),
+            LiteralValue::String(s) => FhirPathValue::String(s.clone().into()),
             LiteralValue::Date(s) => match parse_fhirpath_date(s) {
                 Ok(date) => FhirPathValue::Date(date),
                 Err(_) => {
@@ -1094,15 +1096,15 @@ impl FhirPathEngine {
             "FHIR" => {
                 // Return a TypeInfoObject that represents the FHIR namespace
                 return Ok(FhirPathValue::TypeInfoObject {
-                    namespace: "FHIR".to_string(),
-                    name: "namespace".to_string(),
+                    namespace: "FHIR".into(),
+                    name: "namespace".into(),
                 });
             }
             "System" => {
                 // Return a TypeInfoObject that represents the System namespace
                 return Ok(FhirPathValue::TypeInfoObject {
-                    namespace: "System".to_string(),
-                    name: "namespace".to_string(),
+                    namespace: "System".into(),
+                    name: "namespace".into(),
                 });
             }
             _ => {}
@@ -1159,13 +1161,13 @@ impl FhirPathEngine {
                 name: type_name,
             } => {
                 // Handle property access on TypeInfo objects
-                if type_name == "namespace" {
+                if type_name.as_ref() == "namespace" {
                     // This is a namespace object - accessing any property returns the type name
                     // For FHIR namespace, return the qualified type name for is() function
-                    if namespace == "FHIR" {
-                        return Ok(FhirPathValue::String(format!("FHIR.{name}")));
-                    } else if namespace == "System" {
-                        return Ok(FhirPathValue::String(format!("System.{name}")));
+                    if namespace.as_ref() == "FHIR" {
+                        return Ok(FhirPathValue::String(format!("FHIR.{name}").into()));
+                    } else if namespace.as_ref() == "System" {
+                        return Ok(FhirPathValue::String(format!("System.{name}").into()));
                     }
                 }
 
@@ -1186,7 +1188,7 @@ impl FhirPathEngine {
                     "unit" => {
                         // Return the unit string if it exists
                         match &quantity.unit {
-                            Some(unit) => Ok(FhirPathValue::String(unit.clone())),
+                            Some(unit) => Ok(FhirPathValue::String(unit.clone().into())),
                             None => Ok(FhirPathValue::Empty),
                         }
                     }
@@ -1279,7 +1281,7 @@ impl FhirPathEngine {
                 && matches!(value, FhirPathValue::Empty)
             {
                 if let Some(type_name) = self.extract_type_name(arg) {
-                    arg_values.push(FhirPathValue::String(type_name));
+                    arg_values.push(FhirPathValue::String(type_name.into()));
                 } else {
                     arg_values.push(value);
                 }
@@ -1341,7 +1343,7 @@ impl FhirPathEngine {
                 && matches!(value, FhirPathValue::Empty)
             {
                 if let Some(type_name) = self.extract_type_name(arg) {
-                    arg_values.push(FhirPathValue::String(type_name));
+                    arg_values.push(FhirPathValue::String(type_name.into()));
                 } else {
                     arg_values.push(value);
                 }
@@ -1883,7 +1885,7 @@ impl FhirPathEngine {
                     FhirPathValue::Quantity(q) => {
                         let negated = q.multiply_scalar(rust_decimal::Decimal::from(-1));
                         Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
-                            negated,
+                            negated.into(),
                         )]))
                     }
                     _ => Err(EvaluationError::TypeError {
@@ -1945,7 +1947,7 @@ impl FhirPathEngine {
                     FhirPathValue::Quantity(q) => {
                         let negated = q.multiply_scalar(rust_decimal::Decimal::from(-1));
                         Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
-                            negated,
+                            negated.into(),
                         )]))
                     }
                     _ => Err(EvaluationError::TypeError {
@@ -2170,7 +2172,9 @@ impl FhirPathEngine {
         match (type_name, &value) {
             ("String", _) => {
                 if let Some(s) = value.to_string_value() {
-                    Ok(FhirPathValue::collection(vec![FhirPathValue::String(s)]))
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::String(
+                        s.into(),
+                    )]))
                 } else {
                     Ok(FhirPathValue::collection(vec![]))
                 }

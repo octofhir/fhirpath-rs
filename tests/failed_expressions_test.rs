@@ -127,13 +127,13 @@ mod failed_expressions_tests {
         test_expression(
             "1.587 'm'.highBoundary(8)",
             input.clone(),
-            vec![FhirPathValue::String("1.58750000 'm'".to_string())],
+            vec![FhirPathValue::String("1.58750000 'm'".into())],
         )
         .await;
         test_expression(
             "@2014.highBoundary(6)",
             input.clone(),
-            vec![FhirPathValue::String("@2014-12".to_string())],
+            vec![FhirPathValue::String("@2014-12".into())],
         )
         .await;
     }
@@ -211,7 +211,7 @@ mod failed_expressions_tests {
         test_expression(
             "1.587 'cm'.lowBoundary(8)",
             input.clone(),
-            vec![FhirPathValue::String("1.58650000 'cm'".to_string())],
+            vec![FhirPathValue::String("1.58650000 'cm'".into())],
         )
         .await;
     }
@@ -226,20 +226,20 @@ mod failed_expressions_tests {
         test_expression(
             "@1973-12-25 + 7 days",
             input.clone(),
-            vec![FhirPathValue::String("@1974-01-01".to_string())],
+            vec![FhirPathValue::String("@1974-01-01".into())],
         )
         .await;
         test_expression(
             "@1973-12-25 + 7.7 days",
             input.clone(),
-            vec![FhirPathValue::String("@1974-01-01".to_string())],
+            vec![FhirPathValue::String("@1974-01-01".into())],
         )
         .await;
         test_expression(
             "@1973-12-25T00:00:00.000+10:00 + 7 days",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1974-01-01T00:00:00.000+10:00".to_string(),
+                "@1974-01-01T00:00:00.000+10:00".into(),
             )],
         )
         .await;
@@ -247,7 +247,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 1 second",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:00:01.000+10:00".to_string(),
+                "@1973-12-25T00:00:01.000+10:00".into(),
             )],
         )
         .await;
@@ -255,7 +255,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 10 millisecond",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:00:00.010+10:00".to_string(),
+                "@1973-12-25T00:00:00.010+10:00".into(),
             )],
         )
         .await;
@@ -263,7 +263,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 1 minute",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:01:00.000+10:00".to_string(),
+                "@1973-12-25T00:01:00.000+10:00".into(),
             )],
         )
         .await;
@@ -271,32 +271,32 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 1 hour",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T01:00:00.000+10:00".to_string(),
+                "@1973-12-25T01:00:00.000+10:00".into(),
             )],
         )
         .await;
         test_expression(
             "@1973-12-25 + 1 day",
             input.clone(),
-            vec![FhirPathValue::String("@1973-12-26".to_string())],
+            vec![FhirPathValue::String("@1973-12-26".into())],
         )
         .await;
         test_expression(
             "@1973-12-25 + 1 month",
             input.clone(),
-            vec![FhirPathValue::String("@1974-01-25".to_string())],
+            vec![FhirPathValue::String("@1974-01-25".into())],
         )
         .await;
         test_expression(
             "@1973-12-25 + 1 week",
             input.clone(),
-            vec![FhirPathValue::String("@1974-01-01".to_string())],
+            vec![FhirPathValue::String("@1974-01-01".into())],
         )
         .await;
         test_expression(
             "@1973-12-25 + 1 year",
             input.clone(),
-            vec![FhirPathValue::String("@1974-12-25".to_string())],
+            vec![FhirPathValue::String("@1974-12-25".into())],
         )
         .await;
 
@@ -304,20 +304,20 @@ mod failed_expressions_tests {
         test_expression(
             "@1973-12-25 + 1 'd'",
             input.clone(),
-            vec![FhirPathValue::String("@1973-12-26".to_string())],
+            vec![FhirPathValue::String("@1973-12-26".into())],
         )
         .await;
         test_expression(
             "@1973-12-25 + 1 'wk'",
             input.clone(),
-            vec![FhirPathValue::String("@1974-01-01".to_string())],
+            vec![FhirPathValue::String("@1974-01-01".into())],
         )
         .await;
         test_expression(
             "@1973-12-25T00:00:00.000+10:00 + 1 's'",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:00:01.000+10:00".to_string(),
+                "@1973-12-25T00:00:01.000+10:00".into(),
             )],
         )
         .await;
@@ -325,7 +325,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 0.1 's'",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:00:00.100+10:00".to_string(),
+                "@1973-12-25T00:00:00.100+10:00".into(),
             )],
         )
         .await;
@@ -333,7 +333,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 10 'ms'",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:00:00.010+10:00".to_string(),
+                "@1973-12-25T00:00:00.010+10:00".into(),
             )],
         )
         .await;
@@ -341,7 +341,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 1 'min'",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T00:01:00.000+10:00".to_string(),
+                "@1973-12-25T00:01:00.000+10:00".into(),
             )],
         )
         .await;
@@ -349,7 +349,7 @@ mod failed_expressions_tests {
             "@1973-12-25T00:00:00.000+10:00 + 1 'h'",
             input.clone(),
             vec![FhirPathValue::String(
-                "@1973-12-25T01:00:00.000+10:00".to_string(),
+                "@1973-12-25T01:00:00.000+10:00".into(),
             )],
         )
         .await;
@@ -358,19 +358,19 @@ mod failed_expressions_tests {
         test_expression(
             "@T01:00:00 + 2 hours",
             input.clone(),
-            vec![FhirPathValue::String("@T03:00:00".to_string())],
+            vec![FhirPathValue::String("@T03:00:00".into())],
         )
         .await;
         test_expression(
             "@T23:00:00 + 2 hours",
             input.clone(),
-            vec![FhirPathValue::String("@T01:00:00".to_string())],
+            vec![FhirPathValue::String("@T01:00:00".into())],
         )
         .await;
         test_expression(
             "@T23:00:00 + 50 hours",
             input.clone(),
-            vec![FhirPathValue::String("@T01:00:00".to_string())],
+            vec![FhirPathValue::String("@T01:00:00".into())],
         )
         .await;
 
@@ -394,20 +394,20 @@ mod failed_expressions_tests {
         test_expression(
             "@1974-12-25 - 1 'month'",
             input.clone(),
-            vec![FhirPathValue::String("@1974-11-25".to_string())],
+            vec![FhirPathValue::String("@1974-11-25".into())],
         )
         .await;
         test_expression("@1974-12-25 - 1 'cm'", input.clone(), vec![]).await;
         test_expression(
             "@T00:30:00 - 1 hour",
             input.clone(),
-            vec![FhirPathValue::String("@T23:30:00".to_string())],
+            vec![FhirPathValue::String("@T23:30:00".into())],
         )
         .await;
         test_expression(
             "@T01:00:00 - 2 hours",
             input.clone(),
-            vec![FhirPathValue::String("@T23:00:00".to_string())],
+            vec![FhirPathValue::String("@T23:00:00".into())],
         )
         .await;
     }
@@ -452,7 +452,7 @@ mod failed_expressions_tests {
         test_expression(
             "'P\\u0065ter'",
             input.clone(),
-            vec![FhirPathValue::String("Peter".to_string())],
+            vec![FhirPathValue::String("Peter".into())],
         )
         .await;
 
@@ -470,7 +470,7 @@ mod failed_expressions_tests {
         test_expression(
             "Patient.ofType(FHIR.`Patient`).type().name",
             input.clone(),
-            vec![FhirPathValue::String("Patient".to_string())],
+            vec![FhirPathValue::String("Patient".into())],
         )
         .await;
         test_expression(

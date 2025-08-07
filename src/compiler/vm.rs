@@ -810,7 +810,7 @@ impl<'a> VmExecutor<'a> {
     fn as_type(&self, value: &FhirPathValue, type_name: &str) -> VmResult<FhirPathValue> {
         // Simplified type casting
         match type_name {
-            "String" => Ok(FhirPathValue::String(format!("{value:?}"))),
+            "String" => Ok(FhirPathValue::String(format!("{value:?}").into())),
             "Boolean" => Ok(FhirPathValue::Boolean(self.is_truthy(value))),
             _ => Ok(value.clone()), // No conversion
         }
@@ -834,7 +834,7 @@ impl<'a> VmExecutor<'a> {
                 Ok(FhirPathValue::Decimal(a + Decimal::from(*b)))
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                Ok(FhirPathValue::String(format!("{a}{b}")))
+                Ok(FhirPathValue::String(format!("{a}{b}").into()))
             }
             _ => Err(VmError::TypeConversionError(
                 "Cannot add these types".to_string(),
@@ -1024,7 +1024,7 @@ impl<'a> VmExecutor<'a> {
         if args.len() >= 2 {
             if let FhirPathValue::String(name) = &args[0] {
                 if let Some(scope) = self.variable_scopes.last_mut() {
-                    scope.set_variable(name.clone(), args[1].clone());
+                    scope.set_variable(name.as_ref().to_string(), args[1].clone());
                 }
             }
         }

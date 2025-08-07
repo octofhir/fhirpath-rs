@@ -64,33 +64,33 @@ impl AsyncFhirPathFunction for ToStringFunction {
             )])),
             FhirPathValue::Integer(i) => {
                 Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                    i.to_string(),
+                    i.to_string().into(),
                 )]))
             }
             FhirPathValue::Decimal(d) => {
                 Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                    d.to_string(),
+                    d.to_string().into(),
                 )]))
             }
             FhirPathValue::Boolean(b) => {
                 Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                    b.to_string(),
+                    b.to_string().into(),
                 )]))
             }
             FhirPathValue::Date(d) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                d.to_string(),
+                d.to_string().into(),
             )])),
             FhirPathValue::DateTime(dt) => {
                 Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                    dt.to_string(),
+                    dt.to_string().into(),
                 )]))
             }
             FhirPathValue::Time(t) => Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                t.to_string(),
+                t.to_string().into(),
             )])),
             FhirPathValue::Quantity(q) => {
                 Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                    q.to_string(),
+                    q.to_string().into(),
                 )]))
             }
             _ => Ok(FhirPathValue::Empty),

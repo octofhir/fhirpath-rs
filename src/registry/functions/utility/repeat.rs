@@ -122,7 +122,7 @@ fn apply_expression(
                 }
                 _ => {
                     // For string literals like 'test', just return the string
-                    if prop_name == "test" {
+                    if prop_name.as_ref() == "test" {
                         Ok(FhirPathValue::String(prop_name.clone()))
                     } else {
                         Ok(FhirPathValue::Empty)
@@ -151,9 +151,9 @@ fn value_to_fhir_path_value(value: &serde_json::Value) -> FhirPathValue {
         }
         serde_json::Value::Object(_) => {
             let resource = FhirResource::from_json(value.clone());
-            FhirPathValue::Resource(resource)
+            FhirPathValue::Resource(resource.into())
         }
-        serde_json::Value::String(s) => FhirPathValue::String(s.clone()),
+        serde_json::Value::String(s) => FhirPathValue::String(s.clone().into()),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 FhirPathValue::Integer(i)

@@ -175,7 +175,7 @@ impl ResolveFunction {
                                             // Found the contained resource - return it
                                             let resource =
                                                 FhirResource::from_json(contained_item.clone());
-                                            return Some(FhirPathValue::Resource(resource));
+                                            return Some(FhirPathValue::Resource(resource.into()));
                                         }
                                     }
                                 }
@@ -221,7 +221,7 @@ impl ResolveFunction {
         });
 
         let resource = FhirResource::from_json(placeholder_json);
-        Some(FhirPathValue::Resource(resource))
+        Some(FhirPathValue::Resource(resource.into()))
     }
 
     /// Resolve a reference from a Bundle context
@@ -247,7 +247,9 @@ impl ResolveFunction {
                                         if let Some(resource) = entry_obj.get("resource") {
                                             let fhir_resource =
                                                 FhirResource::from_json(resource.clone());
-                                            return Some(FhirPathValue::Resource(fhir_resource));
+                                            return Some(FhirPathValue::Resource(
+                                                fhir_resource.into(),
+                                            ));
                                         }
                                     }
                                 }

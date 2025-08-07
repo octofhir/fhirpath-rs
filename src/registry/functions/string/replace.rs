@@ -54,9 +54,13 @@ impl AsyncFhirPathFunction for ReplaceFunction {
                         result.push(ch);
                         result.push_str(substitution);
                     }
-                    Ok(FhirPathValue::String(result))
+                    Ok(FhirPathValue::String(result.into()))
                 } else {
-                    Ok(FhirPathValue::String(s.replace(pattern, substitution)))
+                    Ok(FhirPathValue::String(
+                        s.as_ref()
+                            .replace(pattern.as_ref(), substitution.as_ref())
+                            .into(),
+                    ))
                 }
             }
             (FhirPathValue::Empty, _, _) => Ok(FhirPathValue::Empty),

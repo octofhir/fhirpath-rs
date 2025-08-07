@@ -41,9 +41,9 @@ impl AsyncFhirPathFunction for ContainsFunction {
     ) -> FunctionResult<FhirPathValue> {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
-            (FhirPathValue::String(s), FhirPathValue::String(substring)) => {
-                Ok(FhirPathValue::Boolean(s.contains(substring)))
-            }
+            (FhirPathValue::String(s), FhirPathValue::String(substring)) => Ok(
+                FhirPathValue::Boolean(s.as_ref().contains(substring.as_ref())),
+            ),
             (FhirPathValue::Empty, _) => Ok(FhirPathValue::Empty),
             // Handle empty collections - return empty when any parameter is an empty collection
             (FhirPathValue::Collection(items), _) if items.is_empty() => Ok(FhirPathValue::Empty),

@@ -112,7 +112,7 @@ impl AsyncFhirPathFunction for LowBoundaryFunction {
                             low_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()),
+                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()).into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })
@@ -235,7 +235,7 @@ impl AsyncFhirPathFunction for HighBoundaryFunction {
                             high_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()),
+                            crate::model::quantity::Quantity::new(new_value, q.unit.clone()).into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })

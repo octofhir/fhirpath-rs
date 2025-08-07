@@ -38,7 +38,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(format)) => {
-                match format.as_str() {
+                match format.as_ref() {
                     "uri" => {
                         // URL percent decoding
                         let mut decoded = String::new();
@@ -72,7 +72,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
                                 decoded.push(c);
                             }
                         }
-                        Ok(FhirPathValue::String(decoded))
+                        Ok(FhirPathValue::String(decoded.into()))
                     }
                     "html" => {
                         // HTML entity decoding
@@ -119,7 +119,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
                                 decoded.push(c);
                             }
                         }
-                        Ok(FhirPathValue::String(decoded))
+                        Ok(FhirPathValue::String(decoded.into()))
                     }
                     "base64" => {
                         // Base64 decoding
@@ -164,7 +164,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
                         }
 
                         match String::from_utf8(result) {
-                            Ok(decoded) => Ok(FhirPathValue::String(decoded)),
+                            Ok(decoded) => Ok(FhirPathValue::String(decoded.into())),
                             Err(_) => Err(FunctionError::EvaluationError {
                                 name: self.name().to_string(),
                                 message: "Invalid base64 encoding".to_string(),
@@ -197,7 +197,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
                         }
 
                         match String::from_utf8(result) {
-                            Ok(decoded) => Ok(FhirPathValue::String(decoded)),
+                            Ok(decoded) => Ok(FhirPathValue::String(decoded.into())),
                             Err(_) => Err(FunctionError::EvaluationError {
                                 name: self.name().to_string(),
                                 message: "Invalid UTF-8 in hex decoded data".to_string(),
@@ -248,7 +248,7 @@ impl AsyncFhirPathFunction for DecodeFunction {
                         }
 
                         match String::from_utf8(result) {
-                            Ok(decoded) => Ok(FhirPathValue::String(decoded)),
+                            Ok(decoded) => Ok(FhirPathValue::String(decoded.into())),
                             Err(_) => Err(FunctionError::EvaluationError {
                                 name: self.name().to_string(),
                                 message: "Invalid urlbase64 encoding".to_string(),

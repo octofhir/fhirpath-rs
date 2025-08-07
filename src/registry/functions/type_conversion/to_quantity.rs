@@ -67,14 +67,14 @@ impl AsyncFhirPathFunction for ToQuantityFunction {
                     Some("1".to_string()),
                 );
                 Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
-                    quantity,
+                    quantity.into(),
                 )]))
             }
             FhirPathValue::Decimal(d) => {
                 // Convert decimal to quantity with unit "1" (dimensionless)
                 let quantity = crate::model::Quantity::new(*d, Some("1".to_string()));
                 Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
-                    quantity,
+                    quantity.into(),
                 )]))
             }
             FhirPathValue::String(s) => {
@@ -85,7 +85,7 @@ impl AsyncFhirPathFunction for ToQuantityFunction {
                         Some("1".to_string()),
                     );
                     Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
-                        quantity,
+                        quantity.into(),
                     )]))
                 } else {
                     Ok(FhirPathValue::Empty)

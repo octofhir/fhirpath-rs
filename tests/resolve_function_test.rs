@@ -36,7 +36,7 @@ async fn test_resolve_contained_resource() {
         FhirPathValue::Collection(ref items) => {
             assert_eq!(items.len(), 1);
             if let Some(FhirPathValue::String(s)) = items.get(0) {
-                assert_eq!(s, "Smith");
+                assert_eq!(&**s, "Smith");
             } else {
                 panic!("Expected string result");
             }
@@ -94,7 +94,7 @@ async fn test_resolve_bundle_entry_by_relative_reference() {
         FhirPathValue::Collection(ref items) => {
             assert_eq!(items.len(), 1);
             if let Some(FhirPathValue::String(s)) = items.get(0) {
-                assert_eq!(s, "Doe");
+                assert_eq!(&**s, "Doe");
             } else {
                 panic!("Expected string result");
             }
@@ -148,7 +148,7 @@ async fn test_resolve_bundle_entry_by_absolute_url() {
         FhirPathValue::Collection(ref items) => {
             assert_eq!(items.len(), 1);
             if let Some(FhirPathValue::String(s)) = items.get(0) {
-                assert_eq!(s, "Robert");
+                assert_eq!(&**s, "Robert");
             } else {
                 panic!("Expected string result");
             }
@@ -216,7 +216,7 @@ async fn test_resolve_multiple_references() {
             let families: Vec<String> = items
                 .iter()
                 .filter_map(|v| match v {
-                    FhirPathValue::String(s) => Some(s.clone()),
+                    FhirPathValue::String(s) => Some(s.to_string()),
                     _ => None,
                 })
                 .collect();

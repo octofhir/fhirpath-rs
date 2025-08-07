@@ -38,7 +38,7 @@ impl AsyncFhirPathFunction for UnescapeFunction {
         self.validate_args(args)?;
         match (&context.input, &args[0]) {
             (FhirPathValue::String(s), FhirPathValue::String(escape_type)) => {
-                match escape_type.as_str() {
+                match escape_type.as_ref() {
                     "json" => {
                         let mut result = String::new();
                         let mut chars = s.chars();
@@ -60,7 +60,7 @@ impl AsyncFhirPathFunction for UnescapeFunction {
                                 result.push(c);
                             }
                         }
-                        Ok(FhirPathValue::String(result))
+                        Ok(FhirPathValue::String(result.into()))
                     }
                     "html" => {
                         let mut result = String::new();
@@ -84,7 +84,7 @@ impl AsyncFhirPathFunction for UnescapeFunction {
                                 }
 
                                 if found_semicolon {
-                                    match entity.as_str() {
+                                    match entity.as_ref() {
                                         "lt" => result.push('<'),
                                         "gt" => result.push('>'),
                                         "amp" => result.push('&'),
@@ -106,7 +106,7 @@ impl AsyncFhirPathFunction for UnescapeFunction {
                                 result.push(c);
                             }
                         }
-                        Ok(FhirPathValue::String(result))
+                        Ok(FhirPathValue::String(result.into()))
                     }
                     _ => Err(FunctionError::EvaluationError {
                         name: self.name().to_string(),
