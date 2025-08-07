@@ -31,6 +31,10 @@ path = "src/lib.rs"
 name = "fhirpath_benchmark"
 harness = false
 
+[[bench]]
+name = "value_pool_bench"
+harness = false
+
 
 [[bin]]
 name = "octofhir-fhirpath"
@@ -54,7 +58,7 @@ lru = "0.16"
 nom = "8.0.0"
 nom_locate = "5.0.0-beta.5"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
-octofhir-fhir-model = { git = "https://github.com/octofhir/fhir-model-rs", features = ["serde"] }
+octofhir-fhir-model = { version = "0.1.0", features = ["serde"] }
 parking_lot = "0.12.4"
 quick-xml = "0.38"
 regex = "1.11.1"
