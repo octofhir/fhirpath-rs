@@ -1530,6 +1530,7 @@ dependencies = [
 [[package]]
 name = "octofhir-fhir-model"
 version = "0.1.0"
+source = "git+https://github.com/octofhir/fhir-model-rs#2572a295a85c8e56bdf04e873d9cdb6587dbbc2f"
 dependencies = [
  "indexmap",
  "serde",
