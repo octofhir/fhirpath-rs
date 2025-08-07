@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// substring() function - extracts a substring
 pub struct SubstringFunction;
 
-impl FhirPathFunction for SubstringFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SubstringFunction {
     fn name(&self) -> &str {
         "substring"
     }
@@ -36,7 +37,7 @@ impl FhirPathFunction for SubstringFunction {
     fn documentation(&self) -> &str {
         "Returns the part of the string starting at position `start` (zero-based). If `length` is given, will return at most `length` number of characters from the input string. If `start` lies outside the length of the string, the function returns empty (`{ }`). If there are less remaining characters in the string than indicated by `length`, the function returns just the remaining characters."
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

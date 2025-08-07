@@ -20,6 +20,7 @@ FHIRPath is a path-based navigation and extraction language for FHIR (Fast Healt
 - 🛠️ **Complete Toolchain**: Parser, evaluator, compiler, CLI tools, and comprehensive diagnostics
 - 📊 **Production Ready**: Extensive test coverage, simplified benchmarking, and zero warnings
 - 🔧 **Developer Friendly**: Rich error messages, IDE integration support, and comprehensive documentation
+- 🔗 **Enhanced Reference Resolution**: Full Bundle support with Bundle entry resolution and reference handling
 
 ## 🚀 Quick Start
 
@@ -38,9 +39,10 @@ octofhir-fhirpath = "0.2.0"
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create engine
-    let engine = FhirPathEngine::new();
+    let mut engine = FhirPathEngine::new();
     
     // Sample FHIR Patient resource
     let patient = json!({
@@ -57,10 +59,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     
     // Evaluate FHIRPath expressions
-    let result = engine.evaluate("Patient.name.given", &patient)?;
+    let result = engine.evaluate("Patient.name.given", patient.clone()).await?;
     println!("Given names: {:?}", result);
     
-    let phone = engine.evaluate("Patient.telecom.where(system='phone').value", &patient)?;
+    let phone = engine.evaluate("Patient.telecom.where(system='phone').value", patient).await?;
     println!("Phone: {:?}", phone);
     
     Ok(())
@@ -76,8 +78,8 @@ The `FhirPathEngine` is the main entry point for evaluating FHIRPath expressions
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
 
-let engine = FhirPathEngine::new();
-let result = engine.evaluate("Patient.name.family", &fhir_resource)?;
+let mut engine = FhirPathEngine::new();
+let result = engine.evaluate("Patient.name.family", fhir_resource).await?;
 ```
 
 ### Value System
@@ -106,6 +108,62 @@ use octofhir_fhirpath::parser::parse;
 let expression = parse("Patient.name.where(use = 'official').given")?;
 println!("Parsed AST: {:#?}", expression);
 ```
+
+### Reference Resolution
+
+Advanced reference resolution with full Bundle support:
+
+```rust
+use octofhir_fhirpath::FhirPathEngine;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = FhirPathEngine::new();
+    
+    // Bundle with references between entries
+    let bundle = json!({
+        "resourceType": "Bundle",
+        "type": "searchset", 
+        "entry": [
+            {
+                "fullUrl": "http://example.com/Patient/123",
+                "resource": {
+                    "resourceType": "Patient",
+                    "id": "123",
+                    "name": [{"family": "Doe", "given": ["Jane"]}]
+                }
+            },
+            {
+                "fullUrl": "http://example.com/Observation/456", 
+                "resource": {
+                    "resourceType": "Observation",
+                    "id": "456",
+                    "subject": {"reference": "Patient/123"},
+                    "valueQuantity": {"value": 98.6, "unit": "F"}
+                }
+            }
+        ]
+    });
+    
+    // Resolve references within Bundle context
+    let result = engine.evaluate(
+        "Bundle.entry[1].resource.subject.resolve().name.family",
+        bundle
+    ).await?;
+    
+    println!("Patient family name: {:?}", result); // "Doe"
+    Ok(())
+}
+```
+
+#### Reference Resolution Features
+
+- **Contained Resources**: Resolves `#id` references to contained resources
+- **Bundle Entry Resolution**: Resolves references between Bundle entries using `fullUrl`
+- **Relative References**: Handles `ResourceType/id` patterns within Bundle context  
+- **Absolute URL References**: Supports full URLs and URN references
+- **Multiple References**: Handles collections of references efficiently
 
 ## 🎯 Supported Features
 
@@ -142,8 +200,12 @@ println!("Parsed AST: {:#?}", expression);
 - `toString()`, `toInteger()`, `toDecimal()`, `toBoolean()`, `toQuantity()`
 - `convertsToString()`, `convertsToInteger()`, etc.
 
+#### FHIR-Specific Functions (90%+ Complete)
+- `resolve()` - Enhanced reference resolution with Bundle support
+- `extension()`, `hasValue()`, `conformsTo()`
+
 #### Utility Functions (90%+ Complete)
-- `iif()`, `trace()`, `defineVariable()`, `hasValue()`, `conformsTo()`
+- `iif()`, `trace()`, `defineVariable()`, `repeat()`
 
 ## 📊 Standards Compliance
 
@@ -208,6 +270,9 @@ octofhir-fhirpath validate "Patient.name.given.first()"
 ### Development Commands
 
 ```bash
+# Build project
+just build
+
 # Run tests
 just test
 
@@ -220,8 +285,14 @@ just test-coverage
 # Run performance benchmarks
 just bench
 
-# Quality assurance
+# Fix all formatting and clippy issues automatically
+just fix
+
+# Quality assurance (format, lint, test)
 just qa
+
+# Clean build artifacts
+just clean
 ```
 
 ## 🚀 Performance
@@ -269,6 +340,8 @@ src/
 - **Bytecode compilation**: AST compilation to optimized bytecode with VM execution
 - **Registry system**: Modular function and operator registration with caching
 - **Memory optimization**: Specialized evaluators, memory pools, and streaming evaluation
+- **Reference Resolution**: Efficient Bundle context management and resource lookup
+- **Code Quality**: Zero clippy warnings with comprehensive linting and automated fixes
 
 ## 🔍 Error Handling
 
@@ -319,7 +392,10 @@ cargo build
 # Run tests
 just test
 
-# Check code quality
+# Fix any formatting/linting issues
+just fix
+
+# Check code quality  
 just qa
 ```
 

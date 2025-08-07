@@ -16,6 +16,7 @@ use crate::registry::functions::string::*;
 use crate::registry::functions::type_conversion::*;
 use crate::registry::functions::utility::*;
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 // Re-export commonly used function types for external crates
 // Note: Lambda evaluation is not yet fully implemented
@@ -75,17 +76,22 @@ pub enum FunctionError {
     },
 }
 
-/// Lambda evaluator type - takes an expression and context and returns a result
-pub type LambdaEvaluator<'a> =
-    dyn Fn(&ExpressionNode, &FhirPathValue) -> Result<FhirPathValue, FunctionError> + 'a;
+/// Lambda evaluator type - takes an expression and context and returns a result (async)
+pub type LambdaEvaluator<'a> = dyn Fn(
+        &ExpressionNode,
+        &FhirPathValue,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<FhirPathValue, FunctionError>> + 'a>,
+    > + 'a;
 
-/// Enhanced lambda evaluator type that supports additional variables injection  
-pub type EnhancedLambdaEvaluator<'a> = dyn for<'r> Fn(
-        &'r ExpressionNode,
-        &'r FhirPathValue,
-        &'r VarMap,
-    ) -> Result<FhirPathValue, FunctionError>
-    + 'a;
+/// Enhanced lambda evaluator type that supports additional variables injection (async)
+pub type EnhancedLambdaEvaluator<'a> = dyn Fn(
+        &ExpressionNode,
+        &FhirPathValue,
+        &VarMap,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<FhirPathValue, FunctionError>> + 'a>,
+    > + 'a;
 
 /// Context for function evaluation
 #[derive(Debug, Clone)]
@@ -124,7 +130,7 @@ pub trait AritySpecificFunction<const ARITY: usize>: Send + Sync {
     /// Get the function name
     fn name(&self) -> &str;
 
-    /// Get the human-friendly name for the function (for LSP and documentation)  
+    /// Get the human-friendly name for the function (for LSP and documentation)
     fn human_friendly_name(&self) -> &str;
 
     /// Get the function signature
@@ -212,7 +218,7 @@ impl<T: AritySpecificFunction<ARITY>, const ARITY: usize> FhirPathFunction
 }
 
 /// Specialized traits for common arities with more ergonomic interfaces
-
+///
 /// Nullary function (no arguments)
 pub trait NullaryFunction: Send + Sync {
     /// Get the function name
@@ -412,7 +418,8 @@ impl<T: TernaryFunction> AritySpecificFunction<3> for T {
     }
 }
 
-/// Trait for implementing FHIRPath functions
+/// Synchronous trait for implementing FHIRPath functions (backward compatibility)
+/// This trait will be deprecated in favor of AsyncFhirPathFunction
 pub trait FhirPathFunction: Send + Sync {
     /// Get the function name
     fn name(&self) -> &str;
@@ -486,13 +493,165 @@ pub trait FhirPathFunction: Send + Sync {
     }
 }
 
+/// Async trait for implementing FHIRPath functions
+/// This is the preferred trait for new function implementations
+#[async_trait]
+pub trait AsyncFhirPathFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+
+    /// Get the human-friendly name for the function (for LSP and documentation)
+    fn human_friendly_name(&self) -> &str;
+
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+
+    /// Evaluate the function with given arguments (async)
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+
+    /// Check if this function is pure (deterministic with no side effects)
+    /// Pure functions can be safely cached based on their arguments
+    fn is_pure(&self) -> bool {
+        false // Default to non-pure for safety
+    }
+
+    /// Validate arguments before evaluation (both arity and types)
+    fn validate_args(&self, args: &[FhirPathValue]) -> FunctionResult<()> {
+        let sig = self.signature();
+        let arg_count = args.len();
+
+        // Check arity
+        if arg_count < sig.min_arity {
+            return Err(FunctionError::InvalidArity {
+                name: self.name().to_string(),
+                min: sig.min_arity,
+                max: sig.max_arity,
+                actual: arg_count,
+            });
+        }
+
+        if let Some(max) = sig.max_arity {
+            if arg_count > max {
+                return Err(FunctionError::InvalidArity {
+                    name: self.name().to_string(),
+                    min: sig.min_arity,
+                    max: sig.max_arity,
+                    actual: arg_count,
+                });
+            }
+        }
+
+        // Check argument types
+        for (i, arg) in args.iter().enumerate() {
+            if let Some(param) = sig.parameters.get(i) {
+                let arg_type = arg.to_type_info();
+                if !param.param_type.is_compatible_with(&arg_type) {
+                    return Err(FunctionError::InvalidArgumentType {
+                        name: self.name().to_string(),
+                        index: i,
+                        expected: param.param_type.to_string(),
+                        actual: arg_type.to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Backward compatibility wrapper trait for existing synchronous function implementations
+/// This allows existing sync functions to be used as async functions
+pub trait SyncFhirPathFunction: Send + Sync {
+    /// Get the function name
+    fn name(&self) -> &str;
+
+    /// Get the human-friendly name for the function (for LSP and documentation)
+    fn human_friendly_name(&self) -> &str;
+
+    /// Get the function signature
+    fn signature(&self) -> &FunctionSignature;
+
+    /// Evaluate the function with given arguments (synchronous)
+    fn evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue>;
+
+    /// Get function documentation
+    fn documentation(&self) -> &str {
+        ""
+    }
+
+    /// Check if this function is pure (deterministic with no side effects)
+    /// Pure functions can be safely cached based on their arguments
+    fn is_pure(&self) -> bool {
+        false // Default to non-pure for safety
+    }
+
+    /// Validate arguments before evaluation (both arity and types)
+    fn validate_args(&self, args: &[FhirPathValue]) -> FunctionResult<()> {
+        let sig = self.signature();
+        let arg_count = args.len();
+
+        // Check arity
+        if arg_count < sig.min_arity {
+            return Err(FunctionError::InvalidArity {
+                name: self.name().to_string(),
+                min: sig.min_arity,
+                max: sig.max_arity,
+                actual: arg_count,
+            });
+        }
+
+        if let Some(max) = sig.max_arity {
+            if arg_count > max {
+                return Err(FunctionError::InvalidArity {
+                    name: self.name().to_string(),
+                    min: sig.min_arity,
+                    max: sig.max_arity,
+                    actual: arg_count,
+                });
+            }
+        }
+
+        // Check argument types
+        for (i, arg) in args.iter().enumerate() {
+            if let Some(param) = sig.parameters.get(i) {
+                let arg_type = arg.to_type_info();
+                if !param.param_type.is_compatible_with(&arg_type) {
+                    return Err(FunctionError::InvalidArgumentType {
+                        name: self.name().to_string(),
+                        index: i,
+                        expected: param.param_type.to_string(),
+                        actual: arg_type.to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 /// Trait for functions that need to evaluate lambda expressions
+#[async_trait(?Send)]
 pub trait LambdaFunction: FhirPathFunction {
     /// Evaluate function with lambda expressions
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue>;
 }
 
@@ -501,6 +660,10 @@ pub trait LambdaFunction: FhirPathFunction {
 pub enum FunctionImpl {
     /// Traditional trait-based function
     Trait(Arc<dyn FhirPathFunction>),
+    /// Synchronous function implementation
+    Sync(Arc<dyn SyncFhirPathFunction>),
+    /// Asynchronous function implementation
+    Async(Arc<dyn AsyncFhirPathFunction>),
     /// Lightweight closure-based function
     Closure {
         /// Function name
@@ -526,6 +689,10 @@ impl std::fmt::Debug for FunctionImpl {
             FunctionImpl::Trait(func) => {
                 f.debug_struct("Trait").field("name", &func.name()).finish()
             }
+            FunctionImpl::Sync(func) => f.debug_struct("Sync").field("name", &func.name()).finish(),
+            FunctionImpl::Async(func) => {
+                f.debug_struct("Async").field("name", &func.name()).finish()
+            }
             FunctionImpl::Closure {
                 name,
                 friendly_name,
@@ -544,6 +711,8 @@ impl FunctionImpl {
     pub fn name(&self) -> &str {
         match self {
             FunctionImpl::Trait(f) => f.name(),
+            FunctionImpl::Sync(f) => f.name(),
+            FunctionImpl::Async(f) => f.name(),
             FunctionImpl::Closure { name, .. } => name,
         }
     }
@@ -552,6 +721,8 @@ impl FunctionImpl {
     pub fn human_friendly_name(&self) -> &str {
         match self {
             FunctionImpl::Trait(f) => f.human_friendly_name(),
+            FunctionImpl::Sync(f) => f.human_friendly_name(),
+            FunctionImpl::Async(f) => f.human_friendly_name(),
             FunctionImpl::Closure { friendly_name, .. } => friendly_name,
         }
     }
@@ -560,6 +731,8 @@ impl FunctionImpl {
     pub fn signature(&self) -> &FunctionSignature {
         match self {
             FunctionImpl::Trait(f) => f.signature(),
+            FunctionImpl::Sync(f) => f.signature(),
+            FunctionImpl::Async(f) => f.signature(),
             FunctionImpl::Closure { signature, .. } => signature,
         }
     }
@@ -568,6 +741,8 @@ impl FunctionImpl {
     pub fn documentation(&self) -> &str {
         match self {
             FunctionImpl::Trait(f) => f.documentation(),
+            FunctionImpl::Sync(f) => f.documentation(),
+            FunctionImpl::Async(f) => f.documentation(),
             FunctionImpl::Closure { documentation, .. } => documentation,
         }
     }
@@ -576,6 +751,8 @@ impl FunctionImpl {
     pub fn is_pure(&self) -> bool {
         match self {
             FunctionImpl::Trait(f) => f.is_pure(),
+            FunctionImpl::Sync(f) => f.is_pure(),
+            FunctionImpl::Async(f) => f.is_pure(),
             FunctionImpl::Closure { .. } => false, // Default to non-pure for closure functions
         }
     }
@@ -588,6 +765,29 @@ impl FunctionImpl {
     ) -> FunctionResult<FhirPathValue> {
         match self {
             FunctionImpl::Trait(f) => f.evaluate(args, context),
+            FunctionImpl::Sync(f) => f.evaluate_sync(args, context),
+            FunctionImpl::Async(_f) => {
+                // For now, async functions are not supported in sync context
+                // This will be handled by the async evaluate method
+                Err(FunctionError::EvaluationError {
+                    name: self.name().to_string(),
+                    message: "Async function called in sync context".to_string(),
+                })
+            }
+            FunctionImpl::Closure { func, .. } => func(args, context),
+        }
+    }
+
+    /// Evaluate the function asynchronously
+    pub async fn evaluate_async(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        match self {
+            FunctionImpl::Sync(func) => func.evaluate_sync(args, context),
+            FunctionImpl::Async(func) => func.evaluate(args, context).await,
+            FunctionImpl::Trait(func) => func.evaluate(args, context),
             FunctionImpl::Closure { func, .. } => func(args, context),
         }
     }
@@ -689,6 +889,42 @@ impl FunctionRegistry {
         let name = function.name().to_string();
         let signature = function.signature().clone();
         let func_impl = FunctionImpl::Trait(Arc::new(function));
+
+        self.functions.insert(name.clone(), func_impl);
+        self.signatures
+            .entry(name.clone())
+            .or_default()
+            .push(signature.clone());
+
+        // Compile the signature for fast dispatch
+        if let Ok(mut compiled) = self.compiled_signatures.lock() {
+            compiled.register_signature(name, signature);
+        }
+    }
+
+    /// Register a synchronous function
+    pub fn register_sync<F: SyncFhirPathFunction + 'static>(&mut self, function: F) {
+        let name = function.name().to_string();
+        let signature = function.signature().clone();
+        let func_impl = FunctionImpl::Sync(Arc::new(function));
+
+        self.functions.insert(name.clone(), func_impl);
+        self.signatures
+            .entry(name.clone())
+            .or_default()
+            .push(signature.clone());
+
+        // Compile the signature for fast dispatch
+        if let Ok(mut compiled) = self.compiled_signatures.lock() {
+            compiled.register_signature(name, signature);
+        }
+    }
+
+    /// Register an asynchronous function
+    pub fn register_async<F: AsyncFhirPathFunction + 'static>(&mut self, function: F) {
+        let name = function.name().to_string();
+        let signature = function.signature().clone();
+        let func_impl = FunctionImpl::Async(Arc::new(function));
 
         self.functions.insert(name.clone(), func_impl);
         self.signatures
@@ -924,6 +1160,54 @@ impl FunctionRegistry {
         }
     }
 
+    /// Evaluate a function asynchronously with the hybrid system and caching
+    pub async fn evaluate_function_async(
+        &self,
+        name: &str,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        // Try fast validation first using compiled signatures
+        if let Ok(compiled) = self.compiled_signatures.lock() {
+            if !compiled.validates_fast(name, args) {
+                // Use compiled signatures for detailed error reporting
+                return compiled
+                    .validate_with_errors(name, args)
+                    .map(|_| unreachable!());
+            }
+        }
+
+        // Get argument types for cache lookup
+        let arg_types: Vec<TypeInfo> = args.iter().map(|v| v.to_type_info()).collect();
+
+        // Get function with type-based caching
+        let function = self
+            .get_function_for_types(name, &arg_types)
+            .ok_or_else(|| FunctionError::EvaluationError {
+                name: name.to_string(),
+                message: "Function not found or type mismatch".to_string(),
+            })?;
+
+        // For pure functions, check result cache
+        if self.is_pure_function(name) && self.cache_config.enable_result_caching {
+            let result_key = crate::registry::cache::generate_result_cache_key(
+                name, args, 0, // TODO: proper context hash
+            );
+
+            if let Some(cached_result) = self.result_cache.get(&result_key) {
+                return Ok(cached_result);
+            }
+
+            // Evaluate and cache the result
+            let result = function.evaluate_async(args, context).await?;
+            self.result_cache.insert(result_key, result.clone());
+            Ok(result)
+        } else {
+            // Evaluate without result caching
+            function.evaluate_async(args, context).await
+        }
+    }
+
     /// Get best matching signature for given argument types
     pub fn get_best_signature(
         &self,
@@ -1151,116 +1435,118 @@ impl Default for FunctionRegistry {
 
 /// Register all built-in FHIRPath functions
 pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
-    // Collection functions
-    registry.register(CountFunction);
-    registry.register(EmptyFunction);
+    // Collection functions - async converted
+    registry.register_async(CountFunction);
+    registry.register_async(EmptyFunction);
+    registry.register_async(DescendantsFunction);
+    registry.register_async(ChildrenFunction);
+    registry.register_async(FirstFunction);
+    registry.register_async(LastFunction);
+    registry.register_async(LengthFunction);
+    registry.register_async(DistinctFunction);
+    registry.register_async(SingleFunction);
+    registry.register_async(IntersectFunction);
+    registry.register_async(ExcludeFunction);
+    registry.register_async(CombineFunction);
+    registry.register_async(TailFunction);
+    registry.register_async(SubsetOfFunction);
+    registry.register_async(SupersetOfFunction);
+
+    // Collection functions - still using old trait (lambda functions)
     registry.register(ExistsFunction);
-    registry.register(DescendantsFunction);
-    registry.register(ChildrenFunction);
     registry.register(AggregateFunction);
-    registry.register(FirstFunction);
-    registry.register(LastFunction);
-    registry.register(LengthFunction);
-    registry.register(DistinctFunction);
-    registry.register(SingleFunction);
-    registry.register(IntersectFunction);
-    registry.register(ExcludeFunction);
-    registry.register(CombineFunction);
     registry.register(SortFunction);
-    registry.register(TakeFunction);
-    registry.register(SkipFunction);
-    registry.register(TailFunction);
-    registry.register(SubsetOfFunction);
-    registry.register(SupersetOfFunction);
+    registry.register_async(TakeFunction);
+    registry.register_async(SkipFunction);
 
     // Boolean functions
     registry.register(AllFunction);
-    registry.register(AllTrueFunction);
-    registry.register(AnyFunction);
-    registry.register(IsDistinctFunction);
-    registry.register(NotFunction);
+    registry.register_async(AllTrueFunction);
+    registry.register_async(AnyFunction);
+    registry.register_async(IsDistinctFunction);
+    registry.register_async(NotFunction);
 
     // String functions
-    registry.register(SubstringFunction);
-    registry.register(StartsWithFunction);
-    registry.register(EndsWithFunction);
-    registry.register(ContainsFunction);
-    registry.register(MatchesFunction);
-    registry.register(MatchesFullFunction);
-    registry.register(ReplaceFunction);
-    registry.register(ReplaceMatchesFunction);
-    registry.register(SplitFunction);
-    registry.register(JoinFunction);
-    registry.register(TrimFunction);
-    registry.register(ToCharsFunction);
-    registry.register(IndexOfFunction);
-    registry.register(UpperFunction);
-    registry.register(LowerFunction);
-    registry.register(EncodeFunction);
-    registry.register(DecodeFunction);
-    registry.register(EscapeFunction);
-    registry.register(UnescapeFunction);
+    registry.register_async(SubstringFunction);
+    registry.register_async(StartsWithFunction);
+    registry.register_async(EndsWithFunction);
+    registry.register_async(ContainsFunction);
+    registry.register_async(MatchesFunction);
+    registry.register_async(MatchesFullFunction);
+    registry.register_async(ReplaceFunction);
+    registry.register_async(ReplaceMatchesFunction);
+    registry.register_async(SplitFunction);
+    registry.register_async(JoinFunction);
+    registry.register_async(TrimFunction);
+    registry.register_async(ToCharsFunction);
+    registry.register_async(IndexOfFunction);
+    registry.register_async(UpperFunction);
+    registry.register_async(LowerFunction);
+    registry.register_async(EncodeFunction);
+    registry.register_async(DecodeFunction);
+    registry.register_async(EscapeFunction);
+    registry.register_async(UnescapeFunction);
 
     // Math functions
-    registry.register(AbsFunction);
-    registry.register(CeilingFunction);
-    registry.register(FloorFunction);
-    registry.register(RoundFunction);
-    registry.register(SqrtFunction);
-    registry.register(TruncateFunction);
-    registry.register(ExpFunction);
-    registry.register(LnFunction);
-    registry.register(LogFunction);
-    registry.register(PowerFunction);
-    registry.register(PrecisionFunction);
+    registry.register_async(AbsFunction);
+    registry.register_async(CeilingFunction);
+    registry.register_async(FloorFunction);
+    registry.register_async(RoundFunction);
+    registry.register_async(SqrtFunction);
+    registry.register_async(TruncateFunction);
+    registry.register_async(ExpFunction);
+    registry.register_async(LnFunction);
+    registry.register_async(LogFunction);
+    registry.register_async(PowerFunction);
+    registry.register_async(PrecisionFunction);
 
     // Aggregate functions
-    registry.register(SumFunction);
-    registry.register(AvgFunction);
-    registry.register(MinFunction);
-    registry.register(MaxFunction);
+    registry.register_async(SumFunction);
+    registry.register_async(AvgFunction);
+    registry.register_async(MinFunction);
+    registry.register_async(MaxFunction);
 
     // Type conversion functions
-    registry.register(AsFunction);
-    registry.register(ToStringFunction);
-    registry.register(ToIntegerFunction);
-    registry.register(ToDecimalFunction);
-    registry.register(ToBooleanFunction);
-    registry.register(TypeFunction);
+    registry.register_async(AsFunction);
+    registry.register_async(ToStringFunction);
+    registry.register_async(ToIntegerFunction);
+    registry.register_async(ToDecimalFunction);
+    registry.register_async(ToBooleanFunction);
+    registry.register_async(TypeFunction);
     registry.register(ConvertsToIntegerFunction);
     registry.register(ConvertsToDecimalFunction);
     registry.register(ConvertsToStringFunction);
-    registry.register(ConvertsToBooleanFunction);
+    registry.register_async(ConvertsToBooleanFunction);
     registry.register(ConvertsToDateFunction);
     registry.register(ConvertsToDateTimeFunction);
     registry.register(ConvertsToTimeFunction);
-    registry.register(ToQuantityFunction);
+    registry.register_async(ToQuantityFunction);
     registry.register(ConvertsToQuantityFunction);
 
     // Filtering functions
     registry.register(WhereFunction);
     registry.register(SelectFunction);
-    registry.register(OfTypeFunction);
+    registry.register_async(OfTypeFunction);
 
     // DateTime functions
-    registry.register(NowFunction);
-    registry.register(TodayFunction);
-    registry.register(LowBoundaryFunction);
-    registry.register(HighBoundaryFunction);
+    registry.register_async(NowFunction);
+    registry.register_async(TodayFunction);
+    registry.register_async(LowBoundaryFunction);
+    registry.register_async(HighBoundaryFunction);
 
     // Utility functions
-    registry.register(IifFunction);
-    registry.register(TraceFunction);
-    registry.register(ConformsToFunction);
-    registry.register(DefineVariableFunction);
-    registry.register(HasValueFunction);
-    registry.register(RepeatFunction);
+    registry.register_async(IifFunction);
+    registry.register_async(TraceFunction);
+    registry.register_async(ConformsToFunction::new());
+    registry.register_async(DefineVariableFunction);
+    registry.register_async(HasValueFunction);
+    registry.register_async(RepeatFunction);
 
     // FHIR type functions
-    registry.register(IsFunction);
-    registry.register(ComparableFunction);
-    registry.register(ExtensionFunction);
-    registry.register(ResolveFunction);
+    registry.register_async(IsFunction);
+    registry.register_async(ComparableFunction);
+    registry.register_async(ExtensionFunction);
+    registry.register_async(ResolveFunction);
 
     // CDA functions
     registry.register(HasTemplateIdOfFunction);

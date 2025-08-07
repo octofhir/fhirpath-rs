@@ -51,11 +51,11 @@ impl FhirPathExtension for FhirExtension {
 
     fn register_functions(&self, registry: &mut ExtensionRegistry) -> ExtensionResult<()> {
         // Register extension function
-        let extension_fn = FunctionImpl::Trait(Arc::new(ExtensionFunction));
+        let extension_fn = FunctionImpl::Async(Arc::new(ExtensionFunction));
         registry.register_function("fhir", "extension", extension_fn)?;
 
         // Register resolve function
-        let resolve_fn = FunctionImpl::Trait(Arc::new(ResolveFunction));
+        let resolve_fn = FunctionImpl::Async(Arc::new(ResolveFunction));
         registry.register_function("fhir", "resolve", resolve_fn)?;
 
         Ok(())

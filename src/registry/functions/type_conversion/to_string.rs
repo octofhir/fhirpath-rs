@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// toString() function - converts value to string
 pub struct ToStringFunction;
 
-impl FhirPathFunction for ToStringFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToStringFunction {
     fn name(&self) -> &str {
         "toString"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for ToStringFunction {
         "Returns the value as a String. Note that this function will only work if the input is convertible to a String, and will return empty if the input cannot be converted to a String."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

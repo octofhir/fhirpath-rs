@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
-
+use async_trait::async_trait;
 /// upper() function - converts to uppercase
 pub struct UpperFunction;
 
-impl FhirPathFunction for UpperFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for UpperFunction {
     fn name(&self) -> &str {
         "upper"
     }
@@ -29,7 +30,7 @@ impl FhirPathFunction for UpperFunction {
         "Returns the input string with all characters converted to upper case."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

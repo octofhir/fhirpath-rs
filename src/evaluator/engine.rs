@@ -77,7 +77,7 @@ impl FhirPathEngine {
     /// - Complex expressions: High-performance bytecode VM with fallback
     ///
     /// The selection is transparent and provides optimal performance without configuration.
-    pub fn evaluate(
+    pub async fn evaluate(
         &self,
         expression: &ExpressionNode,
         input: FhirPathValue,
@@ -97,7 +97,31 @@ impl FhirPathEngine {
         }
 
         // Use traditional AST interpretation (simple expressions or VM fallback)
-        self.evaluate_traditional(expression, input)
+        self.evaluate_traditional_async(expression, input).await
+    }
+
+    /// Async version of evaluate - supports async function calls
+    pub async fn evaluate_async(
+        &self,
+        expression: &ExpressionNode,
+        input: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Analyze expression complexity for optimal strategy selection
+        let complexity = self.estimate_expression_complexity(expression);
+
+        // For complex expressions, try VM evaluation first (currently sync only)
+        if complexity >= 15 {
+            match self.try_vm_evaluation(expression, input.clone()) {
+                Ok(result) => return Ok(result),
+                Err(_) => {
+                    // VM failed, fall back to traditional interpretation
+                    // This ensures reliability - we never fail due to VM issues
+                }
+            }
+        }
+
+        // Use traditional AST interpretation with async support
+        self.evaluate_traditional_async(expression, input).await
     }
 
     /// Traditional AST interpretation (internal method)
@@ -113,7 +137,27 @@ impl FhirPathEngine {
             let (result, _) = self.evaluate_with_context_threaded(expression, context)?;
             Ok(result)
         } else {
-            self.evaluate_with_context(expression, &context)
+            self.evaluate_with_context_old(expression, &context)
+        }
+    }
+
+    /// Async traditional AST interpretation (internal method)
+    async fn evaluate_traditional_async(
+        &self,
+        expression: &ExpressionNode,
+        input: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        let context = EvaluationContext::new(input, self.functions.clone(), self.operators.clone());
+
+        // Check if expression needs variable scoping - if so, use threaded evaluation
+        if self.needs_variable_scoping(expression) {
+            let (result, _) = self
+                .evaluate_with_context_threaded_async(expression, context)
+                .await?;
+            Ok(result)
+        } else {
+            self.evaluate_with_context_old_async(expression, &context)
+                .await
         }
     }
 
@@ -143,7 +187,7 @@ impl FhirPathEngine {
     }
 
     /// Evaluate with explicit context and return updated context for defineVariable chains
-    pub fn evaluate_with_context_ext(
+    pub async fn evaluate_with_context_ext(
         &self,
         expression: &ExpressionNode,
         context: &EvaluationContext,
@@ -151,7 +195,7 @@ impl FhirPathEngine {
         match expression {
             ExpressionNode::MethodCall(data) if data.method == "defineVariable" => {
                 // Special handling for defineVariable to thread context through method chains
-                let base_result = self.evaluate_with_context(&data.base, context)?;
+                let base_result = self.evaluate_with_context(&data.base, context).await?;
                 let define_context = context.with_input(base_result.clone());
 
                 if data.args.is_empty() || data.args.len() > 2 {
@@ -162,7 +206,9 @@ impl FhirPathEngine {
                 }
 
                 // Evaluate variable name and value
-                let name_value = self.evaluate_with_context(&data.args[0], &define_context)?;
+                let name_value = self
+                    .evaluate_with_context(&data.args[0], &define_context)
+                    .await?;
                 let var_name = match name_value {
                     FhirPathValue::String(name) => name,
                     FhirPathValue::Collection(items) if items.len() == 1 => match items.get(0) {
@@ -182,7 +228,8 @@ impl FhirPathEngine {
                 };
 
                 let var_value = if data.args.len() == 2 {
-                    self.evaluate_with_context(&data.args[1], &define_context)?
+                    self.evaluate_with_context(&data.args[1], &define_context)
+                        .await?
                 } else {
                     // If no value provided, use current base result
                     base_result.clone()
@@ -196,10 +243,229 @@ impl FhirPathEngine {
             }
             _ => {
                 // For other expressions, use regular evaluation
-                let result = self.evaluate_with_context(expression, context)?;
+                let result = self.evaluate_with_context(expression, context).await?;
                 Ok((result, context.clone()))
             }
         }
+    }
+
+    /// Evaluate with explicit context and return both result and updated context (async version)
+    pub fn evaluate_with_context_threaded_async<'a>(
+        &'a self,
+        expression: &'a ExpressionNode,
+        context: EvaluationContext,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = EvaluationResult<(FhirPathValue, EvaluationContext)>>
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            match expression {
+                ExpressionNode::MethodCall(data) if data.method == "defineVariable" => {
+                    // Special handling for defineVariable to thread context properly
+                    let (base_value, mut updated_context) = self
+                        .evaluate_with_context_threaded_async(&data.base, context)
+                        .await?;
+
+                    if data.args.is_empty() || data.args.len() > 2 {
+                        return Err(EvaluationError::InvalidOperation {
+                            message:
+                                "defineVariable requires 1-2 arguments: name and optional value"
+                                    .to_string(),
+                        });
+                    }
+
+                    // Create context with base value as input
+                    let define_context = updated_context.with_input(base_value.clone());
+
+                    // Evaluate variable name and value
+                    let (name_value, _) = self
+                        .evaluate_with_context_threaded_async(&data.args[0], define_context.clone())
+                        .await?;
+                    let var_name = match name_value {
+                        FhirPathValue::String(name) => name,
+                        FhirPathValue::Collection(items) if items.len() == 1 => {
+                            match items.get(0) {
+                                Some(FhirPathValue::String(name)) => name.clone(),
+                                _ => {
+                                    return Err(EvaluationError::InvalidOperation {
+                                        message: "defineVariable first argument must be a string"
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: "defineVariable first argument must be a string"
+                                    .to_string(),
+                            });
+                        }
+                    };
+
+                    // Check for protected system variables
+                    if self.is_protected_variable(&var_name) {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: format!("Cannot redefine system variable '{var_name}'"),
+                        });
+                    }
+
+                    let (var_value, _) = if data.args.len() == 2 {
+                        self.evaluate_with_context_threaded_async(&data.args[1], define_context)
+                            .await?
+                    } else {
+                        // If no value provided, use current base value
+                        (base_value.clone(), updated_context.clone())
+                    };
+
+                    // Store the variable in the context
+                    updated_context.set_variable(var_name.clone(), var_value.clone());
+
+                    // Return the input value with updated context (defineVariable returns its input, not the variable value)
+                    Ok((base_value, updated_context))
+                }
+
+                ExpressionNode::FunctionCall(data) if data.name == "defineVariable" => {
+                    // Special handling for defineVariable function call
+                    if data.args.is_empty() || data.args.len() > 2 {
+                        return Err(EvaluationError::InvalidOperation {
+                            message:
+                                "defineVariable requires 1-2 arguments: name and optional value"
+                                    .to_string(),
+                        });
+                    }
+
+                    // Evaluate variable name and value
+                    let (name_value, _) = self
+                        .evaluate_with_context_threaded_async(&data.args[0], context.clone())
+                        .await?;
+                    let var_name = match name_value {
+                        FhirPathValue::String(name) => name,
+                        FhirPathValue::Collection(items) if items.len() == 1 => {
+                            match items.get(0) {
+                                Some(FhirPathValue::String(name)) => name.clone(),
+                                _ => {
+                                    return Err(EvaluationError::InvalidOperation {
+                                        message: "defineVariable first argument must be a string"
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: "defineVariable first argument must be a string"
+                                    .to_string(),
+                            });
+                        }
+                    };
+
+                    // Check for protected system variables
+                    if self.is_protected_variable(&var_name) {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: format!("Cannot redefine system variable '{var_name}'"),
+                        });
+                    }
+
+                    let (var_value, mut updated_context) = if data.args.len() == 2 {
+                        self.evaluate_with_context_threaded_async(&data.args[1], context.clone())
+                            .await?
+                    } else {
+                        // If no value provided, use current input
+                        (context.input.clone(), context.clone())
+                    };
+
+                    // Store the variable in the context
+                    updated_context.set_variable(var_name.clone(), var_value.clone());
+
+                    // Return the input value with updated context (defineVariable returns its input)
+                    Ok((context.input.clone(), updated_context))
+                }
+
+                ExpressionNode::Union { left, right } => {
+                    // For union operations, evaluate each side with isolated variable scopes
+                    // This prevents variables defined in one side from affecting the other
+                    let left_context = context.with_fresh_variable_scope();
+                    let right_context = context.with_fresh_variable_scope();
+
+                    let (left_val, _) = self
+                        .evaluate_with_context_threaded_async(left, left_context)
+                        .await?;
+                    let (right_val, _) = self
+                        .evaluate_with_context_threaded_async(right, right_context)
+                        .await?;
+
+                    let mut items = Vec::new();
+
+                    // Add items from left
+                    match left_val {
+                        FhirPathValue::Collection(left_items) => items.extend(left_items),
+                        FhirPathValue::Empty => {}
+                        other => items.push(other),
+                    }
+
+                    // Add items from right, removing duplicates
+                    match right_val {
+                        FhirPathValue::Collection(right_items) => {
+                            for item in right_items {
+                                if !items.contains(&item) {
+                                    items.push(item);
+                                }
+                            }
+                        }
+                        FhirPathValue::Empty => {}
+                        other => {
+                            if !items.contains(&other) {
+                                items.push(other);
+                            }
+                        }
+                    }
+
+                    Ok((FhirPathValue::collection(items), context))
+                }
+
+                ExpressionNode::MethodCall(data) => {
+                    // For other method calls, thread context through base evaluation
+                    let (base_value, updated_context) = self
+                        .evaluate_with_context_threaded_async(&data.base, context)
+                        .await?;
+                    let method_context = updated_context.with_input(base_value);
+                    let result = self
+                        .evaluate_method_call_direct_async(
+                            &data.method,
+                            &data.args,
+                            &method_context,
+                        )
+                        .await?;
+                    Ok((result, updated_context))
+                }
+
+                ExpressionNode::Path { base, path } => {
+                    // Thread context through path navigation
+                    let (base_value, updated_context) = self
+                        .evaluate_with_context_threaded_async(base, context)
+                        .await?;
+                    let path_context = updated_context.with_input(base_value);
+                    let result = self.evaluate_identifier(path, &path_context)?;
+                    Ok((result, updated_context))
+                }
+
+                ExpressionNode::Variable(name) => {
+                    // Variable evaluation uses current context
+                    let result = self.evaluate_variable(name, &context)?;
+                    Ok((result, context))
+                }
+
+                _ => {
+                    // For other expressions, use the old evaluation method and wrap the result
+                    let result = self
+                        .evaluate_with_context_old_async(expression, &context)
+                        .await?;
+                    Ok((result, context))
+                }
+            }
+        })
     }
 
     /// Evaluate with explicit context and return both result and updated context
@@ -388,6 +654,253 @@ impl FhirPathEngine {
         }
     }
 
+    /// Legacy evaluation method (async version)
+    pub fn evaluate_with_context_old_async<'a>(
+        &'a self,
+        expression: &'a ExpressionNode,
+        context: &'a EvaluationContext,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + 'a>>
+    {
+        Box::pin(async move {
+            match expression {
+                ExpressionNode::Literal(literal) => self.evaluate_literal(literal),
+
+                ExpressionNode::Identifier(name) => self.evaluate_identifier(name, context),
+
+                ExpressionNode::Variable(name) => self.evaluate_variable(name, context),
+
+                ExpressionNode::FunctionCall(data) => {
+                    self.evaluate_function_call_async(&data.name, &data.args, context)
+                        .await
+                }
+
+                ExpressionNode::MethodCall(data) => {
+                    self.evaluate_method_call_async(&data.base, &data.method, &data.args, context)
+                        .await
+                }
+
+                ExpressionNode::BinaryOp(data) => {
+                    self.evaluate_binary_op_async(&data.op, &data.left, &data.right, context)
+                        .await
+                }
+
+                ExpressionNode::UnaryOp { op, operand } => {
+                    self.evaluate_unary_op_async(op, operand, context).await
+                }
+
+                ExpressionNode::Path { base, path } => {
+                    let base_val = self.evaluate_with_context(base, context).await?;
+                    let new_context = context.with_input(base_val);
+                    self.evaluate_identifier(path, &new_context)
+                }
+
+                ExpressionNode::Index { base, index } => {
+                    let base_val = self.evaluate_with_context(base, context).await?;
+                    let index_val = self.evaluate_with_context(index, context).await?;
+
+                    let index_num = match &index_val {
+                        FhirPathValue::Integer(i) => *i,
+                        FhirPathValue::Collection(items) if items.len() == 1 => {
+                            match items.get(0) {
+                                Some(FhirPathValue::Integer(i)) => *i,
+                                _ => {
+                                    return Err(EvaluationError::TypeError {
+                                        expected: "Integer".to_string(),
+                                        actual: index_val.type_name().to_string(),
+                                    });
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(EvaluationError::TypeError {
+                                expected: "Integer".to_string(),
+                                actual: index_val.type_name().to_string(),
+                            });
+                        }
+                    };
+
+                    match base_val {
+                        FhirPathValue::Collection(items) => {
+                            // Handle negative indexing (from end of collection)
+                            let effective_index = if index_num < 0 {
+                                let len = items.len() as i64;
+                                len + index_num
+                            } else {
+                                index_num
+                            };
+
+                            // Return empty collection for out-of-bounds access (FHIRPath spec)
+                            if effective_index < 0 || effective_index as usize >= items.len() {
+                                Ok(FhirPathValue::Collection(vec![].into()))
+                            } else {
+                                Ok(items.get(effective_index as usize).unwrap().clone())
+                            }
+                        }
+                        _ => {
+                            // Single item is treated as single-item collection for indexing
+                            let single_item_collection = [base_val];
+
+                            // Handle negative indexing
+                            let effective_index = if index_num < 0 {
+                                1 + index_num // Length is 1 for single item
+                            } else {
+                                index_num
+                            };
+
+                            // Return empty collection for out-of-bounds access
+                            if effective_index < 0 || effective_index as usize >= 1 {
+                                Ok(FhirPathValue::Collection(vec![].into()))
+                            } else {
+                                Ok(single_item_collection
+                                    .get(effective_index as usize)
+                                    .unwrap()
+                                    .clone())
+                            }
+                        }
+                    }
+                }
+
+                ExpressionNode::Filter { base, condition } => {
+                    let base_val = self.evaluate_with_context(base, context).await?;
+
+                    match base_val {
+                        FhirPathValue::Collection(items) => {
+                            let mut results = Vec::new();
+
+                            for item in items {
+                                let item_context = context.with_input(item.clone());
+                                let condition_result =
+                                    self.evaluate_with_context(condition, &item_context).await?;
+
+                                if let FhirPathValue::Boolean(true) = condition_result {
+                                    results.push(item)
+                                }
+                            }
+
+                            Ok(FhirPathValue::collection(results))
+                        }
+                        other => {
+                            // For non-collections, treat as single-item collection
+                            let item_context = context.with_input(other.clone());
+                            let condition_result =
+                                self.evaluate_with_context(condition, &item_context).await?;
+
+                            match condition_result {
+                                FhirPathValue::Boolean(true) => Ok(other),
+                                _ => Ok(FhirPathValue::Empty),
+                            }
+                        }
+                    }
+                }
+
+                ExpressionNode::Union { left, right } => {
+                    // For union operations, each side should be evaluated with a fresh variable context
+                    // to ensure proper variable scoping as per FHIRPath specification
+                    let left_context = context.with_fresh_variable_scope();
+                    let right_context = context.with_fresh_variable_scope();
+
+                    let left_val = self.evaluate_with_context(left, &left_context).await?;
+                    let right_val = self.evaluate_with_context(right, &right_context).await?;
+
+                    let mut items = Vec::new();
+
+                    // Add items from left
+                    match left_val {
+                        FhirPathValue::Collection(left_items) => items.extend(left_items),
+                        FhirPathValue::Empty => {}
+                        other => items.push(other),
+                    }
+
+                    // Add items from right, removing duplicates
+                    match right_val {
+                        FhirPathValue::Collection(right_items) => {
+                            for item in right_items {
+                                if !items.contains(&item) {
+                                    items.push(item);
+                                }
+                            }
+                        }
+                        FhirPathValue::Empty => {}
+                        other => {
+                            if !items.contains(&other) {
+                                items.push(other);
+                            }
+                        }
+                    }
+
+                    Ok(FhirPathValue::collection(items))
+                }
+
+                ExpressionNode::TypeCheck {
+                    expression,
+                    type_name,
+                } => {
+                    let value = self.evaluate_with_context(expression, context).await?;
+
+                    let matches = match &value {
+                        FhirPathValue::Collection(items) => {
+                            // For collections, check if it has exactly one item of the specified type
+                            if items.len() == 1 {
+                                check_value_type(items.get(0).unwrap(), type_name)
+                            } else {
+                                false
+                            }
+                        }
+                        single_value => check_value_type(single_value, type_name),
+                    };
+
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        matches,
+                    )]))
+                }
+
+                ExpressionNode::TypeCast {
+                    expression,
+                    type_name,
+                } => {
+                    let value = self.evaluate_with_context(expression, context).await?;
+
+                    // Basic type casting - can be enhanced later
+                    match (type_name.as_str(), &value) {
+                        ("String", _) => {
+                            if let Some(s) = value.to_string_value() {
+                                Ok(FhirPathValue::collection(vec![FhirPathValue::String(s)]))
+                            } else {
+                                Ok(FhirPathValue::collection(vec![]))
+                            }
+                        }
+                        _ => Ok(FhirPathValue::collection(vec![value])), // For now, just return the value as-is
+                    }
+                }
+
+                ExpressionNode::Lambda(data) => {
+                    // Lambda expressions are context-dependent
+                    // For now, evaluate body directly
+                    self.evaluate_with_context_old_async(&data.body, context)
+                        .await
+                }
+
+                ExpressionNode::Conditional(data) => {
+                    let condition_val =
+                        self.evaluate_with_context(&data.condition, context).await?;
+
+                    match condition_val {
+                        FhirPathValue::Boolean(true) => {
+                            self.evaluate_with_context(&data.then_expr, context).await
+                        }
+                        _ => {
+                            if let Some(else_branch) = data.else_expr.as_deref() {
+                                self.evaluate_with_context(else_branch, context).await
+                            } else {
+                                Ok(FhirPathValue::collection(vec![]))
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+
     /// Legacy evaluation method (renamed)
     pub fn evaluate_with_context_old(
         &self,
@@ -451,18 +964,21 @@ impl FhirPathEngine {
     }
 
     /// Evaluate with explicit context (wrapper for backward compatibility)
-    pub fn evaluate_with_context(
+    pub async fn evaluate_with_context(
         &self,
         expression: &ExpressionNode,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
         // Use the new threaded evaluation for expressions that need variable scoping
         if self.needs_variable_scoping(expression) {
-            let (result, _) = self.evaluate_with_context_threaded(expression, context.clone())?;
+            let (result, _) = self
+                .evaluate_with_context_threaded_async(expression, context.clone())
+                .await?;
             Ok(result)
         } else {
-            // Use the old method for simple expressions
-            self.evaluate_with_context_old(expression, context)
+            // Use the old method for simple expressions with async support
+            self.evaluate_with_context_old_async(expression, context)
+                .await
         }
     }
 
@@ -728,6 +1244,69 @@ impl FhirPathEngine {
         }
     }
 
+    /// Evaluate a function call (async version)
+    async fn evaluate_function_call_async(
+        &self,
+        name: &str,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Get function from registry
+        let function =
+            context
+                .functions
+                .get(name)
+                .ok_or_else(|| EvaluationError::InvalidOperation {
+                    message: format!("Unknown function: {name}"),
+                })?;
+
+        // Check if this is a lambda function that needs special evaluation
+        if is_lambda_function(name) {
+            // For lambda functions, we don't evaluate arguments first - we pass the expressions
+            return self
+                .evaluate_lambda_function_async(function, args, context)
+                .await;
+        }
+
+        // For regular functions, evaluate arguments normally
+        let mut arg_values = Vec::new();
+        for arg in args {
+            let value = self.evaluate_with_context(arg, context).await?;
+
+            // Special handling for type-related functions: if an argument evaluates to Empty,
+            // check if it represents a type name (identifier or dotted path) and treat as string literal
+            if (name == "is" || name == "as" || name == "ofType")
+                && matches!(value, FhirPathValue::Empty)
+            {
+                if let Some(type_name) = self.extract_type_name(arg) {
+                    arg_values.push(FhirPathValue::String(type_name));
+                } else {
+                    arg_values.push(value);
+                }
+            } else {
+                arg_values.push(value);
+            }
+        }
+
+        // Unwrap single-item collections for function arguments
+        // This is required by FHIRPath semantics - functions should receive unwrapped values
+        let unwrapped_args = unwrap_function_arguments(arg_values);
+
+        // Create a compatible context for the function registry
+        let mut registry_context =
+            crate::registry::function::EvaluationContext::new(context.input.clone());
+        registry_context
+            .variables
+            .extend(context.variable_scope.collect_all_variables());
+        registry_context.root = context.root.clone();
+
+        // Evaluate function with async support
+        let result = function
+            .evaluate_async(&unwrapped_args, &registry_context)
+            .await?;
+        Ok(result)
+    }
+
     /// Evaluate a function call
     fn evaluate_function_call(
         &self,
@@ -747,13 +1326,14 @@ impl FhirPathEngine {
         // Check if this is a lambda function that needs special evaluation
         if is_lambda_function(name) {
             // For lambda functions, we don't evaluate arguments first - we pass the expressions
-            return self.evaluate_lambda_function(function, args, context);
+            // Note: This sync function should not be used - prefer async version
+            panic!("Sync lambda evaluation not supported - use async version");
         }
 
         // For regular functions, evaluate arguments normally
         let mut arg_values = Vec::new();
         for arg in args {
-            let value = self.evaluate_with_context(arg, context)?;
+            let value = self.evaluate_with_context_old(arg, context)?;
 
             // Special handling for type-related functions: if an argument evaluates to Empty,
             // check if it represents a type name (identifier or dotted path) and treat as string literal
@@ -787,26 +1367,31 @@ impl FhirPathEngine {
         Ok(result)
     }
 
-    /// Evaluate a lambda function with unevaluated expression arguments
-    fn evaluate_lambda_function(
+    /// Evaluate a lambda function with unevaluated expression arguments (async version)
+    async fn evaluate_lambda_function_async(
         &self,
         function: &crate::registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        // Create a lambda evaluator closure
-        let evaluator =
-            |expr: &ExpressionNode,
-             item_context: &FhirPathValue|
-             -> Result<FhirPathValue, crate::registry::function::FunctionError> {
+        // Create an async lambda evaluator closure
+        let evaluator = |expr: &ExpressionNode, item_context: &FhirPathValue| {
+            let expr_clone = expr.clone();
+            let item_context_clone = item_context.clone();
+            let self_clone = self.clone();
+            let context_clone = context.clone();
+
+            Box::pin(async move {
                 // Create a new evaluation context with the item as input
-                let mut item_eval_context = context.with_input(item_context.clone());
+                let mut item_eval_context = context_clone.with_input(item_context_clone.clone());
 
                 // Explicitly set $this to the current item for lambda functions
-                item_eval_context.set_variable("this".to_string(), item_context.clone());
+                item_eval_context.set_variable("this".to_string(), item_context_clone.clone());
 
-                // Evaluate the expression in the item context
-                self.evaluate_with_context_threaded(expr, item_eval_context.clone())
+                // Always use async evaluation
+                self_clone
+                    .evaluate_with_context_threaded_async(&expr_clone, item_eval_context)
+                    .await
                     .map(|(result, _)| result)
                     .map_err(
                         |e| crate::registry::function::FunctionError::EvaluationError {
@@ -814,27 +1399,45 @@ impl FhirPathEngine {
                             message: format!("Lambda evaluation error: {e}"),
                         },
                     )
-            };
+            })
+                as std::pin::Pin<
+                    Box<
+                        dyn std::future::Future<
+                                Output = Result<
+                                    crate::model::FhirPathValue,
+                                    crate::registry::function::FunctionError,
+                                >,
+                            > + '_,
+                    >,
+                >
+        };
 
-        // Create an enhanced lambda evaluator that supports additional variables
-        let enhanced_evaluator =
-            |expr: &ExpressionNode,
-             item_context: &FhirPathValue,
-             additional_vars: &VarMap|
-             -> Result<FhirPathValue, crate::registry::function::FunctionError> {
+        // Create an enhanced async lambda evaluator that supports additional variables
+        let enhanced_evaluator = |expr: &ExpressionNode,
+                                  item_context: &FhirPathValue,
+                                  additional_vars: &VarMap| {
+            let expr_clone = expr.clone();
+            let item_context_clone = item_context.clone();
+            let additional_vars_clone = additional_vars.clone();
+            let self_clone = self.clone();
+            let context_clone = context.clone();
+
+            Box::pin(async move {
                 // Create a new evaluation context with the item as input
-                let mut item_eval_context = context.with_input(item_context.clone());
+                let mut item_eval_context = context_clone.with_input(item_context_clone.clone());
 
                 // Explicitly set $this to the current item for lambda functions
-                item_eval_context.set_variable("this".to_string(), item_context.clone());
+                item_eval_context.set_variable("this".to_string(), item_context_clone.clone());
 
                 // Inject additional variables into the context
-                for (name, value) in additional_vars {
+                for (name, value) in &additional_vars_clone {
                     item_eval_context.set_variable(name.clone(), value.clone());
                 }
 
-                // Evaluate the expression in the enhanced context
-                self.evaluate_with_context_threaded(expr, item_eval_context.clone())
+                // Always use async evaluation
+                self_clone
+                    .evaluate_with_context_threaded_async(&expr_clone, item_eval_context)
+                    .await
                     .map(|(result, _)| result)
                     .map_err(
                         |e| crate::registry::function::FunctionError::EvaluationError {
@@ -842,7 +1445,18 @@ impl FhirPathEngine {
                             message: format!("Enhanced lambda evaluation error: {e}"),
                         },
                     )
-            };
+            })
+                as std::pin::Pin<
+                    Box<
+                        dyn std::future::Future<
+                                Output = Result<
+                                    crate::model::FhirPathValue,
+                                    crate::registry::function::FunctionError,
+                                >,
+                            > + '_,
+                    >,
+                >
+        };
 
         // Try to cast to LambdaFunction and use lambda evaluation
         use crate::registry::function::LambdaFunction;
@@ -869,6 +1483,7 @@ impl FhirPathEngine {
                 let all_fn = AllFunction;
                 all_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             "select" => {
@@ -876,6 +1491,7 @@ impl FhirPathEngine {
                 let select_fn = SelectFunction;
                 select_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             "where" => {
@@ -883,6 +1499,7 @@ impl FhirPathEngine {
                 let where_fn = WhereFunction;
                 where_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             "aggregate" => {
@@ -890,6 +1507,7 @@ impl FhirPathEngine {
                 let aggregate_fn = AggregateFunction;
                 aggregate_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             "sort" => {
@@ -897,6 +1515,7 @@ impl FhirPathEngine {
                 let sort_fn = SortFunction;
                 sort_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             "exists" => {
@@ -904,13 +1523,47 @@ impl FhirPathEngine {
                 let exists_fn = ExistsFunction;
                 exists_fn
                     .evaluate_with_lambda(args, &lambda_context)
+                    .await
                     .map_err(EvaluationError::Function)
             }
             _ => {
                 // Fall back to regular function evaluation for other functions
-                self.evaluate_function_call_regular(function, args, context)
+                self.evaluate_function_call_regular_async(function, args, context)
+                    .await
             }
         }
+    }
+
+    /// Regular function evaluation for functions that don't support lambdas (async version)
+    async fn evaluate_function_call_regular_async(
+        &self,
+        function: &crate::registry::function::FunctionImpl,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Evaluate arguments
+        let mut arg_values = Vec::new();
+        for arg in args {
+            let value = self.evaluate_with_context(arg, context).await?;
+            arg_values.push(value);
+        }
+
+        // Unwrap single-item collections for function arguments
+        let unwrapped_args = unwrap_function_arguments(arg_values);
+
+        // Create a compatible context for the function registry
+        let mut registry_context =
+            crate::registry::function::EvaluationContext::new(context.input.clone());
+        registry_context
+            .variables
+            .extend(context.variable_scope.collect_all_variables());
+        registry_context.root = context.root.clone();
+
+        // Evaluate function with async support
+        let result = function
+            .evaluate_async(&unwrapped_args, &registry_context)
+            .await?;
+        Ok(result)
     }
 
     /// Regular function evaluation for functions that don't support lambdas
@@ -923,7 +1576,7 @@ impl FhirPathEngine {
         // Evaluate arguments
         let mut arg_values = Vec::new();
         for arg in args {
-            let value = self.evaluate_with_context(arg, context)?;
+            let value = self.evaluate_with_context_old(arg, context)?;
             arg_values.push(value);
         }
 
@@ -943,6 +1596,34 @@ impl FhirPathEngine {
         Ok(result)
     }
 
+    /// Evaluate a method call (async version)
+    async fn evaluate_method_call_async(
+        &self,
+        base: &ExpressionNode,
+        method: &str,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Check if we need to thread context through the method call chain
+        if self.needs_variable_scoping(base) {
+            // Use threaded context evaluation to preserve variables from defineVariable calls
+            let (base_value, updated_context) = self
+                .evaluate_with_context_threaded_async(base, context.clone())
+                .await?;
+            self.evaluate_method_call_direct_async(
+                method,
+                args,
+                &updated_context.with_input(base_value),
+            )
+            .await
+        } else {
+            // First evaluate the base expression to get the context for the method call
+            let base_value = self.evaluate_with_context(base, context).await?;
+            self.evaluate_method_call_direct_async(method, args, &context.with_input(base_value))
+                .await
+        }
+    }
+
     /// Evaluate a method call
     fn evaluate_method_call(
         &self,
@@ -959,8 +1640,76 @@ impl FhirPathEngine {
             self.evaluate_method_call_direct(method, args, &updated_context.with_input(base_value))
         } else {
             // First evaluate the base expression to get the context for the method call
-            let base_value = self.evaluate_with_context(base, context)?;
+            let base_value = self.evaluate_with_context_old(base, context)?;
             self.evaluate_method_call_direct(method, args, &context.with_input(base_value))
+        }
+    }
+
+    /// Evaluate a method call with already-evaluated base value (async version)
+    async fn evaluate_method_call_direct_async(
+        &self,
+        method: &str,
+        args: &[ExpressionNode],
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Check if this is a collection-level function that should operate on the entire collection
+        let is_collection_level_function = matches!(
+            method,
+            "count" | "exists" | "isDistinct" | "single" | "distinct" | "empty" |
+            "allTrue" | "anyTrue" | "allFalse" | "anyFalse" | "aggregate" |
+            "select" | "where" | "all" | "any" |  // Lambda functions should operate on collections
+            "first" | "last" | "tail" | "skip" | "take" |  // Collection navigation functions
+            "join" | // String functions that operate on collections
+            "subsetOf" | "supersetOf" | "intersect" | "exclude" | "combine" | // Set operations
+            "sort" | // Sort function should operate on the entire collection
+            "repeat" // Repeat function should operate on the entire collection
+        );
+
+        // For collection-level functions, always operate on the entire collection
+        if is_collection_level_function {
+            return self
+                .evaluate_function_call_async(method, args, context)
+                .await;
+        }
+
+        // For method calls on collections, we need to handle them properly
+        match &context.input {
+            FhirPathValue::Collection(items) => {
+                let items_vec: Vec<FhirPathValue> = items.iter().cloned().collect();
+                // For single-element collections, unwrap and call method on the element
+                if items_vec.len() == 1 {
+                    let method_context = context.with_input(items_vec[0].clone());
+                    self.evaluate_function_call_async(method, args, &method_context)
+                        .await
+                } else {
+                    // For multi-element collections, call method on each element and collect results
+                    let mut results = Vec::new();
+                    for item in items_vec {
+                        let method_context = context.with_input(item.clone());
+                        match self
+                            .evaluate_function_call_async(method, args, &method_context)
+                            .await
+                        {
+                            Ok(result) => match result {
+                                FhirPathValue::Collection(sub_items) => {
+                                    for sub_item in sub_items.iter() {
+                                        results.push(sub_item.clone());
+                                    }
+                                }
+                                FhirPathValue::Empty => {}
+                                single_item => results.push(single_item),
+                            },
+                            Err(e) => return Err(e),
+                        }
+                    }
+                    Ok(FhirPathValue::collection(results))
+                }
+            }
+            _ => {
+                // For non-collections, call function directly on the current input
+                self.evaluate_function_call_async(method, args, context)
+                    .await
+            }
         }
     }
 
@@ -1025,16 +1774,16 @@ impl FhirPathEngine {
         }
     }
 
-    /// Evaluate a binary operation
-    fn evaluate_binary_op(
+    /// Evaluate a binary operation (async version)
+    async fn evaluate_binary_op_async(
         &self,
         op: &BinaryOperator,
         left: &ExpressionNode,
         right: &ExpressionNode,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let left_val = self.evaluate_with_context(left, context)?;
-        let right_val = self.evaluate_with_context(right, context)?;
+        let left_val = self.evaluate_with_context(left, context).await?;
+        let right_val = self.evaluate_with_context(right, context).await?;
 
         // Use operator registry
         let op_symbol = op.as_str(); // Convert enum to string
@@ -1059,6 +1808,102 @@ impl FhirPathEngine {
             .map_err(|e| EvaluationError::Operator(e.to_string()))
     }
 
+    /// Evaluate a binary operation
+    fn evaluate_binary_op(
+        &self,
+        op: &BinaryOperator,
+        left: &ExpressionNode,
+        right: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        let left_val = self.evaluate_with_context_old(left, context)?;
+        let right_val = self.evaluate_with_context_old(right, context)?;
+
+        // Use operator registry
+        let op_symbol = op.as_str(); // Convert enum to string
+        let operator = context.operators.get_binary(op_symbol).ok_or_else(|| {
+            EvaluationError::Operator(format!("Unknown binary operator: {op_symbol}"))
+        })?;
+
+        // For binary operations, we need to unwrap single-element collections
+        // according to FHIRPath semantics
+        let left_operand = match &left_val {
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap().clone(),
+            _ => left_val.clone(),
+        };
+
+        let right_operand = match &right_val {
+            FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap().clone(),
+            _ => right_val.clone(),
+        };
+
+        operator
+            .evaluate_binary(&left_operand, &right_operand)
+            .map_err(|e| EvaluationError::Operator(e.to_string()))
+    }
+
+    /// Evaluate a unary operation (async version)
+    async fn evaluate_unary_op_async(
+        &self,
+        op: &UnaryOperator,
+        operand: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        let operand_val = self.evaluate_with_context(operand, context).await?;
+
+        // Handle basic unary operations
+        match op {
+            UnaryOperator::Not => match operand_val {
+                FhirPathValue::Boolean(b) => {
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(!b)]))
+                }
+                FhirPathValue::Empty => {
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        true,
+                    )]))
+                }
+                _ => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                    false,
+                )])),
+            },
+            UnaryOperator::Minus => {
+                // Handle collections by unwrapping single-element collections
+                let value_to_process = match &operand_val {
+                    FhirPathValue::Collection(items) if items.len() == 1 => items.get(0).unwrap(),
+                    _ => &operand_val,
+                };
+
+                match value_to_process {
+                    FhirPathValue::Integer(i) => {
+                        Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(-i)]))
+                    }
+                    FhirPathValue::Decimal(d) => {
+                        Ok(FhirPathValue::collection(vec![FhirPathValue::Decimal(-d)]))
+                    }
+                    FhirPathValue::Quantity(q) => {
+                        let negated = q.multiply_scalar(rust_decimal::Decimal::from(-1));
+                        Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
+                            negated,
+                        )]))
+                    }
+                    _ => Err(EvaluationError::TypeError {
+                        expected: "Number or Quantity".to_string(),
+                        actual: value_to_process.type_name().to_string(),
+                    }),
+                }
+            }
+            UnaryOperator::Plus => match operand_val {
+                FhirPathValue::Integer(_)
+                | FhirPathValue::Decimal(_)
+                | FhirPathValue::Quantity(_) => Ok(FhirPathValue::collection(vec![operand_val])),
+                _ => Err(EvaluationError::TypeError {
+                    expected: "Number or Quantity".to_string(),
+                    actual: operand_val.type_name().to_string(),
+                }),
+            },
+        }
+    }
+
     /// Evaluate a unary operation
     fn evaluate_unary_op(
         &self,
@@ -1066,7 +1911,7 @@ impl FhirPathEngine {
         operand: &ExpressionNode,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let operand_val = self.evaluate_with_context(operand, context)?;
+        let operand_val = self.evaluate_with_context_old(operand, context)?;
 
         // Handle basic unary operations
         match op {
@@ -1128,7 +1973,7 @@ impl FhirPathEngine {
         path: &str,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let base_val = self.evaluate_with_context(base, context)?;
+        let base_val = self.evaluate_with_context_old(base, context)?;
         let new_context = context.with_input(base_val);
         self.evaluate_identifier(path, &new_context)
     }
@@ -1140,8 +1985,8 @@ impl FhirPathEngine {
         index: &ExpressionNode,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let base_val = self.evaluate_with_context(base, context)?;
-        let index_val = self.evaluate_with_context(index, context)?;
+        let base_val = self.evaluate_with_context_old(base, context)?;
+        let index_val = self.evaluate_with_context_old(index, context)?;
 
         let index_num = match &index_val {
             FhirPathValue::Integer(i) => *i,
@@ -1210,7 +2055,7 @@ impl FhirPathEngine {
         condition: &ExpressionNode,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let base_val = self.evaluate_with_context(base, context)?;
+        let base_val = self.evaluate_with_context_old(base, context)?;
 
         match base_val {
             FhirPathValue::Collection(items) => {
@@ -1218,7 +2063,8 @@ impl FhirPathEngine {
 
                 for item in items {
                     let item_context = context.with_input(item.clone());
-                    let condition_result = self.evaluate_with_context(condition, &item_context)?;
+                    let condition_result =
+                        self.evaluate_with_context_old(condition, &item_context)?;
 
                     if let FhirPathValue::Boolean(true) = condition_result {
                         results.push(item)
@@ -1230,7 +2076,7 @@ impl FhirPathEngine {
             other => {
                 // For non-collections, treat as single-item collection
                 let item_context = context.with_input(other.clone());
-                let condition_result = self.evaluate_with_context(condition, &item_context)?;
+                let condition_result = self.evaluate_with_context_old(condition, &item_context)?;
 
                 match condition_result {
                     FhirPathValue::Boolean(true) => Ok(other),
@@ -1253,8 +2099,8 @@ impl FhirPathEngine {
 
         let right_context = context.with_fresh_variable_scope();
 
-        let left_val = self.evaluate_with_context(left, &left_context)?;
-        let right_val = self.evaluate_with_context(right, &right_context)?;
+        let left_val = self.evaluate_with_context_old(left, &left_context)?;
+        let right_val = self.evaluate_with_context_old(right, &right_context)?;
 
         let mut items = Vec::new();
 
@@ -1292,7 +2138,7 @@ impl FhirPathEngine {
         type_name: &str,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let value = self.evaluate_with_context(expression, context)?;
+        let value = self.evaluate_with_context_old(expression, context)?;
 
         let matches = match &value {
             FhirPathValue::Collection(items) => {
@@ -1318,7 +2164,7 @@ impl FhirPathEngine {
         type_name: &str,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let value = self.evaluate_with_context(expression, context)?;
+        let value = self.evaluate_with_context_old(expression, context)?;
 
         // Basic type casting - can be enhanced later
         match (type_name, &value) {
@@ -1341,13 +2187,13 @@ impl FhirPathEngine {
         else_expr: Option<&ExpressionNode>,
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        let condition_val = self.evaluate_with_context(condition, context)?;
+        let condition_val = self.evaluate_with_context_old(condition, context)?;
 
         match condition_val {
-            FhirPathValue::Boolean(true) => self.evaluate_with_context(then_expr, context),
+            FhirPathValue::Boolean(true) => self.evaluate_with_context_old(then_expr, context),
             _ => {
                 if let Some(else_branch) = else_expr {
-                    self.evaluate_with_context(else_branch, context)
+                    self.evaluate_with_context_old(else_branch, context)
                 } else {
                     Ok(FhirPathValue::collection(vec![]))
                 }

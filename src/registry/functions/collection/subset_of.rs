@@ -1,13 +1,15 @@
 //! subsetOf() function implementation
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// subsetOf() function - returns true if the input collection is a subset of the argument collection
 pub struct SubsetOfFunction;
 
-impl FhirPathFunction for SubsetOfFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SubsetOfFunction {
     fn name(&self) -> &str {
         "subsetOf"
     }
@@ -29,7 +31,7 @@ impl FhirPathFunction for SubsetOfFunction {
         true // subsetOf() is a pure collection function
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

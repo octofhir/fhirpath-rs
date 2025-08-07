@@ -63,9 +63,10 @@ fn bench_evaluator(c: &mut Criterion) {
             BenchmarkId::new("evaluate", complexity),
             expression,
             |b, expr| {
+                let rt = tokio::runtime::Runtime::new().unwrap();
                 b.iter(|| {
                     let mut engine = FhirPathEngine::new();
-                    black_box(engine.evaluate(black_box(expr), input.clone()))
+                    black_box(rt.block_on(engine.evaluate(black_box(expr), input.clone())))
                 })
             },
         );
@@ -93,9 +94,10 @@ fn bench_throughput(c: &mut Criterion) {
     });
 
     group.bench_function("evaluator_throughput", |b| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         b.iter(|| {
             let mut engine = FhirPathEngine::new();
-            black_box(engine.evaluate(black_box(expression), input.clone()))
+            black_box(rt.block_on(engine.evaluate(black_box(expression), input.clone())))
         })
     });
 

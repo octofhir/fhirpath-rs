@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
-
+use async_trait::async_trait;
 /// trim() function - removes whitespace from both ends
 pub struct TrimFunction;
 
-impl FhirPathFunction for TrimFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TrimFunction {
     fn name(&self) -> &str {
         "trim"
     }
@@ -24,7 +25,7 @@ impl FhirPathFunction for TrimFunction {
     fn is_pure(&self) -> bool {
         true // trim() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

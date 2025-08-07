@@ -1,13 +1,15 @@
 //! exclude() function - returns items in first collection but not in second
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// exclude() function - returns items in first collection but not in second
 pub struct ExcludeFunction;
 
-impl FhirPathFunction for ExcludeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ExcludeFunction {
     fn name(&self) -> &str {
         "exclude"
     }
@@ -29,7 +31,11 @@ impl FhirPathFunction for ExcludeFunction {
         true // exclude() is a pure collection function
     }
 
-    fn evaluate(
+    fn documentation(&self) -> &str {
+        "Returns a collection that contains all items in the input collection that are not in the other collection."
+    }
+
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

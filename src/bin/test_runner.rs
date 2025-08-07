@@ -12,6 +12,7 @@ use std::process;
 
 /// A single test case within a test suite
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct TestCase {
     pub name: String,
     pub expression: String,
@@ -87,7 +88,8 @@ fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: {} <test_file.json>", args[0]);
@@ -149,7 +151,7 @@ fn main() {
         };
 
         // Evaluate expression
-        let result = match engine.evaluate(&test_case.expression, input_data) {
+        let result = match engine.evaluate(&test_case.expression, input_data).await {
             Ok(result) => result,
             Err(e) => {
                 println!("⚠️ ERROR: {e}");

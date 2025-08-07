@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// abs() function - absolute value
 pub struct AbsFunction;
 
-impl FhirPathFunction for AbsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for AbsFunction {
     fn name(&self) -> &str {
         "abs"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for AbsFunction {
         "Returns the absolute value of the input. When taking the absolute value of a quantity, the unit is unchanged."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

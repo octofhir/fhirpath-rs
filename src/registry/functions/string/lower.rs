@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// lower() function - converts to lowercase
 pub struct LowerFunction;
 
-impl FhirPathFunction for LowerFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for LowerFunction {
     fn name(&self) -> &str {
         "lower"
     }
@@ -29,7 +31,7 @@ impl FhirPathFunction for LowerFunction {
         "Returns the input string with all characters converted to lower case."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -1,13 +1,15 @@
 //! iif() function - conditional expression (if-then-else)
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// iif() function - conditional expression (if-then-else)
 pub struct IifFunction;
 
-impl FhirPathFunction for IifFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for IifFunction {
     fn name(&self) -> &str {
         "iif"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for IifFunction {
     fn documentation(&self) -> &str {
         "An immediate if function that returns the `true_value` if the `condition` evaluates to `true`, or the `false_value` otherwise. If `false_value` is not provided and the condition is false, an empty collection is returned."
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// toBoolean() function - converts value to boolean
 pub struct ToBooleanFunction;
 
-impl FhirPathFunction for ToBooleanFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToBooleanFunction {
     fn name(&self) -> &str {
         "toBoolean"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for ToBooleanFunction {
     fn is_pure(&self) -> bool {
         true // toBoolean() is a pure type conversion function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

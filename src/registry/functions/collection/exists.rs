@@ -60,11 +60,12 @@ impl FhirPathFunction for ExistsFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for ExistsFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         // If no arguments, just check if collection is non-empty
         if args.is_empty() {
@@ -103,7 +104,7 @@ impl LambdaFunction for ExistsFunction {
 
         // Check if any item satisfies the condition
         for item in items.iter() {
-            let result = (context.evaluator)(condition_expr, item)?;
+            let result = (context.evaluator)(condition_expr, item).await?;
 
             // Check if result is truthy
             let is_truthy = match result {

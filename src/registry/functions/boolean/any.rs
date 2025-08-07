@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// any() function - returns true if criteria is true for any item
 pub struct AnyFunction;
 
-impl FhirPathFunction for AnyFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for AnyFunction {
     fn name(&self) -> &str {
         "any"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for AnyFunction {
         "Returns `true` if the criteria evaluates to `true` for any element in the input collection, otherwise `false`. If the input collection is empty (`{ }`), the result is `false`."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

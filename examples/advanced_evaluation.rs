@@ -10,7 +10,8 @@
 use octofhir_fhirpath::engine::FhirPathEngine;
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 FHIRPath Advanced Evaluation Examples");
     println!("=========================================\n");
 
@@ -109,7 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = engine.evaluate(
         "Bundle.entry.resource.where(resourceType = 'Patient').select(name.family + ', ' + name.given.first())",
         bundle.clone()
-    )?;
+    ).await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').select(name.family + ', ' + name.given.first())",
         &result,
@@ -119,10 +120,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("2️⃣  Complex Filtering");
     println!("----------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Patient' and active = true)",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Patient' and active = true)",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient' and active = true)",
         &result,
@@ -132,10 +135,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("3️⃣  Aggregation Operations");
     println!("---------------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Patient').count()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Patient').count()",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').count()",
         &result,
@@ -148,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = engine.evaluate(
         "Bundle.entry.resource.where(resourceType = 'Observation').valueQuantity.value is System.Decimal",
         bundle.clone()
-    )?;
+    ).await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Observation').valueQuantity.value is System.Decimal",
         &result,
@@ -158,10 +163,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("5️⃣  Mathematical Operations");
     println!("----------------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Observation').valueQuantity.value * 2.2", // kg to lbs approximation
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Observation').valueQuantity.value * 2.2", // kg to lbs approximation
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Observation').valueQuantity.value * 2.2",
         &result,
@@ -171,10 +178,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("6️⃣  String Manipulation");
     println!("------------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Patient').name.family.upper()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Patient').name.family.upper()",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').name.family.upper()",
         &result,
@@ -184,10 +193,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("7️⃣  Date Operations");
     println!("-------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Patient').birthDate",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Patient').birthDate",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').birthDate",
         &result,
@@ -200,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = engine.evaluate(
         "Bundle.entry.resource.where(resourceType = 'Patient').maritalStatus.coding.where(system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus').code",
         bundle.clone()
-    )?;
+    ).await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').maritalStatus.coding.where(system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus').code",
         &result,
@@ -213,7 +224,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = engine.evaluate(
         "Bundle.entry.resource.where(resourceType = 'Patient').name.given | Bundle.entry.resource.where(resourceType = 'Patient').name.family",
         bundle.clone()
-    )?;
+    ).await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').name.given | Bundle.entry.resource.where(resourceType = 'Patient').name.family",
         &result,
@@ -226,7 +237,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = engine.evaluate(
         "Bundle.entry.resource.where(resourceType = 'Patient').select(iif(active, 'Active Patient', 'Inactive Patient'))",
         bundle.clone()
-    )?;
+    ).await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').select(iif(active, 'Active Patient', 'Inactive Patient'))",
         &result,
@@ -236,10 +247,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("1️⃣1️⃣ Advanced Aggregation");
     println!("---------------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.where(resourceType = 'Patient').name.given.distinct().count()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.where(resourceType = 'Patient').name.given.distinct().count()",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.where(resourceType = 'Patient').name.given.distinct().count()",
         &result,

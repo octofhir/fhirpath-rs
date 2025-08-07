@@ -1,14 +1,16 @@
 //! today() function - returns current date
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use chrono::Local;
 
 /// today() function - returns current date
 pub struct TodayFunction;
 
-impl FhirPathFunction for TodayFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TodayFunction {
     fn name(&self) -> &str {
         "today"
     }
@@ -20,7 +22,7 @@ impl FhirPathFunction for TodayFunction {
             std::sync::LazyLock::new(|| FunctionSignature::new("today", vec![], TypeInfo::Date));
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         _context: &EvaluationContext,

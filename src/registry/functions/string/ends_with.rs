@@ -1,13 +1,15 @@
 //! endsWith() function - checks if string ends with suffix
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// endsWith() function - checks if string ends with suffix
 pub struct EndsWithFunction;
 
-impl FhirPathFunction for EndsWithFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for EndsWithFunction {
     fn name(&self) -> &str {
         "endsWith"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for EndsWithFunction {
         "Returns `true` when the input string ends with the given `suffix`. If `suffix` is the empty string (''), the result is `true`."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -294,12 +294,12 @@ impl TypeInfo {
         }
 
         // Example hierarchies
-        match (child, parent) {
-            ("Patient", "DomainResource") => true,
-            ("Observation", "DomainResource") => true,
-            ("DomainResource", "Resource") => true,
-            _ => false,
-        }
+        matches!(
+            (child, parent),
+            ("Patient", "DomainResource")
+                | ("Observation", "DomainResource")
+                | ("DomainResource", "Resource")
+        )
     }
 
     /// Get the conversion priority for type coercion

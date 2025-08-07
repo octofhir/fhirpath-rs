@@ -44,23 +44,23 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all string functions
 pub fn register_string_functions(registry: &mut FunctionRegistry) {
-    registry.register(SubstringFunction);
-    registry.register(StartsWithFunction);
-    registry.register(EndsWithFunction);
-    registry.register(ContainsFunction);
-    registry.register(MatchesFunction);
-    registry.register(MatchesFullFunction);
-    registry.register(ReplaceFunction);
-    registry.register(ReplaceMatchesFunction);
-    registry.register(SplitFunction);
-    registry.register(JoinFunction);
-    registry.register(TrimFunction);
-    registry.register(ToCharsFunction);
-    registry.register(IndexOfFunction);
-    registry.register(UpperFunction);
-    registry.register(LowerFunction);
-    registry.register(EncodeFunction);
-    registry.register(DecodeFunction);
-    registry.register(EscapeFunction);
-    registry.register(UnescapeFunction);
+    registry.register_async(SubstringFunction);
+    registry.register_async(StartsWithFunction);
+    registry.register_async(EndsWithFunction);
+    registry.register_async(ContainsFunction);
+    registry.register_async(MatchesFunction);
+    registry.register_async(MatchesFullFunction);
+    registry.register_async(ReplaceFunction);
+    registry.register_async(ReplaceMatchesFunction);
+    registry.register_async(SplitFunction);
+    registry.register_async(JoinFunction);
+    registry.register_async(TrimFunction);
+    registry.register_async(ToCharsFunction);
+    registry.register_async(IndexOfFunction);
+    registry.register_async(UpperFunction);
+    registry.register_async(LowerFunction);
+    registry.register_async(EncodeFunction);
+    registry.register_async(DecodeFunction);
+    registry.register_async(EscapeFunction);
+    registry.register_async(UnescapeFunction);
 }

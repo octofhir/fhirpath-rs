@@ -278,41 +278,114 @@ impl FhirSchemaProvider {
 }
 
 impl ModelProvider for FhirSchemaProvider {
-    fn get_type_info(&self, type_name: &str) -> Option<TypeInfo> {
-        // Check cache first
-        if let Some(cached) = self.type_cache.read().get(type_name).cloned() {
-            return Some(cached);
-        }
-
-        // Look up in schema
-        let type_def = self.get_type_definition(type_name)?;
-        let type_info = match type_def.kind.as_str() {
-            "primitive-type" => match type_name {
-                "boolean" => TypeInfo::Boolean,
-                "integer" => TypeInfo::Integer,
-                "string" => TypeInfo::String,
-                "decimal" => TypeInfo::Decimal,
-                "date" => TypeInfo::Date,
-                "dateTime" | "instant" => TypeInfo::DateTime,
-                "time" => TypeInfo::Time,
-                _ => TypeInfo::String,
-            },
-            "resource" | "complex-type" => TypeInfo::Resource(type_name.to_string()),
-            _ => TypeInfo::Any,
-        };
-
-        // Cache the result
-        self.type_cache
-            .write()
-            .insert(type_name.to_string(), type_info.clone());
-
-        Some(type_info)
+    fn get_type_reflection(
+        &self,
+        type_name: &str,
+    ) -> Option<octofhir_fhir_model::TypeReflectionInfo> {
+        // TODO: Implement proper type reflection
+        None
     }
 
-    fn get_property_type(&self, parent_type: &str, property: &str) -> Option<TypeInfo> {
-        let type_def = self.get_type_definition(parent_type)?;
-        let element = type_def.elements.get(property)?;
-        Some(self.element_to_type_info(element))
+    fn get_element_reflection(
+        &self,
+        parent_type: &str,
+        element: &str,
+    ) -> Option<octofhir_fhir_model::TypeReflectionInfo> {
+        // TODO: Implement proper element reflection
+        None
+    }
+
+    fn get_property_type(
+        &self,
+        parent_type: &str,
+        property: &str,
+    ) -> Option<octofhir_fhir_model::TypeReflectionInfo> {
+        // TODO: Implement proper property type reflection
+        None
+    }
+
+    fn get_structure_definition(
+        &self,
+        url: &str,
+    ) -> Option<octofhir_fhir_model::StructureDefinition> {
+        // TODO: Implement structure definition retrieval
+        None
+    }
+
+    fn validate_conformance(
+        &self,
+        value: &dyn octofhir_fhir_model::ValueReflection,
+        profile: &str,
+    ) -> std::result::Result<octofhir_fhir_model::ConformanceResult, octofhir_fhir_model::ModelError>
+    {
+        // TODO: Implement conformance validation
+        Err(octofhir_fhir_model::ModelError::Generic {
+            message: "Not implemented".to_string(),
+        })
+    }
+
+    fn get_constraints(&self, type_name: &str) -> Vec<octofhir_fhir_model::ConstraintInfo> {
+        // TODO: Implement constraint retrieval
+        Vec::new()
+    }
+
+    fn resolve_reference(
+        &self,
+        reference: &str,
+        context: &dyn octofhir_fhir_model::ResolutionContext,
+    ) -> Option<Box<dyn octofhir_fhir_model::ValueReflection>> {
+        // TODO: Implement reference resolution
+        None
+    }
+
+    fn analyze_expression(
+        &self,
+        expression: &str,
+    ) -> std::result::Result<
+        octofhir_fhir_model::provider::ExpressionAnalysis,
+        octofhir_fhir_model::ModelError,
+    > {
+        // TODO: Implement expression analysis
+        Err(octofhir_fhir_model::ModelError::Generic {
+            message: "Not implemented".to_string(),
+        })
+    }
+
+    fn box_value_with_metadata(
+        &self,
+        value: &dyn octofhir_fhir_model::ValueReflection,
+        context: &str,
+    ) -> std::result::Result<
+        octofhir_fhir_model::provider::BoxedValueWithMetadata,
+        octofhir_fhir_model::ModelError,
+    > {
+        // TODO: Implement value boxing with metadata
+        Err(octofhir_fhir_model::ModelError::Generic {
+            message: "Not implemented".to_string(),
+        })
+    }
+
+    fn extract_primitive_extensions(
+        &self,
+        value: &dyn octofhir_fhir_model::ValueReflection,
+        property: &str,
+    ) -> Option<octofhir_fhir_model::provider::PrimitiveExtensionData> {
+        // TODO: Implement primitive extension extraction
+        None
+    }
+
+    fn validate_navigation_path(
+        &self,
+        from_type: &str,
+        path: &str,
+    ) -> std::result::Result<
+        octofhir_fhir_model::provider::NavigationValidation,
+        octofhir_fhir_model::ModelError,
+    > {
+        // TODO: Implement navigation path validation
+        Err(octofhir_fhir_model::ModelError::Generic {
+            message: "Not implemented".to_string(),
+        })
     }
 
     fn get_search_params(&self, _resource_type: &str) -> Vec<SearchParameter> {
@@ -344,21 +417,30 @@ impl ModelProvider for FhirSchemaProvider {
         false
     }
 
-    fn get_properties(&self, type_name: &str) -> Vec<(String, TypeInfo)> {
-        if let Some(type_def) = self.get_type_definition(type_name) {
-            type_def
-                .elements
-                .iter()
-                .map(|(name, element)| (name.clone(), self.element_to_type_info(element)))
-                .collect()
-        } else {
-            Vec::new()
-        }
-    }
-
     fn get_base_type(&self, type_name: &str) -> Option<String> {
         self.get_type_definition(type_name)
             .and_then(|def| def.base.clone())
+    }
+
+    fn get_properties(
+        &self,
+        type_name: &str,
+    ) -> Vec<(String, octofhir_fhir_model::TypeReflectionInfo)> {
+        // TODO: Implement proper properties retrieval
+        Vec::new()
+    }
+
+    fn preanalyze_fhirpath(
+        &self,
+        _expression: &str,
+    ) -> std::result::Result<
+        octofhir_fhir_model::provider::FhirPathAnalysisResult,
+        octofhir_fhir_model::ModelError,
+    > {
+        // TODO: Implement FHIRPath expression pre-analysis
+        Err(octofhir_fhir_model::ModelError::Generic {
+            message: "Not implemented".to_string(),
+        })
     }
 }
 

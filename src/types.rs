@@ -417,8 +417,8 @@ impl FhirTypeRegistry {
         }
 
         // Handle FHIR. prefixed types
-        if type_name.starts_with("FHIR.") {
-            return type_name[5..].to_string();
+        if let Some(stripped) = type_name.strip_prefix("FHIR.") {
+            return stripped.to_string();
         }
 
         // For other types, preserve original case for exact matching

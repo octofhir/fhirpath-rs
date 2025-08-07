@@ -1,13 +1,15 @@
 //! contains() function - checks if string contains substring
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// contains() function - checks if string contains substring
 pub struct ContainsFunction;
 
-impl FhirPathFunction for ContainsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ContainsFunction {
     fn name(&self) -> &str {
         "contains"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for ContainsFunction {
         "Returns `true` when the given `substring` is a substring of the input string. If `substring` is the empty string (''), the result is `true`."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

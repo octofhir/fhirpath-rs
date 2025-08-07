@@ -2,9 +2,10 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset, NaiveDate, TimeZone, Timelike};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
@@ -12,7 +13,8 @@ use rust_decimal::prelude::ToPrimitive;
 /// lowBoundary() function - returns the lower bound of a value based on precision
 pub struct LowBoundaryFunction;
 
-impl FhirPathFunction for LowBoundaryFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for LowBoundaryFunction {
     fn name(&self) -> &str {
         "lowBoundary"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for LowBoundaryFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
@@ -134,7 +136,8 @@ impl FhirPathFunction for LowBoundaryFunction {
 /// highBoundary() function - returns the upper bound of a value based on precision
 pub struct HighBoundaryFunction;
 
-impl FhirPathFunction for HighBoundaryFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for HighBoundaryFunction {
     fn name(&self) -> &str {
         "highBoundary"
     }
@@ -154,7 +157,7 @@ impl FhirPathFunction for HighBoundaryFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
@@ -409,7 +412,7 @@ fn calculate_datetime_low_boundary(
         })
 }
 
-/// Calculate high boundary for DateTime values  
+/// Calculate high boundary for DateTime values
 /// For partial datetimes, fills missing precision with maximum values (59, 999)
 fn calculate_datetime_high_boundary(
     datetime: &DateTime<FixedOffset>,

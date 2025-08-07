@@ -47,11 +47,12 @@ impl FhirPathFunction for WhereFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for WhereFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         if args.is_empty() {
             return Err(FunctionError::InvalidArity {
@@ -83,10 +84,10 @@ impl LambdaFunction for WhereFunction {
                     >::default());
                 additional_vars.insert("$index".to_string(), FhirPathValue::Integer(index as i64));
 
-                enhanced_evaluator(criteria, item, &additional_vars)?
+                enhanced_evaluator(criteria, item, &additional_vars).await?
             } else {
                 // Fall back to regular evaluator
-                (context.evaluator)(criteria, item)?
+                (context.evaluator)(criteria, item).await?
             };
 
             // Check if criteria evaluates to true

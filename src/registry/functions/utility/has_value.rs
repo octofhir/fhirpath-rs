@@ -1,13 +1,15 @@
 //! hasValue() function - checks if a value exists (not empty)
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// hasValue() function - returns true if the input is not empty
 pub struct HasValueFunction;
 
-impl FhirPathFunction for HasValueFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for HasValueFunction {
     fn name(&self) -> &str {
         "hasValue"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for HasValueFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

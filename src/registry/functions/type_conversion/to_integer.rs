@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// toInteger() function - converts value to integer
 pub struct ToIntegerFunction;
 
-impl FhirPathFunction for ToIntegerFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToIntegerFunction {
     fn name(&self) -> &str {
         "toInteger"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for ToIntegerFunction {
         "Returns the value as an Integer if it is a valid representation of an integer. If the input is not convertible to an Integer, the result is empty."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

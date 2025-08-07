@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// ceiling() function - rounds up to nearest integer
 pub struct CeilingFunction;
 
-impl FhirPathFunction for CeilingFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for CeilingFunction {
     fn name(&self) -> &str {
         "ceiling"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for CeilingFunction {
         "Returns the first integer greater than or equal to the input."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

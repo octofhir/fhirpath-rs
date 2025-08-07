@@ -1,8 +1,9 @@
 //! isDistinct() function - returns true if the collection contains no duplicates
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// isDistinct() function - returns true if the collection contains no duplicates
@@ -88,7 +89,8 @@ impl IsDistinctFunction {
     }
 }
 
-impl FhirPathFunction for IsDistinctFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for IsDistinctFunction {
     fn name(&self) -> &str {
         "isDistinct"
     }
@@ -104,7 +106,7 @@ impl FhirPathFunction for IsDistinctFunction {
     fn is_pure(&self) -> bool {
         true // isDistinct() is a pure boolean function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

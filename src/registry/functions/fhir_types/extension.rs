@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, FhirResource, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 use serde_json::Value;
 
 /// extension(url) function - retrieves extensions with a given URL from an element
 pub struct ExtensionFunction;
 
-impl FhirPathFunction for ExtensionFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ExtensionFunction {
     fn name(&self) -> &str {
         "extension"
     }
@@ -30,7 +32,7 @@ impl FhirPathFunction for ExtensionFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

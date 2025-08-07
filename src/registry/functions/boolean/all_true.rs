@@ -1,13 +1,15 @@
 //! allTrue() function - returns true if all items in collection are true
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// allTrue() function - returns true if all items in collection are true
 pub struct AllTrueFunction;
 
-impl FhirPathFunction for AllTrueFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for AllTrueFunction {
     fn name(&self) -> &str {
         "allTrue"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for AllTrueFunction {
         "Takes a collection of Boolean values and returns `true` if all the items are `true`. If any items are `false`, the result is `false`. If the input is empty (`{ }`), the result is `true`."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

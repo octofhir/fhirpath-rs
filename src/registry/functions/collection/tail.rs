@@ -1,13 +1,15 @@
 //! tail() function - returns all items except the first
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// tail() function - returns all items except the first
 pub struct TailFunction;
 
-impl FhirPathFunction for TailFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TailFunction {
     fn name(&self) -> &str {
         "tail"
     }
@@ -33,7 +35,7 @@ impl FhirPathFunction for TailFunction {
         "Returns a collection containing all but the first item in the input collection. If the input collection is empty, an empty collection is returned."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

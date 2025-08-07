@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// sum() function - sums numeric values in a collection
 pub struct SumFunction;
 
-impl FhirPathFunction for SumFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SumFunction {
     fn name(&self) -> &str {
         "sum"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for SumFunction {
     fn is_pure(&self) -> bool {
         true // sum() is a pure mathematical function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

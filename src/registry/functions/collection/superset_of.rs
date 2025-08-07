@@ -1,13 +1,15 @@
 //! supersetOf() function implementation
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// supersetOf() function - returns true if the input collection is a superset of the argument collection
 pub struct SupersetOfFunction;
 
-impl FhirPathFunction for SupersetOfFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SupersetOfFunction {
     fn name(&self) -> &str {
         "supersetOf"
     }
@@ -29,7 +31,7 @@ impl FhirPathFunction for SupersetOfFunction {
         true // supersetOf() is a pure collection function
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

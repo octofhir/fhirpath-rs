@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// ln() function - natural logarithm
 pub struct LnFunction;
 
-impl FhirPathFunction for LnFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for LnFunction {
     fn name(&self) -> &str {
         "ln"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for LnFunction {
     fn is_pure(&self) -> bool {
         true // ln() is a pure mathematical function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

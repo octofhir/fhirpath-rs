@@ -1,14 +1,16 @@
 //! now() function - returns current date/time
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use chrono::Utc;
 
 /// now() function - returns current date/time
 pub struct NowFunction;
 
-impl FhirPathFunction for NowFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for NowFunction {
     fn name(&self) -> &str {
         "now"
     }
@@ -25,7 +27,7 @@ impl FhirPathFunction for NowFunction {
         "Returns the current date and time, including timezone information."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         _context: &EvaluationContext,

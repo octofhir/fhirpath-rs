@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::ToPrimitive;
 
 /// truncate() function - truncates decimal places
 pub struct TruncateFunction;
 
-impl FhirPathFunction for TruncateFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TruncateFunction {
     fn name(&self) -> &str {
         "truncate"
     }
@@ -32,7 +34,7 @@ impl FhirPathFunction for TruncateFunction {
         "Returns the integer portion of the input."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -41,7 +41,7 @@ impl FhirPathEngine {
     }
 
     /// Evaluate an FHIRPath expression against input data
-    pub fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
+    pub async fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
         // Handle parse errors by returning empty collection per FHIRPath spec
         let ast = match self.get_or_compile_expression(expression) {
             Ok(ast) => ast.clone(),
@@ -62,7 +62,7 @@ impl FhirPathEngine {
 
         let input_value = FhirPathValue::from(input_data);
 
-        match self.evaluator.evaluate(&ast, input_value) {
+        match self.evaluator.evaluate(&ast, input_value).await {
             Ok(result) => Ok(result),
             Err(eval_error) => Err(crate::error::FhirPathError::evaluation_error(
                 eval_error.to_string(),

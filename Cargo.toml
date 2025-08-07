@@ -50,6 +50,7 @@ lru = "0.16"
 nom = "8.0.0"
 nom_locate = "5.0.0-beta.5"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
+octofhir-fhir-model = { path = "../fhir-model-rs", features = ["serde"] }
 parking_lot = "0.12.4"
 quick-xml = "0.38"
 regex = "1.11.1"
@@ -62,7 +63,12 @@ thiserror = "2.0.12"
 thread_local = "1.1"
 unicode-xid = "0.2.6"
 
+# Async dependencies
+async-trait = "0.1"
+futures = "0.3"
+
 # Optional dependencies
+async-std = { version = "1.0", optional = true }
 colored = { version = "3.0.0", optional = true }
 lsp-types = { version = "0.97.0", optional = true }
 reqwest = { version = "0.12.22", features = ["json"], optional = true }
@@ -80,9 +86,18 @@ rstest = "0.26"
 serde-xml-rs = "0.8"
 colored = "3.0.0"
 glob = "0.3"
+tokio = { version = "1.47.0", features = [
+    "rt",
+    "rt-multi-thread",
+    "macros",
+    "test-util",
+] }
 
 [features]
-default = []
+default = ["tokio-runtime"]
+tokio-runtime = ["tokio"]
+async-std-runtime = ["async-std"]
+http-functions = ["reqwest"]
 lsp = ["lsp-types", "colored"]
 network = ["reqwest", "tokio"]
 diagnostics = ["colored"]

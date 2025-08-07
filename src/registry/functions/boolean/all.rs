@@ -54,11 +54,12 @@ impl FhirPathFunction for AllFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for AllFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         if args.is_empty() {
             // No criteria - check if all items exist (non-empty means all exist)
@@ -82,7 +83,7 @@ impl LambdaFunction for AllFunction {
 
         // Check if criteria is true for all items
         for item in items {
-            let result = (context.evaluator)(criteria, item)?;
+            let result = (context.evaluator)(criteria, item).await?;
 
             // Convert result to boolean
             let is_true = match result {

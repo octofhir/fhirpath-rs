@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
-/// toQuantity() function - converts value to quantity  
+/// toQuantity() function - converts value to quantity
 pub struct ToQuantityFunction;
 
-impl FhirPathFunction for ToQuantityFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToQuantityFunction {
     fn name(&self) -> &str {
         "toQuantity"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for ToQuantityFunction {
     fn is_pure(&self) -> bool {
         true // toQuantity() is a pure type conversion function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

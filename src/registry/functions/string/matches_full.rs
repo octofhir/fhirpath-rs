@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 use regex::Regex;
 
 /// matchesFull() function - full regex match
 pub struct MatchesFullFunction;
 
-impl FhirPathFunction for MatchesFullFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for MatchesFullFunction {
     fn name(&self) -> &str {
         "matchesFull"
     }
@@ -30,7 +32,7 @@ impl FhirPathFunction for MatchesFullFunction {
     fn is_pure(&self) -> bool {
         true // matchesFull() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

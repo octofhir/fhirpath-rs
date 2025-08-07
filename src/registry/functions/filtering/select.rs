@@ -47,11 +47,12 @@ impl FhirPathFunction for SelectFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for SelectFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         if args.is_empty() {
             return Err(FunctionError::InvalidArity {
@@ -90,10 +91,10 @@ impl LambdaFunction for SelectFunction {
                 // Add $index variable for iteration (parser strips $ prefix)
                 additional_vars.insert("index".to_string(), FhirPathValue::Integer(index as i64));
 
-                enhanced_evaluator(expression, item, &additional_vars)?
+                enhanced_evaluator(expression, item, &additional_vars).await?
             } else {
                 // Fall back to regular evaluator
-                (context.evaluator)(expression, item)?
+                (context.evaluator)(expression, item).await?
             };
 
             // Add result to collection, flattening collections

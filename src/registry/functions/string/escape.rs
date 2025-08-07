@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// escape() function - escapes special characters
 pub struct EscapeFunction;
 
-impl FhirPathFunction for EscapeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for EscapeFunction {
     fn name(&self) -> &str {
         "escape"
     }
@@ -29,7 +30,7 @@ impl FhirPathFunction for EscapeFunction {
     fn is_pure(&self) -> bool {
         true // escape() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

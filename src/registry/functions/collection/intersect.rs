@@ -1,13 +1,15 @@
 //! intersect() function - returns the intersection of two collections
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// intersect() function - returns the intersection of two collections
 pub struct IntersectFunction;
 
-impl FhirPathFunction for IntersectFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for IntersectFunction {
     fn name(&self) -> &str {
         "intersect"
     }
@@ -29,7 +31,11 @@ impl FhirPathFunction for IntersectFunction {
         true // intersect() is a pure collection function
     }
 
-    fn evaluate(
+    fn documentation(&self) -> &str {
+        "Returns the intersection of the input collection and the other collection."
+    }
+
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

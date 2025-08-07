@@ -2,9 +2,10 @@
 
 use crate::model::{FhirPathValue, FhirResource, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// resolve() function - resolves FHIR references to resources
 ///
@@ -15,7 +16,8 @@ use crate::registry::signature::FunctionSignature;
 /// in which case the Reference.reference is resolved.
 pub struct ResolveFunction;
 
-impl FhirPathFunction for ResolveFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ResolveFunction {
     fn name(&self) -> &str {
         "resolve"
     }
@@ -35,7 +37,7 @@ impl FhirPathFunction for ResolveFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
@@ -137,14 +139,10 @@ impl ResolveFunction {
             return self.resolve_contained_resource(contained_id, context);
         }
 
-        // In a real implementation, this would:
-        // 1. Parse the reference to determine if it's relative or absolute
-        // 2. Look up the referenced resource from a bundle, server, or context
-        // 3. Return the resolved resource
-
-        // For now, we'll implement a basic stub that:
-        // - Returns a placeholder resource for demonstration
-        // - In practice, this would need access to a FHIR server/bundle resolver
+        // Try to resolve from Bundle if we're in Bundle context
+        if let Some(resolved) = self.resolve_from_bundle(reference, context) {
+            return Some(resolved);
+        }
 
         // Check if it looks like a FHIR reference
         if self.is_fhir_reference(reference) {
@@ -224,5 +222,84 @@ impl ResolveFunction {
 
         let resource = FhirResource::from_json(placeholder_json);
         Some(FhirPathValue::Resource(resource))
+    }
+
+    /// Resolve a reference from a Bundle context
+    fn resolve_from_bundle(
+        &self,
+        reference: &str,
+        context: &EvaluationContext,
+    ) -> Option<FhirPathValue> {
+        // Check if we're in a Bundle context
+        let bundle = self.find_bundle_in_context(context)?;
+
+        if let Some(bundle_obj) = bundle.as_json().as_object() {
+            if let Some(entries) = bundle_obj.get("entry") {
+                if let Some(entry_array) = entries.as_array() {
+                    // Try to find matching entry
+                    for entry in entry_array {
+                        if let Some(entry_obj) = entry.as_object() {
+                            // Check if fullUrl matches the reference
+                            if let Some(full_url) = entry_obj.get("fullUrl") {
+                                if let Some(full_url_str) = full_url.as_str() {
+                                    if self.reference_matches(reference, full_url_str) {
+                                        // Found matching entry, return its resource
+                                        if let Some(resource) = entry_obj.get("resource") {
+                                            let fhir_resource =
+                                                FhirResource::from_json(resource.clone());
+                                            return Some(FhirPathValue::Resource(fhir_resource));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Find a Bundle in the evaluation context
+    fn find_bundle_in_context<'a>(
+        &self,
+        context: &'a EvaluationContext,
+    ) -> Option<&'a FhirResource> {
+        // First check if root is a Bundle
+        if let FhirPathValue::Resource(resource) = &context.root {
+            if let Some(obj) = resource.as_json().as_object() {
+                if let Some(resource_type) = obj.get("resourceType") {
+                    if let Some(type_str) = resource_type.as_str() {
+                        if type_str == "Bundle" {
+                            return Some(resource);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Could also check parent contexts in the future
+        None
+    }
+
+    /// Check if a reference matches a fullUrl
+    fn reference_matches(&self, reference: &str, full_url: &str) -> bool {
+        // Direct match
+        if reference == full_url {
+            return true;
+        }
+
+        // Check if reference is relative and fullUrl ends with it
+        // e.g., "Patient/123" matches "http://example.com/Patient/123"
+        if !reference.starts_with("http://")
+            && !reference.starts_with("https://")
+            && !reference.starts_with("urn:")
+        {
+            // It's a relative reference
+            return full_url.ends_with(&format!("/{reference}"));
+        }
+
+        false
     }
 }

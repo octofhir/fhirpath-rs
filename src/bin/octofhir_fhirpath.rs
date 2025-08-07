@@ -3,11 +3,9 @@
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
 
 use clap::{Parser, Subcommand};
-use octofhir_fhirpath::model::{FhirPathValue, FhirResource};
-use octofhir_fhirpath::{FhirPathEngine, parse};
+use octofhir_fhirpath::parse;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
-use std::io::{self, Read};
 use std::process;
 
 #[derive(Parser)]
@@ -54,7 +52,8 @@ enum Commands {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Setup human-panic for better error messages
     human_panic::setup_panic!();
 
@@ -67,7 +66,7 @@ fn main() {
             pretty,
             quiet,
         } => {
-            handle_evaluate(&expression, input.as_deref(), pretty, quiet);
+            handle_evaluate(&expression, input.as_deref(), pretty, quiet).await;
         }
         Commands::Parse { expression, quiet } => {
             handle_parse(&expression, quiet);
@@ -78,7 +77,7 @@ fn main() {
     }
 }
 
-fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: bool) {
+async fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: bool) {
     // Get resource data
     let resource_data = if let Some(input_str) = input {
         // Check if input is a file path or JSON string
@@ -96,13 +95,8 @@ fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: b
             }
         }
     } else {
-        // Read from stdin
-        let mut buffer = String::new();
-        if let Err(e) = io::stdin().read_to_string(&mut buffer) {
-            eprintln!("Error reading from stdin: {e}");
-            process::exit(1);
-        }
-        buffer
+        // No input provided - use empty JSON object
+        "{}".to_string()
     };
 
     // Handle empty input case
@@ -120,23 +114,10 @@ fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: b
         }
     };
 
-    // Parse the expression first
-    let ast = match parse(expression) {
-        Ok(ast) => ast,
-        Err(e) => {
-            eprintln!("Error parsing expression: {e}");
-            process::exit(1);
-        }
-    };
-
-    // Convert JSON to FhirPathValue through FhirResource
-    let fhir_resource = FhirResource::from_json(resource);
-    let fhir_value = FhirPathValue::Resource(fhir_resource);
-
     // Create FHIRPath engine and evaluate
-    let engine = FhirPathEngine::new();
+    let mut engine = octofhir_fhirpath::engine::FhirPathEngine::new();
 
-    match engine.evaluate(&ast, fhir_value) {
+    match engine.evaluate(expression, resource).await {
         Ok(result) => {
             if !quiet {
                 eprintln!("Expression: {expression}");

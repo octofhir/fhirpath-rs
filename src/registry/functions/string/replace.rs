@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// replace() function - string replacement
 pub struct ReplaceFunction;
 
-impl FhirPathFunction for ReplaceFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ReplaceFunction {
     fn name(&self) -> &str {
         "replace"
     }
@@ -32,7 +33,7 @@ impl FhirPathFunction for ReplaceFunction {
     fn is_pure(&self) -> bool {
         true // replace() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

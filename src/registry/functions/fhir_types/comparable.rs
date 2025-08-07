@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// comparable() function - checks if two quantities have compatible units
 pub struct ComparableFunction;
 
-impl FhirPathFunction for ComparableFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ComparableFunction {
     fn name(&self) -> &str {
         "comparable"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for ComparableFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

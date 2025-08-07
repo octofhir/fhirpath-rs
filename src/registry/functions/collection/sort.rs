@@ -157,11 +157,12 @@ impl FhirPathFunction for SortFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for SortFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         let items = match &context.context.input {
             FhirPathValue::Collection(items) => items.iter().collect::<Vec<_>>(),
@@ -202,10 +203,10 @@ impl LambdaFunction for SortFunction {
                         // Add $this variable for current item (parser strips $ prefix)
                         additional_vars.insert("this".to_string(), (*item).clone());
 
-                        enhanced_evaluator(inner_expr, item, &additional_vars)?
+                        enhanced_evaluator(inner_expr, item, &additional_vars).await?
                     } else {
                         // Fall back to regular evaluator
-                        (context.evaluator)(inner_expr, item)?
+                        (context.evaluator)(inner_expr, item).await?
                     };
 
                     // Take first value from collection if it's a collection

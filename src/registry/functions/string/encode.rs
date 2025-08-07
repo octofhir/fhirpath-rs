@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// encode() function - URL encodes string
 pub struct EncodeFunction;
 
-impl FhirPathFunction for EncodeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for EncodeFunction {
     fn name(&self) -> &str {
         "encode"
     }
@@ -29,7 +30,7 @@ impl FhirPathFunction for EncodeFunction {
     fn is_pure(&self) -> bool {
         true // encode() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

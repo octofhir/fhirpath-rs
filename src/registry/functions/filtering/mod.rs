@@ -16,9 +16,9 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all filtering functions
 pub fn register_filtering_functions(registry: &mut FunctionRegistry) {
-    registry.register(OfTypeFunction);
+    registry.register_async(OfTypeFunction);
     registry.register(SelectFunction);
-    registry.register(SkipFunction);
-    registry.register(TakeFunction);
+    registry.register_async(SkipFunction);
+    registry.register_async(TakeFunction);
     registry.register(WhereFunction);
 }

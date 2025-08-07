@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// is() function - checks FHIR type inheritance
 pub struct IsFunction;
 
-impl FhirPathFunction for IsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for IsFunction {
     fn name(&self) -> &str {
         "is"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for IsFunction {
         &SIG
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
@@ -59,30 +61,24 @@ impl FhirPathFunction for IsFunction {
         let result = match &context.input {
             FhirPathValue::String(_) => {
                 // String type hierarchy: System.String, String, or FHIR.string
-                match (namespace, type_name) {
-                    (None, "String") => true,
-                    (Some("System"), "String") => true,
-                    (Some("FHIR"), "string") => true,
-                    _ => false,
-                }
+                matches!(
+                    (namespace, type_name),
+                    (None, "String") | (Some("System"), "String") | (Some("FHIR"), "string")
+                )
             }
             FhirPathValue::Integer(_) => {
                 // Integer type hierarchy: System.Integer, Integer, or FHIR.integer
-                match (namespace, type_name) {
-                    (None, "Integer") => true,
-                    (Some("System"), "Integer") => true,
-                    (Some("FHIR"), "integer") => true,
-                    _ => false,
-                }
+                matches!(
+                    (namespace, type_name),
+                    (None, "Integer") | (Some("System"), "Integer") | (Some("FHIR"), "integer")
+                )
             }
             FhirPathValue::Decimal(_) => {
                 // Decimal type hierarchy: System.Decimal, Decimal, or FHIR.decimal
-                match (namespace, type_name) {
-                    (None, "Decimal") => true,
-                    (Some("System"), "Decimal") => true,
-                    (Some("FHIR"), "decimal") => true,
-                    _ => false,
-                }
+                matches!(
+                    (namespace, type_name),
+                    (None, "Decimal") | (Some("System"), "Decimal") | (Some("FHIR"), "decimal")
+                )
             }
             FhirPathValue::Boolean(_) => {
                 // Boolean type hierarchy: System.Boolean, Boolean, or FHIR.boolean

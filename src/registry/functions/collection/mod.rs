@@ -42,22 +42,25 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all collection functions
 pub fn register_collection_functions(registry: &mut FunctionRegistry) {
+    // Lambda functions (still using old trait)
     registry.register(AggregateFunction);
-    registry.register(ChildrenFunction);
-    registry.register(CombineFunction);
-    registry.register(CountFunction);
-    registry.register(DescendantsFunction);
-    registry.register(DistinctFunction);
-    registry.register(EmptyFunction);
-    registry.register(ExcludeFunction);
     registry.register(ExistsFunction);
-    registry.register(FirstFunction);
-    registry.register(IntersectFunction);
-    registry.register(LastFunction);
-    registry.register(LengthFunction);
-    registry.register(SingleFunction);
     registry.register(SortFunction);
-    registry.register(SubsetOfFunction);
-    registry.register(SupersetOfFunction);
-    registry.register(TailFunction);
+
+    // Async collection functions
+    registry.register_async(ChildrenFunction);
+    registry.register_async(CombineFunction);
+    registry.register_async(CountFunction);
+    registry.register_async(DescendantsFunction);
+    registry.register_async(DistinctFunction);
+    registry.register_async(EmptyFunction);
+    registry.register_async(ExcludeFunction);
+    registry.register_async(FirstFunction);
+    registry.register_async(IntersectFunction);
+    registry.register_async(LastFunction);
+    registry.register_async(LengthFunction);
+    registry.register_async(SingleFunction);
+    registry.register_async(SubsetOfFunction);
+    registry.register_async(SupersetOfFunction);
+    registry.register_async(TailFunction);
 }

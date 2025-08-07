@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// defineVariable() function - defines a variable in scope
 pub struct DefineVariableFunction;
 
-impl FhirPathFunction for DefineVariableFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for DefineVariableFunction {
     fn name(&self) -> &str {
         "defineVariable"
     }
@@ -29,7 +31,7 @@ impl FhirPathFunction for DefineVariableFunction {
         });
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

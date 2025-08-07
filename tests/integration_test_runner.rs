@@ -296,7 +296,7 @@ impl IntegrationTestRunner {
     }
 
     /// Run a single test case using the integrated stack
-    pub fn run_test(&mut self, test: &TestCase) -> TestResult {
+    pub async fn run_test(&mut self, test: &TestCase) -> TestResult {
         if self.verbose {
             println!("Running test: {}", test.name);
             println!("Expression: {}", test.expression);
@@ -349,7 +349,7 @@ impl IntegrationTestRunner {
         };
 
         // Evaluate expression using integrated engine
-        let result = match self.engine.evaluate(&ast, input_data) {
+        let result = match self.engine.evaluate(&ast, input_data).await {
             Ok(result) => result,
             Err(e) => {
                 // Per FHIRPath spec, evaluation errors should return empty collection
@@ -484,7 +484,7 @@ impl IntegrationTestRunner {
     }
 
     /// Run all tests in a test suite
-    pub fn run_test_suite(&mut self, suite: &TestSuite) -> HashMap<String, TestResult> {
+    pub async fn run_test_suite(&mut self, suite: &TestSuite) -> HashMap<String, TestResult> {
         let mut results = HashMap::new();
 
         if self.verbose {
@@ -495,7 +495,7 @@ impl IntegrationTestRunner {
         }
 
         for test in &suite.tests {
-            let result = self.run_test(test);
+            let result = self.run_test(test).await;
             results.insert(test.name.clone(), result);
         }
 
@@ -503,12 +503,12 @@ impl IntegrationTestRunner {
     }
 
     /// Run tests from a JSON file and return results
-    pub fn run_tests_from_file<P: AsRef<Path>>(
+    pub async fn run_tests_from_file<P: AsRef<Path>>(
         &mut self,
         path: P,
     ) -> Result<HashMap<String, TestResult>, Box<dyn std::error::Error>> {
         let suite = self.load_test_suite(path)?;
-        Ok(self.run_test_suite(&suite))
+        Ok(self.run_test_suite(&suite).await)
     }
 
     /// Calculate statistics from test results
@@ -529,7 +529,7 @@ impl IntegrationTestRunner {
     }
 
     /// Run tests and print detailed results to console
-    pub fn run_and_report<P: AsRef<Path>>(
+    pub async fn run_and_report<P: AsRef<Path>>(
         &mut self,
         path: P,
     ) -> Result<TestStats, Box<dyn std::error::Error>> {
@@ -542,7 +542,7 @@ impl IntegrationTestRunner {
         println!("🔢 Total tests: {}", suite.tests.len());
         println!();
 
-        let results = self.run_test_suite(&suite);
+        let results = self.run_test_suite(&suite).await;
         let stats = self.calculate_stats(&results);
 
         // Print individual test results
@@ -570,7 +570,7 @@ impl IntegrationTestRunner {
                 TestResult::Failed { expected, actual } => {
                     println!(
                         "   Expected: {}",
-                        serde_json::to_string_pretty(expected).unwrap_or_default()
+                        serde_json::to_string_pretty(&expected).unwrap_or_default()
                     );
                     // Convert FhirPathValue to serde_json::Value to use the proper format
                     let actual_json: serde_json::Value = actual.clone();
@@ -631,7 +631,7 @@ impl IntegrationTestRunner {
     }
 
     /// Run multiple test files and provide consolidated report
-    pub fn run_multiple_test_files<P: AsRef<Path>>(
+    pub async fn run_multiple_test_files<P: AsRef<Path>>(
         &mut self,
         test_files: &[P],
     ) -> Result<TestStats, Box<dyn std::error::Error>> {
@@ -653,7 +653,7 @@ impl IntegrationTestRunner {
                     .to_string_lossy()
             );
 
-            match self.run_and_report(test_file) {
+            match self.run_and_report(test_file).await {
                 Ok(stats) => {
                     consolidated_stats.total += stats.total;
                     consolidated_stats.passed += stats.passed;

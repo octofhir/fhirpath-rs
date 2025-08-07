@@ -8,7 +8,8 @@ use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::engine::FhirPathEngine;
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔥 FHIRPath Basic Usage Examples");
     println!("================================\n");
 
@@ -58,45 +59,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("1️⃣  Simple Property Access");
     println!("----------------------------");
 
-    let result = engine.evaluate("Patient.id", patient_json.clone())?;
+    let result = engine.evaluate("Patient.id", patient_json.clone()).await?;
     print_result("Patient.id", &result);
 
     // Example 2: Array access and filtering
     println!("2️⃣  Array Access and Filtering");
     println!("--------------------------------");
 
-    let result = engine.evaluate("Patient.name.where(use = 'official')", patient_json.clone())?;
+    let result = engine
+        .evaluate("Patient.name.where(use = 'official')", patient_json.clone())
+        .await?;
     print_result("Patient.name.where(use = 'official')", &result);
 
     // Example 3: Nested property access
     println!("3️⃣  Nested Property Access");
     println!("----------------------------");
 
-    let result = engine.evaluate(
-        "Patient.name.where(use = 'official').family",
-        patient_json.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Patient.name.where(use = 'official').family",
+            patient_json.clone(),
+        )
+        .await?;
     print_result("Patient.name.where(use = 'official').family", &result);
 
     // Example 4: Collection operations
     println!("4️⃣  Collection Operations");
     println!("---------------------------");
 
-    let result = engine.evaluate("Patient.name.given.count()", patient_json.clone())?;
+    let result = engine
+        .evaluate("Patient.name.given.count()", patient_json.clone())
+        .await?;
     print_result("Patient.name.given.count()", &result);
 
     // Example 5: Boolean expressions
     println!("5️⃣  Boolean Expressions");
     println!("-------------------------");
 
-    let result = engine.evaluate("Patient.active = true", patient_json.clone())?;
+    let result = engine
+        .evaluate("Patient.active = true", patient_json.clone())
+        .await?;
     print_result("Patient.active = true", &result);
 
     // Example 6: String operations
     println!("6️⃣  String Operations");
     println!("----------------------");
 
-    let result = engine.evaluate("Patient.name.where(use = 'official').given.first() + ' ' + Patient.name.where(use = 'official').family", patient_json.clone())?;
+    let result = engine.evaluate("Patient.name.where(use = 'official').given.first() + ' ' + Patient.name.where(use = 'official').family", patient_json.clone()).await?;
     print_result(
         "Patient.name.where(use = 'official').given.first() + ' ' + Patient.name.where(use = 'official').family",
         &result,
@@ -106,24 +115,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("7️⃣  Type Checking");
     println!("-------------------");
 
-    let result = engine.evaluate("Patient.birthDate is System.String", patient_json.clone())?;
+    let result = engine
+        .evaluate("Patient.birthDate is System.String", patient_json.clone())
+        .await?;
     print_result("Patient.birthDate is System.String", &result);
 
     // Example 8: Mathematical operations
     println!("8️⃣  Mathematical Operations");
     println!("----------------------------");
 
-    let result = engine.evaluate("Patient.name.count() * 2", patient_json.clone())?;
+    let result = engine
+        .evaluate("Patient.name.count() * 2", patient_json.clone())
+        .await?;
     print_result("Patient.name.count() * 2", &result);
 
     // Example 9: Existence checking
     println!("9️⃣  Existence Checking");
     println!("-----------------------");
 
-    let result = engine.evaluate(
-        "Patient.contact.telecom.where(system = 'email').exists()",
-        patient_json.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Patient.contact.telecom.where(system = 'email').exists()",
+            patient_json.clone(),
+        )
+        .await?;
     print_result(
         "Patient.contact.telecom.where(system = 'email').exists()",
         &result,
@@ -133,10 +148,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔟 Complex Expressions with Select");
     println!("------------------------------------");
 
-    let result = engine.evaluate(
-        "Patient.name.select(given.first() + ' ' + family)",
-        patient_json.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Patient.name.select(given.first() + ' ' + family)",
+            patient_json.clone(),
+        )
+        .await?;
     print_result("Patient.name.select(given.first() + ' ' + family)", &result);
 
     Ok(())

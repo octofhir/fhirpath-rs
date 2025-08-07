@@ -34,9 +34,9 @@ fn get_all_test_files() -> Vec<PathBuf> {
     test_files
 }
 
-#[test]
+#[tokio::test]
 #[ignore] // Use --ignored to run this test
-fn run_coverage_report() {
+async fn run_coverage_report() {
     println!("🧪 Generating FHIRPath Test Coverage Report");
     println!("============================================");
 
@@ -72,7 +72,7 @@ fn run_coverage_report() {
                 format!("{}.json", filename)
             );
 
-            match runner.run_and_report(test_file) {
+            match runner.run_and_report(test_file).await {
                 Ok(stats) => {
                     let emoji = if stats.pass_rate() == 100.0 {
                         "✅"
@@ -274,7 +274,7 @@ The fhirpath-rs implementation currently passes approximately **{:.1}% of all FH
 
 ---
 
-*Report generated on: {}*  
+*Report generated on: {}*
 *Command: `cargo test run_coverage_report -- --ignored --nocapture`*
 "#,
         overall_pass_rate,

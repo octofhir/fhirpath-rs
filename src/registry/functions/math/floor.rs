@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// floor() function - rounds down to nearest integer
 pub struct FloorFunction;
 
-impl FhirPathFunction for FloorFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for FloorFunction {
     fn name(&self) -> &str {
         "floor"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for FloorFunction {
         "Returns the first integer less than or equal to the input."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

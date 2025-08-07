@@ -18,10 +18,10 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all utility functions
 pub fn register_utility_functions(registry: &mut FunctionRegistry) {
-    registry.register(ConformsToFunction);
-    registry.register(DefineVariableFunction);
-    registry.register(HasValueFunction);
-    registry.register(IifFunction);
-    registry.register(RepeatFunction);
-    registry.register(TraceFunction);
+    registry.register_async(ConformsToFunction::new());
+    registry.register_async(DefineVariableFunction);
+    registry.register_async(HasValueFunction);
+    registry.register_async(IifFunction);
+    registry.register_async(RepeatFunction);
+    registry.register_async(TraceFunction);
 }

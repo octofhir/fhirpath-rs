@@ -1,13 +1,15 @@
 //! trace() function - debugging function that logs and returns input
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// trace() function - debugging function that logs and returns input
 pub struct TraceFunction;
 
-impl FhirPathFunction for TraceFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TraceFunction {
     fn name(&self) -> &str {
         "trace"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for TraceFunction {
         });
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

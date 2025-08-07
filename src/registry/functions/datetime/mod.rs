@@ -12,8 +12,8 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all datetime functions
 pub fn register_datetime_functions(registry: &mut FunctionRegistry) {
-    registry.register(NowFunction);
-    registry.register(TodayFunction);
-    registry.register(LowBoundaryFunction);
-    registry.register(HighBoundaryFunction);
+    registry.register_async(NowFunction);
+    registry.register_async(TodayFunction);
+    registry.register_async(LowBoundaryFunction);
+    registry.register_async(HighBoundaryFunction);
 }

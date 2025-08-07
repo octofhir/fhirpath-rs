@@ -260,19 +260,19 @@ impl<'input> Tokenizer<'input> {
             (2, 0x0000_0000_0000_6E69) => Some(Token::In), // "in"
 
             // Length 3 - direct u64 comparison for maximum speed
-            (3, 0x0000_0000_00646E61) => Some(Token::And), // "and"
-            (3, 0x0000_0000_00726F78) => Some(Token::Xor), // "xor"
-            (3, 0x0000_0000_00646F6D) => Some(Token::Mod), // "mod"
-            (3, 0x0000_0000_00766964) => Some(Token::Div), // "div"
-            (3, 0x0000_0000_00746F6E) => Some(Token::Not), // "not"
-            (3, 0x0000_0000_006C6C61) => Some(Token::All), // "all"
+            (3, 0x0000_0000_0064_6E61) => Some(Token::And), // "and"
+            (3, 0x0000_0000_0072_6F78) => Some(Token::Xor), // "xor"
+            (3, 0x0000_0000_0064_6F6D) => Some(Token::Mod), // "mod"
+            (3, 0x0000_0000_0076_6964) => Some(Token::Div), // "div"
+            (3, 0x0000_0000_0074_6F6E) => Some(Token::Not), // "not"
+            (3, 0x0000_0000_006C_6C61) => Some(Token::All), // "all"
 
             // Length 4 - direct u64 comparison
-            (4, 0x0000_0000_65757274) => Some(Token::True), // "true"
-            (4, 0x0000_0000_656B6174) => Some(Token::Take), // "take"
-            (4, 0x0000_0000_6C696174) => Some(Token::Tail), // "tail"
-            (4, 0x0000_0000_70696B73) => Some(Token::Skip), // "skip"
-            (4, 0x0000_0000_7473616C) => Some(Token::Last), // "last"
+            (4, 0x0000_0000_6575_7274) => Some(Token::True), // "true"
+            (4, 0x0000_0000_656B_6174) => Some(Token::Take), // "take"
+            (4, 0x0000_0000_6C69_6174) => Some(Token::Tail), // "tail"
+            (4, 0x0000_0000_7069_6B73) => Some(Token::Skip), // "skip"
+            (4, 0x0000_0000_7473_616C) => Some(Token::Last), // "last"
 
             // Length 5 - exact u64 comparison for full 5-byte words
             (5, 0x0065_736c_6166) => Some(Token::False), // "false"

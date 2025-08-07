@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// repeat() function - repeats evaluation until no new results
 pub struct RepeatFunction;
 
-impl FhirPathFunction for RepeatFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for RepeatFunction {
     fn name(&self) -> &str {
         "repeat"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for RepeatFunction {
         });
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -1,13 +1,15 @@
 //! last() function - returns the last item in the collection
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// last() function - returns the last item in the collection
 pub struct LastFunction;
 
-impl FhirPathFunction for LastFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for LastFunction {
     fn name(&self) -> &str {
         "last"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for LastFunction {
         "Returns a collection containing only the last item in the input collection. Returns empty (`{ }`) if the input collection has no items."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

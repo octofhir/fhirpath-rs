@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// type() function - returns the type of the value
 pub struct TypeFunction;
 
-impl FhirPathFunction for TypeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TypeFunction {
     fn name(&self) -> &str {
         "type"
     }
@@ -30,7 +32,7 @@ impl FhirPathFunction for TypeFunction {
     fn is_pure(&self) -> bool {
         true // type() is a pure type conversion function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

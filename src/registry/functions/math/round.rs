@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// round() function - rounds to nearest integer
 pub struct RoundFunction;
 
-impl FhirPathFunction for RoundFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for RoundFunction {
     fn name(&self) -> &str {
         "round"
     }
@@ -36,7 +38,7 @@ impl FhirPathFunction for RoundFunction {
         "Rounds the decimal to the nearest whole number using a traditional round (i.e. 0.5 or higher will round to 1). If specified, the precision argument determines the decimal place at which the rounding will occur."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

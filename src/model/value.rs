@@ -228,7 +228,7 @@ impl IntoIterator for Collection {
     type IntoIter = std::vec::IntoIter<FhirPathValue>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.to_vec().into_iter()
+        self.0.iter().cloned().collect::<Vec<_>>().into_iter()
     }
 }
 

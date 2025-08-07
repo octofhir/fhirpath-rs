@@ -35,7 +35,7 @@ pub enum RecoveryStrategy {
 }
 
 /// Convenience function to parse with error recovery
-pub fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> RecoveryResult {
+pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> RecoveryResult {
     // Simple implementation that just creates a basic result
     // This can be expanded later
     let mut diagnostics = Vec::new();
@@ -145,10 +145,10 @@ pub fn analyze_recovery_potential(input: &str) -> RecoveryAnalysis {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_basic_recovery() {
+    #[tokio::test]
+    async fn test_basic_recovery() {
         let input = "Patient.name.where(use = 'official'"; // Missing closing paren
-        let result = parse_with_recovery(input, RecoveryStrategy::Recover);
+        let result = parse_with_recovery(input, RecoveryStrategy::Recover).await;
 
         assert!(!result.recovered); // Simple implementation doesn't recover yet
         assert!(result.completion_rate >= 0.0);

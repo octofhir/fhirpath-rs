@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// join() function - joins collection of strings
 pub struct JoinFunction;
 
-impl FhirPathFunction for JoinFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for JoinFunction {
     fn name(&self) -> &str {
         "join"
     }
@@ -29,7 +30,7 @@ impl FhirPathFunction for JoinFunction {
     fn is_pure(&self) -> bool {
         true // join() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

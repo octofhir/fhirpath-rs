@@ -1,13 +1,15 @@
 //! empty() function - returns true if the collection is empty
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// empty() function - returns true if the collection is empty
 pub struct EmptyFunction;
 
-impl FhirPathFunction for EmptyFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for EmptyFunction {
     fn name(&self) -> &str {
         "empty"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for EmptyFunction {
         "Returns `true` if the input collection is empty (`{ }`) and `false` otherwise."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

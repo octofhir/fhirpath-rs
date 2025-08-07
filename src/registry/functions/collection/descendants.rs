@@ -1,13 +1,15 @@
 //! descendants() function implementation
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// descendants() function - returns all descendants of nodes in the collection
 pub struct DescendantsFunction;
 
-impl FhirPathFunction for DescendantsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for DescendantsFunction {
     fn name(&self) -> &str {
         "descendants"
     }
@@ -25,11 +27,15 @@ impl FhirPathFunction for DescendantsFunction {
         &SIG
     }
 
+    fn is_pure(&self) -> bool {
+        true // descendants() is a pure collection function
+    }
+
     fn documentation(&self) -> &str {
         "Returns a collection with all descendant nodes of all items in the input collection, in document order and without duplicates. Descendant nodes include the children, grandchildren, and all subsequent generations of child nodes."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

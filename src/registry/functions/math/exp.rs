@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// exp() function - exponential (e^x)
 pub struct ExpFunction;
 
-impl FhirPathFunction for ExpFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ExpFunction {
     fn name(&self) -> &str {
         "exp"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for ExpFunction {
     fn is_pure(&self) -> bool {
         true // exp() is a pure mathematical function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

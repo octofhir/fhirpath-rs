@@ -1,190 +1,204 @@
 //! Model provider trait for FHIR type information
+//!
+//! This module re-exports the enhanced ModelProvider from octofhir-fhir-model
+//! and provides compatibility shims for the old interface.
 
+// Re-export the enhanced ModelProvider and related types
+pub use octofhir_fhir_model::provider::{
+    BoxedValueWithMetadata, ConstraintViolation, DetailedConformanceResult, ElementDefinition,
+    ElementType, EmptyModelProvider, ExpressionAnalysis, FhirPathAnalysisResult, FhirVersion,
+    ModelProvider, NavigationContext, NavigationValidation, PolymorphicTypeInfo,
+    PrimitiveExtensionData, ProviderMetrics, ResolutionContext, SearchParameter,
+    StructureDefinition, ValueReflection, ViolationSeverity,
+};
+
+// Re-export type reflection system
+pub use octofhir_fhir_model::reflection::{
+    ElementInfo, TupleElementInfo, TypeHierarchy, TypeReflectionInfo, TypeSuggestion,
+};
+
+// Re-export conformance validation
+pub use octofhir_fhir_model::conformance::{
+    CacheStatistics, ConformanceMetadata, ConformanceResult, ConformanceValidator,
+    ConformanceViolation as ConfViolation, ConformanceWarning, ProfileRule, RuleCategory,
+    SourceLocation, ValidationContext, ValidationMetrics, ValidationMode, ValidationProfile,
+    ValidationRule, ValidationRuleResult, ValidationScope,
+};
+
+// Re-export constraints
+pub use octofhir_fhir_model::constraints::{
+    ConstraintEvaluationStats, ConstraintInfo, ConstraintResult, ConstraintSeverity,
+    ConstraintValue,
+};
+
+// Re-export enhanced boxing system
+pub use octofhir_fhir_model::boxing::{
+    BoxableValue, BoxedFhirPathValue, ComplexValue, Extension, PrimitiveExtension,
+};
+
+// Re-export error types
+pub use octofhir_fhir_model::error::{ModelError, Result as ModelResult};
+
+// Legacy compatibility - map old TypeInfo to new TypeReflectionInfo
 use super::types::TypeInfo;
 
-/// FHIR version enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FhirVersion {
-    /// FHIR R4
-    R4,
-    /// FHIR R4B
-    R4B,
-    /// FHIR R5
-    R5,
+/// Compatibility adapter for old ModelProvider interface
+pub trait LegacyModelProvider {
+    /// Convert old TypeInfo to new TypeReflectionInfo
+    fn get_type_info_legacy(&self, type_name: &str) -> Option<TypeInfo>;
+
+    /// Convert old property type lookup to new interface
+    fn get_property_type_legacy(&self, parent_type: &str, property: &str) -> Option<TypeInfo>;
 }
 
-impl FhirVersion {
-    /// Get the version string
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FhirVersion::R4 => "R4",
-            FhirVersion::R4B => "R4B",
-            FhirVersion::R5 => "R5",
-        }
+/// Adapter to convert new ModelProvider to legacy interface
+pub struct ModelProviderAdapter<T: ModelProvider> {
+    provider: T,
+}
+
+impl<T: ModelProvider> ModelProviderAdapter<T> {
+    /// Create a new adapter
+    pub fn new(provider: T) -> Self {
+        Self { provider }
+    }
+
+    /// Get the inner provider
+    pub fn inner(&self) -> &T {
+        &self.provider
+    }
+
+    /// Get the inner provider mutably
+    pub fn inner_mut(&mut self) -> &mut T {
+        &mut self.provider
     }
 }
 
-/// Search parameter definition
-#[derive(Debug, Clone)]
-pub struct SearchParameter {
-    /// Parameter name
-    pub name: String,
-    /// Parameter type (string, token, reference, etc.)
-    pub param_type: String,
-    /// Path expression
-    pub expression: String,
+impl<T: ModelProvider> LegacyModelProvider for ModelProviderAdapter<T> {
+    fn get_type_info_legacy(&self, type_name: &str) -> Option<TypeInfo> {
+        // Convert TypeReflectionInfo to legacy TypeInfo
+        self.provider
+            .get_type_reflection(type_name)
+            .map(|type_reflection| {
+                match type_reflection {
+                    TypeReflectionInfo::SimpleType { name, .. } => {
+                        // Map common FHIR and system types to the correct legacy enum variant
+                        match name.as_str() {
+                            "Boolean" => TypeInfo::Boolean,
+                            "Integer" => TypeInfo::Integer,
+                            "Decimal" => TypeInfo::Decimal,
+                            "String" => TypeInfo::String,
+                            "Date" => TypeInfo::Date,
+                            "DateTime" => TypeInfo::DateTime,
+                            "Time" => TypeInfo::Time,
+                            "Quantity" => TypeInfo::Quantity,
+                            resource_name if name.chars().next().unwrap_or('a').is_uppercase() => {
+                                TypeInfo::Resource(resource_name.to_string())
+                            }
+                            _ => TypeInfo::String, // Fallback to string for unknown types
+                        }
+                    }
+                    TypeReflectionInfo::ClassInfo { name, .. } => {
+                        // Class types are typically FHIR resources
+                        TypeInfo::Resource(name)
+                    }
+                    TypeReflectionInfo::ListType { element_type } => {
+                        // For legacy compatibility, we simplify list types
+                        let inner_type = match *element_type {
+                            TypeReflectionInfo::SimpleType { name, .. } => match name.as_str() {
+                                "Boolean" => TypeInfo::Boolean,
+                                "Integer" => TypeInfo::Integer,
+                                "Decimal" => TypeInfo::Decimal,
+                                "String" => TypeInfo::String,
+                                _ => TypeInfo::String,
+                            },
+                            _ => TypeInfo::String,
+                        };
+                        TypeInfo::Collection(Box::new(inner_type))
+                    }
+                    TypeReflectionInfo::TupleType { .. } => {
+                        TypeInfo::Any // Use Any for tuple types
+                    }
+                }
+            })
+    }
+
+    fn get_property_type_legacy(&self, parent_type: &str, property: &str) -> Option<TypeInfo> {
+        self.provider
+            .get_property_type(parent_type, property)
+            .map(|type_reflection| {
+                // Same conversion logic as above
+                match type_reflection {
+                    TypeReflectionInfo::SimpleType { name, .. } => {
+                        // Map common FHIR and system types to the correct legacy enum variant
+                        match name.as_str() {
+                            "Boolean" => TypeInfo::Boolean,
+                            "Integer" => TypeInfo::Integer,
+                            "Decimal" => TypeInfo::Decimal,
+                            "String" => TypeInfo::String,
+                            "Date" => TypeInfo::Date,
+                            "DateTime" => TypeInfo::DateTime,
+                            "Time" => TypeInfo::Time,
+                            "Quantity" => TypeInfo::Quantity,
+                            resource_name if name.chars().next().unwrap_or('a').is_uppercase() => {
+                                TypeInfo::Resource(resource_name.to_string())
+                            }
+                            _ => TypeInfo::String, // Fallback to string for unknown types
+                        }
+                    }
+                    TypeReflectionInfo::ClassInfo { name, .. } => {
+                        // Class types are typically FHIR resources
+                        TypeInfo::Resource(name)
+                    }
+                    TypeReflectionInfo::ListType { element_type } => {
+                        // For legacy compatibility, we simplify list types
+                        let inner_type = match *element_type {
+                            TypeReflectionInfo::SimpleType { name, .. } => match name.as_str() {
+                                "Boolean" => TypeInfo::Boolean,
+                                "Integer" => TypeInfo::Integer,
+                                "Decimal" => TypeInfo::Decimal,
+                                "String" => TypeInfo::String,
+                                _ => TypeInfo::String,
+                            },
+                            _ => TypeInfo::String,
+                        };
+                        TypeInfo::Collection(Box::new(inner_type))
+                    }
+                    TypeReflectionInfo::TupleType { .. } => {
+                        TypeInfo::Any // Use Any for tuple types
+                    }
+                }
+            })
+    }
 }
 
-/// Trait for providing FHIR model information
-pub trait ModelProvider: Send + Sync {
-    /// Get type information for a type name
-    fn get_type_info(&self, type_name: &str) -> Option<TypeInfo>;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    /// Get property type for a given parent type and property name
-    fn get_property_type(&self, parent_type: &str, property: &str) -> Option<TypeInfo>;
+    #[test]
+    fn test_provider_adapter() {
+        let empty_provider = EmptyModelProvider::new();
+        let adapter = ModelProviderAdapter::new(empty_provider);
 
-    /// Check if a property is polymorphic (e.g., value\[x\])
-    fn is_polymorphic(&self, property: &str) -> bool {
-        property.ends_with("[x]")
+        // Test legacy interface
+        let type_info = adapter.get_type_info_legacy("Patient");
+        assert!(type_info.is_none()); // EmptyProvider returns None
+
+        let property_type = adapter.get_property_type_legacy("Patient", "name");
+        assert!(property_type.is_none()); // EmptyProvider returns None
     }
 
-    /// Get all possible type suffixes for a polymorphic property
-    fn get_polymorphic_types(&self, property: &str) -> Vec<String> {
-        if !self.is_polymorphic(property) {
-            return vec![];
-        }
+    #[test]
+    fn test_enhanced_provider_methods() {
+        let provider = EmptyModelProvider::new();
 
-        // Common FHIR polymorphic types
-        vec![
-            "Boolean".to_string(),
-            "Integer".to_string(),
-            "String".to_string(),
-            "Decimal".to_string(),
-            "Uri".to_string(),
-            "Url".to_string(),
-            "Canonical".to_string(),
-            "Base64Binary".to_string(),
-            "Instant".to_string(),
-            "Date".to_string(),
-            "DateTime".to_string(),
-            "Time".to_string(),
-            "Code".to_string(),
-            "Oid".to_string(),
-            "Id".to_string(),
-            "Markdown".to_string(),
-            "UnsignedInt".to_string(),
-            "PositiveInt".to_string(),
-            "Uuid".to_string(),
-            "Quantity".to_string(),
-            "Age".to_string(),
-            "Distance".to_string(),
-            "Duration".to_string(),
-            "Count".to_string(),
-            "Money".to_string(),
-            "Range".to_string(),
-            "Period".to_string(),
-            "Ratio".to_string(),
-            "RatioRange".to_string(),
-            "SampledData".to_string(),
-            "Signature".to_string(),
-            "HumanName".to_string(),
-            "Address".to_string(),
-            "ContactPoint".to_string(),
-            "Timing".to_string(),
-            "Reference".to_string(),
-            "Annotation".to_string(),
-            "Attachment".to_string(),
-            "CodeableConcept".to_string(),
-            "Identifier".to_string(),
-            "Coding".to_string(),
-            "Meta".to_string(),
-        ]
-    }
+        // Test that enhanced methods are available
+        let analysis = provider.analyze_expression("Patient.name").unwrap();
+        assert!(analysis.referenced_types.is_empty());
 
-    /// Get search parameters for a resource type
-    fn get_search_params(&self, resource_type: &str) -> Vec<SearchParameter>;
-
-    /// Check if a type is a resource type
-    fn is_resource_type(&self, type_name: &str) -> bool;
-
-    /// Check if a type is a primitive type
-    fn is_primitive_type(&self, type_name: &str) -> bool {
-        matches!(
-            type_name,
-            "boolean"
-                | "integer"
-                | "string"
-                | "decimal"
-                | "uri"
-                | "url"
-                | "canonical"
-                | "base64Binary"
-                | "instant"
-                | "date"
-                | "dateTime"
-                | "time"
-                | "code"
-                | "oid"
-                | "id"
-                | "markdown"
-                | "unsignedInt"
-                | "positiveInt"
-                | "uuid"
-        )
-    }
-
-    /// Check if a type is a complex type
-    fn is_complex_type(&self, type_name: &str) -> bool {
-        !self.is_primitive_type(type_name) && !self.is_resource_type(type_name)
-    }
-
-    /// Get the FHIR version
-    fn fhir_version(&self) -> FhirVersion;
-
-    /// Check if a type is a subtype of another
-    fn is_subtype_of(&self, child_type: &str, parent_type: &str) -> bool;
-
-    /// Get all properties for a type
-    fn get_properties(&self, type_name: &str) -> Vec<(String, TypeInfo)>;
-
-    /// Get the base type for a given type
-    fn get_base_type(&self, type_name: &str) -> Option<String>;
-}
-
-/// Empty model provider for testing
-#[derive(Debug, Clone)]
-pub struct EmptyModelProvider;
-
-impl ModelProvider for EmptyModelProvider {
-    fn get_type_info(&self, _type_name: &str) -> Option<TypeInfo> {
-        None
-    }
-
-    fn get_property_type(&self, _parent_type: &str, _property: &str) -> Option<TypeInfo> {
-        None
-    }
-
-    fn get_search_params(&self, _resource_type: &str) -> Vec<SearchParameter> {
-        Vec::new()
-    }
-
-    fn is_resource_type(&self, _type_name: &str) -> bool {
-        false
-    }
-
-    fn fhir_version(&self) -> FhirVersion {
-        FhirVersion::R5
-    }
-
-    fn is_subtype_of(&self, _child_type: &str, _parent_type: &str) -> bool {
-        false
-    }
-
-    fn get_properties(&self, _type_name: &str) -> Vec<(String, TypeInfo)> {
-        Vec::new()
-    }
-
-    fn get_base_type(&self, _type_name: &str) -> Option<String> {
-        None
+        let validation = provider
+            .validate_navigation_path("Patient", "name")
+            .unwrap();
+        assert!(!validation.is_valid);
     }
 }

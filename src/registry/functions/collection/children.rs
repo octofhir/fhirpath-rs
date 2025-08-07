@@ -1,13 +1,15 @@
 //! children() function implementation
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// children() function - returns direct children of nodes in the collection
 pub struct ChildrenFunction;
 
-impl FhirPathFunction for ChildrenFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ChildrenFunction {
     fn name(&self) -> &str {
         "children"
     }
@@ -25,11 +27,15 @@ impl FhirPathFunction for ChildrenFunction {
         &SIG
     }
 
+    fn is_pure(&self) -> bool {
+        true // children() is a pure collection function
+    }
+
     fn documentation(&self) -> &str {
         "Returns a collection with all immediate child nodes of all items in the input collection. Child nodes are the direct properties of a resource or object, one level down from the current node."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

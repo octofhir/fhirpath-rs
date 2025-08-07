@@ -1,13 +1,15 @@
 //! not() function - logical negation
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// not() function - logical negation
 pub struct NotFunction;
 
-impl FhirPathFunction for NotFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for NotFunction {
     fn name(&self) -> &str {
         "not"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for NotFunction {
         "Returns `true` if the input collection evaluates to `false`, and `false` if it evaluates to `true`. Otherwise, the result is empty (`{ }`)."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// toDecimal() function - converts value to decimal
 pub struct ToDecimalFunction;
 
-impl FhirPathFunction for ToDecimalFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToDecimalFunction {
     fn name(&self) -> &str {
         "toDecimal"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for ToDecimalFunction {
     fn is_pure(&self) -> bool {
         true // toDecimal() is a pure type conversion function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

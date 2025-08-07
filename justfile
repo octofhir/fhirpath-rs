@@ -83,8 +83,18 @@ fmt:
 clippy:
     cargo clippy --all
 
+clippy-fix:
+    cargo clippy --all --fix --allow-dirty --allow-staged
+
 check:
     cargo check --all
+
+# Fix all formatting and clippy issues
+fix: fmt clippy-fix
+    @echo "🔧 Fixed all formatting and clippy issues!"
+    @echo "📋 Changes made:"
+    @echo "  ✅ Code formatted with rustfmt"
+    @echo "  ✅ Clippy suggestions applied automatically"
 
 # Quality assurance
 qa: fmt clippy test

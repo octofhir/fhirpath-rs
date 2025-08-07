@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// min() function - finds minimum value in a collection
 pub struct MinFunction;
 
-impl FhirPathFunction for MinFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for MinFunction {
     fn name(&self) -> &str {
         "min"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for MinFunction {
     fn is_pure(&self) -> bool {
         true // min() is a pure mathematical function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

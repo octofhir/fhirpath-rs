@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// take() function - takes first n elements
 pub struct TakeFunction;
 
-impl FhirPathFunction for TakeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for TakeFunction {
     fn name(&self) -> &str {
         "take"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for TakeFunction {
         });
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

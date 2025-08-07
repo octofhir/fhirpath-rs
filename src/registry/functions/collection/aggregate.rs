@@ -48,11 +48,12 @@ impl FhirPathFunction for AggregateFunction {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl LambdaFunction for AggregateFunction {
-    fn evaluate_with_lambda(
+    async fn evaluate_with_lambda(
         &self,
         args: &[ExpressionNode],
-        context: &LambdaEvaluationContext,
+        context: &LambdaEvaluationContext<'_>,
     ) -> FunctionResult<FhirPathValue> {
         if args.is_empty() || args.len() > 2 {
             return Err(FunctionError::InvalidArity {
@@ -75,7 +76,7 @@ impl LambdaFunction for AggregateFunction {
         // Get initial value (second argument or empty)
         let mut total = if args.len() > 1 {
             // Evaluate the initial value expression
-            let init_result = (context.evaluator)(&args[1], &context.context.input)?;
+            let init_result = (context.evaluator)(&args[1], &context.context.input).await?;
 
             // Unwrap single-item collections (FHIRPath semantics)
             match init_result {
@@ -106,10 +107,10 @@ impl LambdaFunction for AggregateFunction {
                 additional_vars.insert("this".to_string(), (*item).clone());
                 additional_vars.insert("total".to_string(), total.clone());
 
-                enhanced_evaluator(aggregator_expr, item, &additional_vars)?
+                enhanced_evaluator(aggregator_expr, item, &additional_vars).await?
             } else {
                 // Fall back to regular evaluator (won't have $total support)
-                (context.evaluator)(aggregator_expr, item)?
+                (context.evaluator)(aggregator_expr, item).await?
             };
 
             // Update total with the result

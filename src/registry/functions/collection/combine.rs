@@ -1,13 +1,15 @@
 //! combine() function - concatenates two collections
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// combine() function - concatenates two collections
 pub struct CombineFunction;
 
-impl FhirPathFunction for CombineFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for CombineFunction {
     fn name(&self) -> &str {
         "combine"
     }
@@ -33,7 +35,7 @@ impl FhirPathFunction for CombineFunction {
         "Returns a collection that contains all items in the input collection, followed by all items in the other collection. Duplicates are not removed."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

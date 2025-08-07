@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// precision() function - returns the precision of a value
 pub struct PrecisionFunction;
 
-impl FhirPathFunction for PrecisionFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for PrecisionFunction {
     fn name(&self) -> &str {
         "precision"
     }
@@ -27,7 +29,7 @@ impl FhirPathFunction for PrecisionFunction {
     fn is_pure(&self) -> bool {
         true // precision() is a pure mathematical function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

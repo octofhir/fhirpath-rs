@@ -17,8 +17,8 @@ use crate::registry::function::FunctionRegistry;
 /// Register all boolean functions
 pub fn register_boolean_functions(registry: &mut FunctionRegistry) {
     registry.register(AllFunction);
-    registry.register(AllTrueFunction);
-    registry.register(AnyFunction);
-    registry.register(IsDistinctFunction);
-    registry.register(NotFunction);
+    registry.register_async(AllTrueFunction);
+    registry.register_async(AnyFunction);
+    registry.register_async(IsDistinctFunction);
+    registry.register_async(NotFunction);
 }

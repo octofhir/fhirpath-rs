@@ -24,16 +24,16 @@ pub use span::{Span, Spanned};
 pub use pratt::parse_expression_pratt as parse_expression;
 
 /// Parse an FHIRPath expression string into an AST using the optimized Pratt parser
-pub fn parse(input: &str) -> ParseResult<crate::ast::ExpressionNode> {
+pub async fn parse(input: &str) -> ParseResult<crate::ast::ExpressionNode> {
     parse_expression_pratt(input)
 }
 
 /// Parse with IDE-friendly error recovery and enhanced diagnostics
-pub fn parse_for_ide(input: &str) -> RecoveryResult {
-    parse_with_recovery(input, RecoveryStrategy::Aggressive)
+pub async fn parse_for_ide(input: &str) -> RecoveryResult {
+    parse_with_recovery(input, RecoveryStrategy::Aggressive).await
 }
 
 /// Parse with custom recovery strategy
-pub fn parse_with_strategy(input: &str, strategy: RecoveryStrategy) -> RecoveryResult {
-    parse_with_recovery(input, strategy)
+pub async fn parse_with_strategy(input: &str, strategy: RecoveryStrategy) -> RecoveryResult {
+    parse_with_recovery(input, strategy).await
 }

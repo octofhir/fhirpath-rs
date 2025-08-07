@@ -36,19 +36,19 @@ use crate::registry::function::FunctionRegistry;
 
 /// Register all math functions
 pub fn register_math_functions(registry: &mut FunctionRegistry) {
-    registry.register(AbsFunction);
-    registry.register(AvgFunction);
-    registry.register(CeilingFunction);
-    registry.register(ExpFunction);
-    registry.register(FloorFunction);
-    registry.register(LnFunction);
-    registry.register(LogFunction);
-    registry.register(MaxFunction);
-    registry.register(MinFunction);
-    registry.register(PowerFunction);
-    registry.register(PrecisionFunction);
-    registry.register(RoundFunction);
-    registry.register(SqrtFunction);
-    registry.register(SumFunction);
-    registry.register(TruncateFunction);
+    registry.register_async(AbsFunction);
+    registry.register_async(AvgFunction);
+    registry.register_async(CeilingFunction);
+    registry.register_async(ExpFunction);
+    registry.register_async(FloorFunction);
+    registry.register_async(LnFunction);
+    registry.register_async(LogFunction);
+    registry.register_async(MaxFunction);
+    registry.register_async(MinFunction);
+    registry.register_async(PowerFunction);
+    registry.register_async(PrecisionFunction);
+    registry.register_async(RoundFunction);
+    registry.register_async(SqrtFunction);
+    registry.register_async(SumFunction);
+    registry.register_async(TruncateFunction);
 }

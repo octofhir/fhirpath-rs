@@ -1,13 +1,15 @@
 //! distinct() function - returns unique items in the collection
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// distinct() function - returns unique items in the collection
 pub struct DistinctFunction;
 
-impl FhirPathFunction for DistinctFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for DistinctFunction {
     fn name(&self) -> &str {
         "distinct"
     }
@@ -33,7 +35,7 @@ impl FhirPathFunction for DistinctFunction {
         "Returns a collection containing only the unique items in the input collection. To determine whether two items are the same, the equals (`=`) operator is used."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

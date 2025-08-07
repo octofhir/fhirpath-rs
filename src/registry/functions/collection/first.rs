@@ -1,13 +1,15 @@
 //! first() function - returns the first item in the collection
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// first() function - returns the first item in the collection
 pub struct FirstFunction;
 
-impl FhirPathFunction for FirstFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for FirstFunction {
     fn name(&self) -> &str {
         "first"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for FirstFunction {
         "Returns a collection containing only the first item in the input collection. This function is equivalent to `item(0)`. Returns empty (`{ }`) if the input collection has no items."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

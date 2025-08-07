@@ -1,13 +1,15 @@
 //! single() function - returns the single item if collection has exactly one item
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// single() function - returns the single item if collection has exactly one item
 pub struct SingleFunction;
 
-impl FhirPathFunction for SingleFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SingleFunction {
     fn name(&self) -> &str {
         "single"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for SingleFunction {
         "Returns the single item in the input collection. If the input collection does not contain exactly one item, an empty collection is returned."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

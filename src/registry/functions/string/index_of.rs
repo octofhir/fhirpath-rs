@@ -1,13 +1,14 @@
 //! indexOf() function - finds index of substring
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// indexOf() function - finds index of substring
 pub struct IndexOfFunction;
 
-impl FhirPathFunction for IndexOfFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for IndexOfFunction {
     fn name(&self) -> &str {
         "indexOf"
     }
@@ -32,7 +33,7 @@ impl FhirPathFunction for IndexOfFunction {
         "Returns the 0-based index of the first position `substring` is found in the input string, or -1 if it is not found."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

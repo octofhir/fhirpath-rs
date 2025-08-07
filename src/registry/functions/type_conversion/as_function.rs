@@ -2,16 +2,18 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 use chrono::TimeZone;
 use rust_decimal::prelude::ToPrimitive;
 
 /// as() function - performs type casting
 pub struct AsFunction;
 
-impl FhirPathFunction for AsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for AsFunction {
     fn name(&self) -> &str {
         "as"
     }
@@ -35,7 +37,7 @@ impl FhirPathFunction for AsFunction {
         true // as() is a pure type conversion function
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
@@ -171,7 +173,7 @@ impl FhirPathFunction for AsFunction {
                         input: items.first().unwrap().clone(),
                         ..context.clone()
                     };
-                    self.evaluate(args, &item_context)
+                    self.evaluate(args, &item_context).await
                 } else {
                     // Multiple items - return empty
                     Ok(FhirPathValue::Empty)

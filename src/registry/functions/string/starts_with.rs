@@ -1,13 +1,14 @@
 //! startsWith() function - checks if string starts with prefix
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
-
+use async_trait::async_trait;
 /// startsWith() function - checks if string starts with prefix
 pub struct StartsWithFunction;
 
-impl FhirPathFunction for StartsWithFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for StartsWithFunction {
     fn name(&self) -> &str {
         "startsWith"
     }
@@ -32,7 +33,7 @@ impl FhirPathFunction for StartsWithFunction {
         "Returns `true` when the input string starts with the given `prefix`. If `prefix` is the empty string (''), the result is `true`."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

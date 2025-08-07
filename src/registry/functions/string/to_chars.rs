@@ -2,14 +2,15 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
-
+use async_trait::async_trait;
 /// toChars() function - converts string to array of single characters
 pub struct ToCharsFunction;
 
-impl FhirPathFunction for ToCharsFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for ToCharsFunction {
     fn name(&self) -> &str {
         "toChars"
     }
@@ -25,7 +26,7 @@ impl FhirPathFunction for ToCharsFunction {
     fn is_pure(&self) -> bool {
         true // toChars() is a pure string function
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

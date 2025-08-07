@@ -17,8 +17,8 @@ fn get_specs_path() -> PathBuf {
         .join("tests")
 }
 
-#[test]
-fn test_run_basics_suite() {
+#[tokio::test]
+async fn test_run_basics_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -34,7 +34,7 @@ fn test_run_basics_suite() {
         return;
     }
 
-    match runner.run_and_report(&basics_path) {
+    match runner.run_and_report(&basics_path).await {
         Ok(stats) => {
             println!("Basics test suite completed:");
             println!(
@@ -54,8 +54,8 @@ fn test_run_basics_suite() {
     }
 }
 
-#[test]
-fn test_run_literals_suite() {
+#[tokio::test]
+async fn test_run_literals_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -71,7 +71,7 @@ fn test_run_literals_suite() {
         return;
     }
 
-    match runner.run_and_report(&literals_path) {
+    match runner.run_and_report(&literals_path).await {
         Ok(stats) => {
             println!("Literals test suite completed:");
             println!(
@@ -87,8 +87,8 @@ fn test_run_literals_suite() {
     }
 }
 
-#[test]
-fn test_simple_expression_parsing() {
+#[tokio::test]
+async fn test_simple_expression_parsing() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -105,7 +105,7 @@ fn test_simple_expression_parsing() {
         description: Some("Simple boolean literal test".to_string()),
     };
 
-    let result = runner.run_test(&simple_test);
+    let result = runner.run_test(&simple_test).await;
     match result {
         integration_test_runner::TestResult::Passed => {
             println!("✅ Simple expression test passed!");
@@ -131,8 +131,8 @@ fn test_simple_expression_parsing() {
 }
 
 /// Test abs function specifically
-#[test]
-fn test_run_abs_suite() {
+#[tokio::test]
+async fn test_run_abs_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -145,7 +145,7 @@ fn test_run_abs_suite() {
         return;
     }
 
-    match runner.run_and_report(&abs_path) {
+    match runner.run_and_report(&abs_path).await {
         Ok(stats) => {
             println!("Abs test suite completed:");
             println!(
@@ -164,8 +164,8 @@ fn test_run_abs_suite() {
 }
 
 /// Test ceiling function specifically
-#[test]
-fn test_run_ceiling_suite() {
+#[tokio::test]
+async fn test_run_ceiling_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -181,7 +181,7 @@ fn test_run_ceiling_suite() {
         return;
     }
 
-    match runner.run_and_report(&ceiling_path) {
+    match runner.run_and_report(&ceiling_path).await {
         Ok(stats) => {
             println!("Ceiling test suite completed:");
             println!(
@@ -200,8 +200,8 @@ fn test_run_ceiling_suite() {
 }
 
 /// Test floor function specifically
-#[test]
-fn test_run_floor_suite() {
+#[tokio::test]
+async fn test_run_floor_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -217,7 +217,7 @@ fn test_run_floor_suite() {
         return;
     }
 
-    match runner.run_and_report(&floor_path) {
+    match runner.run_and_report(&floor_path).await {
         Ok(stats) => {
             println!("Floor test suite completed:");
             println!(
@@ -236,8 +236,8 @@ fn test_run_floor_suite() {
 }
 
 /// Test round function specifically
-#[test]
-fn test_run_round_suite() {
+#[tokio::test]
+async fn test_run_round_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -253,7 +253,7 @@ fn test_run_round_suite() {
         return;
     }
 
-    match runner.run_and_report(&round_path) {
+    match runner.run_and_report(&round_path).await {
         Ok(stats) => {
             println!("Round test suite completed:");
             println!(
@@ -272,8 +272,8 @@ fn test_run_round_suite() {
 }
 
 /// Test take function specifically
-#[test]
-fn test_run_take_suite() {
+#[tokio::test]
+async fn test_run_take_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -289,7 +289,7 @@ fn test_run_take_suite() {
         return;
     }
 
-    match runner.run_and_report(&take_path) {
+    match runner.run_and_report(&take_path).await {
         Ok(stats) => {
             println!("Take test suite completed:");
             println!(
@@ -308,9 +308,9 @@ fn test_run_take_suite() {
 }
 
 /// Run multiple test suites for broader coverage
-#[test]
+#[tokio::test]
 #[ignore] // Use #[ignore] so it doesn't run by default, but can be run with --ignored
-fn test_run_multiple_official_suites() {
+async fn test_run_multiple_official_suites() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -338,7 +338,7 @@ fn test_run_multiple_official_suites() {
         return;
     }
 
-    match runner.run_multiple_test_files(&test_paths) {
+    match runner.run_multiple_test_files(&test_paths).await {
         Ok(stats) => {
             println!("🏁 Multiple test suites completed:");
             println!("  Total tests: {}", stats.total);
@@ -362,9 +362,9 @@ fn test_run_multiple_official_suites() {
     }
 }
 
-/// Test equality operations specifically  
-#[test]
-fn test_run_equality_suite() {
+/// Test equality operations specifically
+#[tokio::test]
+async fn test_run_equality_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -380,7 +380,7 @@ fn test_run_equality_suite() {
         return;
     }
 
-    match runner.run_and_report(&equality_path) {
+    match runner.run_and_report(&equality_path).await {
         Ok(stats) => {
             println!("Equality test suite completed:");
             println!(
@@ -399,8 +399,8 @@ fn test_run_equality_suite() {
 }
 
 /// Test equivalent operations specifically
-#[test]
-fn test_run_equivalent_suite() {
+#[tokio::test]
+async fn test_run_equivalent_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -416,7 +416,7 @@ fn test_run_equivalent_suite() {
         return;
     }
 
-    match runner.run_and_report(&equivalent_path) {
+    match runner.run_and_report(&equivalent_path).await {
         Ok(stats) => {
             println!("Equivalent test suite completed:");
             println!(
@@ -435,8 +435,8 @@ fn test_run_equivalent_suite() {
 }
 
 /// Test not-equivalent operations specifically
-#[test]
-fn test_run_not_equivalent_suite() {
+#[tokio::test]
+async fn test_run_not_equivalent_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -452,7 +452,7 @@ fn test_run_not_equivalent_suite() {
         return;
     }
 
-    match runner.run_and_report(&not_equivalent_path) {
+    match runner.run_and_report(&not_equivalent_path).await {
         Ok(stats) => {
             println!("Not-equivalent test suite completed:");
             println!(
@@ -471,8 +471,8 @@ fn test_run_not_equivalent_suite() {
 }
 
 /// Test not-equal operations specifically
-#[test]
-fn test_run_not_equal_suite() {
+#[tokio::test]
+async fn test_run_not_equal_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -488,7 +488,7 @@ fn test_run_not_equal_suite() {
         return;
     }
 
-    match runner.run_and_report(&not_equal_path) {
+    match runner.run_and_report(&not_equal_path).await {
         Ok(stats) => {
             println!("N-equality (not equal) test suite completed:");
             println!(
@@ -507,8 +507,8 @@ fn test_run_not_equal_suite() {
 }
 
 /// Run all equality-related test suites
-#[test]
-fn test_run_all_equality_suites() {
+#[tokio::test]
+async fn test_run_all_equality_suites() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -533,7 +533,7 @@ fn test_run_all_equality_suites() {
         return;
     }
 
-    match runner.run_multiple_test_files(&test_paths) {
+    match runner.run_multiple_test_files(&test_paths).await {
         Ok(stats) => {
             println!("🏁 All equality test suites completed:");
             println!("  Total tests: {}", stats.total);
@@ -560,8 +560,8 @@ fn test_run_all_equality_suites() {
 }
 
 /// Test sort function specifically
-#[test]
-fn test_run_sort_suite() {
+#[tokio::test]
+async fn test_run_sort_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
         .with_base_path(&specs_path)
@@ -577,7 +577,7 @@ fn test_run_sort_suite() {
         return;
     }
 
-    match runner.run_and_report(&sort_path) {
+    match runner.run_and_report(&sort_path).await {
         Ok(stats) => {
             println!("Sort test suite completed:");
             println!(
@@ -596,8 +596,8 @@ fn test_run_sort_suite() {
 }
 
 /// Example of how to create and run a custom test suite
-#[test]
-fn test_custom_test_creation() {
+#[tokio::test]
+async fn test_custom_test_creation() {
     use integration_test_runner::{TestCase, TestSuite};
 
     let custom_suite = TestSuite {
@@ -627,7 +627,7 @@ fn test_custom_test_creation() {
     };
 
     let mut runner = IntegrationTestRunner::new().with_verbose(true);
-    let results = runner.run_test_suite(&custom_suite);
+    let results = runner.run_test_suite(&custom_suite).await;
     let stats = runner.calculate_stats(&results);
 
     println!("Custom test suite results:");

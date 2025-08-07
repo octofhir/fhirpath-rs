@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// length() function - returns the length of a string
 pub struct LengthFunction;
 
-impl FhirPathFunction for LengthFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for LengthFunction {
     fn name(&self) -> &str {
         "length"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for LengthFunction {
         "Returns the length of the input string. If the input collection is empty (`{ }`), the result is empty."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

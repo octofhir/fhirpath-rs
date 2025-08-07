@@ -1,13 +1,15 @@
 //! count() function - returns the number of elements in the collection
 
 use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{EvaluationContext, FhirPathFunction, FunctionResult};
+use crate::registry::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 
 /// count() function - returns the number of elements in the collection
 pub struct CountFunction;
 
-impl FhirPathFunction for CountFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for CountFunction {
     fn name(&self) -> &str {
         "count"
     }
@@ -28,7 +30,7 @@ impl FhirPathFunction for CountFunction {
         "Returns a collection with a single value which is the integer count of the number of items in the input collection. Returns 0 when the input collection is empty."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

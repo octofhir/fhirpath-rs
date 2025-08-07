@@ -2,15 +2,17 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::FunctionSignature;
+use async_trait::async_trait;
 use rust_decimal::prelude::*;
 
 /// sqrt() function - square root
 pub struct SqrtFunction;
 
-impl FhirPathFunction for SqrtFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for SqrtFunction {
     fn name(&self) -> &str {
         "sqrt"
     }
@@ -31,7 +33,7 @@ impl FhirPathFunction for SqrtFunction {
         "Returns the square root of the input number as a Decimal. If the square root cannot be represented (such as the square root of -1), the result is empty."
     }
 
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,

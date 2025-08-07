@@ -7,7 +7,8 @@
 use octofhir_fhirpath::engine::FhirPathEngine;
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("⚠️  FHIRPath Error Handling Examples");
     println!("=====================================\n");
 
@@ -42,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for expr in &invalid_expressions {
         println!("Testing invalid expression: {expr}");
-        match engine.evaluate(expr, patient.clone()) {
+        match engine.evaluate(expr, patient.clone()).await {
             Ok(result) => {
                 println!("  ✅ Parsed successfully (returned empty per FHIRPath spec): {result:?}");
             }
@@ -66,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for expr in &problematic_expressions {
         println!("Testing problematic expression: {expr}");
-        match engine.evaluate(expr, patient.clone()) {
+        match engine.evaluate(expr, patient.clone()).await {
             Ok(result) => {
                 println!("  ✅ Evaluated successfully: {result:?}");
             }
@@ -96,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for expr in &expressions_for_missing_data {
         println!("Testing expression with missing data: {expr}");
-        match engine.evaluate(expr, incomplete_patient.clone()) {
+        match engine.evaluate(expr, incomplete_patient.clone()).await {
             Ok(result) => {
                 println!("  ✅ Handled gracefully: {result:?}");
             }
@@ -119,7 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for expr in &defensive_expressions {
         println!("Defensive expression: {expr}");
-        match engine.evaluate(expr, patient.clone()) {
+        match engine.evaluate(expr, patient.clone()).await {
             Ok(result) => {
                 println!("  ✅ Result: {result:?}");
             }
@@ -146,13 +147,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Strategy 1: Default to empty result
         let result = engine
             .evaluate(expr, patient.clone())
+            .await
             .unwrap_or_else(|_| octofhir_fhirpath::FhirPathValue::collection(vec![]));
         println!("  Strategy 1 (default empty): {result:?}");
 
         // Strategy 2: Try alternative expression
         if expr.contains("invalidProperty") {
             let alternative = "Patient.id"; // Use a known property instead
-            match engine.evaluate(alternative, patient.clone()) {
+            match engine.evaluate(alternative, patient.clone()).await {
                 Ok(alt_result) => println!("  Strategy 2 (alternative): {alt_result:?}"),
                 Err(_) => println!("  Strategy 2 (alternative): Failed"),
             }

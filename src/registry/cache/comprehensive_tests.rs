@@ -12,7 +12,7 @@ fn test_function_resolution_cache_basic() {
 
     // Register abs function which has proper type signature
     use crate::registry::functions::math::AbsFunction;
-    registry.register(AbsFunction);
+    registry.register_async(AbsFunction);
 
     let arg_types = vec![]; // abs takes no explicit arguments
 
@@ -37,19 +37,28 @@ fn test_function_result_cache_pure_functions() {
     let config = CacheConfig::testing();
     let mut registry = FunctionRegistry::with_config(config);
 
-    // Register abs function (marked as pure)
-    use crate::registry::functions::math::AbsFunction;
-    registry.register(AbsFunction);
+    // Register a simple function using closure
+    registry.register_simple("test_pure", 1, Some(1), |args, _context| {
+        if let Some(FhirPathValue::Integer(n)) = args.first() {
+            Ok(FhirPathValue::Integer(n.abs()))
+        } else {
+            Ok(FhirPathValue::Integer(42))
+        }
+    });
 
     let context = EvaluationContext::new(FhirPathValue::Integer(-42));
-    let args = vec![];
+    let args = vec![FhirPathValue::Integer(-42)];
 
     // First evaluation - should compute and cache
-    let result1 = registry.evaluate_function("abs", &args, &context).unwrap();
+    let result1 = registry
+        .evaluate_function("test_pure", &args, &context)
+        .unwrap();
     assert_eq!(result1, FhirPathValue::Integer(42));
 
     // Second evaluation - should hit cache
-    let result2 = registry.evaluate_function("abs", &args, &context).unwrap();
+    let result2 = registry
+        .evaluate_function("test_pure", &args, &context)
+        .unwrap();
     assert_eq!(result2, FhirPathValue::Integer(42));
 
     // Get cache stats
@@ -166,7 +175,7 @@ fn test_non_pure_function_not_cached() {
 
     // Register a non-pure function (now() changes over time)
     use crate::registry::functions::datetime::NowFunction;
-    registry.register(NowFunction);
+    registry.register_async(NowFunction);
 
     let context = EvaluationContext::new(FhirPathValue::Empty);
     let args = vec![];

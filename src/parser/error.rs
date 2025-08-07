@@ -459,7 +459,7 @@ impl ParseError {
     }
 
     /// Convenience constructors using pre-allocated messages for common error patterns
-
+    ///
     /// Create an invalid literal error with pre-allocated literal type (zero-allocation)
     pub fn invalid_literal_prealloc(
         literal_type: &'static str,
@@ -515,7 +515,7 @@ impl ParseError {
 
     /// Create common error patterns with zero-allocation static strings
     /// These methods avoid String allocation for the most common cases
-
+    ///
     /// Create an error for when an identifier was expected but not found
     pub fn expected_identifier(position: usize) -> Self {
         Self::expected_token_prealloc(common_messages::EXPECTED_IDENTIFIER, position)
@@ -562,7 +562,7 @@ impl ParseError {
     }
 
     /// Lazy formatting constructors - defer expensive string operations until display time
-
+    ///
     /// Create a lazy formatted error with a closure that generates the message on demand
     pub fn lazy_format<F>(position: usize, format_fn: F) -> Self
     where

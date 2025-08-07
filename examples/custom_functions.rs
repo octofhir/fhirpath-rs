@@ -7,7 +7,8 @@
 use octofhir_fhirpath::engine::FhirPathEngine;
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 FHIRPath Custom Functions Examples");
     println!("======================================\n");
 
@@ -46,16 +47,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("1️⃣  String Functions");
     println!("--------------------");
 
-    let result = engine.evaluate("Patient.name.family.upper()", patient.clone())?;
+    let result = engine
+        .evaluate("Patient.name.family.upper()", patient.clone())
+        .await?;
     print_result("Patient.name.family.upper()", &result);
 
-    let result = engine.evaluate("Patient.name.family.lower()", patient.clone())?;
+    let result = engine
+        .evaluate("Patient.name.family.lower()", patient.clone())
+        .await?;
     print_result("Patient.name.family.lower()", &result);
 
-    let result = engine.evaluate(
-        "Patient.telecom.where(system = 'email').value.contains('@')",
-        patient.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Patient.telecom.where(system = 'email').value.contains('@')",
+            patient.clone(),
+        )
+        .await?;
     print_result(
         "Patient.telecom.where(system = 'email').value.contains('@')",
         &result,
@@ -65,21 +72,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("2️⃣  Mathematical Functions");
     println!("---------------------------");
 
-    let result = engine.evaluate("Patient.name.count() * 10", patient.clone())?;
+    let result = engine
+        .evaluate("Patient.name.count() * 10", patient.clone())
+        .await?;
     print_result("Patient.name.count() * 10", &result);
 
     // Example 3: Date functions
     println!("3️⃣  Date Functions");
     println!("------------------");
 
-    let result = engine.evaluate("Patient.birthDate", patient.clone())?;
+    let result = engine
+        .evaluate("Patient.birthDate", patient.clone())
+        .await?;
     print_result("Patient.birthDate", &result);
 
     // Example 4: Type conversion functions
     println!("4️⃣  Type Conversion Functions");
     println!("------------------------------");
 
-    let result = engine.evaluate("Patient.name.count().toString()", patient.clone())?;
+    let result = engine
+        .evaluate("Patient.name.count().toString()", patient.clone())
+        .await?;
     print_result("Patient.name.count().toString()", &result);
 
     // Example 5: Aggregate functions
@@ -110,26 +123,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]
     });
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.valueQuantity.value.sum()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.valueQuantity.value.sum()",
+            bundle.clone(),
+        )
+        .await?;
     print_result("Bundle.entry.resource.valueQuantity.value.sum()", &result);
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.valueQuantity.value.avg()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.valueQuantity.value.avg()",
+            bundle.clone(),
+        )
+        .await?;
     print_result("Bundle.entry.resource.valueQuantity.value.avg()", &result);
 
     // Example 6: Advanced functions
     println!("6️⃣  Advanced Functions");
     println!("-----------------------");
 
-    let result = engine.evaluate(
-        "Bundle.entry.resource.valueQuantity.value.distinct().count()",
-        bundle.clone(),
-    )?;
+    let result = engine
+        .evaluate(
+            "Bundle.entry.resource.valueQuantity.value.distinct().count()",
+            bundle.clone(),
+        )
+        .await?;
     print_result(
         "Bundle.entry.resource.valueQuantity.value.distinct().count()",
         &result,

@@ -2,14 +2,16 @@
 
 use crate::model::{FhirPathValue, TypeInfo};
 use crate::registry::function::{
-    EvaluationContext, FhirPathFunction, FunctionError, FunctionResult,
+    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
 };
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
+use async_trait::async_trait;
 
 /// ofType() function - filters collection to items of specified type
 pub struct OfTypeFunction;
 
-impl FhirPathFunction for OfTypeFunction {
+#[async_trait]
+impl AsyncFhirPathFunction for OfTypeFunction {
     fn name(&self) -> &str {
         "ofType"
     }
@@ -26,7 +28,7 @@ impl FhirPathFunction for OfTypeFunction {
         });
         &SIG
     }
-    fn evaluate(
+    async fn evaluate(
         &self,
         args: &[FhirPathValue],
         context: &EvaluationContext,
