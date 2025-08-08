@@ -73,6 +73,10 @@ impl AsyncFhirPathFunction for JoinFunction {
                 FhirPathValue::TypeInfoObject { namespace, name } => {
                     format!("{namespace}::{name}")
                 }
+                FhirPathValue::JsonValue(json) => {
+                    // Convert JsonValue to string representation
+                    json.as_json().to_string()
+                }
             })
             .collect();
 

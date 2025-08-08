@@ -139,6 +139,9 @@ impl OfTypeFunction {
             FhirPathValue::TypeInfoObject { .. } => {
                 matches!(type_name, "TypeInfo" | "System.TypeInfo")
             }
+            FhirPathValue::JsonValue(_) => {
+                matches!(type_name, "JsonValue" | "Object" | "Any")
+            }
             FhirPathValue::Empty => false,
         }
     }

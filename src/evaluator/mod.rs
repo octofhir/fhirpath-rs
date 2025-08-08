@@ -5,6 +5,7 @@
 //\! with automatic hybrid strategy selection for optimal performance.
 
 pub mod bundle_arc;
+pub mod collections;
 #[warn(missing_docs)]
 mod context;
 mod engine;
@@ -17,4 +18,9 @@ pub use engine::FhirPathEngine;
 pub use error::{EvaluationError, EvaluationResult};
 pub use shared_context::{
     ContextInheritance, FunctionClosureOptimizer, SharedContextBuilder, SharedEvaluationContext,
+};
+
+// Collection optimization utilities
+pub use collections::{
+    BundleEntryIterator, CollectionUtils, FilterOps, OptimizedCollectionBuilder, SizeHint,
 };

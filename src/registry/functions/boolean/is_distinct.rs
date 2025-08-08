@@ -52,6 +52,9 @@ impl IsDistinctFunction {
             }
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 ValueDiscriminant::String(format!("TypeInfo({namespace}.{name})").into())
+            }
+            FhirPathValue::JsonValue(json) => {
+                ValueDiscriminant::String(json.as_json().to_string().into())
             } // FhirPathValue::Lambda variant doesn't exist yet
               // FhirPathValue::Lambda(_) => ValueDiscriminant::Lambda,
         }

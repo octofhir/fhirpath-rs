@@ -108,6 +108,7 @@ fn compare_values(a: &FhirPathValue, b: &FhirPathValue) -> Ordering {
                 FhirPathValue::Resource(_) => 9,
                 FhirPathValue::TypeInfoObject { .. } => 10,
                 FhirPathValue::Collection(_) => 11,
+                FhirPathValue::JsonValue(_) => 12,
             };
             type_order(a).cmp(&type_order(b))
         }

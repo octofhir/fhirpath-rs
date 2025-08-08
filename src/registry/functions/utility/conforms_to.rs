@@ -52,7 +52,7 @@ impl HttpProfileFetcher {
 
 #[async_trait]
 impl ProfileFetcher for HttpProfileFetcher {
-    async fn fetch_profile(&self, url: &str) -> Result<StructureDefinition, FunctionError> {
+    async fn fetch_profile(&self, _url: &str) -> Result<StructureDefinition, FunctionError> {
         #[cfg(feature = "reqwest")]
         {
             let response = self

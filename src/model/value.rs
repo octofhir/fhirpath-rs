@@ -8,6 +8,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::sync::Arc;
 
+use super::json_arc::ArcJsonValue;
 use super::quantity::Quantity;
 use super::resource::FhirResource;
 use super::types::TypeInfo;
@@ -48,6 +49,9 @@ pub enum FhirPathValue {
 
     /// FHIR Resource or complex object
     Resource(Arc<FhirResource>),
+
+    /// JSON value with copy-on-write semantics
+    JsonValue(ArcJsonValue),
 
     /// Type information object with namespace and name properties
     TypeInfoObject {
@@ -176,7 +180,7 @@ impl<'de> Deserialize<'de> for FhirPathValue {
     }
 }
 
-/// Collection type that wraps an Arc slice for zero-copy operations
+/// Collection type that wraps an Arc slice for zero-copy operations with CoW semantics
 #[derive(Clone, PartialEq)]
 pub struct Collection(Arc<[FhirPathValue]>);
 
@@ -216,22 +220,22 @@ impl Collection {
         self.0.iter()
     }
 
-    /// Get a mutable iterator over the values
-    /// Note: This requires making a mutable copy due to Arc
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<FhirPathValue> {
-        Arc::make_mut(&mut self.0).iter_mut()
+    /// Get a mutable vector for bulk operations - this clones the data (CoW)
+    pub fn to_mut_vec(&mut self) -> Vec<FhirPathValue> {
+        self.0.to_vec()
     }
 
-    /// Push a value to the collection
-    /// Note: This creates a new Arc with the added value
-    pub fn push(&mut self, value: FhirPathValue) {
-        let mut vec: Vec<FhirPathValue> = self.0.to_vec();
-        vec.push(value);
+    /// Replace the collection contents with a new vector
+    pub fn replace_with_vec(&mut self, vec: Vec<FhirPathValue>) {
         self.0 = vec.into();
     }
 
-    /// Extend the collection with another
-    /// Note: This creates a new Arc with the combined values
+    /// Push a value to the collection using CoW semantics
+    pub fn push(&mut self, value: FhirPathValue) {
+        self.push_impl(value);
+    }
+
+    /// Extend the collection with another using CoW semantics
     pub fn extend(&mut self, other: Collection) {
         // Optimize for common cases
         if self.is_empty() {
@@ -290,6 +294,37 @@ impl Collection {
     /// Create a collection that shares data with this one (zero-copy clone)
     pub fn share(&self) -> Self {
         Self(Arc::clone(&self.0))
+    }
+
+    /// Check if we need to clone for mutation (CoW helper)
+    fn ensure_unique(&mut self) {
+        if Arc::strong_count(&self.0) > 1 {
+            // Multiple references exist - need to clone
+            let vec: Vec<FhirPathValue> = self.0.to_vec();
+            self.0 = vec.into();
+        }
+    }
+
+    /// Push a value to the collection, handling CoW by creating new Arc if needed
+    fn push_impl(&mut self, value: FhirPathValue) {
+        let mut vec: Vec<FhirPathValue> = self.0.to_vec();
+        vec.push(value);
+        self.0 = vec.into();
+    }
+
+    /// Check if this collection has unique ownership (no other references)
+    pub fn is_unique(&self) -> bool {
+        Arc::strong_count(&self.0) == 1
+    }
+
+    /// Check if mutation is possible without cloning
+    pub fn can_mutate_inplace(&self) -> bool {
+        self.is_unique()
+    }
+
+    /// Clone the inner data if needed for mutation
+    pub fn clone_for_mutation(&self) -> Vec<FhirPathValue> {
+        self.0.to_vec()
     }
 
     /// Append a value, creating a new collection (preserves immutability)
@@ -429,11 +464,22 @@ impl FhirPathValue {
         Self::Resource(Arc::new(resource))
     }
 
+    /// Create a JSON value with CoW semantics
+    pub fn json_value(value: Value) -> Self {
+        Self::JsonValue(ArcJsonValue::new(value))
+    }
+
+    /// Create a JSON value from an Arc for zero-copy sharing
+    pub fn json_value_from_arc(arc_json: ArcJsonValue) -> Self {
+        Self::JsonValue(arc_json)
+    }
+
     /// Check if the value is empty (empty collection or Empty variant)
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Empty => true,
             Self::Collection(items) => items.is_empty(),
+            Self::JsonValue(json) => json.is_null(),
             _ => false,
         }
     }
@@ -443,6 +489,7 @@ impl FhirPathValue {
         match self {
             Self::Collection(items) => items.len() == 1,
             Self::Empty => false,
+            Self::JsonValue(json) => !json.is_null(),
             _ => true,
         }
     }
@@ -452,6 +499,13 @@ impl FhirPathValue {
         match self {
             Self::Collection(items) => items.len(),
             Self::Empty => 0,
+            Self::JsonValue(json) => {
+                if json.is_null() {
+                    0
+                } else {
+                    1
+                }
+            }
             _ => 1,
         }
     }
@@ -461,6 +515,7 @@ impl FhirPathValue {
         match self {
             Self::Collection(items) => items,
             Self::Empty => Collection::new(),
+            Self::JsonValue(json) if json.is_null() => Collection::new(),
             single => Collection::from_vec(vec![single]),
         }
     }
@@ -470,6 +525,7 @@ impl FhirPathValue {
         match self {
             Self::Collection(items) => items.first(),
             Self::Empty => None,
+            Self::JsonValue(json) if json.is_null() => None,
             single => Some(single),
         }
     }
@@ -482,6 +538,14 @@ impl FhirPathValue {
             Self::Decimal(d) => Some(!d.is_zero()),
             Self::String(s) => Some(!s.is_empty()),
             Self::Collection(items) => Some(!items.is_empty()),
+            Self::JsonValue(json) => match json.as_json() {
+                Value::Bool(b) => Some(*b),
+                Value::Null => Some(false),
+                Value::String(s) => Some(!s.is_empty()),
+                Value::Number(n) => Some(n.as_f64().is_some_and(|f| f != 0.0)),
+                Value::Array(arr) => Some(!arr.is_empty()),
+                Value::Object(obj) => Some(!obj.is_empty()),
+            },
             Self::Empty => Some(false),
             _ => None,
         }
@@ -498,6 +562,13 @@ impl FhirPathValue {
             Self::DateTime(dt) => Some(dt.to_rfc3339()),
             Self::Time(t) => Some(t.format("%H:%M:%S").to_string()),
             Self::Quantity(q) => Some(q.to_string()),
+            Self::JsonValue(json) => match json.as_json() {
+                Value::String(s) => Some(s.clone()),
+                Value::Bool(b) => Some(b.to_string()),
+                Value::Number(n) => Some(n.to_string()),
+                Value::Null => Some("".to_string()),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -515,6 +586,7 @@ impl FhirPathValue {
             Self::Quantity(_) => "Quantity",
             Self::Collection(_) => "Collection",
             Self::Resource(_) => "Resource",
+            Self::JsonValue(_) => "JsonValue",
             Self::TypeInfoObject { .. } => "TypeInfo",
             Self::Empty => "Empty",
         }
@@ -544,6 +616,7 @@ impl FhirPathValue {
                 TypeInfo::Resource(resource.resource_type().unwrap_or("Unknown").to_string())
             }
             Self::TypeInfoObject { .. } => TypeInfo::Any, // TypeInfo objects don't have a type themselves
+            Self::JsonValue(_) => TypeInfo::Any,          // JsonValue can be any type
             Self::Empty => TypeInfo::Any,
         }
     }
@@ -595,12 +668,56 @@ impl FhirPathValue {
                 | (DateTime(_), DateTime(_))
                 | (Time(_), Time(_))
                 | (Quantity(_), Quantity(_))
+                | (JsonValue(_), JsonValue(_))
                 | (TypeInfoObject { .. }, TypeInfoObject { .. })
         )
     }
+
+    /// Get a shared reference to JSON data with CoW semantics
+    pub fn as_json_cow(&self) -> Option<&ArcJsonValue> {
+        match self {
+            Self::JsonValue(json) => Some(json),
+            _ => None,
+        }
+    }
+
+    /// Clone JSON data for mutation (CoW operation)
+    pub fn clone_json_for_mutation(&self) -> Option<Value> {
+        match self {
+            Self::JsonValue(json) => Some(json.clone_inner()),
+            _ => None,
+        }
+    }
+
+    /// Try to get JSON property with zero-copy access
+    pub fn get_json_property(&self, key: &str) -> Option<FhirPathValue> {
+        match self {
+            Self::JsonValue(json) => json.get_property(key).map(Self::JsonValue),
+            _ => None,
+        }
+    }
+
+    /// Try to get JSON array element with zero-copy access
+    pub fn get_json_index(&self, index: usize) -> Option<FhirPathValue> {
+        match self {
+            Self::JsonValue(json) => json.get_index(index).map(Self::JsonValue),
+            _ => None,
+        }
+    }
+
+    /// Check if this value shares memory with another (useful for CoW optimization)
+    pub fn shares_memory_with(&self, other: &FhirPathValue) -> bool {
+        match (self, other) {
+            (Self::Collection(c1), Self::Collection(c2)) => Arc::ptr_eq(c1.as_arc(), c2.as_arc()),
+            (Self::JsonValue(j1), Self::JsonValue(j2)) => Arc::ptr_eq(j1.as_arc(), j2.as_arc()),
+            (Self::Resource(r1), Self::Resource(r2)) => Arc::ptr_eq(r1, r2),
+            (Self::Quantity(q1), Self::Quantity(q2)) => Arc::ptr_eq(q1, q2),
+            _ => false,
+        }
+    }
 }
 
-/// Convert from serde_json::Value to FhirPathValue
+/// Convert from serde_json::Value to FhirPathValue with CoW optimization
 impl From<Value> for FhirPathValue {
     fn from(value: Value) -> Self {
         match value {
@@ -672,10 +789,13 @@ impl From<Value> for FhirPathValue {
                     }
                 }
 
-                // Otherwise treat as a resource (Arc-optimized)
-                Self::Resource(Arc::new(FhirResource::from_arc_json(
-                    super::json_arc::ArcJsonValue::new(value),
-                )))
+                // If this looks like a FHIR Resource (has resourceType), wrap as Resource
+                if obj.get("resourceType").and_then(|v| v.as_str()).is_some() {
+                    return Self::Resource(Arc::new(FhirResource::from_json(value)));
+                }
+
+                // For other complex JSON objects, use JsonValue with CoW semantics for sharing
+                Self::JsonValue(ArcJsonValue::new(value))
             }
             Value::Null => Self::Empty,
         }
@@ -712,6 +832,7 @@ impl From<FhirPathValue> for Value {
                 Value::Array(json_items)
             }
             FhirPathValue::Resource(resource) => resource.to_json(),
+            FhirPathValue::JsonValue(arc_json) => arc_json.into_owned(),
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 let mut obj = serde_json::Map::new();
                 obj.insert(
@@ -757,6 +878,7 @@ impl fmt::Display for FhirPathValue {
                 write!(f, "[{}]", item_strings.join(", "))
             }
             Self::Resource(resource) => write!(f, "{}", resource.to_json()),
+            Self::JsonValue(json) => write!(f, "{}", json.as_json()),
             Self::TypeInfoObject { namespace, name } => {
                 write!(f, "TypeInfo({namespace}.{name})")
             }
@@ -797,6 +919,7 @@ impl fmt::Debug for FhirPathValue {
                 write!(f, "Collection([{}])", item_strings.join(", "))
             }
             Self::Resource(resource) => write!(f, "Resource({})", resource.to_json()),
+            Self::JsonValue(json) => write!(f, "JsonValue({:?})", json.as_json()),
             Self::TypeInfoObject { namespace, name } => {
                 write!(f, "TypeInfo({namespace}.{name})")
             }
@@ -1001,10 +1124,10 @@ mod tests {
         let fhir_val = FhirPathValue::from(json_val.clone());
 
         match fhir_val {
-            FhirPathValue::Resource(_) => {
+            FhirPathValue::JsonValue(_) => {
                 // Expected
             }
-            _ => panic!("Expected Resource variant"),
+            _ => panic!("Expected JsonValue variant"),
         }
     }
 

@@ -27,6 +27,7 @@ impl StringInterner {
     }
 
     /// Intern a string, returning a shared Arc<str>
+    /// Uses similar pattern to tokenizer STRING_INTERNER for consistency
     pub fn intern<S: AsRef<str>>(&self, s: S) -> Arc<str> {
         let s_ref = s.as_ref();
 
@@ -35,19 +36,48 @@ impl StringInterner {
             return Arc::clone(&interned);
         }
 
-        // Slow path: intern the string
-        let owned = s_ref.to_string();
-        let interned: Arc<str> = Arc::from(owned.as_str());
+        // Slow path: intern the string with optimizations similar to tokenizer
+        // Only intern strings that are likely to be reused (reasonable length, simple content)
+        if self.should_intern(s_ref) {
+            let owned = s_ref.to_string();
+            let interned: Arc<str> = Arc::from(owned.as_str());
 
-        // Insert and return, handling potential race conditions
-        match self.cache.entry(owned) {
-            dashmap::mapref::entry::Entry::Occupied(entry) => Arc::clone(entry.get()),
-            dashmap::mapref::entry::Entry::Vacant(entry) => {
-                let result = Arc::clone(&interned);
-                entry.insert(interned);
-                result
+            // Insert and return, handling potential race conditions
+            match self.cache.entry(owned) {
+                dashmap::mapref::entry::Entry::Occupied(entry) => Arc::clone(entry.get()),
+                dashmap::mapref::entry::Entry::Vacant(entry) => {
+                    let result = Arc::clone(&interned);
+                    entry.insert(interned);
+                    result
+                }
             }
+        } else {
+            // Don't intern very long or unusual strings to avoid memory bloat
+            Arc::from(s_ref)
         }
+    }
+
+    /// Determine if a string should be interned (similar logic to tokenizer)
+    #[inline]
+    fn should_intern(&self, s: &str) -> bool {
+        // Intern strings up to reasonable length that are likely identifiers/common values
+        s.len() <= 64
+            && (s
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+                || self.is_common_fhir_pattern(s))
+    }
+
+    /// Check if string matches common FHIR patterns
+    #[inline]
+    fn is_common_fhir_pattern(&self, s: &str) -> bool {
+        // URLs, URIs, and common FHIR values
+        (s.starts_with("http://") && (s.contains("hl7.org") || s.contains("fhir")))
+            || (s.starts_with("https://") && (s.contains("hl7.org") || s.contains("fhir")))
+            || s.starts_with("urn:")
+            || s.starts_with("fhir:")
+            || s.contains("fhir.org")
+            || s.contains("hl7.org")
     }
 
     /// Get statistics about the interner
@@ -75,8 +105,9 @@ static GLOBAL_INTERNER: once_cell::sync::Lazy<StringInterner> = once_cell::sync:
     let interner = StringInterner::new();
 
     // Pre-intern common FHIRPath strings for performance
+    // Coordinate with tokenizer STRING_INTERNER patterns
     let common_strings = [
-        // Common property names
+        // Common property names (aligned with tokenizer patterns)
         "id",
         "resourceType",
         "name",
@@ -91,7 +122,25 @@ static GLOBAL_INTERNER: once_cell::sync::Lazy<StringInterner> = once_cell::sync:
         "status",
         "type",
         "url",
-        // Common function names
+        "reference",
+        "identifier",
+        "extension",
+        "coding",
+        "telecom",
+        "address",
+        "contact",
+        "active",
+        "version",
+        "date",
+        "description",
+        "subject",
+        "encounter",
+        "performer",
+        "issued",
+        "category",
+        "component",
+        "interpretation",
+        // Common function names (matching tokenizer common_identifiers)
         "where",
         "select",
         "first",
@@ -106,6 +155,20 @@ static GLOBAL_INTERNER: once_cell::sync::Lazy<StringInterner> = once_cell::sync:
         "flatten",
         "skip",
         "take",
+        "single",
+        "ofType",
+        "hasValue",
+        "trace",
+        "toString",
+        "toInteger",
+        "toDecimal",
+        "substring",
+        "startsWith",
+        "endsWith",
+        "matches",
+        "replaceMatches",
+        "join",
+        "combine",
         // Common operators and keywords
         "and",
         "or",
@@ -114,12 +177,19 @@ static GLOBAL_INTERNER: once_cell::sync::Lazy<StringInterner> = once_cell::sync:
         "as",
         "in",
         "contains",
+        "memberOf",
+        "subsetOf",
+        "supersetOf",
+        "implies",
+        "xor",
+        "div",
+        "mod",
         // Common literals
         "true",
         "false",
         "null",
         "",
-        // Common resource types
+        // Common resource types (expanded for better coverage)
         "Patient",
         "Observation",
         "Encounter",
@@ -129,6 +199,40 @@ static GLOBAL_INTERNER: once_cell::sync::Lazy<StringInterner> = once_cell::sync:
         "Medication",
         "Bundle",
         "Organization",
+        "Practitioner",
+        "Location",
+        "Device",
+        "Specimen",
+        "ValueSet",
+        "CodeSystem",
+        "StructureDefinition",
+        "OperationOutcome",
+        "Parameters",
+        "Binary",
+        "DocumentReference",
+        "Composition",
+        // Common FHIR URLs and systems
+        "http://hl7.org/fhir",
+        "http://terminology.hl7.org",
+        "http://snomed.info/sct",
+        "http://loinc.org",
+        "http://unitsofmeasure.org",
+        "urn:iso:std:iso:3166",
+        "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "http://fdasis.nlm.nih.gov",
+        // Common status values
+        "active",
+        "inactive",
+        "pending",
+        "completed",
+        "cancelled",
+        "on-hold",
+        "stopped",
+        "unknown",
+        "final",
+        "preliminary",
+        "registered",
+        "partial",
     ];
 
     for s in &common_strings {
@@ -146,6 +250,23 @@ pub fn intern_string<S: AsRef<str>>(s: S) -> Arc<str> {
 /// Get statistics from the global interner
 pub fn global_interner_stats() -> InternerStats {
     GLOBAL_INTERNER.stats()
+}
+
+/// Get global interner statistics in tokenizer-compatible format
+/// Returns (entries, estimated_capacity) similar to tokenizer interner_stats()
+pub fn global_interner_stats_compat() -> (usize, usize) {
+    let stats = GLOBAL_INTERNER.stats();
+    (stats.entries, stats.entries * 2) // Estimate capacity like DashMap
+}
+
+/// Check if a string is already interned globally (useful for debugging)
+pub fn is_interned<S: AsRef<str>>(s: S) -> bool {
+    GLOBAL_INTERNER.cache.contains_key(s.as_ref())
+}
+
+/// Clear the global interner (useful for testing coordination)
+pub fn clear_global_interner() {
+    GLOBAL_INTERNER.clear();
 }
 
 #[cfg(test)]
@@ -189,5 +310,53 @@ mod tests {
         interner.intern("a"); // Should not increase count
 
         assert_eq!(interner.stats().entries, 2);
+    }
+
+    #[test]
+    fn test_should_intern_patterns() {
+        let interner = StringInterner::new();
+
+        // Should intern simple identifiers
+        assert!(interner.should_intern("resourceType"));
+        assert!(interner.should_intern("patient_name"));
+        assert!(interner.should_intern("value.code"));
+
+        // Should intern FHIR URLs
+        assert!(interner.should_intern("http://hl7.org/fhir/Patient"));
+        assert!(interner.should_intern("https://terminology.hl7.org/CodeSystem/test"));
+
+        // Should NOT intern very long strings
+        let long_string = "a".repeat(100);
+        assert!(!interner.should_intern(&long_string));
+
+        // Should NOT intern strings with unusual characters
+        assert!(!interner.should_intern("test@#$%"));
+    }
+
+    #[test]
+    fn test_coordination_functions() {
+        clear_global_interner(); // Reset for test
+
+        let s1 = intern_string("test_coord");
+        assert!(is_interned("test_coord"));
+        assert!(!is_interned("not_interned"));
+
+        let stats = global_interner_stats_compat();
+        assert!(stats.0 > 0); // Should have entries from pre-population
+        assert!(stats.1 > 0); // Should have estimated capacity
+    }
+
+    #[test]
+    fn test_fhir_pattern_recognition() {
+        let interner = StringInterner::new();
+
+        // FHIR URLs should be recognized
+        assert!(interner.is_common_fhir_pattern("http://hl7.org/fhir/Patient"));
+        assert!(interner.is_common_fhir_pattern("https://terminology.hl7.org/test"));
+        assert!(interner.is_common_fhir_pattern("urn:oid:1.2.3.4"));
+
+        // Non-FHIR patterns should not match
+        assert!(!interner.is_common_fhir_pattern("regular_identifier"));
+        assert!(!interner.is_common_fhir_pattern("http://example.com"));
     }
 }

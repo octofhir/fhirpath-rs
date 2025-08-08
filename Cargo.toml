@@ -21,7 +21,12 @@ include = [
     "LICENSE",
     "CHANGELOG.md",
 ]
-exclude = ["src/bin/extract_benchmark_metrics.rs", "src/bin/test_runner.rs", "src/bin/perf-test.rs", "src/bin/memory_audit.rs"]
+exclude = [
+    "src/bin/extract_benchmark_metrics.rs",
+    "src/bin/test_runner.rs",
+    "src/bin/perf-test.rs",
+    "src/bin/memory_audit.rs",
+]
 
 [lib]
 name = "octofhir_fhirpath"
@@ -43,7 +48,6 @@ path = "src/bin/octofhir_fhirpath.rs"
 [[bin]]
 name = "profile-expressions"
 path = "src/bin/profile_expressions.rs"
-
 
 
 [dependencies]
@@ -110,7 +114,6 @@ tokio = { version = "1.47.0", features = [
 [features]
 default = ["tokio-runtime"]
 tokio-runtime = ["tokio"]
-async-std-runtime = ["async-std"]
 http-functions = ["reqwest"]
 lsp = ["lsp-types", "colored"]
 network = ["reqwest", "tokio"]
@@ -119,4 +122,3 @@ serde = []
 terminal = ["colored"]
 async-schema = ["tokio"]
 profiling = ["dep:pprof"]
-never-enabled = []

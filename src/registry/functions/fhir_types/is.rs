@@ -193,6 +193,15 @@ impl AsyncFhirPathFunction for IsFunction {
                     _ => false,
                 }
             }
+            FhirPathValue::JsonValue(_) => {
+                // JsonValue can match Object or Any type
+                match (namespace, type_name) {
+                    (None, "JsonValue") => true,
+                    (None, "Object") => true,
+                    (None, "Any") => true,
+                    _ => false,
+                }
+            }
             FhirPathValue::Empty => {
                 // Empty has no type
                 false

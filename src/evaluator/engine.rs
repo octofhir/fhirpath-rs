@@ -1123,8 +1123,33 @@ impl FhirPathEngine {
                 // Otherwise try to get the property
                 match resource.get_property(name) {
                     Some(value) => {
-                        // Convert all values using the standard conversion logic
-                        Ok(FhirPathValue::from(value.clone()))
+                        // Convert values properly handling arrays and objects
+                        match value {
+                            serde_json::Value::Object(_) => {
+                                // Wrap JSON objects as FhirResource so functions like resolve() can inspect fields
+                                Ok(FhirPathValue::Resource(Arc::new(
+                                    crate::model::FhirResource::from_json(value.clone()),
+                                )))
+                            }
+                            serde_json::Value::Array(arr) => {
+                                // Convert array elements, wrapping objects as FhirResources
+                                let mut results = Vec::new();
+                                for item in arr {
+                                    match item {
+                                        serde_json::Value::Object(_) => {
+                                            results.push(FhirPathValue::Resource(Arc::new(
+                                                crate::model::FhirResource::from_json(item.clone()),
+                                            )));
+                                        }
+                                        _ => {
+                                            results.push(FhirPathValue::from(item.clone()));
+                                        }
+                                    }
+                                }
+                                Ok(FhirPathValue::collection(results))
+                            }
+                            _ => Ok(FhirPathValue::from(value.clone())),
+                        }
                     }
                     None => Ok(FhirPathValue::Empty), // Return empty collection per FHIRPath spec
                 }
@@ -2277,6 +2302,10 @@ fn check_value_type(value: &FhirPathValue, type_name: &str) -> bool {
         }
         FhirPathValue::TypeInfoObject { .. } => {
             matches!(type_name, "TypeInfo" | "System.TypeInfo")
+        }
+        FhirPathValue::JsonValue(_) => {
+            // JsonValue can match various types depending on content
+            matches!(type_name, "JsonValue" | "Object" | "Any")
         }
     }
 }

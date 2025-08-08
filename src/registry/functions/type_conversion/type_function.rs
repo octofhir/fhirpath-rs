@@ -152,6 +152,10 @@ impl AsyncFhirPathFunction for TypeFunction {
                 namespace: "System".into(),
                 name: "TypeInfo".into(),
             },
+            FhirPathValue::JsonValue(_) => FhirPathValue::TypeInfoObject {
+                namespace: "System".into(),
+                name: "JsonValue".into(),
+            },
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
         };
         Ok(type_info)

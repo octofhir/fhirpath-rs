@@ -440,6 +440,7 @@ impl IntegrationTestRunner {
                 obj.insert("name".to_string(), Value::String(name.to_string()));
                 Value::Array(vec![Value::Object(obj)])
             }
+            FhirPathValue::JsonValue(json) => Value::Array(vec![json.as_json().clone()]),
         }
     }
 
@@ -486,6 +487,7 @@ impl IntegrationTestRunner {
                 obj.insert("name".to_string(), Value::String(name.to_string()));
                 Value::Object(obj)
             }
+            FhirPathValue::JsonValue(json) => json.as_json().clone(),
         }
     }
 

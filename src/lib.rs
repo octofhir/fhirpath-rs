@@ -13,7 +13,7 @@ pub mod registry;
 
 // Re-export main types
 pub use evaluator::{EvaluationContext, FhirPathEngine};
-pub use model::FhirPathValue;
+pub use model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
 pub use parser::{ParseError, parse_expression as parse};
 pub use registry::FunctionRegistry;
 
