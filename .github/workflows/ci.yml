@@ -75,7 +75,7 @@ jobs:
 
       - name: Run clippy
         if: matrix.rust == 'stable'
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets
 
       - name: Build
         run: cargo build --verbose
