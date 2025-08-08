@@ -31,6 +31,10 @@ path = "src/lib.rs"
 name = "fhirpath_benchmark"
 harness = false
 
+[[bench]]
+name = "bundle_optimization_baseline"
+harness = false
+
 [[bin]]
 name = "octofhir-fhirpath"
 path = "src/bin/octofhir_fhirpath.rs"
@@ -71,7 +75,7 @@ typed-arena = "2.0.2"
 bumpalo = { version = "3.16", features = ["collections"] }
 unicode-xid = "0.2.6"
 once_cell = "1.21"
-pprof = { version = "0.15.0", features = ["flamegraph"] }
+pprof = { version = "0.15.0", features = ["flamegraph"], optional = true }
 
 # Async dependencies
 async-trait = "0.1"
@@ -114,4 +118,5 @@ diagnostics = ["colored"]
 serde = []
 terminal = ["colored"]
 async-schema = ["tokio"]
+profiling = ["dep:pprof"]
 never-enabled = []

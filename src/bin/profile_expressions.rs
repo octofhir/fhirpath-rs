@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use octofhir_fhirpath::engine::FhirPathEngine;
+#[cfg(feature = "profiling")]
 use pprof::ProfilerGuardBuilder;
 use serde::Serialize;
 use serde_json::Value;
@@ -157,6 +158,7 @@ fn profile_expression(
     }
 
     // Run inside profiler
+    #[cfg(feature = "profiling")]
     let guard = ProfilerGuardBuilder::default()
         .frequency(frequency_hz)
         .blocklist(&[
@@ -187,12 +189,21 @@ fn profile_expression(
     );
 
     // Build and write the flamegraph
+    #[cfg(feature = "profiling")]
     if let Ok(report) = guard.report().build() {
         let mut file = File::create(output_svg)
             .with_context(|| format!("creating {}", output_svg.display()))?;
         report.flamegraph(&mut file).context("writing flamegraph")?;
+        println!("Flamegraph written to {}", output_svg.display());
     } else {
         eprintln!("Warning: profiler report not available (insufficient samples?)");
+    }
+
+    #[cfg(not(feature = "profiling"))]
+    {
+        eprintln!(
+            "Note: Profiling feature not enabled. Run with --features profiling to generate flamegraph."
+        );
     }
 
     Ok(EvalStats {

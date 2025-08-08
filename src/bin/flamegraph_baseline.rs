@@ -1,6 +1,7 @@
 //! Generate flamegraph for baseline performance
 
 use octofhir_fhirpath::engine::FhirPathEngine;
+#[cfg(feature = "profiling")]
 use pprof::ProfilerGuard;
 use serde_json::Value;
 use std::fs;
@@ -16,6 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Running complex Bundle operation for flamegraph profiling...");
 
+    #[cfg(feature = "profiling")]
     let guard = ProfilerGuard::new(100)?;
 
     let mut engine = FhirPathEngine::new();
@@ -28,10 +30,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    #[cfg(feature = "profiling")]
     if let Ok(report) = guard.report().build() {
         let file = std::fs::File::create("opt/flamegraphs/baseline_flamegraph.svg")?;
         report.flamegraph(file)?;
         println!("Flamegraph saved to opt/flamegraphs/baseline_flamegraph.svg");
+    }
+
+    #[cfg(not(feature = "profiling"))]
+    {
+        println!(
+            "Profiling feature not enabled. Run with --features profiling to generate flamegraph."
+        );
     }
 
     println!("Flamegraph profiling completed!");

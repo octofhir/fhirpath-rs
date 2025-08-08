@@ -4,6 +4,7 @@
 //\! It implements both traditional AST interpretation and high-performance bytecode VM execution
 //\! with automatic hybrid strategy selection for optimal performance.
 
+pub mod bundle_arc;
 #[warn(missing_docs)]
 mod context;
 mod engine;
