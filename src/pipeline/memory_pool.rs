@@ -77,7 +77,7 @@ pub struct AsyncPool<T> {
 impl<T> Default for AsyncPool<T>
 where
     T: Default + Clone + Send + Sync + 'static,
- {
+{
     fn default() -> Self {
         Self::new()
     }

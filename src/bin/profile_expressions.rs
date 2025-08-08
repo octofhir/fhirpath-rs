@@ -135,8 +135,7 @@ fn main() -> Result<()> {
 fn load_fixture(name: &str) -> Result<Value> {
     let path = format!("benches/fixtures/{name}.json");
     let contents = read_to_string(&path).with_context(|| format!("reading {path}"))?;
-    let json: Value =
-        serde_json::from_str(&contents).with_context(|| format!("parsing {path}"))?;
+    let json: Value = serde_json::from_str(&contents).with_context(|| format!("parsing {path}"))?;
     Ok(json)
 }
 

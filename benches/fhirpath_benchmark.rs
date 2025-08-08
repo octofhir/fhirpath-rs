@@ -197,8 +197,7 @@ fn bench_string_interning_performance(c: &mut Criterion) {
             let interner = StringInterner::new();
 
             // Create base set of strings
-            let base_strings: Vec<String> =
-                (0..100).map(|i| format!("base_string_{i}")).collect();
+            let base_strings: Vec<String> = (0..100).map(|i| format!("base_string_{i}")).collect();
 
             // Intern base strings multiple times to test hit rate
             for _ in 0..10 {
