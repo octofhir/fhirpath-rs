@@ -672,8 +672,10 @@ impl From<Value> for FhirPathValue {
                     }
                 }
 
-                // Otherwise treat as a resource
-                Self::Resource(Arc::new(FhirResource::from_json(value)))
+                // Otherwise treat as a resource (Arc-optimized)
+                Self::Resource(Arc::new(FhirResource::from_arc_json(
+                    super::json_arc::ArcJsonValue::new(value),
+                )))
             }
             Value::Null => Self::Empty,
         }

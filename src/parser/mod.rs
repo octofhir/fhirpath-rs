@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+pub mod ast_cache;
 pub mod error;
 pub mod error_recovery;
 pub mod lexer;
@@ -12,6 +13,10 @@ pub mod pratt;
 pub mod span;
 pub mod tokenizer;
 
+pub use ast_cache::{
+    AstCache, AstCacheConfig, AstCacheStats, SharedAst, cache_ast, get_cached_ast,
+    global_ast_cache, global_ast_cache_stats,
+};
 pub use error::{ParseError, ParseResult};
 pub use error_recovery::{
     RecoveryAnalysis, RecoveryResult, RecoveryStrategy, analyze_recovery_potential,

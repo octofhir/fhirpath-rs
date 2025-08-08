@@ -1,13 +1,14 @@
 //! FHIR resource wrapper types
 
+use super::json_arc::ArcJsonValue;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Represents a FHIR resource or complex object
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FhirResource {
-    /// The JSON representation of the resource
-    data: Value,
+    /// The JSON representation of the resource (Arc-wrapped for efficiency)
+    data: ArcJsonValue,
     /// Optional resource type for optimization
     resource_type: Option<String>,
 }
@@ -22,18 +23,37 @@ impl FhirResource {
             .map(|s| s.to_string());
 
         Self {
+            data: ArcJsonValue::new(data),
+            resource_type,
+        }
+    }
+
+    /// Create a new FHIR resource from ArcJsonValue (zero-copy)
+    pub fn from_arc_json(data: ArcJsonValue) -> Self {
+        let resource_type = data
+            .as_object()
+            .and_then(|obj| obj.get("resourceType"))
+            .and_then(|rt| rt.as_str())
+            .map(|s| s.to_string());
+
+        Self {
             data,
             resource_type,
         }
     }
 
-    /// Get the JSON representation
+    /// Get the JSON representation (clones only if necessary)
     pub fn to_json(&self) -> Value {
-        self.data.clone()
+        self.data.clone_inner()
     }
 
     /// Get a reference to the JSON data
     pub fn as_json(&self) -> &Value {
+        self.data.as_json()
+    }
+
+    /// Get the ArcJsonValue for efficient sharing
+    pub fn as_arc_json(&self) -> &ArcJsonValue {
         &self.data
     }
 
@@ -45,7 +65,7 @@ impl FhirResource {
     /// Get a property value by path
     pub fn get_property(&self, path: &str) -> Option<&Value> {
         // Handle simple property access on JSON objects
-        match &self.data {
+        match self.data.as_json() {
             Value::Object(obj) => {
                 // First try direct property access
                 if let Some(value) = obj.get(path) {
@@ -69,12 +89,32 @@ impl FhirResource {
         }
     }
 
+    /// Get a property value by path (Arc-optimized version)
+    pub fn get_property_arc(&self, path: &str) -> Option<ArcJsonValue> {
+        // Use the efficient Arc-based property access
+        let result = self.data.get_property(path);
+
+        // Handle FHIR polymorphic properties if direct access failed
+        if result.is_none() && path == "value" {
+            if let Value::Object(obj) = self.data.as_json() {
+                // Look for value[x] properties
+                for key in obj.keys() {
+                    if key.starts_with("value") && key.len() > 5 {
+                        return self.data.get_property(key);
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
     /// Get a property value by path, supporting nested navigation
     pub fn get_property_deep(&self, path: &str) -> Option<&Value> {
         // Handle dot notation for nested property access
         if path.contains('.') {
             let parts: Vec<&str> = path.split('.').collect();
-            let mut current = &self.data;
+            let mut current = self.data.as_json();
 
             for part in parts {
                 match current {
@@ -102,7 +142,7 @@ impl FhirResource {
 
     /// Get all properties as a vector of (key, value) pairs
     pub fn properties(&self) -> Vec<(&str, &Value)> {
-        match &self.data {
+        match self.data.as_json() {
             Value::Object(obj) => obj.iter().map(|(k, v)| (k.as_str(), v)).collect(),
             _ => Vec::new(),
         }
@@ -110,7 +150,7 @@ impl FhirResource {
 
     /// Check if this is a primitive extension
     pub fn is_primitive_extension(&self, property: &str) -> bool {
-        if let Value::Object(obj) = &self.data {
+        if let Value::Object(obj) = self.data.as_json() {
             obj.contains_key(&format!("_{property}"))
         } else {
             false
@@ -119,10 +159,43 @@ impl FhirResource {
 
     /// Get the primitive extension for a property
     pub fn get_primitive_extension(&self, property: &str) -> Option<&Value> {
-        match &self.data {
+        match self.data.as_json() {
             Value::Object(obj) => obj.get(&format!("_{property}")),
             _ => None,
         }
+    }
+}
+
+// Custom Serialize implementation
+impl Serialize for FhirResource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.data.as_json().serialize(serializer)
+    }
+}
+
+// Custom Deserialize implementation
+impl<'de> Deserialize<'de> for FhirResource {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        Ok(FhirResource::from_json(value))
+    }
+}
+
+impl From<ArcJsonValue> for FhirResource {
+    fn from(data: ArcJsonValue) -> Self {
+        Self::from_arc_json(data)
+    }
+}
+
+impl From<Value> for FhirResource {
+    fn from(data: Value) -> Self {
+        Self::from_json(data)
     }
 }
 

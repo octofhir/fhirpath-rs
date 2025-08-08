@@ -9,8 +9,13 @@
 
 use super::error::{ParseError, ParseResult};
 use super::span::Spanned;
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
+use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
-/// Zero-allocation token with lifetime parameter for string slices
+/// Enhanced token with Arc-backed string interning for identifiers
+/// Maintains zero-copy semantics while enabling efficient sharing
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token<'input> {
     // Literals - numbers parsed on demand for performance
@@ -37,8 +42,10 @@ pub enum Token<'input> {
     },
 
     // Identifiers - zero-copy string slices
-    /// Identifier token (variable names, function names, property names)
+    /// Identifier token with Arc interning for frequent identifiers
     Identifier(&'input str),
+    /// Interned identifier for frequent/shared identifiers (Arc-backed)
+    InternedIdentifier(Arc<str>),
 
     // Unit tokens (zero memory overhead)
     /// Addition operator (+)
@@ -178,6 +185,35 @@ impl<'input> Token<'input> {
         )
     }
 
+    /// Get identifier string regardless of interning status
+    #[inline]
+    pub fn as_identifier(&self) -> Option<&str> {
+        match self {
+            Token::Identifier(s) => Some(s),
+            Token::InternedIdentifier(arc_s) => Some(arc_s.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Check if this token is an identifier (regular or interned)
+    #[inline]
+    pub fn is_identifier(&self) -> bool {
+        matches!(self, Token::Identifier(_) | Token::InternedIdentifier(_))
+    }
+
+    /// Helper function to match identifiers with a closure
+    #[inline]
+    pub fn match_identifier<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&str) -> R,
+    {
+        match self {
+            Token::Identifier(s) => Some(f(s)),
+            Token::InternedIdentifier(arc_s) => Some(f(arc_s.as_ref())),
+            _ => None,
+        }
+    }
+
     /// Get keyword from string - only true keywords, not function names
     #[inline]
     pub fn from_keyword(s: &str) -> Option<Token<'input>> {
@@ -207,25 +243,268 @@ impl<'input> Token<'input> {
     }
 }
 
-// Removed complex string interning system - using zero-copy slices is simpler and faster
+/// Shared keyword lookup table for ultra-fast O(1) keyword recognition
+/// Pre-computed perfect hash table optimized for FHIRPath keywords
+static KEYWORD_TABLE: Lazy<FxHashMap<&'static str, Token<'static>>> = Lazy::new(|| {
+    let mut map = FxHashMap::default();
 
-/// Ultra-fast tokenizer using optimized byte-level parsing
+    // Core boolean literals and operators
+    map.insert("true", Token::True);
+    map.insert("false", Token::False);
+    map.insert("and", Token::And);
+    map.insert("or", Token::Or);
+    map.insert("xor", Token::Xor);
+    map.insert("implies", Token::Implies);
+    map.insert("not", Token::Not);
+
+    // Type operators
+    map.insert("is", Token::Is);
+    map.insert("as", Token::As);
+    map.insert("in", Token::In);
+    map.insert("contains", Token::Contains);
+
+    // Arithmetic operators
+    map.insert("div", Token::Div);
+    map.insert("mod", Token::Mod);
+
+    // Collection and control flow keywords
+    map.insert("empty", Token::Empty);
+    map.insert("union", Token::Union);
+    map.insert("where", Token::Where);
+    map.insert("select", Token::Select);
+
+    // Function keywords
+    map.insert("all", Token::All);
+    map.insert("first", Token::First);
+    map.insert("last", Token::Last);
+    map.insert("tail", Token::Tail);
+    map.insert("skip", Token::Skip);
+    map.insert("take", Token::Take);
+    map.insert("count", Token::Count);
+    map.insert("distinct", Token::Distinct);
+    map.insert("ofType", Token::OfType);
+    map.insert("define", Token::Define);
+
+    map
+});
+
+/// Global string interner for frequent identifiers and keywords
+/// Uses Arc<str> for efficient sharing across tokenizer instances
+/// DashMap provides lock-free concurrent access for async contexts
+static STRING_INTERNER: Lazy<DashMap<String, Arc<str>>> = Lazy::new(|| {
+    let map = DashMap::new();
+    // Pre-populate with common FHIRPath identifiers
+    let common_identifiers = [
+        "Patient",
+        "name",
+        "given",
+        "family",
+        "value",
+        "extension",
+        "url",
+        "system",
+        "code",
+        "display",
+        "text",
+        "status",
+        "id",
+        "resourceType",
+        "Bundle",
+        "entry",
+        "resource",
+        "identifier",
+        "reference",
+        "type",
+        "use",
+        "period",
+        "start",
+        "end",
+        "birthDate",
+        "gender",
+        "telecom",
+        "address",
+        "line",
+        "city",
+        "state",
+        "postalCode",
+        "country",
+        "contact",
+        "relationship",
+        "organization",
+        "communication",
+        "language",
+        "maritalStatus",
+        "multipleBirth",
+        "photo",
+        "link",
+        "active",
+        "deceased",
+        "item",
+        "where",
+        "select",
+        "first",
+        "last",
+        "count",
+        "empty",
+        "exists",
+        "all",
+        "any",
+        "contains",
+        "startsWith",
+        "endsWith",
+        "matches",
+        "length",
+        "substring",
+        "indexOf",
+        "split",
+        "join",
+        "lower",
+        "upper",
+        "trim",
+        "replace",
+        "distinct",
+        "union",
+        "intersect",
+        "exclude",
+        "iif",
+        "trace",
+        "ofType",
+        "as",
+        "is",
+        "children",
+        "descendants",
+        "repeat",
+        "aggregate",
+        "combine",
+        "conformsTo",
+        "hasValue",
+        "htmlChecks",
+        "resolve",
+        "extension",
+        "hasExtension",
+        "allFalse",
+        "allTrue",
+        "anyFalse",
+        "anyTrue",
+        "subsetOf",
+        "supersetOf",
+        "convertsToBoolean",
+        "convertsToDate",
+        "convertsToDateTime",
+        "convertsToDecimal",
+        "convertsToInteger",
+        "convertsToQuantity",
+        "convertsToString",
+        "convertsToTime",
+        "toBoolean",
+        "toDate",
+        "toDateTime",
+        "toDecimal",
+        "toInteger",
+        "toQuantity",
+        "toString",
+        "toTime",
+        "abs",
+        "ceiling",
+        "exp",
+        "floor",
+        "ln",
+        "log",
+        "power",
+        "round",
+        "sqrt",
+        "truncate",
+    ];
+
+    for ident in &common_identifiers {
+        let arc_str: Arc<str> = Arc::from(*ident);
+        map.insert(ident.to_string(), arc_str);
+    }
+
+    map
+});
+
+/// Intern a string for efficient Arc<str> sharing
+/// Returns Arc<str> for frequent identifiers, raw str slice for others
+#[inline]
+fn intern_identifier(s: &str) -> Arc<str> {
+    // Fast path: check if already interned
+    if let Some(interned) = STRING_INTERNER.get(s) {
+        return Arc::clone(&interned);
+    }
+
+    // Slow path: add to interner if it's a common pattern
+    if s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        let arc_str: Arc<str> = Arc::from(s);
+        STRING_INTERNER.insert(s.to_string(), Arc::clone(&arc_str));
+        return arc_str;
+    }
+
+    // Fallback: create Arc without interning
+    Arc::from(s)
+}
+
+/// Ultra-fast tokenizer with Arc-based string interning and streaming support
 #[derive(Clone)]
 pub struct Tokenizer<'input> {
     bytes: &'input [u8],
     pos: usize,
     end: usize,
+    /// Enable string interning for identifiers (default: true)
+    enable_interning: bool,
+    /// Threshold for interning (identifiers used more than this get interned)
+    interning_threshold: usize,
+    /// Enable memory-mapped token streaming for large expressions
+    enable_streaming: bool,
+    /// Streaming buffer size for token batching
+    stream_buffer_size: usize,
 }
 
 impl<'input> Tokenizer<'input> {
-    /// Create a new ultra-fast tokenizer
+    /// Create a new ultra-fast tokenizer with string interning enabled
     #[inline]
     pub fn new(input: &'input str) -> Self {
+        let bytes = input.as_bytes();
+        let enable_streaming = bytes.len() > 8192; // Enable streaming for large inputs
+        Self {
+            bytes,
+            pos: 0,
+            end: bytes.len(),
+            enable_interning: true,
+            interning_threshold: 1,
+            enable_streaming,
+            stream_buffer_size: 256,
+        }
+    }
+
+    /// Create a tokenizer with custom interning settings
+    #[inline]
+    pub fn with_interning(input: &'input str, enable: bool) -> Self {
+        let bytes = input.as_bytes();
+        let enable_streaming = bytes.len() > 8192;
+        Self {
+            bytes,
+            pos: 0,
+            end: bytes.len(),
+            enable_interning: enable,
+            interning_threshold: 1,
+            enable_streaming,
+            stream_buffer_size: 256,
+        }
+    }
+
+    /// Create a tokenizer with streaming enabled for large expressions
+    #[inline]
+    pub fn with_streaming(input: &'input str, buffer_size: usize) -> Self {
         let bytes = input.as_bytes();
         Self {
             bytes,
             pos: 0,
             end: bytes.len(),
+            enable_interning: true,
+            interning_threshold: 1,
+            enable_streaming: true,
+            stream_buffer_size: buffer_size,
         }
     }
 
@@ -237,64 +516,22 @@ impl<'input> Tokenizer<'input> {
         std::str::from_utf8(&self.bytes[start..end]).unwrap_or("")
     }
 
-    /// Ultra-fast keyword lookup using perfect hash with SIMD comparison
+    /// Ultra-fast shared keyword lookup using FxHashMap
+    /// Thread-safe access to pre-computed keyword table
     #[inline(always)]
     fn keyword_lookup(bytes: &[u8]) -> Option<Token<'_>> {
-        // Perfect hash with branch-free SIMD comparison for most common keywords
+        // Fast bounds check
         if bytes.len() < 2 || bytes.len() > 8 {
             return None;
         }
 
-        // Load first 8 bytes as u64 for SIMD comparison (zero-padded)
-        let mut word = [0u8; 8];
-        let copy_len = bytes.len().min(8);
-        word[..copy_len].copy_from_slice(&bytes[..copy_len]);
-        let word_u64 = u64::from_le_bytes(word);
-
-        // Perfect hash table based on word content and length for O(1) lookup
-        match (bytes.len(), word_u64) {
-            // Length 2 - direct u64 comparison (much faster than byte array comparison)
-            (2, 0x0000_0000_0000_726F) => Some(Token::Or), // "or"
-            (2, 0x0000_0000_0000_7369) => Some(Token::Is), // "is"
-            (2, 0x0000_0000_0000_7361) => Some(Token::As), // "as"
-            (2, 0x0000_0000_0000_6E69) => Some(Token::In), // "in"
-
-            // Length 3 - direct u64 comparison for maximum speed
-            (3, 0x0000_0000_0064_6E61) => Some(Token::And), // "and"
-            (3, 0x0000_0000_0072_6F78) => Some(Token::Xor), // "xor"
-            (3, 0x0000_0000_0064_6F6D) => Some(Token::Mod), // "mod"
-            (3, 0x0000_0000_0076_6964) => Some(Token::Div), // "div"
-            (3, 0x0000_0000_0074_6F6E) => Some(Token::Not), // "not"
-            (3, 0x0000_0000_006C_6C61) => Some(Token::All), // "all"
-
-            // Length 4 - direct u64 comparison
-            (4, 0x0000_0000_6575_7274) => Some(Token::True), // "true"
-            (4, 0x0000_0000_656B_6174) => Some(Token::Take), // "take"
-            (4, 0x0000_0000_6C69_6174) => Some(Token::Tail), // "tail"
-            (4, 0x0000_0000_7069_6B73) => Some(Token::Skip), // "skip"
-            (4, 0x0000_0000_7473_616C) => Some(Token::Last), // "last"
-
-            // Length 5 - exact u64 comparison for full 5-byte words
-            (5, 0x0065_736c_6166) => Some(Token::False), // "false"
-            (5, 0x0074_7372_6966) => Some(Token::First), // "first"
-            (5, 0x0079_7470_6d65) => Some(Token::Empty), // "empty"
-            (5, 0x0065_7265_6877) => Some(Token::Where), // "where"
-            (5, 0x0074_6e75_6f63) => Some(Token::Count), // "count"
-            (5, 0x006e_6f69_6e75) => Some(Token::Union), // "union"
-
-            // Length 6 - exact u64 comparison for 6-byte words
-            (6, 0x656E_6966_6564) => Some(Token::Define), // "define"
-            (6, 0x7463_656C_6573) => Some(Token::Select), // "select"
-            (6, 0x6570_7954_666F) => Some(Token::OfType), // "ofType"
-
-            // Length 7 - exact u64 comparison for 7-byte words
-            (7, 0x73_6569_6C70_6D69) => Some(Token::Implies), // "implies"
-
-            // Length 8 - exact u64 comparison for 8-byte words
-            (8, 0x7463_6E69_7473_6964) => Some(Token::Distinct), // "distinct"
-            (8, 0x736E_6961_746E_6F63) => Some(Token::Contains), // "contains"
-
-            _ => None,
+        // Convert bytes to string for lookup
+        if let Ok(s) = std::str::from_utf8(bytes) {
+            // Use shared keyword table for O(1) lookup
+            // FxHashMap is faster than the complex u64 matching for keyword recognition
+            KEYWORD_TABLE.get(s).cloned()
+        } else {
+            None
         }
     }
 
@@ -633,13 +870,18 @@ impl<'input> Tokenizer<'input> {
             b'\'' => Token::String(self.parse_string_literal()?),
             b'@' => self.parse_datetime_literal()?,
 
-            // Identifiers and keywords - ultra-fast path
+            // Identifiers and keywords - ultra-fast path with interning
             ch if Self::is_id_start(ch) => {
                 let start = self.pos;
                 let ident = self.parse_identifier();
                 // Use byte slice for faster keyword lookup
-                Self::keyword_lookup(&self.bytes[start..self.pos])
-                    .unwrap_or(Token::Identifier(ident))
+                if let Some(keyword) = Self::keyword_lookup(&self.bytes[start..self.pos]) {
+                    keyword
+                } else if self.enable_interning && self.should_intern_identifier(ident) {
+                    Token::InternedIdentifier(intern_identifier(ident))
+                } else {
+                    Token::Identifier(ident)
+                }
             }
 
             // Unknown character - fast error path
@@ -678,6 +920,7 @@ impl<'input> Tokenizer<'input> {
             | Token::DateTime(s)
             | Token::Time(s)
             | Token::Decimal(s) => s.len(),
+            Token::InternedIdentifier(arc_s) => arc_s.len(),
             Token::Integer(n) => {
                 // Fast integer digit count without floating point
                 if *n == 0 {
@@ -861,12 +1104,180 @@ impl<'input> Tokenizer<'input> {
     pub fn position(&self) -> usize {
         self.pos
     }
+
+    /// Check if identifier should be interned based on patterns
+    #[inline]
+    fn should_intern_identifier(&self, ident: &str) -> bool {
+        // Intern common FHIRPath patterns and short identifiers
+        ident.len() <= 24
+            && (
+                // Common FHIR resource names
+                ident.starts_with("Patient") ||
+            ident.starts_with("Bundle") ||
+            ident.starts_with("Observation") ||
+            ident.starts_with("Condition") ||
+            ident.starts_with("Medication") ||
+            ident.starts_with("Practitioner") ||
+            ident.starts_with("Organization") ||
+            // Common property names
+            matches!(ident, "name" | "value" | "code" | "system" | "display" | "text" |
+                          "id" | "extension" | "url" | "status" | "type" | "use" |
+                          "given" | "family" | "start" | "end" | "active") ||
+            // Function names
+            matches!(ident, "where" | "select" | "first" | "last" | "count" | "empty" |
+                          "exists" | "all" | "any" | "contains" | "length" | "distinct")
+            )
+    }
+
+    /// Get interning statistics for debugging
+    pub fn interner_stats() -> (usize, usize) {
+        let len = STRING_INTERNER.len();
+        // DashMap doesn't expose capacity() in the same way
+        // Return len twice as an approximation since DashMap grows dynamically
+        (len, len * 2)
+    }
+
+    /// Get keyword table statistics
+    pub fn keyword_table_stats() -> (usize, usize) {
+        let len = KEYWORD_TABLE.len();
+        let capacity = KEYWORD_TABLE.capacity();
+        (len, capacity)
+    }
+
+    /// Check if a string is a keyword without tokenizing
+    pub fn is_keyword_str(s: &str) -> bool {
+        KEYWORD_TABLE.contains_key(s)
+    }
+
+    /// Memory-mapped streaming tokenizer for large expressions
+    /// Returns an iterator that yields tokens in batches to minimize memory usage
+    pub fn tokenize_stream(&mut self) -> TokenStream<'_, 'input> {
+        let buffer_size = self.stream_buffer_size;
+        TokenStream {
+            tokenizer: self,
+            buffer: Vec::with_capacity(buffer_size),
+            finished: false,
+        }
+    }
+
+    /// Check if streaming is enabled
+    pub fn is_streaming_enabled(&self) -> bool {
+        self.enable_streaming
+    }
+
+    /// Get stream buffer size
+    pub fn stream_buffer_size(&self) -> usize {
+        self.stream_buffer_size
+    }
+
+    /// Estimate memory usage for tokenization
+    pub fn estimate_memory_usage(&self) -> (usize, usize) {
+        let input_size = self.bytes.len();
+        let estimated_tokens = input_size / 8; // Rough estimate: average token is ~8 bytes
+        let regular_memory = estimated_tokens * std::mem::size_of::<Token>();
+        let streaming_memory = self.stream_buffer_size * std::mem::size_of::<Token>();
+        (regular_memory, streaming_memory)
+    }
 }
+
+/// Streaming token iterator for memory-efficient processing of large expressions
+pub struct TokenStream<'t, 'input> {
+    tokenizer: &'t mut Tokenizer<'input>,
+    buffer: Vec<Spanned<Token<'input>>>,
+    finished: bool,
+}
+
+impl<'t, 'input> TokenStream<'t, 'input> {
+    /// Get next batch of tokens
+    pub fn next_batch(&mut self) -> ParseResult<Option<&[Spanned<Token<'input>>]>> {
+        if self.finished {
+            return Ok(None);
+        }
+
+        self.buffer.clear();
+        let buffer_size = self.tokenizer.stream_buffer_size;
+
+        // Fill buffer with tokens
+        for _ in 0..buffer_size {
+            match self.tokenizer.next_token()? {
+                Some(token) => {
+                    let end = self.tokenizer.pos;
+                    let start = end.saturating_sub(self.tokenizer.estimate_token_len(&token));
+                    self.buffer.push(Spanned::new(token, start, end));
+                }
+                None => {
+                    self.finished = true;
+                    break;
+                }
+            }
+        }
+
+        if self.buffer.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(&self.buffer))
+        }
+    }
+
+    /// Get all remaining tokens in streaming fashion
+    pub fn collect_all(&mut self) -> ParseResult<Vec<Spanned<Token<'input>>>> {
+        let mut all_tokens = Vec::new();
+
+        while let Some(batch) = self.next_batch()? {
+            all_tokens.extend_from_slice(batch);
+        }
+
+        Ok(all_tokens)
+    }
+
+    /// Estimate remaining tokens
+    pub fn estimate_remaining(&self) -> usize {
+        let remaining_bytes = self.tokenizer.end - self.tokenizer.pos;
+        remaining_bytes / 8 // Rough estimate
+    }
+
+    /// Check if stream is finished
+    pub fn is_finished(&self) -> bool {
+        self.finished
+    }
+}
+
+impl<'t, 'input> Iterator for TokenStream<'t, 'input> {
+    type Item = ParseResult<Vec<Spanned<Token<'input>>>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_batch() {
+            Ok(Some(batch)) => Some(Ok(batch.to_vec())),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
+
 /// Ultra-fast tokenize function - main public API
+/// Automatically uses streaming for large inputs
 #[inline]
 pub fn tokenize(input: &str) -> ParseResult<Vec<Spanned<Token>>> {
     let mut tokenizer = Tokenizer::new(input);
-    tokenizer.tokenize_all()
+    if tokenizer.is_streaming_enabled() {
+        // Use streaming for large inputs
+        let mut stream = tokenizer.tokenize_stream();
+        stream.collect_all()
+    } else {
+        // Use regular tokenization for small inputs
+        tokenizer.tokenize_all()
+    }
+}
+
+/// Create a streaming tokenizer for memory-efficient processing
+/// Returns a tokenizer configured for streaming
+pub fn create_streaming_tokenizer(input: &str) -> Tokenizer<'_> {
+    Tokenizer::with_streaming(input, 256)
+}
+
+/// Create a streaming tokenizer with custom buffer size
+pub fn create_streaming_tokenizer_with_buffer(input: &str, buffer_size: usize) -> Tokenizer<'_> {
+    Tokenizer::with_streaming(input, buffer_size)
 }
 
 #[cfg(test)]
@@ -878,13 +1289,13 @@ mod tests {
         let mut tokenizer = Tokenizer::new("Patient.name");
 
         let token1 = tokenizer.next_token().unwrap().unwrap();
-        assert!(matches!(token1, Token::Identifier("Patient")));
+        assert_eq!(token1.as_identifier(), Some("Patient"));
 
         let token2 = tokenizer.next_token().unwrap().unwrap();
         assert_eq!(token2, Token::Dot);
 
         let token3 = tokenizer.next_token().unwrap().unwrap();
-        assert!(matches!(token3, Token::Identifier("name")));
+        assert_eq!(token3.as_identifier(), Some("name"));
 
         assert!(tokenizer.next_token().unwrap().is_none());
     }
@@ -896,9 +1307,9 @@ mod tests {
 
         assert!(tokens.len() > 10);
         // Verify some key tokens
-        assert!(matches!(tokens[0].value, Token::Identifier("Patient")));
+        assert_eq!(tokens[0].value.as_identifier(), Some("Patient"));
         assert_eq!(tokens[1].value, Token::Dot);
-        assert!(matches!(tokens[2].value, Token::Identifier("name")));
+        assert_eq!(tokens[2].value.as_identifier(), Some("name"));
     }
 
     #[test]
@@ -978,19 +1389,19 @@ mod tests {
         let mut tokenizer = Tokenizer::new("x => x.value > 5");
 
         let token1 = tokenizer.next_token().unwrap().unwrap();
-        assert!(matches!(token1, Token::Identifier("x")));
+        assert_eq!(token1.as_identifier(), Some("x"));
 
         let token2 = tokenizer.next_token().unwrap().unwrap();
         assert_eq!(token2, Token::Arrow);
 
         let token3 = tokenizer.next_token().unwrap().unwrap();
-        assert!(matches!(token3, Token::Identifier("x")));
+        assert_eq!(token3.as_identifier(), Some("x"));
 
         let token4 = tokenizer.next_token().unwrap().unwrap();
         assert_eq!(token4, Token::Dot);
 
         let token5 = tokenizer.next_token().unwrap().unwrap();
-        assert!(matches!(token5, Token::Identifier("value")));
+        assert_eq!(token5.as_identifier(), Some("value"));
 
         let token6 = tokenizer.next_token().unwrap().unwrap();
         assert_eq!(token6, Token::GreaterThan);

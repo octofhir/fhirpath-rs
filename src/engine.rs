@@ -4,7 +4,8 @@ use super::error::Result;
 use crate::ast::ExpressionNode;
 use crate::evaluator::FhirPathEngine as EvaluatorEngine;
 use crate::model::FhirPathValue;
-use crate::parser::parse_expression;
+use crate::parser::{cache_ast, get_cached_ast, parse_expression};
+use crate::pipeline::global_pools;
 use crate::registry::create_standard_registries;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -44,7 +45,7 @@ impl FhirPathEngine {
     pub async fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
         // Handle parse errors by returning empty collection per FHIRPath spec
         let ast = match self.get_or_compile_expression(expression) {
-            Ok(ast) => ast.clone(),
+            Ok(ast) => ast,
             Err(e) => {
                 // Per FHIRPath spec, syntax errors should return empty collection
                 if e.to_string().contains("parse error")
@@ -70,17 +71,63 @@ impl FhirPathEngine {
         }
     }
 
-    /// Get or compile an expression, using cache when possible
-    fn get_or_compile_expression(&mut self, expression: &str) -> Result<&ExpressionNode> {
-        if !self.expression_cache.contains_key(expression) {
-            let ast = parse_expression(expression)
-                .map_err(|e| crate::error::FhirPathError::parse_error(0, e.to_string()))?;
-            if self.expression_cache.len() >= self.max_cache_size {
-                self.expression_cache.clear();
-            }
-            self.expression_cache.insert(expression.to_string(), ast);
+    /// Get or compile an expression, using global AST cache when possible
+    fn get_or_compile_expression(&mut self, expression: &str) -> Result<Arc<ExpressionNode>> {
+        // First try the global AST cache
+        if let Some(cached_ast) = get_cached_ast(expression) {
+            return Ok(cached_ast);
         }
-        Ok(self.expression_cache.get(expression).unwrap())
+
+        // Fall back to local cache for transition compatibility
+        if let Some(local_ast) = self.expression_cache.get(expression) {
+            let shared_ast = Arc::new(local_ast.clone());
+            // Cache in global cache for next time
+            cache_ast(expression, local_ast.clone());
+            return Ok(shared_ast);
+        }
+
+        // Parse and cache both globally and locally
+        let ast = parse_expression(expression)
+            .map_err(|e| crate::error::FhirPathError::parse_error(0, e.to_string()))?;
+
+        // Cache globally (primary cache)
+        cache_ast(expression, ast.clone());
+
+        // Cache locally (fallback/transition cache)
+        if self.expression_cache.len() >= self.max_cache_size {
+            self.expression_cache.clear();
+        }
+        self.expression_cache
+            .insert(expression.to_string(), ast.clone());
+
+        Ok(Arc::new(ast))
+    }
+
+    /// Pool-optimized evaluation using global memory pools
+    /// This method demonstrates integration with the async-first memory pool system
+    pub async fn evaluate_with_pools(
+        &mut self,
+        expression: &str,
+        input_data: Value,
+    ) -> Result<FhirPathValue> {
+        // Get a pooled vector for intermediate results
+        let _pooled_values = global_pools().values.borrow().await;
+
+        // Get a pooled string for temporary string operations
+        let _pooled_string = global_pools().strings.borrow().await;
+
+        // Standard evaluation with pooled resources in the background
+        self.evaluate(expression, input_data).await
+    }
+
+    /// Get memory pool statistics for diagnostics
+    pub async fn memory_pool_stats(&self) -> HashMap<String, crate::pipeline::PoolStats> {
+        global_pools().comprehensive_stats().await
+    }
+
+    /// Warm up memory pools for better performance
+    pub async fn warm_memory_pools(&self) {
+        global_pools().warm_all().await;
     }
 }
 

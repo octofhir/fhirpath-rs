@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod json_arc;
 pub mod lazy;
 pub mod provider;
 pub mod quantity;
@@ -15,6 +16,7 @@ pub mod types;
 pub mod value;
 
 pub use error::{ModelError, Result};
+pub use json_arc::{ArcJsonValue, ArrayView};
 pub use lazy::{LazyCollection, LazyIterator, ToLazy};
 pub use provider::{FhirVersion, ModelProvider};
 pub use quantity::Quantity;

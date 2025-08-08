@@ -8,8 +8,12 @@
 mod context;
 mod engine;
 mod error;
+mod shared_context;
 
 // Essential evaluation functionality - clean and focused
 pub use context::{EvaluationContext, VariableScope};
 pub use engine::FhirPathEngine;
 pub use error::{EvaluationError, EvaluationResult};
+pub use shared_context::{
+    ContextInheritance, FunctionClosureOptimizer, SharedContextBuilder, SharedEvaluationContext,
+};
