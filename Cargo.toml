@@ -1,6 +1,6 @@
 [package]
 name = "octofhir-fhirpath"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -27,7 +27,6 @@ exclude = [
     "src/bin/perf-test.rs",
     "src/bin/performance_baseline.rs",
     "src/bin/flamegraph_baseline.rs",
-
 ]
 
 [lib]
@@ -45,11 +44,6 @@ harness = false
 [[bin]]
 name = "octofhir-fhirpath"
 path = "src/bin/octofhir_fhirpath.rs"
-
-[[bin]]
-name = "octofhir-fhirpath-lsp"
-path = "src/bin/fhirpath_lsp.rs"
-required-features = ["lsp"]
 
 [dependencies]
 # Core dependencies
@@ -91,14 +85,12 @@ tokio = { version = "1.47.1", features = ["full"] }
 # HTTP client for external profile fetching
 reqwest = { version = "0.12.22", features = ["json"] }
 
-colored = { version = "3.0.0", optional = true }
-lsp-types = { version = "0.97.0", optional = true }
-tower-lsp = { version = "0.20.0", optional = true }
-env_logger = { version = "0.11.0", optional = true }
-
 # CLI dependencies
 clap = { version = "4", features = ["derive"] }
 human-panic = "2.0"
+
+# Optional diagnostic dependencies
+colored = { version = "3.0.0", optional = true }
 
 [dev-dependencies]
 comfy-table = "7.0"
@@ -117,7 +109,6 @@ tokio = { version = "1.47.0", features = [
 
 [features]
 default = []
-lsp = ["lsp-types", "tower-lsp", "colored", "env_logger"]
 diagnostics = ["colored"]
 serde = []
 terminal = ["colored"]

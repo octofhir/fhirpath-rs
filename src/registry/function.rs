@@ -1927,6 +1927,8 @@ pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
     registry.register_async(ToIntegerFunction);
     registry.register_async(ToDecimalFunction);
     registry.register_async(ToBooleanFunction);
+    registry.register_async(ToDateFunction);
+    registry.register_async(ToDateTimeFunction);
     registry.register_async(TypeFunction);
     registry.register(ConvertsToIntegerFunction);
     registry.register(ConvertsToDecimalFunction);

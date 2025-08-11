@@ -16,8 +16,6 @@
 //!
 //! A complete implementation of FHIRPath expression language for FHIR resources.
 
-// Disabled analyzer module due to complex recursion issues - will be re-enabled after refactoring
-// pub mod analyzer;
 pub mod ast;
 pub mod compiler;
 pub mod diagnostics;
@@ -26,10 +24,6 @@ pub mod model;
 pub mod parser;
 pub mod pipeline;
 pub mod registry;
-
-// Disabled LSP module as it depends on analyzer
-// #[cfg(feature = "lsp")]
-// pub mod lsp;
 
 // Re-export main types
 pub use evaluator::{EvaluationContext, FhirPathEngine};

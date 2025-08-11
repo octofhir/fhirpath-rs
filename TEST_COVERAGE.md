@@ -11,10 +11,10 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Test Suites** | 98 | 100% |
-| **Total Individual Tests** | 1005 | 100% |
-| **Passing Tests** | 895 | 89.1% |
-| **Failing Tests** | 110 | 10.9% |
+| **Total Test Suites** | 99 | 100% |
+| **Total Individual Tests** | 1007 | 100% |
+| **Passing Tests** | 895 | 88.9% |
+| **Failing Tests** | 112 | 11.1% |
 | **Error Tests** | 0 | 0.0% |
 
 ## Test Results by Suite
@@ -128,18 +128,18 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🔴 Major Issues (0-30%)
 
-None currently.
+- **to-date.json** - 0.0% (0/2 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **89.1% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **88.9% of all FHIRPath tests**.
 
 ### Key Statistics
-- **Test Suites**: 98
-- **Total Tests**: 1005
-- **Pass Rate**: 89.1%
+- **Test Suites**: 99
+- **Total Tests**: 1007
+- **Pass Rate**: 88.9%
 
 ---
 
-*Report generated on: 2025-08-11 17:05:30*
+*Report generated on: 2025-08-11 18:18:33*
 *Command: `cargo test run_coverage_report -- --ignored --nocapture`*

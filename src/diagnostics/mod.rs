@@ -40,9 +40,4 @@ pub use enhanced_diagnostic::{
 pub use formatter::{DiagnosticFormatter, Format};
 pub use location::{Position, SourceLocation, Span};
 
-// Re-export LSP types when feature is enabled
-#[cfg(feature = "lsp")]
-pub mod lsp;
-
-#[cfg(feature = "lsp")]
-pub use lsp::to_lsp_diagnostic;
+// LSP integration moved to separate crate
