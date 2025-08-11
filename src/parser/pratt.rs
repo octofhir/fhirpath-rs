@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! High-performance Pratt parser for FHIRPath expressions
 //!
 //! This implementation focuses on maximum performance through:
@@ -24,14 +38,14 @@ pub enum Precedence {
     And = 3,
     /// Membership operators (in, contains)
     Membership = 4,
+    /// Type operators (is, as) - lower precedence than comparisons
+    Type = 5,
     /// Equality operators (=, !=, ~, !~)
-    Equality = 5,
+    Equality = 6,
     /// Inequality operators (<, >, <=, >=)
-    Inequality = 6,
+    Inequality = 7,
     /// Union operator (|)
-    Union = 7,
-    /// Type operators (is, as)
-    Type = 8,
+    Union = 8,
     /// Additive operators (+, -, &)
     Additive = 9,
     /// Multiplicative operators (*, /, div, mod)
@@ -56,11 +70,11 @@ impl Precedence {
             Precedence::Implies => Precedence::Or,
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Membership,
-            Precedence::Membership => Precedence::Equality,
+            Precedence::Membership => Precedence::Type,
+            Precedence::Type => Precedence::Equality,
             Precedence::Equality => Precedence::Inequality,
             Precedence::Inequality => Precedence::Union,
-            Precedence::Union => Precedence::Type,
-            Precedence::Type => Precedence::Additive,
+            Precedence::Union => Precedence::Additive,
             Precedence::Additive => Precedence::Multiplicative,
             Precedence::Multiplicative => Precedence::Unary,
             Precedence::Unary => Precedence::Invocation,
@@ -752,27 +766,40 @@ impl<'input> PrattParser<'input> {
                         // Collect all tokens until closing backtick to form the variable name
                         let mut var_name_parts = Vec::new();
 
-                        while let Some(token) = self.current() {
-                            match token {
-                                Token::Backtick => {
+                        loop {
+                            match self.current() {
+                                Some(Token::Backtick) => {
                                     // Found closing backtick
                                     self.advance()?; // consume closing backtick
                                     break;
                                 }
-                                Token::Identifier(name) => {
-                                    var_name_parts.push(*name);
+                                Some(Token::Identifier(name)) => {
+                                    let name = (*name).to_string();
                                     self.advance()?;
+                                    var_name_parts.push(name);
                                 }
-                                Token::Minus => {
-                                    var_name_parts.push("-");
+                                Some(Token::InternedIdentifier(name)) => {
+                                    let name = name.as_ref().to_string();
                                     self.advance()?;
+                                    var_name_parts.push(name);
                                 }
-                                _ => {
+                                Some(Token::Minus) => {
+                                    self.advance()?;
+                                    var_name_parts.push("-".to_string());
+                                }
+                                Some(token) => {
                                     return Err(ParseError::UnexpectedToken {
                                         token: format!(
                                             "Unexpected token in backtick variable name: {token:?}"
                                         )
                                         .into(),
+                                        position: 0,
+                                    });
+                                }
+                                None => {
+                                    return Err(ParseError::UnexpectedToken {
+                                        token: "Unexpected end of input in backtick variable name"
+                                            .into(),
                                         position: 0,
                                     });
                                 }
@@ -825,17 +852,19 @@ impl<'input> PrattParser<'input> {
             Some(Token::Backtick) => {
                 self.advance()?;
                 let name = match self.current() {
-                    Some(Token::Identifier(name)) => *name,
-                    Some(Token::Where) => "where",
-                    Some(Token::Select) => "select",
-                    Some(Token::All) => "all",
-                    Some(Token::First) => "first",
-                    Some(Token::Last) => "last",
-                    Some(Token::Count) => "count",
-                    Some(Token::Empty) => "empty",
-                    Some(Token::Tail) => "tail",
-                    Some(Token::True) => "true",
-                    Some(Token::False) => "false",
+                    Some(Token::Identifier(name)) => (*name).to_string(),
+                    Some(Token::InternedIdentifier(name)) => name.as_ref().to_string(),
+                    Some(Token::Where) => "where".to_string(),
+                    Some(Token::Select) => "select".to_string(),
+                    Some(Token::All) => "all".to_string(),
+                    Some(Token::First) => "first".to_string(),
+                    Some(Token::Last) => "last".to_string(),
+                    Some(Token::Count) => "count".to_string(),
+                    Some(Token::Empty) => "empty".to_string(),
+                    Some(Token::Contains) => "contains".to_string(),
+                    Some(Token::Tail) => "tail".to_string(),
+                    Some(Token::True) => "true".to_string(),
+                    Some(Token::False) => "false".to_string(),
                     _ => {
                         return Err(ParseError::UnexpectedToken {
                             token: std::borrow::Cow::Borrowed("Expected identifier after backtick"),
@@ -857,6 +886,7 @@ impl<'input> PrattParser<'input> {
             Some(Token::Last) => self.parse_builtin_function("last"),
             Some(Token::Tail) => self.parse_builtin_function("tail"),
             Some(Token::Empty) => self.parse_builtin_function("empty"),
+            Some(Token::Contains) => self.parse_builtin_function("contains"),
             Some(Token::Take) => self.parse_builtin_function("take"),
             Some(Token::Skip) => self.parse_builtin_function("skip"),
             Some(Token::Distinct) => self.parse_builtin_function("distinct"),
@@ -968,12 +998,12 @@ impl<'input> PrattParser<'input> {
             Some(Token::Last) => "last".to_string(),
             Some(Token::Count) => "count".to_string(),
             Some(Token::Empty) => "empty".to_string(),
+            Some(Token::Contains) => "contains".to_string(),
             Some(Token::Tail) => "tail".to_string(),
             Some(Token::Take) => "take".to_string(),
             Some(Token::Skip) => "skip".to_string(),
             Some(Token::Distinct) => "distinct".to_string(),
             Some(Token::Is) => "is".to_string(),
-            Some(Token::Contains) => "contains".to_string(),
             Some(Token::Not) => "not".to_string(),
             Some(Token::OfType) => "ofType".to_string(),
             Some(Token::As) => "as".to_string(),
@@ -989,6 +1019,7 @@ impl<'input> PrattParser<'input> {
                     Some(Token::Last) => "last".to_string(),
                     Some(Token::Count) => "count".to_string(),
                     Some(Token::Empty) => "empty".to_string(),
+                    Some(Token::Contains) => "contains".to_string(),
                     Some(Token::Tail) => "tail".to_string(),
                     Some(Token::True) => "true".to_string(),
                     Some(Token::False) => "false".to_string(),

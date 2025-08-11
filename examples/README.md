@@ -128,8 +128,11 @@ cargo run --example error_handling
 ### Engine Creation
 ```rust
 use octofhir_fhirpath::engine::FhirPathEngine;
+use octofhir_fhirpath::model::MockModelProvider;
+use std::sync::Arc;
 
-let mut engine = FhirPathEngine::new();
+let provider = Arc::new(MockModelProvider::new());
+let mut engine = FhirPathEngine::new(provider);
 ```
 
 ### Expression Evaluation

@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Generate flamegraph for baseline performance
 
 use octofhir_fhirpath::engine::FhirPathEngine;
@@ -8,19 +22,18 @@ use std::fs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load medium dataset for balanced profiling
-    let data = serde_json::from_str::<Value>(&fs::read_to_string("benches/fixtures/medium.json")?)?;
+    // Load large dataset for performance analysis
+    let data = serde_json::from_str::<Value>(&fs::read_to_string("benches/fixtures/large.json")?)?;
 
-    // Test complex Bundle operation that stresses the system
-    let expression =
-        "Bundle.entry.resource.where($this is Patient).name.where(use = 'official').given";
+    // Test the specific expression for analysis
+    let expression = "Bundle.entry.resource.where(resourceType='Encounter' and meta.profile.contains('http://fhir.mimic.mit.edu/StructureDefinition/mimic-encounter-icu')).partOf.reference";
 
     println!("Running complex Bundle operation for flamegraph profiling...");
 
     #[cfg(feature = "profiling")]
     let guard = ProfilerGuard::new(100)?;
 
-    let mut engine = FhirPathEngine::new();
+    let mut engine = FhirPathEngine::with_mock_provider();
 
     // Run enough iterations to get meaningful profiling data
     for i in 0..50 {

@@ -102,12 +102,62 @@ pub struct IntegrationTestRunner {
 }
 
 impl IntegrationTestRunner {
-    /// Create a new integration test runner
-    pub fn new() -> Self {
+    /// Create a new integration test runner with real FhirSchemaModelProvider
+    pub async fn new() -> Self {
         let (functions, operators) = create_standard_registries();
+
+        // Use real FhirSchemaModelProvider for official test validation (FHIR R4) with timeout
+        let model_provider: std::sync::Arc<dyn octofhir_fhirpath::model::provider::ModelProvider> = {
+            // Check if MockModelProvider is explicitly requested via environment variable
+            if std::env::var("FHIRPATH_USE_MOCK_PROVIDER").is_ok() {
+                println!("🔄 Using MockModelProvider (FHIRPATH_USE_MOCK_PROVIDER set)");
+                std::sync::Arc::new(
+                    octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
+                )
+            } else {
+                println!(
+                    "🔄 Loading FhirSchemaModelProvider (may download packages on first run)..."
+                );
+
+                // Add timeout to FhirSchemaModelProvider initialization to prevent hanging
+                let timeout_duration = std::time::Duration::from_secs(60); // 60 seconds timeout
+                match tokio::time::timeout(
+                    timeout_duration,
+                    octofhir_fhirpath::model::fhirschema_provider::FhirSchemaModelProvider::r4(),
+                )
+                .await
+                {
+                    Ok(Ok(provider)) => {
+                        println!("✅ FhirSchemaModelProvider loaded successfully");
+                        std::sync::Arc::new(provider)
+                    }
+                    Ok(Err(e)) => {
+                        // FhirSchema provider failed to load
+                        eprintln!(
+                            "⚠️  Warning: Failed to load FhirSchemaModelProvider ({e}), using MockModelProvider"
+                        );
+                        std::sync::Arc::new(
+                            octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
+                        )
+                    }
+                    Err(_) => {
+                        // Timeout occurred
+                        eprintln!(
+                            "⚠️  Warning: FhirSchemaModelProvider initialization timed out ({}s), using MockModelProvider",
+                            timeout_duration.as_secs()
+                        );
+                        std::sync::Arc::new(
+                            octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
+                        )
+                    }
+                }
+            }
+        };
+
         let engine = FhirPathEngine::with_registries(
             std::sync::Arc::new(functions),
             std::sync::Arc::new(operators),
+            model_provider,
         );
 
         Self {
@@ -536,6 +586,70 @@ impl IntegrationTestRunner {
         stats
     }
 
+    /// Run tests silently and only report failures/errors for coverage analysis
+    pub async fn run_and_report_quiet<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<TestStats, Box<dyn std::error::Error>> {
+        let suite = self.load_test_suite(&path)?;
+        let results = self.run_test_suite(&suite).await;
+
+        // Compile statistics
+        let mut stats = TestStats::default();
+        stats.total = suite.tests.len();
+        for test in &suite.tests {
+            let result = &results[&test.name];
+            match result {
+                TestResult::Passed => stats.passed += 1,
+                TestResult::Failed { .. } => stats.failed += 1,
+                TestResult::Error { .. } => stats.errored += 1,
+                TestResult::Skipped { .. } => stats.skipped += 1,
+            }
+        }
+
+        // Only show failures and errors, suppress successful tests
+        for test in &suite.tests {
+            let result = &results[&test.name];
+            match result {
+                TestResult::Failed { expected, actual } => {
+                    println!("❌ FAIL {}", test.name);
+                    println!("   Expression: {}", test.expression);
+                    if let Some(inputfile) = &test.inputfile {
+                        println!("   Input file: {inputfile}");
+                    }
+                    if !test.tags.is_empty() {
+                        println!("   Tags: {}", test.tags.join(", "));
+                    }
+                    println!(
+                        "   Expected: {}",
+                        serde_json::to_string_pretty(&expected).unwrap_or_default()
+                    );
+                    let actual_json: serde_json::Value = actual.clone();
+                    println!(
+                        "   Actual:   {}",
+                        serde_json::to_string_pretty(&actual_json).unwrap_or_default()
+                    );
+                    println!();
+                }
+                TestResult::Error { error } => {
+                    println!("⚠️ ERROR {}", test.name);
+                    println!("   Expression: {}", test.expression);
+                    if let Some(inputfile) = &test.inputfile {
+                        println!("   Input file: {inputfile}");
+                    }
+                    if !test.tags.is_empty() {
+                        println!("   Tags: {}", test.tags.join(", "));
+                    }
+                    println!("   Error: {error}");
+                    println!();
+                }
+                _ => {} // Don't print successful tests
+            }
+        }
+
+        Ok(stats)
+    }
+
     /// Run tests and print detailed results to console
     pub async fn run_and_report<P: AsRef<Path>>(
         &mut self,
@@ -705,19 +819,13 @@ impl IntegrationTestRunner {
     }
 }
 
-impl Default for IntegrationTestRunner {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_convert_expected_value() {
-        let runner = IntegrationTestRunner::new();
+    #[tokio::test]
+    async fn test_convert_expected_value() {
+        let runner = IntegrationTestRunner::new().await;
 
         assert_eq!(
             runner.convert_expected_value(&Value::Bool(true)),
@@ -737,9 +845,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_compare_results() {
-        let runner = IntegrationTestRunner::new();
+    #[tokio::test]
+    async fn test_compare_results() {
+        let runner = IntegrationTestRunner::new().await;
 
         assert!(runner.compare_results(&FhirPathValue::Boolean(true), &Value::Bool(true)));
         assert!(runner.compare_results(&FhirPathValue::Integer(42), &Value::from(42)));
@@ -754,9 +862,9 @@ mod tests {
         assert!(runner.compare_results(&collection, &expected));
     }
 
-    #[test]
-    fn test_stats_calculation() {
-        let runner = IntegrationTestRunner::new();
+    #[tokio::test]
+    async fn test_stats_calculation() {
+        let runner = IntegrationTestRunner::new().await;
         let mut results = HashMap::new();
 
         results.insert("test1".to_string(), TestResult::Passed);

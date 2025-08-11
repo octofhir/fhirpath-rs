@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Logical operators for FHIRPath expressions
 
 use super::super::operator::{
@@ -26,8 +40,8 @@ impl FhirPathOperator for AndOperator {
         static SIGS: std::sync::LazyLock<Vec<OperatorSignature>> = std::sync::LazyLock::new(|| {
             vec![OperatorSignature::binary(
                 "and",
-                TypeInfo::Boolean,
-                TypeInfo::Boolean,
+                TypeInfo::Any,
+                TypeInfo::Any,
                 TypeInfo::Boolean,
             )]
         });
@@ -39,36 +53,60 @@ impl FhirPathOperator for AndOperator {
         left: &FhirPathValue,
         right: &FhirPathValue,
     ) -> OperatorResult<FhirPathValue> {
-        // FHIRPath logical AND semantics:
-        // - true and true = true
-        // - true and false = false
-        // - false and true = false
-        // - false and false = false
-        // - true and empty = empty
-        // - false and empty = false
-        // - empty and true = empty
-        // - empty and false = false
-        // - empty and empty = empty
+        // FHIRPath logical AND semantics with truthiness:
+        // - Uses boolean conversion for non-boolean types
+        // - Empty collections are false, non-empty are true
+        // - Numbers: 0 is false, others are true
+        // - Strings: empty is false, non-empty is true
 
-        match (left, right) {
-            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Ok(
-                FhirPathValue::collection(vec![FhirPathValue::Boolean(*a && *b)]),
-            ),
-            // If left is false, result is always false (short-circuit)
-            (FhirPathValue::Boolean(false), _) if right.is_empty() => Ok(
-                FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]),
-            ),
-            // If right is false, result is always false (short-circuit)
-            (_, FhirPathValue::Boolean(false)) if left.is_empty() => Ok(FhirPathValue::collection(
-                vec![FhirPathValue::Boolean(false)],
-            )),
-            // If either operand is empty (and the other is not false), result is empty
-            _ if left.is_empty() || right.is_empty() => Ok(FhirPathValue::Empty),
-            _ => Err(OperatorError::InvalidOperandTypes {
-                operator: self.symbol().to_string(),
-                left_type: left.type_name().to_string(),
-                right_type: right.type_name().to_string(),
-            }),
+        // Convert both operands to boolean using FHIRPath truthiness rules
+        let left_truthy = self.to_boolean(left);
+        let right_truthy = self.to_boolean(right);
+
+        match (left_truthy, right_truthy) {
+            // If either side is empty, special handling
+            (None, _) | (_, None) => {
+                // FHIRPath AND rules for empty:
+                // false and empty = false
+                // empty and false = false
+                // true and empty = empty
+                // empty and true = empty
+                // empty and empty = empty
+                if left_truthy == Some(false) || right_truthy == Some(false) {
+                    Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        false,
+                    )]))
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
+            }
+            // Both have boolean values
+            (Some(a), Some(b)) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                a && b,
+            )])),
+        }
+    }
+}
+
+impl AndOperator {
+    /// Convert a FhirPathValue to boolean using FHIRPath truthiness rules
+    /// Returns None if the value is empty (which has special semantics in logical operations)
+    fn to_boolean(&self, value: &FhirPathValue) -> Option<bool> {
+        match value {
+            FhirPathValue::Empty => None,
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Integer(i) => Some(*i != 0),
+            FhirPathValue::Decimal(d) => Some(!d.is_zero()),
+            FhirPathValue::String(s) => Some(!s.is_empty()),
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    None
+                } else {
+                    Some(true) // Non-empty collections are truthy
+                }
+            }
+            // All other types are considered truthy if they exist
+            _ => Some(true),
         }
     }
 }

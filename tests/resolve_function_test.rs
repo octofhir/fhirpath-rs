@@ -23,7 +23,9 @@ async fn test_resolve_contained_resource() {
         }]
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
     let result = engine
         .evaluate(
             "Patient.generalPractitioner.resolve().name.family",
@@ -79,7 +81,9 @@ async fn test_resolve_bundle_entry_by_relative_reference() {
         ]
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Test resolving relative reference within Bundle
     let result = engine
@@ -133,7 +137,9 @@ async fn test_resolve_bundle_entry_by_absolute_url() {
         ]
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Test resolving absolute URL reference within Bundle
     let result = engine
@@ -199,7 +205,9 @@ async fn test_resolve_multiple_references() {
         ]
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Test resolving multiple references
     let result = engine
@@ -235,7 +243,9 @@ async fn test_resolve_with_empty_collection() {
         // No references to resolve
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Test resolve on empty collection
     let result = engine
@@ -256,7 +266,9 @@ async fn test_resolve_invalid_reference_ignored() {
         }
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Invalid references should be ignored (return empty)
     let result = engine
@@ -300,7 +312,9 @@ async fn test_resolve_string_reference_directly() {
         ]
     });
 
-    let mut engine = FhirPathEngine::new();
+    let model_provider =
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(model_provider);
 
     // Test resolve on a string reference directly
     let result = engine

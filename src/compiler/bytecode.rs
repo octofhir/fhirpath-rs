@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Bytecode instruction set for FHIRPath expressions
 //!
 //! This module defines a compact bytecode representation for FHIRPath expressions
@@ -41,116 +55,124 @@ pub enum Instruction {
     /// Operand: index into string pool
     LoadProperty(StringIndex),
 
-    /// Load a property with index access (e.g., name[0])
-    /// Stack: [index, object] -> [result]
+    /// Load a property with index access (e.g., name\[0\])
+    /// Stack: \[index, object\] -> \[result\]
     LoadIndexedProperty(StringIndex),
 
     /// Access collection element by index
-    /// Stack: [index, collection] -> [element]
+    /// Stack: \[index, collection\] -> \[element\]
     IndexAccess,
 
     // === Function Calls ===
     /// Call a function with specified arity
     /// Operands: function index, argument count
-    /// Stack: [arg1, arg2, ..., argN] -> [result]
+    /// Stack: \[arg1, arg2, ..., argN\] -> \[result\]
     CallFunction(FunctionIndex, u8),
 
     /// Call a method on the top stack object
     /// Operands: method name, argument count
-    /// Stack: [obj, arg1, ..., argN] -> [result]
+    /// Stack: \[obj, arg1, ..., argN\] -> \[result\]
     CallMethod(StringIndex, u8),
 
     // === Arithmetic Operations ===
     /// Add two values from stack
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Add,
 
     /// Subtract two values from stack
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Subtract,
 
     /// Multiply two values from stack
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Multiply,
 
     /// Divide two values from stack
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Divide,
 
     /// Modulo operation
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Modulo,
 
     /// Negate the top stack value
-    /// Stack: [value] -> [-value]
+    /// Stack: \[value\] -> \[-value\]
     Negate,
 
     // === Comparison Operations ===
     /// Equal comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     Equal,
 
+    /// Equivalent comparison (order-independent for collections)
+    /// Stack: \[left, right\] -> \[boolean\]
+    Equivalent,
+
     /// Not equal comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     NotEqual,
 
+    /// Not equivalent comparison
+    /// Stack: \[left, right\] -> \[boolean\]
+    NotEquivalent,
+
     /// Less than comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     LessThan,
 
     /// Less than or equal comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     LessThanOrEqual,
 
     /// Greater than comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     GreaterThan,
 
     /// Greater than or equal comparison
-    /// Stack: [left, right] -> [boolean]
+    /// Stack: \[left, right\] -> \[boolean\]
     GreaterThanOrEqual,
 
     // === Logical Operations ===
     /// Logical AND
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     And,
 
     /// Logical OR
-    /// Stack: [left, right] -> [result]
+    /// Stack: \[left, right\] -> \[result\]
     Or,
 
     /// Logical NOT
-    /// Stack: [value] -> [!value]
+    /// Stack: \[value\] -> \[!value\]
     Not,
 
     // === Collection Operations ===
     /// Create a collection from top N stack values
     /// Operand: number of elements
-    /// Stack: [elem1, elem2, ..., elemN] -> [collection]
+    /// Stack: \[elem1, elem2, ..., elemN\] -> \[collection\]
     MakeCollection(u8),
 
     /// Union two collections
-    /// Stack: [left, right] -> [union]
+    /// Stack: \[left, right\] -> \[union\]
     Union,
 
     /// Flatten a nested collection
-    /// Stack: [collection] -> [flattened]
+    /// Stack: \[collection\] -> \[flattened\]
     Flatten,
 
     /// Check if collection is empty
-    /// Stack: [collection] -> [boolean]
+    /// Stack: \[collection\] -> \[boolean\]
     IsEmpty,
 
     /// Get collection count
-    /// Stack: [collection] -> [count]
+    /// Stack: \[collection\] -> \[count\]
     Count,
 
     /// Check if any element satisfies condition
-    /// Stack: [collection] -> [boolean]
+    /// Stack: \[collection\] -> \[boolean\]
     Any,
 
     /// Check if all elements satisfy condition
-    /// Stack: [collection] -> [boolean]
+    /// Stack: \[collection\] -> \[boolean\]
     All,
 
     // === Control Flow ===
@@ -160,12 +182,12 @@ pub enum Instruction {
 
     /// Jump if top stack value is false
     /// Operand: relative offset (signed)
-    /// Stack: [condition] -> []
+    /// Stack: \[condition\] -> \[\]
     JumpIfFalse(i16),
 
     /// Jump if top stack value is true
     /// Operand: relative offset (signed)
-    /// Stack: [condition] -> []
+    /// Stack: \[condition\] -> \[\]
     JumpIfTrue(i16),
 
     // === Lambda Operations ===
@@ -179,40 +201,40 @@ pub enum Instruction {
 
     /// Bind lambda parameter
     /// Operand: parameter name index
-    /// Stack: [value] -> []
+    /// Stack: \[value\] -> \[\]
     BindParameter(StringIndex),
 
     // === Variable Operations ===
     /// Load variable value
     /// Operand: variable name index
-    /// Stack: [] -> [value]
+    /// Stack: \[\] -> \[value\]
     LoadVariable(StringIndex),
 
     /// Store variable value
     /// Operand: variable name index
-    /// Stack: [value] -> []
+    /// Stack: \[value\] -> \[\]
     StoreVariable(StringIndex),
 
     // === Type Operations ===
     /// Type checking (is operator)
     /// Operand: type name index
-    /// Stack: [value] -> [boolean]
+    /// Stack: \[value\] -> \[boolean\]
     IsType(StringIndex),
 
     /// Type casting (as operator)
     /// Operand: type name index
-    /// Stack: [value] -> [cast_result]
+    /// Stack: \[value\] -> \[cast_result\]
     AsType(StringIndex),
 
     // === Specialized Operations ===
     /// Filter collection with predicate
     /// The predicate bytecode follows this instruction
-    /// Stack: [collection] -> [filtered]
+    /// Stack: \[collection\] -> \[filtered\]
     Filter,
 
     /// Select/transform collection elements
     /// The transform bytecode follows this instruction
-    /// Stack: [collection] -> [transformed]
+    /// Stack: \[collection\] -> \[transformed\]
     Select,
 
     /// Where clause (alias for Filter for clarity)
@@ -223,17 +245,17 @@ pub enum Instruction {
     Nop,
 
     /// Return from function/expression
-    /// Stack: [result] -> [result] (VM stops)
+    /// Stack: \[result\] -> \[result\] (VM stops)
     Return,
 
     /// Fast path for simple property access
     /// Operand: property name index
-    /// Stack: [object] -> [property_value]
+    /// Stack: \[object\] -> \[property_value\]
     FastProperty(StringIndex),
 
     /// Fast path for literal values (pre-evaluated)
     /// Operand: constant index
-    /// Stack: [] -> [constant]
+    /// Stack: \[\] -> \[constant\]
     FastConstant(ConstantIndex),
 }
 
@@ -254,7 +276,9 @@ impl Instruction {
             | Self::Modulo
             | Self::Negate
             | Self::Equal
+            | Self::Equivalent
             | Self::NotEqual
+            | Self::NotEquivalent
             | Self::LessThan
             | Self::LessThanOrEqual
             | Self::GreaterThan
@@ -329,7 +353,9 @@ impl Instruction {
             | Self::Divide
             | Self::Modulo
             | Self::Equal
+            | Self::Equivalent
             | Self::NotEqual
+            | Self::NotEquivalent
             | Self::LessThan
             | Self::LessThanOrEqual
             | Self::GreaterThan
@@ -393,7 +419,9 @@ impl fmt::Display for Instruction {
             Self::Modulo => write!(f, "MOD"),
             Self::Negate => write!(f, "NEG"),
             Self::Equal => write!(f, "EQ"),
+            Self::Equivalent => write!(f, "EQV"),
             Self::NotEqual => write!(f, "NE"),
+            Self::NotEquivalent => write!(f, "NEV"),
             Self::LessThan => write!(f, "LT"),
             Self::LessThanOrEqual => write!(f, "LE"),
             Self::GreaterThan => write!(f, "GT"),

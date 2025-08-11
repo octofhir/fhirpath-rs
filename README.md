@@ -2,10 +2,14 @@
 
 [![Crates.io](https://img.shields.io/crates/v/octofhir-fhirpath.svg)](https://crates.io/crates/octofhir-fhirpath)
 [![Documentation](https://docs.rs/octofhir-fhirpath/badge.svg)](https://docs.rs/octofhir-fhirpath)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/octofhir/fhirpath-rs/blob/main/LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.87+-blue.svg)](https://www.rust-lang.org)
 
-A high-performance, memory-safe FHIRPath implementation in Rust with **82.7% compliance** with the official FHIRPath specification.
+A high-performance, memory-safe FHIRPath implementation in Rust with **88.1% compliance** with the official FHIRPath specification.
+
+> ⚠️ **Early Development Notice**: This library is in early development phase. The API may change between versions. If you have questions or need assistance, please:
+> - Open an issue or discussion on [GitHub](https://github.com/octofhir/fhirpath-rs/issues)
+> - Contact us via email at funyloony@gmail.com
 
 ## 🎯 Overview
 
@@ -30,19 +34,26 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-octofhir-fhirpath = "0.2.0"
+octofhir-fhirpath = "0.3.0"
 ```
+
+### ⚠️ Important: Model Provider Required (v0.3.0+)
+
+**Starting from version 0.3.0, a model provider is mandatory for all FHIRPath evaluations.** This change improves type safety, validation, and performance.
 
 ### Basic Usage
 
 ```rust
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
+use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create engine
-    let mut engine = FhirPathEngine::new();
+    // Create model provider (required in v0.3.0+)
+    let model_provider = MockModelProvider::new();
+    
+    // Create engine with model provider
+    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
     
     // Sample FHIR Patient resource
     let patient = json!({
@@ -73,12 +84,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### FHIRPath Engine
 
-The `FhirPathEngine` is the main entry point for evaluating FHIRPath expressions:
+The `FhirPathEngine` is the main entry point for evaluating FHIRPath expressions. **As of v0.3.0, a model provider is required:**
 
 ```rust
-use octofhir_fhirpath::FhirPathEngine;
+use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
 
-let mut engine = FhirPathEngine::new();
+// Create with model provider (v0.3.0+)
+let model_provider = MockModelProvider::new();
+let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
 let result = engine.evaluate("Patient.name.family", fhir_resource).await?;
 ```
 
@@ -114,12 +127,13 @@ println!("Parsed AST: {:#?}", expression);
 Advanced reference resolution with full Bundle support:
 
 ```rust
-use octofhir_fhirpath::FhirPathEngine;
+use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut engine = FhirPathEngine::new();
+    let model_provider = MockModelProvider::new();
+    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
     
     // Bundle with references between entries
     let bundle = json!({
@@ -401,7 +415,16 @@ just qa
 
 ## 📄 License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 ## 🔗 Links
 

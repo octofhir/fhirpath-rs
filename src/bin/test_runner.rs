@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Test runner binary for running individual FHIRPath test files
 //!
 //! Usage: cargo run --bin test_runner <test_file.json>
@@ -126,7 +140,23 @@ async fn main() {
     println!("🔢 Total tests: {}", test_suite.tests.len());
     println!();
 
-    let mut engine = FhirPathEngine::new();
+    // Create FHIR R5 schema provider for accurate type checking and conformance validation
+    println!("📋 Initializing FHIR R5 schema provider...");
+    let model_provider: std::sync::Arc<dyn octofhir_fhirpath::model::provider::ModelProvider> =
+        match octofhir_fhirpath::model::fhirschema_provider::FhirSchemaModelProvider::r5().await {
+            Ok(provider) => {
+                println!("✅ FHIR R5 schema provider initialized successfully!");
+                std::sync::Arc::new(provider)
+            }
+            Err(e) => {
+                eprintln!("⚠️ Failed to initialize FHIR R5 schema provider: {e}");
+                eprintln!("🔄 Falling back to mock provider...");
+                std::sync::Arc::new(
+                    octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
+                )
+            }
+        };
+    let mut engine = FhirPathEngine::new(model_provider.clone());
     let mut passed = 0;
     let mut failed = 0;
     let mut errors = 0;

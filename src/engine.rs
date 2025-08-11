@@ -1,9 +1,26 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! FHIRPath engine - the main entry point for FHIRPath evaluation
 
 use super::error::Result;
 use crate::ast::ExpressionNode;
 use crate::evaluator::FhirPathEngine as EvaluatorEngine;
-use crate::model::{FhirPathValue, ValuePoolConfig, configure_global_pools, global_pool_stats};
+use crate::model::{
+    FhirPathValue, FhirSchemaModelProvider, MockModelProvider, ModelProvider, ValuePoolConfig,
+    configure_global_pools, global_pool_stats,
+};
 use crate::parser::{cache_ast, get_cached_ast, parse_expression};
 use crate::pipeline::global_pools;
 use crate::registry::create_standard_registries;
@@ -16,21 +33,29 @@ use std::sync::Arc;
 pub struct FhirPathEngine {
     /// The underlying evaluator engine
     evaluator: EvaluatorEngine,
+    /// Model provider for type checking and validation
+    model_provider: Arc<dyn ModelProvider>,
     /// Cached compiled expressions for performance
     expression_cache: HashMap<String, ExpressionNode>,
     /// Maximum cache size to prevent memory issues
     max_cache_size: usize,
 }
 
-impl Default for FhirPathEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FhirPathEngine {
-    /// Create a new FHIRPath engine with default memory optimizations
-    pub fn new() -> Self {
+    /// Create a new FHIRPath engine with the provided ModelProvider
+    ///
+    /// # Arguments
+    /// * `model_provider` - The model provider for type checking and validation
+    ///
+    /// # Example
+    /// ```rust
+    /// use std::sync::Arc;
+    /// use octofhir_fhirpath::{engine::FhirPathEngine, model::MockModelProvider};
+    ///
+    /// let provider = Arc::new(MockModelProvider::new());
+    /// let engine = FhirPathEngine::new(provider);
+    /// ```
+    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
         // Configure global value pools with optimized settings
         let pool_config = ValuePoolConfig {
             max_pool_size: 500,
@@ -40,37 +65,118 @@ impl FhirPathEngine {
         configure_global_pools(pool_config);
 
         let (functions, operators) = create_standard_registries();
-        let evaluator = EvaluatorEngine::with_registries(Arc::new(functions), Arc::new(operators));
+        let evaluator = EvaluatorEngine::with_registries(
+            Arc::new(functions),
+            Arc::new(operators),
+            model_provider.clone(),
+        );
 
         Self {
             evaluator,
+            model_provider,
             expression_cache: HashMap::new(),
             max_cache_size: 1000,
         }
     }
 
     /// Create a new FHIRPath engine with custom memory pool configuration
-    pub fn with_pool_config(pool_config: ValuePoolConfig) -> Self {
+    ///
+    /// # Arguments
+    /// * `model_provider` - The model provider for type checking and validation
+    /// * `pool_config` - Memory pool configuration
+    pub fn with_pool_config(
+        model_provider: Arc<dyn ModelProvider>,
+        pool_config: ValuePoolConfig,
+    ) -> Self {
         configure_global_pools(pool_config);
 
         let (functions, operators) = create_standard_registries();
-        let evaluator = EvaluatorEngine::with_registries(Arc::new(functions), Arc::new(operators));
+        let evaluator = EvaluatorEngine::with_registries(
+            Arc::new(functions),
+            Arc::new(operators),
+            model_provider.clone(),
+        );
 
         Self {
             evaluator,
+            model_provider,
             expression_cache: HashMap::new(),
             max_cache_size: 1000,
         }
     }
 
     /// Create a new FHIRPath engine optimized for high-throughput scenarios
-    pub fn with_high_throughput_optimization() -> Self {
+    ///
+    /// # Arguments
+    /// * `model_provider` - The model provider for type checking and validation
+    pub fn with_high_throughput_optimization(model_provider: Arc<dyn ModelProvider>) -> Self {
         let pool_config = ValuePoolConfig {
             max_pool_size: 2000,
             initial_collection_capacity: 16,
             enable_stats: true,
         };
-        Self::with_pool_config(pool_config)
+        Self::with_pool_config(model_provider, pool_config)
+    }
+
+    /// Create a new FHIRPath engine with FHIR R4 schema provider
+    ///
+    /// This is a convenience method for common use cases.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use octofhir_fhirpath::engine::FhirPathEngine;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let engine = FhirPathEngine::with_fhir_r4().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn with_fhir_r4() -> Result<Self> {
+        let provider = Arc::new(FhirSchemaModelProvider::r4().await.map_err(|e| {
+            crate::error::FhirPathError::generic(format!("Failed to create R4 provider: {e}"))
+        })?);
+        Ok(Self::new(provider))
+    }
+
+    /// Create a new FHIRPath engine with FHIR R5 schema provider
+    ///
+    /// This is a convenience method for common use cases.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use octofhir_fhirpath::engine::FhirPathEngine;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let engine = FhirPathEngine::with_fhir_r5().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn with_fhir_r5() -> Result<Self> {
+        let provider = Arc::new(FhirSchemaModelProvider::r5().await.map_err(|e| {
+            crate::error::FhirPathError::generic(format!("Failed to create R5 provider: {e}"))
+        })?);
+        Ok(Self::new(provider))
+    }
+
+    /// Create a new FHIRPath engine with Mock provider (for testing only)
+    ///
+    /// # Warning
+    /// This should only be used for testing. Production code should use real providers.
+    ///
+    /// # Example
+    /// ```rust
+    /// use octofhir_fhirpath::engine::FhirPathEngine;
+    ///
+    /// let engine = FhirPathEngine::with_mock_provider();
+    /// ```
+    pub fn with_mock_provider() -> Self {
+        let provider = Arc::new(MockModelProvider::new());
+        Self::new(provider)
+    }
+
+    /// Get the model provider used by this engine
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+        &self.model_provider
     }
 
     /// Evaluate an FHIRPath expression against input data

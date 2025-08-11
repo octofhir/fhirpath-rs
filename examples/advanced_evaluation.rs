@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 FHIRPath Advanced Evaluation Examples");
     println!("=========================================\n");
 
-    let mut engine = FhirPathEngine::new();
+    let mut engine = FhirPathEngine::with_mock_provider();
 
     // Example: Bundle with multiple Patient resources
     let bundle = json!({

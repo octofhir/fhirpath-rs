@@ -5,17 +5,10 @@
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use octofhir_fhirpath::engine::FhirPathEngine;
-use octofhir_fhirpath::evaluator::{
-    ContextInheritance, FunctionClosureOptimizer, SharedContextBuilder, SharedEvaluationContext,
-};
-use octofhir_fhirpath::model::{Collection, FhirPathValue, string_intern::StringInterner};
+use octofhir_fhirpath::model::string_intern::StringInterner;
 use octofhir_fhirpath::parser::{parse_expression_pratt, tokenizer::Tokenizer};
-use octofhir_fhirpath::pipeline::{AsyncPool, FhirPathPools, PoolConfig, global_pools};
-use octofhir_fhirpath::registry::{FunctionRegistry, OperatorRegistry};
-use rustc_hash::FxHashMap;
 use serde_json::Value;
 use std::hint::black_box;
-use std::sync::Arc;
 
 /// Fast benchmark expressions - reduced set for quicker results
 const TEST_EXPRESSIONS: &[(&str, &str)] = &[
@@ -87,7 +80,7 @@ fn bench_evaluator(c: &mut Criterion) {
             |b, expr| {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 b.iter(|| {
-                    let mut engine = FhirPathEngine::new();
+                    let mut engine = FhirPathEngine::with_mock_provider();
                     black_box(rt.block_on(engine.evaluate(black_box(expr), input.clone())))
                 })
             },
@@ -119,7 +112,7 @@ fn bench_throughput(c: &mut Criterion) {
     group.bench_function("evaluator_throughput", |b| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         b.iter(|| {
-            let mut engine = FhirPathEngine::new();
+            let mut engine = FhirPathEngine::with_mock_provider();
             black_box(rt.block_on(engine.evaluate(black_box(expression), input.clone())))
         })
     });

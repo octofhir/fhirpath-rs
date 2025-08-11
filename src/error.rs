@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Error types for FHIRPath evaluation
 //!
 //! This module defines the error types used throughout the FHIRPath engine.
@@ -12,71 +26,117 @@ pub type Result<T> = std::result::Result<T, FhirPathError>;
 pub enum FhirPathError {
     /// Parsing errors
     #[error("Parse error at position {position}: {message}")]
-    ParseError { position: usize, message: String },
+    ParseError {
+        /// Position in the input where the parse error occurred
+        position: usize,
+        /// Human-readable error message
+        message: String,
+    },
 
     /// Type errors during evaluation
     #[error("Type error: {message}")]
-    TypeError { message: String },
+    TypeError {
+        /// Human-readable type error message
+        message: String,
+    },
 
     /// Runtime evaluation errors
     #[error("Evaluation error: {message}")]
-    EvaluationError { message: String },
+    EvaluationError {
+        /// Human-readable evaluation error message
+        message: String,
+    },
 
     /// Function call errors
     #[error("Function '{function_name}' error: {message}")]
     FunctionError {
+        /// Name of the function that caused the error
         function_name: String,
+        /// Human-readable error message
         message: String,
     },
 
     /// Invalid expression structure
     #[error("Invalid expression: {message}")]
-    InvalidExpression { message: String },
+    InvalidExpression {
+        /// Human-readable invalid expression error message
+        message: String,
+    },
 
     /// Division by zero or other arithmetic errors
     #[error("Arithmetic error: {message}")]
-    ArithmeticError { message: String },
+    ArithmeticError {
+        /// Human-readable arithmetic error message
+        message: String,
+    },
 
     /// Index out of bounds
     #[error("Index out of bounds: {index} for collection of size {size}")]
-    IndexOutOfBounds { index: i64, size: usize },
+    IndexOutOfBounds {
+        /// The index that was out of bounds
+        index: i64,
+        /// The size of the collection
+        size: usize,
+    },
 
     /// Unknown function
     #[error("Unknown function: {function_name}")]
-    UnknownFunction { function_name: String },
+    UnknownFunction {
+        /// Name of the unknown function
+        function_name: String,
+    },
 
     /// Invalid argument count
     #[error("Function '{function_name}' expects {expected} arguments, got {actual}")]
     InvalidArgumentCount {
+        /// Name of the function with invalid argument count
         function_name: String,
+        /// Expected number of arguments
         expected: usize,
+        /// Actual number of arguments received
         actual: usize,
     },
 
     /// Conversion errors
     #[error("Conversion error: cannot convert {from} to {to}")]
-    ConversionError { from: String, to: String },
+    ConversionError {
+        /// Source type that could not be converted
+        from: String,
+        /// Target type for the conversion
+        to: String,
+    },
 
     /// Generic error for compatibility
     #[error("FHIRPath error: {message}")]
-    Generic { message: String },
+    Generic {
+        /// Generic error message
+        message: String,
+    },
 
     /// Unknown operator
     #[error("Unknown operator: '{operator}'")]
-    UnknownOperator { operator: String },
+    UnknownOperator {
+        /// The unknown operator
+        operator: String,
+    },
 
     /// Invalid operand types for operator
     #[error("Invalid operand types for operator '{operator}': {left_type} and {right_type}")]
     InvalidOperandTypes {
+        /// The operator with invalid operand types
         operator: String,
+        /// Type of the left operand
         left_type: String,
+        /// Type of the right operand
         right_type: String,
     },
 
     /// Incompatible units
     #[error("Incompatible units: '{left_unit}' and '{right_unit}'")]
     IncompatibleUnits {
+        /// Unit of the left operand
         left_unit: String,
+        /// Unit of the right operand
         right_unit: String,
     },
 
@@ -86,7 +146,10 @@ pub enum FhirPathError {
 
     /// Arithmetic overflow
     #[error("Arithmetic overflow in {operation}")]
-    ArithmeticOverflow { operation: String },
+    ArithmeticOverflow {
+        /// The operation that caused the overflow
+        operation: String,
+    },
 
     /// Invalid type specifier
     #[error("Invalid type specifier")]
@@ -96,9 +159,13 @@ pub enum FhirPathError {
     #[error("Function '{name}' expects {min_arity}{} arguments, got {actual}", 
             max_arity.map(|m| format!("-{m}")).unwrap_or_else(|| String::from(" or more")))]
     InvalidArity {
+        /// Name of the function with invalid arity
         name: String,
+        /// Minimum number of arguments required
         min_arity: usize,
+        /// Maximum number of arguments allowed (None for unlimited)
         max_arity: Option<usize>,
+        /// Actual number of arguments provided
         actual: usize,
     },
 }

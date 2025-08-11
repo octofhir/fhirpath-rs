@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! is() function - checks FHIR type inheritance
 
 use crate::model::{FhirPathValue, TypeInfo};
@@ -22,7 +36,7 @@ impl AsyncFhirPathFunction for IsFunction {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
                 "is",
-                vec![ParameterInfo::required("type", TypeInfo::String)],
+                vec![ParameterInfo::required("type", TypeInfo::Any)], // Accept String, TypeInfoObject, or Resource
                 TypeInfo::Boolean,
             )
         });
@@ -37,12 +51,33 @@ impl AsyncFhirPathFunction for IsFunction {
         self.validate_args(args)?;
 
         let target_type = match &args[0] {
-            FhirPathValue::String(s) => s,
+            FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                // Handle TypeInfoObject arguments like boolean, FHIR.boolean, etc.
+                if namespace.is_empty() {
+                    name.as_ref()
+                } else {
+                    // Return the full qualified name for namespaced types
+                    &format!("{namespace}.{name}")
+                }
+            }
+            FhirPathValue::Resource(resource) => {
+                // Handle case where the argument is a resource (e.g., Patient in is(Patient))
+                // Extract the resource type as the type name
+                if let Some(resource_type) = resource.resource_type() {
+                    resource_type
+                } else {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Resource argument has no resource type".to_string(),
+                    });
+                }
+            }
             _ => {
                 return Err(FunctionError::InvalidArgumentType {
                     name: self.name().to_string(),
                     index: 0,
-                    expected: "String".to_string(),
+                    expected: "String, TypeInfoObject, or Resource".to_string(),
                     actual: format!("{:?}", args[0]),
                 });
             }
@@ -55,7 +90,7 @@ impl AsyncFhirPathFunction for IsFunction {
             let clean_name = parts[1].trim_matches('`');
             (Some(parts[0]), clean_name)
         } else {
-            (None, target_type.as_ref())
+            (None, target_type)
         };
 
         let result = match &context.input {
@@ -124,9 +159,82 @@ impl AsyncFhirPathFunction for IsFunction {
             FhirPathValue::Resource(resource) => {
                 // FHIR resource type hierarchy
                 // Handle both FHIR primitive types and complex resources
-                if let Some(ns) = namespace {
+
+                // First check if this resource has boxing metadata
+                if let Some(source_property) = resource
+                    .get_property("_fhir_source_property")
+                    .and_then(|v| v.as_str())
+                {
+                    // Use boxing metadata to determine correct FHIR type
+                    let actual_fhir_type =
+                        if source_property.starts_with("value") && source_property.len() > 5 {
+                            let type_suffix = &source_property[5..];
+                            match type_suffix {
+                                "String" => "string",
+                                "Integer" => "integer",
+                                "Decimal" => "decimal",
+                                "Boolean" => "boolean",
+                                "Date" => "date",
+                                "DateTime" => "dateTime",
+                                "Time" => "time",
+                                "Uuid" => "uuid",
+                                "Uri" => "uri",
+                                "Code" => "code",
+                                _ => {
+                                    let lowercased = type_suffix.to_lowercase();
+                                    match lowercased.as_str() {
+                                        "string" => "string",
+                                        "integer" => "integer",
+                                        "decimal" => "decimal",
+                                        "boolean" => "boolean",
+                                        _ => "Resource",
+                                    }
+                                }
+                            }
+                        } else {
+                            // Infer from value for non-polymorphic properties
+                            match resource
+                                .get_property("value")
+                                .or_else(|| Some(resource.as_json()))
+                            {
+                                Some(serde_json::Value::Bool(_)) => "boolean",
+                                Some(serde_json::Value::Number(n)) => {
+                                    if n.is_f64() {
+                                        "decimal"
+                                    } else {
+                                        "integer"
+                                    }
+                                }
+                                Some(serde_json::Value::String(s)) => {
+                                    if s.starts_with("urn:uuid:") {
+                                        "uuid"
+                                    } else if s.starts_with("http://")
+                                        || s.starts_with("https://")
+                                        || s.starts_with("urn:")
+                                    {
+                                        "uri"
+                                    } else {
+                                        "string"
+                                    }
+                                }
+                                _ => "Resource",
+                            }
+                        };
+
+                    // Check type compatibility with the metadata
+                    if let Some(ns) = namespace {
+                        if ns == "FHIR" {
+                            Self::is_fhir_type_compatible(actual_fhir_type, type_name)
+                        } else {
+                            false // FHIR resources don't match non-FHIR namespaces
+                        }
+                    } else {
+                        // No namespace specified - match against the actual type
+                        Self::is_fhir_type_compatible(actual_fhir_type, type_name)
+                    }
+                } else if let Some(ns) = namespace {
                     if ns == "FHIR" {
-                        // Check for FHIR primitive types
+                        // Check for FHIR primitive types (legacy logic)
                         if let Some(_json_value) = resource.as_json().as_bool() {
                             type_name == "boolean"
                         } else if let Some(json_value) = resource.as_json().as_str() {
@@ -146,8 +254,23 @@ impl AsyncFhirPathFunction for IsFunction {
                         } else if let Some(_json_value) = resource.as_json().as_f64() {
                             type_name == "decimal"
                         } else {
-                            // Complex FHIR resource
-                            check_fhir_resource_type(resource, type_name)
+                            // Complex FHIR resource - use ModelProvider for proper type checking
+                            if let Some(model_provider) = &context.model_provider {
+                                if let Some(resource_type) = resource.resource_type() {
+                                    model_provider
+                                        .is_type_compatible(resource_type, type_name)
+                                        .await
+                                } else {
+                                    false
+                                }
+                            } else {
+                                return Err(FunctionError::EvaluationError {
+                                    name: self.name().to_string(),
+                                    message:
+                                        "ModelProvider is required for FHIR resource type checking"
+                                            .to_string(),
+                                });
+                            }
                         }
                     } else if ns == "System" {
                         // FHIR resources don't match System types
@@ -176,8 +299,23 @@ impl AsyncFhirPathFunction for IsFunction {
                     } else if type_name == "decimal" && resource.as_json().as_f64().is_some() {
                         true
                     } else {
-                        // Otherwise check resource type
-                        check_fhir_resource_type(resource, type_name)
+                        // Otherwise check resource type using ModelProvider
+                        if let Some(model_provider) = &context.model_provider {
+                            if let Some(resource_type) = resource.resource_type() {
+                                model_provider
+                                    .is_type_compatible(resource_type, type_name)
+                                    .await
+                            } else {
+                                false
+                            }
+                        } else {
+                            return Err(FunctionError::EvaluationError {
+                                name: self.name().to_string(),
+                                message:
+                                    "ModelProvider is required for FHIR resource type checking"
+                                        .to_string(),
+                            });
+                        }
                     }
                 }
             }
@@ -212,31 +350,19 @@ impl AsyncFhirPathFunction for IsFunction {
     }
 }
 
-fn check_fhir_resource_type(resource: &crate::model::FhirResource, target_type: &str) -> bool {
-    // Get the resource type from the resource
-    if let Some(resource_type) = resource.resource_type() {
-        // Check direct match first
-        if resource_type == target_type {
+impl IsFunction {
+    /// Check if a FHIR type is compatible with the target type (including inheritance)
+    fn is_fhir_type_compatible(actual_type: &str, target_type: &str) -> bool {
+        // Direct match
+        if actual_type == target_type {
             return true;
         }
 
-        // Check FHIR inheritance hierarchy
-        match (resource_type, target_type) {
-            // Patient inherits from DomainResource
-            ("Patient", "DomainResource") => true,
-            ("Patient", "Resource") => true,
-
-            // Observation inherits from DomainResource
-            ("Observation", "DomainResource") => true,
-            ("Observation", "Resource") => true,
-
-            // DomainResource inherits from Resource
-            ("DomainResource", "Resource") => true,
-
-            // Add more inheritance relationships as needed
+        // Handle FHIR type hierarchy
+        match (actual_type, target_type) {
+            // UUID is a subtype of URI in FHIR
+            ("uuid", "uri") => true,
             _ => false,
         }
-    } else {
-        false
     }
 }

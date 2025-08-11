@@ -1,34 +1,59 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::model::{FhirPathValue, value::Collection};
 use std::ops::Range;
 use std::sync::Arc;
 
+/// Smart collection that can efficiently share data or own it depending on usage patterns
 #[derive(Debug, Clone)]
 pub enum SmartCollection {
+    /// Shared reference-counted array of values
     Shared(Arc<[FhirPathValue]>),
+    /// Owned vector of values that can be modified
     Owned(Vec<FhirPathValue>),
+    /// View into a shared array with a specific range
     View {
+        /// The shared base array being viewed
         base: Arc<[FhirPathValue]>,
+        /// The range of indices to view from the base array
         range: Range<usize>,
     },
 }
 
 impl SmartCollection {
+    /// Creates an empty smart collection
     pub fn empty() -> Self {
         Self::Owned(Vec::new())
     }
 
+    /// Creates a smart collection from an owned vector
     pub fn from_vec(values: Vec<FhirPathValue>) -> Self {
         Self::Owned(values)
     }
 
+    /// Creates a smart collection from a shared array
     pub fn from_shared(values: Arc<[FhirPathValue]>) -> Self {
         Self::Shared(values)
     }
 
+    /// Creates a smart collection containing a single value
     pub fn from_single(value: FhirPathValue) -> Self {
         Self::Owned(vec![value])
     }
 
+    /// Creates a view into a shared array with the given range
     pub fn view(base: Arc<[FhirPathValue]>, range: Range<usize>) -> Self {
         if range.start >= base.len() || range.end > base.len() || range.start >= range.end {
             Self::Owned(Vec::new())
@@ -37,6 +62,7 @@ impl SmartCollection {
         }
     }
 
+    /// Returns the number of elements in the collection
     pub fn len(&self) -> usize {
         match self {
             Self::Shared(arr) => arr.len(),
@@ -45,10 +71,12 @@ impl SmartCollection {
         }
     }
 
+    /// Returns true if the collection contains no elements
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Gets a reference to the element at the given index
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
         match self {
             Self::Shared(arr) => arr.get(index),
@@ -63,6 +91,7 @@ impl SmartCollection {
         }
     }
 
+    /// Returns an iterator over the elements of the collection
     pub fn iter(&self) -> SmartCollectionIter {
         match self {
             Self::Shared(arr) => SmartCollectionIter::Shared {
@@ -81,6 +110,7 @@ impl SmartCollection {
         }
     }
 
+    /// Converts the collection to an owned vector
     pub fn to_vec(&self) -> Vec<FhirPathValue> {
         match self {
             Self::Shared(arr) => arr.to_vec(),
@@ -89,6 +119,7 @@ impl SmartCollection {
         }
     }
 
+    /// Promotes the collection to a shared format for efficient memory usage
     pub fn promote_to_shared(&mut self) {
         match self {
             Self::Owned(vec) => {
@@ -103,6 +134,7 @@ impl SmartCollection {
         }
     }
 
+    /// Converts the collection to an owned format allowing mutations
     pub fn make_owned(&mut self) {
         match self {
             Self::Shared(arr) => {
@@ -117,6 +149,7 @@ impl SmartCollection {
         }
     }
 
+    /// Adds a value to the end of the collection
     pub fn push(&mut self, value: FhirPathValue) {
         self.make_owned();
         if let Self::Owned(vec) = self {
@@ -124,6 +157,7 @@ impl SmartCollection {
         }
     }
 
+    /// Extends the collection with elements from another collection
     pub fn extend(&mut self, other: SmartCollection) {
         match (&mut *self, other) {
             (Self::Owned(vec), Self::Owned(other_vec)) => {
@@ -141,6 +175,7 @@ impl SmartCollection {
         }
     }
 
+    /// Creates a new collection by concatenating this collection with another
     pub fn concat(&self, other: &SmartCollection) -> SmartCollection {
         let total_len = self.len() + other.len();
         let mut result = Vec::with_capacity(total_len);
@@ -151,6 +186,7 @@ impl SmartCollection {
         Self::Owned(result)
     }
 
+    /// Creates a new collection containing elements from the given range
     pub fn slice(&self, range: Range<usize>) -> SmartCollection {
         let len = self.len();
         let start = range.start.min(len);
@@ -174,10 +210,12 @@ impl SmartCollection {
         }
     }
 
+    /// Returns a reference to the first element, or None if the collection is empty
     pub fn first(&self) -> Option<&FhirPathValue> {
         self.get(0)
     }
 
+    /// Returns a reference to the last element, or None if the collection is empty
     pub fn last(&self) -> Option<&FhirPathValue> {
         if self.is_empty() {
             None
@@ -186,6 +224,7 @@ impl SmartCollection {
         }
     }
 
+    /// Takes the first n elements from the collection
     pub fn take(&self, n: usize) -> SmartCollection {
         if n >= self.len() {
             self.clone()
@@ -194,6 +233,7 @@ impl SmartCollection {
         }
     }
 
+    /// Skips the first n elements and returns the rest
     pub fn skip(&self, n: usize) -> SmartCollection {
         if n >= self.len() {
             Self::empty()
@@ -202,6 +242,7 @@ impl SmartCollection {
         }
     }
 
+    /// Filters the collection using a predicate function
     pub fn filter<F>(&self, predicate: F) -> SmartCollection
     where
         F: Fn(&FhirPathValue) -> bool,
@@ -215,6 +256,7 @@ impl SmartCollection {
         Self::from_vec(filtered)
     }
 
+    /// Maps each element in the collection using a transformation function
     pub fn map<F>(&self, mapper: F) -> SmartCollection
     where
         F: Fn(&FhirPathValue) -> FhirPathValue,
@@ -224,22 +266,27 @@ impl SmartCollection {
         Self::from_vec(mapped)
     }
 
+    /// Returns true if the collection contains the specified value
     pub fn contains(&self, value: &FhirPathValue) -> bool {
         self.iter().any(|v| v == value)
     }
 
+    /// Returns true if this collection is in shared format
     pub fn is_shared(&self) -> bool {
         matches!(self, Self::Shared(_))
     }
 
+    /// Returns true if this collection is in owned format
     pub fn is_owned(&self) -> bool {
         matches!(self, Self::Owned(_))
     }
 
+    /// Returns true if this collection is a view into another collection
     pub fn is_view(&self) -> bool {
         matches!(self, Self::View { .. })
     }
 
+    /// Returns a score (0.0-1.0) indicating the benefit of promoting this collection to shared format
     pub fn sharing_benefit(&self) -> f64 {
         match self {
             Self::Shared(_) => 1.0,   // Already shared
@@ -249,18 +296,29 @@ impl SmartCollection {
     }
 }
 
+/// Iterator over elements in a SmartCollection
 pub enum SmartCollectionIter<'a> {
+    /// Iterator over a shared array slice
     Shared {
+        /// Reference to the slice being iterated
         slice: &'a [FhirPathValue],
+        /// Current iteration index
         index: usize,
     },
+    /// Iterator over an owned vector slice
     Owned {
+        /// Reference to the slice being iterated
         slice: &'a [FhirPathValue],
+        /// Current iteration index
         index: usize,
     },
+    /// Iterator over a view into a shared array
     View {
+        /// Reference to the full slice
         slice: &'a [FhirPathValue],
+        /// Range of indices to iterate over
         range: Range<usize>,
+        /// Current iteration index within the range
         index: usize,
     },
 }
@@ -394,12 +452,16 @@ impl PartialEq for SmartCollection {
 
 impl Eq for SmartCollection {}
 
+/// Builder for constructing SmartCollections with automatic promotion optimization
 pub struct SmartCollectionBuilder {
+    /// The collection being built
     collection: SmartCollection,
+    /// Threshold size for automatic promotion to shared format
     promotion_threshold: usize,
 }
 
 impl SmartCollectionBuilder {
+    /// Creates a new builder with default settings
     pub fn new() -> Self {
         Self {
             collection: SmartCollection::empty(),
@@ -407,17 +469,20 @@ impl SmartCollectionBuilder {
         }
     }
 
+    /// Sets the threshold size for automatic promotion to shared format
     pub fn with_promotion_threshold(mut self, threshold: usize) -> Self {
         self.promotion_threshold = threshold;
         self
     }
 
+    /// Adds a value to the collection being built
     pub fn push(mut self, value: FhirPathValue) -> Self {
         self.collection.push(value);
         self.maybe_promote();
         self
     }
 
+    /// Extends the collection with elements from another collection
     pub fn extend(mut self, other: SmartCollection) -> Self {
         self.collection.extend(other);
         self.maybe_promote();
@@ -430,6 +495,7 @@ impl SmartCollectionBuilder {
         }
     }
 
+    /// Builds and returns the final SmartCollection
     pub fn build(self) -> SmartCollection {
         self.collection
     }

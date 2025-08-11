@@ -6,15 +6,18 @@
 
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::engine::FhirPathEngine;
+use octofhir_fhirpath::model::MockModelProvider;
 use serde_json::json;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔥 FHIRPath Basic Usage Examples");
     println!("================================\n");
 
-    // Create a FHIRPath engine
-    let mut engine = FhirPathEngine::new();
+    // Create a FHIRPath engine with MockModelProvider
+    let provider = Arc::new(MockModelProvider::new());
+    let mut engine = FhirPathEngine::new(provider);
 
     // Example FHIR Patient resource
     let patient_json = json!({

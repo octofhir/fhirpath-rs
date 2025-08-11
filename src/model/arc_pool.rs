@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Arc Pool Management for FHIRPath Objects
 //!
 //! This module provides specialized Arc pooling for frequently allocated objects
@@ -141,6 +155,7 @@ impl<T> HashableWrapper<T>
 where
     T: Clone + PartialEq + fmt::Debug,
 {
+    /// Creates a new hashable wrapper around the given value
     pub fn new(value: T) -> Self {
         let hash = Self::compute_hash(&value);
         Self { value, hash }
@@ -480,9 +495,13 @@ impl Default for GlobalArcPoolManager {
 /// Combined statistics from all Arc pools
 #[derive(Debug)]
 pub struct CombinedArcPoolStats {
+    /// Statistics for FHIR value pools
     pub fhir_value_stats: CombinedTypeStats,
+    /// Statistics for string pools
     pub string_stats: CombinedTypeStats,
+    /// Statistics for collection pools
     pub collection_stats: CombinedTypeStats,
+    /// Memory fragmentation statistics across all pools
     pub fragmentation_stats: FragmentationStats,
 }
 
@@ -522,12 +541,19 @@ impl CombinedArcPoolStats {
 /// Statistics for a single type pool
 #[derive(Debug)]
 pub struct CombinedTypeStats {
+    /// Total number of Arc objects created
     pub arcs_created: u64,
+    /// Total number of Arc objects reused from pool
     pub arcs_reused: u64,
+    /// Total number of Arc objects evicted from pool
     pub arcs_evicted: u64,
+    /// Current memory usage in bytes
     pub current_memory_bytes: usize,
+    /// Total bytes saved through Arc reuse
     pub bytes_saved: u64,
+    /// Current size of the pool
     pub pool_size: usize,
+    /// Current reuse rate as a percentage
     pub reuse_rate: f64,
 }
 
@@ -555,18 +581,26 @@ pub struct FragmentationMonitor {
 /// Pattern tracking for allocation fragmentation detection
 #[derive(Debug, Default)]
 struct AllocationPattern {
+    /// Total number of allocations tracked
     allocation_count: u64,
+    /// Timestamp of the last allocation
     last_allocation_time: u64,
+    /// Average time interval between allocations
     average_interval: f64,
+    /// Calculated fragmentation score (0.0 = no fragmentation, 1.0 = high fragmentation)
     fragmentation_score: f64,
 }
 
 /// Statistics about memory fragmentation
 #[derive(Debug, Clone, Default)]
 pub struct FragmentationStats {
+    /// Total number of allocations tracked
     pub total_allocations: u64,
+    /// Number of allocations considered fragmented
     pub fragmented_allocations: u64,
+    /// Ratio of fragmented to total allocations
     pub fragmentation_ratio: f64,
+    /// Number of types being monitored for fragmentation
     pub monitored_types: usize,
 }
 

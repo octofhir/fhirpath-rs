@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! as() function - type casting function
 
 use crate::model::{FhirPathValue, TypeInfo};
@@ -8,6 +22,7 @@ use crate::registry::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
 use chrono::TimeZone;
 use rust_decimal::prelude::ToPrimitive;
+use std::sync::Arc;
 
 /// as() function - performs type casting
 pub struct AsFunction;
@@ -26,7 +41,7 @@ impl AsyncFhirPathFunction for AsFunction {
         static SIG: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
             FunctionSignature::new(
                 "as",
-                vec![ParameterInfo::required("type", TypeInfo::String)],
+                vec![ParameterInfo::required("type", TypeInfo::Any)], // Accept String, TypeInfoObject, or Resource
                 TypeInfo::Any,
             )
         });
@@ -47,11 +62,32 @@ impl AsyncFhirPathFunction for AsFunction {
         // Get the type name from the argument
         let type_name = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                // Handle TypeInfoObject arguments like boolean, FHIR.boolean, etc.
+                if namespace.is_empty() {
+                    name.as_ref()
+                } else {
+                    // Return the full qualified name for namespaced types
+                    &format!("{namespace}.{name}")
+                }
+            }
+            FhirPathValue::Resource(resource) => {
+                // Handle case where the argument is a resource (e.g., Patient in as(Patient))
+                // Extract the resource type as the type name
+                if let Some(resource_type) = resource.resource_type() {
+                    resource_type
+                } else {
+                    return Err(FunctionError::EvaluationError {
+                        name: self.name().to_string(),
+                        message: "Resource argument has no resource type".to_string(),
+                    });
+                }
+            }
             _ => {
                 return Err(FunctionError::InvalidArgumentType {
                     name: self.name().to_string(),
                     index: 0,
-                    expected: "String".to_string(),
+                    expected: "String, TypeInfoObject, or Resource".to_string(),
                     actual: format!("{:?}", args[0]),
                 });
             }
@@ -163,6 +199,12 @@ impl AsyncFhirPathFunction for AsFunction {
                 Ok(FhirPathValue::Quantity(q.clone()))
             }
 
+            // Resource type casting - use ModelProvider for sophisticated type checking
+            (FhirPathValue::Resource(resource), _) => {
+                self.cast_resource_with_provider(resource, type_name, context)
+                    .await
+            }
+
             // Collection handling - try to cast the collection
             (FhirPathValue::Collection(items), _) => {
                 if items.is_empty() {
@@ -182,6 +224,39 @@ impl AsyncFhirPathFunction for AsFunction {
 
             // Default: if the type doesn't match, return empty
             _ => Ok(FhirPathValue::Empty),
+        }
+    }
+}
+
+impl AsFunction {
+    /// Cast resource using ModelProvider for sophisticated type checking
+    async fn cast_resource_with_provider(
+        &self,
+        resource: &Arc<crate::model::FhirResource>,
+        target_type: &str,
+        context: &EvaluationContext,
+    ) -> FunctionResult<FhirPathValue> {
+        if let Some(model_provider) = &context.model_provider {
+            if let Some(resource_type) = resource.resource_type() {
+                // Check if the resource type is compatible with the requested type (includes inheritance)
+                if model_provider
+                    .is_type_compatible(resource_type, target_type)
+                    .await
+                {
+                    // Type is compatible - return the resource
+                    Ok(FhirPathValue::Resource(resource.clone()))
+                } else {
+                    // Type is not compatible - return empty
+                    Ok(FhirPathValue::Empty)
+                }
+            } else {
+                Ok(FhirPathValue::Empty)
+            }
+        } else {
+            Err(FunctionError::EvaluationError {
+                name: self.name().to_string(),
+                message: "ModelProvider is required for FHIR resource type casting".to_string(),
+            })
         }
     }
 }

@@ -182,9 +182,11 @@ The coverage report should be updated after completing any major functionality t
 The consolidated crate provides a clean API:
 
 ```rust
-use fhirpath::{FhirPathEngine, FhirPathValue};
+use fhirpath::{FhirPathEngine, FhirPathValue, model::MockModelProvider};
+use std::sync::Arc;
 
-let engine = FhirPathEngine::new();
+let provider = Arc::new(MockModelProvider::new());
+let engine = FhirPathEngine::new(provider);
 let result = engine.evaluate("Patient.name.given", &patient_resource)?;
 ```
 

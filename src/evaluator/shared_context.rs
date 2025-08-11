@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Shared Expression Context for Arc-based memory optimization
 //!
 //! This module provides enhanced context sharing capabilities for FHIRPath expressions
@@ -49,10 +63,13 @@ impl SharedEvaluationContext {
         functions: Arc<FunctionRegistry>,
         operators: Arc<OperatorRegistry>,
     ) -> Self {
+        // For internal shared contexts, using MockModelProvider is acceptable
+        let provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
         let base = Arc::new(EvaluationContext::new(
             input.clone(),
             functions.clone(),
             operators.clone(),
+            provider,
         ));
 
         Self {
@@ -254,10 +271,13 @@ impl SharedEvaluationContext {
 
     /// Convert to a standard EvaluationContext when needed
     pub fn to_evaluation_context(&self) -> EvaluationContext {
+        // For internal shared contexts, using MockModelProvider is acceptable
+        let provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
         let mut context = EvaluationContext::new(
             self.input.clone(),
             self.functions.clone(),
             self.operators.clone(),
+            provider,
         );
         context.root = self.root.clone();
 

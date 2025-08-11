@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! FHIR resource wrapper types
 
 use super::json_arc::ArcJsonValue;
@@ -60,6 +74,56 @@ impl FhirResource {
     /// Get the resource type if available
     pub fn resource_type(&self) -> Option<&str> {
         self.resource_type.as_deref()
+    }
+
+    /// Get the actual property name used for polymorphic "value" access
+    pub fn get_value_property_name(&self) -> Option<String> {
+        match self.data.as_json() {
+            Value::Object(obj) => {
+                // Look for value[x] properties
+                for key in obj.keys() {
+                    if key.starts_with("value") && key.len() > 5 {
+                        return Some(key.clone());
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// Get property value and the actual property name used (for polymorphic properties)
+    pub fn get_property_with_name(&self, path: &str) -> Option<(&Value, String)> {
+        match self.data.as_json() {
+            Value::Object(obj) => {
+                // First try direct property access
+                if let Some(value) = obj.get(path) {
+                    return Some((value, path.to_string()));
+                }
+
+                // Handle FHIR polymorphic properties (e.g., value -> valueString, valueInteger, etc.)
+                if path == "value" {
+                    // Look for value[x] properties
+                    for key in obj.keys() {
+                        if key.starts_with("value") && key.len() > 5 {
+                            // Found a value[x] property (like valueString, valueInteger, etc.)
+                            if let Some(value) = obj.get(key) {
+                                return Some((value, key.clone()));
+                            }
+                        }
+                    }
+                }
+
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// Get primitive extensions for a property (following _propertyName convention)
+    pub fn get_primitive_extensions(&self, property_name: &str) -> Option<&Value> {
+        let extension_key = format!("_{property_name}");
+        self.get_property(&extension_key)
     }
 
     /// Get a property value by path

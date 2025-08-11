@@ -1,11 +1,25 @@
-//\! Main FHIRPath evaluation engine
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Main FHIRPath evaluation engine
 
 use super::{
     context::EvaluationContext,
     error::{EvaluationError, EvaluationResult},
 };
 use crate::ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
-use crate::model::FhirPathValue;
+use crate::model::{FhirPathValue, ModelProvider};
 use crate::registry::{FunctionRegistry, OperatorRegistry};
 // Lambda functions are not yet fully implemented
 // use crate::registry::function::{AllFunction, AnyFunction, ExistsFunction};
@@ -26,34 +40,30 @@ pub struct FhirPathEngine {
     functions: Arc<FunctionRegistry>,
     /// Operator registry
     operators: Arc<OperatorRegistry>,
+    /// Model provider for type checking and validation
+    model_provider: Arc<dyn ModelProvider>,
     /// Reusable virtual machine for bytecode execution
     vm: crate::compiler::VirtualMachine,
 }
 
 impl FhirPathEngine {
-    /// Create a new engine with default built-in functions and operators
-    pub fn new() -> Self {
-        let (functions, operators) = crate::registry::create_standard_registries();
-        let functions = Arc::new(functions);
-        let operators = Arc::new(operators);
-
-        Self {
-            vm: crate::compiler::VirtualMachine::new(functions.clone(), operators.clone()),
-            functions,
-            operators,
-        }
-    }
-
-    /// Create a new engine with custom registries
+    /// Create a new engine with custom registries and model provider
     pub fn with_registries(
         functions: Arc<FunctionRegistry>,
         operators: Arc<OperatorRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
             vm: crate::compiler::VirtualMachine::new(functions.clone(), operators.clone()),
             functions,
             operators,
+            model_provider,
         }
+    }
+
+    /// Get the model provider used by this engine
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+        &self.model_provider
     }
 
     /// Extract a type name from an expression node (for handling 'is' function arguments)
@@ -130,7 +140,12 @@ impl FhirPathEngine {
         expression: &ExpressionNode,
         input: FhirPathValue,
     ) -> EvaluationResult<FhirPathValue> {
-        let context = EvaluationContext::new(input, self.functions.clone(), self.operators.clone());
+        let context = EvaluationContext::new(
+            input,
+            self.functions.clone(),
+            self.operators.clone(),
+            self.model_provider.clone(),
+        );
 
         // Check if expression needs variable scoping - if so, use threaded evaluation
         if self.needs_variable_scoping(expression) {
@@ -147,7 +162,12 @@ impl FhirPathEngine {
         expression: &ExpressionNode,
         input: FhirPathValue,
     ) -> EvaluationResult<FhirPathValue> {
-        let context = EvaluationContext::new(input, self.functions.clone(), self.operators.clone());
+        let context = EvaluationContext::new(
+            input,
+            self.functions.clone(),
+            self.operators.clone(),
+            self.model_provider.clone(),
+        );
 
         // Check if expression needs variable scoping - if so, use threaded evaluation
         if self.needs_variable_scoping(expression) {
@@ -1120,12 +1140,47 @@ impl FhirPathEngine {
                     }
                 }
 
-                // Otherwise try to get the property
-                match resource.get_property(name) {
-                    Some(value) => {
+                // Otherwise try to get the property with polymorphic support
+                match resource.get_property_with_name(name) {
+                    Some((value, actual_property_name)) => {
                         // Convert values properly handling arrays and objects
                         match value {
                             serde_json::Value::Object(_) => {
+                                // Check if this is a FHIR quantity object that should be converted
+                                if actual_property_name.starts_with("value")
+                                    && actual_property_name.len() > 5
+                                    && &actual_property_name[5..] == "Quantity"
+                                {
+                                    // Convert FHIR valueQuantity to FHIRPath Quantity
+                                    if let Some(quantity_obj) = value.as_object() {
+                                        let value_num = quantity_obj
+                                            .get("value")
+                                            .and_then(|v| v.as_f64())
+                                            .or_else(|| {
+                                                quantity_obj
+                                                    .get("value")
+                                                    .and_then(|v| v.as_i64())
+                                                    .map(|i| i as f64)
+                                            });
+
+                                        let unit = quantity_obj
+                                            .get("code")
+                                            .and_then(|v| v.as_str())
+                                            .or_else(|| {
+                                                quantity_obj.get("unit").and_then(|v| v.as_str())
+                                            });
+
+                                        if let Some(num) = value_num {
+                                            let decimal_val = rust_decimal::Decimal::try_from(num)
+                                                .unwrap_or_default();
+                                            return Ok(FhirPathValue::quantity(
+                                                decimal_val,
+                                                unit.map(|u| u.to_string()),
+                                            ));
+                                        }
+                                    }
+                                }
+
                                 // Wrap JSON objects as FhirResource so functions like resolve() can inspect fields
                                 Ok(FhirPathValue::Resource(Arc::new(
                                     crate::model::FhirResource::from_json(value.clone()),
@@ -1321,7 +1376,10 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            crate::registry::function::EvaluationContext::new(context.input.clone());
+            crate::registry::function::EvaluationContext::with_model_provider(
+                context.input.clone(),
+                context.model_provider.clone(),
+            );
         registry_context
             .variables
             .extend(context.variable_scope.collect_all_variables());
@@ -1383,7 +1441,10 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            crate::registry::function::EvaluationContext::new(context.input.clone());
+            crate::registry::function::EvaluationContext::with_model_provider(
+                context.input.clone(),
+                context.model_provider.clone(),
+            );
         registry_context
             .variables
             .extend(context.variable_scope.collect_all_variables());
@@ -1490,7 +1551,10 @@ impl FhirPathEngine {
 
         // Create lambda evaluation context
         let mut registry_context =
-            crate::registry::function::EvaluationContext::new(context.input.clone());
+            crate::registry::function::EvaluationContext::with_model_provider(
+                context.input.clone(),
+                context.model_provider.clone(),
+            );
         registry_context
             .variables
             .extend(context.variable_scope.collect_all_variables());
@@ -1580,7 +1644,10 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            crate::registry::function::EvaluationContext::new(context.input.clone());
+            crate::registry::function::EvaluationContext::with_model_provider(
+                context.input.clone(),
+                context.model_provider.clone(),
+            );
         registry_context
             .variables
             .extend(context.variable_scope.collect_all_variables());
@@ -1612,7 +1679,10 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            crate::registry::function::EvaluationContext::new(context.input.clone());
+            crate::registry::function::EvaluationContext::with_model_provider(
+                context.input.clone(),
+                context.model_provider.clone(),
+            );
         registry_context
             .variables
             .extend(context.variable_scope.collect_all_variables());
@@ -2228,12 +2298,6 @@ impl FhirPathEngine {
                 }
             }
         }
-    }
-}
-
-impl Default for FhirPathEngine {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

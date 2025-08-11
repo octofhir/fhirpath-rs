@@ -21,6 +21,7 @@ fn get_specs_path() -> PathBuf {
 async fn test_run_basics_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(false);
 
@@ -58,6 +59,7 @@ async fn test_run_basics_suite() {
 async fn test_run_literals_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(false);
 
@@ -91,6 +93,7 @@ async fn test_run_literals_suite() {
 async fn test_simple_expression_parsing() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -135,6 +138,7 @@ async fn test_simple_expression_parsing() {
 async fn test_run_abs_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -168,6 +172,7 @@ async fn test_run_abs_suite() {
 async fn test_run_ceiling_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -204,6 +209,7 @@ async fn test_run_ceiling_suite() {
 async fn test_run_floor_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -240,6 +246,7 @@ async fn test_run_floor_suite() {
 async fn test_run_round_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -276,6 +283,7 @@ async fn test_run_round_suite() {
 async fn test_run_take_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -313,6 +321,7 @@ async fn test_run_take_suite() {
 async fn test_run_multiple_official_suites() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(false);
 
@@ -367,6 +376,7 @@ async fn test_run_multiple_official_suites() {
 async fn test_run_equality_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -403,6 +413,7 @@ async fn test_run_equality_suite() {
 async fn test_run_equivalent_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -439,6 +450,7 @@ async fn test_run_equivalent_suite() {
 async fn test_run_not_equivalent_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -475,6 +487,7 @@ async fn test_run_not_equivalent_suite() {
 async fn test_run_not_equal_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -511,6 +524,7 @@ async fn test_run_not_equal_suite() {
 async fn test_run_all_equality_suites() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(false);
 
@@ -564,6 +578,7 @@ async fn test_run_all_equality_suites() {
 async fn test_run_sort_suite() {
     let specs_path = get_specs_path();
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(true);
 
@@ -626,7 +641,7 @@ async fn test_custom_test_creation() {
         ],
     };
 
-    let mut runner = IntegrationTestRunner::new().with_verbose(true);
+    let mut runner = IntegrationTestRunner::new().await.with_verbose(true);
     let results = runner.run_test_suite(&custom_suite).await;
     let stats = runner.calculate_stats(&results);
 

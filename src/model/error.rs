@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Error types for the model crate
 
 use thiserror::Error;
@@ -38,14 +52,6 @@ pub enum ModelError {
     InvalidDateTime {
         /// The invalid value
         value: String,
-    },
-
-    /// Schema loading error
-    #[cfg(feature = "async-schema")]
-    #[error("Failed to load FHIR Schema: {message}")]
-    SchemaLoadError {
-        /// Error message
-        message: String,
     },
 
     /// Type not found in schema
@@ -91,14 +97,6 @@ impl ModelError {
     pub fn invalid_datetime(value: impl Into<String>) -> Self {
         Self::InvalidDateTime {
             value: value.into(),
-        }
-    }
-
-    /// Create a schema load error
-    #[cfg(feature = "async-schema")]
-    pub fn schema_load_error(message: impl Into<String>) -> Self {
-        Self::SchemaLoadError {
-            message: message.into(),
         }
     }
 

@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Memory pool for FHIRPath values with async-aware design
 //!
 //! This module provides memory pooling for FhirPathValue instances to reduce allocation
@@ -141,7 +155,7 @@ impl<T: Default> ValuePool<T> {
 
 /// Specialized pools for different value types
 pub struct ValuePools {
-    /// Pool for Vec<FhirPathValue> used in collections
+    /// Pool for `Vec<FhirPathValue>` used in collections
     collection_vecs: ValuePool<Vec<FhirPathValue>>,
     /// Pool for String values
     strings: ValuePool<String>,
@@ -239,8 +253,11 @@ impl ValuePools {
 /// Combined statistics from all value pools
 #[derive(Debug, Clone)]
 pub struct CombinedValuePoolStats {
+    /// Statistics for collection vector pools
     pub collection_vecs: ValuePoolStats,
+    /// Statistics for string pools
     pub strings: ValuePoolStats,
+    /// Statistics for JSON value pools
     pub json_values: ValuePoolStats,
 }
 

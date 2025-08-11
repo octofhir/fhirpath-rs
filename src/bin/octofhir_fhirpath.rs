@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Simple CLI for FHIRPath evaluation
 //!
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
@@ -14,6 +28,12 @@ use std::process;
 #[command(version)]
 #[command(author = "OctoFHIR Team <funyloony@gmail.com>")]
 struct Cli {
+    /// FHIR version to use (r4, r4b, r5)
+    #[arg(long, value_name = "VERSION", default_value = "r4")]
+    fhir_version: String,
+    /// Additional FHIR packages to load (format: package@version)
+    #[arg(long = "package", value_name = "PACKAGE")]
+    packages: Vec<String>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -61,12 +81,12 @@ async fn main() {
 
     match cli.command {
         Commands::Evaluate {
-            expression,
-            input,
+            ref expression,
+            ref input,
             pretty,
             quiet,
         } => {
-            handle_evaluate(&expression, input.as_deref(), pretty, quiet).await;
+            handle_evaluate(expression, input.as_deref(), pretty, quiet, &cli).await;
         }
         Commands::Parse { expression, quiet } => {
             handle_parse(&expression, quiet);
@@ -77,7 +97,13 @@ async fn main() {
     }
 }
 
-async fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, quiet: bool) {
+async fn handle_evaluate(
+    expression: &str,
+    input: Option<&str>,
+    pretty: bool,
+    quiet: bool,
+    cli: &Cli,
+) {
     // Get resource data
     let resource_data = if let Some(input_str) = input {
         // Check if input is a file path or JSON string
@@ -95,8 +121,20 @@ async fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, qu
             }
         }
     } else {
-        // No input provided - use empty JSON object
-        "{}".to_string()
+        // No input provided - read from stdin
+        if !quiet {
+            eprintln!("Reading FHIR resource from stdin...");
+        }
+
+        use std::io::{self, Read};
+        let mut stdin_content = String::new();
+        match io::stdin().read_to_string(&mut stdin_content) {
+            Ok(_) => stdin_content,
+            Err(e) => {
+                eprintln!("Error reading from stdin: {e}");
+                process::exit(1);
+            }
+        }
     };
 
     // Handle empty input case
@@ -114,8 +152,68 @@ async fn handle_evaluate(expression: &str, input: Option<&str>, pretty: bool, qu
         }
     };
 
-    // Create FHIRPath engine and evaluate
-    let mut engine = octofhir_fhirpath::engine::FhirPathEngine::new();
+    // Create FHIRPath engine with specified FHIR version schema provider
+    let model_provider: std::sync::Arc<dyn octofhir_fhirpath::model::provider::ModelProvider> = {
+        use octofhir_fhirpath::model::{
+            fhirschema_provider::FhirSchemaModelProvider, provider::FhirVersion,
+        };
+
+        let fhir_version = match cli.fhir_version.to_lowercase().as_str() {
+            "r4" => FhirVersion::R4,
+            "r4b" => FhirVersion::R4B,
+            "r5" => FhirVersion::R5,
+            _ => {
+                eprintln!(
+                    "⚠️ Invalid FHIR version '{}', defaulting to R4",
+                    cli.fhir_version
+                );
+                FhirVersion::R4
+            }
+        };
+
+        let mut additional_packages = Vec::new();
+        for package_spec in &cli.packages {
+            if let Some((name, version)) = package_spec.split_once('@') {
+                additional_packages.push(octofhir_fhirpath::model::PackageSpec::registry(
+                    name, version,
+                ));
+            } else {
+                eprintln!("⚠️ Invalid package format '{package_spec}', expected 'package@version'");
+            }
+        }
+
+        let config = octofhir_fhirpath::model::fhirschema_provider::FhirSchemaConfig {
+            fhir_version,
+            additional_packages,
+            ..Default::default()
+        };
+
+        match FhirSchemaModelProvider::with_config(config).await {
+            Ok(provider) => {
+                if !quiet {
+                    eprintln!(
+                        "✅ Initialized FHIR {} schema provider",
+                        match fhir_version {
+                            FhirVersion::R4 => "R4",
+                            FhirVersion::R4B => "R4B",
+                            FhirVersion::R5 => "R5",
+                        }
+                    );
+                }
+                std::sync::Arc::new(provider)
+            }
+            Err(e) => {
+                if !quiet {
+                    eprintln!("⚠️ Failed to initialize FHIR schema provider: {e}");
+                    eprintln!("🔄 Falling back to mock provider...");
+                }
+                std::sync::Arc::new(
+                    octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
+                )
+            }
+        }
+    };
+    let mut engine = octofhir_fhirpath::engine::FhirPathEngine::new(model_provider);
 
     match engine.evaluate(expression, resource).await {
         Ok(result) => {

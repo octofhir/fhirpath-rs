@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Expression compiler for FHIRPath expressions
 //!
 //! This module provides compilation from AST expressions to bytecode for optimized execution.
@@ -25,8 +39,11 @@ pub enum CompilationError {
     UnknownFunction(String),
     /// Invalid function arity
     InvalidArity {
+        /// Name of the function with incorrect arity
         function: String,
+        /// Expected number of arguments
         expected: usize,
+        /// Actual number of arguments provided
         got: usize,
     },
     /// Unsupported expression type
@@ -336,8 +353,8 @@ impl ExpressionCompiler {
             BinaryOperator::And => Instruction::And,
             BinaryOperator::Or => Instruction::Or,
             BinaryOperator::Union => Instruction::Union,
-            BinaryOperator::Equivalent => Instruction::Equal, // Similar semantics for now
-            BinaryOperator::NotEquivalent => Instruction::NotEqual,
+            BinaryOperator::Equivalent => Instruction::Equivalent,
+            BinaryOperator::NotEquivalent => Instruction::NotEquivalent,
             BinaryOperator::Xor => {
                 return Err(CompilationError::UnsupportedExpression(
                     "XOR operator not implemented in bytecode".to_string(),

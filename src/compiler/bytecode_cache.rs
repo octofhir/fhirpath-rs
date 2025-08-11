@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::compiler::bytecode::{Bytecode, BytecodeMetadata, Instruction};
 use crate::model::FhirPathValue;
 use dashmap::DashMap;
@@ -378,6 +392,10 @@ pub struct CacheStats {
 }
 
 impl CacheStats {
+    /// Calculates the cache hit rate as a percentage
+    ///
+    /// # Returns
+    /// * `f64` - Hit rate between 0.0 and 1.0, or 0.0 if no cache operations occurred
     pub fn hit_rate(&self) -> f64 {
         let hits = self.hits.load(std::sync::atomic::Ordering::Relaxed);
         let misses = self.misses.load(std::sync::atomic::Ordering::Relaxed);
@@ -578,8 +596,11 @@ pub fn global_cache() -> &'static GlobalBytecodeCache {
 /// Compression error types
 #[derive(Debug, Clone)]
 pub enum CompressionError {
+    /// Unexpected end of compressed data during decompression
     UnexpectedEnd,
+    /// Unknown opcode encountered during decompression
     UnknownOpcode(u8),
+    /// Validation failed during decompression process
     ValidationFailed,
 }
 

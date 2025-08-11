@@ -114,7 +114,7 @@ fn bench_bundle_operations_baseline(c: &mut Criterion) {
                 |b, (expr, data)| {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     b.iter(|| {
-                        let mut engine = FhirPathEngine::new();
+                        let mut engine = FhirPathEngine::with_mock_provider();
                         black_box(rt.block_on(engine.evaluate(black_box(expr), (**data).clone())))
                     })
                 },

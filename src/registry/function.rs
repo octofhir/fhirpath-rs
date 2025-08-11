@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Function registry and built-in functions
 
 // Import from modular structure
@@ -17,6 +31,7 @@ use crate::registry::functions::type_conversion::*;
 use crate::registry::functions::utility::*;
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
 // Re-export commonly used function types for external crates
 // Note: Lambda evaluation is not yet fully implemented
@@ -24,6 +39,7 @@ use async_trait::async_trait;
 // pub use crate::registry::functions::collection::ExistsFunction;
 use crate::model::{FhirPathValue, TypeInfo};
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::sync::Arc;
 
@@ -93,6 +109,118 @@ pub type EnhancedLambdaEvaluator<'a> = dyn Fn(
         Box<dyn std::future::Future<Output = Result<FhirPathValue, FunctionError>> + 'a>,
     > + 'a;
 
+/// Rich metadata about a function for LSP and tooling support
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct FunctionMetadata {
+    /// Function name
+    pub name: String,
+    /// Human-friendly display name
+    pub display_name: String,
+    /// Function category for grouping
+    pub category: FunctionCategory,
+    /// Detailed description
+    pub description: String,
+    /// Examples of usage
+    pub examples: Vec<String>,
+    /// Input type constraints
+    pub input_types: Vec<String>,
+    /// Whether this function works on collections
+    pub supports_collections: bool,
+    /// Whether this function requires collection input
+    pub requires_collection: bool,
+    /// Output type information
+    pub output_type: String,
+    /// Whether output is always a collection
+    pub output_is_collection: bool,
+    /// Whether this function is pure (no side effects)
+    pub is_pure: bool,
+    /// LSP-specific information
+    pub lsp_info: LspMetadata,
+}
+
+/// Categories for function organization
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum FunctionCategory {
+    /// Type conversion functions (toString, toInteger, etc.)
+    TypeConversion,
+    /// Type checking functions (convertsTo*, is, as, ofType)
+    TypeChecking,
+    /// Collection operations (where, select, first, etc.)
+    Collections,
+    /// String manipulation functions
+    StringOperations,
+    /// Mathematical and numerical operations
+    MathNumbers,
+    /// Date and time functions
+    DateTime,
+    /// Boolean logic operations
+    BooleanLogic,
+    /// FHIR-specific functions
+    FhirSpecific,
+    /// Utility functions (iif, trace, etc.)
+    Utilities,
+    /// Other/miscellaneous functions
+    Other,
+}
+
+/// LSP-specific metadata
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct LspMetadata {
+    /// Snippet template for completion
+    pub snippet: String,
+    /// Sort priority (lower = higher priority)
+    pub sort_priority: u32,
+    /// Whether to show in completion always/contextually/never
+    pub completion_visibility: CompletionVisibility,
+    /// Keywords for search/filtering
+    pub keywords: Vec<String>,
+}
+
+/// When to show this function in completions
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum CompletionVisibility {
+    /// Always show in completions
+    Always,
+    /// Show only when contextually relevant
+    Contextual,
+    /// Never show (hidden/deprecated functions)
+    Never,
+}
+
+impl FunctionCategory {
+    /// Get display name for the category
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            FunctionCategory::TypeConversion => "Type Conversion",
+            FunctionCategory::TypeChecking => "Type Checking",
+            FunctionCategory::Collections => "Collections",
+            FunctionCategory::StringOperations => "String Operations",
+            FunctionCategory::MathNumbers => "Math & Numbers",
+            FunctionCategory::DateTime => "Date & Time",
+            FunctionCategory::BooleanLogic => "Boolean Logic",
+            FunctionCategory::FhirSpecific => "FHIR Specific",
+            FunctionCategory::Utilities => "Utilities",
+            FunctionCategory::Other => "Other",
+        }
+    }
+
+    /// Get sort priority for the category
+    pub fn sort_priority(&self) -> u32 {
+        match self {
+            FunctionCategory::Collections => 10,
+            FunctionCategory::TypeConversion => 20,
+            FunctionCategory::StringOperations => 30,
+            FunctionCategory::MathNumbers => 40,
+            FunctionCategory::TypeChecking => 50,
+            FunctionCategory::DateTime => 60,
+            FunctionCategory::BooleanLogic => 70,
+            FunctionCategory::FhirSpecific => 80,
+            FunctionCategory::Utilities => 90,
+            FunctionCategory::Other => 100,
+        }
+    }
+}
+
 /// Context for function evaluation
 #[derive(Debug, Clone)]
 pub struct EvaluationContext {
@@ -102,6 +230,8 @@ pub struct EvaluationContext {
     pub root: FhirPathValue,
     /// Variables in scope
     pub variables: FxHashMap<String, FhirPathValue>,
+    /// Model provider for type operations (optional for backward compatibility)
+    pub model_provider: Option<Arc<dyn crate::model::provider::ModelProvider>>,
 }
 
 /// Extended context for lambda-supporting functions
@@ -121,6 +251,20 @@ impl EvaluationContext {
             root: input.clone(),
             input,
             variables: FxHashMap::default(),
+            model_provider: None,
+        }
+    }
+
+    /// Create a new evaluation context with model provider
+    pub fn with_model_provider(
+        input: FhirPathValue,
+        model_provider: Arc<dyn crate::model::provider::ModelProvider>,
+    ) -> Self {
+        Self {
+            root: input.clone(),
+            input,
+            variables: FxHashMap::default(),
+            model_provider: Some(model_provider),
         }
     }
 }
@@ -828,6 +972,8 @@ impl FunctionImpl {
 pub struct FunctionRegistry {
     functions: FxHashMap<String, FunctionImpl>,
     signatures: FxHashMap<String, Vec<FunctionSignature>>,
+    /// Rich metadata for each function
+    metadata: FxHashMap<String, FunctionMetadata>,
     /// Cache for resolved functions by name and argument types
     resolution_cache: Arc<FunctionResolutionCache>,
     /// Cache for pure function results
@@ -877,6 +1023,7 @@ impl FunctionRegistry {
         Self {
             functions: FxHashMap::default(),
             signatures: FxHashMap::default(),
+            metadata: FxHashMap::default(),
             resolution_cache,
             result_cache,
             cache_config: Arc::new(config),
@@ -1067,6 +1214,274 @@ impl FunctionRegistry {
     /// Get all registered function names
     pub fn function_names(&self) -> Vec<&str> {
         self.functions.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// Get metadata for a specific function
+    pub fn get_metadata(&self, name: &str) -> Option<&FunctionMetadata> {
+        self.metadata.get(name)
+    }
+
+    /// Register metadata for a function
+    pub fn register_metadata(&mut self, metadata: FunctionMetadata) {
+        self.metadata.insert(metadata.name.clone(), metadata);
+    }
+
+    /// Register metadata for multiple functions
+    pub fn register_metadata_bulk(&mut self, metadata: Vec<FunctionMetadata>) {
+        for meta in metadata {
+            self.metadata.insert(meta.name.clone(), meta);
+        }
+    }
+
+    /// Get all registered functions (name -> implementation pairs)
+    pub fn all_functions(&self) -> Vec<(&str, &FunctionImpl)> {
+        self.functions
+            .iter()
+            .map(|(name, func)| (name.as_str(), func))
+            .collect()
+    }
+
+    /// Get functions applicable to a specific type context using metadata
+    pub fn get_functions_for_type(
+        &self,
+        context_type: Option<&str>,
+        is_collection: bool,
+    ) -> Vec<(&str, &FunctionImpl, Option<&FunctionMetadata>)> {
+        self.functions
+            .iter()
+            .filter_map(|(name, func)| {
+                let metadata = self.metadata.get(name);
+                if self.is_function_applicable_to_type_with_metadata(
+                    name,
+                    context_type,
+                    is_collection,
+                    metadata,
+                ) {
+                    Some((name.as_str(), func, metadata))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Get functions by category using metadata
+    pub fn get_functions_by_category(
+        &self,
+    ) -> HashMap<FunctionCategory, Vec<(&str, &FunctionImpl, &FunctionMetadata)>> {
+        let mut categorized = HashMap::new();
+
+        for (name, func) in &self.functions {
+            if let Some(metadata) = self.metadata.get(name) {
+                categorized
+                    .entry(metadata.category.clone())
+                    .or_insert_with(Vec::new)
+                    .push((name.as_str(), func, metadata));
+            }
+        }
+
+        categorized
+    }
+
+    /// Get functions suitable for LSP completion
+    pub fn get_completion_functions(
+        &self,
+        context_type: Option<&str>,
+        is_collection: bool,
+    ) -> Vec<(&str, &FunctionImpl, &FunctionMetadata)> {
+        self.functions
+            .iter()
+            .filter_map(|(name, func)| {
+                self.metadata.get(name).and_then(|metadata| {
+                    // Check visibility and applicability
+                    match metadata.lsp_info.completion_visibility {
+                        CompletionVisibility::Never => None,
+                        CompletionVisibility::Always => Some((name.as_str(), func, metadata)),
+                        CompletionVisibility::Contextual => {
+                            if self.is_function_applicable_to_type_with_metadata(
+                                name,
+                                context_type,
+                                is_collection,
+                                Some(metadata),
+                            ) {
+                                Some((name.as_str(), func, metadata))
+                            } else {
+                                None
+                            }
+                        }
+                    }
+                })
+            })
+            .collect()
+    }
+
+    /// Check if a function is applicable to a given type context using metadata
+    pub fn is_function_applicable_to_type_with_metadata(
+        &self,
+        function_name: &str,
+        context_type: Option<&str>,
+        is_collection: bool,
+        metadata: Option<&FunctionMetadata>,
+    ) -> bool {
+        // If we have metadata, use it for precise filtering
+        if let Some(meta) = metadata {
+            // Check collection requirements
+            if meta.requires_collection && !is_collection {
+                return false;
+            }
+
+            // Check if function supports collections when in collection context
+            if is_collection && !meta.supports_collections {
+                return false;
+            }
+
+            // Check input type constraints
+            if let Some(context_type_name) = context_type {
+                if !meta.input_types.is_empty()
+                    && !meta.input_types.contains(&context_type_name.to_string())
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Fallback to legacy logic if no metadata available
+        self.is_function_applicable_to_type_legacy(function_name, context_type, is_collection)
+    }
+
+    /// Legacy type applicability check (fallback when no metadata)
+    pub fn is_function_applicable_to_type_legacy(
+        &self,
+        function_name: &str,
+        context_type: Option<&str>,
+        is_collection: bool,
+    ) -> bool {
+        // Collection-specific functions
+        if is_collection {
+            match function_name {
+                "where" | "select" | "first" | "last" | "tail" | "count" | "empty" | "exists"
+                | "distinct" | "union" | "intersect" | "exclude" | "all" | "any" | "skip"
+                | "take" | "sort" | "aggregate" => return true,
+                _ => {}
+            }
+        }
+
+        // Type-specific function filtering
+        if let Some(context_type_name) = context_type {
+            match context_type_name {
+                "String" => {
+                    matches!(
+                        function_name,
+                        "substring"
+                            | "length"
+                            | "upper"
+                            | "lower"
+                            | "contains"
+                            | "startsWith"
+                            | "endsWith"
+                            | "matches"
+                            | "replace"
+                            | "split"
+                            | "trim"
+                            | "join"
+                            | "indexOf"
+                            | "toChars"
+                            | "encode"
+                            | "decode"
+                            | "escape"
+                            | "unescape"
+                    )
+                }
+                "Integer" | "Decimal" => {
+                    matches!(
+                        function_name,
+                        "abs"
+                            | "ceiling"
+                            | "floor"
+                            | "round"
+                            | "sqrt"
+                            | "exp"
+                            | "ln"
+                            | "log"
+                            | "power"
+                            | "truncate"
+                            | "precision"
+                    )
+                }
+                "DateTime" | "Date" | "Time" => {
+                    matches!(function_name, "now" | "today" | "timeOfDay")
+                }
+                "Boolean" => {
+                    matches!(function_name, "not")
+                }
+                "Quantity" => {
+                    matches!(function_name, "toQuantity" | "convertsToQuantity")
+                }
+                _ => {
+                    // Always include universal functions
+                    matches!(
+                        function_name,
+                        // Type conversion functions
+                        "toString" | "toInteger" | "toDecimal" | "toQuantity" | "toBoolean" |
+                        "convertsToString" | "convertsToInteger" | "convertsToDecimal" |
+                        "convertsToQuantity" | "convertsToBoolean" |
+                        // Utility functions
+                        "iif" | "trace" | "defineVariable" | "hasValue" | "repeat" |
+                        // Type checking
+                        "is" | "as" | "ofType" |
+                        // Universal math functions
+                        "sum" | "avg" | "min" | "max" |
+                        // FHIR-specific
+                        "extension" | "resolve" | "conformsTo" | "comparable"
+                    )
+                }
+            }
+        } else {
+            // Without context type, include all functions except collection-specific ones when not in collection context
+            if !is_collection {
+                !matches!(
+                    function_name,
+                    "where"
+                        | "select"
+                        | "first"
+                        | "last"
+                        | "tail"
+                        | "count"
+                        | "empty"
+                        | "exists"
+                        | "distinct"
+                        | "union"
+                        | "intersect"
+                        | "exclude"
+                        | "all"
+                        | "any"
+                        | "skip"
+                        | "take"
+                        | "sort"
+                        | "aggregate"
+                )
+            } else {
+                true
+            }
+        }
+    }
+
+    /// Check if a function is applicable to a given type context (backward compatibility)
+    pub fn is_function_applicable_to_type(
+        &self,
+        function_name: &str,
+        context_type: Option<&str>,
+        is_collection: bool,
+    ) -> bool {
+        let metadata = self.metadata.get(function_name);
+        self.is_function_applicable_to_type_with_metadata(
+            function_name,
+            context_type,
+            is_collection,
+            metadata,
+        )
     }
 
     /// Get all signatures for a function name

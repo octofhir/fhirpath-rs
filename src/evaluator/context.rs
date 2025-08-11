@@ -1,6 +1,20 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Evaluation context for FHIRPath expressions
 
-use crate::model::FhirPathValue;
+use crate::model::{FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo};
 use crate::registry::{FunctionRegistry, OperatorRegistry};
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
@@ -135,14 +149,21 @@ pub struct EvaluationContext {
 
     /// Operator registry for evaluating operations
     pub operators: Arc<OperatorRegistry>,
+
+    /// Async ModelProvider for type checking and validation (required)
+    pub model_provider: Arc<dyn ModelProvider>,
+
+    /// Cached type annotations from previous async operations
+    pub type_annotations: Arc<Mutex<FxHashMap<String, TypeReflectionInfo>>>,
 }
 
 impl EvaluationContext {
-    /// Create a new evaluation context
+    /// Create a new evaluation context (ModelProvider required)
     pub fn new(
         input: FhirPathValue,
         functions: Arc<FunctionRegistry>,
         operators: Arc<OperatorRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
             root: input.clone(),
@@ -150,6 +171,8 @@ impl EvaluationContext {
             variable_scope: VariableScope::new(),
             functions,
             operators,
+            model_provider,
+            type_annotations: Arc::new(Mutex::new(FxHashMap::default())),
         }
     }
 
@@ -161,6 +184,8 @@ impl EvaluationContext {
             variable_scope: self.variable_scope.clone(),
             functions: self.functions.clone(),
             operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
         }
     }
 
@@ -172,6 +197,8 @@ impl EvaluationContext {
             variable_scope: VariableScope::new(),
             functions: self.functions.clone(),
             operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
         }
     }
 
@@ -183,6 +210,8 @@ impl EvaluationContext {
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
             functions: self.functions.clone(),
             operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
         }
     }
 
@@ -194,6 +223,34 @@ impl EvaluationContext {
     /// Get a variable from the context
     pub fn get_variable(&self, name: &str) -> Option<&FhirPathValue> {
         self.variable_scope.get_variable(name)
+    }
+
+    /// Set a type annotation in the cache
+    pub fn set_type_annotation(&self, key: String, type_info: TypeReflectionInfo) {
+        if let Ok(mut annotations) = self.type_annotations.lock() {
+            annotations.insert(key, type_info);
+        }
+    }
+
+    /// Get a type annotation from the cache
+    pub fn get_type_annotation(&self, key: &str) -> Option<TypeReflectionInfo> {
+        if let Ok(annotations) = self.type_annotations.lock() {
+            annotations.get(key).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// Get the ModelProvider (always available now)
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+        &self.model_provider
+    }
+
+    /// Clear type annotation cache
+    pub fn clear_type_annotations(&self) {
+        if let Ok(mut annotations) = self.type_annotations.lock() {
+            annotations.clear();
+        }
     }
 }
 
@@ -302,8 +359,10 @@ impl ContextPool {
         max_size: usize,
         functions: Arc<FunctionRegistry>,
         operators: Arc<OperatorRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
-        let template = EvaluationContext::new(FhirPathValue::Empty, functions, operators);
+        let template =
+            EvaluationContext::new(FhirPathValue::Empty, functions, operators, model_provider);
 
         Self {
             pool: Arc::new(Mutex::new(VecDeque::with_capacity(max_size))),
@@ -316,8 +375,9 @@ impl ContextPool {
     pub fn with_defaults(
         functions: Arc<FunctionRegistry>,
         operators: Arc<OperatorRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
-        Self::new(32, functions, operators)
+        Self::new(32, functions, operators, model_provider)
     }
 
     /// Acquire a context from the pool or create a new one
@@ -329,6 +389,8 @@ impl ContextPool {
                 context.input = input.clone();
                 context.root = input;
                 context.variable_scope = VariableScope::new();
+                // Clear type annotations for fresh context
+                context.clear_type_annotations();
                 context
             } else {
                 // Create new context if pool is empty
@@ -336,6 +398,7 @@ impl ContextPool {
                     input,
                     self.template.functions.clone(),
                     self.template.operators.clone(),
+                    self.template.model_provider.clone(),
                 )
             }
         };
@@ -406,14 +469,17 @@ impl Drop for PooledContext {
             self.context.variable_scope = VariableScope::new();
             self.context.input = FhirPathValue::Empty;
             self.context.root = FhirPathValue::Empty;
+            // Clear type annotations
+            self.context.clear_type_annotations();
 
             // Clone the registries before the replace operation
             let functions = self.context.functions.clone();
             let operators = self.context.operators.clone();
 
+            let model_provider = self.context.model_provider.clone();
             pool.push_back(std::mem::replace(
                 &mut self.context,
-                EvaluationContext::new(FhirPathValue::Empty, functions, operators),
+                EvaluationContext::new(FhirPathValue::Empty, functions, operators, model_provider),
             ));
         }
     }
@@ -479,10 +545,13 @@ impl<'a> StackContext<'a> {
 
     /// Convert to a heap-allocated EvaluationContext when needed
     pub fn to_heap_context(&self) -> EvaluationContext {
+        // Note: This is a simplified conversion - in practice, you'd need a ModelProvider
+        let mock_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
         let mut context = EvaluationContext::new(
             self.input.clone(),
             Arc::new(self.functions.clone()),
             Arc::new(self.operators.clone()),
+            mock_provider,
         );
         context.root = self.root.clone();
 
@@ -517,10 +586,14 @@ impl<'a> ContextStorage<'a> {
         if prefer_stack {
             Self::Stack(StackContext::new(input, functions, operators))
         } else {
+            // For internal temporary context conversion, using MockModelProvider is acceptable
+            // since this is not exposed to users and is only used internally
+            let provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
             Self::Heap(EvaluationContext::new(
                 input.clone(),
                 Arc::new(functions.clone()),
                 Arc::new(operators.clone()),
+                provider,
             ))
         }
     }
@@ -643,7 +716,8 @@ mod tests {
     fn test_context_pool_acquire_and_return() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let pool = ContextPool::new(2, functions, operators);
+        let model_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
+        let pool = ContextPool::new(2, functions, operators, model_provider);
 
         // Pool should start empty
         assert_eq!(pool.size(), 0);
@@ -678,7 +752,8 @@ mod tests {
     fn test_context_pool_max_size() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let pool = ContextPool::new(1, functions, operators); // Max size 1
+        let model_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
+        let pool = ContextPool::new(1, functions, operators, model_provider); // Max size 1
 
         // Create multiple contexts
         let input = FhirPathValue::Integer(1);
@@ -698,7 +773,8 @@ mod tests {
     fn test_pooled_context_deref() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let pool = ContextPool::with_defaults(functions, operators);
+        let model_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
+        let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
         let input = FhirPathValue::Integer(42);
         let mut ctx = pool.acquire(input.clone());
@@ -716,7 +792,8 @@ mod tests {
     fn test_context_pool_child_contexts() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let pool = ContextPool::with_defaults(functions, operators);
+        let model_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
+        let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
         let input = FhirPathValue::Integer(42);
         let ctx = pool.acquire(input.clone());
@@ -997,10 +1074,12 @@ mod tests {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
 
+        let model_provider = Arc::new(crate::model::mock_provider::MockModelProvider::empty());
         let mut parent_ctx = EvaluationContext::new(
             FhirPathValue::Integer(42),
             functions.clone(),
             operators.clone(),
+            model_provider,
         );
 
         parent_ctx.set_variable(

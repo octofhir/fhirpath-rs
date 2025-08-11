@@ -56,6 +56,7 @@ async fn run_coverage_report() {
     println!("🏃 Running tests...\n");
 
     let mut runner = IntegrationTestRunner::new()
+        .await
         .with_base_path(&specs_path)
         .with_verbose(false);
 
@@ -72,7 +73,7 @@ async fn run_coverage_report() {
                 format!("{}.json", filename)
             );
 
-            match runner.run_and_report(test_file).await {
+            match runner.run_and_report_quiet(test_file).await {
                 Ok(stats) => {
                     let emoji = if stats.pass_rate() == 100.0 {
                         "✅"

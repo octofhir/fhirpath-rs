@@ -1,3 +1,17 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! String interning for FHIRPath values
 //!
 //! This module provides string interning to reduce memory allocation overhead
@@ -26,7 +40,7 @@ impl StringInterner {
         }
     }
 
-    /// Intern a string, returning a shared Arc<str>
+    /// Intern a string, returning a shared `Arc<str>`
     /// Uses similar pattern to tokenizer STRING_INTERNER for consistency
     pub fn intern<S: AsRef<str>>(&self, s: S) -> Arc<str> {
         let s_ref = s.as_ref();
@@ -293,6 +307,8 @@ mod tests {
 
     #[test]
     fn test_global_interner() {
+        clear_global_interner(); // Start clean to avoid interference with other tests
+
         let s1 = intern_string("test");
         let s2 = intern_string("test");
 
@@ -337,12 +353,12 @@ mod tests {
     fn test_coordination_functions() {
         clear_global_interner(); // Reset for test
 
-        let s1 = intern_string("test_coord");
+        let _s1 = intern_string("test_coord");
         assert!(is_interned("test_coord"));
         assert!(!is_interned("not_interned"));
 
         let stats = global_interner_stats_compat();
-        assert!(stats.0 > 0); // Should have entries from pre-population
+        assert!(stats.0 > 0); // Should have at least the entry we just added
         assert!(stats.1 > 0); // Should have estimated capacity
     }
 

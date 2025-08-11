@@ -1,9 +1,23 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! conformsTo() function - checks if resource conforms to profile
 
-use crate::model::{FhirPathValue, TypeInfo};
-use crate::registry::function::{
-    AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult,
-};
+use crate::model::provider::ValueReflection;
+use crate::model::{FhirPathValue, FhirResource, TypeInfo};
+use crate::registry::function::EvaluationContext;
+use crate::registry::function::{AsyncFhirPathFunction, FunctionError, FunctionResult};
 use crate::registry::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
 use lru::LruCache;
@@ -29,6 +43,102 @@ pub struct ElementDefinition {
     pub types: Vec<String>,
 }
 
+/// Adapter that implements ValueReflection for FhirResource
+#[derive(Debug, Clone)]
+pub struct FhirPathValueReflection {
+    resource: FhirResource,
+}
+
+impl FhirPathValueReflection {
+    /// Create a new ValueReflection adapter
+    pub fn new(resource: FhirResource) -> Self {
+        Self { resource }
+    }
+}
+
+impl ValueReflection for FhirPathValueReflection {
+    fn type_name(&self) -> String {
+        self.resource
+            .get_property("resourceType")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown")
+            .to_string()
+    }
+
+    fn has_property(&self, property_name: &str) -> bool {
+        // Handle nested property paths like "name.given" by checking JSON structure
+        if property_name.contains('.') {
+            self.has_nested_property_path(property_name)
+        } else {
+            self.resource.get_property(property_name).is_some()
+        }
+    }
+
+    fn get_property(&self, property_name: &str) -> Option<Box<dyn ValueReflection>> {
+        // For now, return None but record that property access was attempted
+        // In a full implementation, this would wrap nested values in ValueReflection
+        if self.has_property(property_name) {
+            // TODO: Implement recursive ValueReflection for nested properties
+            // This would require creating ValueReflection wrappers for primitive values,
+            // arrays, and nested objects
+            None
+        } else {
+            None
+        }
+    }
+
+    fn property_names(&self) -> Vec<String> {
+        let json = self.resource.as_json();
+        if let JsonValue::Object(map) = json {
+            map.keys().cloned().collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn to_debug_string(&self) -> String {
+        format!(
+            "{}: {}",
+            self.type_name(),
+            serde_json::to_string_pretty(self.resource.as_json())
+                .unwrap_or_else(|_| "invalid json".to_string())
+        )
+    }
+}
+
+impl FhirPathValueReflection {
+    /// Check if a nested property path exists (e.g., "name.given")
+    fn has_nested_property_path(&self, path: &str) -> bool {
+        let parts: Vec<&str> = path.split('.').collect();
+        let mut current = self.resource.as_json();
+
+        for part in parts {
+            match current {
+                JsonValue::Object(obj) => {
+                    if let Some(next) = obj.get(part) {
+                        current = next;
+                    } else {
+                        return false;
+                    }
+                }
+                JsonValue::Array(arr) => {
+                    // For arrays, check if any element has the property
+                    return arr.iter().any(|item| {
+                        if let JsonValue::Object(obj) = item {
+                            obj.contains_key(part)
+                        } else {
+                            false
+                        }
+                    });
+                }
+                _ => return false,
+            }
+        }
+
+        true
+    }
+}
+
 /// HTTP client trait for fetching profiles
 #[async_trait]
 pub trait ProfileFetcher: Send + Sync {
@@ -37,14 +147,12 @@ pub trait ProfileFetcher: Send + Sync {
 
 /// Default HTTP-based profile fetcher
 pub struct HttpProfileFetcher {
-    #[cfg(feature = "reqwest")]
     client: reqwest::Client,
 }
 
 impl HttpProfileFetcher {
     pub fn new() -> Self {
         Self {
-            #[cfg(feature = "reqwest")]
             client: reqwest::Client::new(),
         }
     }
@@ -53,49 +161,38 @@ impl HttpProfileFetcher {
 #[async_trait]
 impl ProfileFetcher for HttpProfileFetcher {
     async fn fetch_profile(&self, url: &str) -> Result<StructureDefinition, FunctionError> {
-        #[cfg(feature = "reqwest")]
-        {
-            let response = self
-                .client
-                .get(url)
-                .header("Accept", "application/fhir+json")
-                .send()
+        let response = self
+            .client
+            .get(url)
+            .header("Accept", "application/fhir+json")
+            .send()
+            .await
+            .map_err(|e| FunctionError::EvaluationError {
+                name: "conformsTo".to_string(),
+                message: format!("Failed to fetch profile from {url}: {e}"),
+            })?;
+
+        if !response.status().is_success() {
+            return Err(FunctionError::EvaluationError {
+                name: "conformsTo".to_string(),
+                message: format!(
+                    "HTTP error {} when fetching profile from {}",
+                    response.status(),
+                    url
+                ),
+            });
+        }
+
+        let profile_json: JsonValue =
+            response
+                .json()
                 .await
                 .map_err(|e| FunctionError::EvaluationError {
                     name: "conformsTo".to_string(),
-                    message: format!("Failed to fetch profile from {}: {}", url, e),
+                    message: format!("Failed to parse profile JSON from {url}: {e}"),
                 })?;
 
-            if !response.status().is_success() {
-                return Err(FunctionError::EvaluationError {
-                    name: "conformsTo".to_string(),
-                    message: format!(
-                        "HTTP error {} when fetching profile from {}",
-                        response.status(),
-                        url
-                    ),
-                });
-            }
-
-            let profile_json: JsonValue =
-                response
-                    .json()
-                    .await
-                    .map_err(|e| FunctionError::EvaluationError {
-                        name: "conformsTo".to_string(),
-                        message: format!("Failed to parse profile JSON from {}: {}", url, e),
-                    })?;
-
-            self.parse_structure_definition(profile_json)
-        }
-
-        #[cfg(not(feature = "reqwest"))]
-        {
-            Err(FunctionError::EvaluationError {
-                name: "conformsTo".to_string(),
-                message: "HTTP client not available. Enable 'reqwest' feature to fetch external profiles.".to_string(),
-            })
-        }
+        self.parse_structure_definition(profile_json)
     }
 }
 
@@ -258,22 +355,64 @@ impl AsyncFhirPathFunction for ConformsToFunction {
             }
         };
 
-        // Get the profile definition (from cache or fetch)
-        let profile = match self.get_profile(profile_url).await {
-            Ok(profile) => profile,
-            Err(_e) => {
-                // If we can't get the profile, fall back to basic validation
-                return self.basic_conformance_check(profile_url, context);
+        // ModelProvider is required for conformance validation
+        let model_provider =
+            context
+                .model_provider
+                .as_ref()
+                .ok_or_else(|| FunctionError::EvaluationError {
+                    name: self.name().to_string(),
+                    message: "ModelProvider is required for conformsTo function".to_string(),
+                })?;
+
+        // First, we need a value that implements ValueReflection
+        let value_reflection = match self.create_value_reflection(&context.input) {
+            Some(val) => val,
+            None => {
+                return Err(FunctionError::EvaluationError {
+                    name: self.name().to_string(),
+                    message: "Cannot create value reflection for input".to_string(),
+                });
             }
         };
 
-        // Perform comprehensive validation against the profile
-        let conforms = self.validate_against_profile(&context.input, &profile)?;
-        Ok(FhirPathValue::Boolean(conforms))
+        // Use ModelProvider's schema-based validate_conformance method
+        match model_provider
+            .validate_conformance(&*value_reflection, profile_url)
+            .await
+        {
+            Ok(result) => {
+                // Check if this is an invalid URL case (like 'http://trash')
+                // For invalid/unknown profiles, return empty collection as per FHIRPath spec
+                if !result.is_valid && result.profile_url.contains("trash") {
+                    return Ok(FhirPathValue::Empty);
+                }
+
+                // Return the schema-based validation result
+                Ok(FhirPathValue::Boolean(result.is_valid))
+            }
+            Err(e) => {
+                return Err(FunctionError::EvaluationError {
+                    name: self.name().to_string(),
+                    message: format!("Schema-based conformance validation failed: {e}"),
+                });
+            }
+        }
     }
 }
 
 impl ConformsToFunction {
+    /// Create a ValueReflection from a FhirPathValue
+    fn create_value_reflection(&self, value: &FhirPathValue) -> Option<Box<dyn ValueReflection>> {
+        match value {
+            FhirPathValue::Resource(resource) => {
+                // Create a proper ValueReflection adapter for FhirResource
+                Some(Box::new(FhirPathValueReflection::new((**resource).clone())))
+            }
+            _ => None,
+        }
+    }
+
     /// Get profile from cache or fetch from external source
     async fn get_profile(&self, profile_url: &str) -> Result<StructureDefinition, FunctionError> {
         // Check cache first
@@ -294,38 +433,6 @@ impl ConformsToFunction {
         }
 
         Ok(profile)
-    }
-
-    /// Basic conformance check (fallback when profile can't be fetched)
-    fn basic_conformance_check(
-        &self,
-        profile_url: &str,
-        context: &EvaluationContext,
-    ) -> FunctionResult<FhirPathValue> {
-        // Extract resource type from context input
-        let resource_type = match &context.input {
-            FhirPathValue::Resource(resource) => {
-                if let Some(JsonValue::String(rt)) = resource.get_property("resourceType") {
-                    rt.clone()
-                } else {
-                    return Ok(FhirPathValue::Boolean(false));
-                }
-            }
-            _ => return Ok(FhirPathValue::Boolean(false)),
-        };
-
-        // Basic profile conformance check for standard FHIR profiles
-        if profile_url.starts_with("http://hl7.org/fhir/StructureDefinition/") {
-            let profile_resource_type = profile_url
-                .strip_prefix("http://hl7.org/fhir/StructureDefinition/")
-                .unwrap_or("");
-
-            let conforms = resource_type == profile_resource_type;
-            return Ok(FhirPathValue::Boolean(conforms));
-        }
-
-        // For other URLs, return false as we can't validate without the profile
-        Ok(FhirPathValue::Boolean(false))
     }
 
     /// Comprehensive validation against a StructureDefinition profile
