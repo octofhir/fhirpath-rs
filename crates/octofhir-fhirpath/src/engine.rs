@@ -176,7 +176,9 @@ impl IntegratedFhirPathEngine {
     /// ```
     pub async fn with_fhir_r4() -> Result<Self> {
         let provider = Arc::new(FhirSchemaModelProvider::r4().await.map_err(|e| {
-            octofhir_fhirpath_core::FhirPathError::generic(format!("Failed to create R4 provider: {e}"))
+            octofhir_fhirpath_core::FhirPathError::generic(format!(
+                "Failed to create R4 provider: {e}"
+            ))
         })?);
         Ok(Self::new(provider))
     }
@@ -196,7 +198,9 @@ impl IntegratedFhirPathEngine {
     /// ```
     pub async fn with_fhir_r5() -> Result<Self> {
         let provider = Arc::new(FhirSchemaModelProvider::r5().await.map_err(|e| {
-            octofhir_fhirpath_core::FhirPathError::generic(format!("Failed to create R5 provider: {e}"))
+            octofhir_fhirpath_core::FhirPathError::generic(format!(
+                "Failed to create R5 provider: {e}"
+            ))
         })?);
         Ok(Self::new(provider))
     }
@@ -450,7 +454,10 @@ impl IntegratedFhirPathEngine {
         // Create compiler and compile to bytecode
         let mut compiler = ExpressionCompiler::new(self.functions.clone());
         let bytecode = compiler.compile(ast).map_err(|e| {
-            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!("VM compilation failed: {}", e))
+            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!(
+                "VM compilation failed: {}",
+                e
+            ))
         })?;
 
         // Cache the bytecode for future use
@@ -471,7 +478,10 @@ impl IntegratedFhirPathEngine {
 
         // Execute the bytecode using shared VM
         self.vm.execute(&bytecode, input).map_err(|e| {
-            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!("VM execution failed: {}", e))
+            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!(
+                "VM execution failed: {}",
+                e
+            ))
         })
     }
 

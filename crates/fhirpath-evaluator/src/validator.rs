@@ -19,7 +19,7 @@
 
 use super::context::EvaluationContext;
 use octofhir_fhirpath_core::EvaluationResult;
-use octofhir_fhirpath_model::{provider::ModelProvider, FhirPathValue};
+use octofhir_fhirpath_model::{FhirPathValue, provider::ModelProvider};
 use std::sync::Arc;
 
 /// Runtime validator for function parameters and operator compatibility

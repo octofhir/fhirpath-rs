@@ -124,7 +124,8 @@ impl AsyncFhirPathFunction for LowBoundaryFunction {
                             low_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
+                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone())
+                                .into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })
@@ -247,7 +248,8 @@ impl AsyncFhirPathFunction for HighBoundaryFunction {
                             high_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
+                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone())
+                                .into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })

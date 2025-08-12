@@ -267,7 +267,10 @@ impl FhirPathValue {
     }
 
     /// Convert a quantity to a different unit
-    pub fn convert_to_unit(&self, target_unit: &str) -> Result<Self, octofhir_fhirpath_core::FhirPathError> {
+    pub fn convert_to_unit(
+        &self,
+        target_unit: &str,
+    ) -> Result<Self, octofhir_fhirpath_core::FhirPathError> {
         match self {
             Self::Quantity {
                 value,
@@ -295,10 +298,12 @@ impl FhirPathValue {
                                     format!("from {unit} to {target_unit}"),
                                 ))
                             }
-                            Ok(false) => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
-                                "Units are not comparable".to_string(),
-                                format!("{unit} and {target_unit}"),
-                            )),
+                            Ok(false) => {
+                                Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
+                                    "Units are not comparable".to_string(),
+                                    format!("{unit} and {target_unit}"),
+                                ))
+                            }
                             Err(e) => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                                 "Error checking unit compatibility".to_string(),
                                 format!("{unit}: {e}"),

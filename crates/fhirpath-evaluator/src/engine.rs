@@ -1562,12 +1562,12 @@ impl FhirPathEngine {
                     .evaluate_with_context_threaded_async(&expr_clone, item_eval_context)
                     .await
                     .map(|(result, _)| result)
-                    .map_err(
-                        |e| octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
+                    .map_err(|e| {
+                        octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
                             name: "lambda".to_string(),
                             message: format!("Lambda evaluation error: {e}"),
-                        },
-                    )
+                        }
+                    })
             })
                 as std::pin::Pin<
                     Box<
@@ -1608,12 +1608,12 @@ impl FhirPathEngine {
                     .evaluate_with_context_threaded_async(&expr_clone, item_eval_context)
                     .await
                     .map(|(result, _)| result)
-                    .map_err(
-                        |e| octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
+                    .map_err(|e| {
+                        octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
                             name: "enhanced_lambda".to_string(),
                             message: format!("Enhanced lambda evaluation error: {e}"),
-                        },
-                    )
+                        }
+                    })
             })
                 as std::pin::Pin<
                     Box<

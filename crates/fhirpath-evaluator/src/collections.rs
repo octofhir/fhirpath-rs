@@ -18,7 +18,9 @@
 //! and improve performance during FHIRPath expression evaluation.
 
 use octofhir_fhirpath_model::value::{Collection, FhirPathValue};
-use octofhir_fhirpath_model::value_pool::{get_pooled_collection_vec, return_pooled_collection_vec};
+use octofhir_fhirpath_model::value_pool::{
+    get_pooled_collection_vec, return_pooled_collection_vec,
+};
 
 /// Trait for providing size hints to optimize collection operations
 pub trait SizeHint {

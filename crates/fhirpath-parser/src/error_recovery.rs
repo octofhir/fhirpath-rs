@@ -57,7 +57,9 @@ pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> Re
     // Try to tokenize the input
     match Tokenizer::new(input).next_token() {
         Ok(Some(_)) => RecoveryResult {
-            ast: Some(ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::Null)),
+            ast: Some(ExpressionNode::Literal(
+                octofhir_fhirpath_ast::LiteralValue::Null,
+            )),
             diagnostics,
             recovered: false,
             completion_rate: 1.0,

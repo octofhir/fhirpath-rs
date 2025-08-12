@@ -20,10 +20,10 @@
 use super::context::EvaluationContext;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 use octofhir_fhirpath_model::{
+    Collection, FhirPathValue,
     json_arc::ArcJsonValue,
     provider::{ModelProvider, TypeReflectionInfo},
     resource::FhirResource,
-    Collection, FhirPathValue,
 };
 use std::sync::Arc;
 

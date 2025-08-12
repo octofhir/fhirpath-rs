@@ -14,7 +14,9 @@
 
 // Evaluation context for FHIRPath expressions
 
-use octofhir_fhirpath_model::{provider::ModelProvider, provider::TypeReflectionInfo, FhirPathValue};
+use octofhir_fhirpath_model::{
+    FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
+};
 use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;

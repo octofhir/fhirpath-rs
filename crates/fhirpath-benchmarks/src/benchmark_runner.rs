@@ -15,9 +15,9 @@
 //! Benchmark suite runner
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use octofhir_fhirpath_parser::Tokenizer;
 use octofhir_fhirpath::model::MockModelProvider;
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, parse};
+use octofhir_fhirpath_parser::Tokenizer;
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;
@@ -98,10 +98,10 @@ impl BenchmarkSuite {
                     b.iter_batched(
                         || {
                             let provider = Arc::new(MockModelProvider::empty());
-                            let mut engine = FhirPathEngine::new(provider);
+                            let engine = FhirPathEngine::new(provider);
                             (engine, (*resource).clone())
                         },
-                        |(mut engine, data)| {
+                        |(engine, data)| {
                             let ast = parse(expression).unwrap();
                             let fhir_value = FhirPathValue::resource_from_json(data);
                             let _ = futures::executor::block_on(engine.evaluate(&ast, fhir_value));

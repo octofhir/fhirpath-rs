@@ -20,8 +20,8 @@
 use super::context::EvaluationContext;
 use octofhir_fhirpath_core::EvaluationResult;
 use octofhir_fhirpath_model::{
-    provider::{ModelProvider, TypeReflectionInfo},
     Collection, FhirPathValue,
+    provider::{ModelProvider, TypeReflectionInfo},
 };
 use std::sync::Arc;
 
@@ -364,7 +364,7 @@ enum CheckOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirpath_model::{json_arc::ArcJsonValue, MockModelProvider};
+    use octofhir_fhirpath_model::{MockModelProvider, json_arc::ArcJsonValue};
     use tokio;
 
     #[tokio::test]

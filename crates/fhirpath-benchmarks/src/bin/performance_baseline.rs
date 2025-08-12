@@ -58,7 +58,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:-<50}", "");
 
         for (expr_name, expression) in EXPRESSIONS {
-            let mut engine = FhirPathEngine::with_mock_provider();
+            let engine = FhirPathEngine::with_mock_provider();
 
             // Warm up
             for _ in 0..3 {

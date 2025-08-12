@@ -37,7 +37,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "profiling")]
     let guard = ProfilerGuard::new(100)?;
 
-    let mut engine = FhirPathEngine::with_mock_provider();
+    let engine = FhirPathEngine::with_mock_provider();
 
     // Run enough iterations to get meaningful profiling data
     for i in 0..50 {
