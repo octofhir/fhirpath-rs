@@ -34,40 +34,16 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
-
-      - name: Cache Rust toolchain
-        uses: actions/cache@v4
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.rustup/toolchains
-            ~/.rustup/update-hashes
-            ~/.rustup/settings.toml
-          key: ${{ runner.os }}-rustup-${{ matrix.rust }}-${{ hashFiles('rust-toolchain.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-rustup-${{ matrix.rust }}-
-            ${{ runner.os }}-rustup-
-
-      - name: Cache cargo registry and index
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: ${{ runner.os }}-${{ matrix.rust }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.rust }}-cargo-registry-
-            ${{ runner.os }}-stable-cargo-registry-
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ matrix.rust }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.rust }}-target-${{ hashFiles('**/Cargo.lock') }}-
-            ${{ runner.os }}-${{ matrix.rust }}-target-
-            ${{ runner.os }}-stable-target-
+          # Cache key prefix for this workflow
+          prefix-key: "ci-${{ matrix.os }}-${{ matrix.rust }}"
+          # Additional cache key components
+          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Cache all target dirs, registry, and git repos
+          cache-targets: true
+          cache-on-failure: true
 
       - name: Check formatting
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
@@ -104,29 +80,16 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-
-      - name: Cache Rust toolchain
-        uses: actions/cache@v4
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.rustup/toolchains
-            ~/.rustup/update-hashes
-            ~/.rustup/settings.toml
-          key: ${{ runner.os }}-rustup-stable-${{ hashFiles('rust-toolchain.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-rustup-stable-
-            ${{ runner.os }}-rustup-
-
-      - name: Cache cargo registry and index
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
+          # Cache key prefix for this workflow
+          prefix-key: "coverage"
+          # Additional cache key components
+          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Cache all target dirs, registry, and git repos
+          cache-targets: true
+          cache-on-failure: true
 
       - name: Cache cargo tools
         uses: actions/cache@v4
@@ -136,16 +99,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-tools-tarpaulin-
             ${{ runner.os }}-cargo-tools-
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-coverage-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-          restore-keys: |
-            ${{ runner.os }}-coverage-target-${{ hashFiles('**/Cargo.lock') }}-
-            ${{ runner.os }}-coverage-target-
-            ${{ runner.os }}-stable-target-
 
       - name: Install cargo-tarpaulin
         run: |
@@ -170,29 +123,16 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-
-      - name: Cache Rust toolchain
-        uses: actions/cache@v4
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.rustup/toolchains
-            ~/.rustup/update-hashes
-            ~/.rustup/settings.toml
-          key: ${{ runner.os }}-rustup-stable-${{ hashFiles('rust-toolchain.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-rustup-stable-
-            ${{ runner.os }}-rustup-
-
-      - name: Cache cargo registry and index
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
+          # Cache key prefix for this workflow
+          prefix-key: "security"
+          # Additional cache key components
+          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Cache all target dirs, registry, and git repos
+          cache-targets: true
+          cache-on-failure: true
 
       - name: Cache cargo tools
         uses: actions/cache@v4
