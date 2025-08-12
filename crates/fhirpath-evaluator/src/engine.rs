@@ -138,6 +138,39 @@ impl FhirPathEngine {
         self.evaluate_expression(expression, &context).await
     }
 
+    /// Evaluate an FHIRPath expression against input data with initial variables
+    pub async fn evaluate_with_variables(
+        &self,
+        expression: &ExpressionNode,
+        input: FhirPathValue,
+        initial_variables: rustc_hash::FxHashMap<String, FhirPathValue>,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Analyze expression complexity for optimal strategy selection
+        let complexity = self.estimate_expression_complexity(expression);
+
+        // For complex expressions, try VM compilation first
+        if complexity >= 15 {
+            match self.try_vm_evaluation(expression, input.clone()) {
+                Ok(result) => return Ok(result),
+                Err(_) => {
+                    // VM failed, fall back to traditional interpretation
+                    // This ensures reliability - we never fail due to VM issues
+                }
+            }
+        }
+
+        // Use traditional AST interpretation with initial variables
+        let context = EvaluationContext::with_variables(
+            input,
+            self.functions.clone(),
+            self.operators.clone(),
+            self.model_provider.clone(),
+            initial_variables,
+        );
+
+        self.evaluate_expression(expression, &context).await
+    }
+
     /// Async version of evaluate - supports async function calls
     pub async fn evaluate_async(
         &self,
@@ -1369,11 +1402,11 @@ impl FhirPathEngine {
                 if let Some(value) = context.get_variable("this") {
                     Ok(value.clone())
                 } else {
-                    // Fall back to root for regular function arguments
-                    Ok(context.root.clone())
+                    // Fall back to current input for regular function arguments
+                    Ok(context.input.clone())
                 }
             }
-            "$$" | "$resource" | "resource" => Ok(context.root.clone()),
+            "$$" | "$resource" => Ok(context.root.clone()),
             "$total" | "total" => {
                 // $total is used in aggregate functions - check for it in variables
                 if let Some(value) = context.get_variable("total") {
@@ -1392,13 +1425,77 @@ impl FhirPathEngine {
                     Ok(FhirPathValue::Empty)
                 }
             }
-            _ => {
-                // Environment variables parsed as Variable("name") where % is stripped by parser
-                if let Some(value) = context.get_variable(name) {
+            // FHIR environment variables per FHIRPath specification
+            "context" => {
+                // %context: the original node that is in the input context when the FHIRPath expression is evaluated
+                // Check if %context is set as a variable first (for custom contexts)
+                if let Some(value) = context.get_variable("context") {
                     Ok(value.clone())
                 } else {
-                    // Variable not found - return empty per FHIRPath spec
-                    Ok(FhirPathValue::Empty)
+                    // Fall back to root resource (same as %resource in most cases)
+                    Ok(context.root.clone())
+                }
+            }
+            "resource" => {
+                // %resource: the resource that contains the original node that is in %context
+                // Check if %resource is set as a variable first (for custom resources)
+                if let Some(value) = context.get_variable("resource") {
+                    Ok(value.clone())
+                } else {
+                    // Fall back to root resource
+                    Ok(context.root.clone())
+                }
+            }
+            "rootResource" => {
+                // %rootResource: the container resource for the resource identified by %resource
+                // Check if %rootResource is set as a variable first (for contained resources)
+                if let Some(value) = context.get_variable("rootResource") {
+                    Ok(value.clone())
+                } else {
+                    // In most cases, %rootResource is the same as %resource
+                    // unless dealing with contained resources
+                    Ok(context.root.clone())
+                }
+            }
+            // Standard FHIR terminology environment variables
+            "sct" => {
+                // %sct: (string) url for snomed ct
+                if let Some(value) = context.get_variable("sct") {
+                    Ok(value.clone())
+                } else {
+                    Ok(FhirPathValue::String(
+                        "http://snomed.info/sct".to_string().into(),
+                    ))
+                }
+            }
+            "loinc" => {
+                // %loinc: (string) url for loinc
+                if let Some(value) = context.get_variable("loinc") {
+                    Ok(value.clone())
+                } else {
+                    Ok(FhirPathValue::String("http://loinc.org".to_string().into()))
+                }
+            }
+            _ => {
+                // Check for HL7 value sets in format "vs-[name]"
+                if let Some(vs_name) = name.strip_prefix("vs-") {
+                    // %"vs-[name]": (string) full url for the provided HL7 value set with id [name]
+                    if let Some(value) = context.get_variable(name) {
+                        Ok(value.clone())
+                    } else {
+                        // Construct standard HL7 value set URL
+                        Ok(FhirPathValue::String(
+                            format!("http://hl7.org/fhir/ValueSet/{vs_name}").into(),
+                        ))
+                    }
+                } else {
+                    // Other environment variables and user-defined variables
+                    if let Some(value) = context.get_variable(name) {
+                        Ok(value.clone())
+                    } else {
+                        // Variable not found - return empty per FHIRPath spec
+                        Ok(FhirPathValue::Empty)
+                    }
                 }
             }
         }

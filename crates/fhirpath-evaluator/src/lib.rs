@@ -48,3 +48,9 @@ pub use validator::{RuntimeValidator, ValidationMode, ValidationResult};
 pub use collections::{
     BundleEntryIterator, CollectionUtils, FilterOps, OptimizedCollectionBuilder, SizeHint,
 };
+
+// Tests for evaluator functionality
+#[cfg(test)]
+mod tests {
+    mod environment_variables;
+}

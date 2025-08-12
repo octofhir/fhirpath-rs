@@ -123,6 +123,12 @@ just cli-evaluate "Patient.name.given"
 # Evaluate FHIRPath expression with specific file
 just cli-evaluate "Patient.name.given" path/to/resource.json
 
+# Evaluate with environment variables
+just cli-evaluate "%customVar" --variable "customVar=hello world"
+
+# Multiple variables
+just cli-evaluate "age > %minAge" --variable "minAge=18" --variable "maxAge=65"
+
 # Parse FHIRPath expression to AST
 just cli-parse "Patient.name.given"
 
@@ -135,6 +141,29 @@ just cli-help
 # Run CLI with custom arguments
 just cli [arguments...]
 ```
+
+### Environment Variables Support
+
+The implementation supports FHIRPath environment variables per the specification:
+
+#### Standard Environment Variables
+- `%context` - The original node in the input context
+- `%resource` - The resource containing the original node
+- `%rootResource` - The container resource (for contained resources)
+- `%sct` - SNOMED CT URL (`http://snomed.info/sct`)
+- `%loinc` - LOINC URL (`http://loinc.org`)
+- `%"vs-[name]"` - HL7 value set URLs
+
+#### Custom Variables
+```bash
+# Set custom variables via CLI
+echo '{"age": 25}' | octofhir-fhirpath evaluate 'age > %threshold' --variable 'threshold=18'
+
+# JSON values
+echo '{}' | octofhir-fhirpath evaluate '%config.enabled' --variable 'config={"enabled": true}'
+```
+
+See [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for complete documentation.
 
 ### Debug Utilities
 For debugging parser errors, create simple tests instead of dedicated binaries. 
@@ -214,6 +243,7 @@ The main library crate provides a clean API:
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
 use serde_json::json;
+use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -222,8 +252,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
     
     let patient = json!({"resourceType": "Patient", "name": [{"given": ["John"]}]});
-    let result = engine.evaluate("Patient.name.given", patient).await?;
+    
+    // Basic evaluation
+    let result = engine.evaluate("Patient.name.given", patient.clone()).await?;
     println!("Result: {:?}", result);
+    
+    // Evaluation with environment variables
+    let mut variables = HashMap::new();
+    variables.insert("myVar".to_string(), FhirPathValue::String("test".into()));
+    let result = engine.evaluate_with_variables("%myVar", patient, variables).await?;
+    println!("Variable result: {:?}", result);
+    
     Ok(())
 }
 ```

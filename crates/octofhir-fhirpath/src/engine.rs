@@ -226,6 +226,62 @@ impl IntegratedFhirPathEngine {
         &self.model_provider
     }
 
+    /// Evaluate an FHIRPath expression against input data with initial variables
+    pub async fn evaluate_with_variables(
+        &mut self,
+        expression: &str,
+        input_data: Value,
+        initial_variables: std::collections::HashMap<String, FhirPathValue>,
+    ) -> Result<FhirPathValue> {
+        // Handle parse errors by returning empty collection per FHIRPath spec
+        let ast = match self.get_or_compile_expression(expression) {
+            Ok(ast) => ast,
+            Err(e) => {
+                // Per FHIRPath spec, syntax errors should return empty collection
+                if e.to_string().contains("parse error")
+                    || e.to_string().contains("Parse error")
+                    || e.to_string().contains("Unclosed")
+                    || e.to_string().contains("Unexpected")
+                    || e.to_string().contains("Expected")
+                {
+                    return Ok(FhirPathValue::collection(vec![]));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+        let input_value = FhirPathValue::from(input_data);
+
+        // Convert HashMap to FxHashMap for the engine
+        let mut fx_variables = rustc_hash::FxHashMap::default();
+        for (k, v) in initial_variables {
+            fx_variables.insert(k, v);
+        }
+
+        // Try VM evaluation first for complex expressions
+        if self.vm_enabled && self.should_use_vm(&ast) {
+            match self.try_vm_evaluation(expression, &ast, &input_value).await {
+                Ok(result) => return Ok(result),
+                Err(_) => {
+                    // VM failed, fall back to AST interpretation
+                    // This ensures reliability - we never fail due to VM issues
+                }
+            }
+        }
+
+        // Use traditional AST interpretation with initial variables
+        match self
+            .evaluator
+            .evaluate_with_variables(&ast, input_value, fx_variables)
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(eval_error) => Err(octofhir_fhirpath_core::FhirPathError::evaluation_error(
+                eval_error.to_string(),
+            )),
+        }
+    }
+
     /// Evaluate an FHIRPath expression against input data
     pub async fn evaluate(&mut self, expression: &str, input_data: Value) -> Result<FhirPathValue> {
         // Handle parse errors by returning empty collection per FHIRPath spec

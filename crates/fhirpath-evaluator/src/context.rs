@@ -178,6 +178,32 @@ impl EvaluationContext {
         }
     }
 
+    /// Create a new evaluation context with initial variables
+    pub fn with_variables(
+        input: FhirPathValue,
+        functions: Arc<FunctionRegistry>,
+        operators: Arc<OperatorRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+        initial_variables: FxHashMap<String, FhirPathValue>,
+    ) -> Self {
+        let mut variable_scope = VariableScope::new();
+
+        // Set initial variables in the scope
+        for (name, value) in initial_variables {
+            variable_scope.set_variable(name, value);
+        }
+
+        Self {
+            root: input.clone(),
+            input,
+            variable_scope,
+            functions,
+            operators,
+            model_provider,
+            type_annotations: Arc::new(Mutex::new(FxHashMap::default())),
+        }
+    }
+
     /// Create a child context with new input value
     pub fn with_input(&self, input: FhirPathValue) -> Self {
         Self {

@@ -48,6 +48,9 @@ enum Commands {
         /// JSON file containing FHIR resource, or JSON string directly (reads from stdin if not provided)
         #[arg(short, long)]
         input: Option<String>,
+        /// Initial variables to set in format var=value (can be used multiple times)
+        #[arg(short, long = "variable")]
+        variables: Vec<String>,
         /// Pretty-print JSON output
         #[arg(short, long)]
         pretty: bool,
@@ -84,10 +87,11 @@ async fn main() {
         Commands::Evaluate {
             ref expression,
             ref input,
+            ref variables,
             pretty,
             quiet,
         } => {
-            handle_evaluate(expression, input.as_deref(), pretty, quiet, &cli).await;
+            handle_evaluate(expression, input.as_deref(), variables, pretty, quiet, &cli).await;
         }
         Commands::Parse { expression, quiet } => {
             handle_parse(&expression, quiet);
@@ -101,6 +105,7 @@ async fn main() {
 async fn handle_evaluate(
     expression: &str,
     input: Option<&str>,
+    variables: &[String],
     pretty: bool,
     quiet: bool,
     cli: &Cli,
@@ -212,7 +217,37 @@ async fn handle_evaluate(
     };
     let mut engine = octofhir_fhirpath::engine::IntegratedFhirPathEngine::new(model_provider);
 
-    match engine.evaluate(expression, resource).await {
+    // Parse initial variables from command line
+    let mut initial_variables = std::collections::HashMap::new();
+    for var_spec in variables {
+        if let Some((name, value_str)) = var_spec.split_once('=') {
+            // Try to parse value as JSON first
+            let value = match serde_json::from_str::<serde_json::Value>(value_str) {
+                Ok(json_value) => octofhir_fhirpath::FhirPathValue::from(json_value),
+                Err(_) => {
+                    // If JSON parsing fails, treat as string
+                    octofhir_fhirpath::FhirPathValue::String(value_str.to_string().into())
+                }
+            };
+            initial_variables.insert(name.to_string(), value);
+            if !quiet {
+                eprintln!("Variable set: {name} = {value_str}");
+            }
+        } else {
+            eprintln!("⚠️ Invalid variable format '{var_spec}', expected 'name=value'");
+        }
+    }
+
+    // Use the appropriate evaluation method based on whether variables are provided
+    let result = if initial_variables.is_empty() {
+        engine.evaluate(expression, resource).await
+    } else {
+        engine
+            .evaluate_with_variables(expression, resource, initial_variables)
+            .await
+    };
+
+    match result {
         Ok(result) => {
             if !quiet {
                 eprintln!("Expression: {expression}");

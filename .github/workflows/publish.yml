@@ -35,6 +35,13 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
+      - name: Configure git early
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global http.sslVerify true
+          git config --global http.version HTTP/1.1
+
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -51,11 +58,21 @@ jobs:
         run: ./scripts/prepare-release.sh
 
       - name: Dry run publishing
-        run: cargo workspaces publish --dry-run --allow-dirty
+        run: |
+          echo "🧪 Testing publishing with dry run..."
+          if cargo workspaces publish --dry-run --allow-dirty; then
+            echo "✅ Dry run completed successfully"
+          else
+            echo "⚠️ Dry run completed with warnings"
+            echo "This may be normal if crates are already published or have dependency issues"
+            exit 1  # Still fail for regular releases if there are real issues
+          fi
 
       - name: Publish to crates.io (real)
         if: ${{ github.event_name == 'push' || github.event.inputs.dry_run == 'false' }}
-        run: cargo workspaces publish --allow-dirty --token ${{ secrets.CARGO_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo workspaces publish --allow-dirty --token $CARGO_REGISTRY_TOKEN
 
       - name: Restore development dependencies
         if: always()
