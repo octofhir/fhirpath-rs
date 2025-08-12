@@ -1,0 +1,43 @@
+[package]
+name = "fhirpath-tools"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Development tools for FHIRPath implementation - test coverage and validation"
+keywords = ["fhir", "fhirpath", "tools", "testing"]
+categories = ["development-tools::testing"]
+publish = false
+
+[[bin]]
+name = "test-coverage"
+path = "src/bin/test_coverage.rs"
+
+[[bin]]
+name = "test-runner"
+path = "src/bin/test_runner.rs"
+
+[dependencies]
+# Main crate for testing
+octofhir-fhirpath = { path = "../octofhir-fhirpath" }
+
+# Core dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+comfy-table = "7.0"
+glob = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+tokio = { workspace = true }
+
+# Test utilities
+rstest = "0.26"
+pretty_assertions = "1.4.1"
+
+[features]
+default = []

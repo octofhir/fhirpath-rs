@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Architecture Decision Records (ADRs) for major architectural decisions
+  - ADR-001: Model Context Protocol (MCP) Server Implementation
+  - ADR-002: FHIRPath Analyzer Crate for static analysis and expression explanation
+- Enhanced CLAUDE.md with improved workspace architecture documentation
+- Simple and complete usage examples in README.md
+- CLI quick start example with practical usage
+- Comprehensive contributor guide updates
+- Future development roadmap with MCP server and analyzer crate plans
+
+### Changed
+- Updated README.md with modular workspace architecture description
+- Improved Quick Start section with both simple and complete examples
+- Enhanced CLI documentation with practical examples
+- Updated CONTRIBUTING.md to reflect workspace structure
+- Updated specification compliance rate to 88.1%
+- Enhanced development workflow documentation
+- Updated architecture overview to show 11 specialized crates
+
+### Planned
+- Model Context Protocol (MCP) server implementation for AI assistant integration
+- FHIRPath analyzer crate for static analysis and expression explanation
+- Cross-platform distribution with GitHub releases and Docker images
+
+## [0.4.0] - 2024-XX-XX
+
+### Added
 - Comprehensive CI/CD pipeline with GitHub Actions
 - Canary releases on every main branch push
 - Automated release workflow with manual trigger

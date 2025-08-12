@@ -1,0 +1,47 @@
+[package]
+name = "fhirpath-evaluator"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "FHIRPath expression evaluation engine"
+keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
+categories = ["parser-implementations", "healthcare"]
+repository = "https://github.com/octofhir/fhirpath-rs"
+publish = false
+
+[dependencies]
+fhirpath-core = { path = "../fhirpath-core" }
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-model = { path = "../fhirpath-model" }
+fhirpath-registry = { path = "../fhirpath-registry" }
+fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+fhirpath-parser = { path = "../fhirpath-parser" }
+
+# Performance and concurrency
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+rayon = { workspace = true }
+
+# Async support
+tokio = { workspace = true, features = ["rt", "macros"] }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Utilities
+regex = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+tracing = { workspace = true }
+rust_decimal = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+criterion = { version = "0.7.0", features = ["html_reports"] }
+pretty_assertions = "1.4.1"

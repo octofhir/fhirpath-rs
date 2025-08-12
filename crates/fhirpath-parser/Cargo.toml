@@ -1,0 +1,37 @@
+[package]
+name = "fhirpath-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Parser and tokenizer for FHIRPath expressions"
+keywords = ["fhir", "fhirpath", "parser", "tokenizer"]
+categories = ["parser-implementations"]
+
+[dependencies]
+# Workspace crates
+fhirpath-core = { path = "../fhirpath-core" }
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+
+# Parser dependencies
+nom = { workspace = true }
+nom_locate = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+thiserror = { workspace = true }
+unicode-xid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+[features]
+default = []
+serde = ["dep:serde", "fhirpath-ast/serde"]

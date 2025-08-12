@@ -1,0 +1,52 @@
+[package]
+name = "fhirpath-model"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Value types and FHIR model support for FHIRPath implementation"
+keywords = ["fhir", "fhirpath", "model", "values"]
+categories = ["data-structures"]
+
+[dependencies]
+# Workspace crates
+fhirpath-core = { path = "../fhirpath-core" }
+
+# Core dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+indexmap = { workspace = true }
+dashmap = { workspace = true }
+lru = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+typed-arena = { workspace = true }
+bumpalo = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+url = { workspace = true }
+thiserror = { workspace = true }
+
+# FHIR model dependencies
+octofhir-fhir-model = { workspace = true }
+octofhir-ucum = { workspace = true }
+octofhir-fhirschema = { workspace = true }
+octofhir-canonical-manager = { workspace = true }
+
+# Async dependencies
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+
+# HTTP client for external profile fetching
+reqwest = { workspace = true }
+
+[features]
+default = []
+serde = []

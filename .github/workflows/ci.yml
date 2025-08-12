@@ -75,22 +75,22 @@ jobs:
 
       - name: Run clippy
         if: matrix.rust == 'stable'
-        run: cargo clippy --all-targets
+        run: cargo clippy --workspace --all-targets --all-features
 
-      - name: Build
-        run: cargo build --verbose
+      - name: Build workspace
+        run: cargo build --verbose --workspace
 
       - name: Run tests
-        run: cargo test --verbose --all-features
+        run: cargo test --verbose --workspace --all-features
 
       - name: Run tests (release mode)
-        run: cargo test --release --verbose
+        run: cargo test --release --verbose --workspace
 
       - name: Run benchmarks (quick check)
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
         run: |
           echo "🚀 Running quick benchmark check..."
-          timeout 300 cargo bench --bench fhirpath_benchmark -- --quick || echo "⚠️ Benchmark timed out after 5 minutes"
+          timeout 300 cargo bench --package fhirpath-benchmarks || echo "⚠️ Benchmark timed out after 5 minutes"
 
   coverage:
     name: Code Coverage

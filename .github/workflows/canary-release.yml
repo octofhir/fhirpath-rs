@@ -60,13 +60,13 @@ jobs:
       - name: Run quality assurance
         run: |
           cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features
-          cargo test --all-features
+          cargo clippy --workspace --all-targets --all-features
+          cargo test --workspace --all-features
 
       - name: Run benchmarks (quick)
         run: |
           echo "🚀 Running quick benchmark for canary release..."
-          timeout 180 cargo bench --bench fhirpath_benchmark -- --quick || echo "⚠️ Benchmark timed out after 3 minutes"
+          timeout 180 cargo bench --package fhirpath-benchmarks || echo "⚠️ Benchmark timed out after 3 minutes"
 
       - name: Generate canary version
         id: version
@@ -85,7 +85,7 @@ jobs:
           cat Cargo.toml | grep version
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --package octofhir-fhirpath
 
       - name: Create canary release
         uses: softprops/action-gh-release@v2
@@ -117,5 +117,5 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           echo "Publishing canary version to crates.io..."
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+          cargo publish --package octofhir-fhirpath --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
         continue-on-error: true

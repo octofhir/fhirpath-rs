@@ -1,0 +1,52 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Function and operator registry for FHIRPath
+//!
+//! This crate provides trait-based registries for FHIRPath functions and operators,
+//! allowing for extensible and type-safe evaluation.
+
+#![warn(missing_docs)]
+
+pub mod cache;
+pub mod compiled_signatures;
+pub mod extension;
+pub mod fast_path;
+pub mod function;
+pub mod functions;
+pub mod operator;
+pub mod operators;
+pub mod signature;
+
+pub use compiled_signatures::{
+    CompilationStats, CompiledSignature, CompiledSignatureRegistry, SpecializedSignature,
+};
+pub use fast_path::{FastPathFunction, FastPathRegistry};
+pub use function::{FhirPathFunction, FunctionRegistry};
+pub use operator::{Associativity, FhirPathOperator, OperatorRegistry};
+pub use signature::{FunctionSignature, OperatorSignature};
+
+/// Create a standard registry with all built-in functions and operators
+pub fn create_standard_registries() -> (FunctionRegistry, OperatorRegistry) {
+    let mut functions = FunctionRegistry::new();
+    let mut operators = OperatorRegistry::new();
+
+    // Register built-in functions
+    function::register_builtin_functions(&mut functions);
+
+    // Register built-in operators
+    operator::register_builtin_operators(&mut operators);
+
+    (functions, operators)
+}

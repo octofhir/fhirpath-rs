@@ -919,6 +919,218 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
+name = "fhirpath-ast"
+version = "0.4.0"
+dependencies = [
+ "fhirpath-core",
+ "log",
+ "rustc-hash",
+ "serde",
+ "smallvec",
+]
+
+[[package]]
+name = "fhirpath-benchmarks"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "criterion",
+ "fhirpath-parser",
+ "futures",
+ "octofhir-fhirpath",
+ "pprof",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "fhirpath-compiler"
+version = "0.4.0"
+dependencies = [
+ "chrono",
+ "dashmap",
+ "fhirpath-ast",
+ "fhirpath-core",
+ "fhirpath-evaluator",
+ "fhirpath-model",
+ "fhirpath-registry",
+ "indexmap",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "rust_decimal",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+]
+
+[[package]]
+name = "fhirpath-core"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "octofhir-fhir-model",
+ "octofhir-ucum",
+ "rust_decimal",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "fhirpath-diagnostics"
+version = "0.4.0"
+dependencies = [
+ "colored",
+ "fhirpath-core",
+ "log",
+ "lsp-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "fhirpath-evaluator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "criterion",
+ "dashmap",
+ "fhirpath-ast",
+ "fhirpath-core",
+ "fhirpath-diagnostics",
+ "fhirpath-model",
+ "fhirpath-parser",
+ "fhirpath-registry",
+ "futures",
+ "once_cell",
+ "pretty_assertions",
+ "rayon",
+ "regex",
+ "rust_decimal",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "fhirpath-model"
+version = "0.4.0"
+dependencies = [
+ "async-trait",
+ "bumpalo",
+ "chrono",
+ "dashmap",
+ "fhirpath-core",
+ "futures",
+ "indexmap",
+ "log",
+ "lru 0.16.0",
+ "octofhir-canonical-manager",
+ "octofhir-fhir-model",
+ "octofhir-fhirschema",
+ "octofhir-ucum",
+ "once_cell",
+ "parking_lot",
+ "regex",
+ "reqwest",
+ "rust_decimal",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.12",
+ "tokio",
+ "typed-arena",
+ "url",
+]
+
+[[package]]
+name = "fhirpath-parser"
+version = "0.4.0"
+dependencies = [
+ "dashmap",
+ "fhirpath-ast",
+ "fhirpath-core",
+ "fhirpath-diagnostics",
+ "log",
+ "nom 8.0.0",
+ "nom_locate",
+ "once_cell",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.12",
+ "tokio",
+ "unicode-xid",
+]
+
+[[package]]
+name = "fhirpath-registry"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dashmap",
+ "fhirpath-ast",
+ "fhirpath-core",
+ "fhirpath-model",
+ "futures",
+ "indexmap",
+ "log",
+ "lru 0.16.0",
+ "octofhir-canonical-manager",
+ "octofhir-fhir-model",
+ "octofhir-fhirschema",
+ "octofhir-ucum",
+ "once_cell",
+ "parking_lot",
+ "regex",
+ "reqwest",
+ "rust_decimal",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
+name = "fhirpath-tools"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "comfy-table",
+ "glob",
+ "octofhir-fhirpath",
+ "pretty_assertions",
+ "regex",
+ "rstest",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -951,6 +1163,15 @@ dependencies = [
  "crc32fast",
  "libz-rs-sys",
  "miniz_oxide",
+]
+
+[[package]]
+name = "fluent-uri"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d"
+dependencies = [
+ "bitflags 1.3.2",
 ]
 
 [[package]]
@@ -1770,6 +1991,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp-types"
+version = "0.97.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071"
+dependencies = [
+ "bitflags 1.3.2",
+ "fluent-uri",
+ "serde",
+ "serde_json",
+ "serde_repr",
+]
+
+[[package]]
 name = "lz4_flex"
 version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1964,9 +2198,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-canonical-manager"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2436e2aa915606891c8f5b806b2e6ef8550606937542e4eddc0b8ee034e3f647"
+checksum = "502370e0a7198771dc1e04d7925455ff1df81a5bbc7c3b928c394b123b2115c2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2021,7 +2255,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2033,6 +2267,14 @@ dependencies = [
  "comfy-table",
  "criterion",
  "dashmap",
+ "fhirpath-ast",
+ "fhirpath-compiler",
+ "fhirpath-core",
+ "fhirpath-diagnostics",
+ "fhirpath-evaluator",
+ "fhirpath-model",
+ "fhirpath-parser",
+ "fhirpath-registry",
  "futures",
  "glob",
  "hex",
@@ -2048,7 +2290,6 @@ dependencies = [
  "octofhir-ucum",
  "once_cell",
  "parking_lot",
- "pprof",
  "pretty_assertions",
  "regex",
  "reqwest",
@@ -2988,6 +3229,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3141,9 +3393,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "symbolic-common"
-version = "12.16.1"
+version = "12.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70f4d06896c59fabe3fe36d7bc003c975f0a0af67d380e14a95eaebffe4f8de5"
+checksum = "9da12f8fecbbeaa1ee62c1d50dc656407e007c3ee7b2a41afce4b5089eaef15e"
 dependencies = [
  "debugid",
  "memmap2",
@@ -3153,9 +3405,9 @@ dependencies = [
 
 [[package]]
 name = "symbolic-demangle"
-version = "12.16.1"
+version = "12.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd3903bafe2ed4c3512ff4c6eb77cc22b6f43662f3b9f7e3fe4f152927f54ec8"
+checksum = "6fd35afe0ef9d35d3dcd41c67ddf882fc832a387221338153b7cd685a105495c"
 dependencies = [
  "cpp_demangle",
  "rustc-demangle",

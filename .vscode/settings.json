@@ -1,0 +1,37 @@
+{
+    "rust-analyzer.cargo.features": ["all"],
+    "rust-analyzer.workspace.symbol.search.scope": "workspace_and_dependencies",
+    "rust-analyzer.imports.prefix": "crate",
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.extraArgs": ["--all-targets", "--all-features"],
+    "rust-analyzer.cargo.buildScripts.enable": true,
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.lens.enable": true,
+    "rust-analyzer.lens.implementations.enable": true,
+    "rust-analyzer.lens.references.enable": true,
+    "rust-analyzer.lens.run.enable": true,
+    "rust-analyzer.diagnostics.enable": true,
+    "rust-analyzer.completion.addCallParenthesis": true,
+    "rust-analyzer.completion.addCallArgumentSnippets": true,
+    "rust-analyzer.workspace.symbol.search.kind": "all_symbols",
+    "files.watcherExclude": {
+        "**/target/**": true,
+        "**/.git/**": true
+    },
+    "search.exclude": {
+        "**/target": true,
+        "**/Cargo.lock": true
+    },
+    "files.associations": {
+        "*.rs": "rust",
+        "Cargo.toml": "toml",
+        "Cargo.lock": "toml"
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "rust-analyzer.rustfmt.extraArgs": [
+        "+stable"
+    ],
+    "rust-analyzer.cargo.allFeatures": false,
+    "rust-analyzer.cargo.noDefaultFeatures": false
+}

@@ -28,14 +28,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
 
-      - name: Verify Cargo.toml version matches tag
+      - name: Verify workspace version matches tag
         run: |
-          CARGO_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          CRATE_VERSION=$(grep '^version.workspace = true' crates/octofhir-fhirpath/Cargo.toml)
           TAG_VERSION="${{ steps.version.outputs.version }}"
-          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Workspace version: $WORKSPACE_VERSION"
           echo "Git tag version: $TAG_VERSION"
-          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
-            echo "Version mismatch! Cargo.toml has $CARGO_VERSION but tag is $TAG_VERSION"
+          echo "Main crate uses workspace version: $([[ -n "$CRATE_VERSION" ]] && echo "yes" || echo "no")"
+          if [ "$WORKSPACE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch! Workspace has $WORKSPACE_VERSION but tag is $TAG_VERSION"
             exit 1
           fi
 
@@ -74,20 +76,20 @@ jobs:
 
       - name: Run tests
         run: |
-          cargo test --all-features
-          cargo test --release
+          cargo test --workspace --all-features
+          cargo test --workspace --release
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --package octofhir-fhirpath
 
       - name: Check if crate can be published
         run: |
-          cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --dry-run --package octofhir-fhirpath --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish to crates.io
         run: |
           echo "Publishing octofhir-fhirpath v${{ steps.version.outputs.version }} to crates.io..."
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package octofhir-fhirpath --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 

@@ -1,0 +1,62 @@
+[package]
+name = "fhirpath-benchmarks"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Performance benchmarks for FHIRPath implementation"
+keywords = ["fhir", "fhirpath", "benchmarks", "performance"]
+categories = ["development-tools::profiling"]
+publish = false
+
+[[bin]]
+name = "benchmark-runner"
+path = "src/bin/benchmark_runner.rs"
+
+[[bin]]
+name = "performance-profiler"
+path = "src/bin/performance_profiler.rs"
+
+[[bin]]
+name = "extract-benchmark-metrics"
+path = "src/bin/extract_benchmark_metrics.rs"
+
+[[bin]]
+name = "flamegraph-baseline"
+path = "src/bin/flamegraph_baseline.rs"
+
+[[bin]]
+name = "perf-test"
+path = "src/bin/perf_test.rs"
+
+[[bin]]
+name = "performance-baseline"
+path = "src/bin/performance_baseline.rs"
+
+[dependencies]
+# Main crate for benchmarking
+octofhir-fhirpath = { path = "../octofhir-fhirpath" }
+fhirpath-parser = { path = "../fhirpath-parser" }
+futures = { workspace = true }
+
+# Benchmarking
+criterion = { version = "0.7.0", features = ["html_reports"] }
+
+# Core dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+chrono = { workspace = true }
+
+# Async dependencies
+tokio = { workspace = true }
+
+# Performance profiling
+pprof = { workspace = true, features = ["flamegraph"], optional = true }
+
+[features]
+default = []
+profiling = ["pprof"]

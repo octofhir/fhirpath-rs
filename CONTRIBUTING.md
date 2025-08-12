@@ -6,7 +6,7 @@ Thank you for your interest in contributing to FHIRPath-rs! This guide will help
 
 ### Prerequisites
 
-- **Rust**: 1.70+ (install via [rustup](https://rustup.rs/))
+- **Rust**: 1.87+ (install via [rustup](https://rustup.rs/))
 - **Just**: Command runner (install via `cargo install just`)
 - **Git**: Version control
 
@@ -256,10 +256,11 @@ Brief description of changes
 ## 🎯 Areas Needing Help
 
 ### High Priority
-1. **FHIRPath Compliance**: Improve test pass rate from 82.7% to 90%+
+1. **FHIRPath Compliance**: Improve test pass rate from 88.1% to 95%+
 2. **Performance**: Optimize evaluator for complex expressions
 3. **Error Messages**: Enhance diagnostic information
 4. **Documentation**: More examples and tutorials
+5. **MCP Integration**: Implement Model Context Protocol server for AI assistants
 
 ### Function Implementation
 Current implementation status and areas needing work:
@@ -284,29 +285,34 @@ Current implementation status and areas needing work:
 
 ## 🏗️ Architecture Overview
 
-Understanding the codebase structure:
+Understanding the workspace structure:
 
 ```
-src/
-├── ast/              # Abstract syntax tree
-│   ├── expression.rs # Expression nodes
-│   └── visitor.rs    # AST visitor pattern
-├── parser/           # Parsing pipeline
-│   ├── tokenizer.rs  # Lexical analysis
-│   ├── pratt.rs      # Pratt parser
-│   └── error.rs      # Parse errors
-├── evaluator/        # Expression evaluation
-│   ├── engine.rs     # Main evaluation engine
-│   └── context.rs    # Variable context management
-├── registry/         # Function registry
-│   ├── functions/    # Built-in function implementations
-│   └── operators/    # Operator implementations
-├── model/            # Data model
-│   ├── value.rs      # FHIRPath value types
-│   └── resource.rs   # FHIR resource representation
-└── diagnostics/      # Error handling
-    ├── diagnostic.rs # Diagnostic messages
-    └── formatter.rs  # Error formatting
+crates/
+├── octofhir-fhirpath/    # Main library (re-exports all components)
+├── fhirpath-core/        # Core types, errors, and evaluation results
+├── fhirpath-ast/         # Abstract syntax tree
+│   ├── expression.rs     # Expression nodes
+│   └── visitor.rs        # AST visitor pattern
+├── fhirpath-parser/      # Parsing pipeline
+│   ├── tokenizer.rs      # Lexical analysis
+│   ├── pratt.rs          # Pratt parser
+│   └── error.rs          # Parse errors
+├── fhirpath-evaluator/   # Expression evaluation
+│   ├── engine.rs         # Main evaluation engine
+│   └── context.rs        # Variable context management
+├── fhirpath-registry/    # Function registry
+│   ├── functions/        # Built-in function implementations
+│   └── operators/        # Operator implementations
+├── fhirpath-model/       # Data model
+│   ├── value.rs          # FHIRPath value types
+│   ├── provider.rs       # ModelProvider trait
+│   └── resource.rs       # FHIR resource representation
+├── fhirpath-diagnostics/ # Error handling
+│   ├── diagnostic.rs     # Diagnostic messages
+│   └── formatter.rs      # Error formatting
+├── fhirpath-tools/       # CLI tools and test utilities
+└── fhirpath-benchmarks/  # Performance testing
 ```
 
 ### Key Design Principles
@@ -314,8 +320,9 @@ src/
 1. **Performance First**: Zero-copy parsing, efficient data structures
 2. **Safety**: Memory safety through Rust's type system
 3. **Compliance**: Strict adherence to FHIRPath specification
-4. **Modularity**: Clean separation of concerns
+4. **Modularity**: Clean separation of concerns via workspace crates
 5. **Testability**: Comprehensive test coverage
+6. **Async-First**: ModelProvider architecture supports async operations
 
 ## 🔍 Code Review Process
 

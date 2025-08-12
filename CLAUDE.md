@@ -4,27 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust as a single consolidated crate (`octofhir-fhirpath`) with modular structure:
+This is a FHIRPath implementation in Rust organized as a **workspace with 11 specialized crates**:
 
-- **src/ast/**: Abstract syntax tree definitions and visitor pattern
-- **src/parser/**: Tokenizer and parser using nom library (version 8)
-- **src/evaluator/**: Expression evaluation engine with context management and performance optimizations
-- **src/compiler/**: Bytecode compilation and VM for performance optimization (includes optimizer)
-- **src/registry/**: Function registry with built-in functions, operators, and extension system
-- **src/model/**: Value types, resources, FHIR data model, and lazy evaluation
-- **src/diagnostics/**: Error handling, diagnostic reporting, and LSP support
-- **src/engine.rs**: Main evaluation engine
-- **src/error.rs**: Core error types
-- **src/types.rs**: Core type definitions
+### Workspace Structure
+- **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
+- **fhirpath-core**: Core types, errors, and evaluation results  
+- **fhirpath-ast**: Abstract syntax tree definitions and visitor patterns
+- **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
+- **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
+- **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
+- **fhirpath-compiler**: Bytecode compilation and VM execution with optimizer
+- **fhirpath-registry**: Function and operator registry with built-in implementations
+- **fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
+- **fhirpath-tools**: CLI tools, test runners, and coverage analysis
+- **fhirpath-benchmarks**: Performance testing and profiling utilities
+
+### Migration Status
+The codebase has been migrated from a monolithic structure to this modular workspace. Legacy code exists in `src_backup_old/` for reference but the active implementation is in the `crates/` workspace structure.
 
 ### Key Architecture Components
 
 - **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
-- **Bytecode compilation**: AST compilation to bytecode with VM execution and optimization passes
+- **Bytecode compilation**: AST compilation to bytecode with VM execution and optimization passes  
+- **ModelProvider Architecture**: Async trait for FHIR type resolution and validation (required since v0.3.0)
 - **Registry system**: Modular function and operator registration with caching and fast-path optimizations
 - **Performance optimization**: Specialized evaluators, memory pools, and streaming evaluation
+- **Reference Resolution**: Enhanced Bundle support with `resolve()` function for cross-resource references
 - **Extension framework**: Support for custom functions and CDA/FHIR-specific extensions
 - **Zero warnings**: Clean codebase with all compiler warnings resolved
+
+### Data Flow Architecture
+```
+Input JSON → ModelProvider → Parser (AST) → Compiler (Bytecode) → Evaluator (Context) → FhirPathValue
+                ↓              ↓                ↓                     ↓
+           Type Validation  Error Recovery  Optimization         Registry Lookup
+```
 
 ## Development Commands
 
@@ -131,6 +145,15 @@ just test-case test-case-name
 
 # Example: just test-case literals
 # This runs specs/fhirpath/tests/literals.json
+
+# Alternative test coverage with MockModelProvider (faster, no network)
+just test-coverage-mock
+
+# Run single test by name
+cargo test test_name -- --nocapture
+
+# Run tests for specific crate
+cargo test --package fhirpath-parser
 ```
 
 ## Guidelines
@@ -151,20 +174,19 @@ Apply the following guidelines when developing fhirpath-core:
 - Criterion version 0.7
 
 
-## Architecture Decision Records (ADRs)
+## Development Process
 
+### Architecture Decision Records (ADRs)
 Before implementing major features:
 1. Create ADR following: https://github.com/joelparkerhenderson/architecture-decision-record
 2. Split implementation into phases/tasks stored in `tasks/` directory  
 3. Update task files with implementation status
 
-## Planning Phase
-
+### Task Management
 For every ADR implementation split record into phases/tasks and store in `tasks/` directory. Maintain a specific task file when working on it. Before starting on the first task, create all tasks for future use. After implementing features from a task file update its status.
-For debugging cases create a simple test inside the test directory and delete it after resolving the issue.
 
-## Task Execution Phase
-Update task file to align with implemented features.
+### Debug Workflow  
+For debugging cases create a simple test inside the test directory and delete it after resolving the issue.
 
 
 ## Test Coverage
@@ -187,23 +209,32 @@ The coverage report should be updated after completing any major functionality t
 
 ## Library Usage
 
-The consolidated crate provides a clean API:
+The main library crate provides a clean API:
 
 ```rust
-use fhirpath::{FhirPathEngine, FhirPathValue, model::MockModelProvider};
-use std::sync::Arc;
+use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
+use serde_json::json;
 
-let provider = Arc::new(MockModelProvider::new());
-let engine = FhirPathEngine::new(provider);
-let result = engine.evaluate("Patient.name.given", &patient_resource)?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // ModelProvider is required since v0.3.0
+    let model_provider = MockModelProvider::new();
+    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+    
+    let patient = json!({"resourceType": "Patient", "name": [{"given": ["John"]}]});
+    let result = engine.evaluate("Patient.name.given", patient).await?;
+    println!("Result: {:?}", result);
+    Ok(())
+}
 ```
 
-Main exports:
-- `FhirPathEngine`: Main evaluation engine
-- `FhirPathValue`: Value types
-- `parse()`: Parse FHIRPath expressions  
-- `FunctionRegistry`: Function registry for extensions
+Main exports from `octofhir-fhirpath`:
+- `FhirPathEngine`: Main evaluation engine (async, requires ModelProvider)
+- `FhirPathValue`: Value types and smart collections
+- `parse()`: Parse FHIRPath expressions to AST
+- `FunctionRegistry`: Function registry for extensions  
 - `EvaluationContext`: Context for expression evaluation
+- `MockModelProvider`: Basic ModelProvider for testing/simple use cases
 
 ## Performance Characteristics
 
@@ -213,5 +244,19 @@ This implementation is optimized for high-performance with:
 - **Evaluator**: Arena-based memory management with specialized evaluation paths
 - **Bytecode VM**: High-performance virtual machine with optimization passes
 - **Benchmarks**: Simplified unified suite testing all components efficiently
-- **Test Coverage**: 82.7% specification compliance (831/1005 official tests pass)
+- **Test Coverage**: 88.1% specification compliance with official FHIRPath test suites
 - **Code Quality**: Zero compiler warnings with clean, maintainable codebase
+
+## Architecture Decision Records (ADRs)
+
+Major architectural decisions are documented in `docs/adr/`:
+
+- **ADR-001**: Model Context Protocol (MCP) Server Implementation - Plan for exposing FHIRPath functionality through MCP for AI assistants
+- **ADR-002**: FHIRPath Analyzer Crate - Static analysis and expression explanation capabilities
+
+## Future Development
+
+Planned major features documented in ADRs:
+- **fhirpath-mcp-server**: MCP server crate for AI assistant integration
+- **fhirpath-analyzer**: Static analysis and expression explanation
+- Cross-platform distribution and Docker support

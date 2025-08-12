@@ -7,39 +7,31 @@ default:
 
 # Build commands
 build:
-    cargo build
+    cargo build --workspace
 
 build-release:
-    cargo build --release
+    cargo build --workspace --release
 
 # Test commands
 test:
-    cargo test
+    cargo test --workspace
 
 test-coverage:
-    @echo "🧪 FHIRPath Test Coverage Update"
-    @echo "================================="
-    @echo "📦 Building test infrastructure (tests only)..."
-    cargo test --test coverage_report_simple --no-run --release
+    cargo build --package fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis..."
     @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
     @echo "⚠️  If this hangs, try running 'just test-coverage-mock' for MockModelProvider version"
-    FHIRPATH_QUICK_INIT=1 timeout 60 cargo test --test coverage_report_simple run_coverage_report -- --ignored --nocapture || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
-    @echo "✅ Coverage report generated in TEST_COVERAGE.md"
+    timeout 60 cargo run --package fhirpath-tools --bin test-coverage || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
 
 # Run test coverage with MockModelProvider (faster, no network required)
 test-coverage-mock:
-    @echo "🧪 FHIRPath Test Coverage Update (Mock Provider)"
-    @echo "================================================"
-    @echo "📦 Building test infrastructure..."
-    cargo build --release
+    cargo build --package fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis with MockModelProvider..."
     @echo "⚠️  Note: This uses MockModelProvider instead of real FhirSchemaModelProvider"
-    FHIRPATH_USE_MOCK_PROVIDER=1 cargo test --test coverage_report_simple run_coverage_report -- --ignored --nocapture
-    @echo "✅ Coverage report generated in TEST_COVERAGE.md"
+    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package fhirpath-tools --bin test-coverage
 
 test-official:
-    cargo test run_official_tests -- --ignored --nocapture
+    cargo test --workspace run_official_tests -- --ignored --nocapture
 
 # Benchmark commands - Simplified single benchmark
 bench:
@@ -47,7 +39,7 @@ bench:
     @echo "=================================="
     @echo "📊 Running unified benchmark suite..."
     @echo "This tests all components: tokenizer, parser, evaluator, and throughput"
-    cargo bench --bench fhirpath_benchmark
+    cargo run --package fhirpath-benchmarks --bin benchmark-runner
     @echo "📈 Performance Summary:"
     @echo "✓ Tokenizer: Optimized for 10M+ operations/second"
     @echo "✓ Parser: Optimized for 1M+ operations/second"
@@ -62,12 +54,12 @@ bench-full: bench
 doc:
     @echo "📚 Generating API Documentation"
     @echo "==============================="
-    cargo doc --no-deps --open
+    cargo doc --workspace --no-deps --open
 
 doc-all:
     @echo "📚 Generating Complete Documentation"
     @echo "===================================="
-    cargo doc --open
+    cargo doc --workspace --open
 
 # Generate all documentation (API + benchmarks)
 docs: doc bench-update-docs
@@ -84,20 +76,20 @@ bench-update-docs:
     @echo "🚀 Running benchmarks..."
     just bench
     @echo "📝 Extracting metrics and generating benchmark report..."
-    cargo run --bin extract_benchmark_metrics
+    cargo run --package fhirpath-benchmarks --bin extract-benchmark-metrics
 
 # Development commands
 fmt:
-    cargo fmt --all
+    cargo fmt
 
 clippy:
-    cargo clippy --all
+    cargo clippy --workspace
 
 clippy-fix:
-    cargo clippy --all --fix --allow-dirty --allow-staged
+    cargo clippy --fix --allow-dirty --allow-staged
 
 check:
-    cargo check --all
+    cargo check --workspace
 
 # Fix all formatting and clippy issues
 fix: fmt clippy-fix
@@ -119,35 +111,35 @@ clean-bench:
 
 # Run specific test case
 test-case CASE:
-    cargo run --bin test_runner specs/fhirpath/tests/{{CASE}}.json
+    cargo run --package fhirpath-tools --bin test-runner specs/fhirpath/tests/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
-        cargo run --bin octofhir-fhirpath evaluate "{{EXPRESSION}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath evaluate "{{EXPRESSION}}"; \
     else \
-        cargo run --bin octofhir-fhirpath evaluate "{{EXPRESSION}}" "{{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
     fi
 
 cli-parse EXPRESSION:
-    cargo run --bin octofhir-fhirpath parse "{{EXPRESSION}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath parse "{{EXPRESSION}}"
 
 cli-validate EXPRESSION:
-    cargo run --bin octofhir-fhirpath validate "{{EXPRESSION}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath validate "{{EXPRESSION}}"
 
 cli-help:
-    cargo run --bin octofhir-fhirpath help
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath help
 
 # Main CLI command - pass arguments directly to the CLI
 cli *ARGS:
-    cargo run --bin octofhir-fhirpath -- {{ARGS}}
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- {{ARGS}}
 
 # Code coverage with tarpaulin
 coverage:
     @echo "📊 Generating Code Coverage Report"
     @echo "=================================="
-    cargo tarpaulin --lib --all-features --timeout 300 --out html
+    cargo tarpaulin --workspace --lib --all-features --timeout 300 --out html
     @echo "✅ Coverage report generated in target/tarpaulin/tarpaulin-report.html"
 
 coverage-ci:
@@ -195,18 +187,18 @@ expand ITEM="":
 profile EXPRESSION="Patient.name":
     @echo "🔬 Profiling FHIRPath expression: {{EXPRESSION}}"
     @echo "================================================"
-    cargo build --release --bin perf_test
+    cargo build --package fhirpath-benchmarks --release --bin perf-test
     @echo "Running performance profiling..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --release --bin perf_test -- "{{EXPRESSION}}"
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --package fhirpath-benchmarks --release --bin perf-test -- "{{EXPRESSION}}"
 
 # Generate flamegraph for expression profiling (requires flamegraph tool)
 flamegraph EXPRESSION="Patient.name.where(family.exists())":
     @echo "🔥 Generating flamegraph for: {{EXPRESSION}}"
     @echo "=============================================="
     @echo "Building release with debug symbols..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --bin perf_test
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --package fhirpath-benchmarks --release --bin perf-test
     @echo "Generating flamegraph..."
-    cargo flamegraph --bin perf_test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
+    cargo flamegraph --package fhirpath-benchmarks --bin perf-test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
     @echo "🔥 Flamegraph saved as flamegraph.svg"
 
 # Profile where() function specifically with sample data

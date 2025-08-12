@@ -1,0 +1,50 @@
+[package]
+name = "fhirpath-registry"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Function and operator registry for FHIRPath implementation"
+keywords = ["fhir", "fhirpath", "registry", "functions"]
+categories = ["parser-implementations"]
+
+[dependencies]
+# Workspace crates
+fhirpath-core = { path = "../fhirpath-core" }
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-model = { path = "../fhirpath-model" }
+
+# Core dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+indexmap = { workspace = true }
+dashmap = { workspace = true }
+lru = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# FHIR model dependencies
+octofhir-fhir-model = { workspace = true }
+octofhir-ucum = { workspace = true }
+octofhir-fhirschema = { workspace = true }
+octofhir-canonical-manager = { workspace = true }
+
+# Async dependencies
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+
+[features]
+default = []
+serde = []

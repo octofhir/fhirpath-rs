@@ -5,7 +5,7 @@
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/octofhir/fhirpath-rs/blob/main/LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.87+-blue.svg)](https://www.rust-lang.org)
 
-A high-performance, memory-safe FHIRPath implementation in Rust with **88.1% compliance** with the official FHIRPath specification.
+A high-performance, memory-safe FHIRPath implementation in Rust with **88.1% compliance** with the official FHIRPath specification. Built as a modular workspace with 11 specialized crates for maximum flexibility and performance.
 
 > ⚠️ **Early Development Notice**: This library is in early development phase. The API may change between versions. If you have questions or need assistance, please:
 > - Open an issue or discussion on [GitHub](https://github.com/octofhir/fhirpath-rs/issues)
@@ -17,10 +17,11 @@ FHIRPath is a path-based navigation and extraction language for FHIR (Fast Healt
 
 ### Key Features
 
-- ✅ **High Specification Compliance**: 82.7% pass rate on official FHIRPath test suites (831/1005 tests)
+- ✅ **High Specification Compliance**: 88.1% pass rate on official FHIRPath test suites
 - 🚀 **High Performance**: Optimized tokenizer (10M+ ops/sec), parser (1M+ ops/sec), and evaluator
 - ⚡ **Bytecode Compiler**: Advanced compilation to bytecode with VM execution for maximum performance
 - 🔒 **Memory Safe**: Zero-copy parsing with safe Rust memory management and arena allocation
+- 🏗️ **Modular Architecture**: 11 specialized workspace crates for flexible integration
 - 🛠️ **Complete Toolchain**: Parser, evaluator, compiler, CLI tools, and comprehensive diagnostics
 - 📊 **Production Ready**: Extensive test coverage, simplified benchmarking, and zero warnings
 - 🔧 **Developer Friendly**: Rich error messages, IDE integration support, and comprehensive documentation
@@ -34,14 +35,44 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-octofhir-fhirpath = "0.3.0"
+octofhir-fhirpath = "0.4.0"
 ```
 
 ### ⚠️ Important: Model Provider Required (v0.3.0+)
 
 **Starting from version 0.3.0, a model provider is mandatory for all FHIRPath evaluations.** This change improves type safety, validation, and performance.
 
-### Basic Usage
+### Simple Example
+
+The easiest way to get started:
+
+```rust
+use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create engine with mock provider (good for testing)
+    let model_provider = MockModelProvider::new();
+    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+    
+    // Simple FHIR Patient
+    let patient = json!({
+        "resourceType": "Patient",
+        "name": [{"given": ["Alice"], "family": "Smith"}]
+    });
+    
+    // Extract the first name
+    let result = engine.evaluate("Patient.name.given", patient).await?;
+    println!("First name: {:?}", result); // Outputs: ["Alice"]
+    
+    Ok(())
+}
+```
+
+### Complete Example
+
+For more advanced usage:
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
@@ -78,6 +109,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
+```
+
+### CLI Quick Start
+
+Install and use the command-line tool:
+
+```bash
+# Install CLI
+cargo install octofhir-fhirpath
+
+# Simple evaluation with JSON string
+octofhir-fhirpath evaluate "Patient.name.given" \
+  --input '{"resourceType":"Patient","name":[{"given":["Alice"]}]}'
+
+# Output: ["Alice"]
 ```
 
 ## 📚 Core Concepts
@@ -255,17 +301,20 @@ Current compliance with official FHIRPath specification test suites:
 
 ### Command Line Interface
 
+The CLI tool provides easy FHIRPath evaluation from the command line:
+
 ```bash
 # Install CLI tools
 cargo install octofhir-fhirpath
 
+# Simple example: Extract patient names
+octofhir-fhirpath evaluate "Patient.name.given" \
+  --input '{"resourceType":"Patient","name":[{"given":["Alice","Bob"]}]}'
+# Output: ["Alice", "Bob"]
+
 # Evaluate expressions with JSON input from stdin
 echo '{"resourceType": "Patient", "name": [{"given": ["John"]}]}' | \
   octofhir-fhirpath evaluate "Patient.name.given"
-
-# Evaluate expressions with direct JSON string input
-octofhir-fhirpath evaluate "Patient.name.given" \
-  --input '{"resourceType": "Patient", "name": [{"given": ["John"]}]}'
 
 # Evaluate expressions with file input
 octofhir-fhirpath evaluate "Patient.name.given" --input "patient.json"
@@ -326,6 +375,22 @@ octofhir-fhirpath is optimized for high-performance use cases:
 just bench  # Run simplified, comprehensive performance tests
 ```
 
+**Latest Performance Metrics:**
+
+| Component | Expression | Time per Operation | Throughput (ops/sec) |
+|-----------|------------|-------------------|---------------------|
+| **Parser** | `Patient.name` | 2.1 µs | 473K ops/sec |
+| **Parser** | `Patient.name.given` | 3.3 µs | 301K ops/sec |
+| **Parser** | `Patient.name.given[0]` | 4.1 µs | 246K ops/sec |
+| **Parser** | `Patient.identifier.where(system = 'http://example.org')` | 4.9 µs | 204K ops/sec |
+| **Parser** | `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()` | 8.5 µs | 117K ops/sec |
+| **Evaluator** | `Patient.name` | 249 µs | 4.0K ops/sec |
+
+**Performance Summary:**
+- **Tokenizer**: 10M+ operations/second (estimated)
+- **Parser**: 117K-473K operations/second (varies by complexity)
+- **Evaluator**: 4K+ operations/second (with Bundle resolution and reference handling)
+
 Benchmarks are simplified into a single unified suite testing all components:  
 - Tokenizer performance across complexity levels
 - Parser performance with various expressions
@@ -334,24 +399,28 @@ Benchmarks are simplified into a single unified suite testing all components:
 
 ## 🏗️ Architecture
 
-octofhir-fhirpath uses a modular architecture:
+octofhir-fhirpath uses a **modular workspace architecture** with 11 specialized crates:
 
 ```
-src/
-├── ast/           # Abstract syntax tree definitions
-├── parser/        # Tokenizer and parser (nom-based)
-├── evaluator/     # Expression evaluation engine  
-├── compiler/      # Bytecode compiler and virtual machine
-├── registry/      # Function registry and built-ins
-├── model/         # Value types and FHIR data model
-├── diagnostics/   # Error handling and reporting
-└── bin/           # CLI tools and utilities
+crates/
+├── octofhir-fhirpath/    # Main library (re-exports all components)
+├── fhirpath-core/        # Core types, errors, and evaluation results
+├── fhirpath-ast/         # Abstract syntax tree definitions
+├── fhirpath-parser/      # Tokenizer and parser (nom-based)
+├── fhirpath-evaluator/   # Expression evaluation engine  
+├── fhirpath-compiler/    # Bytecode compiler and virtual machine
+├── fhirpath-registry/    # Function registry and built-ins
+├── fhirpath-model/       # Value types and FHIR data model
+├── fhirpath-diagnostics/ # Error handling and reporting
+├── fhirpath-tools/       # CLI tools and test utilities
+└── fhirpath-benchmarks/  # Performance testing and profiling
 ```
 
 ### Performance Architecture
 
 - **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
 - **Bytecode compilation**: AST compilation to optimized bytecode with VM execution
+- **ModelProvider Architecture**: Async trait for FHIR type resolution and validation
 - **Registry system**: Modular function and operator registration with caching
 - **Memory optimization**: Specialized evaluators, memory pools, and streaming evaluation
 - **Reference Resolution**: Efficient Bundle context management and resource lookup

@@ -1,0 +1,101 @@
+[package]
+name = "octofhir-fhirpath"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/octofhir-fhirpath"
+description = "A high-performance FHIRPath implementation in Rust with comprehensive spec compliance"
+readme = "../../README.md"
+keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
+categories = ["parser-implementations", "data-structures", "science"]
+include = [
+    "src/**/*",
+    "../../specs/**/*",
+    "../../tests/**/*",
+    "../../benches/**/*",
+    "Cargo.toml",
+    "../../README.md",
+    "../../LICENSE*",
+    "../../CHANGELOG.md",
+]
+
+[lib]
+name = "octofhir_fhirpath"
+path = "src/lib.rs"
+
+[[bin]]
+name = "octofhir-fhirpath"
+path = "src/bin/octofhir_fhirpath.rs"
+
+[dependencies]
+# Workspace crates
+fhirpath-core = { path = "../fhirpath-core" }
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = ["terminal"] }
+fhirpath-parser = { path = "../fhirpath-parser" }
+fhirpath-model = { path = "../fhirpath-model" }
+fhirpath-registry = { path = "../fhirpath-registry" }
+fhirpath-compiler = { path = "../fhirpath-compiler" }
+fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+
+# Core dependencies
+anyhow = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+glob = { workspace = true }
+hex = { workspace = true }
+indexmap = { workspace = true }
+log = { workspace = true }
+lru = { workspace = true }
+nom = { workspace = true }
+nom_locate = { workspace = true }
+octofhir-ucum = { workspace = true }
+octofhir-fhir-model = { workspace = true }
+octofhir-fhirschema = { workspace = true }
+octofhir-canonical-manager = { workspace = true }
+url = { workspace = true }
+parking_lot = { workspace = true }
+regex = { workspace = true }
+rust_decimal = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+thiserror = { workspace = true }
+typed-arena = { workspace = true }
+bumpalo = { workspace = true }
+unicode-xid = { workspace = true }
+once_cell = { workspace = true }
+
+# Async dependencies
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+
+# HTTP client for external profile fetching
+reqwest = { workspace = true }
+
+# CLI dependencies
+clap = { workspace = true }
+human-panic = { workspace = true }
+
+# Optional diagnostic dependencies
+colored = { workspace = true, optional = true }
+
+[dev-dependencies]
+comfy-table = "7.0"
+criterion = { version = "0.7.0", features = ["html_reports"] }
+pretty_assertions = "1.4.1"
+rstest = "0.26"
+serde-xml-rs = "0.8"
+
+[features]
+default = []
+diagnostics = ["colored", "fhirpath-diagnostics/terminal"]
+serde = []
+terminal = ["colored", "fhirpath-diagnostics/terminal"]
+profiling = []

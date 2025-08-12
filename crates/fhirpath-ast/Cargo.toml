@@ -1,0 +1,23 @@
+[package]
+name = "fhirpath-ast"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Abstract syntax tree definitions for FHIRPath expressions"
+keywords = ["fhir", "fhirpath", "ast", "parser"]
+categories = ["parser-implementations", "data-structures"]
+
+[dependencies]
+# Core dependencies
+fhirpath-core = { path = "../fhirpath-core" }
+serde = { workspace = true, optional = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+log = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

@@ -1,0 +1,36 @@
+[package]
+name = "fhirpath-compiler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Bytecode compiler and virtual machine for FHIRPath expressions"
+keywords = ["fhir", "fhirpath", "compiler", "vm"]
+categories = ["parser-implementations", "compilers"]
+
+[dependencies]
+# Workspace crates
+fhirpath-core = { path = "../fhirpath-core" }
+fhirpath-ast = { path = "../fhirpath-ast" }
+fhirpath-model = { path = "../fhirpath-model" }
+fhirpath-registry = { path = "../fhirpath-registry" }
+fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+
+# Core dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+rustc-hash = { workspace = true }
+indexmap = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+rust_decimal = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+
+[features]
+default = []
+serde = []

@@ -1,0 +1,61 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Value types and FHIR model support for FHIRPath implementation
+//!
+//! This crate provides the value types, FHIR resource handling, and model
+//! provider abstractions used throughout the FHIRPath implementation.
+
+pub mod arc_pool;
+pub mod boxing;
+pub mod cache;
+pub mod choice_types;
+pub mod error;
+pub mod fhirschema_provider;
+pub mod json_arc;
+pub mod lazy;
+pub mod mock_provider;
+pub mod profile_resolver;
+pub mod provider;
+pub mod quantity;
+pub mod resource;
+pub mod smart_collection;
+pub mod string_intern;
+pub mod type_coercion;
+pub mod type_mapper;
+pub mod types;
+pub mod value;
+pub mod value_pool;
+
+// Re-export main types
+pub use fhirschema_provider::FhirSchemaModelProvider;
+pub use mock_provider::MockModelProvider;
+pub use provider::ModelProvider;
+pub use quantity::Quantity;
+pub use smart_collection::{SmartCollection, SmartCollectionBuilder};
+pub use value::{Collection, FhirPathValue};
+// pub use types::FhirType; // FhirType may not exist in types module
+
+// Re-export value pool functionality
+pub use string_intern::{InternerStats, global_interner_stats};
+pub use value_pool::{
+    CombinedValuePoolStats, ValuePoolConfig, clear_global_pools, configure_global_pools,
+    global_pool_stats,
+};
+
+// Re-export from workspace crates for convenience
+pub use fhirpath_core::{FhirPathError, Result};
+
+// Re-export from external crates
+pub use octofhir_fhir_model as fhir_model;

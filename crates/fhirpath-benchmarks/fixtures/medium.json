@@ -1,0 +1,163 @@
+{
+  "resourceType": "Bundle",
+  "type": "searchset",
+  "total": 50,
+  "entry": [
+    {
+      "fullUrl": "http://example.com/Medication/med1",
+      "resource": {
+        "resourceType": "Medication",
+        "id": "med1",
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "1191",
+              "display": "Aspirin"
+            }
+          ]
+        },
+        "form": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "385055001",
+              "display": "Tablet"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "http://example.com/MedicationRequest/req1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "req1",
+        "status": "active",
+        "intent": "order",
+        "medicationReference": {
+          "reference": "Medication/med1"
+        },
+        "subject": {
+          "reference": "Patient/patient1"
+        },
+        "dosageInstruction": [
+          {
+            "text": "Take one tablet daily",
+            "timing": {
+              "repeat": {
+                "frequency": 1,
+                "period": 1,
+                "periodUnit": "d"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "http://example.com/Medication/med2", 
+      "resource": {
+        "resourceType": "Medication",
+        "id": "med2",
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "308136",
+              "display": "Lisinopril"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "http://example.com/MedicationRequest/req2",
+      "resource": {
+        "resourceType": "MedicationRequest", 
+        "id": "req2",
+        "status": "active",
+        "intent": "order",
+        "medicationReference": {
+          "reference": "Medication/med2"
+        },
+        "subject": {
+          "reference": "Patient/patient2"
+        }
+      }
+    },
+    {
+      "fullUrl": "http://example.com/Medication/med3",
+      "resource": {
+        "resourceType": "Medication",
+        "id": "med3", 
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "153165",
+              "display": "Metformin"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "http://example.com/MedicationRequest/req3",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "req3", 
+        "status": "completed",
+        "intent": "order",
+        "medicationReference": {
+          "reference": "Medication/med3"
+        },
+        "subject": {
+          "reference": "Patient/patient3"
+        }
+      }
+    },
+    {
+      "fullUrl": "http://example.com/Patient/patient1",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient1",
+        "name": [
+          {
+            "use": "official",
+            "family": "Smith",
+            "given": ["John"]
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "http://example.com/Patient/patient2", 
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient2",
+        "name": [
+          {
+            "use": "official", 
+            "family": "Johnson",
+            "given": ["Mary"]
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "http://example.com/Patient/patient3",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient3",
+        "name": [
+          {
+            "use": "official",
+            "family": "Williams", 
+            "given": ["Robert"]
+          }
+        ]
+      }
+    }
+  ]
+}

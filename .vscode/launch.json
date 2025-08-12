@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug CLI",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/octofhir-fhirpath",
+            "args": [
+                "evaluate",
+                "Patient.name.given"
+            ],
+            "stdio": [
+                null,
+                null,
+                null
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo build",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "Debug Performance Test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/perf_test",
+            "args": [
+                "Patient.name.given"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo build",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "Run Test - Single Crate",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/deps/",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo test",
+            "sourceLanguages": ["rust"]
+        }
+    ]
+}
