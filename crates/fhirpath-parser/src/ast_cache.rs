@@ -19,7 +19,7 @@
 //! or evaluation calls.
 
 use dashmap::DashMap;
-use fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_ast::ExpressionNode;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -307,7 +307,7 @@ pub fn global_ast_cache_stats() -> AstCacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_ast::{ExpressionNode, LiteralValue};
+    use octofhir_fhirpath_ast::{ExpressionNode, LiteralValue};
 
     fn create_test_ast(value: &str) -> ExpressionNode {
         ExpressionNode::Literal(LiteralValue::String(value.to_string()))

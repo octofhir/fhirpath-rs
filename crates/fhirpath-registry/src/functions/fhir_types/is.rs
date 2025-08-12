@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// is() function - checks FHIR type inheritance
 pub struct IsFunction;

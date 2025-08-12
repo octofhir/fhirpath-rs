@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-model"
+name = "octofhir-fhirpath-model"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ categories = ["data-structures"]
 
 [dependencies]
 # Workspace crates
-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
 
 # Core dependencies
 serde = { workspace = true }

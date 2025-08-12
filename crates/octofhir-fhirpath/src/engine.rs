@@ -15,22 +15,22 @@
 //! FHIRPath engine - the main entry point for FHIRPath evaluation
 
 // Re-export the main engine from the evaluator crate for direct use
-pub use fhirpath_evaluator::FhirPathEngine;
+pub use octofhir_fhirpath_evaluator::FhirPathEngine;
 
 // Also provide convenience wrapper as alias
 pub use IntegratedFhirPathEngine as FhirPathEngineWithCache;
 
 // Local convenience wrapper with additional integration
 use crate::pipeline::global_pools;
-use fhirpath_ast::ExpressionNode;
-use fhirpath_compiler::{Bytecode, ExpressionCompiler, VirtualMachine};
-use fhirpath_core::Result;
-use fhirpath_model::{
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_compiler::{Bytecode, ExpressionCompiler, VirtualMachine};
+use octofhir_fhirpath_core::Result;
+use octofhir_fhirpath_model::{
     FhirPathValue, FhirSchemaModelProvider, MockModelProvider, ModelProvider, ValuePoolConfig,
     configure_global_pools, global_pool_stats,
 };
-use fhirpath_parser::{cache_ast, get_cached_ast, parse_expression};
-use fhirpath_registry::create_standard_registries;
+use octofhir_fhirpath_parser::{cache_ast, get_cached_ast, parse_expression};
+use octofhir_fhirpath_registry::create_standard_registries;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -43,9 +43,9 @@ pub struct IntegratedFhirPathEngine {
     /// Model provider for type checking and validation
     model_provider: Arc<dyn ModelProvider>,
     /// Function registry for creating compilers
-    functions: Arc<fhirpath_registry::FunctionRegistry>,
+    functions: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
     /// Operator registry for creating VMs
-    operators: Arc<fhirpath_registry::OperatorRegistry>,
+    operators: Arc<octofhir_fhirpath_registry::OperatorRegistry>,
     /// Virtual machine for bytecode execution (shared across evaluations)
     vm: VirtualMachine,
     /// Cached compiled expressions for performance
@@ -176,7 +176,7 @@ impl IntegratedFhirPathEngine {
     /// ```
     pub async fn with_fhir_r4() -> Result<Self> {
         let provider = Arc::new(FhirSchemaModelProvider::r4().await.map_err(|e| {
-            fhirpath_core::FhirPathError::generic(format!("Failed to create R4 provider: {e}"))
+            octofhir_fhirpath_core::FhirPathError::generic(format!("Failed to create R4 provider: {e}"))
         })?);
         Ok(Self::new(provider))
     }
@@ -196,7 +196,7 @@ impl IntegratedFhirPathEngine {
     /// ```
     pub async fn with_fhir_r5() -> Result<Self> {
         let provider = Arc::new(FhirSchemaModelProvider::r5().await.map_err(|e| {
-            fhirpath_core::FhirPathError::generic(format!("Failed to create R5 provider: {e}"))
+            octofhir_fhirpath_core::FhirPathError::generic(format!("Failed to create R5 provider: {e}"))
         })?);
         Ok(Self::new(provider))
     }
@@ -257,7 +257,7 @@ impl IntegratedFhirPathEngine {
         // Use traditional AST interpretation (simple expressions or VM fallback)
         match self.evaluator.evaluate(&ast, input_value).await {
             Ok(result) => Ok(result),
-            Err(eval_error) => Err(fhirpath_core::FhirPathError::evaluation_error(
+            Err(eval_error) => Err(octofhir_fhirpath_core::FhirPathError::evaluation_error(
                 eval_error.to_string(),
             )),
         }
@@ -280,7 +280,7 @@ impl IntegratedFhirPathEngine {
 
         // Parse and cache both globally and locally
         let ast = parse_expression(expression)
-            .map_err(|e| fhirpath_core::FhirPathError::parse_error(0, e.to_string()))?;
+            .map_err(|e| octofhir_fhirpath_core::FhirPathError::parse_error(0, e.to_string()))?;
 
         // Cache globally (primary cache)
         cache_ast(expression, ast.clone());
@@ -323,13 +323,13 @@ impl IntegratedFhirPathEngine {
     }
 
     /// Get value pool statistics for memory optimization diagnostics
-    pub fn value_pool_stats(&self) -> fhirpath_model::CombinedValuePoolStats {
+    pub fn value_pool_stats(&self) -> octofhir_fhirpath_model::CombinedValuePoolStats {
         global_pool_stats()
     }
 
     /// Clear all memory pools (useful for testing and cleanup)
     pub fn clear_memory_pools(&self) {
-        fhirpath_model::clear_global_pools();
+        octofhir_fhirpath_model::clear_global_pools();
     }
 
     /// Determine if an expression should use VM compilation based on complexity
@@ -344,7 +344,7 @@ impl IntegratedFhirPathEngine {
 
     /// Calculate the complexity score of an expression for VM compilation decision
     fn calculate_expression_complexity(&self, ast: &ExpressionNode) -> u32 {
-        use fhirpath_ast::ExpressionNode::*;
+        use octofhir_fhirpath_ast::ExpressionNode::*;
 
         match ast {
             // Simple literals and identifiers have low complexity
@@ -440,7 +440,7 @@ impl IntegratedFhirPathEngine {
         if let Some(bytecode) = self.bytecode_cache.get(expression) {
             // Execute cached bytecode using shared VM
             return self.vm.execute(bytecode, input).map_err(|e| {
-                fhirpath_core::FhirPathError::evaluation_error(format!(
+                octofhir_fhirpath_core::FhirPathError::evaluation_error(format!(
                     "VM execution failed: {}",
                     e
                 ))
@@ -450,7 +450,7 @@ impl IntegratedFhirPathEngine {
         // Create compiler and compile to bytecode
         let mut compiler = ExpressionCompiler::new(self.functions.clone());
         let bytecode = compiler.compile(ast).map_err(|e| {
-            fhirpath_core::FhirPathError::evaluation_error(format!("VM compilation failed: {}", e))
+            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!("VM compilation failed: {}", e))
         })?;
 
         // Cache the bytecode for future use
@@ -471,7 +471,7 @@ impl IntegratedFhirPathEngine {
 
         // Execute the bytecode using shared VM
         self.vm.execute(&bytecode, input).map_err(|e| {
-            fhirpath_core::FhirPathError::evaluation_error(format!("VM execution failed: {}", e))
+            octofhir_fhirpath_core::FhirPathError::evaluation_error(format!("VM execution failed: {}", e))
         })
     }
 
@@ -509,7 +509,7 @@ impl IntegratedFhirPathEngine {
     pub async fn comprehensive_memory_stats(&self) -> MemoryStats {
         let pipeline_stats = self.memory_pool_stats().await;
         let value_pool_stats = self.value_pool_stats();
-        let interner_stats = fhirpath_model::global_interner_stats();
+        let interner_stats = octofhir_fhirpath_model::global_interner_stats();
 
         MemoryStats {
             pipeline_pools: pipeline_stats,
@@ -525,9 +525,9 @@ pub struct MemoryStats {
     /// Statistics from the pipeline memory pools
     pub pipeline_pools: HashMap<String, crate::pipeline::PoolStats>,
     /// Statistics from the value pools
-    pub value_pools: fhirpath_model::CombinedValuePoolStats,
+    pub value_pools: octofhir_fhirpath_model::CombinedValuePoolStats,
     /// Statistics from the string interner
-    pub string_interner: fhirpath_model::InternerStats,
+    pub string_interner: octofhir_fhirpath_model::InternerStats,
 }
 
 impl MemoryStats {

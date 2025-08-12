@@ -45,6 +45,6 @@ pub fn create_standard_registries() -> (FunctionRegistry, OperatorRegistry) {
 }
 
 // Re-export from workspace crates for convenience
-pub use fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
-pub use fhirpath_core::{FhirPathError, Result};
-pub use fhirpath_model::{FhirPathValue, ModelProvider};
+pub use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
+pub use octofhir_fhirpath_core::{FhirPathError, Result};
+pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};

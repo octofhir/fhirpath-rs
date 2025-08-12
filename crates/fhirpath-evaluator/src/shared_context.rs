@@ -19,8 +19,8 @@
 //! context reuse across related expressions.
 
 use super::context::EvaluationContext;
-use fhirpath_model::FhirPathValue;
-use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
@@ -64,7 +64,7 @@ impl SharedEvaluationContext {
         operators: Arc<OperatorRegistry>,
     ) -> Self {
         // For internal shared contexts, using MockModelProvider is acceptable
-        let provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let base = Arc::new(EvaluationContext::new(
             input.clone(),
             functions.clone(),
@@ -272,7 +272,7 @@ impl SharedEvaluationContext {
     /// Convert to a standard EvaluationContext when needed
     pub fn to_evaluation_context(&self) -> EvaluationContext {
         // For internal shared contexts, using MockModelProvider is acceptable
-        let provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let mut context = EvaluationContext::new(
             self.input.clone(),
             self.functions.clone(),
@@ -765,7 +765,7 @@ pub enum SharedContextError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 
     #[test]
     fn test_shared_context_creation() {

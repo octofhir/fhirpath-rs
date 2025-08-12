@@ -19,8 +19,8 @@
 //! multiple diagnostic messages.
 
 use super::tokenizer::{Token, Tokenizer};
-use fhirpath_ast::ExpressionNode;
-use fhirpath_diagnostics::{
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_diagnostics::{
     Diagnostic, DiagnosticCode, EnhancedDiagnostic, Severity, SourceLocation,
 };
 
@@ -57,7 +57,7 @@ pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> Re
     // Try to tokenize the input
     match Tokenizer::new(input).next_token() {
         Ok(Some(_)) => RecoveryResult {
-            ast: Some(ExpressionNode::Literal(fhirpath_ast::LiteralValue::Null)),
+            ast: Some(ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::Null)),
             diagnostics,
             recovered: false,
             completion_rate: 1.0,
@@ -74,9 +74,9 @@ pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> Re
                 DiagnosticCode::UnexpectedToken,
                 format!("Parse error: {error:?}"),
                 SourceLocation {
-                    span: fhirpath_diagnostics::Span::new(
-                        fhirpath_diagnostics::Position::new(0, 0),
-                        fhirpath_diagnostics::Position::new(0, 1),
+                    span: octofhir_fhirpath_diagnostics::Span::new(
+                        octofhir_fhirpath_diagnostics::Position::new(0, 0),
+                        octofhir_fhirpath_diagnostics::Position::new(0, 1),
                     ),
                     source_text: None,
                     file_path: None,

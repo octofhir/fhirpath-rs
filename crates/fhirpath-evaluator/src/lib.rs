@@ -33,7 +33,7 @@ pub mod validator;
 // Essential evaluation functionality - clean and focused
 pub use context::{EvaluationContext, VariableScope};
 pub use engine::FhirPathEngine;
-pub use fhirpath_core::{EvaluationError, EvaluationResult};
+pub use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 pub use function_optimizer::{
     CacheStats, CollectionOpType, DispatchInfo, FunctionOptimizer, OptimizedSignature,
 };

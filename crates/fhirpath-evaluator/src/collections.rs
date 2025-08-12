@@ -17,8 +17,8 @@
 //! This module provides optimized collection operations that reduce memory allocations
 //! and improve performance during FHIRPath expression evaluation.
 
-use fhirpath_model::value::{Collection, FhirPathValue};
-use fhirpath_model::value_pool::{get_pooled_collection_vec, return_pooled_collection_vec};
+use octofhir_fhirpath_model::value::{Collection, FhirPathValue};
+use octofhir_fhirpath_model::value_pool::{get_pooled_collection_vec, return_pooled_collection_vec};
 
 /// Trait for providing size hints to optimize collection operations
 pub trait SizeHint {
@@ -469,7 +469,7 @@ impl CollectionUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::value::FhirPathValue;
+    use octofhir_fhirpath_model::value::FhirPathValue;
 
     #[test]
     fn test_optimized_collection_builder() {

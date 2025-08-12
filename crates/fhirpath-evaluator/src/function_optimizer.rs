@@ -18,8 +18,8 @@
 //! cached type information from async ModelProvider operations.
 
 use super::context::EvaluationContext;
-use fhirpath_core::EvaluationResult;
-use fhirpath_model::{provider::ModelProvider, FhirPathValue};
+use octofhir_fhirpath_core::EvaluationResult;
+use octofhir_fhirpath_model::{provider::ModelProvider, FhirPathValue};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
@@ -375,8 +375,8 @@ pub struct CacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::{mock_provider::MockModelProvider, Collection};
-    use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_model::{mock_provider::MockModelProvider, Collection};
+    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
     use tokio;
 
     #[tokio::test]

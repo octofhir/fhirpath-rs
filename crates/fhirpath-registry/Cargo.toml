@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-registry"
+name = "octofhir-fhirpath-registry"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ categories = ["parser-implementations"]
 
 [dependencies]
 # Workspace crates
-fhirpath-core = { path = "../fhirpath-core" }
-fhirpath-ast = { path = "../fhirpath-ast" }
-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
+octofhir-fhirpath-model = { path = "../fhirpath-model" }
 
 # Core dependencies
 serde = { workspace = true }

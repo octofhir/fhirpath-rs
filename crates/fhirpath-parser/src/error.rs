@@ -14,7 +14,7 @@
 
 //! Parser error types
 
-use fhirpath_diagnostics::{Diagnostic, DiagnosticBuilder, DiagnosticCode};
+use octofhir_fhirpath_diagnostics::{Diagnostic, DiagnosticBuilder, DiagnosticCode};
 use nom::error::{ErrorKind, ParseError as NomParseError};
 use std::borrow::Cow;
 use thiserror::Error;

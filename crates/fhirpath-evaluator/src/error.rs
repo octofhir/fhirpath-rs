@@ -14,7 +14,7 @@
 
 // Error types for FHIRPath evaluation
 
-use fhirpath_diagnostics::Diagnostic;
+use octofhir_fhirpath_diagnostics::Diagnostic;
 use thiserror::Error;
 
 /// Result type for evaluation operations
@@ -75,13 +75,13 @@ pub enum EvaluationError {
     },
 
     // VM execution error (handled at integration layer to avoid circular deps)
-    // Vm(#[from] fhirpath_core::VmError),
+    // Vm(#[from] octofhir_fhirpath_core::VmError),
 }
 
 impl EvaluationError {
     /// Convert to a diagnostic
     pub fn to_diagnostic(&self) -> Diagnostic {
-        use fhirpath_diagnostics::*;
+        use octofhir_fhirpath_diagnostics::*;
 
         match self {
             EvaluationError::Function(err) => {

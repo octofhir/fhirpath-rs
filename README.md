@@ -18,7 +18,6 @@ FHIRPath is a path-based navigation and extraction language for FHIR (Fast Healt
 ### Key Features
 
 - ✅ **High Specification Compliance**: 88.1% pass rate on official FHIRPath test suites
-- 🚀 **High Performance**: Optimized tokenizer (10M+ ops/sec), parser (1M+ ops/sec), and evaluator
 - ⚡ **Bytecode Compiler**: Advanced compilation to bytecode with VM execution for maximum performance
 - 🔒 **Memory Safe**: Zero-copy parsing with safe Rust memory management and arena allocation
 - 🏗️ **Modular Architecture**: 11 specialized workspace crates for flexible integration
@@ -362,8 +361,6 @@ just clean
 
 octofhir-fhirpath is optimized for high-performance use cases:
 
-- **Tokenizer**: 10M+ operations/second
-- **Parser**: 1M+ operations/second  
 - **Evaluator**: Efficient context management and caching
 - **Bytecode VM**: High-performance virtual machine execution
 - **Memory**: Zero-copy parsing with minimal allocations

@@ -16,7 +16,7 @@
 
 use anyhow::Result;
 use clap::{Arg, Command};
-use fhirpath_benchmarks::BenchmarkSuite;
+use octofhir_fhirpath_benchmarks::BenchmarkSuite;
 
 fn main() -> Result<()> {
     let matches = Command::new("benchmark-runner")

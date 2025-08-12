@@ -15,12 +15,12 @@
 //! Main FHIRPath evaluation engine
 
 use super::context::EvaluationContext;
-use fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
-use fhirpath_core::{EvaluationError, EvaluationResult};
-use fhirpath_model::{FhirPathValue, ModelProvider};
-use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
+use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
+use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
+use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 // Lambda functions are not yet fully implemented
-// use fhirpath_registry::function::{AllFunction, AnyFunction, ExistsFunction};
+// use octofhir_fhirpath_registry::function::{AllFunction, AnyFunction, ExistsFunction};
 use rust_decimal::Decimal;
 use std::hash::BuildHasherDefault;
 use std::str::FromStr;
@@ -58,13 +58,13 @@ impl FhirPathEngine {
 
     /// Create a new FHIRPath engine with default registries and provided model provider
     pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
-        let (functions, operators) = fhirpath_registry::create_standard_registries();
+        let (functions, operators) = octofhir_fhirpath_registry::create_standard_registries();
         Self::with_registries(Arc::new(functions), Arc::new(operators), model_provider)
     }
 
     /// Create a new FHIRPath engine with mock model provider for testing
     pub fn with_mock_provider() -> Self {
-        let provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         Self::new(provider)
     }
 
@@ -75,7 +75,7 @@ impl FhirPathEngine {
         resource: &serde_json::Value,
     ) -> EvaluationResult<FhirPathValue> {
         // Parse the expression
-        let ast = fhirpath_parser::parse_expression(expression).map_err(|e| {
+        let ast = octofhir_fhirpath_parser::parse_expression(expression).map_err(|e| {
             EvaluationError::RuntimeError {
                 message: e.to_string(),
             }
@@ -1257,7 +1257,7 @@ impl FhirPathEngine {
 
                                 // Wrap JSON objects as FhirResource so functions like resolve() can inspect fields
                                 Ok(FhirPathValue::Resource(Arc::new(
-                                    fhirpath_model::resource::FhirResource::from_json(
+                                    octofhir_fhirpath_model::resource::FhirResource::from_json(
                                         value.clone(),
                                     ),
                                 )))
@@ -1269,7 +1269,7 @@ impl FhirPathEngine {
                                     match item {
                                         serde_json::Value::Object(_) => {
                                             results.push(FhirPathValue::Resource(Arc::new(
-                                                fhirpath_model::resource::FhirResource::from_json(
+                                                octofhir_fhirpath_model::resource::FhirResource::from_json(
                                                     item.clone(),
                                                 ),
                                             )));
@@ -1454,7 +1454,7 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            fhirpath_registry::function::EvaluationContext::with_model_provider(
+            octofhir_fhirpath_registry::function::EvaluationContext::with_model_provider(
                 context.input.clone(),
                 context.model_provider.clone(),
             );
@@ -1520,7 +1520,7 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            fhirpath_registry::function::EvaluationContext::with_model_provider(
+            octofhir_fhirpath_registry::function::EvaluationContext::with_model_provider(
                 context.input.clone(),
                 context.model_provider.clone(),
             );
@@ -1539,7 +1539,7 @@ impl FhirPathEngine {
     /// Evaluate a lambda function with unevaluated expression arguments (async version)
     async fn evaluate_lambda_function_async(
         &self,
-        function: &fhirpath_registry::function::FunctionImpl,
+        function: &octofhir_fhirpath_registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
@@ -1563,7 +1563,7 @@ impl FhirPathEngine {
                     .await
                     .map(|(result, _)| result)
                     .map_err(
-                        |e| fhirpath_registry::function::FunctionError::EvaluationError {
+                        |e| octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
                             name: "lambda".to_string(),
                             message: format!("Lambda evaluation error: {e}"),
                         },
@@ -1573,8 +1573,8 @@ impl FhirPathEngine {
                     Box<
                         dyn std::future::Future<
                                 Output = Result<
-                                    fhirpath_model::FhirPathValue,
-                                    fhirpath_registry::function::FunctionError,
+                                    octofhir_fhirpath_model::FhirPathValue,
+                                    octofhir_fhirpath_registry::function::FunctionError,
                                 >,
                             > + '_,
                     >,
@@ -1609,7 +1609,7 @@ impl FhirPathEngine {
                     .await
                     .map(|(result, _)| result)
                     .map_err(
-                        |e| fhirpath_registry::function::FunctionError::EvaluationError {
+                        |e| octofhir_fhirpath_registry::function::FunctionError::EvaluationError {
                             name: "enhanced_lambda".to_string(),
                             message: format!("Enhanced lambda evaluation error: {e}"),
                         },
@@ -1619,8 +1619,8 @@ impl FhirPathEngine {
                     Box<
                         dyn std::future::Future<
                                 Output = Result<
-                                    fhirpath_model::FhirPathValue,
-                                    fhirpath_registry::function::FunctionError,
+                                    octofhir_fhirpath_model::FhirPathValue,
+                                    octofhir_fhirpath_registry::function::FunctionError,
                                 >,
                             > + '_,
                     >,
@@ -1628,11 +1628,11 @@ impl FhirPathEngine {
         };
 
         // Try to cast to LambdaFunction and use lambda evaluation
-        use fhirpath_registry::function::LambdaFunction;
+        use octofhir_fhirpath_registry::function::LambdaFunction;
 
         // Create lambda evaluation context
         let mut registry_context =
-            fhirpath_registry::function::EvaluationContext::with_model_provider(
+            octofhir_fhirpath_registry::function::EvaluationContext::with_model_provider(
                 context.input.clone(),
                 context.model_provider.clone(),
             );
@@ -1641,7 +1641,7 @@ impl FhirPathEngine {
             .extend(context.variable_scope.collect_all_variables());
         registry_context.root = context.root.clone();
 
-        let lambda_context = fhirpath_registry::function::LambdaEvaluationContext {
+        let lambda_context = octofhir_fhirpath_registry::function::LambdaEvaluationContext {
             context: &registry_context,
             evaluator: &evaluator,
             enhanced_evaluator: Some(&enhanced_evaluator),
@@ -1651,7 +1651,7 @@ impl FhirPathEngine {
         // For now, we'll handle known lambda functions explicitly
         match function.name() {
             "all" => {
-                use fhirpath_registry::functions::boolean::AllFunction;
+                use octofhir_fhirpath_registry::functions::boolean::AllFunction;
                 let all_fn = AllFunction;
                 all_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1659,7 +1659,7 @@ impl FhirPathEngine {
                     .map_err(EvaluationError::from_function_error)
             }
             "select" => {
-                use fhirpath_registry::functions::filtering::SelectFunction;
+                use octofhir_fhirpath_registry::functions::filtering::SelectFunction;
                 let select_fn = SelectFunction;
                 select_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1667,7 +1667,7 @@ impl FhirPathEngine {
                     .map_err(EvaluationError::from_function_error)
             }
             "where" => {
-                use fhirpath_registry::functions::filtering::WhereFunction;
+                use octofhir_fhirpath_registry::functions::filtering::WhereFunction;
                 let where_fn = WhereFunction;
                 where_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1675,7 +1675,7 @@ impl FhirPathEngine {
                     .map_err(EvaluationError::from_function_error)
             }
             "aggregate" => {
-                use fhirpath_registry::functions::collection::AggregateFunction;
+                use octofhir_fhirpath_registry::functions::collection::AggregateFunction;
                 let aggregate_fn = AggregateFunction;
                 aggregate_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1683,7 +1683,7 @@ impl FhirPathEngine {
                     .map_err(EvaluationError::from_function_error)
             }
             "sort" => {
-                use fhirpath_registry::functions::collection::SortFunction;
+                use octofhir_fhirpath_registry::functions::collection::SortFunction;
                 let sort_fn = SortFunction;
                 sort_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1691,7 +1691,7 @@ impl FhirPathEngine {
                     .map_err(EvaluationError::from_function_error)
             }
             "exists" => {
-                use fhirpath_registry::functions::collection::ExistsFunction;
+                use octofhir_fhirpath_registry::functions::collection::ExistsFunction;
                 let exists_fn = ExistsFunction;
                 exists_fn
                     .evaluate_with_lambda(args, &lambda_context)
@@ -1709,7 +1709,7 @@ impl FhirPathEngine {
     /// Regular function evaluation for functions that don't support lambdas (async version)
     async fn evaluate_function_call_regular_async(
         &self,
-        function: &fhirpath_registry::function::FunctionImpl,
+        function: &octofhir_fhirpath_registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
@@ -1725,7 +1725,7 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            fhirpath_registry::function::EvaluationContext::with_model_provider(
+            octofhir_fhirpath_registry::function::EvaluationContext::with_model_provider(
                 context.input.clone(),
                 context.model_provider.clone(),
             );
@@ -1745,7 +1745,7 @@ impl FhirPathEngine {
     /// Regular function evaluation for functions that don't support lambdas
     fn evaluate_function_call_regular(
         &self,
-        function: &fhirpath_registry::function::FunctionImpl,
+        function: &octofhir_fhirpath_registry::function::FunctionImpl,
         args: &[ExpressionNode],
         context: &EvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
@@ -1761,7 +1761,7 @@ impl FhirPathEngine {
 
         // Create a compatible context for the function registry
         let mut registry_context =
-            fhirpath_registry::function::EvaluationContext::with_model_provider(
+            octofhir_fhirpath_registry::function::EvaluationContext::with_model_provider(
                 context.input.clone(),
                 context.model_provider.clone(),
             );

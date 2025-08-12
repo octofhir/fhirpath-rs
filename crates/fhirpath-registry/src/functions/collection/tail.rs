@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// tail() function - returns all items except the first
 pub struct TailFunction;

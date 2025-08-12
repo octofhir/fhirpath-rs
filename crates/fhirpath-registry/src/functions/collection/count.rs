@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// count() function - returns the number of elements in the collection
 pub struct CountFunction;

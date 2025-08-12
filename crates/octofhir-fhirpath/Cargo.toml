@@ -32,14 +32,14 @@ path = "src/bin/octofhir_fhirpath.rs"
 
 [dependencies]
 # Workspace crates
-fhirpath-core = { path = "../fhirpath-core" }
-fhirpath-ast = { path = "../fhirpath-ast" }
-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = ["terminal"] }
-fhirpath-parser = { path = "../fhirpath-parser" }
-fhirpath-model = { path = "../fhirpath-model" }
-fhirpath-registry = { path = "../fhirpath-registry" }
-fhirpath-compiler = { path = "../fhirpath-compiler" }
-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
+octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = ["terminal"] }
+octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
+octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
+octofhir-fhirpath-compiler = { path = "../fhirpath-compiler" }
+octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
 
 # Core dependencies
 anyhow = { workspace = true }
@@ -95,7 +95,7 @@ serde-xml-rs = "0.8"
 
 [features]
 default = []
-diagnostics = ["colored", "fhirpath-diagnostics/terminal"]
+diagnostics = ["colored", "octofhir-fhirpath-diagnostics/terminal"]
 serde = []
-terminal = ["colored", "fhirpath-diagnostics/terminal"]
+terminal = ["colored", "octofhir-fhirpath-diagnostics/terminal"]
 profiling = []

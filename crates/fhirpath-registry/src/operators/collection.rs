@@ -16,7 +16,7 @@
 
 use super::super::operator::{Associativity, FhirPathOperator, OperatorRegistry, OperatorResult};
 use crate::signature::OperatorSignature;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// Union operator (|)
 pub struct UnionOperator;

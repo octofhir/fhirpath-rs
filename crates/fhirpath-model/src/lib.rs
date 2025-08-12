@@ -55,7 +55,7 @@ pub use value_pool::{
 };
 
 // Re-export from workspace crates for convenience
-pub use fhirpath_core::{FhirPathError, Result};
+pub use octofhir_fhirpath_core::{FhirPathError, Result};
 
 // Re-export from external crates
 pub use octofhir_fhir_model as fhir_model;

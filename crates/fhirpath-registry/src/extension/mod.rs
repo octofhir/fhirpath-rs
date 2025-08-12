@@ -26,7 +26,7 @@ pub use metadata::ExtensionMetadata;
 pub use registry::ExtensionRegistry;
 
 use crate::function::{EvaluationContext, FunctionImpl};
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::FhirPathValue;
 use std::sync::Arc;
 
 /// Type alias for variable resolvers

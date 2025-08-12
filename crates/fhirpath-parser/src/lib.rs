@@ -34,12 +34,12 @@ pub use pratt::parse_expression_pratt;
 pub use span::{Span, Spanned};
 
 // Re-export from workspace crates for convenience
-pub use fhirpath_ast::{ExpressionNode, LiteralValue};
-pub use fhirpath_core::{FhirPathError, Result};
-pub use fhirpath_diagnostics::{Diagnostic, DiagnosticBuilder};
+pub use octofhir_fhirpath_ast::{ExpressionNode, LiteralValue};
+pub use octofhir_fhirpath_core::{FhirPathError, Result};
+pub use octofhir_fhirpath_diagnostics::{Diagnostic, DiagnosticBuilder};
 
 /// Parse a FHIRPath expression from a string
 pub fn parse_expression(input: &str) -> Result<ExpressionNode> {
     pratt::parse_expression_pratt(input)
-        .map_err(|e| fhirpath_core::FhirPathError::parse_error(0, e.to_string()))
+        .map_err(|e| octofhir_fhirpath_core::FhirPathError::parse_error(0, e.to_string()))
 }

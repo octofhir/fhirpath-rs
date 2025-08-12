@@ -17,7 +17,7 @@
 //! This module defines a compact bytecode representation for FHIRPath expressions
 //! that enables faster execution than AST interpretation.
 
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::FhirPathValue;
 use std::fmt;
 
 /// Index into the constant pool
@@ -729,7 +729,7 @@ impl Default for BytecodeBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::FhirPathValue;
+    use octofhir_fhirpath_model::FhirPathValue;
 
     #[test]
     fn test_instruction_size() {

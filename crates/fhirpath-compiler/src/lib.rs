@@ -32,6 +32,6 @@ pub use vm::{VirtualMachine, VmConfig};
 // pub use bytecode_cache::BytecodeCache; // Not yet implemented
 
 // Re-export from workspace crates for convenience
-pub use fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
-pub use fhirpath_core::{FhirPathError, Result};
-pub use fhirpath_registry::FunctionRegistry;
+pub use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
+pub use octofhir_fhirpath_core::{FhirPathError, Result};
+pub use octofhir_fhirpath_registry::FunctionRegistry;

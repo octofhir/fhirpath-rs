@@ -24,7 +24,7 @@ use std::fs;
 use std::path::PathBuf;
 
 // Import the integration test runner components from parent module
-use fhirpath_tools::integration_test_runner::{IntegrationTestRunner, TestStats};
+use octofhir_fhirpath_tools::integration_test_runner::{IntegrationTestRunner, TestStats};
 
 #[tokio::main]
 async fn main() -> Result<()> {

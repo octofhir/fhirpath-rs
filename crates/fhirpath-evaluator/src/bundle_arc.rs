@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use fhirpath_core::FhirPathError;
-use fhirpath_model::{resource::FhirResource, FhirPathValue};
+use octofhir_fhirpath_core::FhirPathError;
+use octofhir_fhirpath_model::{resource::FhirResource, FhirPathValue};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

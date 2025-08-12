@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-tools"
+name = "octofhir-fhirpath-tools"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

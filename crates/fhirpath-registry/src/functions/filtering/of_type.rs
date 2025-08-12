@@ -18,8 +18,8 @@ use crate::function::EvaluationContext;
 use crate::function::{AsyncFhirPathFunction, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
-use fhirpath_model::provider::ModelProvider;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::provider::ModelProvider;
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use std::sync::Arc;
 
 /// ofType() function - filters collection to items of specified type

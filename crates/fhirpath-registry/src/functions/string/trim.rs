@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 /// trim() function - removes whitespace from both ends
 pub struct TrimFunction;
 

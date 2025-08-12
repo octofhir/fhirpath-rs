@@ -68,24 +68,26 @@ jobs:
           echo "🚀 Running quick benchmark for canary release..."
           timeout 180 cargo bench --package fhirpath-benchmarks || echo "⚠️ Benchmark timed out after 3 minutes"
 
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
       - name: Generate canary version
         id: version
         run: |
-          # Extract base version from Cargo.toml
-          BASE_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          # Extract base version from workspace Cargo.toml
+          BASE_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           SHORT_SHA=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
           echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
           echo "Generated canary version: ${CANARY_VERSION} (base: ${BASE_VERSION})"
 
-      - name: Update Cargo.toml version
+      - name: Prepare workspace for canary release
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
-          cat Cargo.toml | grep version
+          ./scripts/prepare-canary-release.sh "${{ steps.version.outputs.version }}"
 
       - name: Build release
-        run: cargo build --release --package octofhir-fhirpath
+        run: cargo build --release --workspace
 
       - name: Create canary release
         uses: softprops/action-gh-release@v2
@@ -110,12 +112,26 @@ jobs:
           generate_release_notes: false
           files: |
             target/release/octofhir-fhirpath*
+            target/release/test-runner*
+            target/release/benchmark-runner*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test canary publishing (dry run)
+        run: |
+          echo "🧪 Testing canary publishing with dry run..."
+          cargo workspaces publish --dry-run --allow-dirty
+        continue-on-error: true
 
       - name: Publish canary to crates.io
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "Publishing canary version to crates.io..."
-          cargo publish --package octofhir-fhirpath --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+          echo "🚀 Publishing canary workspace to crates.io..."
+          cargo workspaces publish --allow-dirty --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         continue-on-error: true
+
+      - name: Restore development dependencies
+        if: always()
+        run: |
+          echo "🔄 Restoring development dependencies..."
+          ./scripts/restore-dev-dependencies.sh || echo "⚠️ Failed to restore dependencies (may not exist yet)"

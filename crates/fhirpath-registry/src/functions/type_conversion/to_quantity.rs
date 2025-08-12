@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rust_decimal::prelude::*;
 
 /// toQuantity() function - converts value to quantity
@@ -74,7 +74,7 @@ impl AsyncFhirPathFunction for ToQuantityFunction {
             }
             FhirPathValue::Integer(i) => {
                 // Convert integer to quantity with unit "1" (dimensionless)
-                let quantity = fhirpath_model::Quantity::new(
+                let quantity = octofhir_fhirpath_model::Quantity::new(
                     rust_decimal::Decimal::from(*i),
                     Some("1".to_string()),
                 );
@@ -84,7 +84,7 @@ impl AsyncFhirPathFunction for ToQuantityFunction {
             }
             FhirPathValue::Decimal(d) => {
                 // Convert decimal to quantity with unit "1" (dimensionless)
-                let quantity = fhirpath_model::Quantity::new(*d, Some("1".to_string()));
+                let quantity = octofhir_fhirpath_model::Quantity::new(*d, Some("1".to_string()));
                 Ok(FhirPathValue::collection(vec![FhirPathValue::Quantity(
                     quantity.into(),
                 )]))
@@ -92,7 +92,7 @@ impl AsyncFhirPathFunction for ToQuantityFunction {
             FhirPathValue::String(s) => {
                 // Try to parse string as quantity
                 if let Ok(parsed) = s.parse::<f64>() {
-                    let quantity = fhirpath_model::Quantity::new(
+                    let quantity = octofhir_fhirpath_model::Quantity::new(
                         rust_decimal::Decimal::from_f64(parsed).unwrap_or_default(),
                         Some("1".to_string()),
                     );

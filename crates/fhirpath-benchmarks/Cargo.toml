@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-benchmarks"
+name = "octofhir-fhirpath-benchmarks"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -38,7 +38,7 @@ path = "src/bin/performance_baseline.rs"
 [dependencies]
 # Main crate for benchmarking
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-fhirpath-parser = { path = "../fhirpath-parser" }
+octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 futures = { workspace = true }
 
 # Benchmarking

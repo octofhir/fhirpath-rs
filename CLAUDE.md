@@ -8,16 +8,16 @@ This is a FHIRPath implementation in Rust organized as a **workspace with 11 spe
 
 ### Workspace Structure
 - **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
-- **fhirpath-core**: Core types, errors, and evaluation results  
-- **fhirpath-ast**: Abstract syntax tree definitions and visitor patterns
-- **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
-- **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
-- **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
-- **fhirpath-compiler**: Bytecode compilation and VM execution with optimizer
-- **fhirpath-registry**: Function and operator registry with built-in implementations
-- **fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
-- **fhirpath-tools**: CLI tools, test runners, and coverage analysis
-- **fhirpath-benchmarks**: Performance testing and profiling utilities
+- **octofhir-fhirpath-core**: Core types, errors, and evaluation results  
+- **octofhir-fhirpath-ast**: Abstract syntax tree definitions and visitor patterns
+- **octofhir-fhirpath-parser**: Tokenizer and parser using nom library (version 8)
+- **octofhir-fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
+- **octofhir-fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
+- **octofhir-fhirpath-compiler**: Bytecode compilation and VM execution with optimizer
+- **octofhir-fhirpath-registry**: Function and operator registry with built-in implementations
+- **octofhir-fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
+- **octofhir-fhirpath-tools**: CLI tools, test runners, and coverage analysis
+- **octofhir-fhirpath-benchmarks**: Performance testing and profiling utilities
 
 ### Migration Status
 The codebase has been migrated from a monolithic structure to this modular workspace. Legacy code exists in `src_backup_old/` for reference but the active implementation is in the `crates/` workspace structure.
@@ -153,7 +153,7 @@ just test-coverage-mock
 cargo test test_name -- --nocapture
 
 # Run tests for specific crate
-cargo test --package fhirpath-parser
+cargo test --package octofhir-fhirpath-parser
 ```
 
 ## Guidelines

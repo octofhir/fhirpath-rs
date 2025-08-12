@@ -23,7 +23,7 @@
 
 use super::error::{ParseError, ParseResult};
 use super::tokenizer::{Token, Tokenizer};
-use fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
+use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
 
 /// Operator precedence levels (higher = tighter binding)
 /// Designed for optimal branch prediction with sequential spacing

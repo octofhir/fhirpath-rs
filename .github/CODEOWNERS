@@ -12,7 +12,7 @@ Cargo.toml @octofhir/fhirpath-maintainers
 Cargo.lock @octofhir/fhirpath-maintainers
 
 # Source code
-src/ @octofhir/fhirpath-maintainers
+crates/ @octofhir/fhirpath-maintainers
 
 # Documentation
 *.md @octofhir/fhirpath-maintainers

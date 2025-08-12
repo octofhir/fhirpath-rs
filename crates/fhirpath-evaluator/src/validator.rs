@@ -18,8 +18,8 @@
 //! and operator type compatibility using the ModelProvider.
 
 use super::context::EvaluationContext;
-use fhirpath_core::EvaluationResult;
-use fhirpath_model::{provider::ModelProvider, FhirPathValue};
+use octofhir_fhirpath_core::EvaluationResult;
+use octofhir_fhirpath_model::{provider::ModelProvider, FhirPathValue};
 use std::sync::Arc;
 
 /// Runtime validator for function parameters and operator compatibility
@@ -372,8 +372,8 @@ impl ValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::MockModelProvider;
-    use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_model::MockModelProvider;
+    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
     use tokio;
 
     #[tokio::test]

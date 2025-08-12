@@ -18,7 +18,7 @@ use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, F
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
 use chrono::TimeZone;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 
@@ -230,7 +230,7 @@ impl AsFunction {
     /// Cast resource using ModelProvider for sophisticated type checking
     async fn cast_resource_with_provider(
         &self,
-        resource: &Arc<fhirpath_model::resource::FhirResource>,
+        resource: &Arc<octofhir_fhirpath_model::resource::FhirResource>,
         target_type: &str,
         context: &EvaluationContext,
     ) -> FunctionResult<FhirPathValue> {

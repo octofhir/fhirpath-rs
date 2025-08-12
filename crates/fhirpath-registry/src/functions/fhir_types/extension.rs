@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, resource::FhirResource, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, resource::FhirResource, types::TypeInfo};
 use serde_json::Value;
 
 /// extension(url) function - retrieves extensions with a given URL from an element

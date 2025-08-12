@@ -267,7 +267,7 @@ impl FhirPathValue {
     }
 
     /// Convert a quantity to a different unit
-    pub fn convert_to_unit(&self, target_unit: &str) -> Result<Self, fhirpath_core::FhirPathError> {
+    pub fn convert_to_unit(&self, target_unit: &str) -> Result<Self, octofhir_fhirpath_core::FhirPathError> {
         match self {
             Self::Quantity {
                 value,
@@ -290,22 +290,22 @@ impl FhirPathValue {
 
                                 // For different units, we'll return an error for now to avoid freezing
                                 // This is a temporary solution until we can implement proper UCUM conversion
-                                Err(fhirpath_core::FhirPathError::conversion_error(
+                                Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                                     "Unit conversion not yet implemented".to_string(),
                                     format!("from {unit} to {target_unit}"),
                                 ))
                             }
-                            Ok(false) => Err(fhirpath_core::FhirPathError::conversion_error(
+                            Ok(false) => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                                 "Units are not comparable".to_string(),
                                 format!("{unit} and {target_unit}"),
                             )),
-                            Err(e) => Err(fhirpath_core::FhirPathError::conversion_error(
+                            Err(e) => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                                 "Error checking unit compatibility".to_string(),
                                 format!("{unit}: {e}"),
                             )),
                         }
                     }
-                    Err(e) => Err(fhirpath_core::FhirPathError::conversion_error(
+                    Err(e) => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                         "Invalid target unit".to_string(),
                         format!("{target_unit}: {e}"),
                     )),
@@ -318,13 +318,13 @@ impl FhirPathValue {
                 if target_unit.is_empty() {
                     Ok(Self::quantity(*value, None))
                 } else {
-                    Err(fhirpath_core::FhirPathError::conversion_error(
+                    Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                         "Cannot convert unitless quantity".to_string(),
                         format!("to {target_unit}"),
                     ))
                 }
             }
-            _ => Err(fhirpath_core::FhirPathError::conversion_error(
+            _ => Err(octofhir_fhirpath_core::FhirPathError::conversion_error(
                 "Cannot convert non-quantity value".to_string(),
                 format!("to unit {target_unit}"),
             )),

@@ -16,7 +16,7 @@
 
 use anyhow::Result;
 use clap::{Arg, Command};
-use fhirpath_benchmarks::profiling::ProfilerContext;
+use octofhir_fhirpath_benchmarks::profiling::ProfilerContext;
 
 fn main() -> Result<()> {
     let matches = Command::new("performance-profiler")

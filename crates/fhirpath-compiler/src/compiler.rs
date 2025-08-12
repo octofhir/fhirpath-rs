@@ -23,12 +23,12 @@ use crate::bytecode::{
 };
 use crate::optimizer::{ExpressionOptimizer, OptimizationConfig};
 use chrono::DateTime;
-use fhirpath_ast::{
+use octofhir_fhirpath_ast::{
     BinaryOpData, BinaryOperator, ConditionalData, ExpressionNode, FunctionCallData, LambdaData,
     LiteralValue, MethodCallData, UnaryOperator,
 };
-use fhirpath_model::{FhirPathValue, quantity::Quantity};
-use fhirpath_registry::FunctionRegistry;
+use octofhir_fhirpath_model::{FhirPathValue, quantity::Quantity};
+use octofhir_fhirpath_registry::FunctionRegistry;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
@@ -867,8 +867,8 @@ impl ExpressionCompiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue};
-    use fhirpath_registry::FunctionRegistry;
+    use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue};
+    use octofhir_fhirpath_registry::FunctionRegistry;
 
     fn create_test_compiler() -> ExpressionCompiler {
         let functions = Arc::new(FunctionRegistry::new());

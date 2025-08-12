@@ -18,7 +18,7 @@ use super::super::operator::{
     Associativity, FhirPathOperator, OperatorError, OperatorRegistry, OperatorResult,
 };
 use crate::signature::OperatorSignature;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use octofhir_ucum;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 
@@ -283,7 +283,7 @@ impl AddOperator {
     fn add_date_quantity(
         &self,
         date: &chrono::NaiveDate,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
@@ -330,7 +330,7 @@ impl AddOperator {
     fn add_datetime_quantity(
         &self,
         datetime: &chrono::DateTime<chrono::FixedOffset>,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
@@ -405,7 +405,7 @@ impl AddOperator {
     fn add_time_quantity(
         &self,
         time: &chrono::NaiveTime,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         let unit = quantity.unit.as_deref().unwrap_or("");
         let amount = quantity.value;
@@ -601,7 +601,7 @@ impl SubtractOperator {
     fn subtract_date_quantity(
         &self,
         date: &chrono::NaiveDate,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
@@ -645,7 +645,7 @@ impl SubtractOperator {
     fn subtract_datetime_quantity(
         &self,
         datetime: &chrono::DateTime<chrono::FixedOffset>,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         use chrono::Datelike;
 
@@ -717,7 +717,7 @@ impl SubtractOperator {
     fn subtract_time_quantity(
         &self,
         time: &chrono::NaiveTime,
-        quantity: &fhirpath_model::Quantity,
+        quantity: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         let unit = quantity.unit.as_deref().unwrap_or("");
         let amount = quantity.value;
@@ -858,14 +858,14 @@ impl FhirPathOperator for MultiplyOperator {
                 FhirPathValue::Decimal(a * rust_decimal::Decimal::from(*b))
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Integer(n)) => {
-                let result = fhirpath_model::Quantity::new(
+                let result = octofhir_fhirpath_model::Quantity::new(
                     q.value * rust_decimal::Decimal::from(*n),
                     q.unit.clone(),
                 );
                 FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q), FhirPathValue::Decimal(d)) => {
-                let result = fhirpath_model::Quantity::new(q.value * d, q.unit.clone());
+                let result = octofhir_fhirpath_model::Quantity::new(q.value * d, q.unit.clone());
                 FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
@@ -889,8 +889,8 @@ impl MultiplyOperator {
     /// Multiply two quantities with UCUM unit multiplication
     fn multiply_quantities(
         &self,
-        q1: &fhirpath_model::Quantity,
-        q2: &fhirpath_model::Quantity,
+        q1: &octofhir_fhirpath_model::Quantity,
+        q2: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         let result_value = q1.value * q2.value;
 
@@ -915,7 +915,7 @@ impl MultiplyOperator {
             (None, None) => None,
         };
 
-        let result_quantity = fhirpath_model::Quantity::new(result_value, result_unit);
+        let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
         Ok(FhirPathValue::Quantity(result_quantity.into()))
     }
 }
@@ -1027,7 +1027,7 @@ impl FhirPathOperator for DivideOperator {
                 if *n == 0 {
                     return Ok(FhirPathValue::Empty);
                 }
-                let result = fhirpath_model::Quantity::new(
+                let result = octofhir_fhirpath_model::Quantity::new(
                     q.value / rust_decimal::Decimal::from(*n),
                     q.unit.clone(),
                 );
@@ -1037,7 +1037,7 @@ impl FhirPathOperator for DivideOperator {
                 if d.is_zero() {
                     return Ok(FhirPathValue::Empty);
                 }
-                let result = fhirpath_model::Quantity::new(q.value / d, q.unit.clone());
+                let result = octofhir_fhirpath_model::Quantity::new(q.value / d, q.unit.clone());
                 FhirPathValue::Quantity(result.into())
             }
             (FhirPathValue::Quantity(q1), FhirPathValue::Quantity(q2)) => {
@@ -1064,8 +1064,8 @@ impl DivideOperator {
     /// Divide two quantities with UCUM unit division
     fn divide_quantities(
         &self,
-        q1: &fhirpath_model::Quantity,
-        q2: &fhirpath_model::Quantity,
+        q1: &octofhir_fhirpath_model::Quantity,
+        q2: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<FhirPathValue> {
         let result_value = q1.value / q2.value;
 
@@ -1096,7 +1096,7 @@ impl DivideOperator {
             (None, None) => None,
         };
 
-        let result_quantity = fhirpath_model::Quantity::new(result_value, result_unit);
+        let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
         Ok(FhirPathValue::Quantity(result_quantity.into()))
     }
 }

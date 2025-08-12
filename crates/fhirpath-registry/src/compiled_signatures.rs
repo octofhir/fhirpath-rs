@@ -19,7 +19,7 @@
 
 use crate::function::{FunctionError, FunctionResult};
 use crate::signature::FunctionSignature;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
@@ -457,7 +457,7 @@ impl CompiledSignatureRegistry {
             TypeInfo::DateTime => FhirPathValue::DateTime("2000-01-01T00:00:00Z".parse().unwrap()),
             TypeInfo::Time => FhirPathValue::Time("00:00:00".parse().unwrap()),
             TypeInfo::Quantity => {
-                use fhirpath_model::Quantity;
+                use octofhir_fhirpath_model::Quantity;
                 use rust_decimal::Decimal;
                 FhirPathValue::Quantity(Quantity::new(Decimal::ZERO, Some("1".to_string())).into())
             }
@@ -515,7 +515,7 @@ impl std::fmt::Display for CompilationStats {
 mod tests {
     use super::*;
     use crate::signature::{FunctionSignature, ParameterInfo};
-    use fhirpath_model::{FhirPathValue, types::TypeInfo};
+    use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
     #[test]
     fn test_compiled_signature_creation() {

@@ -16,7 +16,7 @@
 
 use crate::function::{EvaluationContext, FhirPathFunction, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// hasTemplateIdOf() function - checks if a CDA element has a specific template ID
 pub struct HasTemplateIdOfFunction;

@@ -26,7 +26,7 @@ pub use stats::CacheStatistics;
 
 use crate::function::FunctionImpl;
 use dashmap::DashMap;
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::FhirPathValue;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -273,7 +273,7 @@ pub fn generate_result_cache_key(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::types::TypeInfo;
+    use octofhir_fhirpath_model::types::TypeInfo;
 
     #[test]
     fn test_cache_entry_expiration() {

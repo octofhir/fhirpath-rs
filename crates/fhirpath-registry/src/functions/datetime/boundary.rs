@@ -18,7 +18,7 @@ use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, F
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset, NaiveDate, TimeZone, Timelike};
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -124,7 +124,7 @@ impl AsyncFhirPathFunction for LowBoundaryFunction {
                             low_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
+                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })
@@ -247,7 +247,7 @@ impl AsyncFhirPathFunction for HighBoundaryFunction {
                             high_bound
                         };
                         Ok(FhirPathValue::Quantity(
-                            fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
+                            octofhir_fhirpath_model::Quantity::new(new_value, q.unit.clone()).into(),
                         ))
                     }
                     Err(FunctionError::EvaluationError { message, .. })

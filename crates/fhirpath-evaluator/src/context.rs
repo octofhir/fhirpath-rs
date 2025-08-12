@@ -14,8 +14,8 @@
 
 // Evaluation context for FHIRPath expressions
 
-use fhirpath_model::{provider::ModelProvider, provider::TypeReflectionInfo, FhirPathValue};
-use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+use octofhir_fhirpath_model::{provider::ModelProvider, provider::TypeReflectionInfo, FhirPathValue};
+use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -549,7 +549,7 @@ impl<'a> StackContext<'a> {
     /// Convert to a heap-allocated EvaluationContext when needed
     pub fn to_heap_context(&self) -> EvaluationContext {
         // Note: This is a simplified conversion - in practice, you'd need a ModelProvider
-        let mock_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let mock_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let mut context = EvaluationContext::new(
             self.input.clone(),
             Arc::new(self.functions.clone()),
@@ -591,7 +591,7 @@ impl<'a> ContextStorage<'a> {
         } else {
             // For internal temporary context conversion, using MockModelProvider is acceptable
             // since this is not exposed to users and is only used internally
-            let provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+            let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
             Self::Heap(EvaluationContext::new(
                 input.clone(),
                 Arc::new(functions.clone()),
@@ -713,13 +713,13 @@ impl ContextFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 
     #[test]
     fn test_context_pool_acquire_and_return() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let model_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::new(2, functions, operators, model_provider);
 
         // Pool should start empty
@@ -755,7 +755,7 @@ mod tests {
     fn test_context_pool_max_size() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let model_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::new(1, functions, operators, model_provider); // Max size 1
 
         // Create multiple contexts
@@ -776,7 +776,7 @@ mod tests {
     fn test_pooled_context_deref() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let model_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
         let input = FhirPathValue::Integer(42);
@@ -795,7 +795,7 @@ mod tests {
     fn test_context_pool_child_contexts() {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
-        let model_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
         let input = FhirPathValue::Integer(42);
@@ -1077,7 +1077,7 @@ mod tests {
         let functions = Arc::new(FunctionRegistry::new());
         let operators = Arc::new(OperatorRegistry::new());
 
-        let model_provider = Arc::new(fhirpath_model::MockModelProvider::empty());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let mut parent_ctx = EvaluationContext::new(
             FhirPathValue::Integer(42),
             functions.clone(),

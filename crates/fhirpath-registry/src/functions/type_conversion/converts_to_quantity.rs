@@ -16,7 +16,7 @@
 
 use crate::function::{EvaluationContext, FhirPathFunction, FunctionError, FunctionResult};
 use crate::signature::FunctionSignature;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// convertsToQuantity() function - checks if value can be converted to quantity
 pub struct ConvertsToQuantityFunction;

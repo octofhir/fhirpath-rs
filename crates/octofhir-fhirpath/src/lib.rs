@@ -17,38 +17,38 @@
 //! A complete implementation of FHIRPath expression language for FHIR resources.
 
 // Import workspace crates
-pub use fhirpath_ast as ast;
-pub use fhirpath_compiler as compiler;
-pub use fhirpath_core as core;
-pub use fhirpath_diagnostics as diagnostics;
-pub use fhirpath_evaluator as evaluator;
-pub use fhirpath_model as model;
-pub use fhirpath_parser as parser;
-pub use fhirpath_registry as registry;
+pub use octofhir_fhirpath_ast as ast;
+pub use octofhir_fhirpath_compiler as compiler;
+pub use octofhir_fhirpath_core as core;
+pub use octofhir_fhirpath_diagnostics as diagnostics;
+pub use octofhir_fhirpath_evaluator as evaluator;
+pub use octofhir_fhirpath_model as model;
+pub use octofhir_fhirpath_parser as parser;
+pub use octofhir_fhirpath_registry as registry;
 
 // Main implementation modules
 pub mod pipeline;
 
 // Re-export main types
 pub use engine::{FhirPathEngineWithCache, IntegratedFhirPathEngine};
-pub use fhirpath_evaluator::{EvaluationContext, FhirPathEngine};
-pub use fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
-pub use fhirpath_parser::{ParseError, parse_expression as parse};
-pub use fhirpath_registry::FunctionRegistry;
+pub use octofhir_fhirpath_evaluator::{EvaluationContext, FhirPathEngine};
+pub use octofhir_fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
+pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
+pub use octofhir_fhirpath_registry::FunctionRegistry;
 
 // Re-export from workspace crates
-pub use fhirpath_ast::{
+pub use octofhir_fhirpath_ast::{
     BinaryOpData, BinaryOperator, ConditionalData, ExpressionNode, FunctionCallData, LambdaData,
     LiteralValue, MethodCallData, UnaryOperator,
 };
-pub use fhirpath_core::{FhirPathError, FhirTypeRegistry, Result};
-pub use fhirpath_diagnostics::{
+pub use octofhir_fhirpath_core::{FhirPathError, FhirTypeRegistry, Result};
+pub use octofhir_fhirpath_diagnostics::{
     Diagnostic, DiagnosticBuilder, DiagnosticCode, DiagnosticReporter, DiagnosticSeverity,
 };
 
 // Re-export ModelProvider from fhir-model-rs
-pub use fhirpath_model::ModelProvider;
-pub use fhirpath_model::fhir_model;
+pub use octofhir_fhirpath_model::ModelProvider;
+pub use octofhir_fhirpath_model::fhir_model;
 
 // Re-export from local modules (minimal local integration code)
 pub mod engine;

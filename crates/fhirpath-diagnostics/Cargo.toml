@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-diagnostics"
+name = "octofhir-fhirpath-diagnostics"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ categories = ["parser-implementations", "development-tools"]
 
 [dependencies]
 # Core dependencies
-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

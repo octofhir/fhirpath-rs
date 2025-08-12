@@ -19,8 +19,8 @@ use crate::function::{
     LambdaFunction,
 };
 use crate::signature::{FunctionSignature, ParameterInfo};
-use fhirpath_ast::ExpressionNode;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// all() function - returns true if criteria is true for all items
 pub struct AllFunction;

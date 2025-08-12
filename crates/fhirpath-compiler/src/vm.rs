@@ -19,14 +19,14 @@
 //! with minimal overhead for simple operations.
 
 use crate::bytecode::{Bytecode, Instruction};
-use fhirpath_core::EvaluationResult;
-use fhirpath_model::FhirPathValue;
-use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+use octofhir_fhirpath_core::EvaluationResult;
+use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 use std::collections::HashMap;
 use std::sync::Arc;
 
 // Re-export core VM types for convenience
-pub use fhirpath_core::{VmConfig, VmError, VmResult};
+pub use octofhir_fhirpath_core::{VmConfig, VmError, VmResult};
 
 /// Variable scope for lambda execution
 #[derive(Debug, Clone)]
@@ -1004,7 +1004,7 @@ impl<'a> VmExecutor<'a> {
 mod tests {
     use super::*;
     use crate::bytecode::{BytecodeBuilder, Instruction};
-    use fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
 
     fn create_test_vm() -> VirtualMachine {
         let functions = Arc::new(FunctionRegistry::new());

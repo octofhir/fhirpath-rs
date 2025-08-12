@@ -18,8 +18,8 @@
 //! that can bypass the general evaluation pipeline for better performance.
 
 use crate::function::{EvaluationContext, FunctionResult};
-use fhirpath_ast::ExpressionNode;
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Trait for functions that can provide fast path optimizations
 pub trait FastPathFunction {
@@ -264,7 +264,7 @@ impl Default for FastPathRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::FhirPathValue;
+    use octofhir_fhirpath_model::FhirPathValue;
 
     #[test]
     fn test_fast_count() {

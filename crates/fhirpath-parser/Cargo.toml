@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-parser"
+name = "octofhir-fhirpath-parser"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ categories = ["parser-implementations"]
 
 [dependencies]
 # Workspace crates
-fhirpath-core = { path = "../fhirpath-core" }
-fhirpath-ast = { path = "../fhirpath-ast" }
-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
+octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 
 # Parser dependencies
 nom = { workspace = true }
@@ -34,4 +34,4 @@ tokio = { workspace = true, features = ["rt", "macros"] }
 
 [features]
 default = []
-serde = ["dep:serde", "fhirpath-ast/serde"]
+serde = ["dep:serde", "octofhir-fhirpath-ast/serde"]

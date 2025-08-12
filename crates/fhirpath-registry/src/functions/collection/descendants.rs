@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// descendants() function - returns all descendants of nodes in the collection
 pub struct DescendantsFunction;
@@ -88,7 +88,7 @@ impl AsyncFhirPathFunction for DescendantsFunction {
         }
 
         fn value_to_fhir_path_value(value: &serde_json::Value) -> FhirPathValue {
-            use fhirpath_model::resource::FhirResource;
+            use octofhir_fhirpath_model::resource::FhirResource;
 
             match value {
                 serde_json::Value::Array(arr) => {

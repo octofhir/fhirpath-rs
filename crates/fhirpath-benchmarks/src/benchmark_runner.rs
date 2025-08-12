@@ -15,7 +15,7 @@
 //! Benchmark suite runner
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use fhirpath_parser::Tokenizer;
+use octofhir_fhirpath_parser::Tokenizer;
 use octofhir_fhirpath::model::MockModelProvider;
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, parse};
 use serde_json::Value;

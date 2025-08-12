@@ -15,7 +15,7 @@
 //! Operator registry and built-in operators
 
 use crate::signature::OperatorSignature;
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::FhirPathValue;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use thiserror::Error;

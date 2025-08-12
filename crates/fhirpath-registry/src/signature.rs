@@ -14,7 +14,7 @@
 
 //! Function and operator signatures for type checking
 
-use fhirpath_model::types::TypeInfo;
+use octofhir_fhirpath_model::types::TypeInfo;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

@@ -17,8 +17,8 @@
 //! This module provides optimization passes that can be applied to bytecode
 //! or AST expressions to improve performance.
 
-use fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
+use octofhir_fhirpath_model::FhirPathValue;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 

@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// repeat() function - repeats evaluation until no new results
 pub struct RepeatFunction;
@@ -197,7 +197,7 @@ fn apply_expression(
 }
 
 fn value_to_fhir_path_value(value: &serde_json::Value) -> FhirPathValue {
-    use fhirpath_model::resource::FhirResource;
+    use octofhir_fhirpath_model::resource::FhirResource;
 
     match value {
         serde_json::Value::Array(arr) => {

@@ -1,5 +1,5 @@
 [package]
-name = "fhirpath-ast"
+name = "octofhir-fhirpath-ast"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ categories = ["parser-implementations", "data-structures"]
 
 [dependencies]
 # Core dependencies
-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
 serde = { workspace = true, optional = true }
 smallvec = { workspace = true }
 rustc-hash = { workspace = true }

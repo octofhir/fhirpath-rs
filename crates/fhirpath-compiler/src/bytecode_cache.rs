@@ -14,7 +14,7 @@
 
 use crate::bytecode::{Bytecode, BytecodeMetadata, Instruction};
 use dashmap::DashMap;
-use fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::FhirPathValue;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Weak};
@@ -622,7 +622,7 @@ mod tests {
     use crate::bytecode::OptimizationLevel;
 
     fn create_test_bytecode() -> Bytecode {
-        use fhirpath_model::FhirPathValue;
+        use octofhir_fhirpath_model::FhirPathValue;
 
         Bytecode {
             instructions: vec![

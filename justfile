@@ -17,18 +17,18 @@ test:
     cargo test --workspace
 
 test-coverage:
-    cargo build --package fhirpath-tools --release --bin test-coverage
+    cargo build --package octofhir-fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis..."
     @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
     @echo "⚠️  If this hangs, try running 'just test-coverage-mock' for MockModelProvider version"
-    timeout 60 cargo run --package fhirpath-tools --bin test-coverage || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
+    timeout 60 cargo run --package octofhir-fhirpath-tools --bin test-coverage || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
 
 # Run test coverage with MockModelProvider (faster, no network required)
 test-coverage-mock:
-    cargo build --package fhirpath-tools --release --bin test-coverage
+    cargo build --package octofhir-fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis with MockModelProvider..."
     @echo "⚠️  Note: This uses MockModelProvider instead of real FhirSchemaModelProvider"
-    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package fhirpath-tools --bin test-coverage
+    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package octofhir-fhirpath-tools --bin test-coverage
 
 test-official:
     cargo test --workspace run_official_tests -- --ignored --nocapture
@@ -39,7 +39,7 @@ bench:
     @echo "=================================="
     @echo "📊 Running unified benchmark suite..."
     @echo "This tests all components: tokenizer, parser, evaluator, and throughput"
-    cargo run --package fhirpath-benchmarks --bin benchmark-runner
+    cargo run --package octofhir-fhirpath-benchmarks --bin benchmark-runner
     @echo "📈 Performance Summary:"
     @echo "✓ Tokenizer: Optimized for 10M+ operations/second"
     @echo "✓ Parser: Optimized for 1M+ operations/second"
@@ -76,7 +76,7 @@ bench-update-docs:
     @echo "🚀 Running benchmarks..."
     just bench
     @echo "📝 Extracting metrics and generating benchmark report..."
-    cargo run --package fhirpath-benchmarks --bin extract-benchmark-metrics
+    cargo run --package octofhir-fhirpath-benchmarks --bin extract-benchmark-metrics
 
 # Development commands
 fmt:
@@ -111,7 +111,7 @@ clean-bench:
 
 # Run specific test case
 test-case CASE:
-    cargo run --package fhirpath-tools --bin test-runner specs/fhirpath/tests/{{CASE}}.json
+    cargo run --package octofhir-fhirpath-tools --bin test-runner specs/fhirpath/tests/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":
@@ -187,18 +187,18 @@ expand ITEM="":
 profile EXPRESSION="Patient.name":
     @echo "🔬 Profiling FHIRPath expression: {{EXPRESSION}}"
     @echo "================================================"
-    cargo build --package fhirpath-benchmarks --release --bin perf-test
+    cargo build --package octofhir-fhirpath-benchmarks --release --bin perf-test
     @echo "Running performance profiling..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --package fhirpath-benchmarks --release --bin perf-test -- "{{EXPRESSION}}"
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --package octofhir-fhirpath-benchmarks --release --bin perf-test -- "{{EXPRESSION}}"
 
 # Generate flamegraph for expression profiling (requires flamegraph tool)
 flamegraph EXPRESSION="Patient.name.where(family.exists())":
     @echo "🔥 Generating flamegraph for: {{EXPRESSION}}"
     @echo "=============================================="
     @echo "Building release with debug symbols..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --package fhirpath-benchmarks --release --bin perf-test
+    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --package octofhir-fhirpath-benchmarks --release --bin perf-test
     @echo "Generating flamegraph..."
-    cargo flamegraph --package fhirpath-benchmarks --bin perf-test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
+    cargo flamegraph --package octofhir-fhirpath-benchmarks --bin perf-test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
     @echo "🔥 Flamegraph saved as flamegraph.svg"
 
 # Profile where() function specifically with sample data

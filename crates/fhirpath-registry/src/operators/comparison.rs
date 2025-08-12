@@ -18,7 +18,7 @@ use super::super::operator::{
     Associativity, FhirPathOperator, OperatorError, OperatorRegistry, OperatorResult,
 };
 use crate::signature::OperatorSignature;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rust_decimal::Decimal;
 
 /// Equality operator (=)
@@ -169,8 +169,8 @@ impl EqualOperator {
     /// Compare two quantities for equality, handling unit conversion
     fn compare_quantities_equal(
         &self,
-        q1: &fhirpath_model::Quantity,
-        q2: &fhirpath_model::Quantity,
+        q1: &octofhir_fhirpath_model::Quantity,
+        q2: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<bool> {
         match q1.equals_with_conversion(q2) {
             Ok(result) => Ok(result),
@@ -874,8 +874,8 @@ impl EquivalentOperator {
     /// Compare two quantities for equivalence (same as equality for quantities)
     fn compare_quantities_equivalent(
         &self,
-        q1: &fhirpath_model::Quantity,
-        q2: &fhirpath_model::Quantity,
+        q1: &octofhir_fhirpath_model::Quantity,
+        q2: &octofhir_fhirpath_model::Quantity,
     ) -> OperatorResult<bool> {
         // For quantities, equivalence is the same as equality
         let equal_op = EqualOperator;
@@ -885,8 +885,8 @@ impl EquivalentOperator {
     /// Compare two collections for equivalence (order-independent)
     fn compare_collections_equivalent(
         &self,
-        left: &fhirpath_model::Collection,
-        right: &fhirpath_model::Collection,
+        left: &octofhir_fhirpath_model::Collection,
+        right: &octofhir_fhirpath_model::Collection,
     ) -> OperatorResult<bool> {
         if left.len() != right.len() {
             return Ok(false);

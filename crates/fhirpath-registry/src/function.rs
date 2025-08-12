@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 // Note: Lambda evaluation is not yet fully implemented
 // pub use crate::functions::boolean::{AllFunction, AnyFunction};
 // pub use crate::functions::collection::ExistsFunction;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
@@ -46,7 +46,7 @@ type VarMap =
 use thiserror::Error;
 
 // For expression evaluation in lambda functions
-use fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_ast::ExpressionNode;
 
 /// Result type for function operations
 pub type FunctionResult<T> = Result<T, FunctionError>;
@@ -229,7 +229,7 @@ pub struct EvaluationContext {
     /// Variables in scope
     pub variables: FxHashMap<String, FhirPathValue>,
     /// Model provider for type operations (optional for backward compatibility)
-    pub model_provider: Option<Arc<dyn fhirpath_model::provider::ModelProvider>>,
+    pub model_provider: Option<Arc<dyn octofhir_fhirpath_model::provider::ModelProvider>>,
 }
 
 impl EvaluationContext {
@@ -276,7 +276,7 @@ impl EvaluationContext {
     /// Create a new evaluation context with model provider
     pub fn with_model_provider(
         input: FhirPathValue,
-        model_provider: Arc<dyn fhirpath_model::provider::ModelProvider>,
+        model_provider: Arc<dyn octofhir_fhirpath_model::provider::ModelProvider>,
     ) -> Self {
         Self {
             root: input.clone(),
@@ -2117,7 +2117,7 @@ fn warm_compiled_signatures(registry: &FunctionRegistry) {
 mod tests {
     use super::*;
     use crate::signature::{FunctionSignature, ParameterInfo};
-    use fhirpath_model::{FhirPathValue, types::TypeInfo};
+    use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
     // Example trait-based function for testing
     #[derive(Debug)]

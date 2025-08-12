@@ -17,7 +17,7 @@
 use crate::function::{AsyncFhirPathFunction, EvaluationContext, FunctionError, FunctionResult};
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use rust_decimal::prelude::*;
 
 /// abs() function - absolute value
@@ -96,7 +96,7 @@ impl AsyncFhirPathFunction for AbsFunction {
                     }
                 }
                 Ok(FhirPathValue::Collection(
-                    fhirpath_model::Collection::from_vec(results),
+                    octofhir_fhirpath_model::Collection::from_vec(results),
                 ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

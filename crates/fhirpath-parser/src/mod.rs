@@ -43,7 +43,7 @@ pub use span::{Span, Spanned};
 pub use pratt::parse_expression_pratt as parse_expression;
 
 /// Parse an FHIRPath expression string into an AST using the optimized Pratt parser
-pub async fn parse(input: &str) -> ParseResult<fhirpath_ast::ExpressionNode> {
+pub async fn parse(input: &str) -> ParseResult<octofhir_fhirpath_ast::ExpressionNode> {
     parse_expression_pratt(input)
 }
 

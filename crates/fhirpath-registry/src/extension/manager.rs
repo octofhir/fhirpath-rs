@@ -246,7 +246,7 @@ mod tests {
     use crate::extension::metadata::ExtensionMetadata;
     use crate::function::{EvaluationContext, FhirPathFunction, FunctionImpl, FunctionResult};
     use crate::signature::FunctionSignature;
-    use fhirpath_model::{FhirPathValue, types::TypeInfo};
+    use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
     // Test extension
     struct TestExtension {

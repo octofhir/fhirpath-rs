@@ -18,8 +18,8 @@
 //! for type validation and enhanced error reporting.
 
 use super::context::EvaluationContext;
-use fhirpath_core::{EvaluationError, EvaluationResult};
-use fhirpath_model::{
+use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
+use octofhir_fhirpath_model::{
     json_arc::ArcJsonValue,
     provider::{ModelProvider, TypeReflectionInfo},
     resource::FhirResource,
@@ -467,7 +467,7 @@ fn jaro_winkler_similarity(s1: &str, s2: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::mock_provider::MockModelProvider;
+    use octofhir_fhirpath_model::mock_provider::MockModelProvider;
     use tokio;
 
     #[tokio::test]

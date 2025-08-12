@@ -18,8 +18,8 @@
 //! the `is`, `as`, and `ofType` operators with ModelProvider integration.
 
 use super::context::EvaluationContext;
-use fhirpath_core::EvaluationResult;
-use fhirpath_model::{
+use octofhir_fhirpath_core::EvaluationResult;
+use octofhir_fhirpath_model::{
     provider::{ModelProvider, TypeReflectionInfo},
     Collection, FhirPathValue,
 };
@@ -364,7 +364,7 @@ enum CheckOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fhirpath_model::{json_arc::ArcJsonValue, MockModelProvider};
+    use octofhir_fhirpath_model::{json_arc::ArcJsonValue, MockModelProvider};
     use tokio;
 
     #[tokio::test]

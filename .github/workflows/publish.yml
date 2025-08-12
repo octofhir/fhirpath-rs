@@ -1,0 +1,81 @@
+name: Publish to crates.io
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (no actual publishing)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Verify workspace builds
+        run: cargo check --workspace
+
+      - name: Prepare for publishing
+        run: ./scripts/prepare-release.sh
+
+      - name: Dry run publishing
+        run: cargo workspaces publish --dry-run --allow-dirty
+
+      - name: Publish to crates.io (real)
+        if: ${{ github.event_name == 'push' || github.event.inputs.dry_run == 'false' }}
+        run: cargo workspaces publish --allow-dirty --token ${{ secrets.CARGO_TOKEN }}
+
+      - name: Restore development dependencies
+        if: always()
+        run: ./scripts/restore-dev-dependencies.sh
+
+      - name: Commit restored dependencies
+        if: always()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git diff --staged --quiet || git commit -m "chore: restore development dependencies after publishing
+
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+
+      - name: Push changes
+        if: always()
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

@@ -19,8 +19,8 @@ use crate::function::{
     LambdaFunction,
 };
 use crate::signature::{FunctionSignature, ParameterInfo};
-use fhirpath_ast::{ExpressionNode, UnaryOperator};
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_ast::{ExpressionNode, UnaryOperator};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use std::cmp::Ordering;
 use std::hash::BuildHasherDefault;
 

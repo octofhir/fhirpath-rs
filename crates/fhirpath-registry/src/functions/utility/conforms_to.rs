@@ -18,8 +18,8 @@ use crate::function::EvaluationContext;
 use crate::function::{AsyncFhirPathFunction, FunctionError, FunctionResult};
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
-use fhirpath_model::provider::ValueReflection;
-use fhirpath_model::{FhirPathValue, resource::FhirResource, types::TypeInfo};
+use octofhir_fhirpath_model::provider::ValueReflection;
+use octofhir_fhirpath_model::{FhirPathValue, resource::FhirResource, types::TypeInfo};
 use lru::LruCache;
 use parking_lot::Mutex;
 use serde_json::Value as JsonValue;
@@ -469,7 +469,7 @@ impl ConformsToFunction {
     /// Validate a single element against its definition
     fn validate_element(
         &self,
-        resource: &fhirpath_model::resource::FhirResource,
+        resource: &octofhir_fhirpath_model::resource::FhirResource,
         element_def: &ElementDefinition,
     ) -> Result<bool, FunctionError> {
         // Simple path-based validation

@@ -14,7 +14,7 @@
 
 //! Cache key implementations for function resolution
 
-use fhirpath_model::types::TypeInfo;
+use octofhir_fhirpath_model::types::TypeInfo;
 use std::hash::{Hash, Hasher};
 
 /// Cache key for function resolution by name and argument types

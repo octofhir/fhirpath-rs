@@ -277,7 +277,7 @@ mod tests {
     use super::*;
     use crate::function::{EvaluationContext, FhirPathFunction, FunctionResult};
     use crate::signature::FunctionSignature;
-    use fhirpath_model::{FhirPathValue, types::TypeInfo};
+    use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
     // Test function for testing
     #[derive(Debug)]

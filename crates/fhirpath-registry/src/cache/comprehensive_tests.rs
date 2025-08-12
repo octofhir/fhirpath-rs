@@ -16,7 +16,7 @@
 
 use crate::cache::{CacheConfig, FunctionCacheKey};
 use crate::function::{EvaluationContext, FunctionRegistry};
-use fhirpath_model::{FhirPathValue, types::TypeInfo};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 use std::sync::Arc;
 
 #[test]
