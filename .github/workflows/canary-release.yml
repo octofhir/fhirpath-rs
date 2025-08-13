@@ -25,6 +25,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -198,10 +203,15 @@ jobs:
           cache-targets: true
           cache-on-failure: true
 
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+
       - name: Install musl tools (Linux musl only)
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
-          sudo apt-get update
           sudo apt-get install -y musl-tools
 
       - name: Build octofhir-fhirpath binary
