@@ -65,7 +65,7 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           # Use cargo-workspaces to bump patch version (force for canary)
-          cargo workspaces version --no-git-commit --force "*" patch
+          cargo workspaces version --no-git-commit --force "*" patch -y
 
           # Get new version after bumping
           NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
@@ -101,7 +101,7 @@ jobs:
           echo "Current branch: $(git branch --show-current)"
 
           # Publish to crates.io (force for canary)
-          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN --force "*"
+          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN --force "*" -y
 
           echo "✅ Publishing successful!"
 
