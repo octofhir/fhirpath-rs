@@ -9,7 +9,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  canary-release:
+  # Crates.io publishing job (runs once)
+  publish-crates:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
@@ -74,6 +75,198 @@ jobs:
       - name: Build release
         run: cargo build --release --workspace
 
+      - name: Debug Cargo.toml files after preparation
+        run: |
+          echo "🔍 Checking Cargo.toml files after canary preparation..."
+          echo "=== Root Cargo.toml version ==="
+          grep '^version = ' Cargo.toml || echo "No version found in root Cargo.toml"
+          echo ""
+          echo "=== Sample workspace dependency modifications ==="
+          for crate in crates/*/Cargo.toml; do
+            if [ -f "$crate" ]; then
+              echo "--- $crate ---"
+              grep -A2 -B2 'version = ".*canary' "$crate" | head -10 || echo "No canary versions found in $crate"
+              echo ""
+            fi
+          done
+
+      - name: Test canary publishing (dry run)
+        run: |
+          echo "🧪 Testing canary publishing with dry run..."
+          echo "Note: Dry run may show 'not published' errors for canary versions - this is expected"
+          
+          # Run with more verbose output and better error handling
+          echo "Running: cargo workspaces publish --dry-run --allow-dirty --force \"*\" --no-git-tag"
+          
+          if output=$(RUST_BACKTRACE=1 cargo workspaces publish --dry-run --allow-dirty --force "*" --no-git-tag 2>&1); then
+            echo "✅ Dry run completed successfully"
+            echo "$output"
+          else
+            exit_code=$?
+            echo "❌ Dry run failed with exit code: $exit_code"
+            echo "📋 Full dry run output:"
+            echo "$output"
+            
+            # Check if the error is just about packages not being published yet
+            if echo "$output" | grep -q "not published yet\|not found in registry"; then
+              echo "✅ This is expected for new canary versions with unique timestamps"
+            elif echo "$output" | grep -q "invalid.*version.*requirement"; then
+              echo "❌ Version requirement format error detected!"
+              echo "This suggests an issue with Cargo.toml modification"
+              exit 1
+            else
+              echo "⚠️ There may be other issues to investigate"
+              echo "However, continuing with canary release..."
+            fi
+          fi
+
+      - name: Publish canary to crates.io
+        if: github.ref == 'refs/heads/main'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          echo "🚀 Publishing canary workspace to crates.io..."
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Current branch: $(git branch --show-current)"
+          echo "Force publishing canary versions even if commit seems already released..."
+          
+          # Run with verbose output and backtrace for better debugging
+          RUST_BACKTRACE=1 cargo workspaces publish --allow-dirty --force "*" --no-git-tag --token $CARGO_REGISTRY_TOKEN
+        continue-on-error: true
+
+      - name: Restore development dependencies
+        if: always()
+        run: |
+          echo "🔄 Restoring development dependencies..."
+          ./scripts/restore-dev-dependencies.sh || echo "⚠️ Failed to restore dependencies (may not exist yet)"
+
+      # Export version for binary jobs
+      - name: Export version for binary jobs
+        run: |
+          echo "${{ steps.version.outputs.version }}" > canary-version.txt
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-version
+          path: canary-version.txt
+
+  # Binary release job (matrix for multiple targets)
+  release-binaries:
+    needs: publish-crates
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            postfix: linux-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            postfix: linux-x64-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            postfix: macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            postfix: macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            postfix: windows-x64
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: canary-version
+
+      - name: Read canary version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat canary-version.txt)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using canary version: ${VERSION}"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Cache key prefix for this workflow
+          prefix-key: "canary-${{ matrix.target }}"
+          # Additional cache key components
+          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Cache all target dirs, registry, and git repos
+          cache-targets: true
+          cache-on-failure: true
+
+      - name: Install musl tools (Linux musl only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build octofhir-fhirpath binary
+        run: |
+          cargo build --release --target ${{ matrix.target }} --package octofhir-fhirpath --bin octofhir-fhirpath
+
+      - name: Prepare binary for release (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p release-artifacts
+          cp target/${{ matrix.target }}/release/octofhir-fhirpath release-artifacts/octofhir-fhirpath-${{ matrix.postfix }}
+          chmod +x release-artifacts/octofhir-fhirpath-${{ matrix.postfix }}
+
+      - name: Prepare binary for release (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir release-artifacts
+          copy target\${{ matrix.target }}\release\octofhir-fhirpath.exe release-artifacts\octofhir-fhirpath-${{ matrix.postfix }}.exe
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.postfix }}
+          path: release-artifacts/*
+
+  # Create GitHub release with all binaries
+  create-release:
+    needs: [publish-crates, release-binaries]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: canary-version
+
+      - name: Read canary version
+        id: version
+        run: |
+          VERSION=$(cat canary-version.txt)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using canary version: ${VERSION}"
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          merge-multiple: true
+          path: release-artifacts
+
       - name: Create canary release
         uses: softprops/action-gh-release@v2
         with:
@@ -93,51 +286,19 @@ jobs:
 
             **Author:** ${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>
             **Timestamp:** ${{ github.event.head_commit.timestamp }}
+
+            ## Available Binaries
+            - `octofhir-fhirpath-linux-x64` - Linux x86_64 (glibc)
+            - `octofhir-fhirpath-linux-x64-musl` - Linux x86_64 (musl, static)
+            - `octofhir-fhirpath-macos-x64` - macOS Intel
+            - `octofhir-fhirpath-macos-arm64` - macOS Apple Silicon
+            - `octofhir-fhirpath-windows-x64.exe` - Windows x86_64
+
+            ## Crates.io
+            All workspace crates are also published to crates.io with version `${{ steps.version.outputs.version }}`
           prerelease: true
           generate_release_notes: false
           files: |
-            target/release/octofhir-fhirpath*
-            target/release/test-runner*
-            target/release/benchmark-runner*
+            release-artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Test canary publishing (dry run)
-        run: |
-          echo "🧪 Testing canary publishing with dry run..."
-          echo "Note: Dry run may show 'not published' errors for canary versions - this is expected"
-          
-          # Capture the output and check for specific error patterns
-          if output=$(cargo workspaces publish --dry-run --allow-dirty --force "*" --no-git-tag 2>&1); then
-            echo "✅ Dry run completed successfully"
-            echo "$output"
-          else
-            echo "📋 Dry run output:"
-            echo "$output"
-            
-            # Check if the error is just about packages not being published yet
-            if echo "$output" | grep -q "not published yet\|not found in registry"; then
-              echo "✅ This is expected for new canary versions with unique timestamps"
-            else
-              echo "⚠️ There may be other issues to investigate"
-              echo "However, continuing with canary release..."
-            fi
-          fi
-
-      - name: Publish canary to crates.io
-        if: github.ref == 'refs/heads/main'
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          echo "🚀 Publishing canary workspace to crates.io..."
-          echo "Current commit: $(git rev-parse HEAD)"
-          echo "Current branch: $(git branch --show-current)"
-          echo "Force publishing canary versions even if commit seems already released..."
-          cargo workspaces publish --allow-dirty --force "*" --no-git-tag --token $CARGO_REGISTRY_TOKEN
-        continue-on-error: true
-
-      - name: Restore development dependencies
-        if: always()
-        run: |
-          echo "🔄 Restoring development dependencies..."
-          ./scripts/restore-dev-dependencies.sh || echo "⚠️ Failed to restore dependencies (may not exist yet)"

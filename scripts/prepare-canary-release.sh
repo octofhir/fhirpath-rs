@@ -23,8 +23,12 @@ update_cargo_toml_canary() {
     echo "📝 Updating $cargo_file for canary"
     
     # Add version specifications to workspace dependencies
-    # Transform: { path = "../crate-name" } -> { version = "CANARY_VERSION", path = "../crate-name" }
-    sed -i.bak 's|{ path = "\.\./|{ version = "'$VERSION'", path = "../|g' "$cargo_file"
+    # Handle both simple and complex dependency specifications:
+    # { path = "../crate-name" } -> { version = "CANARY_VERSION", path = "../crate-name" }
+    # { path = "../crate-name", features = [...] } -> { version = "CANARY_VERSION", path = "../crate-name", features = [...] }
+    
+    # Use a more sophisticated sed pattern that handles both cases
+    sed -i.bak 's|{ path = "\(\.\./[^"]*\)"|{ version = "'$VERSION'", path = "\1"|g' "$cargo_file"
     
     # Verify the change worked
     if grep -q 'version = "'$VERSION'", path = "' "$cargo_file"; then
