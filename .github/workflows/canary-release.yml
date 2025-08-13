@@ -101,7 +101,7 @@ jobs:
           echo "Current branch: $(git branch --show-current)"
 
           # Publish to crates.io (force for canary)
-          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN --force "*" -y
+          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN --force "*" -y --publish-as-is 
 
           echo "✅ Publishing successful!"
 
