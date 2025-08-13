@@ -22,21 +22,27 @@ update_cargo_toml_canary() {
     local cargo_file="$1"
     echo "📝 Updating $cargo_file for canary"
     
-    # Add version specifications to workspace dependencies
+    # Add or update version specifications to workspace dependencies
     # Handle both simple and complex dependency specifications:
     # { path = "../crate-name" } -> { version = "CANARY_VERSION", path = "../crate-name" }
+    # { version = "OLD_VERSION", path = "../crate-name" } -> { version = "CANARY_VERSION", path = "../crate-name" }
     # { path = "../crate-name", features = [...] } -> { version = "CANARY_VERSION", path = "../crate-name", features = [...] }
     
-    # Use a more sophisticated sed pattern that handles both cases
-    sed -i.bak 's|{ path = "\(\.\./[^"]*\)"|{ version = "'$VERSION'", path = "\1"|g' "$cargo_file"
+    # First, update existing version specifications
+    sed -i.bak 's|version = "[^"]*", path = "\(\.\./[^"]*\)"|version = "'$VERSION'", path = "\1"|g' "$cargo_file"
+    
+    # Then, add version specifications where they don't exist
+    sed -i.bak2 's|{ path = "\(\.\./[^"]*\)"|{ version = "'$VERSION'", path = "\1"|g' "$cargo_file"
     
     # Verify the change worked
     if grep -q 'version = "'$VERSION'", path = "' "$cargo_file"; then
         echo "✅ Updated $cargo_file successfully"
         rm "$cargo_file.bak" 2>/dev/null || true
+        rm "$cargo_file.bak2" 2>/dev/null || true
     else
         echo "❌ No workspace dependencies found in $cargo_file (this is OK)"
         rm "$cargo_file.bak" 2>/dev/null || true
+        rm "$cargo_file.bak2" 2>/dev/null || true
     fi
 }
 

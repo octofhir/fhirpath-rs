@@ -6,15 +6,22 @@
 
 set -e
 
-# Extract the base version from any existing canary version in the workspace
+# Extract the base version from current workspace version
 CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+# Handle different version patterns:
+# 1. Canary versions: X.Y.Z-canary.timestamp.hash -> X.Y.Z
+# 2. Regular semver: X.Y.Z -> X.Y.Z (use as-is)
 if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-canary\. ]]; then
     DEV_VERSION="${BASH_REMATCH[1]}"
     echo "🔍 Detected canary version $CURRENT_VERSION, extracting base version: $DEV_VERSION"
-else
-    # Fallback to current version if it's not a canary version
+elif [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     DEV_VERSION="$CURRENT_VERSION"
-    echo "🔍 Current version is not canary, using as-is: $DEV_VERSION"
+    echo "🔍 Detected regular semver version: $DEV_VERSION"
+else
+    # Fallback for any other version format
+    DEV_VERSION="$CURRENT_VERSION"
+    echo "🔍 Using current version as-is: $DEV_VERSION"
 fi
 
 echo "🔄 Restoring development dependencies"
@@ -31,9 +38,12 @@ restore_cargo_toml() {
     
     # Remove version specifications while preserving all other properties
     # This pattern finds and removes 'version = "VERSION", ' part
-    # Use a general pattern to match any canary version for this major.minor.patch
     local base_version_escaped=$(echo "$DEV_VERSION" | sed 's/\./\\./g')
+    
+    # Remove canary versions (if any exist)
     sed -i.bak 's|version = "'$base_version_escaped'-canary[^"]*", ||g' "$cargo_file"
+    
+    # Remove regular semver versions matching the current version
     sed -i.bak2 's|version = "'$DEV_VERSION'", ||g' "$cargo_file"
     
     echo "✅ Restored $cargo_file"
@@ -46,10 +56,14 @@ restore_root_version() {
     local cargo_file="Cargo.toml"
     echo "📝 Restoring root workspace version in $cargo_file"
     
-    # Restore workspace version from canary back to dev version
-    # Use a general pattern to match any canary version for this major.minor.patch
+    # Restore workspace version - handle both canary and regular versions
     local base_version_escaped=$(echo "$DEV_VERSION" | sed 's/\./\\./g')
+    
+    # For canary versions, restore to base version
     sed -i.bak 's|version = "'$base_version_escaped'-canary[^"]*"|version = "'$DEV_VERSION'"|g' "$cargo_file"
+    
+    # For regular versions, no change needed (already correct)
+    # This ensures the script is idempotent
     
     echo "✅ Restored root workspace version"
     rm "$cargo_file.bak" 2>/dev/null || true
