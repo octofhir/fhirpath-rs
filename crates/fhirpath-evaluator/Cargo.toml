@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 description = "FHIRPath expression evaluation engine"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
-categories = ["parser-implementations", "healthcare"]
+categories = ["parser-implementations", "science"]
 
 
 [dependencies]
