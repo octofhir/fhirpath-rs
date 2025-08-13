@@ -57,48 +57,29 @@ jobs:
           git config --global http.sslVerify true
           git config --global http.version HTTP/1.1
 
-      - name: Generate canary version
+      - name: Bump patch version
         id: version
         run: |
-          # Extract base version from workspace Cargo.toml
-          BASE_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
-          echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
-          echo "Generated canary version: ${CANARY_VERSION} (base: ${BASE_VERSION})"
+          # Get current version before bumping
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
 
-      - name: Prepare workspace for canary release
-        run: |
-          ./scripts/prepare-canary-release.sh "${{ steps.version.outputs.version }}"
+          # Use cargo-workspaces to bump patch version
+          cargo workspaces version --no-git-commit --no-git-tag patch
+
+          # Get new version after bumping
+          NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
       - name: Build release
         run: cargo build --release --workspace
 
-      - name: Debug Cargo.toml files after preparation
+      - name: Test publishing (dry run)
         run: |
-          echo "🔍 Checking Cargo.toml files after canary preparation..."
-          echo "=== Root Cargo.toml version ==="
-          grep '^version = ' Cargo.toml || echo "No version found in root Cargo.toml"
-          echo ""
-          echo "=== Sample workspace dependency modifications ==="
-          for crate in crates/*/Cargo.toml; do
-            if [ -f "$crate" ]; then
-              echo "--- $crate ---"
-              grep -A2 -B2 'version = ".*canary' "$crate" | head -10 || echo "No canary versions found in $crate"
-              echo ""
-            fi
-          done
+          echo "🧪 Testing publishing with dry run..."
 
-      - name: Test canary publishing (dry run)
-        run: |
-          echo "🧪 Testing canary publishing with dry run..."
-          echo "Note: Dry run may show 'not published' errors for canary versions - this is expected"
-          
-          # Run with more verbose output and better error handling
-          echo "Running: cargo workspaces publish --dry-run --allow-dirty --force \"*\" --no-git-tag"
-          
-          if output=$(RUST_BACKTRACE=1 cargo workspaces publish --dry-run --allow-dirty --force "*" --no-git-tag 2>&1); then
+          if output=$(cargo workspaces publish --dry-run 2>&1); then
             echo "✅ Dry run completed successfully"
             echo "$output"
           else
@@ -106,50 +87,44 @@ jobs:
             echo "❌ Dry run failed with exit code: $exit_code"
             echo "📋 Full dry run output:"
             echo "$output"
-            
-            # Check if the error is just about packages not being published yet
-            if echo "$output" | grep -q "not published yet\|not found in registry"; then
-              echo "✅ This is expected for new canary versions with unique timestamps"
-            elif echo "$output" | grep -q "invalid.*version.*requirement"; then
-              echo "❌ Version requirement format error detected!"
-              echo "This suggests an issue with Cargo.toml modification"
-              exit 1
-            else
-              echo "⚠️ There may be other issues to investigate"
-              echo "However, continuing with canary release..."
-            fi
+            exit 1
           fi
 
-      - name: Publish canary to crates.io
+      - name: Publish to crates.io
         if: github.ref == 'refs/heads/main'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          echo "🚀 Publishing canary workspace to crates.io..."
+          echo "🚀 Publishing workspace to crates.io..."
+          echo "Version: ${{ steps.version.outputs.version }}"
           echo "Current commit: $(git rev-parse HEAD)"
           echo "Current branch: $(git branch --show-current)"
-          echo "Force publishing canary versions even if commit seems already released..."
-          
-          # Run with verbose output and backtrace for better debugging
-          RUST_BACKTRACE=1 cargo workspaces publish --allow-dirty --force "*" --no-git-tag --token $CARGO_REGISTRY_TOKEN
-        continue-on-error: true
 
-      - name: Restore development dependencies
-        if: always()
+          # Publish to crates.io
+          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN
+
+          echo "✅ Publishing successful!"
+
+      - name: Commit and push version bump
+        if: github.ref == 'refs/heads/main'
         run: |
-          echo "🔄 Restoring development dependencies..."
-          ./scripts/restore-dev-dependencies.sh || echo "⚠️ Failed to restore dependencies (may not exist yet)"
+          echo "📝 Committing version bump to ${{ steps.version.outputs.version }}"
+          git add -A
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} for canary release
+
+          echo "📤 Pushing version bump to remote"
+          git push origin main
 
       # Export version for binary jobs
       - name: Export version for binary jobs
         run: |
-          echo "${{ steps.version.outputs.version }}" > canary-version.txt
+          echo "${{ steps.version.outputs.version }}" > release-version.txt
 
       - name: Upload version artifact
         uses: actions/upload-artifact@v4
         with:
-          name: canary-version
-          path: canary-version.txt
+          name: release-version
+          path: release-version.txt
 
   # Binary release job (matrix for multiple targets)
   release-binaries:
@@ -172,7 +147,7 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             postfix: windows-x64
-    
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -184,15 +159,15 @@ jobs:
       - name: Download version artifact
         uses: actions/download-artifact@v4
         with:
-          name: canary-version
+          name: release-version
 
-      - name: Read canary version
+      - name: Read release version
         id: version
         shell: bash
         run: |
-          VERSION=$(cat canary-version.txt)
+          VERSION=$(cat release-version.txt)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Using canary version: ${VERSION}"
+          echo "Using release version: ${VERSION}"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -251,14 +226,14 @@ jobs:
       - name: Download version artifact
         uses: actions/download-artifact@v4
         with:
-          name: canary-version
+          name: release-version
 
-      - name: Read canary version
+      - name: Read release version
         id: version
         run: |
-          VERSION=$(cat canary-version.txt)
+          VERSION=$(cat release-version.txt)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Using canary version: ${VERSION}"
+          echo "Using release version: ${VERSION}"
 
       - name: Download all binary artifacts
         uses: actions/download-artifact@v4
@@ -267,19 +242,17 @@ jobs:
           merge-multiple: true
           path: release-artifacts
 
-      - name: Create canary release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: canary-${{ steps.version.outputs.version }}
-          name: Canary Release ${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
           body: |
-            🚀 **Canary Release** - Automated build from main branch
+            🚀 **Release ${{ steps.version.outputs.version }}** - Automated build from main branch
 
             **Commit:** ${{ github.sha }}
             **Version:** ${{ steps.version.outputs.version }}
             **Branch:** ${{ github.ref_name }}
-
-            > ⚠️ This is a canary release for testing purposes. Use at your own risk.
 
             ## Recent Changes
             ${{ github.event.head_commit.message }}
@@ -296,7 +269,7 @@ jobs:
 
             ## Crates.io
             All workspace crates are also published to crates.io with version `${{ steps.version.outputs.version }}`
-          prerelease: true
+          prerelease: false
           generate_release_notes: false
           files: |
             release-artifacts/*
