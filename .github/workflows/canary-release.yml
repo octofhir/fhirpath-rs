@@ -65,7 +65,7 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           # Use cargo-workspaces to bump patch version
-          cargo workspaces version --no-git-commit --no-git-tag patch
+          cargo workspaces version --no-git-commit patch
 
           # Get new version after bumping
           NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
