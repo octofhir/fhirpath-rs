@@ -42,8 +42,6 @@ pub struct FhirSchemaModelProvider {
     schema_cache: Arc<RwLock<HashMap<String, Arc<FhirSchema>>>>,
     /// FHIR version being used
     fhir_version: FhirVersion,
-    /// Whether we run in offline/CI mode (skip remote installs/fetches)
-    offline_mode: bool,
 }
 
 impl FhirSchemaModelProvider {
@@ -198,7 +196,6 @@ impl FhirSchemaModelProvider {
             cache_manager: Arc::new(CacheManager::with_config(config.cache_config)),
             schema_cache: Arc::new(RwLock::new(HashMap::new())),
             fhir_version: config.fhir_version,
-            offline_mode,
         })
     }
 

@@ -62,7 +62,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Warm up
             for _ in 0..3 {
-                let _ = engine.evaluate_str(expression, dataset).await;
+                let _ = engine.evaluate(expression, dataset.clone()).await;
             }
 
             // Measure 10 iterations
@@ -70,7 +70,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
             let iterations = 10;
 
             for _ in 0..iterations {
-                let result = engine.evaluate_str(expression, &dataset).await;
+                let result = engine.evaluate(expression, dataset.clone()).await;
                 match result {
                     Ok(_) => {}
                     Err(e) => println!("  ❌ Error: {e}"),

@@ -15,11 +15,9 @@
 //! Benchmark suite runner
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use octofhir_fhirpath::model::MockModelProvider;
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, parse};
+use octofhir_fhirpath::{FhirPathEngine, parse};
 use octofhir_fhirpath_parser::Tokenizer;
 use serde_json::Value;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Benchmark suite for FHIRPath performance testing
@@ -31,8 +29,7 @@ pub struct BenchmarkSuite {
 impl BenchmarkSuite {
     /// Create a new benchmark suite
     pub fn new() -> Self {
-        let provider = Arc::new(MockModelProvider::empty());
-        let engine = FhirPathEngine::new(provider);
+        let engine = FhirPathEngine::with_mock_provider();
         let criterion = Criterion::default()
             .measurement_time(Duration::from_secs(10))
             .sample_size(100);
@@ -97,14 +94,11 @@ impl BenchmarkSuite {
                 |b, (expression, resource)| {
                     b.iter_batched(
                         || {
-                            let provider = Arc::new(MockModelProvider::empty());
-                            let engine = FhirPathEngine::new(provider);
+                            let engine = FhirPathEngine::with_mock_provider();
                             (engine, (*resource).clone())
                         },
                         |(engine, data)| {
-                            let ast = parse(expression).unwrap();
-                            let fhir_value = FhirPathValue::resource_from_json(data);
-                            let _ = futures::executor::block_on(engine.evaluate(&ast, fhir_value));
+                            let _ = futures::executor::block_on(engine.evaluate(expression, data.clone()));
                         },
                         criterion::BatchSize::SmallInput,
                     );

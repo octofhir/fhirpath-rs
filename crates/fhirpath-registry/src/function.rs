@@ -17,16 +17,6 @@
 // Import from modular structure
 use crate::cache::{CacheConfig, FunctionCacheKey, FunctionResolutionCache, FunctionResultCache};
 use crate::compiled_signatures::{CompilationStats, CompiledSignatureRegistry};
-use crate::functions::boolean::*;
-use crate::functions::cda::*;
-use crate::functions::collection::*;
-use crate::functions::datetime::*;
-use crate::functions::fhir_types::*;
-use crate::functions::filtering::*;
-use crate::functions::math::*;
-use crate::functions::string::*;
-use crate::functions::type_conversion::*;
-use crate::functions::utility::*;
 use crate::signature::{FunctionSignature, ParameterInfo};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -83,6 +73,31 @@ pub enum FunctionError {
     /// Runtime evaluation error
     #[error("Function '{name}' evaluation error: {message}")]
     EvaluationError {
+        /// Function name
+        name: String,
+        /// Error message
+        message: String,
+    },
+
+    /// Execution mode not supported
+    #[error("Function '{function}' does not support {requested_mode} execution mode")]
+    ExecutionModeNotSupported {
+        /// Function name
+        function: String,
+        /// Requested execution mode
+        requested_mode: String,
+    },
+
+    /// Function not found in registry
+    #[error("Function '{name}' not found in registry")]
+    FunctionNotFound {
+        /// Function name
+        name: String,
+    },
+
+    /// Invalid input for function
+    #[error("Function '{name}' invalid input: {message}")]
+    InvalidInput {
         /// Function name
         name: String,
         /// Error message
@@ -283,6 +298,16 @@ impl EvaluationContext {
             input,
             variables: FxHashMap::default(),
             model_provider: Some(model_provider),
+        }
+    }
+
+    /// Create a new context with different focus value
+    pub fn with_focus(&self, new_focus: FhirPathValue) -> Self {
+        Self {
+            input: new_focus,
+            root: self.root.clone(),
+            variables: self.variables.clone(),
+            model_provider: self.model_provider.clone(),
         }
     }
 }
@@ -1864,134 +1889,8 @@ impl Default for FunctionRegistry {
     }
 }
 
-/// Register all built-in FHIRPath functions
-pub fn register_builtin_functions(registry: &mut FunctionRegistry) {
-    // Collection functions - async converted
-    registry.register_async(CountFunction);
-    registry.register_async(EmptyFunction);
-    registry.register_async(DescendantsFunction);
-    registry.register_async(ChildrenFunction);
-    registry.register_async(FirstFunction);
-    registry.register_async(LastFunction);
-    registry.register_async(LengthFunction);
-    registry.register_async(DistinctFunction);
-    registry.register_async(SingleFunction);
-    registry.register_async(IntersectFunction);
-    registry.register_async(ExcludeFunction);
-    registry.register_async(CombineFunction);
-    registry.register_async(TailFunction);
-    registry.register_async(SubsetOfFunction);
-    registry.register_async(SupersetOfFunction);
-
-    // Collection functions - still using old trait (lambda functions)
-    registry.register(ExistsFunction);
-    registry.register(AggregateFunction);
-    registry.register(SortFunction);
-    registry.register_async(TakeFunction);
-    registry.register_async(SkipFunction);
-
-    // Boolean functions
-    registry.register(AllFunction);
-    registry.register_async(AllTrueFunction);
-    registry.register_async(AnyFunction);
-    registry.register_async(IsDistinctFunction);
-    registry.register_async(NotFunction);
-
-    // String functions
-    registry.register_async(SubstringFunction);
-    registry.register_async(StartsWithFunction);
-    registry.register_async(EndsWithFunction);
-    registry.register_async(ContainsFunction);
-    registry.register_async(MatchesFunction);
-    registry.register_async(MatchesFullFunction);
-    registry.register_async(ReplaceFunction);
-    registry.register_async(ReplaceMatchesFunction);
-    registry.register_async(SplitFunction);
-    registry.register_async(JoinFunction);
-    registry.register_async(TrimFunction);
-    registry.register_async(ToCharsFunction);
-    registry.register_async(IndexOfFunction);
-    registry.register_async(UpperFunction);
-    registry.register_async(LowerFunction);
-    registry.register_async(EncodeFunction);
-    registry.register_async(DecodeFunction);
-    registry.register_async(EscapeFunction);
-    registry.register_async(UnescapeFunction);
-
-    // Math functions
-    registry.register_async(AbsFunction);
-    registry.register_async(CeilingFunction);
-    registry.register_async(FloorFunction);
-    registry.register_async(RoundFunction);
-    registry.register_async(SqrtFunction);
-    registry.register_async(TruncateFunction);
-    registry.register_async(ExpFunction);
-    registry.register_async(LnFunction);
-    registry.register_async(LogFunction);
-    registry.register_async(PowerFunction);
-    registry.register_async(PrecisionFunction);
-
-    // Aggregate functions
-    registry.register_async(SumFunction);
-    registry.register_async(AvgFunction);
-    registry.register_async(MinFunction);
-    registry.register_async(MaxFunction);
-
-    // Type conversion functions
-    registry.register_async(AsFunction);
-    registry.register_async(ToStringFunction);
-    registry.register_async(ToIntegerFunction);
-    registry.register_async(ToDecimalFunction);
-    registry.register_async(ToBooleanFunction);
-    registry.register_async(ToDateFunction);
-    registry.register_async(ToDateTimeFunction);
-    registry.register_async(TypeFunction);
-    registry.register(ConvertsToIntegerFunction);
-    registry.register(ConvertsToDecimalFunction);
-    registry.register(ConvertsToStringFunction);
-    registry.register_async(ConvertsToBooleanFunction);
-    registry.register(ConvertsToDateFunction);
-    registry.register(ConvertsToDateTimeFunction);
-    registry.register(ConvertsToTimeFunction);
-    registry.register_async(ToQuantityFunction);
-    registry.register(ConvertsToQuantityFunction);
-
-    // Filtering functions
-    registry.register(WhereFunction);
-    registry.register(SelectFunction);
-    registry.register_async(OfTypeFunction);
-
-    // DateTime functions
-    registry.register_async(NowFunction);
-    registry.register_async(TodayFunction);
-    registry.register_async(LowBoundaryFunction);
-    registry.register_async(HighBoundaryFunction);
-
-    // Utility functions
-    registry.register_async(IifFunction);
-    registry.register_async(TraceFunction);
-    registry.register_async(ConformsToFunction::new());
-    registry.register_async(DefineVariableFunction);
-    registry.register_async(HasValueFunction);
-    registry.register_async(RepeatFunction);
-
-    // FHIR type functions
-    registry.register_async(IsFunction);
-    registry.register_async(ComparableFunction);
-    registry.register_async(ExtensionFunction);
-    registry.register_async(ResolveFunction);
-
-    // CDA functions
-    registry.register(HasTemplateIdOfFunction);
-
-    // Warm cache with common function lookups if enabled
-    if registry.cache_config.warm_cache_on_init {
-        warm_function_cache(registry);
-        warm_compiled_signatures(registry);
-    }
-}
-
 /// Warm the function cache with common function lookups
+#[allow(dead_code)]
 fn warm_function_cache(registry: &FunctionRegistry) {
     // Common type combinations for frequently used functions
     let common_types = vec![
@@ -2038,6 +1937,7 @@ fn warm_function_cache(registry: &FunctionRegistry) {
 }
 
 /// Warm the compiled signature dispatch table with common type combinations
+#[allow(dead_code)]
 fn warm_compiled_signatures(registry: &FunctionRegistry) {
     // Common type combinations for frequently used functions
     let common_combinations = vec![

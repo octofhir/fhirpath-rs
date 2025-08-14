@@ -41,7 +41,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run enough iterations to get meaningful profiling data
     for i in 0..50 {
-        let _result = engine.evaluate_str(expression, &data).await?;
+        let _result = engine.evaluate(expression, data.clone()).await?;
         if i % 10 == 0 {
             println!("Iteration {}/50 completed", i + 1);
         }

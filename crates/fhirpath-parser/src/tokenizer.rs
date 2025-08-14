@@ -467,6 +467,7 @@ pub struct Tokenizer<'input> {
     /// Enable string interning for identifiers (default: true)
     enable_interning: bool,
     /// Threshold for interning (identifiers used more than this get interned)
+    #[allow(dead_code)]
     interning_threshold: usize,
     /// Enable memory-mapped token streaming for large expressions
     enable_streaming: bool,

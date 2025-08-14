@@ -18,7 +18,6 @@
 
 // Import workspace crates
 pub use octofhir_fhirpath_ast as ast;
-pub use octofhir_fhirpath_compiler as compiler;
 pub use octofhir_fhirpath_core as core;
 pub use octofhir_fhirpath_diagnostics as diagnostics;
 pub use octofhir_fhirpath_evaluator as evaluator;
@@ -29,12 +28,11 @@ pub use octofhir_fhirpath_registry as registry;
 // Main implementation modules
 pub mod pipeline;
 
-// Re-export main types
-pub use engine::{FhirPathEngineWithCache, IntegratedFhirPathEngine};
-pub use octofhir_fhirpath_evaluator::{EvaluationContext, FhirPathEngine};
+// Primary engine - use this for all new code
+pub use octofhir_fhirpath_evaluator::{FhirPathEngine, EvaluationConfig, EvaluationContext};
 pub use octofhir_fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
 pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
-pub use octofhir_fhirpath_registry::FunctionRegistry;
+pub use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry, create_standard_registries};
 
 // Re-export from workspace crates
 pub use octofhir_fhirpath_ast::{

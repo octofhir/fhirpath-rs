@@ -4,10 +4,8 @@
 //! using the complete integrated stack of all fhirpath-* crates together.
 
 use octofhir_fhirpath::ast::ExpressionNode;
-use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::model::FhirPathValue;
-use octofhir_fhirpath::parse;
-use octofhir_fhirpath::registry::create_standard_registries;
+use octofhir_fhirpath::{parse, FhirPathEngine, create_standard_registries};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -96,6 +94,8 @@ impl TestStats {
 /// Integration test runner that uses the complete FHIRPath stack
 pub struct IntegrationTestRunner {
     engine: FhirPathEngine,
+    functions: std::sync::Arc<octofhir_fhirpath::registry::UnifiedFunctionRegistry>,
+    operators: std::sync::Arc<octofhir_fhirpath::registry::UnifiedOperatorRegistry>,
     input_cache: HashMap<String, Value>,
     base_path: PathBuf,
     verbose: bool,
@@ -154,14 +154,19 @@ impl IntegrationTestRunner {
             }
         };
 
-        let engine = FhirPathEngine::with_registries(
-            std::sync::Arc::new(functions),
-            std::sync::Arc::new(operators),
+        let functions_arc = std::sync::Arc::new(functions);
+        let operators_arc = std::sync::Arc::new(operators);
+
+        let engine = FhirPathEngine::new(
+            functions_arc.clone(),
+            operators_arc.clone(),
             model_provider,
         );
 
         Self {
             engine,
+            functions: functions_arc,
+            operators: operators_arc,
             input_cache: HashMap::new(),
             base_path: PathBuf::from("."),
             verbose: false,
@@ -348,8 +353,17 @@ impl IntegrationTestRunner {
             }
         };
 
+        // Create evaluation context using the same registries as the engine
+        let context = octofhir_fhirpath::EvaluationContext::new(
+            input_data.clone(),
+            self.functions.clone(),
+            self.operators.clone(),
+            // Use mock provider for context - the real model provider is embedded in the engine
+            std::sync::Arc::new(octofhir_fhirpath::model::MockModelProvider::empty()),
+        );
+
         // Evaluate expression using integrated engine
-        let result = match self.engine.evaluate(&ast, input_data).await {
+        let result = match self.engine.evaluate_ast(&ast, input_data, &context).await {
             Ok(result) => result,
             Err(e) => {
                 // Per FHIRPath spec, evaluation errors should return empty collection

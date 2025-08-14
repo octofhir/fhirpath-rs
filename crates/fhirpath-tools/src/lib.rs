@@ -19,10 +19,8 @@
 
 pub mod integration_test_runner;
 pub mod test_coverage;
-pub mod test_runner;
 pub mod validation;
 
 // Re-export main functionality
 pub use test_coverage::TestCoverageGenerator;
-pub use test_runner::OfficialTestRunner;
 pub use validation::ValidationHelper;

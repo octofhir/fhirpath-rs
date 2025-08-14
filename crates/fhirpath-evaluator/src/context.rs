@@ -17,7 +17,7 @@
 use octofhir_fhirpath_model::{
     FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
 };
-use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry};
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -76,6 +76,54 @@ impl VariableScope {
             variables: Cow::Owned(FxHashMap::default()),
             parent: Some(parent),
             owned: false,
+        }
+    }
+    
+    /// Create a lambda scope with implicit variables
+    pub fn lambda_scope(
+        parent: Option<Arc<VariableScope>>,
+        current_item: FhirPathValue,
+        index: usize,
+        total: usize,
+    ) -> Self {
+        let mut variables = FxHashMap::default();
+        
+        // Set lambda-specific implicit variables
+        variables.insert("$this".to_string(), current_item);
+        variables.insert("$index".to_string(), FhirPathValue::Integer(index as i64));
+        variables.insert("$total".to_string(), FhirPathValue::Integer(total as i64));
+        
+        Self {
+            variables: Cow::Owned(variables),
+            parent,
+            owned: true,
+        }
+    }
+    
+    /// Create a lambda scope with custom parameter mappings
+    pub fn lambda_scope_with_params(
+        parent: Option<Arc<VariableScope>>,
+        param_mappings: Vec<(String, FhirPathValue)>,
+        current_item: FhirPathValue,
+        index: usize,
+        total: usize,
+    ) -> Self {
+        let mut variables = FxHashMap::default();
+        
+        // Set explicit parameter mappings
+        for (param_name, param_value) in param_mappings {
+            variables.insert(param_name, param_value);
+        }
+        
+        // Set lambda-specific implicit variables
+        variables.insert("$this".to_string(), current_item);
+        variables.insert("$index".to_string(), FhirPathValue::Integer(index as i64));
+        variables.insert("$total".to_string(), FhirPathValue::Integer(total as i64));
+        
+        Self {
+            variables: Cow::Owned(variables),
+            parent,
+            owned: true,
         }
     }
 
@@ -147,10 +195,10 @@ pub struct EvaluationContext {
     pub variable_scope: VariableScope,
 
     /// Function registry for evaluating function calls
-    pub functions: Arc<FunctionRegistry>,
+    pub functions: Arc<UnifiedFunctionRegistry>,
 
     /// Operator registry for evaluating operations
-    pub operators: Arc<OperatorRegistry>,
+    pub operators: Arc<UnifiedOperatorRegistry>,
 
     /// Async ModelProvider for type checking and validation (required)
     pub model_provider: Arc<dyn ModelProvider>,
@@ -163,8 +211,8 @@ impl EvaluationContext {
     /// Create a new evaluation context (ModelProvider required)
     pub fn new(
         input: FhirPathValue,
-        functions: Arc<FunctionRegistry>,
-        operators: Arc<OperatorRegistry>,
+        functions: Arc<UnifiedFunctionRegistry>,
+        operators: Arc<UnifiedOperatorRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
@@ -181,8 +229,8 @@ impl EvaluationContext {
     /// Create a new evaluation context with initial variables
     pub fn with_variables(
         input: FhirPathValue,
-        functions: Arc<FunctionRegistry>,
-        operators: Arc<OperatorRegistry>,
+        functions: Arc<UnifiedFunctionRegistry>,
+        operators: Arc<UnifiedOperatorRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         initial_variables: FxHashMap<String, FhirPathValue>,
     ) -> Self {
@@ -279,6 +327,96 @@ impl EvaluationContext {
         if let Ok(mut annotations) = self.type_annotations.lock() {
             annotations.clear();
         }
+    }
+    
+    /// Create a lambda-scoped context for expression evaluation
+    pub fn create_lambda_scope(&self, variables: FxHashMap<String, FhirPathValue>) -> Self {
+        let mut new_scope = VariableScope::new();
+        
+        // Add lambda variables to the new scope
+        for (name, value) in variables {
+            new_scope.set_variable(name, value);
+        }
+        
+        Self {
+            input: self.input.clone(),
+            root: self.root.clone(),
+            variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
+            functions: self.functions.clone(),
+            operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: Arc::new(Mutex::new(FxHashMap::default())), // Fresh cache for lambda context
+        }
+    }
+    
+    /// Create context with lambda-specific implicit variables
+    pub fn with_lambda_implicits(
+        &self,
+        current_item: FhirPathValue,
+        index: usize,
+        total: usize,
+    ) -> Self {
+        let lambda_scope = VariableScope::lambda_scope(
+            Some(Arc::new(self.variable_scope.clone())),
+            current_item.clone(),
+            index,
+            total,
+        );
+        
+        Self {
+            input: current_item,
+            root: self.root.clone(),
+            variable_scope: lambda_scope,
+            functions: self.functions.clone(),
+            operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(), // Share type annotations
+        }
+    }
+    
+    /// Create context with both lambda parameters and implicit variables
+    pub fn with_lambda_params_and_implicits(
+        &self,
+        param_mappings: Vec<(String, FhirPathValue)>,
+        current_item: FhirPathValue,
+        index: usize,
+        total: usize,
+    ) -> Self {
+        let lambda_scope = VariableScope::lambda_scope_with_params(
+            Some(Arc::new(self.variable_scope.clone())),
+            param_mappings,
+            current_item.clone(),
+            index,
+            total,
+        );
+        
+        Self {
+            input: current_item,
+            root: self.root.clone(),
+            variable_scope: lambda_scope,
+            functions: self.functions.clone(),
+            operators: self.operators.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(), // Share type annotations
+        }
+    }
+    
+    /// Push a new variable scope (for nested lambdas)
+    pub fn push_scope(&mut self) {
+        let current_scope = std::mem::replace(&mut self.variable_scope, VariableScope::new());
+        self.variable_scope = VariableScope::child_from_shared(Arc::new(current_scope));
+    }
+    
+    /// Pop the current variable scope
+    pub fn pop_scope(&mut self) {
+        if let Some(parent) = &self.variable_scope.parent {
+            self.variable_scope = (**parent).clone();
+        }
+    }
+    
+    /// Get the root resource for context resolution
+    pub fn get_root_resource(&self) -> &FhirPathValue {
+        &self.root
     }
 }
 
@@ -388,8 +526,8 @@ impl ContextPool {
     /// Create a new context pool with the given maximum size
     pub fn new(
         max_size: usize,
-        functions: Arc<FunctionRegistry>,
-        operators: Arc<OperatorRegistry>,
+        functions: Arc<UnifiedFunctionRegistry>,
+        operators: Arc<UnifiedOperatorRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         let template =
@@ -404,8 +542,8 @@ impl ContextPool {
 
     /// Create a new context pool with default size (32 contexts)
     pub fn with_defaults(
-        functions: Arc<FunctionRegistry>,
-        operators: Arc<OperatorRegistry>,
+        functions: Arc<UnifiedFunctionRegistry>,
+        operators: Arc<UnifiedOperatorRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self::new(32, functions, operators, model_provider)
@@ -531,9 +669,9 @@ pub struct StackContext<'a> {
     /// Simple variable storage for basic variables (limited capacity)
     pub variables: FxHashMap<&'static str, &'a FhirPathValue>,
     /// Function registry reference (shared)
-    pub functions: &'a FunctionRegistry,
+    pub functions: &'a UnifiedFunctionRegistry,
     /// Operator registry reference (shared)
-    pub operators: &'a OperatorRegistry,
+    pub operators: &'a UnifiedOperatorRegistry,
 }
 
 #[allow(dead_code)]
@@ -541,8 +679,8 @@ impl<'a> StackContext<'a> {
     /// Create a new stack-allocated context
     pub fn new(
         input: &'a FhirPathValue,
-        functions: &'a FunctionRegistry,
-        operators: &'a OperatorRegistry,
+        functions: &'a UnifiedFunctionRegistry,
+        operators: &'a UnifiedOperatorRegistry,
     ) -> Self {
         Self {
             root: input,
@@ -610,8 +748,8 @@ impl<'a> ContextStorage<'a> {
     /// Create a stack context if input is borrowable, otherwise heap
     pub fn new_optimal(
         input: &'a FhirPathValue,
-        functions: &'a FunctionRegistry,
-        operators: &'a OperatorRegistry,
+        functions: &'a UnifiedFunctionRegistry,
+        operators: &'a UnifiedOperatorRegistry,
         prefer_stack: bool,
     ) -> Self {
         if prefer_stack {
@@ -684,8 +822,8 @@ impl ContextFactory {
     /// Create a context using the optimal allocation strategy based on expression complexity
     pub fn create_for_expression<'a>(
         input: &'a FhirPathValue,
-        functions: &'a FunctionRegistry,
-        operators: &'a OperatorRegistry,
+        functions: &'a UnifiedFunctionRegistry,
+        operators: &'a UnifiedOperatorRegistry,
         is_simple: bool,
     ) -> ContextStorage<'a> {
         ContextStorage::new_optimal(input, functions, operators, is_simple)
@@ -741,12 +879,12 @@ impl ContextFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirpath_registry::{FunctionRegistry, OperatorRegistry};
+    use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry};
 
     #[test]
     fn test_context_pool_acquire_and_return() {
-        let functions = Arc::new(FunctionRegistry::new());
-        let operators = Arc::new(OperatorRegistry::new());
+        let functions = Arc::new(UnifiedFunctionRegistry::default());
+        let operators = Arc::new(UnifiedOperatorRegistry::default());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::new(2, functions, operators, model_provider);
 
@@ -781,8 +919,8 @@ mod tests {
 
     #[test]
     fn test_context_pool_max_size() {
-        let functions = Arc::new(FunctionRegistry::new());
-        let operators = Arc::new(OperatorRegistry::new());
+        let functions = Arc::new(UnifiedFunctionRegistry::default());
+        let operators = Arc::new(UnifiedOperatorRegistry::default());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::new(1, functions, operators, model_provider); // Max size 1
 
@@ -802,8 +940,8 @@ mod tests {
 
     #[test]
     fn test_pooled_context_deref() {
-        let functions = Arc::new(FunctionRegistry::new());
-        let operators = Arc::new(OperatorRegistry::new());
+        let functions = Arc::new(UnifiedFunctionRegistry::default());
+        let operators = Arc::new(UnifiedOperatorRegistry::default());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
@@ -821,8 +959,8 @@ mod tests {
 
     #[test]
     fn test_context_pool_child_contexts() {
-        let functions = Arc::new(FunctionRegistry::new());
-        let operators = Arc::new(OperatorRegistry::new());
+        let functions = Arc::new(UnifiedFunctionRegistry::default());
+        let operators = Arc::new(UnifiedOperatorRegistry::default());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let pool = ContextPool::with_defaults(functions, operators, model_provider);
 
@@ -844,8 +982,8 @@ mod tests {
 
     #[test]
     fn test_stack_context() {
-        let functions = FunctionRegistry::new();
-        let operators = OperatorRegistry::new();
+        let functions = UnifiedFunctionRegistry::default();
+        let operators = UnifiedOperatorRegistry::default();
 
         let input = FhirPathValue::Integer(42);
         let mut stack_ctx = StackContext::new(&input, &functions, &operators);
@@ -870,8 +1008,8 @@ mod tests {
 
     #[test]
     fn test_stack_to_heap_conversion() {
-        let functions = FunctionRegistry::new();
-        let operators = OperatorRegistry::new();
+        let functions = UnifiedFunctionRegistry::default();
+        let operators = UnifiedOperatorRegistry::default();
 
         let input = FhirPathValue::Integer(42);
         let var_value = FhirPathValue::String("test".to_string().into());
@@ -888,8 +1026,8 @@ mod tests {
 
     #[test]
     fn test_context_storage() {
-        let functions = FunctionRegistry::new();
-        let operators = OperatorRegistry::new();
+        let functions = UnifiedFunctionRegistry::default();
+        let operators = UnifiedOperatorRegistry::default();
         let input = FhirPathValue::Integer(42);
 
         // Test stack storage creation
@@ -941,8 +1079,8 @@ mod tests {
 
     #[test]
     fn test_context_factory_creation() {
-        let functions = FunctionRegistry::new();
-        let operators = OperatorRegistry::new();
+        let functions = UnifiedFunctionRegistry::default();
+        let operators = UnifiedOperatorRegistry::default();
         let input = FhirPathValue::Integer(42);
 
         // Simple expression should create stack context
@@ -1102,8 +1240,8 @@ mod tests {
 
     #[test]
     fn test_evaluation_context_inherited_scope() {
-        let functions = Arc::new(FunctionRegistry::new());
-        let operators = Arc::new(OperatorRegistry::new());
+        let functions = Arc::new(UnifiedFunctionRegistry::default());
+        let operators = Arc::new(UnifiedOperatorRegistry::default());
 
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
         let mut parent_ctx = EvaluationContext::new(

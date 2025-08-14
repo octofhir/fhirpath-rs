@@ -17,7 +17,6 @@
 //! This crate provides the value types, FHIR resource handling, and model
 //! provider abstractions used throughout the FHIRPath implementation.
 
-pub mod arc_pool;
 pub mod boxing;
 pub mod cache;
 pub mod choice_types;

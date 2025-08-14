@@ -56,7 +56,7 @@ async fn profile_expression(expression: &str) {
     println!("📊 Warming up...");
     // Warmup runs
     for _ in 0..10 {
-        let _ = engine.evaluate_str(expression, &patient_data).await;
+        let _ = engine.evaluate(expression, patient_data.clone()).await;
     }
 
     println!("🔥 Profiling {} iterations...", 1000);
@@ -64,7 +64,7 @@ async fn profile_expression(expression: &str) {
 
     // Main profiling loop - this is what flamegraph will capture
     for _ in 0..1000 {
-        match engine.evaluate_str(expression, &patient_data).await {
+        match engine.evaluate(expression, patient_data.clone()).await {
             Ok(_result) => {}
             Err(e) => {
                 eprintln!("⚠️ Error evaluating expression: {e}");
@@ -252,7 +252,7 @@ async fn test_fhirpath_evaluation() {
 
         // Run multiple iterations for timing
         for _ in 0..100 {
-            match engine.evaluate_str(expression, &patient_data).await {
+            match engine.evaluate(expression, patient_data.clone()).await {
                 Ok(_result) => {}
                 Err(e) => {
                     eprintln!("Error evaluating '{expression}': {e}");

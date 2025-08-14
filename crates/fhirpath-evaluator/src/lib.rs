@@ -14,43 +14,19 @@
 
 //! FHIRPath Expression Evaluator
 //!
-//! This module provides clean, focused evaluation functionality for FHIRPath expressions.
-//! It implements both traditional AST interpretation and high-performance bytecode VM execution
-//! with automatic hybrid strategy selection for optimal performance.
+//! This module provides the unified FHIRPath evaluation engine.
 
-/// Memory-efficient FHIR Bundle processing with Arc-based sharing
-pub mod bundle_arc;
-pub mod collections;
 mod context;
-mod engine;
-// mod error; // Using fhirpath-core error types instead
-pub mod function_optimizer;
-pub mod navigation;
-mod shared_context;
-pub mod type_checker;
-pub mod validator;
+pub mod engine;
 
-// Essential evaluation functionality - clean and focused
+// Primary engine
+pub use engine::{FhirPathEngine, EvaluationConfig};
+
+// Essential evaluation functionality
 pub use context::{EvaluationContext, VariableScope};
-pub use engine::FhirPathEngine;
-pub use function_optimizer::{
-    CacheStats, CollectionOpType, DispatchInfo, FunctionOptimizer, OptimizedSignature,
-};
-pub use navigation::TypeAwareNavigator;
 pub use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-pub use shared_context::{
-    ContextInheritance, FunctionClosureOptimizer, SharedContextBuilder, SharedEvaluationContext,
-};
-pub use type_checker::TypeChecker;
-pub use validator::{RuntimeValidator, ValidationMode, ValidationResult};
 
-// Collection optimization utilities
-pub use collections::{
-    BundleEntryIterator, CollectionUtils, FilterOps, OptimizedCollectionBuilder, SizeHint,
-};
 
-// Tests for evaluator functionality
+// Comprehensive test suite for evaluator functionality
 #[cfg(test)]
-mod tests {
-    mod environment_variables;
-}
+mod tests;

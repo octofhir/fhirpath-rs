@@ -145,8 +145,8 @@ async fn main() {
                 )
             }
         };
-    let mut engine =
-        octofhir_fhirpath::engine::IntegratedFhirPathEngine::new(model_provider.clone());
+    // Create the FhirPathEngine with model provider
+    let engine = octofhir_fhirpath::FhirPathEngine::with_model_provider(model_provider.clone());
     let mut passed = 0;
     let mut failed = 0;
     let mut errors = 0;

@@ -311,6 +311,7 @@ impl Collection {
     }
 
     /// Check if we need to clone for mutation (CoW helper)
+    #[allow(dead_code)]
     fn ensure_unique(&mut self) {
         if Arc::strong_count(&self.0) > 1 {
             // Multiple references exist - need to clone
@@ -582,6 +583,61 @@ impl FhirPathValue {
                 Value::Number(n) => Some(n.to_string()),
                 Value::Null => Some("".to_string()),
                 _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Convert to quantity following FHIRPath rules
+    pub fn to_quantity_value(&self) -> Option<Arc<Quantity>> {
+        match self {
+            // Already a quantity
+            Self::Quantity(q) => Some(Arc::clone(q)),
+            // Integer to unitless quantity
+            Self::Integer(i) => Some(Arc::new(Quantity::unitless(Decimal::from(*i)))),
+            // Decimal to unitless quantity
+            Self::Decimal(d) => Some(Arc::new(Quantity::unitless(*d))),
+            // String parsing for quantities with units
+            Self::String(s) => {
+                // Try to parse as quantity with unit (e.g., "5 kg", "1.5 'm'")
+                let s = s.trim();
+                if s.is_empty() {
+                    return None;
+                }
+
+                // Look for space to separate value from unit
+                if let Some(space_pos) = s.find(' ') {
+                    let (value_str, unit_str) = s.split_at(space_pos);
+                    let unit_str = unit_str.trim();
+
+                    // Parse the numeric value
+                    if let Ok(decimal_val) = value_str.parse::<Decimal>() {
+                        // Handle quoted units like 'wk', 'mo', 'a'
+                        let unit = if unit_str.starts_with('\'') && unit_str.ends_with('\'') {
+                            let unquoted = &unit_str[1..unit_str.len()-1];
+                            // Convert UCUM time units to their full form
+                            match unquoted {
+                                "wk" => Some("week".to_string()),
+                                "mo" => Some("month".to_string()),
+                                "a" => Some("year".to_string()),
+                                "d" => Some("day".to_string()),
+                                _ => Some(unquoted.to_string()),
+                            }
+                        } else if !unit_str.is_empty() {
+                            Some(unit_str.to_string())
+                        } else {
+                            None
+                        };
+
+                        return Some(Arc::new(Quantity::new(decimal_val, unit)));
+                    }
+                } else {
+                    // Try parsing as a simple number (unitless quantity)
+                    if let Ok(decimal_val) = s.parse::<Decimal>() {
+                        return Some(Arc::new(Quantity::unitless(decimal_val)));
+                    }
+                }
+                None
             },
             _ => None,
         }

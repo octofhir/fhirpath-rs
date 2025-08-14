@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust organized as a **workspace with 11 specialized crates**:
+This is a FHIRPath implementation in Rust organized as a **workspace with 10 specialized crates**:
 
 ### Workspace Structure
 - **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
@@ -13,7 +13,6 @@ This is a FHIRPath implementation in Rust organized as a **workspace with 11 spe
 - **octofhir-fhirpath-parser**: Tokenizer and parser using nom library (version 8)
 - **octofhir-fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
 - **octofhir-fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
-- **octofhir-fhirpath-compiler**: Bytecode compilation and VM execution with optimizer
 - **octofhir-fhirpath-registry**: Function and operator registry with built-in implementations
 - **octofhir-fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
 - **octofhir-fhirpath-tools**: CLI tools, test runners, and coverage analysis
@@ -24,8 +23,7 @@ The codebase has been migrated from a monolithic structure to this modular works
 
 ### Key Architecture Components
 
-- **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
-- **Bytecode compilation**: AST compilation to bytecode with VM execution and optimization passes  
+- **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management  
 - **ModelProvider Architecture**: Async trait for FHIR type resolution and validation (required since v0.3.0)
 - **Registry system**: Modular function and operator registration with caching and fast-path optimizations
 - **Performance optimization**: Specialized evaluators, memory pools, and streaming evaluation
@@ -35,9 +33,9 @@ The codebase has been migrated from a monolithic structure to this modular works
 
 ### Data Flow Architecture
 ```
-Input JSON → ModelProvider → Parser (AST) → Compiler (Bytecode) → Evaluator (Context) → FhirPathValue
-                ↓              ↓                ↓                     ↓
-           Type Validation  Error Recovery  Optimization         Registry Lookup
+Input JSON → ModelProvider → Parser (AST) → Evaluator (Context) → FhirPathValue
+                ↓              ↓                ↓
+           Type Validation  Error Recovery  Registry Lookup
 ```
 
 ## Development Commands
@@ -193,6 +191,41 @@ Apply the following guidelines when developing fhirpath-core:
 - [Rust Coding Guidelines](https://rust-lang.github.io/rust-clippy/master/index.html)
 - [Rust Style Guide](https://rust-lang.github.io/rust-style-guide/)
 
+## IMPORTANT: Mandatory Implementation Patterns
+
+**⚠️ CRITICAL ARCHITECTURAL REQUIREMENTS - MUST BE FOLLOWED ⚠️**
+
+### Async-First Architecture
+- **ALL features MUST be async-first** with non-blocking behavior
+- No synchronous blocking operations in public APIs
+- Use `async/await` pattern throughout the codebase
+- Ensure all I/O operations are non-blocking
+
+### Unified Function Registry Usage
+- **ALWAYS use UnifiedFunctionRegistry** for function implementations
+- **NEVER create hardcoded function implementations**
+- If existing functions need improvement, enhance them to support both regular and lambda evaluation
+- Functions must be registered through the registry system, not implemented as static methods
+
+### Operator Registry Requirements  
+- **ALWAYS use operator registry** for all operator operations
+- **NEVER implement static or hardcoded operator solutions**
+- All operators (arithmetic, logical, comparison, etc.) must go through the registry
+- No direct operator implementation in evaluator code
+
+### Prohibited Patterns
+- **NEVER create fallback or simplified solutions** - implement full functionality
+- **NEVER bypass registry systems** with direct implementations  
+- **NEVER create hardcoded function mappings** or static dispatch
+- **NEVER implement operators outside the registry system**
+- **NEVER create synchronous wrappers** around async functionality
+
+### Implementation Standards
+- Always check FHIRPath specification for function and operator behavior
+- Extend existing registry systems rather than creating new ones
+- Maintain registry-based architecture for extensibility
+- Follow existing patterns in unified implementations
+
 ## Specifications and Dependencies
 
 - FHIRPath specification reference in `specs/` folder
@@ -219,6 +252,8 @@ For debugging cases create a simple test inside the test directory and delete it
 
 
 ## Test Coverage
+
+ALL tests files must be under the tests directory for the current crate
 
 To track progress and maintain visibility into implementation completeness:
 
@@ -299,3 +334,5 @@ Planned major features documented in ADRs:
 - **fhirpath-mcp-server**: MCP server crate for AI assistant integration
 - **fhirpath-analyzer**: Static analysis and expression explanation
 - Cross-platform distribution and Docker support
+
+- always check fhirpath specifcaiton for gunctions and opertaor behaviour

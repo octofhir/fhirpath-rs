@@ -18,10 +18,10 @@ FHIRPath is a path-based navigation and extraction language for FHIR (Fast Healt
 ### Key Features
 
 - ✅ **High Specification Compliance**: 88.1% pass rate on official FHIRPath test suites
-- ⚡ **Bytecode Compiler**: Advanced compilation to bytecode with VM execution for maximum performance
+- 🚀 **Unified Engine**: Single, thread-safe `FhirPathEngine` with built-in lambda support and optimizations
 - 🔒 **Memory Safe**: Zero-copy parsing with safe Rust memory management and arena allocation
 - 🏗️ **Modular Architecture**: 11 specialized workspace crates for flexible integration
-- 🛠️ **Complete Toolchain**: Parser, evaluator, compiler, CLI tools, and comprehensive diagnostics
+- 🛠️ **Complete Toolchain**: Parser, evaluator, function registry, CLI tools, and comprehensive diagnostics
 - 📊 **Production Ready**: Extensive test coverage, simplified benchmarking, and zero warnings
 - 🔧 **Developer Friendly**: Rich error messages, IDE integration support, and comprehensive documentation
 - 🔗 **Enhanced Reference Resolution**: Full Bundle support with Bundle entry resolution and reference handling
@@ -46,14 +46,13 @@ octofhir-fhirpath = "0.4.0"
 The easiest way to get started:
 
 ```rust
-use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
+use octofhir_fhirpath::FhirPathEngine;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create engine with mock provider (good for testing)
-    let model_provider = MockModelProvider::new();
-    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+    let engine = FhirPathEngine::with_mock_provider();
     
     // Simple FHIR Patient
     let patient = json!({
@@ -74,16 +73,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 For more advanced usage:
 
 ```rust
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
+use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 use serde_json::json;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create model provider (required in v0.3.0+)
-    let model_provider = MockModelProvider::new();
+    // Create engine with mock provider (easiest approach)
+    let engine = FhirPathEngine::with_mock_provider();
     
-    // Create engine with model provider
-    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+    // Or create with custom model provider:
+    // use octofhir_fhirpath::MockModelProvider;
+    // let model_provider = Arc::new(MockModelProvider::new());
+    // let engine = FhirPathEngine::with_model_provider(model_provider);
     
     // Sample FHIR Patient resource
     let patient = json!({
@@ -132,11 +134,10 @@ octofhir-fhirpath evaluate "Patient.name.given" \
 The `FhirPathEngine` is the main entry point for evaluating FHIRPath expressions. **As of v0.3.0, a model provider is required:**
 
 ```rust
-use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
+use octofhir_fhirpath::FhirPathEngine;
 
-// Create with model provider (v0.3.0+)
-let model_provider = MockModelProvider::new();
-let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+// Create with model provider (unified engine approach)
+let engine = FhirPathEngine::with_mock_provider();
 let result = engine.evaluate("Patient.name.family", fhir_resource).await?;
 ```
 
@@ -172,13 +173,12 @@ println!("Parsed AST: {:#?}", expression);
 Advanced reference resolution with full Bundle support:
 
 ```rust
-use octofhir_fhirpath::{FhirPathEngine, MockModelProvider};
+use octofhir_fhirpath::FhirPathEngine;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let model_provider = MockModelProvider::new();
-    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
+    let engine = FhirPathEngine::with_mock_provider();
     
     // Bundle with references between entries
     let bundle = json!({
@@ -361,10 +361,11 @@ just clean
 
 octofhir-fhirpath is optimized for high-performance use cases:
 
-- **Evaluator**: Efficient context management and caching
-- **Bytecode VM**: High-performance virtual machine execution
-- **Memory**: Zero-copy parsing with minimal allocations
-- **Optimization**: Constant folding, strength reduction, and dead code elimination
+- **Unified Engine**: Consolidated evaluation path with built-in optimizations
+- **Thread Safety**: Lock-free concurrent access with `Send + Sync` design
+- **Lambda Optimization**: Early exit patterns for `any()`, `all()`, and filtering operations
+- **Memory Efficiency**: Smart collections, string interning, and zero-copy parsing
+- **Registry Caching**: Fast-path function and operator lookup with compiled signatures
 
 ### Benchmark Results
 
@@ -413,15 +414,22 @@ crates/
 └── fhirpath-benchmarks/  # Performance testing and profiling
 ```
 
-### Performance Architecture
+### Unified Engine Architecture
 
+The core of the library is the **unified `FhirPathEngine`** that consolidates all evaluation capabilities:
+
+- **Thread-Safe by Design**: `Send + Sync` implementation allows safe concurrent use
+- **Built-in Lambda Support**: Lambda functions (`where`, `select`, `all`, etc.) integrated natively
+- **Optimized Evaluation**: Single evaluation path with specialized optimizations for common patterns  
+- **Configurable**: Timeout, recursion limits, memory constraints, and lambda optimizations
 - **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management
-- **Bytecode compilation**: AST compilation to optimized bytecode with VM execution
-- **ModelProvider Architecture**: Async trait for FHIR type resolution and validation
-- **Registry system**: Modular function and operator registration with caching
-- **Memory optimization**: Specialized evaluators, memory pools, and streaming evaluation
-- **Reference Resolution**: Efficient Bundle context management and resource lookup
-- **Code Quality**: Zero clippy warnings with comprehensive linting and automated fixes
+
+### Supporting Architecture
+- **ModelProvider Integration**: Async trait for FHIR type resolution and validation
+- **Registry System**: Unified function and operator registration with caching and fast-path optimizations
+- **Memory optimization**: Smart collections, string interning, and efficient resource sharing
+- **Reference Resolution**: Enhanced Bundle context management and cross-resource lookup
+- **Code Quality**: Zero compiler warnings with comprehensive linting and automated fixes
 
 ## 🔍 Error Handling
 
@@ -458,6 +466,23 @@ just test-coverage
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [contribution guidelines](CONTRIBUTING.md).
+
+### Migration Tools (v0.5.0+)
+
+For users upgrading from previous versions, we provide migration assistance tools:
+
+```bash
+# Check for legacy patterns in your codebase
+./scripts/migration-cleanup.sh
+
+# Verify unified engine is working correctly
+./scripts/verify-unified-engine.sh
+```
+
+**Migration Resources:**
+- 📖 **[MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)** - Comprehensive migration guide
+- 🧹 **Migration Cleanup Script** - Identifies legacy patterns and suggests fixes
+- ✅ **Engine Verification Script** - Tests that the unified engine is working correctly
 
 ### Development Setup
 

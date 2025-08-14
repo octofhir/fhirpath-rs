@@ -38,7 +38,6 @@ octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = [
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 octofhir-fhirpath-model = { path = "../fhirpath-model" }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
-octofhir-fhirpath-compiler = { path = "../fhirpath-compiler" }
 octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
 
 # Core dependencies
