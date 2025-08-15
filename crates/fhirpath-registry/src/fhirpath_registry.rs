@@ -129,16 +129,16 @@ impl Default for OperationLspProvider {
 pub struct FhirPathRegistry {
     /// All callable items (functions + operators) indexed by symbol
     operations: Arc<RwLock<FxHashMap<String, Arc<dyn FhirPathOperation>>>>,
-    
+
     /// Enhanced metadata with unified type information
     metadata: Arc<RwLock<FxHashMap<String, OperationMetadata>>>,
-    
+
     /// Performance-optimized async dispatch cache
     dispatch_cache: Arc<AsyncLruCache<DispatchKey, Arc<dyn FhirPathOperation>>>,
-    
+
     /// LSP and tooling support
     lsp_provider: Arc<OperationLspProvider>,
-    
+
     /// Performance statistics and metrics
     metrics: Arc<RwLock<RegistryMetrics>>,
 }
@@ -196,7 +196,7 @@ impl FhirPathRegistry {
             let operation = Arc::new(operation);
             let identifier = operation.identifier().to_string();
             let metadata = operation.metadata().clone();
-            
+
             ops_map.insert(identifier.clone(), operation);
             meta_map.insert(identifier, metadata);
         }
@@ -234,7 +234,7 @@ impl FhirPathRegistry {
         // Try cache first
         let cache_key = DispatchKey {
             identifier: identifier.to_string(),
-            arg_count: 0, // Will be refined for actual dispatch
+            arg_count: 0,      // Will be refined for actual dispatch
             type_signature: 0, // Will be refined for actual dispatch
         };
 
@@ -252,15 +252,17 @@ impl FhirPathRegistry {
         let ops = self.operations.read().await;
         if let Some(operation) = ops.get(identifier).cloned() {
             // Cache for future use
-            self.dispatch_cache.insert(cache_key, operation.clone()).await;
-            
+            self.dispatch_cache
+                .insert(cache_key, operation.clone())
+                .await;
+
             // Update metrics
             {
                 let mut metrics = self.metrics.write().await;
                 metrics.lookups += 1;
                 metrics.cache_misses += 1;
             }
-            
+
             Some(operation)
         } else {
             // Update metrics
@@ -290,7 +292,8 @@ impl FhirPathRegistry {
         let meta = self.metadata.read().await;
         meta.iter()
             .filter(|(_, metadata)| {
-                std::mem::discriminant(&metadata.basic.operation_type) == std::mem::discriminant(&operation_type)
+                std::mem::discriminant(&metadata.basic.operation_type)
+                    == std::mem::discriminant(&operation_type)
             })
             .map(|(id, _)| id.clone())
             .collect()
@@ -334,7 +337,7 @@ impl FhirPathRegistry {
         for identifier in ops.keys() {
             if !meta.contains_key(identifier) {
                 return Err(FhirPathError::EvaluationError {
-                    message: format!("Operation '{}' missing metadata", identifier)
+                    message: format!("Operation '{}' missing metadata", identifier),
                 });
             }
         }
@@ -343,7 +346,10 @@ impl FhirPathRegistry {
         for identifier in meta.keys() {
             if !ops.contains_key(identifier) {
                 return Err(FhirPathError::EvaluationError {
-                    message: format!("Metadata for '{}' has no corresponding operation", identifier)
+                    message: format!(
+                        "Metadata for '{}' has no corresponding operation",
+                        identifier
+                    ),
                 });
             }
         }
@@ -365,7 +371,9 @@ impl FhirPathRegistry {
         for (_, metadata) in meta.iter() {
             match metadata.basic.operation_type {
                 OperationType::Function => function_count += 1,
-                OperationType::BinaryOperator { .. } | OperationType::UnaryOperator => operator_count += 1,
+                OperationType::BinaryOperator { .. } | OperationType::UnaryOperator => {
+                    operator_count += 1
+                }
             }
 
             if metadata.performance.supports_sync {
@@ -417,12 +425,16 @@ pub struct RegistryStats {
 
 #[cfg(test)]
 mod tests {
+    use std::any::Any;
     use super::*;
+    use crate::metadata::{
+        BasicOperationInfo, FunctionMetadata, OperationSpecificMetadata, PerformanceMetadata,
+        TypeConstraints,
+    };
     use crate::operation::FhirPathOperation;
-    use crate::metadata::{BasicOperationInfo, PerformanceMetadata, LspMetadata, OperationSpecificMetadata, FunctionMetadata, TypeConstraints};
-    use octofhir_fhirpath_model::FhirPathValue;
-    use crate::function::EvaluationContext;
+    use crate::operations::EvaluationContext;
     use async_trait::async_trait;
+    use octofhir_fhirpath_model::FhirPathValue;
 
     // Mock operation for testing
     struct TestFunction;
@@ -438,8 +450,8 @@ mod tests {
         }
 
         fn metadata(&self) -> &OperationMetadata {
-            static METADATA: once_cell::sync::Lazy<OperationMetadata> = once_cell::sync::Lazy::new(|| {
-                OperationMetadata {
+            static METADATA: once_cell::sync::Lazy<OperationMetadata> =
+                once_cell::sync::Lazy::new(|| OperationMetadata {
                     basic: BasicOperationInfo {
                         name: "test".to_string(),
                         operation_type: OperationType::Function,
@@ -448,15 +460,13 @@ mod tests {
                     },
                     types: TypeConstraints::default(),
                     performance: PerformanceMetadata {
-                        complexity: crate::enhanced_metadata::PerformanceComplexity::Constant,
+                        complexity: crate::metadata::PerformanceComplexity::Constant,
                         supports_sync: true,
                         avg_time_ns: 100,
                         memory_usage: 64,
                     },
-                    lsp: LspMetadata::default(),
                     specific: OperationSpecificMetadata::Function(FunctionMetadata::default()),
-                }
-            });
+                });
             &METADATA
         }
 
@@ -483,6 +493,10 @@ mod tests {
         ) -> Option<Result<FhirPathValue>> {
             Some(Ok(FhirPathValue::String("test".into())))
         }
+
+        fn as_any(&self) -> &dyn Any {
+            todo!()
+        }
     }
 
     #[tokio::test]
@@ -494,18 +508,18 @@ mod tests {
     #[tokio::test]
     async fn test_operation_registration() {
         let registry = FhirPathRegistry::new();
-        
+
         // Register test function
         registry.register(TestFunction).await.unwrap();
-        
+
         // Verify registration
         assert!(registry.contains("test").await);
         assert_eq!(registry.list_operations().await.len(), 1);
-        
+
         // Verify operation retrieval
         let operation = registry.get_operation("test").await;
         assert!(operation.is_some());
-        
+
         // Verify metadata retrieval
         let metadata = registry.get_metadata("test").await;
         assert!(metadata.is_some());
@@ -514,10 +528,10 @@ mod tests {
     #[tokio::test]
     async fn test_bulk_registration() {
         let registry = FhirPathRegistry::new();
-        
+
         let operations = vec![TestFunction];
         registry.register_bulk(operations).await.unwrap();
-        
+
         assert!(registry.contains("test").await);
         assert_eq!(registry.list_operations().await.len(), 1);
     }
@@ -526,7 +540,7 @@ mod tests {
     async fn test_registry_validation() {
         let registry = FhirPathRegistry::new();
         registry.register(TestFunction).await.unwrap();
-        
+
         // Should validate successfully
         registry.validate().await.unwrap();
     }
@@ -535,7 +549,7 @@ mod tests {
     async fn test_registry_stats() {
         let registry = FhirPathRegistry::new();
         registry.register(TestFunction).await.unwrap();
-        
+
         let stats = registry.get_stats().await;
         assert_eq!(stats.total_operations, 1);
         assert_eq!(stats.function_count, 1);
@@ -548,15 +562,15 @@ mod tests {
     async fn test_cache_functionality() {
         let registry = FhirPathRegistry::new();
         registry.register(TestFunction).await.unwrap();
-        
+
         // First lookup - cache miss
         let op1 = registry.get_operation("test").await;
         assert!(op1.is_some());
-        
+
         // Second lookup - should be cache hit
         let op2 = registry.get_operation("test").await;
         assert!(op2.is_some());
-        
+
         let metrics = registry.get_metrics().await;
         assert_eq!(metrics.lookups, 2);
         assert_eq!(metrics.cache_hits, 1);
@@ -567,12 +581,16 @@ mod tests {
     async fn test_operations_by_type() {
         let registry = FhirPathRegistry::new();
         registry.register(TestFunction).await.unwrap();
-        
-        let functions = registry.list_operations_by_type(OperationType::Function).await;
+
+        let functions = registry
+            .list_operations_by_type(OperationType::Function)
+            .await;
         assert_eq!(functions.len(), 1);
         assert_eq!(functions[0], "test");
-        
-        let operators = registry.list_operations_by_type(OperationType::UnaryOperator).await;
+
+        let operators = registry
+            .list_operations_by_type(OperationType::UnaryOperator)
+            .await;
         assert_eq!(operators.len(), 0);
     }
 }

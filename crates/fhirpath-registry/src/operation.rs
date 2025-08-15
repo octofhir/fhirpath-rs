@@ -17,11 +17,12 @@
 //! This module defines the unified trait that combines functions and operators
 //! into a single interface with async-first design and optional sync optimization.
 
-use crate::function::EvaluationContext;
 use crate::metadata::{OperationMetadata, OperationType};
+use crate::operations::EvaluationContext;
+use crate::signature::{FunctionSignature, OperatorSignature};
 use async_trait::async_trait;
-use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{FhirPathValue, types::TypeInfo};
 
 /// Unified trait for all FHIRPath callable operations
 ///
@@ -34,16 +35,25 @@ pub trait FhirPathOperation: Send + Sync {
     /// For functions: "count", "first", "where", etc.
     /// For operators: "+", "=", "and", etc.
     fn identifier(&self) -> &str;
-    
+
     /// Operation type (Function, BinaryOperator, UnaryOperator)
     fn operation_type(&self) -> OperationType;
-    
+
     /// Enhanced metadata for the operation
     ///
     /// This includes type constraints, performance characteristics,
     /// LSP support information, and operation-specific metadata.
     fn metadata(&self) -> &OperationMetadata;
-    
+
+    /// Operation signature for type checking and validation
+    ///
+    /// This provides rich signature information that includes parameter types,
+    /// return types, and validation rules. Default implementation extracts
+    /// signature from metadata for backward compatibility.
+    fn signature(&self) -> OperationSignature {
+        OperationSignature::from_metadata(self.metadata())
+    }
+
     /// Async evaluation - primary interface (non-blocking)
     ///
     /// This is the main evaluation method that all operations must implement.
@@ -60,7 +70,7 @@ pub trait FhirPathOperation: Send + Sync {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue>;
-    
+
     /// Optional sync evaluation for performance-critical paths
     ///
     /// Returns None if sync evaluation is not supported by this operation.
@@ -75,12 +85,12 @@ pub trait FhirPathOperation: Send + Sync {
     /// Some(Result) if sync evaluation is supported, None otherwise
     fn try_evaluate_sync(
         &self,
-        args: &[FhirPathValue], 
+        args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
         None // Default: async-only
     }
-    
+
     /// Check if operation supports sync evaluation
     ///
     /// This is a fast check to determine if `try_evaluate_sync` might return Some.
@@ -88,19 +98,21 @@ pub trait FhirPathOperation: Send + Sync {
     fn supports_sync(&self) -> bool {
         false
     }
-    
+
     /// Validate arguments before evaluation
     ///
     /// This method performs argument validation without side effects.
-    /// It should check argument count, types, and constraints based on
-    /// the operation's metadata.
+    /// It checks argument count, types, and constraints based on the operation's signature.
+    /// Default implementation uses the signature for validation.
     ///
     /// # Arguments
     /// * `args` - Arguments to validate
     ///
     /// # Returns
     /// Ok(()) if arguments are valid, Err otherwise
-    fn validate_args(&self, args: &[FhirPathValue]) -> Result<()>;
+    fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
+        self.signature().validate_args(args)
+    }
 
     /// Get expected argument count range
     ///
@@ -141,6 +153,12 @@ pub trait FhirPathOperation: Send + Sync {
     fn complexity_hint(&self) -> OperationComplexity {
         self.metadata().performance.complexity.clone().into()
     }
+
+    /// Downcast support for specialized operation types
+    ///
+    /// This allows the engine to downcast operations to specific types
+    /// (e.g., LambdaFunction) when needed.
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Operation complexity classification for optimization
@@ -158,15 +176,240 @@ pub enum OperationComplexity {
     Expensive,
 }
 
-impl From<crate::enhanced_metadata::PerformanceComplexity> for OperationComplexity {
-    fn from(complexity: crate::enhanced_metadata::PerformanceComplexity) -> Self {
+/// Unified operation signature that combines function and operator signatures
+#[derive(Debug, Clone)]
+pub enum OperationSignature {
+    /// Function signature with parameters and return type
+    Function(FunctionSignature),
+    /// Operator signature with operand and result types
+    Operator(OperatorSignature),
+}
+
+impl OperationSignature {
+    /// Create signature from operation metadata
+    pub fn from_metadata(metadata: &OperationMetadata) -> Self {
+        use crate::signature::ParameterInfo;
+
+        match metadata.basic.operation_type {
+            OperationType::Function => {
+                let parameters: Vec<ParameterInfo> = metadata
+                    .types
+                    .parameters
+                    .iter()
+                    .map(|param| ParameterInfo {
+                        name: param.name.clone(),
+                        param_type: type_constraint_to_type_info(&param.constraint),
+                        optional: param.optional,
+                    })
+                    .collect();
+
+                let mut signature = FunctionSignature::new(
+                    &metadata.basic.name,
+                    parameters,
+                    type_constraint_to_type_info(&metadata.types.return_type),
+                );
+
+                if metadata.types.variadic {
+                    signature.max_arity = None;
+                }
+
+                OperationSignature::Function(signature)
+            }
+            OperationType::BinaryOperator { .. } => {
+                let left_type = metadata
+                    .types
+                    .parameters
+                    .get(0)
+                    .map(|p| type_constraint_to_type_info(&p.constraint))
+                    .unwrap_or(TypeInfo::Any);
+                let right_type = metadata
+                    .types
+                    .parameters
+                    .get(1)
+                    .map(|p| type_constraint_to_type_info(&p.constraint))
+                    .unwrap_or(TypeInfo::Any);
+                let result_type = type_constraint_to_type_info(&metadata.types.return_type);
+
+                OperationSignature::Operator(OperatorSignature::binary(
+                    &metadata.basic.name,
+                    left_type,
+                    right_type,
+                    result_type,
+                ))
+            }
+            OperationType::UnaryOperator => {
+                let operand_type = metadata
+                    .types
+                    .parameters
+                    .get(0)
+                    .map(|p| type_constraint_to_type_info(&p.constraint))
+                    .unwrap_or(TypeInfo::Any);
+                let result_type = type_constraint_to_type_info(&metadata.types.return_type);
+
+                OperationSignature::Operator(OperatorSignature::unary(
+                    &metadata.basic.name,
+                    operand_type,
+                    result_type,
+                ))
+            }
+        }
+    }
+
+    /// Validate arguments against this signature
+    pub fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
+        match self {
+            OperationSignature::Function(sig) => validate_function_args(sig, args),
+            OperationSignature::Operator(sig) => validate_operator_args(sig, args),
+        }
+    }
+}
+
+/// Convert type constraint to TypeInfo
+fn type_constraint_to_type_info(constraint: &crate::metadata::TypeConstraint) -> TypeInfo {
+    use crate::metadata::TypeConstraint;
+
+    match constraint {
+        TypeConstraint::Any => TypeInfo::Any,
+        TypeConstraint::Specific(fhir_type) => fhir_type_to_type_info(fhir_type),
+        TypeConstraint::OneOf(types) => {
+            // For now, use the first type or Any if empty
+            types
+                .get(0)
+                .map(fhir_type_to_type_info)
+                .unwrap_or(TypeInfo::Any)
+        }
+        TypeConstraint::Collection(_) => TypeInfo::Collection(Box::new(TypeInfo::Any)),
+        TypeConstraint::Numeric => TypeInfo::Integer, // Default to integer for numeric
+        TypeConstraint::Comparable => TypeInfo::Any,
+    }
+}
+
+/// Convert FhirPathType to TypeInfo
+fn fhir_type_to_type_info(fhir_type: &crate::metadata::FhirPathType) -> TypeInfo {
+    use crate::metadata::FhirPathType;
+
+    match fhir_type {
+        FhirPathType::Empty => TypeInfo::Any, // No Empty in TypeInfo, use Any
+        FhirPathType::Boolean => TypeInfo::Boolean,
+        FhirPathType::Integer => TypeInfo::Integer,
+        FhirPathType::Decimal => TypeInfo::Decimal,
+        FhirPathType::String => TypeInfo::String,
+        FhirPathType::Date => TypeInfo::Date,
+        FhirPathType::DateTime => TypeInfo::DateTime,
+        FhirPathType::Time => TypeInfo::Time,
+        FhirPathType::Quantity => TypeInfo::Quantity,
+        FhirPathType::Resource => TypeInfo::Resource("".to_string()), // Generic resource
+        FhirPathType::Collection => TypeInfo::Collection(Box::new(TypeInfo::Any)),
+        FhirPathType::Any => TypeInfo::Any,
+    }
+}
+
+/// Validate function arguments
+fn validate_function_args(signature: &FunctionSignature, args: &[FhirPathValue]) -> Result<()> {
+    if args.len() < signature.min_arity {
+        return Err(FhirPathError::InvalidArgumentCount {
+            function_name: signature.name.clone(),
+            expected: signature.min_arity,
+            actual: args.len(),
+        });
+    }
+
+    if let Some(max) = signature.max_arity {
+        if args.len() > max {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: signature.name.clone(),
+                expected: max,
+                actual: args.len(),
+            });
+        }
+    }
+
+    // Check parameter types (simplified for now)
+    for (i, arg) in args.iter().enumerate() {
+        if let Some(param) = signature.parameters.get(i) {
+            let arg_type = value_to_type_info(arg);
+            if param.param_type != TypeInfo::Any && !type_matches(&arg_type, &param.param_type) {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "Argument {} of function '{}' expected type {:?}, got {:?}",
+                        i + 1,
+                        signature.name,
+                        param.param_type,
+                        arg_type
+                    ),
+                });
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate operator arguments
+fn validate_operator_args(signature: &OperatorSignature, args: &[FhirPathValue]) -> Result<()> {
+    match signature.right_type {
+        Some(_) => {
+            // Binary operator
+            if args.len() != 2 {
+                return Err(FhirPathError::InvalidArgumentCount {
+                    function_name: signature.symbol.clone(),
+                    expected: 2,
+                    actual: args.len(),
+                });
+            }
+        }
+        None => {
+            // Unary operator
+            if args.len() != 1 {
+                return Err(FhirPathError::InvalidArgumentCount {
+                    function_name: signature.symbol.clone(),
+                    expected: 1,
+                    actual: args.len(),
+                });
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Convert FhirPathValue to TypeInfo
+fn value_to_type_info(value: &FhirPathValue) -> TypeInfo {
+    match value {
+        FhirPathValue::Empty => TypeInfo::Any, // No Empty in TypeInfo
+        FhirPathValue::Boolean(_) => TypeInfo::Boolean,
+        FhirPathValue::Integer(_) => TypeInfo::Integer,
+        FhirPathValue::Decimal(_) => TypeInfo::Decimal,
+        FhirPathValue::String(_) => TypeInfo::String,
+        FhirPathValue::Date(_) => TypeInfo::Date,
+        FhirPathValue::DateTime(_) => TypeInfo::DateTime,
+        FhirPathValue::Time(_) => TypeInfo::Time,
+        FhirPathValue::Quantity(_) => TypeInfo::Quantity,
+        FhirPathValue::Resource(_) => TypeInfo::Resource("".to_string()),
+        FhirPathValue::Collection(_) => TypeInfo::Collection(Box::new(TypeInfo::Any)),
+        FhirPathValue::JsonValue(_) => TypeInfo::Any, // JSON values can be any type
+        FhirPathValue::TypeInfoObject { .. } => TypeInfo::Any, // Type info objects
+    }
+}
+
+/// Check if two types match (simplified matching)
+fn type_matches(actual: &TypeInfo, expected: &TypeInfo) -> bool {
+    match (actual, expected) {
+        (_, TypeInfo::Any) => true,
+        (TypeInfo::Any, _) => true,
+        (a, b) => a == b,
+    }
+}
+
+impl From<crate::metadata::PerformanceComplexity> for OperationComplexity {
+    fn from(complexity: crate::metadata::PerformanceComplexity) -> Self {
         match complexity {
-            crate::enhanced_metadata::PerformanceComplexity::Constant => Self::Constant,
-            crate::enhanced_metadata::PerformanceComplexity::Linear => Self::Linear,
-            crate::enhanced_metadata::PerformanceComplexity::Logarithmic => Self::Logarithmic,
-            crate::enhanced_metadata::PerformanceComplexity::Linearithmic => Self::Linear,
-            crate::enhanced_metadata::PerformanceComplexity::Quadratic => Self::Quadratic,
-            crate::enhanced_metadata::PerformanceComplexity::Custom(_) => Self::Expensive,
+            crate::metadata::PerformanceComplexity::Constant => OperationComplexity::Constant,
+            crate::metadata::PerformanceComplexity::Linear => OperationComplexity::Linear,
+            crate::metadata::PerformanceComplexity::Logarithmic => OperationComplexity::Logarithmic,
+            crate::metadata::PerformanceComplexity::Linearithmic => OperationComplexity::Linear,
+            crate::metadata::PerformanceComplexity::Quadratic => OperationComplexity::Quadratic,
+            crate::metadata::PerformanceComplexity::Exponential => OperationComplexity::Expensive,
         }
     }
 }
@@ -272,6 +515,22 @@ macro_rules! impl_sync_operation {
             ) -> Option<Result<FhirPathValue>> {
                 Some(self.$sync_fn(args, context))
             }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+    };
+}
+
+/// Macro to add as_any implementation to existing FhirPathOperation impls
+#[macro_export]
+macro_rules! impl_as_any {
+    ($type:ty) => {
+        impl $type {
+            pub fn as_any_operation(&self) -> &dyn std::any::Any {
+                self
+            }
         }
     };
 }
@@ -279,7 +538,10 @@ macro_rules! impl_sync_operation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metadata::{BasicOperationInfo, PerformanceMetadata, LspMetadata, OperationSpecificMetadata, FunctionMetadata, TypeConstraints};
+    use crate::metadata::{
+        BasicOperationInfo, FunctionMetadata, OperationSpecificMetadata, PerformanceMetadata,
+        TypeConstraints,
+    };
 
     // Test operation implementation
     struct TestOperation;
@@ -295,8 +557,8 @@ mod tests {
         }
 
         fn metadata(&self) -> &OperationMetadata {
-            static METADATA: once_cell::sync::Lazy<OperationMetadata> = once_cell::sync::Lazy::new(|| {
-                OperationMetadata {
+            static METADATA: once_cell::sync::Lazy<OperationMetadata> =
+                once_cell::sync::Lazy::new(|| OperationMetadata {
                     basic: BasicOperationInfo {
                         name: "test".to_string(),
                         operation_type: OperationType::Function,
@@ -305,15 +567,13 @@ mod tests {
                     },
                     types: TypeConstraints::default(),
                     performance: PerformanceMetadata {
-                        complexity: crate::enhanced_metadata::PerformanceComplexity::Constant,
+                        complexity: crate::metadata::PerformanceComplexity::Constant,
                         supports_sync: false,
                         avg_time_ns: 100,
                         memory_usage: 64,
                     },
-                    lsp: LspMetadata::default(),
                     specific: OperationSpecificMetadata::Function(FunctionMetadata::default()),
-                }
-            });
+                });
             &METADATA
         }
 
@@ -327,43 +587,70 @@ mod tests {
 
         fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
             if !args.is_empty() {
-                return Err(FhirPathError::InvalidArguments(
-                    "test operation takes no arguments".to_string()
-                ));
+                return Err(FhirPathError::EvaluationError {
+                    message: "test operation takes no arguments".to_string(),
+                });
             }
             Ok(())
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     }
 
     #[tokio::test]
     async fn test_operation_interface() {
         let op = TestOperation;
-        
+
         assert_eq!(op.identifier(), "test");
         assert_eq!(op.operation_type(), OperationType::Function);
         assert!(!op.supports_sync());
         assert!(op.is_pure());
         assert_eq!(op.arg_count_range(), (0, Some(0)));
         assert_eq!(op.complexity_hint(), OperationComplexity::Constant);
-        
+
         // Test argument validation
         assert!(op.validate_args(&[]).is_ok());
         assert!(op.validate_args(&[FhirPathValue::Integer(1)]).is_err());
-        
+
         // Test evaluation
-        let context = EvaluationContext::new(FhirPathValue::Empty);
+        let context = {
+            use std::sync::Arc;
+            use octofhir_fhirpath_model::provider::MockModelProvider;
+            use octofhir_fhirpath_registry::FhirPathRegistry;
+            
+            let registry = Arc::new(FhirPathRegistry::new());
+            let model_provider = Arc::new(MockModelProvider::new());
+            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
+        };
         let result = op.evaluate(&[], &context).await.unwrap();
         assert_eq!(result, FhirPathValue::String("test".into()));
     }
 
     #[test]
     fn test_complexity_conversion() {
-        use crate::enhanced_metadata::PerformanceComplexity;
-        
-        assert_eq!(OperationComplexity::from(PerformanceComplexity::Constant), OperationComplexity::Constant);
-        assert_eq!(OperationComplexity::from(PerformanceComplexity::Linear), OperationComplexity::Linear);
-        assert_eq!(OperationComplexity::from(PerformanceComplexity::Logarithmic), OperationComplexity::Logarithmic);
-        assert_eq!(OperationComplexity::from(PerformanceComplexity::Quadratic), OperationComplexity::Quadratic);
-        assert_eq!(OperationComplexity::from(PerformanceComplexity::Exponential), OperationComplexity::Expensive);
+        use crate::metadata::PerformanceComplexity;
+
+        assert_eq!(
+            OperationComplexity::from(PerformanceComplexity::Constant),
+            OperationComplexity::Constant
+        );
+        assert_eq!(
+            OperationComplexity::from(PerformanceComplexity::Linear),
+            OperationComplexity::Linear
+        );
+        assert_eq!(
+            OperationComplexity::from(PerformanceComplexity::Logarithmic),
+            OperationComplexity::Logarithmic
+        );
+        assert_eq!(
+            OperationComplexity::from(PerformanceComplexity::Quadratic),
+            OperationComplexity::Quadratic
+        );
+        assert_eq!(
+            OperationComplexity::from(PerformanceComplexity::Exponential),
+            OperationComplexity::Expensive
+        );
     }
 }

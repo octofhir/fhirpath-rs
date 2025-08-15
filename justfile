@@ -17,7 +17,6 @@ test:
     cargo test --workspace
 
 test-coverage:
-    cargo build --package octofhir-fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis..."
     @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
     @echo "⚠️  If this hangs, try running 'just test-coverage-mock' for MockModelProvider version"
@@ -25,7 +24,6 @@ test-coverage:
 
 # Run test coverage with MockModelProvider (faster, no network required)
 test-coverage-mock:
-    cargo build --package octofhir-fhirpath-tools --release --bin test-coverage
     @echo "🔍 Running comprehensive test coverage analysis with MockModelProvider..."
     @echo "⚠️  Note: This uses MockModelProvider instead of real FhirSchemaModelProvider"
     FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package octofhir-fhirpath-tools --bin test-coverage
@@ -62,12 +60,10 @@ doc-all:
     cargo doc --workspace --open
 
 # Generate all documentation (API + benchmarks)
-docs: doc bench-update-docs
+docs: doc 
     @echo "✅ Complete documentation generated!"
     @echo "📋 Available documentation:"
     @echo "  📖 API docs: target/doc/octofhir_fhirpath/index.html"
-    @echo "  📊 Benchmarks: BENCHMARKS.md"
-    @echo "  📈 Criterion reports: target/criterion/report/index.html"
 
 # Update benchmark documentation
 bench-update-docs:
@@ -106,8 +102,6 @@ qa: fmt clippy test
 clean:
     cargo clean
 
-clean-bench:
-    rm -rf target/criterion
 
 # Run specific test case
 test-case CASE:
@@ -182,32 +176,6 @@ expand ITEM="":
         echo "📝 Expanding {{ITEM}}..."; \
         cargo expand {{ITEM}}; \
     fi
-
-# Performance profiling commands
-profile EXPRESSION="Patient.name":
-    @echo "🔬 Profiling FHIRPath expression: {{EXPRESSION}}"
-    @echo "================================================"
-    cargo build --package octofhir-fhirpath-benchmarks --release --bin perf-test
-    @echo "Running performance profiling..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo run --package octofhir-fhirpath-benchmarks --release --bin perf-test -- "{{EXPRESSION}}"
-
-# Generate flamegraph for expression profiling (requires flamegraph tool)
-flamegraph EXPRESSION="Patient.name.where(family.exists())":
-    @echo "🔥 Generating flamegraph for: {{EXPRESSION}}"
-    @echo "=============================================="
-    @echo "Building release with debug symbols..."
-    CARGO_PROFILE_RELEASE_DEBUG=true cargo build --package octofhir-fhirpath-benchmarks --release --bin perf-test
-    @echo "Generating flamegraph..."
-    cargo flamegraph --package octofhir-fhirpath-benchmarks --bin perf-test -- "{{EXPRESSION}}" || echo "⚠️  Install flamegraph: cargo install flamegraph"
-    @echo "🔥 Flamegraph saved as flamegraph.svg"
-
-# Profile where() function specifically with sample data
-profile-where:
-    @echo "🔬 Profiling .where() function performance"
-    @echo "==========================================="
-    @echo "Testing complex where expressions..."
-    just flamegraph "Patient.name.where(family.exists())"
-    @echo "✅ Where function profiling complete!"
 
 # Install profiling tools
 install-profiling-tools:

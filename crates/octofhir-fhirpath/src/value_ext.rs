@@ -316,9 +316,7 @@ impl FhirPathValue {
                     )),
                 }
             }
-            Self::Quantity {
-                value, unit: None, ..
-            } => {
+            Self::Quantity { value, unit: _, .. } => {
                 // Unitless quantity - can only convert to another unitless quantity
                 if target_unit.is_empty() {
                     Ok(Self::quantity(*value, None))

@@ -22,6 +22,7 @@ use octofhir_fhirpath::parse;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(name = "octofhir-fhirpath")]
@@ -216,14 +217,13 @@ async fn handle_evaluate(
         }
     };
     // Create registries for the SendSafe engine using standard registries
-    let (functions, operators) = octofhir_fhirpath_registry::create_standard_registries();
-    
+    let registry = octofhir_fhirpath_registry::create_standard_registry()
+        .await
+        .expect("Failed to create registry");
+
     // Use the unified FhirPathEngine as default (thread-safe by design)
-    let engine = octofhir_fhirpath_evaluator::FhirPathEngine::new(
-        std::sync::Arc::new(functions),
-        std::sync::Arc::new(operators),
-        model_provider,
-    );
+    let engine =
+        octofhir_fhirpath_evaluator::FhirPathEngine::new(Arc::new(registry), model_provider);
 
     // Parse initial variables from command line
     let mut initial_variables = std::collections::HashMap::new();
@@ -247,14 +247,16 @@ async fn handle_evaluate(
     }
 
     // Convert variables to correct HashMap type
-    let variables: std::collections::HashMap<String, octofhir_fhirpath::FhirPathValue> = 
+    let variables: std::collections::HashMap<String, octofhir_fhirpath::FhirPathValue> =
         initial_variables.into_iter().collect();
 
     // Use the appropriate evaluation method based on whether variables are provided
     let result = if variables.is_empty() {
         engine.evaluate(expression, resource).await
     } else {
-        engine.evaluate_with_variables(expression, resource, variables).await
+        engine
+            .evaluate_with_variables(expression, resource, variables)
+            .await
     };
 
     match result {

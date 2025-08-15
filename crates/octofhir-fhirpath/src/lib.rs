@@ -14,7 +14,7 @@
 
 //! FHIRPath implementation in Rust
 //!
-//! A complete implementation of FHIRPath expression language for FHIR resources.
+//! A complete implementation of the FHIRPath expression language for FHIR resources.
 
 // Import workspace crates
 pub use octofhir_fhirpath_ast as ast;
@@ -32,7 +32,7 @@ pub mod pipeline;
 pub use octofhir_fhirpath_evaluator::{FhirPathEngine, EvaluationConfig, EvaluationContext};
 pub use octofhir_fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
 pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
-pub use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry, create_standard_registries};
+pub use octofhir_fhirpath_registry::{FhirPathRegistry, create_standard_registry};
 
 // Re-export from workspace crates
 pub use octofhir_fhirpath_ast::{
@@ -49,7 +49,4 @@ pub use octofhir_fhirpath_model::ModelProvider;
 pub use octofhir_fhirpath_model::fhir_model;
 
 // Re-export from local modules (minimal local integration code)
-pub mod engine;
 pub mod value_ext;
-
-pub use engine::*;

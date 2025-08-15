@@ -1,0 +1,278 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Lambda implementation of sort function - sorts collection with optional lambda expression
+
+use crate::{
+    lambda::{ExpressionEvaluator, LambdaContextBuilder, LambdaFunction},
+    metadata::{MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+    operation::{FhirPathOperation, OperationComplexity},
+    operations::EvaluationContext,
+};
+use async_trait::async_trait;
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use std::cmp::Ordering;
+use rust_decimal::Decimal;
+
+/// Lambda-based Sort function implementation
+#[derive(Debug, Clone)]
+pub struct SortLambdaFunction;
+
+impl SortLambdaFunction {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn create_metadata() -> OperationMetadata {
+        MetadataBuilder::new("sort", OperationType::Function)
+            .description("Returns the collection sorted by the specified criteria")
+            .example("(3 | 1 | 2).sort()")
+            .example("('c' | 'a' | 'b').sort($this)")
+            .example("(3 | 1 | 2).sort(-$this)")
+            .parameter("criteria", TypeConstraint::Any, true)
+            .parameter("criteria2", TypeConstraint::Any, true)
+            .returns(TypeConstraint::Any)
+            .build()
+    }
+
+    /// Compare two FhirPathValue instances for sorting
+    fn compare_values(&self, a: &FhirPathValue, b: &FhirPathValue) -> Ordering {
+        match (a, b) {
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a.cmp(b),
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => a.cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a.cmp(b),
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => a.cmp(b),
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a.cmp(b),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a.cmp(b),
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a.cmp(b),
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                Decimal::from(*a).cmp(b)
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                a.cmp(&Decimal::from(*b))
+            },
+            (FhirPathValue::Collection(a), FhirPathValue::Collection(b)) => {
+                match (a.len(), b.len()) {
+                    (1, 1) => self.compare_values(a.first().unwrap(), b.first().unwrap()),
+                    (0, 0) => Ordering::Equal,
+                    (0, _) => Ordering::Less,
+                    (_, 0) => Ordering::Greater,
+                    _ => Ordering::Equal,
+                }
+            },
+            (FhirPathValue::Collection(a), other) if a.len() == 1 => {
+                self.compare_values(a.first().unwrap(), other)
+            },
+            (other, FhirPathValue::Collection(b)) if b.len() == 1 => {
+                self.compare_values(other, b.first().unwrap())
+            },
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
+            (FhirPathValue::Empty, _) => Ordering::Less,
+            (_, FhirPathValue::Empty) => Ordering::Greater,
+            _ => self.type_precedence(a).cmp(&self.type_precedence(b)),
+        }
+    }
+
+    /// Define type precedence for mixed-type sorting
+    fn type_precedence(&self, value: &FhirPathValue) -> u8 {
+        match value {
+            FhirPathValue::Empty => 0,
+            FhirPathValue::Boolean(_) => 1,
+            FhirPathValue::Integer(_) => 2,
+            FhirPathValue::Decimal(_) => 3,
+            FhirPathValue::String(_) => 4,
+            FhirPathValue::Date(_) => 5,
+            FhirPathValue::DateTime(_) => 6,
+            FhirPathValue::Time(_) => 7,
+            FhirPathValue::Collection(_) => 8,
+            _ => 9,
+        }
+    }
+
+    /// Natural sort without lambda expression
+    fn natural_sort(&self, mut items: Vec<FhirPathValue>) -> Result<Vec<FhirPathValue>> {
+        items.sort_by(|a, b| self.compare_values(a, b));
+        Ok(items)
+    }
+
+    /// Extract sort intent from expression AST
+    fn extract_sort_intent<'a>(&self, expression: &'a ExpressionNode) -> (&'a ExpressionNode, bool) {
+        use octofhir_fhirpath_ast::UnaryOperator;
+        
+        match expression {
+            ExpressionNode::UnaryOp { op: UnaryOperator::Minus, operand } => {
+                (operand.as_ref(), true)
+            },
+            _ => (expression, false)
+        }
+    }
+
+    /// Lambda-based sort with expression evaluation
+    async fn lambda_sort(
+        &self,
+        items: Vec<FhirPathValue>,
+        expressions: &[ExpressionNode],
+        context: &EvaluationContext,
+        evaluator: &dyn ExpressionEvaluator,
+    ) -> Result<Vec<FhirPathValue>> {
+        let mut sort_data = Vec::new();
+        
+        for (index, item) in items.iter().enumerate() {
+            let lambda_context = LambdaContextBuilder::new(context)
+                .with_this(item.clone())
+                .with_index(index as i64)
+                .with_input(item.clone())
+                .build();
+
+            let mut sort_keys = Vec::new();
+            for expression in expressions {
+                let (actual_expr, is_descending) = self.extract_sort_intent(expression);
+                
+                let key_result = evaluator
+                    .evaluate_expression(actual_expr, &lambda_context)
+                    .await?;
+                
+                sort_keys.push((key_result, is_descending));
+            }
+            
+            sort_data.push((item.clone(), sort_keys));
+        }
+
+        // Sort using the pre-evaluated keys with descending flags
+        sort_data.sort_by(|(_, keys_a), (_, keys_b)| {
+            for ((key_a, desc_a), (key_b, desc_b)) in keys_a.iter().zip(keys_b.iter()) {
+                let base_cmp = self.compare_values(key_a, key_b);
+                let cmp = match (*desc_a, *desc_b) {
+                    (true, true) => base_cmp.reverse(),
+                    (true, false) => base_cmp.reverse(),
+                    (false, true) => base_cmp,
+                    (false, false) => base_cmp,
+                };
+                if cmp != Ordering::Equal {
+                    return cmp;
+                }
+            }
+            Ordering::Equal
+        });
+
+        Ok(sort_data.into_iter().map(|(item, _)| item).collect())
+    }
+}
+
+#[async_trait]
+impl FhirPathOperation for SortLambdaFunction {
+    fn identifier(&self) -> &str {
+        "sort"
+    }
+
+    fn operation_type(&self) -> OperationType {
+        OperationType::Function
+    }
+
+    fn metadata(&self) -> &OperationMetadata {
+        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
+            SortLambdaFunction::create_metadata()
+        });
+        &METADATA
+    }
+
+    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+        Err(FhirPathError::EvaluationError {
+            message: format!(
+                "sort() is a lambda function and should be called via evaluate_lambda, not evaluate. Got {} pre-evaluated args.",
+                args.len()
+            ),
+        })
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn complexity_hint(&self) -> OperationComplexity {
+        LambdaFunction::complexity_hint(self)
+    }
+
+    fn is_pure(&self) -> bool {
+        LambdaFunction::is_pure(self)
+    }
+}
+
+#[async_trait]
+impl LambdaFunction for SortLambdaFunction {
+    fn identifier(&self) -> &str {
+        "sort"
+    }
+
+    async fn evaluate_lambda(
+        &self,
+        expressions: &[ExpressionNode],
+        context: &EvaluationContext,
+        evaluator: &dyn ExpressionEvaluator,
+    ) -> Result<FhirPathValue> {
+        let items = match &context.input {
+            FhirPathValue::Collection(collection) => collection.iter().cloned().collect::<Vec<_>>(),
+            single_item => vec![single_item.clone()],
+        };
+
+        if items.is_empty() {
+            return Ok(FhirPathValue::Collection(Collection::new()));
+        }
+
+        match expressions.len() {
+            0 => {
+                let sorted_items = self.natural_sort(items)?;
+                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+            }
+            1 => {
+                let sorted_items = self.lambda_sort(items, &[expressions[0].clone()], context, evaluator).await?;
+                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+            }
+            2 => {
+                let sorted_items = self.lambda_sort(items, expressions, context, evaluator).await?;
+                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+            }
+            _ => Err(FhirPathError::InvalidArgumentCount {
+                function_name: "sort".to_string(),
+                expected: 2,
+                actual: expressions.len(),
+            }),
+        }
+    }
+
+    fn expected_expression_count(&self) -> usize {
+        0
+    }
+
+    fn validate_expressions(&self, expressions: &[ExpressionNode]) -> Result<()> {
+        if expressions.len() > 2 {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: "sort".to_string(),
+                expected: 2,
+                actual: expressions.len(),
+            });
+        }
+        Ok(())
+    }
+
+    fn complexity_hint(&self) -> OperationComplexity {
+        OperationComplexity::Linear
+    }
+
+    fn is_pure(&self) -> bool {
+        true
+    }
+}

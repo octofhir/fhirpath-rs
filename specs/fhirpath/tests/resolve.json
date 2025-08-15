@@ -1,0 +1,39 @@
+{
+  "name": "testResolve",
+  "description": "resolve() with model provider",
+  "source": "user-feeedback",
+  "tests": [
+    {
+      "name": "testResolveBundle",
+      "expression": "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()",
+      "input": null,
+      "tags": [
+        "resolve"
+      ],
+      "inputfile": "bundle-small.json",
+      "expected": [
+        14
+      ]
+    },
+    {
+      "name": "testResolveBundle",
+      "expression": "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()",
+      "input": null,
+      "tags": [
+        "resolve"
+      ],
+      "inputfile": "bundle-small.json",
+      "expected": [
+        {
+          "_resolved": true,
+          "id": "60d3201b-f9da-5dc8-956f-fc72c515e953",
+          "meta": {
+            "lastUpdated": "2024-01-01T00:00:00Z",
+            "versionId": "1"
+          },
+          "resourceType": "Medication"
+        }
+      ]
+    }
+  ]
+}

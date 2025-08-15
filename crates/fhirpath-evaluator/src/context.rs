@@ -17,7 +17,7 @@
 use octofhir_fhirpath_model::{
     FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
 };
-use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry};
+use octofhir_fhirpath_registry::FhirPathRegistry;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -128,7 +128,15 @@ impl VariableScope {
     }
 
     /// Set a variable in the current scope (triggers copy-on-write)
+    /// System variables (starting with % or $ for standard variables) cannot be overridden
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
+        // Prevent overriding system variables according to FHIRPath spec
+        if Self::is_system_variable(&name) {
+            // Silently ignore attempts to override system variables
+            // This matches FHIRPath spec behavior where system variables cannot be overridden
+            return;
+        }
+        
         // Trigger copy-on-write if we're borrowing
         if !self.owned {
             let mut new_vars = FxHashMap::default();
@@ -143,6 +151,22 @@ impl VariableScope {
         // Now we can safely insert into owned variables
         if let Cow::Owned(ref mut vars) = self.variables {
             vars.insert(name, value);
+        }
+    }
+    
+    /// Check if a variable name is a system variable that cannot be overridden
+    fn is_system_variable(name: &str) -> bool {
+        match name {
+            // Standard environment variables (% prefix stripped during parsing)
+            "context" | "resource" | "rootResource" | "sct" | "loinc" | "ucum" => true,
+            // Lambda variables ($ prefix kept)
+            "$this" | "$index" | "$total" => true,
+            // Value set variables (without % prefix)
+            name if name.starts_with("\"vs-") && name.ends_with('"') => true,
+            name if name.starts_with("vs-") => true,
+            // System reserved prefixes
+            name if name.starts_with("$") => true, // All $ variables are system reserved
+            _ => false,
         }
     }
 
@@ -194,11 +218,8 @@ pub struct EvaluationContext {
     /// Variable scope stack for proper scoping
     pub variable_scope: VariableScope,
 
-    /// Function registry for evaluating function calls
-    pub functions: Arc<UnifiedFunctionRegistry>,
-
-    /// Operator registry for evaluating operations
-    pub operators: Arc<UnifiedOperatorRegistry>,
+    /// Unified registry for evaluating all operations (functions and operators)
+    pub registry: Arc<FhirPathRegistry>,
 
     /// Async ModelProvider for type checking and validation (required)
     pub model_provider: Arc<dyn ModelProvider>,
@@ -211,16 +232,14 @@ impl EvaluationContext {
     /// Create a new evaluation context (ModelProvider required)
     pub fn new(
         input: FhirPathValue,
-        functions: Arc<UnifiedFunctionRegistry>,
-        operators: Arc<UnifiedOperatorRegistry>,
+        registry: Arc<FhirPathRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
             root: input.clone(),
             input,
             variable_scope: VariableScope::new(),
-            functions,
-            operators,
+            registry,
             model_provider,
             type_annotations: Arc::new(Mutex::new(FxHashMap::default())),
         }
@@ -229,8 +248,7 @@ impl EvaluationContext {
     /// Create a new evaluation context with initial variables
     pub fn with_variables(
         input: FhirPathValue,
-        functions: Arc<UnifiedFunctionRegistry>,
-        operators: Arc<UnifiedOperatorRegistry>,
+        registry: Arc<FhirPathRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         initial_variables: FxHashMap<String, FhirPathValue>,
     ) -> Self {
@@ -245,8 +263,7 @@ impl EvaluationContext {
             root: input.clone(),
             input,
             variable_scope,
-            functions,
-            operators,
+            registry,
             model_provider,
             type_annotations: Arc::new(Mutex::new(FxHashMap::default())),
         }
@@ -258,8 +275,7 @@ impl EvaluationContext {
             input,
             root: self.root.clone(),
             variable_scope: self.variable_scope.clone(),
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: self.type_annotations.clone(),
         }
@@ -271,8 +287,7 @@ impl EvaluationContext {
             input: self.input.clone(),
             root: self.root.clone(),
             variable_scope: VariableScope::new(),
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: self.type_annotations.clone(),
         }
@@ -284,14 +299,14 @@ impl EvaluationContext {
             input,
             root: self.root.clone(),
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: self.type_annotations.clone(),
         }
     }
 
     /// Set a variable in the context
+    /// System variables cannot be overridden (silently ignored)
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
         self.variable_scope.set_variable(name, value);
     }
@@ -342,8 +357,7 @@ impl EvaluationContext {
             input: self.input.clone(),
             root: self.root.clone(),
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: Arc::new(Mutex::new(FxHashMap::default())), // Fresh cache for lambda context
         }
@@ -367,8 +381,7 @@ impl EvaluationContext {
             input: current_item,
             root: self.root.clone(),
             variable_scope: lambda_scope,
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: self.type_annotations.clone(), // Share type annotations
         }
@@ -394,8 +407,7 @@ impl EvaluationContext {
             input: current_item,
             root: self.root.clone(),
             variable_scope: lambda_scope,
-            functions: self.functions.clone(),
-            operators: self.operators.clone(),
+            registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
             type_annotations: self.type_annotations.clone(), // Share type annotations
         }
@@ -526,12 +538,11 @@ impl ContextPool {
     /// Create a new context pool with the given maximum size
     pub fn new(
         max_size: usize,
-        functions: Arc<UnifiedFunctionRegistry>,
-        operators: Arc<UnifiedOperatorRegistry>,
+        registry: Arc<FhirPathRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         let template =
-            EvaluationContext::new(FhirPathValue::Empty, functions, operators, model_provider);
+            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
 
         Self {
             pool: Arc::new(Mutex::new(VecDeque::with_capacity(max_size))),
@@ -542,11 +553,10 @@ impl ContextPool {
 
     /// Create a new context pool with default size (32 contexts)
     pub fn with_defaults(
-        functions: Arc<UnifiedFunctionRegistry>,
-        operators: Arc<UnifiedOperatorRegistry>,
+        registry: Arc<FhirPathRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
-        Self::new(32, functions, operators, model_provider)
+        Self::new(32, registry, model_provider)
     }
 
     /// Acquire a context from the pool or create a new one
@@ -565,8 +575,7 @@ impl ContextPool {
                 // Create new context if pool is empty
                 EvaluationContext::new(
                     input,
-                    self.template.functions.clone(),
-                    self.template.operators.clone(),
+                    self.template.registry.clone(),
                     self.template.model_provider.clone(),
                 )
             }
@@ -642,13 +651,11 @@ impl Drop for PooledContext {
             self.context.clear_type_annotations();
 
             // Clone the registries before the replace operation
-            let functions = self.context.functions.clone();
-            let operators = self.context.operators.clone();
-
+            let registry = self.context.registry.clone();
             let model_provider = self.context.model_provider.clone();
             pool.push_back(std::mem::replace(
                 &mut self.context,
-                EvaluationContext::new(FhirPathValue::Empty, functions, operators, model_provider),
+                EvaluationContext::new(FhirPathValue::Empty, registry, model_provider),
             ));
         }
     }
@@ -668,10 +675,8 @@ pub struct StackContext<'a> {
     pub root: &'a FhirPathValue,
     /// Simple variable storage for basic variables (limited capacity)
     pub variables: FxHashMap<&'static str, &'a FhirPathValue>,
-    /// Function registry reference (shared)
-    pub functions: &'a UnifiedFunctionRegistry,
-    /// Operator registry reference (shared)
-    pub operators: &'a UnifiedOperatorRegistry,
+    /// Unified registry reference (shared)
+    pub registry: &'a FhirPathRegistry,
 }
 
 #[allow(dead_code)]
@@ -679,15 +684,13 @@ impl<'a> StackContext<'a> {
     /// Create a new stack-allocated context
     pub fn new(
         input: &'a FhirPathValue,
-        functions: &'a UnifiedFunctionRegistry,
-        operators: &'a UnifiedOperatorRegistry,
+        registry: &'a FhirPathRegistry,
     ) -> Self {
         Self {
             root: input,
             input,
             variables: FxHashMap::default(),
-            functions,
-            operators,
+            registry,
         }
     }
 
@@ -697,8 +700,7 @@ impl<'a> StackContext<'a> {
             input,
             root: self.root,
             variables: self.variables.clone(),
-            functions: self.functions,
-            operators: self.operators,
+            registry: self.registry,
         }
     }
 
@@ -715,11 +717,10 @@ impl<'a> StackContext<'a> {
     /// Convert to a heap-allocated EvaluationContext when needed
     pub fn to_heap_context(&self) -> EvaluationContext {
         // Note: This is a simplified conversion - in practice, you'd need a ModelProvider
-        let mock_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
+        let mock_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let mut context = EvaluationContext::new(
             self.input.clone(),
-            Arc::new(self.functions.clone()),
-            Arc::new(self.operators.clone()),
+            Arc::new(FhirPathRegistry::new()), // Use new unified registry
             mock_provider,
         );
         context.root = self.root.clone();
@@ -748,20 +749,18 @@ impl<'a> ContextStorage<'a> {
     /// Create a stack context if input is borrowable, otherwise heap
     pub fn new_optimal(
         input: &'a FhirPathValue,
-        functions: &'a UnifiedFunctionRegistry,
-        operators: &'a UnifiedOperatorRegistry,
+        registry: &'a FhirPathRegistry,
         prefer_stack: bool,
     ) -> Self {
         if prefer_stack {
-            Self::Stack(StackContext::new(input, functions, operators))
+            Self::Stack(StackContext::new(input, registry))
         } else {
             // For internal temporary context conversion, using MockModelProvider is acceptable
             // since this is not exposed to users and is only used internally
-            let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
+            let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
             Self::Heap(EvaluationContext::new(
                 input.clone(),
-                Arc::new(functions.clone()),
-                Arc::new(operators.clone()),
+                Arc::new(FhirPathRegistry::new()),
                 provider,
             ))
         }
@@ -822,11 +821,10 @@ impl ContextFactory {
     /// Create a context using the optimal allocation strategy based on expression complexity
     pub fn create_for_expression<'a>(
         input: &'a FhirPathValue,
-        functions: &'a UnifiedFunctionRegistry,
-        operators: &'a UnifiedOperatorRegistry,
+        registry: &'a FhirPathRegistry,
         is_simple: bool,
     ) -> ContextStorage<'a> {
-        ContextStorage::new_optimal(input, functions, operators, is_simple)
+        ContextStorage::new_optimal(input, registry, is_simple)
     }
 
     /// Determine if an expression is simple enough for stack allocation
@@ -879,14 +877,12 @@ impl ContextFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirpath_registry::{UnifiedFunctionRegistry, UnifiedOperatorRegistry};
 
     #[test]
     fn test_context_pool_acquire_and_return() {
-        let functions = Arc::new(UnifiedFunctionRegistry::default());
-        let operators = Arc::new(UnifiedOperatorRegistry::default());
-        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
-        let pool = ContextPool::new(2, functions, operators, model_provider);
+        let registry = Arc::new(FhirPathRegistry::new());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
+        let pool = ContextPool::new(2, registry, model_provider);
 
         // Pool should start empty
         assert_eq!(pool.size(), 0);
@@ -919,10 +915,9 @@ mod tests {
 
     #[test]
     fn test_context_pool_max_size() {
-        let functions = Arc::new(UnifiedFunctionRegistry::default());
-        let operators = Arc::new(UnifiedOperatorRegistry::default());
-        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
-        let pool = ContextPool::new(1, functions, operators, model_provider); // Max size 1
+        let registry = Arc::new(FhirPathRegistry::new());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
+        let pool = ContextPool::new(1, registry, model_provider); // Max size 1
 
         // Create multiple contexts
         let input = FhirPathValue::Integer(1);
@@ -940,10 +935,9 @@ mod tests {
 
     #[test]
     fn test_pooled_context_deref() {
-        let functions = Arc::new(UnifiedFunctionRegistry::default());
-        let operators = Arc::new(UnifiedOperatorRegistry::default());
-        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
-        let pool = ContextPool::with_defaults(functions, operators, model_provider);
+        let registry = Arc::new(FhirPathRegistry::new());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
+        let pool = ContextPool::with_defaults(registry, model_provider);
 
         let input = FhirPathValue::Integer(42);
         let mut ctx = pool.acquire(input.clone());
@@ -959,10 +953,9 @@ mod tests {
 
     #[test]
     fn test_context_pool_child_contexts() {
-        let functions = Arc::new(UnifiedFunctionRegistry::default());
-        let operators = Arc::new(UnifiedOperatorRegistry::default());
-        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
-        let pool = ContextPool::with_defaults(functions, operators, model_provider);
+        let registry = Arc::new(FhirPathRegistry::new());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
+        let pool = ContextPool::with_defaults(registry, model_provider);
 
         let input = FhirPathValue::Integer(42);
         let ctx = pool.acquire(input.clone());
@@ -982,11 +975,10 @@ mod tests {
 
     #[test]
     fn test_stack_context() {
-        let functions = UnifiedFunctionRegistry::default();
-        let operators = UnifiedOperatorRegistry::default();
+        let registry = FhirPathRegistry::new();
 
         let input = FhirPathValue::Integer(42);
-        let mut stack_ctx = StackContext::new(&input, &functions, &operators);
+        let mut stack_ctx = StackContext::new(&input, &registry);
 
         // Test basic functionality
         assert_eq!(stack_ctx.input, &input);
@@ -1008,13 +1000,12 @@ mod tests {
 
     #[test]
     fn test_stack_to_heap_conversion() {
-        let functions = UnifiedFunctionRegistry::default();
-        let operators = UnifiedOperatorRegistry::default();
+        let registry = FhirPathRegistry::new();
 
         let input = FhirPathValue::Integer(42);
         let var_value = FhirPathValue::String("test".to_string().into());
 
-        let mut stack_ctx = StackContext::new(&input, &functions, &operators);
+        let mut stack_ctx = StackContext::new(&input, &registry);
         stack_ctx.set_variable("test_var", &var_value);
 
         // Convert to heap context
@@ -1026,18 +1017,17 @@ mod tests {
 
     #[test]
     fn test_context_storage() {
-        let functions = UnifiedFunctionRegistry::default();
-        let operators = UnifiedOperatorRegistry::default();
+        let registry = FhirPathRegistry::new();
         let input = FhirPathValue::Integer(42);
 
         // Test stack storage creation
-        let stack_storage = ContextStorage::new_optimal(&input, &functions, &operators, true);
+        let stack_storage = ContextStorage::new_optimal(&input, &registry, true);
         assert!(stack_storage.is_stack());
         assert!(!stack_storage.is_heap());
         assert_eq!(stack_storage.input(), &input);
 
         // Test heap storage creation
-        let heap_storage = ContextStorage::new_optimal(&input, &functions, &operators, false);
+        let heap_storage = ContextStorage::new_optimal(&input, &registry, false);
         assert!(heap_storage.is_heap());
         assert!(!heap_storage.is_stack());
         assert_eq!(heap_storage.input(), &input);
@@ -1079,15 +1069,13 @@ mod tests {
 
     #[test]
     fn test_context_factory_creation() {
-        let functions = UnifiedFunctionRegistry::default();
-        let operators = UnifiedOperatorRegistry::default();
+        let registry = FhirPathRegistry::new();
         let input = FhirPathValue::Integer(42);
 
         // Simple expression should create stack context
         let simple_ctx = ContextFactory::create_for_expression(
             &input,
-            &functions,
-            &operators,
+            &registry,
             ContextFactory::is_simple_expression("Patient.name"),
         );
         assert!(simple_ctx.is_stack());
@@ -1095,8 +1083,7 @@ mod tests {
         // Complex expression should create heap context
         let complex_ctx = ContextFactory::create_for_expression(
             &input,
-            &functions,
-            &operators,
+            &registry,
             ContextFactory::is_simple_expression("Patient.name.where(use = 'official')"),
         );
         assert!(complex_ctx.is_heap());
@@ -1240,14 +1227,11 @@ mod tests {
 
     #[test]
     fn test_evaluation_context_inherited_scope() {
-        let functions = Arc::new(UnifiedFunctionRegistry::default());
-        let operators = Arc::new(UnifiedOperatorRegistry::default());
-
-        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::empty());
+        let registry = Arc::new(FhirPathRegistry::new());
+        let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let mut parent_ctx = EvaluationContext::new(
             FhirPathValue::Integer(42),
-            functions.clone(),
-            operators.clone(),
+            registry,
             model_provider,
         );
 

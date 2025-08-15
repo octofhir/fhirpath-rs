@@ -284,6 +284,84 @@ impl Quantity {
         }
     }
 
+    /// Multiply two quantities - multiplies values and combines units
+    pub fn multiply(&self, other: &Quantity) -> Quantity {
+        let result_value = self.value * other.value;
+        let result_unit = Self::combine_units_multiply(&self.unit, &other.unit);
+        Quantity::new(result_value, result_unit)
+    }
+
+    /// Divide two quantities - divides values and divides units  
+    pub fn divide(&self, other: &Quantity) -> Option<Quantity> {
+        if other.value.is_zero() {
+            None // Division by zero
+        } else {
+            let result_value = self.value / other.value;
+            let result_unit = Self::combine_units_divide(&self.unit, &other.unit);
+            Some(Quantity::new(result_value, result_unit))
+        }
+    }
+
+    /// Combine units for multiplication (e.g., "m" * "s" = "m.s")
+    fn combine_units_multiply(left: &Option<String>, right: &Option<String>) -> Option<String> {
+        match (left, right) {
+            (Some(l), Some(r)) => {
+                if l.is_empty() || l == "1" {
+                    Some(r.clone())
+                } else if r.is_empty() || r == "1" {
+                    Some(l.clone())
+                } else {
+                    Some(format!("{}.{}", l, r))
+                }
+            }
+            (Some(u), None) | (None, Some(u)) => {
+                if u.is_empty() || u == "1" {
+                    Some("1".to_string())
+                } else {
+                    Some(u.clone())
+                }
+            }
+            (None, None) => Some("1".to_string()),
+        }
+    }
+
+    /// Combine units for division (e.g., "g" / "m" = "g/m", "m" / "m" = "1")
+    fn combine_units_divide(numerator: &Option<String>, denominator: &Option<String>) -> Option<String> {
+        match (numerator, denominator) {
+            (Some(num), Some(den)) => {
+                if num == den {
+                    // Same units cancel out to dimensionless "1"
+                    Some("1".to_string())
+                } else if den.is_empty() || den == "1" {
+                    // Dividing by dimensionless
+                    Some(num.clone())
+                } else if num.is_empty() || num == "1" {
+                    // Dimensionless divided by unit
+                    Some(format!("1/{}", den))
+                } else {
+                    // Different units
+                    Some(format!("{}/{}", num, den))
+                }
+            }
+            (Some(num), None) => {
+                // Dividing by scalar (no unit)
+                Some(num.clone())
+            }
+            (None, Some(den)) => {
+                // Scalar divided by unit
+                if den.is_empty() || den == "1" {
+                    Some("1".to_string())
+                } else {
+                    Some(format!("1/{}", den))
+                }
+            }
+            (None, None) => {
+                // Scalar divided by scalar
+                Some("1".to_string())
+            }
+        }
+    }
+
     /// Convert to JSON representation
     pub fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::Map::new();

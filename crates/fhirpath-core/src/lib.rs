@@ -20,10 +20,8 @@
 pub mod error;
 pub mod evaluation;
 pub mod types;
-pub mod vm;
 
 // Re-export main types
 pub use error::{FhirPathError, Result};
 pub use evaluation::{EvaluationError, EvaluationResult};
 pub use types::FhirTypeRegistry;
-pub use vm::{VmConfig, VmError, VmResult};

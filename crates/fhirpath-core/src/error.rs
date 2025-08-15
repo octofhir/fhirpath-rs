@@ -113,6 +113,13 @@ pub enum FhirPathError {
         message: String,
     },
 
+    /// Invalid function arguments
+    #[error("Invalid arguments: {message}")]
+    InvalidArguments {
+        /// Human-readable error message
+        message: String,
+    },
+
     /// Unknown operator
     #[error("Unknown operator: '{operator}'")]
     UnknownOperator {
@@ -156,7 +163,7 @@ pub enum FhirPathError {
     InvalidTypeSpecifier,
 
     /// Invalid function arity
-    #[error("Function '{name}' expects {min_arity}{} arguments, got {actual}", 
+    #[error("Function '{name}' expects {min_arity}{} arguments, got {actual}",
             max_arity.map(|m| format!("-{m}")).unwrap_or_else(|| String::from(" or more")))]
     InvalidArity {
         /// Name of the function with invalid arity
@@ -169,6 +176,7 @@ pub enum FhirPathError {
         actual: usize,
     },
 }
+
 
 impl FhirPathError {
     /// Create a parse error

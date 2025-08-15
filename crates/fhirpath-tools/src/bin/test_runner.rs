@@ -146,7 +146,13 @@ async fn main() {
             }
         };
     // Create the FhirPathEngine with model provider
-    let engine = octofhir_fhirpath::FhirPathEngine::with_model_provider(model_provider.clone());
+    let engine = match octofhir_fhirpath::FhirPathEngine::with_model_provider(model_provider.clone()).await {
+        Ok(engine) => engine,
+        Err(e) => {
+            eprintln!("Failed to create FhirPath engine: {}", e);
+            process::exit(1);
+        }
+    };
     let mut passed = 0;
     let mut failed = 0;
     let mut errors = 0;

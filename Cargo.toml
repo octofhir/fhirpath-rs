@@ -9,7 +9,6 @@ members = [
     "crates/fhirpath-registry",
     "crates/fhirpath-evaluator",
     "crates/fhirpath-tools",
-    "crates/fhirpath-benchmarks",
 ]
 exclude = []
 resolver = "3"
@@ -40,6 +39,7 @@ octofhir-fhir-model = { version = "0.1.1", features = ["serde"] }
 octofhir-fhirschema = { version = "0.2.2", features = ["memory-storage"] }
 octofhir-canonical-manager = { version = "0.1.4" }
 url = "2.5"
+percent-encoding = "2.3"
 parking_lot = "0.12.4"
 regex = "1.11.1"
 rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }

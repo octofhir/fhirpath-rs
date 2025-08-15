@@ -27,6 +27,7 @@ rayon = { workspace = true }
 # Async support
 tokio = { workspace = true, features = ["rt", "macros"] }
 futures = { workspace = true }
+async-trait = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }

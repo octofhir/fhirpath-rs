@@ -30,6 +30,9 @@ once_cell = { workspace = true }
 regex = { workspace = true }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
+base64 = "0.21"
+url = "2.0"
+percent-encoding = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 
