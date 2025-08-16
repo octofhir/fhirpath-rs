@@ -15,28 +15,28 @@
 //! Math functions module
 
 pub mod abs;
-pub mod sqrt;
 pub mod ceiling;
-pub mod floor;
-pub mod round;
 pub mod exp;
+pub mod floor;
 pub mod ln;
 pub mod log;
 pub mod power;
-pub mod truncate;
 pub mod precision;
+pub mod round;
+pub mod sqrt;
+pub mod truncate;
 
 pub use abs::AbsFunction;
-pub use sqrt::SqrtFunction;
 pub use ceiling::CeilingFunction;
-pub use floor::FloorFunction;
-pub use round::RoundFunction;
 pub use exp::ExpFunction;
+pub use floor::FloorFunction;
 pub use ln::LnFunction;
 pub use log::LogFunction;
 pub use power::PowerFunction;
-pub use truncate::TruncateFunction;
 pub use precision::PrecisionFunction;
+pub use round::RoundFunction;
+pub use sqrt::SqrtFunction;
+pub use truncate::TruncateFunction;
 
 /// Registry helper for math operations
 pub struct MathOperations;
@@ -49,7 +49,7 @@ impl MathOperations {
         registry.register(CeilingFunction::new()).await?;
         registry.register(FloorFunction::new()).await?;
         registry.register(RoundFunction::new()).await?;
-        
+
         // New functions
         registry.register(ExpFunction::new()).await?;
         registry.register(LnFunction::new()).await?;
@@ -57,7 +57,7 @@ impl MathOperations {
         registry.register(PowerFunction::new()).await?;
         registry.register(TruncateFunction::new()).await?;
         registry.register(PrecisionFunction::new()).await?;
-        
+
         Ok(())
     }
 }

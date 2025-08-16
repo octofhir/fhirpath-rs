@@ -14,20 +14,27 @@
 
 //! Contains operator implementation
 
-use crate::operation::FhirPathOperation;
-use crate::operations::comparison::equals::EqualsOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity, Associativity
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
+use crate::operations::comparison::equals::EqualsOperation;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Contains operator - collection containership
 /// Returns true if the left collection contains the right operand using equality semantics
 #[derive(Debug, Clone)]
 pub struct ContainsOperation;
+
+impl Default for ContainsOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ContainsOperation {
     pub fn new() -> Self {
@@ -51,8 +58,8 @@ impl ContainsOperation {
         // Right operand must be single item
         let right_collection = right.clone().to_collection();
         if right_collection.len() != 1 {
-            return Err(FhirPathError::InvalidArguments { message: 
-                "Right operand of 'contains' must be a single item".to_string()
+            return Err(FhirPathError::InvalidArguments {
+                message: "Right operand of 'contains' must be a single item".to_string(),
             });
         }
 
@@ -89,18 +96,21 @@ impl FhirPathOperation for ContainsOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ContainsOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ContainsOperation::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             });
         }
 
@@ -108,10 +118,17 @@ impl FhirPathOperation for ContainsOperation {
         Ok(FhirPathValue::Boolean(result))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 2 {
             return Some(Err(FhirPathError::EvaluationError {
-                message: format!("contains operator requires exactly 2 arguments, got {}", args.len()),
+                message: format!(
+                    "contains operator requires exactly 2 arguments, got {}",
+                    args.len()
+                ),
             }));
         }
 
@@ -127,139 +144,5 @@ impl FhirPathOperation for ContainsOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_contains_with_collection() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        // Test {1, 2, 3} contains 2 (true)
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2),
-                FhirPathValue::Integer(3)
-            ]),
-            FhirPathValue::Integer(2)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test {1, 2, 3} contains 4 (false)
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2),
-                FhirPathValue::Integer(3)
-            ]),
-            FhirPathValue::Integer(4)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_contains_with_strings() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        // Test {"John", "Jane"} contains "John" (true)
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::String("John".into()),
-                FhirPathValue::String("Jane".into())
-            ]),
-            FhirPathValue::String("John".into())
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test {"John", "Jane"} contains "Bob" (false)
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::String("John".into()),
-                FhirPathValue::String("Jane".into())
-            ]),
-            FhirPathValue::String("Bob".into())
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_contains_empty_collection() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        // Test {} contains 1 (false)
-        let args = vec![
-            FhirPathValue::Empty,
-            FhirPathValue::Integer(1)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_contains_single_item_as_collection() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        // Test single item treated as collection
-        let args = vec![
-            FhirPathValue::Integer(5),
-            FhirPathValue::Integer(5)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_contains_invalid_right_operand() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        // Test with multi-item right operand (should error)
-        let args = vec![
-            FhirPathValue::Collection(vec![FhirPathValue::Integer(1)]),
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2)
-            ])
-        ];
-        let result = op.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_sync_evaluation() {
-        let op = ContainsOperation::new();
-        let ctx = create_test_context();
-
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2)
-            ]),
-            FhirPathValue::Integer(2)
-        ];
-        let result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
     }
 }

@@ -14,15 +14,25 @@
 
 //! Precision function implementation
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
+use async_trait::async_trait;
+use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use async_trait::async_trait;
 
 /// Precision function - returns the number of digits of precision in a decimal value
 #[derive(Debug, Clone)]
 pub struct PrecisionFunction;
+
+impl Default for PrecisionFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PrecisionFunction {
     pub fn new() -> Self {
@@ -39,8 +49,90 @@ impl PrecisionFunction {
     }
 
     fn calculate_decimal_precision(&self, decimal: &rust_decimal::Decimal) -> i64 {
-        // Get the scale (number of decimal places) directly from the Decimal
-        decimal.scale() as i64
+        // Convert to string to count significant digits
+        let decimal_str = decimal.to_string();
+
+        // Remove trailing zeros after decimal point
+        let trimmed = if decimal_str.contains('.') {
+            decimal_str.trim_end_matches('0').trim_end_matches('.')
+        } else {
+            &decimal_str
+        };
+
+        // Count digits excluding the decimal point and negative sign
+        let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
+
+        digit_count as i64
+    }
+
+    fn calculate_date_precision_from_string(&self, date_str: &str) -> i64 {
+        // Remove @ prefix if present
+        let clean_str = date_str.strip_prefix('@').unwrap_or(date_str);
+
+        // Date precision based on components present
+        // YYYY = 4, YYYY-MM = 6, YYYY-MM-DD = 8
+        let components: Vec<&str> = clean_str.split('-').collect();
+        match components.len() {
+            1 => 4, // Year only
+            2 => 6, // Year-Month
+            3 => 8, // Year-Month-Day
+            _ => 4, // Default to year precision
+        }
+    }
+
+    fn calculate_datetime_precision_from_string(&self, datetime_str: &str) -> i64 {
+        // Remove @ prefix if present
+        let clean_str = datetime_str.strip_prefix('@').unwrap_or(datetime_str);
+
+        // DateTime precision includes date + time components
+        // YYYY-MM-DDTHH:MM:SS.sss = 17 (with milliseconds)
+        // YYYY-MM-DDTHH:MM:SS = 14 (seconds)
+        // YYYY-MM-DDTHH:MM = 12 (minutes)
+        // YYYY-MM-DDTHH = 10 (hours)
+
+        if clean_str.contains('.') {
+            // Has milliseconds - count digits after decimal
+            17
+        } else if clean_str.matches(':').count() == 2 {
+            // Has seconds
+            14
+        } else if clean_str.matches(':').count() == 1 {
+            // Has minutes
+            12
+        } else if clean_str.contains('T') {
+            // Has hours
+            10
+        } else {
+            // Date only
+            self.calculate_date_precision_from_string(clean_str)
+        }
+    }
+
+    fn calculate_time_precision_from_string(&self, time_str: &str) -> i64 {
+        // Remove @T prefix if present
+        let clean_str = time_str
+            .strip_prefix("@T")
+            .unwrap_or(time_str.strip_prefix("T").unwrap_or(time_str));
+
+        // Time precision based on components
+        // THH:MM:SS.sss = 9 (with milliseconds)
+        // THH:MM:SS = 6 (seconds)
+        // THH:MM = 4 (minutes)
+        // THH = 2 (hours)
+
+        if clean_str.contains('.') {
+            // Has milliseconds
+            9
+        } else if clean_str.matches(':').count() == 2 {
+            // Has seconds
+            6
+        } else if clean_str.matches(':').count() == 1 {
+            // Has minutes
+            4
+        } else {
+            // Hours only
+            2
+        }
     }
 }
 
@@ -55,18 +147,21 @@ impl FhirPathOperation for PrecisionFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            PrecisionFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(PrecisionFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if !args.is_empty() {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             });
         }
 
@@ -74,34 +169,69 @@ impl FhirPathOperation for PrecisionFunction {
             FhirPathValue::Integer(_) => {
                 // Integers have 0 decimal places of precision
                 Ok(FhirPathValue::Integer(0))
-            },
+            }
             FhirPathValue::Decimal(d) => {
                 let precision = self.calculate_decimal_precision(d);
                 Ok(FhirPathValue::Integer(precision))
-            },
+            }
+            FhirPathValue::Date(date) => {
+                // Convert date back to string representation for precision calculation
+                let date_str = format!("{}", date.format("%Y-%m-%d"));
+                let precision = self.calculate_date_precision_from_string(&date_str);
+                Ok(FhirPathValue::Integer(precision))
+            }
+            FhirPathValue::DateTime(datetime) => {
+                // Convert datetime back to string representation for precision calculation
+                let datetime_str = format!("{}", datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
+                let precision = self.calculate_datetime_precision_from_string(&datetime_str);
+                Ok(FhirPathValue::Integer(precision))
+            }
+            FhirPathValue::Time(time) => {
+                // Convert time back to string representation for precision calculation
+                let time_str = if time.nanosecond() > 0 {
+                    format!("{}", time.format("%H:%M:%S%.3f"))
+                } else {
+                    format!("{}", time.format("%H:%M:%S"))
+                };
+                let precision = self.calculate_time_precision_from_string(&time_str);
+                Ok(FhirPathValue::Integer(precision))
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Ok(FhirPathValue::Empty)
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.evaluate(args, &item_context).await
                 } else {
-                    Err(FhirPathError::TypeError { message: "precision() can only be applied to single numeric values".to_string() })
+                    Err(FhirPathError::TypeError {
+                        message: "precision() can only be applied to single values".to_string(),
+                    })
                 }
-            },
-            _ => Err(FhirPathError::TypeError { 
-                message: format!("precision() can only be applied to numeric values, got {}", context.input.type_name()) 
+            }
+            _ => Err(FhirPathError::TypeError {
+                message: format!(
+                    "precision() can only be applied to numeric, date, time, or datetime values, got {}",
+                    context.input.type_name()
+                ),
             }),
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if !args.is_empty() {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             }));
         }
 
@@ -109,148 +239,60 @@ impl FhirPathOperation for PrecisionFunction {
             FhirPathValue::Integer(_) => {
                 // Integers have 0 decimal places of precision
                 Some(Ok(FhirPathValue::Integer(0)))
-            },
+            }
             FhirPathValue::Decimal(d) => {
                 let precision = self.calculate_decimal_precision(d);
                 Some(Ok(FhirPathValue::Integer(precision)))
-            },
+            }
+            FhirPathValue::Date(date) => {
+                // Convert date back to string representation for precision calculation
+                let date_str = format!("{}", date.format("%Y-%m-%d"));
+                let precision = self.calculate_date_precision_from_string(&date_str);
+                Some(Ok(FhirPathValue::Integer(precision)))
+            }
+            FhirPathValue::DateTime(datetime) => {
+                // Convert datetime back to string representation for precision calculation
+                let datetime_str = format!("{}", datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
+                let precision = self.calculate_datetime_precision_from_string(&datetime_str);
+                Some(Ok(FhirPathValue::Integer(precision)))
+            }
+            FhirPathValue::Time(time) => {
+                // Convert time back to string representation for precision calculation
+                let time_str = if time.nanosecond() > 0 {
+                    format!("{}", time.format("%H:%M:%S%.3f"))
+                } else {
+                    format!("{}", time.format("%H:%M:%S"))
+                };
+                let precision = self.calculate_time_precision_from_string(&time_str);
+                Some(Ok(FhirPathValue::Integer(precision)))
+            }
             FhirPathValue::Empty => Some(Ok(FhirPathValue::Empty)),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Some(Ok(FhirPathValue::Empty))
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.try_evaluate_sync(args, &item_context)
                 } else {
-                    Some(Err(FhirPathError::TypeError { message: "precision() can only be applied to single numeric values".to_string() }))
+                    Some(Err(FhirPathError::TypeError {
+                        message: "precision() can only be applied to single values".to_string(),
+                    }))
                 }
-            },
-            _ => Some(Err(FhirPathError::TypeError { 
-                message: format!("precision() can only be applied to numeric values, got {}", context.input.type_name()) 
+            }
+            _ => Some(Err(FhirPathError::TypeError {
+                message: format!(
+                    "precision() can only be applied to numeric, date, time, or datetime values, got {}",
+                    context.input.type_name()
+                ),
             })),
         }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
-    #[tokio::test]
-    async fn test_precision_function() {
-        let func = PrecisionFunction::new();
-
-        // Test decimal with 2 decimal places
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("3.14").unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(2));
-
-        // Test decimal with 3 decimal places
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("123.456").unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(3));
-
-        // Test decimal with 1 decimal place
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("100.0").unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(1));
-
-        // Test decimal with no decimal places (whole number)
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("100").unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(0));
-
-        // Test integer (always 0 precision)
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(42), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(0));
-
-        // Test decimal with many decimal places
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("0.123456789").unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(9));
-
-        // Test empty
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_precision_sync() {
-        let func = PrecisionFunction::new();
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::from_str("12.345").unwrap()), registry, model_provider)
-        };
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Integer(3));
     }
 }

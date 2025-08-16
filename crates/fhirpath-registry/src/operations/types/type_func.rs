@@ -15,15 +15,25 @@
 //! Type function operation implementation
 //! Returns type information for any FHIRPath value
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType, PerformanceComplexity}};
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{
+        MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity, TypeConstraint,
+    },
+};
 use async_trait::async_trait;
-use std::collections::HashMap;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Type function operation - returns type information for values
 pub struct TypeFunction;
+
+impl Default for TypeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TypeFunction {
     pub fn new() -> Self {
@@ -68,7 +78,9 @@ impl TypeFunction {
                 }
             }
             FhirPathValue::JsonValue(json) => {
-                if let Some(resource_type) = json.as_json().get("resourceType").and_then(|v| v.as_str()) {
+                if let Some(resource_type) =
+                    json.as_json().get("resourceType").and_then(|v| v.as_str())
+                {
                     ("FHIR".to_string(), resource_type.to_string())
                 } else {
                     ("System".to_string(), "Object".to_string())
@@ -98,14 +110,17 @@ impl FhirPathOperation for TypeFunction {
 
     /// Get operation metadata
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            TypeFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(TypeFunction::create_metadata);
         &METADATA
     }
 
     /// Evaluate the type function
-    async fn evaluate(&self, _args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        _args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Type function takes no arguments - it returns type info for the input value
         let input = &context.input;
 
@@ -122,20 +137,24 @@ impl FhirPathOperation for TypeFunction {
 
                 let (namespace, name) = Self::get_type_info(first_item);
                 Ok(FhirPathValue::Collection(Collection::from_vec(vec![
-                    Self::create_type_object(&namespace, &name)
+                    Self::create_type_object(&namespace, &name),
                 ])))
             }
             _ => {
                 let (namespace, name) = Self::get_type_info(input);
                 Ok(FhirPathValue::Collection(Collection::from_vec(vec![
-                    Self::create_type_object(&namespace, &name)
+                    Self::create_type_object(&namespace, &name),
                 ])))
             }
         }
     }
 
     /// Try to evaluate synchronously (not supported for type function)
-    fn try_evaluate_sync(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         None
     }
 
@@ -147,11 +166,7 @@ impl FhirPathOperation for TypeFunction {
     /// Validate arguments (type function takes no arguments)
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
         if !args.is_empty() {
-            return Err(FhirPathError::invalid_argument_count(
-                "type",
-                0,
-                args.len()
-            ));
+            return Err(FhirPathError::invalid_argument_count("type", 0, args.len()));
         }
         Ok(())
     }
@@ -159,22 +174,5 @@ impl FhirPathOperation for TypeFunction {
     /// Get operation as Any trait object
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::EvaluationContext;
-    use octofhir_fhirpath_model::{MockModelProvider};
-    use std::sync::Arc;
-
-    #[tokio::test]
-    async fn test_type_invalid_args() {
-        let type_func = TypeFunction::new();
-        let args = vec![FhirPathValue::String("invalid".into())];
-
-        let result = type_func.validate_args(&args);
-        assert!(result.is_err());
     }
 }

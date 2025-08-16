@@ -9,6 +9,7 @@ members = [
     "crates/fhirpath-registry",
     "crates/fhirpath-evaluator",
     "crates/fhirpath-tools",
+    "crates/fhirpath-bench",
 ]
 exclude = []
 resolver = "3"

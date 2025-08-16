@@ -14,23 +14,25 @@
 
 //! Utility functions module
 
+pub mod comparable;
+pub mod decode;
+pub mod define_variable;
+pub mod encode;
+pub mod escape;
+pub mod has_value;
 pub mod iif;
 pub mod trace;
-pub mod has_value;
-pub mod encode;
-pub mod decode;
-pub mod escape;
 pub mod unescape;
-pub mod define_variable;
 
+pub use comparable::ComparableFunction;
+pub use decode::DecodeFunction;
+pub use define_variable::DefineVariableFunction;
+pub use encode::EncodeFunction;
+pub use escape::EscapeFunction;
+pub use has_value::HasValueFunction;
 pub use iif::IifFunction;
 pub use trace::TraceFunction;
-pub use has_value::HasValueFunction;
-pub use encode::EncodeFunction;
-pub use decode::DecodeFunction;
-pub use escape::EscapeFunction;
 pub use unescape::UnescapeFunction;
-pub use define_variable::DefineVariableFunction;
 
 /// Registry helper for utility operations
 pub struct UtilityOperations;
@@ -45,6 +47,7 @@ impl UtilityOperations {
         registry.register(EscapeFunction::new()).await?;
         registry.register(UnescapeFunction::new()).await?;
         registry.register(DefineVariableFunction::new()).await?;
+        registry.register(ComparableFunction::new()).await?;
         Ok(())
     }
 }

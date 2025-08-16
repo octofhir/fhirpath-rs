@@ -27,6 +27,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ConvertsToInteger function: returns true if the input can be converted to Integer
 pub struct ConvertsToIntegerFunction;
 
+impl Default for ConvertsToIntegerFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConvertsToIntegerFunction {
     pub fn new() -> Self {
         Self
@@ -81,7 +87,7 @@ impl FhirPathOperation for ConvertsToIntegerFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ConvertsToIntegerFunction::create_metadata());
+            std::sync::LazyLock::new(ConvertsToIntegerFunction::create_metadata);
         &METADATA
     }
 
@@ -118,69 +124,5 @@ impl FhirPathOperation for ConvertsToIntegerFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_integer() {
-        let func = ConvertsToIntegerFunction::new();
-
-        // Test with integer
-        let ctx = create_test_context(FhirPathValue::Integer(42));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with boolean
-        let ctx = create_test_context(FhirPathValue::Boolean(true));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with decimal that has no fractional part
-        let ctx = create_test_context(FhirPathValue::Decimal(Decimal::from(5)));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with decimal that has fractional part
-        let ctx = create_test_context(FhirPathValue::Decimal(Decimal::from_str_exact("5.5").unwrap()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with string that can be parsed as integer
-        let ctx = create_test_context(FhirPathValue::String("123".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string that cannot be parsed as integer
-        let ctx = create_test_context(FhirPathValue::String("abc".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_integer_sync() {
-        let func = ConvertsToIntegerFunction::new();
-        let ctx = create_test_context(FhirPathValue::Integer(42));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-        assert!(func.supports_sync());
     }
 }

@@ -14,18 +14,25 @@
 
 //! Unescape function implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, PerformanceComplexity, FhirPathType
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Unescape function - unescapes special characters in a string
 #[derive(Debug, Clone)]
 pub struct UnescapeFunction;
+
+impl Default for UnescapeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UnescapeFunction {
     pub fn new() -> Self {
@@ -34,121 +41,152 @@ impl UnescapeFunction {
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("unescape", OperationType::Function)
-            .description("Unescapes special characters in a string using standard escape sequences")
-            .example("'Hello\\\\nWorld'.unescape()")
-            .example("'Tab\\\\tSeparated'.unescape()")
+            .description("Unescapes special characters in a string for a given target format")
+            .parameter(
+                "target",
+                TypeConstraint::Specific(FhirPathType::String),
+                false,
+            )
+            .example("'&quot;1&lt;2&quot;'.unescape('html')")
+            .example("'\\\"1<2\\\"'.unescape('json')")
             .returns(TypeConstraint::Specific(FhirPathType::String))
             .performance(PerformanceComplexity::Linear, true)
             .build()
     }
 
-    fn unescape_string(&self, input: &str) -> Result<String> {
-        let mut result = String::with_capacity(input.len());
-        let mut chars = input.chars().peekable();
+    fn unescape_string(&self, input: &str, target: &str) -> Result<String> {
+        match target {
+            "html" => {
+                let mut result = String::with_capacity(input.len());
+                let mut chars = input.chars().peekable();
 
-        while let Some(ch) = chars.next() {
-            if ch == '\\' {
-                if let Some(&next_ch) = chars.peek() {
-                    match next_ch {
-                        'n' => {
-                            chars.next(); // consume the 'n'
-                            result.push('\n');
-                        }
-                        'r' => {
-                            chars.next(); // consume the 'r'
-                            result.push('\r');
-                        }
-                        't' => {
-                            chars.next(); // consume the 't'
-                            result.push('\t');
-                        }
-                        '\\' => {
-                            chars.next(); // consume the second '\'
-                            result.push('\\');
-                        }
-                        '"' => {
-                            chars.next(); // consume the '"'
-                            result.push('"');
-                        }
-                        '\'' => {
-                            chars.next(); // consume the single quote
-                            result.push('\'');
-                        }
-                        'b' => {
-                            chars.next(); // consume the 'b'
-                            result.push('\u{08}'); // Backspace
-                        }
-                        'f' => {
-                            chars.next(); // consume the 'f'
-                            result.push('\u{0C}'); // Form feed
-                        }
-                        '0' => {
-                            chars.next(); // consume the '0'
-                            result.push('\u{00}'); // Null
-                        }
-                        'u' => {
-                            chars.next(); // consume the 'u'
-                            if let Some(&'{') = chars.peek() {
-                                chars.next(); // consume the '{'
-                                let mut hex_digits = String::new();
-
-                                // Read hex digits until '}'
-                                while let Some(&hex_ch) = chars.peek() {
-                                    if hex_ch == '}' {
-                                        chars.next(); // consume the '}'
-                                        break;
-                                    } else if hex_ch.is_ascii_hexdigit() {
-                                        hex_digits.push(hex_ch);
-                                        chars.next();
-                                    } else {
-                                        return Err(FhirPathError::EvaluationError { message: 
-                                            "Invalid unicode escape sequence".to_string()
-                                        });
-                                    }
-                                }
-
-                                if hex_digits.is_empty() || hex_digits.len() > 6 {
-                                    return Err(FhirPathError::EvaluationError { message: 
-                                        "Invalid unicode escape sequence length".to_string()
-                                    });
-                                }
-
-                                match u32::from_str_radix(&hex_digits, 16) {
-                                    Ok(code_point) => {
-                                        match char::from_u32(code_point) {
-                                            Some(unicode_char) => result.push(unicode_char),
-                                            None => return Err(FhirPathError::EvaluationError { message: 
-                                                "Invalid unicode code point".to_string()
-                                            }),
-                                        }
-                                    }
-                                    Err(_) => return Err(FhirPathError::EvaluationError { message: 
-                                        "Invalid unicode escape sequence".to_string()
-                                    }),
-                                }
+                while let Some(ch) = chars.next() {
+                    if ch == '&' {
+                        let mut entity = String::new();
+                        while let Some(&next_ch) = chars.peek() {
+                            if next_ch == ';' {
+                                chars.next(); // consume ';'
+                                break;
                             } else {
-                                // Simple \u without braces - not supported, treat as literal
-                                result.push('\\');
-                                result.push('u');
+                                entity.push(next_ch);
+                                chars.next();
                             }
                         }
-                        _ => {
-                            // Unknown escape sequence, treat as literal
-                            result.push('\\');
-                            result.push(next_ch);
-                            chars.next();
-                        }
-                    }
-                } else {
-                    // Trailing backslash, treat as literal
-                    result.push('\\');
-                }
-            } else {
-                result.push(ch);
-            }
-        }
 
-        Ok(result)
+                        match entity.as_str() {
+                            "lt" => result.push('<'),
+                            "gt" => result.push('>'),
+                            "amp" => result.push('&'),
+                            "quot" => result.push('"'),
+                            "#39" => result.push('\''),
+                            _ => {
+                                // Unknown entity, keep as-is
+                                result.push('&');
+                                result.push_str(&entity);
+                                result.push(';');
+                            }
+                        }
+                    } else {
+                        result.push(ch);
+                    }
+                }
+                Ok(result)
+            }
+            "json" => {
+                let mut result = String::with_capacity(input.len());
+                let mut chars = input.chars().peekable();
+
+                while let Some(ch) = chars.next() {
+                    if ch == '\\' {
+                        if let Some(&next_ch) = chars.peek() {
+                            match next_ch {
+                                'n' => {
+                                    chars.next();
+                                    result.push('\n');
+                                }
+                                'r' => {
+                                    chars.next();
+                                    result.push('\r');
+                                }
+                                't' => {
+                                    chars.next();
+                                    result.push('\t');
+                                }
+                                '\\' => {
+                                    chars.next();
+                                    result.push('\\');
+                                }
+                                '"' => {
+                                    chars.next();
+                                    result.push('"');
+                                }
+                                'b' => {
+                                    chars.next();
+                                    result.push('\u{08}'); // Backspace
+                                }
+                                'f' => {
+                                    chars.next();
+                                    result.push('\u{0C}'); // Form feed
+                                }
+                                'u' => {
+                                    chars.next(); // consume 'u'
+                                    let mut hex_digits = String::new();
+                                    for _ in 0..4 {
+                                        if let Some(&hex_ch) = chars.peek() {
+                                            if hex_ch.is_ascii_hexdigit() {
+                                                hex_digits.push(hex_ch);
+                                                chars.next();
+                                            } else {
+                                                break;
+                                            }
+                                        } else {
+                                            break;
+                                        }
+                                    }
+
+                                    if hex_digits.len() == 4 {
+                                        if let Ok(code_point) = u32::from_str_radix(&hex_digits, 16)
+                                        {
+                                            if let Some(unicode_char) = char::from_u32(code_point) {
+                                                result.push(unicode_char);
+                                            } else {
+                                                return Err(FhirPathError::EvaluationError {
+                                                    message: "Invalid unicode code point"
+                                                        .to_string(),
+                                                });
+                                            }
+                                        } else {
+                                            return Err(FhirPathError::EvaluationError {
+                                                message: "Invalid unicode escape sequence"
+                                                    .to_string(),
+                                            });
+                                        }
+                                    } else {
+                                        // Invalid unicode sequence, treat as literal
+                                        result.push('\\');
+                                        result.push('u');
+                                        result.push_str(&hex_digits);
+                                    }
+                                }
+                                _ => {
+                                    // Unknown escape sequence, treat as literal
+                                    result.push('\\');
+                                    result.push(next_ch);
+                                    chars.next();
+                                }
+                            }
+                        } else {
+                            // Trailing backslash, treat as literal
+                            result.push('\\');
+                        }
+                    } else {
+                        result.push(ch);
+                    }
+                }
+                Ok(result)
+            }
+            _ => Ok(input.to_string()), // Unknown target, return as-is
+        }
     }
 }
 
@@ -163,21 +201,53 @@ impl FhirPathOperation for UnescapeFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            UnescapeFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(UnescapeFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
-        // Validate no arguments
-        if !args.is_empty() {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
+        // Validate exactly one argument (target format)
+        if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
-                expected: 0,
-                actual: args.len()
+                expected: 1,
+                actual: args.len(),
             });
         }
+
+        // Get target format
+        let target = match &args[0] {
+            FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    match items.get(0).unwrap() {
+                        FhirPathValue::String(s) => s.as_ref(),
+                        _ => {
+                            return Err(FhirPathError::EvaluationError {
+                                message: "unescape() target parameter must be a string".to_string(),
+                            });
+                        }
+                    }
+                } else {
+                    return Err(FhirPathError::EvaluationError {
+                        message: "unescape() target parameter must be a single string".to_string(),
+                    });
+                }
+            }
+            _ => {
+                return Err(FhirPathError::EvaluationError {
+                    message: format!(
+                        "unescape() target parameter must be a string, got: {:?}",
+                        args[0]
+                    ),
+                });
+            }
+        };
 
         let input = &context.input;
 
@@ -188,37 +258,71 @@ impl FhirPathOperation for UnescapeFunction {
                 if items.len() == 1 {
                     match &items.get(0).unwrap() {
                         FhirPathValue::String(s) => s.clone(),
-                        _ => return Err(FhirPathError::EvaluationError { message: 
-                            "unescape() requires a string input".to_string()
-                        }),
+                        _ => {
+                            return Err(FhirPathError::EvaluationError {
+                                message: "unescape() requires a string input".to_string(),
+                            });
+                        }
                     }
                 } else if items.is_empty() {
                     return Ok(FhirPathValue::Collection(Collection::new()));
                 } else {
-                    return Err(FhirPathError::EvaluationError { message: 
-                        "unescape() requires a single string value".to_string()
+                    return Err(FhirPathError::EvaluationError {
+                        message: "unescape() requires a single string value".to_string(),
                     });
                 }
             }
-            _ => return Err(FhirPathError::EvaluationError { message: 
-                "unescape() requires a string input".to_string()
-            }),
+            _ => {
+                return Err(FhirPathError::EvaluationError {
+                    message: "unescape() requires a string input".to_string(),
+                });
+            }
         };
 
         // Unescape the string
-        let unescaped = self.unescape_string(&input_string)?;
+        let unescaped = self.unescape_string(&input_string, target)?;
         Ok(FhirPathValue::String(unescaped.into()))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
-        // Validate no arguments
-        if !args.is_empty() {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
+        // Validate exactly one argument (target format)
+        if args.len() != 1 {
             return Some(Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
-                expected: 0,
-                actual: args.len()
+                expected: 1,
+                actual: args.len(),
             }));
         }
+
+        // Get target format
+        let target = match &args[0] {
+            FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    match items.get(0).unwrap() {
+                        FhirPathValue::String(s) => s.as_ref(),
+                        _ => {
+                            return Some(Err(FhirPathError::EvaluationError {
+                                message: "unescape() target parameter must be a string".to_string(),
+                            }));
+                        }
+                    }
+                } else {
+                    return Some(Err(FhirPathError::EvaluationError {
+                        message: "unescape() target parameter must be a single string".to_string(),
+                    }));
+                }
+            }
+            _ => {
+                return Some(Err(FhirPathError::EvaluationError {
+                    message: "unescape() target parameter must be a string".to_string(),
+                }));
+            }
+        };
 
         let input = &context.input;
 
@@ -229,371 +333,36 @@ impl FhirPathOperation for UnescapeFunction {
                 if items.len() == 1 {
                     match &items.get(0).unwrap() {
                         FhirPathValue::String(s) => s.clone(),
-                        _ => return Some(Err(FhirPathError::EvaluationError { message: 
-                            "unescape() requires a string input".to_string()
-                        })),
+                        _ => {
+                            return Some(Err(FhirPathError::EvaluationError {
+                                message: "unescape() requires a string input".to_string(),
+                            }));
+                        }
                     }
                 } else if items.is_empty() {
                     return Some(Ok(FhirPathValue::Collection(Collection::new())));
                 } else {
-                    return Some(Err(FhirPathError::EvaluationError { message: 
-                        "unescape() requires a single string value".to_string()
+                    return Some(Err(FhirPathError::EvaluationError {
+                        message: "unescape() requires a single string value".to_string(),
                     }));
                 }
             }
-            _ => return Some(Err(FhirPathError::EvaluationError { message: 
-                "unescape() requires a string input".to_string()
-            })),
+            _ => {
+                return Some(Err(FhirPathError::EvaluationError {
+                    message: "unescape() requires a string input".to_string(),
+                }));
+            }
         };
 
         // Unescape the string
-        match self.unescape_string(&input_string) {
-            Ok(unescaped) => Some(Ok(FhirPathValue::String(unescaped.into()))),
-            Err(e) => Some(Err(e)),
-        }
+        let unescaped = match self.unescape_string(&input_string, target) {
+            Ok(result) => result,
+            Err(e) => return Some(Err(e)),
+        };
+        Some(Ok(FhirPathValue::String(unescaped.into())))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::EvaluationContext;
-    use octofhir_fhirpath_model::{FhirPathValue, Collection};
-
-    #[tokio::test]
-    async fn test_unescape_newline() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Hello\\nWorld".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Hello\nWorld");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_tab() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Tab\\tSeparated".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Tab\tSeparated");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_quotes() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("He said \\\"Hello\\\" to me".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "He said \"Hello\" to me");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_backslash() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Path\\\\to\\\\file".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Path\\to\\file");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_carriage_return() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Line1\\rLine2".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Line1\rLine2");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_control_characters() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        // Test backspace and form feed
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\bwith\\fcontrol".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Text\u{08}with\u{0C}control");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_null_character() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\0with null".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Text\u{00}with null");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_unicode() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        // Test unicode escape sequences
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\u{0001}control\\u{001f}chars".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Text\u{0001}control\u{001f}chars");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_unicode_emoji() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        // Test unicode emoji
-        let context = EvaluationContext::new(FhirPathValue::String("Hello\\u{1f44d}World".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Hello👍World");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_mixed_characters() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Hello\\nWorld\\t\\\"Test\\\"\\r\\n\\\\Path".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Hello\nWorld\t\"Test\"\r\n\\Path");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_empty_string() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_normal_string() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Normal text with no escapes".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Normal text with no escapes");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_trailing_backslash() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Text\\");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_unknown_escape() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\x41".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                // Unknown escape sequences are treated literally
-                assert_eq!(unescaped, "Text\\x41");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_invalid_unicode() -> () {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Text\\u{invalid}".into()));
-        let result = function.evaluate(&[], &context).await;
-
-        assert!(result.is_err());
-        if let Err(FhirPathError::EvaluationError { message: msg }) = result {
-            assert!(msg.contains("Invalid unicode"));
-        } else {
-            panic!("Expected InvalidOperation error");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_unescape_collection() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        // Single item collection
-        let context = EvaluationContext::new(FhirPathValue::Collection(vec![
-            FhirPathValue::String("Hello\\nWorld".into())
-        ]));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Hello\nWorld");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        // Empty collection
-        let context = EvaluationContext::new(FhirPathValue::Collection(Collection::new()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert!(items.is_empty());
-            }
-            _ => panic!("Expected empty collection"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_unescape_roundtrip() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        // Test that escape/unescape are inverse operations
-        let original = "Hello\nWorld\t\"Test\"\r\n\\Path";
-
-        // First escape the string
-        use super::super::escape::EscapeFunction;
-        let escape_fn = EscapeFunction::new();
-        let context = EvaluationContext::new(FhirPathValue::String(original.into()));
-        let escaped = escape_fn.evaluate(&[], &context).await?;
-
-        // Then unescape it back
-        let escaped_context = EvaluationContext::new(escaped);
-        let unescaped = function.evaluate(&[], &escaped_context).await?;
-
-        match unescaped {
-            FhirPathValue::String(s) => {
-                assert_eq!(s, original);
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_unescape_sync() -> Result<()> {
-        let function = UnescapeFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::String("Hello\\nWorld".into()));
-        let result = function.try_evaluate_sync(&[], &context)
-            .unwrap()?;
-
-        match result {
-            FhirPathValue::String(unescaped) => {
-                assert_eq!(unescaped, "Hello\nWorld");
-            }
-            _ => panic!("Expected String value"),
-        }
-
-        Ok(())
     }
 }

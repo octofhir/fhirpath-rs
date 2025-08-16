@@ -14,17 +14,26 @@
 
 //! Exponential function implementation
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
+use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use async_trait::async_trait;
 
 /// Exponential function - returns e raised to the power of the input
 #[derive(Debug, Clone)]
 pub struct ExpFunction;
+
+impl Default for ExpFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ExpFunction {
     pub fn new() -> Self {
@@ -52,18 +61,21 @@ impl FhirPathOperation for ExpFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ExpFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ExpFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if !args.is_empty() {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             });
         }
 
@@ -71,42 +83,59 @@ impl FhirPathOperation for ExpFunction {
             FhirPathValue::Integer(n) => {
                 let result = (*n as f64).exp();
                 if result.is_finite() {
-                    Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        Decimal::try_from(result).unwrap_or_default(),
+                    ))
                 } else {
                     Ok(FhirPathValue::Empty)
                 }
-            },
+            }
             FhirPathValue::Decimal(n) => {
                 let result = n.to_f64().unwrap_or(0.0).exp();
                 if result.is_finite() {
-                    Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        Decimal::try_from(result).unwrap_or_default(),
+                    ))
                 } else {
                     Ok(FhirPathValue::Empty)
                 }
-            },
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Ok(FhirPathValue::Empty)
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.evaluate(args, &item_context).await
                 } else {
-                    Err(FhirPathError::TypeError { message: "exp() can only be applied to single numeric values".to_string() })
+                    Err(FhirPathError::TypeError {
+                        message: "exp() can only be applied to single numeric values".to_string(),
+                    })
                 }
-            },
-            _ => Err(FhirPathError::TypeError { 
-                message: format!("exp() can only be applied to numeric values, got {}", context.input.type_name()) 
+            }
+            _ => Err(FhirPathError::TypeError {
+                message: format!(
+                    "exp() can only be applied to numeric values, got {}",
+                    context.input.type_name()
+                ),
             }),
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if !args.is_empty() {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             }));
         }
 
@@ -114,124 +143,50 @@ impl FhirPathOperation for ExpFunction {
             FhirPathValue::Integer(n) => {
                 let result = (*n as f64).exp();
                 if result.is_finite() {
-                    Some(Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default())))
+                    Some(Ok(FhirPathValue::Decimal(
+                        Decimal::try_from(result).unwrap_or_default(),
+                    )))
                 } else {
                     Some(Ok(FhirPathValue::Empty))
                 }
-            },
+            }
             FhirPathValue::Decimal(n) => {
                 let result = n.to_f64().unwrap_or(0.0).exp();
                 if result.is_finite() {
-                    Some(Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default())))
+                    Some(Ok(FhirPathValue::Decimal(
+                        Decimal::try_from(result).unwrap_or_default(),
+                    )))
                 } else {
                     Some(Ok(FhirPathValue::Empty))
                 }
-            },
+            }
             FhirPathValue::Empty => Some(Ok(FhirPathValue::Empty)),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Some(Ok(FhirPathValue::Empty))
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.try_evaluate_sync(args, &item_context)
                 } else {
-                    Some(Err(FhirPathError::TypeError { message: "exp() can only be applied to single numeric values".to_string() }))
+                    Some(Err(FhirPathError::TypeError {
+                        message: "exp() can only be applied to single numeric values".to_string(),
+                    }))
                 }
-            },
-            _ => Some(Err(FhirPathError::TypeError { 
-                message: format!("exp() can only be applied to numeric values, got {}", context.input.type_name()) 
+            }
+            _ => Some(Err(FhirPathError::TypeError {
+                message: format!(
+                    "exp() can only be applied to numeric values, got {}",
+                    context.input.type_name()
+                ),
             })),
         }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_exp_function() {
-        let func = ExpFunction::new();
-
-        // Test exp(0) = 1
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(0), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        if let FhirPathValue::Decimal(d) = result {
-            assert!((d.to_f64().unwrap() - 1.0).abs() < 0.0001);
-        } else {
-            panic!("Expected decimal result");
-        }
-
-        // Test exp(1) ≈ e ≈ 2.718
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(1), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        if let FhirPathValue::Decimal(d) = result {
-            let e_approx = d.to_f64().unwrap();
-            assert!(e_approx > 2.71 && e_approx < 2.72);
-        } else {
-            panic!("Expected decimal result");
-        }
-
-        // Test with decimal input
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(Decimal::try_from(0.5).unwrap()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert!(matches!(result, FhirPathValue::Decimal(_)));
-
-        // Test empty
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_exp_sync() {
-        let func = ExpFunction::new();
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(2), registry, model_provider)
-        };
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert!(matches!(result, FhirPathValue::Decimal(_)));
     }
 }

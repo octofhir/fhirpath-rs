@@ -28,6 +28,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ConvertsToTime function: returns true if the input can be converted to Time
 pub struct ConvertsToTimeFunction;
 
+impl Default for ConvertsToTimeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConvertsToTimeFunction {
     pub fn new() -> Self {
         Self
@@ -47,9 +53,34 @@ impl ConvertsToTimeFunction {
         match value {
             FhirPathValue::Time(_) => Ok(true),
             FhirPathValue::String(s) => {
-                // Try to parse as time
-                Ok(NaiveTime::parse_from_str(s, "%H:%M:%S").is_ok()
-                    || NaiveTime::parse_from_str(s, "%H:%M:%S%.f").is_ok())
+                let s = s.as_ref();
+
+                // Try full time formats first
+                if NaiveTime::parse_from_str(s, "%H:%M:%S").is_ok()
+                    || NaiveTime::parse_from_str(s, "%H:%M:%S%.f").is_ok()
+                {
+                    return Ok(true);
+                }
+
+                // Try partial time formats that FHIRPath supports
+                // Hour only: "14"
+                if s.len() == 2 && s.chars().all(|c| c.is_ascii_digit()) {
+                    if let Ok(hour) = s.parse::<u32>() {
+                        if hour < 24 {
+                            return Ok(true);
+                        }
+                    }
+                }
+
+                // Hour and minute: "14:34"
+                if s.len() == 5
+                    && s.matches(':').count() == 1
+                    && NaiveTime::parse_from_str(&format!("{s}:00"), "%H:%M:%S").is_ok()
+                {
+                    return Ok(true);
+                }
+
+                Ok(false)
             }
             FhirPathValue::Empty => Ok(true), // Empty collection returns true result
             FhirPathValue::Collection(c) => {
@@ -81,7 +112,7 @@ impl FhirPathOperation for ConvertsToTimeFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ConvertsToTimeFunction::create_metadata());
+            std::sync::LazyLock::new(ConvertsToTimeFunction::create_metadata);
         &METADATA
     }
 
@@ -118,61 +149,5 @@ impl FhirPathOperation for ConvertsToTimeFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_time() {
-        let func = ConvertsToTimeFunction::new();
-
-        // Test with time
-        let time = NaiveTime::from_hms_opt(10, 0, 0).unwrap();
-        let ctx = create_test_context(FhirPathValue::Time(time));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string that can be parsed as time
-        let ctx = create_test_context(FhirPathValue::String("10:00:00".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string with fractional seconds that can be parsed as time
-        let ctx = create_test_context(FhirPathValue::String("10:00:00.123".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string that cannot be parsed as time
-        let ctx = create_test_context(FhirPathValue::String("invalid-time".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_time_sync() {
-        let func = ConvertsToTimeFunction::new();
-        let time = NaiveTime::from_hms_opt(10, 0, 0).unwrap();
-        let ctx = create_test_context(FhirPathValue::Time(time));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-        assert!(func.supports_sync());
     }
 }

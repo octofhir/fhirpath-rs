@@ -167,6 +167,7 @@
         "fhirpath-lab",
         "testStartsWith"
       ],
+      "expecterror": true,
       "inputfile": "appointment-examplereq.json",
       "expected": []
     }

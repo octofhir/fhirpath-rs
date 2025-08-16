@@ -60,9 +60,9 @@ pub trait LambdaFunction: Send + Sync {
     /// Sync evaluation (optional)
     fn try_evaluate_lambda_sync(
         &self,
-        expressions: &[ExpressionNode],
-        context: &EvaluationContext,
-        evaluator: &dyn ExpressionEvaluator,
+        _expressions: &[ExpressionNode],
+        _context: &EvaluationContext,
+        _evaluator: &dyn ExpressionEvaluator,
     ) -> Option<Result<FhirPathValue>> {
         None
     }
@@ -127,8 +127,8 @@ pub trait ExpressionEvaluator: Send + Sync {
     /// Evaluate expression synchronously if possible
     fn try_evaluate_expression_sync(
         &self,
-        expression: &ExpressionNode,
-        context: &EvaluationContext,
+        _expression: &ExpressionNode,
+        _context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
         None
     }
@@ -161,15 +161,16 @@ impl<'a> LambdaContextBuilder<'a> {
 
     /// Set $this variable (current item in collection iteration)
     pub fn with_this(mut self, value: FhirPathValue) -> Self {
-        // Variables are stored without the $ prefix 
-        self.variables.insert("this".to_string(), value);
+        // Variables are stored with the $ prefix
+        self.variables.insert("$this".to_string(), value);
         self
     }
 
     /// Set $index variable (current index in collection iteration)
     pub fn with_index(mut self, index: i64) -> Self {
-        // Variables are stored without the $ prefix 
-        self.variables.insert("index".to_string(), FhirPathValue::Integer(index));
+        // Variables are stored with the $ prefix
+        self.variables
+            .insert("$index".to_string(), FhirPathValue::Integer(index));
         self
     }
 
@@ -211,7 +212,16 @@ impl LambdaUtils {
         match value {
             FhirPathValue::Empty => false,
             FhirPathValue::Boolean(b) => *b,
-            FhirPathValue::Collection(items) => !items.is_empty(),
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    false
+                } else if items.len() == 1 {
+                    // For single-item collections, extract the boolean value
+                    Self::to_boolean(items.get(0).unwrap())
+                } else {
+                    true // Multi-item collections are truthy
+                }
+            }
             _ => true, // Non-empty values are truthy
         }
     }
@@ -408,18 +418,14 @@ impl FhirPathOperation for LambdaOperationWrapper {
 mod tests {
     use super::*;
     use octofhir_fhirpath_model::MockModelProvider;
-    use serde_json::json;
+
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_lambda_context_builder() {
         let registry = Arc::new(crate::FhirPathRegistry::new());
         let model_provider = Arc::new(MockModelProvider::new());
-        let base_context = EvaluationContext::new(
-            FhirPathValue::Empty,
-            registry,
-            model_provider,
-        );
+        let base_context = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
 
         let item = FhirPathValue::String("test".into());
         let lambda_context = LambdaContextBuilder::new(&base_context)
@@ -442,7 +448,9 @@ mod tests {
         assert!(!LambdaUtils::to_boolean(&FhirPathValue::Empty));
         assert!(LambdaUtils::to_boolean(&FhirPathValue::Boolean(true)));
         assert!(!LambdaUtils::to_boolean(&FhirPathValue::Boolean(false)));
-        assert!(LambdaUtils::to_boolean(&FhirPathValue::String("test".into())));
+        assert!(LambdaUtils::to_boolean(&FhirPathValue::String(
+            "test".into()
+        )));
         assert!(!LambdaUtils::to_boolean(&FhirPathValue::collection(vec![])));
         assert!(LambdaUtils::to_boolean(&FhirPathValue::collection(vec![
             FhirPathValue::String("item".into())

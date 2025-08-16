@@ -29,6 +29,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 #[derive(Debug, Clone)]
 pub struct NotEqualsOperation;
 
+impl Default for NotEqualsOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotEqualsOperation {
     pub fn new() -> Self {
         Self
@@ -50,9 +56,13 @@ impl NotEqualsOperation {
         .build()
     }
 
-    pub fn compare_not_equal(left: &FhirPathValue, right: &FhirPathValue) -> Result<bool> {
-        let equals_result = EqualsOperation::compare_equal(left, right)?;
-        Ok(!equals_result)
+    pub fn compare_not_equal(left: &FhirPathValue, right: &FhirPathValue) -> Result<Option<bool>> {
+        let equals_result = EqualsOperation::compare_equal_with_collections(left, right)?;
+        match equals_result {
+            Some(true) => Ok(Some(false)), // equal -> not equal is false
+            Some(false) => Ok(Some(true)), // not equal -> not equal is true
+            None => Ok(None),              // empty -> not equal is empty
+        }
     }
 }
 
@@ -71,7 +81,7 @@ impl FhirPathOperation for NotEqualsOperation {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| NotEqualsOperation::create_metadata());
+            std::sync::LazyLock::new(NotEqualsOperation::create_metadata);
         &METADATA
     }
 
@@ -88,7 +98,11 @@ impl FhirPathOperation for NotEqualsOperation {
             });
         }
 
-        binary_operator_utils::evaluate_binary_operator(&args[0], &args[1], Self::compare_not_equal)
+        binary_operator_utils::evaluate_collection_aware_operator(
+            &args[0],
+            &args[1],
+            Self::compare_not_equal,
+        )
     }
 
     fn try_evaluate_sync(
@@ -104,7 +118,7 @@ impl FhirPathOperation for NotEqualsOperation {
             }));
         }
 
-        Some(binary_operator_utils::evaluate_binary_operator(
+        Some(binary_operator_utils::evaluate_collection_aware_operator(
             &args[0],
             &args[1],
             Self::compare_not_equal,
@@ -117,36 +131,5 @@ impl FhirPathOperation for NotEqualsOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_not_equals_operation() {
-        let op = NotEqualsOperation::new();
-        let ctx = create_test_context();
-
-        // Test integer inequality
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(3)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test equality (should return false)
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(5)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
     }
 }

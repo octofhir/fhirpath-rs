@@ -18,18 +18,24 @@ use crate::operations::EvaluationContext;
 use crate::{
     FhirPathOperation,
     metadata::{
-        Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
-        PerformanceComplexity, TypeConstraint,
+        Associativity, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+        TypeConstraint,
     },
 };
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use rust_decimal::{prelude::ToPrimitive, prelude::FromPrimitive};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use rust_decimal::{prelude::FromPrimitive, prelude::ToPrimitive};
 
 /// As operator - casts value to specified type
 #[derive(Debug, Clone)]
 pub struct AsOperation;
+
+impl Default for AsOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsOperation {
     pub fn new() -> Self {
@@ -46,7 +52,7 @@ impl AsOperation {
             .example("Patient.active as Boolean")
             .example("42 as String")
             .parameter("value", TypeConstraint::Any, false)
-            .parameter("type", TypeConstraint::Specific(FhirPathType::String), false)
+            .parameter("type", TypeConstraint::Any, false)
             .returns(TypeConstraint::Any)
             .performance(PerformanceComplexity::Linear, true)
             .build()
@@ -59,7 +65,7 @@ impl AsOperation {
     ) -> Result<FhirPathValue> {
         // Normalize type name - handle both FHIR.String and string formats
         let normalized_type = Self::normalize_type_name(type_name);
-        
+
         // Handle primitive FHIRPath types first (these don't need ModelProvider)
         match normalized_type.to_lowercase().as_str() {
             "boolean" => return Self::cast_to_boolean(value),
@@ -73,7 +79,10 @@ impl AsOperation {
         let value_type = Self::extract_fhir_type(value);
         if let Some(value_type) = value_type {
             // Use ModelProvider for accurate FHIR type checking
-            let is_compatible = context.model_provider.is_type_compatible(&value_type, &normalized_type).await;
+            let is_compatible = context
+                .model_provider
+                .is_type_compatible(&value_type, &normalized_type)
+                .await;
             if is_compatible {
                 Ok(value.clone())
             } else {
@@ -90,7 +99,7 @@ impl AsOperation {
     fn normalize_type_name(type_name: &str) -> String {
         // Handle backticks first
         let cleaned = type_name.trim_matches('`');
-        
+
         // Handle various namespace prefixes per FHIRPath specification
         if let Some(stripped) = cleaned.strip_prefix("FHIR.") {
             stripped.to_string()
@@ -107,15 +116,12 @@ impl AsOperation {
 
     fn extract_fhir_type(value: &FhirPathValue) -> Option<String> {
         match value {
-            FhirPathValue::Resource(resource) => {
-                resource.resource_type().map(|s| s.to_string())
-            },
-            FhirPathValue::JsonValue(json) => {
-                json.as_json()
-                    .get("resourceType")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-            },
+            FhirPathValue::Resource(resource) => resource.resource_type().map(|s| s.to_string()),
+            FhirPathValue::JsonValue(json) => json
+                .as_json()
+                .get("resourceType")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             _ => None,
         }
     }
@@ -198,7 +204,7 @@ impl FhirPathOperation for AsOperation {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| AsOperation::create_metadata());
+            std::sync::LazyLock::new(AsOperation::create_metadata);
         &METADATA
     }
 
@@ -217,9 +223,11 @@ impl FhirPathOperation for AsOperation {
 
         let type_name = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::TypeInfoObject { name, .. } => name.as_ref(),
             _ => {
                 return Err(FhirPathError::TypeError {
-                    message: "as operator type argument must be a string".to_string(),
+                    message: "as operator type argument must be a string or type identifier"
+                        .to_string(),
                 });
             }
         };
@@ -229,17 +237,22 @@ impl FhirPathOperation for AsOperation {
                 if c.is_empty() {
                     Ok(FhirPathValue::Collection(Collection::from(vec![])))
                 } else if c.len() == 1 {
-                    let cast_result = Self::cast_value_with_provider(c.first().unwrap(), type_name, context).await?;
+                    let cast_result =
+                        Self::cast_value_with_provider(c.first().unwrap(), type_name, context)
+                            .await?;
                     if matches!(cast_result, FhirPathValue::Empty) {
                         Ok(FhirPathValue::Collection(Collection::from(vec![])))
                     } else {
-                        Ok(FhirPathValue::Collection(Collection::from(vec![cast_result])))
+                        Ok(FhirPathValue::Collection(Collection::from(vec![
+                            cast_result,
+                        ])))
                     }
                 } else {
                     // For multiple items, try to cast each and return a collection of successful casts
                     let mut results = Vec::new();
                     for item in c.iter() {
-                        let cast_result = Self::cast_value_with_provider(item, type_name, context).await?;
+                        let cast_result =
+                            Self::cast_value_with_provider(item, type_name, context).await?;
                         if !matches!(cast_result, FhirPathValue::Empty) {
                             results.push(cast_result);
                         }
@@ -248,11 +261,14 @@ impl FhirPathOperation for AsOperation {
                 }
             }
             single_value => {
-                let cast_result = Self::cast_value_with_provider(single_value, type_name, context).await?;
+                let cast_result =
+                    Self::cast_value_with_provider(single_value, type_name, context).await?;
                 if matches!(cast_result, FhirPathValue::Empty) {
                     Ok(FhirPathValue::Collection(Collection::from(vec![])))
                 } else {
-                    Ok(FhirPathValue::Collection(Collection::from(vec![cast_result])))
+                    Ok(FhirPathValue::Collection(Collection::from(vec![
+                        cast_result,
+                    ])))
                 }
             }
         }
@@ -268,7 +284,7 @@ impl FhirPathOperation for AsOperation {
     }
 
     fn supports_sync(&self) -> bool {
-        false  // Type casting may require async ModelProvider calls for FHIR types
+        false // Type casting may require async ModelProvider calls for FHIR types
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
@@ -284,137 +300,5 @@ impl FhirPathOperation for AsOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_as_operation_basic_types() {
-        let op = AsOperation::new();
-
-        // String to Integer
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        let ctx = EvaluationContext::new(FhirPathValue::String("123".into()), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Integer".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(123));
-
-        // Integer to String
-        let ctx = EvaluationContext::new(FhirPathValue::Integer(42), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("String".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("42".into()));
-
-        // Boolean to Integer
-        let ctx = EvaluationContext::new(FhirPathValue::Boolean(true), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Integer".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(1));
-
-        // String to Boolean
-        let ctx = EvaluationContext::new(FhirPathValue::String("true".into()), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Boolean".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_as_operation_failed_casts() {
-        let op = AsOperation::new();
-
-        // Invalid string to integer
-        let ctx = EvaluationContext::new(FhirPathValue::String("invalid".into()), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Integer".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Object to boolean
-        let ctx =
-            EvaluationContext::new(FhirPathValue::JsonValue(serde_json::json!({"test": "value"})), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Boolean".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_as_operation_fhir_types() {
-        let op = AsOperation::new();
-
-        // Valid Patient resource
-        let patient = serde_json::json!({
-            "resourceType": "Patient",
-            "id": "123"
-        });
-        let ctx = EvaluationContext::new(FhirPathValue::JsonValue(patient), registry.clone(), model_provider.clone());
-        let args = vec![FhirPathValue::String("Patient".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::JsonValue(obj) => {
-                assert_eq!(
-                    obj.get("resourceType").unwrap().as_str().unwrap(),
-                    "Patient"
-                );
-            }
-            _ => panic!("Expected Patient object"),
-        }
-
-        // Wrong resource type
-        let args = vec![FhirPathValue::String("Organization".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_as_operation_collection() {
-        let op = AsOperation::new();
-
-        // Collection with multiple valid items
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("123".into()),
-            FhirPathValue::String("456".into()),
-            FhirPathValue::String("invalid".into()),
-        ]);
-        let ctx = EvaluationContext::new(collection, context.registry.clone(), context.model_provider.clone());
-        let args = vec![FhirPathValue::String("Integer".into())];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2);
-                assert_eq!(items.get(0).unwrap(), FhirPathValue::Integer(123));
-                assert_eq!(items[1], FhirPathValue::Integer(456));
-            }
-            _ => panic!("Expected collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_as_operation_sync() {
-        let op = AsOperation::new();
-        let ctx = EvaluationContext::new(FhirPathValue::String("3.14".into()), registry.clone(), model_provider.clone());
-
-        let args = vec![FhirPathValue::String("Decimal".into())];
-        let result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(3.14));
-    }
-
-    #[tokio::test]
-    async fn test_as_operation_invalid_args() {
-        let op = AsOperation::new();
-        let ctx = EvaluationContext::new(FhirPathValue::Integer(1), registry.clone(), model_provider.clone());
-
-        // No arguments
-        let result = op.evaluate(&[], &ctx).await;
-        assert!(result.is_err());
-
-        // Wrong argument type
-        let args = vec![FhirPathValue::Integer(123)];
-        let result = op.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
     }
 }

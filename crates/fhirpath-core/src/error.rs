@@ -177,7 +177,6 @@ pub enum FhirPathError {
     },
 }
 
-
 impl FhirPathError {
     /// Create a parse error
     pub fn parse_error(position: usize, message: impl Into<String>) -> Self {

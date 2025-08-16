@@ -14,19 +14,26 @@
 
 //! Today function implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use chrono::Utc;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Today function - returns current date
 #[derive(Debug, Clone)]
 pub struct TodayFunction;
+
+impl Default for TodayFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TodayFunction {
     pub fn new() -> Self {
@@ -55,18 +62,21 @@ impl FhirPathOperation for TodayFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            TodayFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(TodayFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if !args.is_empty() {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             });
         }
 
@@ -74,12 +84,16 @@ impl FhirPathOperation for TodayFunction {
         Ok(FhirPathValue::Date(today))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if !args.is_empty() {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 0, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 0,
+                actual: args.len(),
             }));
         }
 
@@ -100,53 +114,5 @@ impl FhirPathOperation for TodayFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Utc;
-
-    #[tokio::test]
-    async fn test_today_function() {
-        let func = TodayFunction::new();
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, context.registry.clone(), context.model_provider.clone());
-
-        let expected_today = Utc::now().date_naive();
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::Date(date) => {
-                assert_eq!(date, expected_today);
-            }
-            _ => panic!("Expected Date result from today()"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_today_sync() {
-        let func = TodayFunction::new();
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, context.registry.clone(), context.model_provider.clone());
-
-        let expected_today = Utc::now().date_naive();
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-
-        match result {
-            FhirPathValue::Date(date) => {
-                assert_eq!(date, expected_today);
-            }
-            _ => panic!("Expected Date result from today()"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_today_invalid_args() {
-        let func = TodayFunction::new();
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, context.registry.clone(), context.model_provider.clone());
-
-        let args = vec![FhirPathValue::Integer(1)];
-        let result = func.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
     }
 }

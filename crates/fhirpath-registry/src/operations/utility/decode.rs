@@ -14,21 +14,27 @@
 
 //! Decode function implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, PerformanceComplexity,
-    FhirPathType
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose};
+use base64::{Engine as _, engine::general_purpose, engine::general_purpose::URL_SAFE};
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 use url::form_urlencoded;
 
 /// Decode function - decodes a string using the specified encoding
 #[derive(Debug, Clone)]
 pub struct DecodeFunction;
+
+impl Default for DecodeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl DecodeFunction {
     pub fn new() -> Self {
@@ -40,7 +46,11 @@ impl DecodeFunction {
             .description("Decodes a string using the specified encoding")
             .example("'SGVsbG8gV29ybGQ='.decode('base64')")
             .example("'hello%20world'.decode('url')")
-            .parameter("encoding", TypeConstraint::Specific(FhirPathType::String), false)
+            .parameter(
+                "encoding",
+                TypeConstraint::Specific(FhirPathType::String),
+                false,
+            )
             .returns(TypeConstraint::Specific(FhirPathType::String))
             .performance(PerformanceComplexity::Linear, true)
             .build()
@@ -48,24 +58,39 @@ impl DecodeFunction {
 
     fn decode_string(&self, input: &str, encoding: &str) -> Result<String> {
         match encoding.to_lowercase().as_str() {
-            "base64" => {
-                match general_purpose::STANDARD.decode(input.as_bytes()) {
-                    Ok(decoded_bytes) => {
-                        match String::from_utf8(decoded_bytes) {
-                            Ok(decoded_string) => Ok(decoded_string),
-                            Err(_) => Err(FhirPathError::function_error("decode",
-                                                                        "Invalid UTF-8 sequence in base64 decoded data"
-                            )),
-                        }
-                    }
-                    Err(_) => Err(FhirPathError::EvaluationError {
-                        message: "Invalid base64 input".to_string()
-                    }),
-                }
-            }
+            "base64" => match general_purpose::STANDARD.decode(input.as_bytes()) {
+                Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
+                    Ok(decoded_string) => Ok(decoded_string),
+                    Err(_) => Err(FhirPathError::function_error(
+                        "decode",
+                        "Invalid UTF-8 sequence in base64 decoded data",
+                    )),
+                },
+                Err(_) => Err(FhirPathError::EvaluationError {
+                    message: "Invalid base64 input".to_string(),
+                }),
+            },
+            "urlbase64" => match URL_SAFE.decode(input.as_bytes()) {
+                Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
+                    Ok(decoded_string) => Ok(decoded_string),
+                    Err(_) => Err(FhirPathError::function_error(
+                        "decode",
+                        "Invalid UTF-8 sequence in base64 decoded data",
+                    )),
+                },
+                Err(_) => Err(FhirPathError::EvaluationError {
+                    message: "Invalid base64 input".to_string(),
+                }),
+            },
             "url" => {
                 let decoded: String = form_urlencoded::parse(input.as_bytes())
-                    .map(|(key, val)| if val.is_empty() { key } else { format!("{}={}", key, val).into() })
+                    .map(|(key, val)| {
+                        if val.is_empty() {
+                            key
+                        } else {
+                            format!("{key}={val}").into()
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("&");
 
@@ -74,7 +99,7 @@ impl DecodeFunction {
                     match percent_encoding::percent_decode(input.as_bytes()).decode_utf8() {
                         Ok(decoded) => Ok(decoded.to_string()),
                         Err(_) => Err(FhirPathError::EvaluationError {
-                            message: "Invalid URL encoded input".to_string()
+                            message: "Invalid URL encoded input".to_string(),
                         }),
                     }
                 } else {
@@ -84,18 +109,21 @@ impl DecodeFunction {
             "hex" => {
                 if input.len() % 2 != 0 {
                     return Err(FhirPathError::EvaluationError {
-                        message: "Hex string must have even length".to_string()
+                        message: "Hex string must have even length".to_string(),
                     });
                 }
 
                 let mut decoded_bytes = Vec::new();
                 for chunk in input.as_bytes().chunks(2) {
-                    let hex_str = std::str::from_utf8(chunk).map_err(|_| {
-                        FhirPathError::EvaluationError { message: "Invalid hex characters".to_string() }
-                    })?;
+                    let hex_str =
+                        std::str::from_utf8(chunk).map_err(|_| FhirPathError::EvaluationError {
+                            message: "Invalid hex characters".to_string(),
+                        })?;
 
                     let byte = u8::from_str_radix(hex_str, 16).map_err(|_| {
-                        FhirPathError::EvaluationError { message: "Invalid hex characters".to_string() }
+                        FhirPathError::EvaluationError {
+                            message: "Invalid hex characters".to_string(),
+                        }
                     })?;
 
                     decoded_bytes.push(byte);
@@ -104,12 +132,14 @@ impl DecodeFunction {
                 match String::from_utf8(decoded_bytes) {
                     Ok(decoded_string) => Ok(decoded_string),
                     Err(_) => Err(FhirPathError::EvaluationError {
-                        message: "Invalid UTF-8 sequence in hex decoded data".to_string()
+                        message: "Invalid UTF-8 sequence in hex decoded data".to_string(),
                     }),
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
-                message: format!("Unsupported encoding type: '{}'. Supported types are: 'base64', 'url', 'hex'", encoding)
+                message: format!(
+                    "Unsupported encoding type: '{encoding}'. Supported types are: 'base64', 'url', 'hex'"
+                ),
             }),
         }
     }
@@ -126,19 +156,22 @@ impl FhirPathOperation for DecodeFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            DecodeFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(DecodeFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate exactly one argument
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 1,
-                actual: args.len()
+                actual: args.len(),
             });
         }
 
@@ -152,29 +185,45 @@ impl FhirPathOperation for DecodeFunction {
                 if items.len() == 1 {
                     match items.iter().next() {
                         Some(FhirPathValue::String(s)) => s.clone(),
-                        _ => return Err(FhirPathError::EvaluationError {
-                            message: "decode() requires a string input".to_string()
-                        }),
+                        _ => {
+                            return Err(FhirPathError::EvaluationError {
+                                message: "decode() requires a string input".to_string(),
+                            });
+                        }
                     }
                 } else if items.is_empty() {
                     return Ok(FhirPathValue::Collection(vec![].into()));
                 } else {
                     return Err(FhirPathError::EvaluationError {
-                        message: "decode() requires a single string value".to_string()
+                        message: "decode() requires a single string value".to_string(),
                     });
                 }
             }
-            _ => return Err(FhirPathError::EvaluationError {
-                message: "decode() requires a string input".to_string()
-            }),
+            _ => {
+                return Err(FhirPathError::EvaluationError {
+                    message: "decode() requires a string input".to_string(),
+                });
+            }
         };
 
         // Get encoding type
         let encoding = match encoding_arg {
             FhirPathValue::String(s) => s.clone(),
-            _ => return Err(FhirPathError::EvaluationError {
-                message: "decode() encoding parameter must be a string".to_string()
-            }),
+            FhirPathValue::Collection(cols) if cols.len() == 1 => {
+                match cols.iter().next().unwrap() {
+                    FhirPathValue::String(s) => s.clone(),
+                    _ => {
+                        return Err(FhirPathError::InvalidArguments {
+                            message: "take() argument must be an integer".to_string(),
+                        });
+                    }
+                }
+            }
+            _ => {
+                return Err(FhirPathError::EvaluationError {
+                    message: "decode() encoding parameter must be a string".to_string(),
+                });
+            }
         };
 
         // Decode the string
@@ -182,13 +231,17 @@ impl FhirPathOperation for DecodeFunction {
         Ok(FhirPathValue::String(decoded.into()))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         // Validate exactly one argument
         if args.len() != 1 {
             return Some(Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 1,
-                actual: args.len()
+                actual: args.len(),
             }));
         }
 
@@ -202,29 +255,45 @@ impl FhirPathOperation for DecodeFunction {
                 if items.len() == 1 {
                     match items.iter().next() {
                         Some(FhirPathValue::String(s)) => s.clone(),
-                        _ => return Some(Err(FhirPathError::EvaluationError {
-                            message: "decode() requires a string input".to_string()
-                        })),
+                        _ => {
+                            return Some(Err(FhirPathError::EvaluationError {
+                                message: "decode() requires a string input".to_string(),
+                            }));
+                        }
                     }
                 } else if items.is_empty() {
                     return Some(Ok(FhirPathValue::Collection(vec![].into())));
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
-                        message: "decode() requires a single string value".to_string()
+                        message: "decode() requires a single string value".to_string(),
                     }));
                 }
             }
-            _ => return Some(Err(FhirPathError::EvaluationError {
-                message: "decode() requires a string input".to_string()
-            })),
+            _ => {
+                return Some(Err(FhirPathError::EvaluationError {
+                    message: "decode() requires a string input".to_string(),
+                }));
+            }
         };
 
         // Get encoding type
         let encoding = match encoding_arg {
             FhirPathValue::String(s) => s.clone(),
-            _ => return Some(Err(FhirPathError::EvaluationError {
-                message: "decode() encoding parameter must be a string".to_string()
-            })),
+            FhirPathValue::Collection(cols) if cols.len() == 1 => {
+                match cols.iter().next().unwrap() {
+                    FhirPathValue::String(s) => s.clone(),
+                    _ => {
+                        return Some(Err(FhirPathError::InvalidArguments {
+                            message: "take() argument must be an integer".to_string(),
+                        }));
+                    }
+                }
+            }
+            _ => {
+                return Some(Err(FhirPathError::EvaluationError {
+                    message: "decode() encoding parameter must be a string".to_string(),
+                }));
+            }
         };
 
         // Decode the string

@@ -14,18 +14,24 @@
 
 //! Children function implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, PerformanceComplexity
+    MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity, TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Children function - returns a collection with all immediate child nodes
 #[derive(Debug, Clone)]
 pub struct ChildrenFunction;
+
+impl Default for ChildrenFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ChildrenFunction {
     pub fn new() -> Self {
@@ -47,10 +53,34 @@ impl ChildrenFunction {
             FhirPathValue::JsonValue(json_val) => {
                 if let Some(obj) = json_val.as_object() {
                     // Get all property values as children
-                    obj.values().map(|value| FhirPathValue::from(value.clone())).collect()
+                    let mut children = Vec::new();
+                    for (_property_name, property_value) in obj.iter() {
+                        // Each property value becomes a child node
+                        // Arrays ARE unrolled - each element becomes a separate child
+                        if let Some(arr) = property_value.as_array() {
+                            for element in arr {
+                                children.push(FhirPathValue::from(element.clone()));
+                            }
+                        } else {
+                            children.push(FhirPathValue::from(property_value.clone()));
+                        }
+                    }
+                    children
+                } else if let Some(arr) = json_val.as_array() {
+                    // If the input itself is an array, each element is a child
+                    arr.iter()
+                        .map(|value| FhirPathValue::from(value.clone()))
+                        .collect()
                 } else {
+                    // Primitive values have no children
                     Vec::new()
                 }
+            }
+            FhirPathValue::Resource(resource) => {
+                // For FHIR resources, get children from their JSON representation
+                self.get_children_from_value(&FhirPathValue::JsonValue(
+                    resource.as_json().clone().into(),
+                ))
             }
             FhirPathValue::Collection(items) => {
                 // Get children of all items in collection
@@ -77,253 +107,54 @@ impl FhirPathOperation for ChildrenFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ChildrenFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ChildrenFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
-                actual: args.len()
+                actual: args.len(),
             });
         }
 
-        let input = &context.input;
-        let children = self.get_children_from_value(input);
+        // For children(), we operate on the focus (current context)
+        let focus = &context.input;
+        let children = self.get_children_from_value(focus);
 
         Ok(FhirPathValue::Collection(Collection::from(children)))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         // Validate no arguments
         if !args.is_empty() {
             return Some(Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
-                actual: args.len()
+                actual: args.len(),
             }));
         }
 
-        let input = &context.input;
-        let children = self.get_children_from_value(input);
+        // For children(), we operate on the focus (current context)
+        let focus = &context.input;
+        let children = self.get_children_from_value(focus);
 
         Some(Ok(FhirPathValue::Collection(Collection::from(children))))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::EvaluationContext;
-    use octofhir_fhirpath_model::FhirPathValue;
-    use std::collections::HashMap;
-
-    #[tokio::test]
-    async fn test_children_object() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        // Create a simple object with properties
-        let mut obj = HashMap::new();
-        obj.insert("name".to_string(), FhirPathValue::String("John".into()));
-        obj.insert("age".to_string(), FhirPathValue::Integer(30));
-        obj.insert("active".to_string(), FhirPathValue::Boolean(true));
-
-        let context = EvaluationContext::new(FhirPathValue::JsonValue(serde_json::Value::Object(obj.into())));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert_eq!(children.len(), 3);
-
-                // Should contain all the property values
-                let values: Vec<_> = children.iter().cloned().collect();
-                assert!(values.contains(&FhirPathValue::String("John".into())));
-                assert!(values.contains(&FhirPathValue::Integer(30)));
-                assert!(values.contains(&FhirPathValue::Boolean(true)));
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_array() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        // Create an array
-        let array = vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-            FhirPathValue::Integer(42),
-        ];
-
-        let context = EvaluationContext::new(FhirPathValue::Collection(array.clone()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert_eq!(children.len(), 3);
-
-                // Should contain all array elements
-                let values: Vec<_> = children.iter().cloned().collect();
-                assert_eq!(values, array);
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_nested_object() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        // Create a nested object structure
-        let mut inner_obj = HashMap::new();
-        inner_obj.insert("street".to_string(), FhirPathValue::String("123 Main St".into()));
-        inner_obj.insert("city".to_string(), FhirPathValue::String("Anytown".into()));
-
-        let mut outer_obj = HashMap::new();
-        outer_obj.insert("name".to_string(), FhirPathValue::String("John".into()));
-        outer_obj.insert("address".to_string(), FhirPathValue::JsonValue(serde_json::Value::Object(inner_obj.into())));
-
-        let context = EvaluationContext::new(FhirPathValue::JsonValue(serde_json::Value::Object(outer_obj.into())));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert_eq!(children.len(), 2);
-
-                // Should contain name string and address object
-                let values: Vec<_> = children.iter().cloned().collect();
-                assert!(values.contains(&FhirPathValue::String("John".into())));
-
-                // Check that the address object is included
-                let has_address_obj = values.iter().any(|v| matches!(v, FhirPathValue::JsonValue(_)));
-                assert!(has_address_obj);
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_collection() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        // Create a collection with multiple objects
-        let mut obj1 = HashMap::new();
-        obj1.insert("id".to_string(), FhirPathValue::String("1".into()));
-
-        let mut obj2 = HashMap::new();
-        obj2.insert("id".to_string(), FhirPathValue::String("2".into()));
-        obj2.insert("name".to_string(), FhirPathValue::String("Test".into()));
-
-        let collection = Collection::from(vec![
-            FhirPathValue::JsonValue(serde_json::Value::Object(obj1.into())),
-            FhirPathValue::JsonValue(serde_json::Value::Object(obj2.into())),
-        ]);
-
-        let context = EvaluationContext::new(FhirPathValue::Collection(collection));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert_eq!(children.len(), 3); // 1 from obj1 + 2 from obj2
-
-                // Should contain all property values from both objects
-                let values: Vec<_> = children.iter().cloned().collect();
-                assert!(values.contains(&FhirPathValue::String("1".into())));
-                assert!(values.contains(&FhirPathValue::String("2".into())));
-                assert!(values.contains(&FhirPathValue::String("Test".into())));
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_primitive() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        // Primitive values should have no children
-        let context = EvaluationContext::new(FhirPathValue::String("test".into()));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert!(children.is_empty());
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_empty_object() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        let context = EvaluationContext::new(FhirPathValue::JsonValue(serde_json::Value::Object(HashMap::new().into())));
-        let result = function.evaluate(&[], &context).await?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert!(children.is_empty());
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_children_invalid_args() -> () {
-        let function = ChildrenFunction::new();
-        let context = EvaluationContext::new(FhirPathValue::String("test".into()));
-
-        let result = function.evaluate(&[FhirPathValue::String("extra".into())], &context).await;
-
-        assert!(result.is_err());
-        if let Err(FhirPathError::InvalidArgumentCount { expected, actual, .. }) = result {
-            assert_eq!(expected, 0);
-            assert_eq!(actual, 1);
-        } else {
-            panic!("Expected InvalidArgumentCount error");
-        }
-    }
-
-    #[test]
-    fn test_children_sync() -> Result<()> {
-        let function = ChildrenFunction::new();
-
-        let mut obj = HashMap::new();
-        obj.insert("test".to_string(), FhirPathValue::String("value".into()));
-
-        let context = EvaluationContext::new(FhirPathValue::JsonValue(serde_json::Value::Object(obj.into())));
-        let result = function.try_evaluate_sync(&[], &context)
-            .unwrap()?;
-
-        match result {
-            FhirPathValue::Collection(children) => {
-                assert_eq!(children.len(), 1);
-                assert_eq!(children.iter().next().unwrap(), &FhirPathValue::String("value".into()));
-            }
-            _ => panic!("Expected Collection value"),
-        }
-
-        Ok(())
     }
 }

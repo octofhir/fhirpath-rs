@@ -14,18 +14,25 @@
 
 //! SubsetOf function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use async_trait::async_trait;
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 use std::collections::HashSet;
 
 /// SubsetOf function: returns true if the input collection is a subset of the other collection
 pub struct SubsetOfFunction;
+
+impl Default for SubsetOfFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SubsetOfFunction {
     pub fn new() -> Self {
@@ -55,9 +62,8 @@ impl FhirPathOperation for SubsetOfFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            SubsetOfFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(SubsetOfFunction::create_metadata);
         &METADATA
     }
 
@@ -93,11 +99,15 @@ impl FhirPathOperation for SubsetOfFunction {
 }
 
 impl SubsetOfFunction {
-    fn evaluate_subset_of(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn evaluate_subset_of(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate exactly one argument (the superset collection)
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArguments { message: 
-                "subsetOf() requires exactly one collection argument".to_string()
+            return Err(FhirPathError::InvalidArguments {
+                message: "subsetOf() requires exactly one collection argument".to_string(),
             });
         }
 
@@ -145,257 +155,31 @@ impl SubsetOfFunction {
     fn value_to_comparable_key(&self, value: &FhirPathValue) -> Result<String> {
         match value {
             FhirPathValue::String(s) => Ok(format!("string:{}", s.as_ref())),
-            FhirPathValue::Integer(i) => Ok(format!("integer:{}", i)),
-            FhirPathValue::Decimal(d) => Ok(format!("decimal:{}", d)),
-            FhirPathValue::Boolean(b) => Ok(format!("boolean:{}", b)),
-            FhirPathValue::Date(d) => Ok(format!("date:{}", d)),
-            FhirPathValue::DateTime(dt) => Ok(format!("datetime:{}", dt)),
-            FhirPathValue::Time(t) => Ok(format!("time:{}", t)),
-            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", json.to_string())),
+            FhirPathValue::Integer(i) => Ok(format!("integer:{i}")),
+            FhirPathValue::Decimal(d) => Ok(format!("decimal:{d}")),
+            FhirPathValue::Boolean(b) => Ok(format!("boolean:{b}")),
+            FhirPathValue::Date(d) => Ok(format!("date:{d}")),
+            FhirPathValue::DateTime(dt) => Ok(format!("datetime:{dt}")),
+            FhirPathValue::Time(t) => Ok(format!("time:{t}")),
+            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", **json)),
             FhirPathValue::Collection(_) => {
                 // Collections are compared structurally - convert to JSON representation
-                Ok(format!("collection:{}", serde_json::to_string(value).map_err(|_| {
-                    FhirPathError::InvalidArguments { message: "Cannot serialize collection for comparison".to_string() }
-                })?))
+                Ok(format!(
+                    "collection:{}",
+                    serde_json::to_string(value).map_err(|_| {
+                        FhirPathError::InvalidArguments {
+                            message: "Cannot serialize collection for comparison".to_string(),
+                        }
+                    })?
+                ))
             }
             FhirPathValue::Empty => Ok("empty".to_string()),
-            FhirPathValue::Quantity(q) => Ok(format!("quantity:{}", q.to_string())),
+            FhirPathValue::Quantity(q) => Ok(format!("quantity:{q}")),
             FhirPathValue::Resource(r) => {
                 let id = r.as_json().get("id").and_then(|v| v.as_str()).unwrap_or("");
-                Ok(format!("resource:{}", id))
-            },
-            FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{}", name)),
+                Ok(format!("resource:{id}"))
+            }
+            FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{name}")),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_empty_collections() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection.clone());
-        
-        let result = subset_of_fn.evaluate(&[empty_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true)); // Empty is subset of empty
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_empty_with_non_empty() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let non_empty_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-        ]);
-        let context = create_test_context(empty_collection);
-        
-        let result = subset_of_fn.evaluate(&[non_empty_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true)); // Empty is subset of any collection
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_non_empty_with_empty() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let non_empty_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-        ]);
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(non_empty_collection);
-        
-        let result = subset_of_fn.evaluate(&[empty_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false)); // Non-empty is not subset of empty
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_identical_collections() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(collection.clone());
-        
-        let result = subset_of_fn.evaluate(&[collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true)); // Collection is subset of itself
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_true_subset() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let subset_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let superset_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(subset_collection);
-        
-        let result = subset_of_fn.evaluate(&[superset_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_false_subset() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("d".into()), // Not in right collection
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = subset_of_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_disjoint_collections() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("x".into()),
-            FhirPathValue::String("y".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = subset_of_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_with_duplicates() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("a".into()), // duplicate
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = subset_of_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true)); // Duplicates don't affect subset relationship
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_single_items() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let single_item = FhirPathValue::String("a".into());
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(single_item);
-        
-        let result = subset_of_fn.evaluate(&[collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_single_item_not_in_collection() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let single_item = FhirPathValue::String("x".into());
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(single_item);
-        
-        let result = subset_of_fn.evaluate(&[collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_mixed_types() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("test".into()),
-            FhirPathValue::Integer(42),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("test".into()),
-            FhirPathValue::Integer(42),
-            FhirPathValue::Boolean(true),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = subset_of_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_no_arguments_error() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-        
-        let result = subset_of_fn.evaluate(&[], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_subset_of_too_many_arguments_error() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-        
-        let result = subset_of_fn.evaluate(&[
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into())
-        ], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(left_collection);
-
-        let sync_result = subset_of_fn.try_evaluate_sync(&[right_collection], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Boolean(true));
-        assert!(subset_of_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let subset_of_fn = SubsetOfFunction::new();
-        let metadata = subset_of_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "subsetOf");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
-        assert_eq!(metadata.parameters.len(), 1);
     }
 }

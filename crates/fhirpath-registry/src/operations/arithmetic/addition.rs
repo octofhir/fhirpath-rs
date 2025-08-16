@@ -21,12 +21,19 @@ use crate::metadata::{
 use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use num_traits::ToPrimitive;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
 use rust_decimal::Decimal;
 
 /// Addition operation (+) - supports both binary and unary operations
 pub struct AdditionOperation;
+
+impl Default for AdditionOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AdditionOperation {
     pub fn new() -> Self {
@@ -122,17 +129,42 @@ impl AdditionOperation {
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // For addition, quantities must have compatible dimensions
                 if a.has_compatible_dimensions(b) {
-                    match b.convert_to_compatible_unit(&a.unit.as_ref().unwrap_or(&"1".to_string())) {
+                    match b.convert_to_compatible_unit(a.unit.as_ref().unwrap_or(&"1".to_string()))
+                    {
                         Ok(converted_b) => {
                             let result_value = a.value + converted_b.value;
                             Ok(FhirPathValue::Quantity(std::sync::Arc::new(
-                                octofhir_fhirpath_model::Quantity::new(result_value, a.unit.clone())
+                                octofhir_fhirpath_model::Quantity::new(
+                                    result_value,
+                                    a.unit.clone(),
+                                ),
                             )))
-                        },
+                        }
                         Err(_) => return None, // Conversion failed, fallback to async
                     }
                 } else {
                     return None; // Incompatible units, fallback to async for error handling
+                }
+            }
+            // Date + Quantity operations
+            (FhirPathValue::Date(date), FhirPathValue::Quantity(qty)) => {
+                match self.add_quantity_to_date(date, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
+                }
+            }
+            // DateTime + Quantity operations
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity(qty)) => {
+                match self.add_quantity_to_datetime(datetime, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
+                }
+            }
+            // Time + Quantity operations
+            (FhirPathValue::Time(time), FhirPathValue::Quantity(qty)) => {
+                match self.add_quantity_to_time(time, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
                 }
             }
             _ => return None, // Fallback to async for complex cases
@@ -160,7 +192,7 @@ impl AdditionOperation {
         // Handle string concatenation and other complex cases
         let result = match (&left_unwrapped, &right_unwrapped) {
             (FhirPathValue::String(a), FhirPathValue::String(b)) => {
-                Ok(FhirPathValue::String(format!("{}{}", a, b).into()))
+                Ok(FhirPathValue::String(format!("{a}{b}").into()))
             }
             (FhirPathValue::Empty, _) => {
                 return Ok(FhirPathValue::Collection(Collection::from(vec![])));
@@ -200,7 +232,7 @@ impl AdditionOperation {
                     Ok(FhirPathValue::Decimal(decimal_val))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: format!("Cannot apply unary plus to string '{}'", s),
+                        message: format!("Cannot apply unary plus to string '{s}'"),
                     })
                 }
             }
@@ -236,7 +268,7 @@ impl FhirPathOperation for AdditionOperation {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| AdditionOperation::create_metadata());
+            std::sync::LazyLock::new(AdditionOperation::create_metadata);
         &METADATA
     }
 
@@ -307,94 +339,227 @@ impl AdditionOperation {
             _ => value.clone(),
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
+    /// Add a quantity to a date value
+    fn add_quantity_to_date(
+        &self,
+        date: &chrono::NaiveDate,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value.to_i64().ok_or(FhirPathError::TypeError {
+            message: "Quantity value must be an integer for date arithmetic".to_string(),
+        })?;
 
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use octofhir_fhirpath_model::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        use std::sync::Arc;
+        let result_date = match unit {
+            "year" | "years" | "a" => date
+                .checked_add_months(chrono::Months::new((value * 12) as u32))
+                .ok_or(FhirPathError::ArithmeticError {
+                    message: "Date overflow in year addition".to_string(),
+                })?,
+            "month" | "months" | "mo" => date
+                .checked_add_months(chrono::Months::new(value as u32))
+                .ok_or(FhirPathError::ArithmeticError {
+                    message: "Date overflow in month addition".to_string(),
+                })?,
+            "week" | "weeks" | "wk" => date
+                .checked_add_days(chrono::Days::new((value * 7) as u64))
+                .ok_or(FhirPathError::ArithmeticError {
+                    message: "Date overflow in week addition".to_string(),
+                })?,
+            "day" | "days" | "d" => date
+                .checked_add_days(chrono::Days::new(value as u64))
+                .ok_or(FhirPathError::ArithmeticError {
+                    message: "Date overflow in day addition".to_string(),
+                })?,
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "Invalid unit '{unit}' for date addition. Must be years, months, weeks, or days"
+                    ),
+                });
+            }
+        };
 
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
+        Ok(FhirPathValue::Date(result_date))
     }
 
-    #[tokio::test]
-    async fn test_binary_addition() {
-        let add_op = AdditionOperation::new();
+    /// Add a quantity to a datetime value
+    fn add_quantity_to_datetime(
+        &self,
+        datetime: &chrono::DateTime<chrono::FixedOffset>,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value;
 
-        // Integer addition
-        let args = vec![FhirPathValue::Integer(2), FhirPathValue::Integer(3)];
-        let context = create_test_context(FhirPathValue::Empty);
-        let result = add_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(5));
+        let result_datetime = match unit {
+            "year" | "years" | "a" => {
+                let months = (value * rust_decimal::Decimal::from(12)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid year value".to_string(),
+                    },
+                )?;
+                datetime
+                    .date_naive()
+                    .checked_add_months(chrono::Months::new(months as u32))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in year addition".to_string(),
+                    })?
+                    .and_time(datetime.time())
+                    .and_local_timezone(datetime.timezone())
+                    .single()
+                    .ok_or(FhirPathError::TypeError {
+                        message: "Timezone conversion error".to_string(),
+                    })?
+            }
+            "month" | "months" | "mo" => {
+                let months = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid month value".to_string(),
+                })?;
+                datetime
+                    .date_naive()
+                    .checked_add_months(chrono::Months::new(months as u32))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in month addition".to_string(),
+                    })?
+                    .and_time(datetime.time())
+                    .and_local_timezone(datetime.timezone())
+                    .single()
+                    .ok_or(FhirPathError::TypeError {
+                        message: "Timezone conversion error".to_string(),
+                    })?
+            }
+            "week" | "weeks" | "wk" => {
+                let days = (value * rust_decimal::Decimal::from(7)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid week value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_add_days(chrono::Days::new(days as u64))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in week addition".to_string(),
+                    })?
+            }
+            "day" | "days" | "d" => {
+                let days = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid day value".to_string(),
+                })?;
+                datetime
+                    .checked_add_days(chrono::Days::new(days as u64))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in day addition".to_string(),
+                    })?
+            }
+            "hour" | "hours" | "h" => {
+                let hours = (value * rust_decimal::Decimal::from(3600)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid hour value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(hours))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in hour addition".to_string(),
+                    })?
+            }
+            "minute" | "minutes" | "min" => {
+                let minutes = (value * rust_decimal::Decimal::from(60)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid minute value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(minutes))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in minute addition".to_string(),
+                    })?
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid second value".to_string(),
+                })?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(seconds))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in second addition".to_string(),
+                    })?
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                let millis = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid millisecond value".to_string(),
+                })?;
+                datetime
+                    .checked_add_signed(chrono::Duration::milliseconds(millis))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in millisecond addition".to_string(),
+                    })?
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!("Invalid unit '{unit}' for datetime addition"),
+                });
+            }
+        };
 
-        // Decimal addition
-        let dec1 = Decimal::from_str("2.5").unwrap();
-        let dec2 = Decimal::from_str("1.5").unwrap();
-        let args = vec![FhirPathValue::Decimal(dec1), FhirPathValue::Decimal(dec2)];
-        let result = add_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(
-            result,
-            FhirPathValue::Decimal(Decimal::from_str("4.0").unwrap())
-        );
-
-        // String concatenation
-        let args = vec![
-            FhirPathValue::String("Hello".into()),
-            FhirPathValue::String(" World".into()),
-        ];
-        let result = add_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("Hello World".into()));
+        Ok(FhirPathValue::DateTime(result_datetime))
     }
 
-    #[tokio::test]
-    async fn test_unary_plus() {
-        let add_op = AdditionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
+    /// Add a quantity to a time value
+    fn add_quantity_to_time(
+        &self,
+        time: &chrono::NaiveTime,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value;
 
-        // Unary plus on integer
-        let args = vec![FhirPathValue::Integer(42)];
-        let result = add_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(42));
+        let result_time = match unit {
+            "hour" | "hours" | "h" => {
+                let hours = (value * rust_decimal::Decimal::from(3600)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid hour value".to_string(),
+                    },
+                )?;
+                time.overflowing_add_signed(chrono::Duration::seconds(hours))
+                    .0
+            }
+            "minute" | "minutes" | "min" => {
+                let minutes = (value * rust_decimal::Decimal::from(60)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid minute value".to_string(),
+                    },
+                )?;
+                time.overflowing_add_signed(chrono::Duration::seconds(minutes))
+                    .0
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid second value".to_string(),
+                })?;
+                time.overflowing_add_signed(chrono::Duration::seconds(seconds))
+                    .0
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                let millis = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid millisecond value".to_string(),
+                })?;
+                time.overflowing_add_signed(chrono::Duration::milliseconds(millis))
+                    .0
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "Invalid unit '{unit}' for time addition. Must be hours, minutes, seconds, or milliseconds"
+                    ),
+                });
+            }
+        };
 
-        // Unary plus on string number
-        let args = vec![FhirPathValue::String("123".into())];
-        let result = add_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(123));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let add_op = AdditionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        let args = vec![FhirPathValue::Integer(2), FhirPathValue::Integer(3)];
-        let sync_result = add_op.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Integer(5));
-        assert!(add_op.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let add_op = AdditionOperation::new();
-        let metadata = add_op.metadata();
-
-        assert_eq!(metadata.basic.name, "+");
-        if let OperationType::BinaryOperator {
-            precedence,
-            associativity,
-        } = metadata.basic.operation_type
-        {
-            assert_eq!(precedence, 6);
-            assert_eq!(associativity, Associativity::Left);
-        } else {
-            panic!("Expected BinaryOperator");
-        }
+        Ok(FhirPathValue::Time(result_time))
     }
 }

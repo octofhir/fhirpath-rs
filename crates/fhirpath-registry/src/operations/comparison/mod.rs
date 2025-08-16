@@ -15,24 +15,24 @@
 //! Comparison operators module
 
 pub mod equals;
-pub mod not_equals;
-pub mod less_than;
+pub mod equivalent;
 pub mod greater_than;
 pub mod greater_than_or_equal;
+pub mod less_than;
 pub mod less_than_or_equal;
-pub mod equivalent;
+pub mod not_equals;
 pub mod not_equivalent;
 
 pub use equals::EqualsOperation;
-pub use not_equals::NotEqualsOperation;
-pub use less_than::LessThanOperation;
+pub use equivalent::EquivalentOperation;
 pub use greater_than::GreaterThanOperation;
 pub use greater_than_or_equal::GreaterThanOrEqualOperation;
+pub use less_than::LessThanOperation;
 pub use less_than_or_equal::LessThanOrEqualOperation;
-pub use equivalent::EquivalentOperation;
+pub use not_equals::NotEqualsOperation;
 pub use not_equivalent::NotEquivalentOperation;
 
-// Collection membership operators  
+// Collection membership operators
 pub use crate::operations::collection::contains_op::ContainsOperation;
 // pub use crate::operations::collection::in_op::InOperation; // TODO: Still needs implementation
 
@@ -48,14 +48,16 @@ impl ComparisonOperations {
         registry.register(NotEqualsOperation::new()).await?;
         registry.register(LessThanOperation::new()).await?;
         registry.register(GreaterThanOperation::new()).await?;
-        registry.register(GreaterThanOrEqualOperation::new()).await?;
+        registry
+            .register(GreaterThanOrEqualOperation::new())
+            .await?;
         registry.register(LessThanOrEqualOperation::new()).await?;
         registry.register(EquivalentOperation::new()).await?;
         registry.register(NotEquivalentOperation::new()).await?;
-        
+
         // Type checking operators
         registry.register(IsBinaryOperator::new()).await?;
-        
+
         // Collection membership operations - note: contains is now handled by StringOperations
         // registry.register(InOperation::new()).await?; // TODO: Still needs implementation
         Ok(())

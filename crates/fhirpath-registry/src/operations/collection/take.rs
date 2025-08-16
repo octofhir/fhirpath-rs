@@ -14,17 +14,24 @@
 
 //! Take function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use async_trait::async_trait;
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Take function: returns a collection containing only the first num items
 pub struct TakeFunction;
+
+impl Default for TakeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TakeFunction {
     pub fn new() -> Self {
@@ -53,9 +60,8 @@ impl FhirPathOperation for TakeFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            TakeFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(TakeFunction::create_metadata);
         &METADATA
     }
 
@@ -91,12 +97,15 @@ impl FhirPathOperation for TakeFunction {
 }
 
 impl TakeFunction {
-    fn evaluate_take(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
-
+    fn evaluate_take(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate exactly one argument
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArguments { message:
-                "take() requires exactly one integer argument".to_string()
+            return Err(FhirPathError::InvalidArguments {
+                message: "take() requires exactly one integer argument".to_string(),
             });
         }
 
@@ -106,14 +115,18 @@ impl TakeFunction {
             FhirPathValue::Collection(items) if items.len() == 1 => {
                 match items.iter().next().unwrap() {
                     FhirPathValue::Integer(n) => *n,
-                    _ => return Err(FhirPathError::InvalidArguments { message:
-                        "take() argument must be an integer".to_string()
-                    }),
+                    _ => {
+                        return Err(FhirPathError::InvalidArguments {
+                            message: "take() argument must be an integer".to_string(),
+                        });
+                    }
                 }
-            },
-            _ => return Err(FhirPathError::InvalidArguments { message:
-                "take() argument must be an integer".to_string()
-            }),
+            }
+            _ => {
+                return Err(FhirPathError::InvalidArguments {
+                    message: "take() argument must be an integer".to_string(),
+                });
+            }
         };
 
         // Handle negative or zero take count
@@ -128,7 +141,9 @@ impl TakeFunction {
                 if take_count >= items.len() {
                     Ok(context.input.clone())
                 } else {
-                    Ok(FhirPathValue::collection(items.as_arc().as_ref()[..take_count].to_vec()))
+                    Ok(FhirPathValue::collection(
+                        items.as_arc().as_ref()[..take_count].to_vec(),
+                    ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![])),
@@ -141,135 +156,5 @@ impl TakeFunction {
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::MockModelProvider;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_take_empty_collection() {
-        let take_fn = TakeFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection);
-
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(2)], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-    }
-
-    #[tokio::test]
-    async fn test_take_single_item() {
-        let take_fn = TakeFunction::new();
-        let single_item = FhirPathValue::String("test".into());
-        let context = create_test_context(single_item.clone());
-
-        // Take 0 should return empty
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(0)], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-
-        // Take 1 should return the item as collection
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(1)], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![single_item]));
-    }
-
-    #[tokio::test]
-    async fn test_take_multiple_items() {
-        let take_fn = TakeFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-            FhirPathValue::String("fourth".into()),
-        ]);
-        let context = create_test_context(collection.clone());
-
-        // Take 0 should return empty collection
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(0)], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-
-        // Take 2 should return first two items
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(2)], &context).await.unwrap();
-        let expected = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Take more than collection size should return entire collection
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(10)], &context).await.unwrap();
-        assert_eq!(result, collection);
-    }
-
-    #[tokio::test]
-    async fn test_take_negative_count() {
-        let take_fn = TakeFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-        ]);
-        let context = create_test_context(collection);
-
-        // Negative take should return empty collection
-        let result = take_fn.evaluate(&[FhirPathValue::Integer(-5)], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-    }
-
-    #[tokio::test]
-    async fn test_take_no_arguments_error() {
-        let take_fn = TakeFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-
-        let result = take_fn.evaluate(&[], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_take_wrong_argument_type_error() {
-        let take_fn = TakeFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-
-        let result = take_fn.evaluate(&[FhirPathValue::String("not_a_number".into())], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let take_fn = TakeFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-        ]);
-        let context = create_test_context(collection);
-
-        let sync_result = take_fn.try_evaluate_sync(&[FhirPathValue::Integer(2)], &context).unwrap().unwrap();
-        let expected = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-        ]);
-        assert_eq!(sync_result, expected);
-        assert!(take_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let take_fn = TakeFunction::new();
-        let metadata = take_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "take");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
     }
 }

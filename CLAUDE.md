@@ -4,19 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust organized as a **workspace with 10 specialized crates**:
+This is a FHIRPath implementation in Rust organized as a **workspace with 9 specialized crates**:
 
 ### Workspace Structure
 - **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
-- **octofhir-fhirpath-core**: Core types, errors, and evaluation results  
-- **octofhir-fhirpath-ast**: Abstract syntax tree definitions and visitor patterns
-- **octofhir-fhirpath-parser**: Tokenizer and parser using nom library (version 8)
-- **octofhir-fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
-- **octofhir-fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
-- **octofhir-fhirpath-registry**: Function and operator registry with built-in implementations
-- **octofhir-fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
-- **octofhir-fhirpath-tools**: CLI tools, test runners, and coverage analysis
-- **octofhir-fhirpath-benchmarks**: Performance testing and profiling utilities
+- **fhirpath-core**: Core types, errors, and evaluation results  
+- **fhirpath-ast**: Abstract syntax tree definitions and visitor patterns
+- **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
+- **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
+- **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
+- **fhirpath-registry**: Function and operator registry with built-in implementations
+- **fhirpath-diagnostics**: Error handling, diagnostic reporting, and LSP support
+- **fhirpath-tools**: CLI tools, test runners, and coverage analysis
 
 ### Migration Status
 The codebase has been migrated from a monolithic structure to this modular workspace. Legacy code exists in `src_backup_old/` for reference but the active implementation is in the `crates/` workspace structure.
@@ -65,6 +64,9 @@ just bench-full
 
 # Update benchmark documentation
 just bench-update-docs
+
+# Fix all formatting and clippy issues automatically
+just fix
 ```
 
 ### Performance and Quality
@@ -86,7 +88,18 @@ just qa
 
 # Clean build artifacts
 just clean
-just clean-bench
+
+# Security audit
+just audit
+
+# Install development tools
+just install-tools
+
+# Watch for changes and run tests
+just watch
+
+# Expand macros for debugging
+just expand [ITEM]
 ```
 
 ### Test-Specific Commands
@@ -180,7 +193,13 @@ just test-coverage-mock
 cargo test test_name -- --nocapture
 
 # Run tests for specific crate
-cargo test --package octofhir-fhirpath-parser
+cargo test --package fhirpath-parser
+
+# Run a single test with full output
+cargo test test_name -- --nocapture
+
+# Test coverage with tarpaulin (HTML report)
+just coverage
 ```
 
 ## Guidelines
@@ -318,21 +337,27 @@ This implementation is optimized for high-performance with:
 - **Evaluator**: Arena-based memory management with specialized evaluation paths
 - **Bytecode VM**: High-performance virtual machine with optimization passes
 - **Benchmarks**: Simplified unified suite testing all components efficiently
-- **Test Coverage**: 88.1% specification compliance with official FHIRPath test suites
+- **Test Coverage**: 85.8% specification compliance with official FHIRPath test suites (873/1017 tests passing)
 - **Code Quality**: Zero compiler warnings with clean, maintainable codebase
 
 ## Architecture Decision Records (ADRs)
 
 Major architectural decisions are documented in `docs/adr/`:
 
-- **ADR-001**: Model Context Protocol (MCP) Server Implementation - Plan for exposing FHIRPath functionality through MCP for AI assistants
-- **ADR-002**: FHIRPath Analyzer Crate - Static analysis and expression explanation capabilities
+- **ADR-003**: FHIRPath Type Reflection System - Type reflection and enhanced type() function implementation with FHIRSchema integration
 
 ## Future Development
 
-Planned major features documented in ADRs:
-- **fhirpath-mcp-server**: MCP server crate for AI assistant integration
-- **fhirpath-analyzer**: Static analysis and expression explanation
+Planned major features documented in ADRs and tasks:
+- **Type Reflection System**: Enhanced type() function with FHIRSchema integration (ADR-003)
+- **CDA Support**: Clinical Document Architecture extensions and functions
+- **Advanced Type Operations**: Enhanced type coercion and validation
 - Cross-platform distribution and Docker support
 
-- always check fhirpath specifcaiton for gunctions and opertaor behaviour
+## Implementation Notes
+
+- Always check FHIRPath specification for functions and operator behavior
+- Use the unified registry system for all function and operator implementations
+- Maintain async-first architecture throughout the codebase
+- Follow the three-stage pipeline: Tokenizer → Parser → Evaluator
+- Prioritize performance with arena-based memory management and caching

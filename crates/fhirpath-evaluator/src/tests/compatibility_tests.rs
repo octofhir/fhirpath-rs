@@ -14,63 +14,78 @@
 
 //! Compatibility tests to ensure unified engine matches existing API behavior
 
-use super::{TestUtils, as_single_boolean, as_single_string, count, as_collection};
+use super::{TestUtils, as_collection, as_single_boolean, as_single_string, count};
 use serde_json::json;
 
 #[tokio::test]
 async fn test_api_compatibility() {
-    let unified_engine = TestUtils::create_test_engine();
-    
+    let unified_engine = TestUtils::create_test_engine().await.unwrap();
+
     // Test that basic API methods work as expected
     let patient = TestUtils::sample_patient();
-    
+
     // Basic evaluation
     let result = unified_engine.evaluate("name.given", patient.clone()).await;
     assert!(result.is_ok(), "Basic evaluation should work");
-    
+
     // Evaluation with variables
     let mut variables = std::collections::HashMap::new();
-    variables.insert("testVar".to_string(), octofhir_fhirpath_model::FhirPathValue::String("test".into()));
-    
-    let result = unified_engine.evaluate_with_variables("%testVar", json!({}), variables).await;
+    variables.insert(
+        "testVar".to_string(),
+        octofhir_fhirpath_model::FhirPathValue::String("test".into()),
+    );
+
+    let result = unified_engine
+        .evaluate_with_variables("%testVar", json!({}), variables)
+        .await;
     assert!(result.is_ok(), "Variable evaluation should work");
 }
 
 #[tokio::test]
 async fn test_error_compatibility() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Test that errors are handled consistently
-    let error_cases = vec![
-        "unknownFunction()",
-        "5 +", 
-        "(((",
-        "[1,2,3][",
-    ];
-    
+    let error_cases = vec!["unknownFunction()", "5 +", "(((", "[1,2,3]["];
+
     for expression in error_cases {
         let result = engine.evaluate(expression, json!({})).await;
-        assert!(result.is_err(), "Expression '{}' should produce error", expression);
+        assert!(
+            result.is_err(),
+            "Expression '{expression}' should produce error"
+        );
     }
 }
 
 #[tokio::test]
 async fn test_result_format_compatibility() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Test that results are in expected format
     let patient = TestUtils::sample_patient();
-    
+
     // Single value result
     let result = engine.evaluate("gender", patient.clone()).await.unwrap();
-    assert!(as_single_string(&result).is_some(), "Single string should be accessible");
-    
+    assert!(
+        as_single_string(&result).is_some(),
+        "Single string should be accessible"
+    );
+
     // Collection result
-    let result = engine.evaluate("name.given", patient.clone()).await.unwrap();
-    assert!(as_collection(&result).is_some(), "Collection should be accessible");
+    let result = engine
+        .evaluate("name.given", patient.clone())
+        .await
+        .unwrap();
+    assert!(
+        as_collection(&result).is_some(),
+        "Collection should be accessible"
+    );
     assert!(count(&result) > 0, "Collection should have items");
-    
+
     // Boolean result
     let result = engine.evaluate("name.exists()", patient).await.unwrap();
-    assert!(as_single_boolean(&result).is_some(), "Boolean should be accessible");
+    assert!(
+        as_single_boolean(&result).is_some(),
+        "Boolean should be accessible"
+    );
 }

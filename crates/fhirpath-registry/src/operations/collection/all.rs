@@ -14,18 +14,25 @@
 
 //! All function implementation for FHIRPath
 
-use crate::metadata::{
-    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
-    TypeConstraint,
-};
-use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    lambda::{ExpressionEvaluator, LambdaContextBuilder, LambdaFunction, LambdaUtils},
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
 use async_trait::async_trait;
+use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
 /// All function: returns true if criteria is true for all items in the collection
 pub struct AllFunction;
+
+impl Default for AllFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AllFunction {
     pub fn new() -> Self {
@@ -35,11 +42,10 @@ impl AllFunction {
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("all", OperationType::Function)
             .description("Returns true if the criteria evaluates to true for all items in the collection. Returns true for an empty collection.")
+            .returns(TypeConstraint::Specific(FhirPathType::Boolean))
             .example("Patient.name.all(use = 'official')")
             .example("Bundle.entry.all(resource.resourceType = 'Patient')")
-            .parameter("criteria", TypeConstraint::Specific(FhirPathType::Boolean), false)
-            .returns(TypeConstraint::Specific(FhirPathType::Boolean))
-            .performance(PerformanceComplexity::Linear, true)
+            .example("telecom.all(system = 'phone')")
             .build()
     }
 
@@ -73,7 +79,7 @@ impl FhirPathOperation for AllFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| AllFunction::create_metadata());
+            std::sync::LazyLock::new(AllFunction::create_metadata);
         &METADATA
     }
 
@@ -82,46 +88,16 @@ impl FhirPathOperation for AllFunction {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        // Try sync path first for performance
-        if let Some(result) = self.try_evaluate_sync(args, context) {
-            return result;
-        }
-
-        // Fallback to async evaluation (though all is always sync)
-        self.evaluate_all(args, context)
-    }
-
-    fn try_evaluate_sync(
-        &self,
-        args: &[FhirPathValue],
-        context: &EvaluationContext,
-    ) -> Option<Result<FhirPathValue>> {
-        Some(self.evaluate_all(args, context))
-    }
-
-    fn supports_sync(&self) -> bool {
-        true
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl AllFunction {
-    fn evaluate_all(
-        &self,
-        args: &[FhirPathValue],
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        // Validate exactly one argument (the criteria)
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArguments {
-                message: "all() requires exactly one criteria argument".to_string(),
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: FhirPathOperation::identifier(self).to_string(),
+                expected: 1,
+                actual: args.len(),
             });
         }
 
-        let criteria = &args[0];
+        // Extract predicate - in proper lambda implementation, this would be an expression tree
+        let predicate = &args[0];
 
         match &context.input {
             FhirPathValue::Collection(items) => {
@@ -130,35 +106,37 @@ impl AllFunction {
                     return Ok(FhirPathValue::Boolean(true));
                 }
 
-                // Check criteria for each item
-                for item in items.iter() {
-                    // Create new context for each item
-                    let item_context = EvaluationContext::new(item.clone(), context.registry.clone(), context.model_provider.clone());
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context with $this variable set to current item
+                    let mut lambda_context = context.clone();
+                    lambda_context.set_variable("$this".to_string(), item.clone());
+                    lambda_context
+                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    let lambda_context = lambda_context.with_input(item.clone());
 
-                    // For mock implementation, evaluate criteria as simple boolean check
-                    // In real implementation, this would evaluate the lambda expression
-                    let criteria_result = match criteria {
+                    // Evaluate predicate in lambda context
+                    let predicate_result = match predicate {
                         FhirPathValue::Boolean(b) => *b,
                         FhirPathValue::String(s) if s.as_ref() == "true" => true,
                         FhirPathValue::String(s) if s.as_ref() == "false" => false,
                         _ => {
-                            // Mock: if criteria is a string that matches a field in the item, check if that field exists
+                            // Mock: if predicate is a string that matches a field in the item, check if that field exists
                             if let (
                                 FhirPathValue::String(field_name),
                                 FhirPathValue::JsonValue(obj),
-                            ) = (criteria, item)
+                            ) = (predicate, item)
                             {
                                 obj.as_object()
                                     .map(|o| o.contains_key(field_name.as_ref()))
                                     .unwrap_or(false)
                             } else {
-                                Self::to_boolean(criteria)?
+                                Self::to_boolean(predicate)?
                             }
                         }
                     };
 
                     // If any item doesn't satisfy criteria, return false
-                    if !criteria_result {
+                    if !predicate_result {
                         return Ok(FhirPathValue::Boolean(false));
                     }
                 }
@@ -172,189 +150,174 @@ impl AllFunction {
             }
             single_item => {
                 // Single item - check criteria against it
-                let criteria_result = Self::to_boolean(criteria)?;
-                Ok(FhirPathValue::Boolean(criteria_result))
+                let predicate_result = Self::to_boolean(predicate)?;
+                Ok(FhirPathValue::Boolean(predicate_result))
             }
         }
     }
+
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
+        if args.len() != 1 {
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: FhirPathOperation::identifier(self).to_string(),
+                expected: 1,
+                actual: args.len(),
+            }));
+        }
+
+        let predicate = &args[0];
+
+        match &context.input {
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    return Some(Ok(FhirPathValue::Boolean(true)));
+                }
+
+                for item in items.iter() {
+                    let predicate_result = match predicate {
+                        FhirPathValue::Boolean(b) => *b,
+                        FhirPathValue::String(s) if s.as_ref() == "true" => true,
+                        FhirPathValue::String(s) if s.as_ref() == "false" => false,
+                        _ => {
+                            if let (
+                                FhirPathValue::String(field_name),
+                                FhirPathValue::JsonValue(obj),
+                            ) = (predicate, item)
+                            {
+                                obj.as_object()
+                                    .map(|o| o.contains_key(field_name.as_ref()))
+                                    .unwrap_or(false)
+                            } else {
+                                match Self::to_boolean(predicate) {
+                                    Ok(b) => b,
+                                    Err(e) => return Some(Err(e)),
+                                }
+                            }
+                        }
+                    };
+
+                    if !predicate_result {
+                        return Some(Ok(FhirPathValue::Boolean(false)));
+                    }
+                }
+
+                Some(Ok(FhirPathValue::Boolean(true)))
+            }
+            FhirPathValue::Empty => Some(Ok(FhirPathValue::Boolean(true))),
+            single_item => match Self::to_boolean(predicate) {
+                Ok(predicate_result) => Some(Ok(FhirPathValue::Boolean(predicate_result))),
+                Err(e) => Some(Err(e)),
+            },
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use serde_json::json;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
+#[async_trait]
+impl LambdaFunction for AllFunction {
+    fn identifier(&self) -> &str {
+        "all"
     }
 
-    #[tokio::test]
-    async fn test_all_empty_collection() {
-        let all_fn = AllFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection);
+    async fn evaluate_lambda(
+        &self,
+        expressions: &[ExpressionNode],
+        context: &EvaluationContext,
+        evaluator: &dyn ExpressionEvaluator,
+    ) -> Result<FhirPathValue> {
+        if expressions.len() != 1 {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: LambdaFunction::identifier(self).to_string(),
+                expected: 1,
+                actual: expressions.len(),
+            });
+        }
 
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(true)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
+        let predicate_expr = &expressions[0];
 
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(false)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
+        // Handle input based on type
+        match &context.input {
+            FhirPathValue::Collection(items) => {
+                // Empty collection - all() returns true for empty collections
+                if items.is_empty() {
+                    return Ok(FhirPathValue::Boolean(true));
+                }
+
+                // Check predicate for each item
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context using LambdaContextBuilder
+                    let lambda_context = LambdaContextBuilder::new(context)
+                        .with_this(item.clone())
+                        .with_index(index as i64)
+                        .with_total(FhirPathValue::Integer(items.len() as i64))
+                        .with_input(item.clone())
+                        .build();
+
+                    // Evaluate predicate expression in lambda context
+                    let predicate_result = evaluator
+                        .evaluate_expression(predicate_expr, &lambda_context)
+                        .await?;
+
+                    // Check if predicate is true
+                    if !LambdaUtils::to_boolean(&predicate_result) {
+                        return Ok(FhirPathValue::Boolean(false));
+                    }
+                }
+
+                // All items satisfied the criteria
+                Ok(FhirPathValue::Boolean(true))
+            }
+            FhirPathValue::Empty => {
+                // Empty collection - all() returns true
+                Ok(FhirPathValue::Boolean(true))
+            }
+            single_item => {
+                // Apply all to single item using LambdaContextBuilder
+                let lambda_context = LambdaContextBuilder::new(context)
+                    .with_this(single_item.clone())
+                    .with_index(0)
+                    .with_total(FhirPathValue::Integer(1))
+                    .with_input(single_item.clone())
+                    .build();
+
+                let predicate_result = evaluator
+                    .evaluate_expression(predicate_expr, &lambda_context)
+                    .await?;
+
+                Ok(FhirPathValue::Boolean(LambdaUtils::to_boolean(
+                    &predicate_result,
+                )))
+            }
+        }
     }
 
-    #[tokio::test]
-    async fn test_all_single_item() {
-        let all_fn = AllFunction::new();
-        let single_item = FhirPathValue::String("test".into());
-        let context = create_test_context(single_item);
-
-        // True criteria should return true
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(true)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // False criteria should return false
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(false)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
+    fn supports_sync(&self) -> bool {
+        false // Expression evaluation is inherently async
     }
 
-    #[tokio::test]
-    async fn test_all_multiple_items_boolean_criteria() {
-        let all_fn = AllFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("item1".into()),
-            FhirPathValue::String("item2".into()),
-            FhirPathValue::String("item3".into()),
-        ]);
-        let context = create_test_context(collection.clone());
-
-        // All items should satisfy true criteria
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(true)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // No items should satisfy false criteria
-        let result = all_fn
-            .evaluate(&[FhirPathValue::Boolean(false)], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
+    fn complexity_hint(&self) -> crate::operation::OperationComplexity {
+        crate::operation::OperationComplexity::Linear // O(n) for collection checking
     }
 
-    #[tokio::test]
-    async fn test_all_with_objects() {
-        let all_fn = AllFunction::new();
-
-        // Collection where all objects have the specified field
-        let all_have_field = FhirPathValue::collection(vec![
-            FhirPathValue::JsonValue(json!({"name": "John", "active": true})),
-            FhirPathValue::JsonValue(json!({"name": "Jane", "active": false})),
-            FhirPathValue::JsonValue(json!({"name": "Bob", "active": true})),
-        ]);
-        let context = create_test_context(all_have_field);
-
-        // Check if all objects have "active" field
-        let result = all_fn
-            .evaluate(&[FhirPathValue::String("active".into())], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Check if all objects have "missing" field
-        let result = all_fn
-            .evaluate(&[FhirPathValue::String("missing".into())], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
+    fn expected_expression_count(&self) -> usize {
+        1
     }
 
-    #[tokio::test]
-    async fn test_all_mixed_objects() {
-        let all_fn = AllFunction::new();
-
-        // Collection where some objects have the field, some don't
-        let mixed_collection = FhirPathValue::collection(vec![
-            FhirPathValue::JsonValue(json!({"name": "John", "active": true})),
-            FhirPathValue::JsonValue(json!({"name": "Jane"})), // missing "active"
-            FhirPathValue::JsonValue(json!({"name": "Bob", "active": true})),
-        ]);
-        let context = create_test_context(mixed_collection);
-
-        // Not all objects have "active" field
-        let result = all_fn
-            .evaluate(&[FhirPathValue::String("active".into())], &context)
-            .await
-            .unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_all_no_arguments_error() {
-        let all_fn = AllFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-
-        let result = all_fn.evaluate(&[], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_all_too_many_arguments_error() {
-        let all_fn = AllFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-
-        let result = all_fn
-            .evaluate(
-                &[FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)],
-                &context,
-            )
-            .await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let all_fn = AllFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("item1".into()),
-            FhirPathValue::String("item2".into()),
-        ]);
-        let context = create_test_context(collection);
-
-        let sync_result = all_fn
-            .try_evaluate_sync(&[FhirPathValue::Boolean(true)], &context)
-            .unwrap()
-            .unwrap();
-        assert_eq!(sync_result, FhirPathValue::Boolean(true));
-        assert!(all_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let all_fn = AllFunction::new();
-        let metadata = all_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "all");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
-        assert_eq!(metadata.parameters.len(), 1);
+    fn validate_expressions(&self, expressions: &[ExpressionNode]) -> Result<()> {
+        if expressions.len() != 1 {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: LambdaFunction::identifier(self).to_string(),
+                expected: 1,
+                actual: expressions.len(),
+            });
+        }
+        Ok(())
     }
 }

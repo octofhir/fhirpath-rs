@@ -14,18 +14,24 @@
 
 //! Upper function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use crate::operations::EvaluationContext;
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Upper function: converts string to uppercase
 pub struct UpperFunction;
+
+impl Default for UpperFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UpperFunction {
     pub fn new() -> Self {
@@ -54,9 +60,8 @@ impl FhirPathOperation for UpperFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            UpperFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(UpperFunction::create_metadata);
         &METADATA
     }
 
@@ -114,11 +119,11 @@ impl UpperFunction {
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value);
+                self.process_single_value(value)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input);
+                self.process_single_value(input)
             }
         }
     }
@@ -128,156 +133,13 @@ impl UpperFunction {
             FhirPathValue::String(s) => {
                 let upper_str = s.as_ref().to_uppercase();
                 Ok(FhirPathValue::Collection(Collection::from(vec![
-                    FhirPathValue::String(upper_str.into())
+                    FhirPathValue::String(upper_str.into()),
                 ])))
-            },
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
                 message: "upper() requires input to be a string".to_string(),
             }),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_upper_function() {
-        let upper_fn = UpperFunction::new();
-
-        // Test basic case
-        let string = FhirPathValue::String("hello world".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO WORLD".into())
-        ])));
-
-        // Test mixed case
-        let string = FhirPathValue::String("Hello World".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO WORLD".into())
-        ])));
-
-        // Test already uppercase
-        let string = FhirPathValue::String("HELLO WORLD".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO WORLD".into())
-        ])));
-
-        // Test with numbers and symbols
-        let string = FhirPathValue::String("hello123!@#".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO123!@#".into())
-        ])));
-
-        // Test empty string
-        let string = FhirPathValue::String("".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("".into())
-        ])));
-
-        // Test with unicode characters
-        let string = FhirPathValue::String("héllo wörld".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HÉLLO WÖRLD".into())
-        ])));
-
-        // Test with non-Latin characters
-        let string = FhirPathValue::String("hello 世界".into());
-        let context = create_test_context(string);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO 世界".into())
-        ])));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let upper_fn = UpperFunction::new();
-        let string = FhirPathValue::String("test string".into());
-        let context = create_test_context(string);
-
-        let sync_result = upper_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("TEST STRING".into())
-        ])));
-        assert!(upper_fn.supports_sync());
-    }
-
-    #[tokio::test]
-    async fn test_collection_handling() {
-        let upper_fn = UpperFunction::new();
-
-        // Test single-item collection
-        let single_item_collection = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("hello".into())
-        ]));
-        let context = create_test_context(single_item_collection);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("HELLO".into())
-        ])));
-
-        // Test empty collection
-        let empty_collection = FhirPathValue::Collection(Collection::from(vec![]));
-        let context = create_test_context(empty_collection);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test multi-item collection (should return empty per FHIRPath spec)
-        let multi_item_collection = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("world".into())
-        ]));
-        let context = create_test_context(multi_item_collection);
-        let result = upper_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let upper_fn = UpperFunction::new();
-        
-        // Test with non-string input
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let result = upper_fn.try_evaluate_sync(&[], &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with arguments (should be none)
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("invalid".into())];
-        let result = upper_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

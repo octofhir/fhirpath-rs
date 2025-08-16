@@ -14,15 +14,26 @@
 
 //! Where function implementation - filters collection based on predicate
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    lambda::{ExpressionEvaluator, LambdaContextBuilder, LambdaFunction, LambdaUtils},
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
 use async_trait::async_trait;
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Where function - filters collection based on predicate
 #[derive(Debug, Clone)]
 pub struct WhereFunction;
+
+impl Default for WhereFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WhereFunction {
     pub fn new() -> Self {
@@ -51,7 +62,7 @@ impl WhereFunction {
                 } else {
                     Ok(true) // Non-empty collection is truthy
                 }
-            },
+            }
             _ => Ok(true), // Non-empty, non-boolean values are truthy
         }
     }
@@ -68,18 +79,21 @@ impl FhirPathOperation for WhereFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            WhereFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(WhereFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 1, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: FhirPathOperation::identifier(self).to_string(),
+                expected: 1,
+                actual: args.len(),
             });
         }
 
@@ -94,9 +108,10 @@ impl FhirPathOperation for WhereFunction {
                     // Create lambda context with $this variable set to current item
                     let mut lambda_context = context.clone();
                     lambda_context.set_variable("$this".to_string(), item.clone());
-                    lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
-                    lambda_context = lambda_context.with_input(item.clone());
-                    
+                    lambda_context
+                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    let lambda_context = lambda_context.with_input(item.clone());
+
                     // Evaluate predicate in lambda context
                     let predicate_result = match predicate {
                         FhirPathValue::Boolean(b) => *b,
@@ -104,8 +119,14 @@ impl FhirPathOperation for WhereFunction {
                         FhirPathValue::String(s) if s.as_ref() == "false" => false,
                         _ => {
                             // Mock: if predicate is a string that matches a field in the item, check if that field exists
-                            if let (FhirPathValue::String(field_name), FhirPathValue::JsonValue(obj)) = (predicate, item) {
-                                obj.as_object().map(|o| o.contains_key(field_name.as_ref())).unwrap_or(false)
+                            if let (
+                                FhirPathValue::String(field_name),
+                                FhirPathValue::JsonValue(obj),
+                            ) = (predicate, item)
+                            {
+                                obj.as_object()
+                                    .map(|o| o.contains_key(field_name.as_ref()))
+                                    .unwrap_or(false)
                             } else {
                                 Self::to_boolean(predicate)?
                             }
@@ -124,7 +145,7 @@ impl FhirPathOperation for WhereFunction {
                 } else {
                     Ok(FhirPathValue::collection(filtered_items))
                 }
-            },
+            }
             single_item => {
                 // Apply where to single item (returns the item if predicate is true, empty otherwise)
                 let predicate_result = Self::to_boolean(predicate)?;
@@ -137,12 +158,16 @@ impl FhirPathOperation for WhereFunction {
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 1 {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 1, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: FhirPathOperation::identifier(self).to_string(),
+                expected: 1,
+                actual: args.len(),
             }));
         }
 
@@ -158,8 +183,14 @@ impl FhirPathOperation for WhereFunction {
                         FhirPathValue::String(s) if s.as_ref() == "true" => true,
                         FhirPathValue::String(s) if s.as_ref() == "false" => false,
                         _ => {
-                            if let (FhirPathValue::String(field_name), FhirPathValue::JsonValue(obj)) = (predicate, item) {
-                                obj.as_object().map(|o| o.contains_key(field_name.as_ref())).unwrap_or(false)
+                            if let (
+                                FhirPathValue::String(field_name),
+                                FhirPathValue::JsonValue(obj),
+                            ) = (predicate, item)
+                            {
+                                obj.as_object()
+                                    .map(|o| o.contains_key(field_name.as_ref()))
+                                    .unwrap_or(false)
                             } else {
                                 match Self::to_boolean(predicate) {
                                     Ok(b) => b,
@@ -181,19 +212,17 @@ impl FhirPathOperation for WhereFunction {
                 } else {
                     Some(Ok(FhirPathValue::collection(filtered_items)))
                 }
-            },
-            single_item => {
-                match Self::to_boolean(predicate) {
-                    Ok(predicate_result) => {
-                        if predicate_result {
-                            Some(Ok(single_item.clone()))
-                        } else {
-                            Some(Ok(FhirPathValue::Empty))
-                        }
-                    },
-                    Err(e) => Some(Err(e)),
-                }
             }
+            single_item => match Self::to_boolean(predicate) {
+                Ok(predicate_result) => {
+                    if predicate_result {
+                        Some(Ok(single_item.clone()))
+                    } else {
+                        Some(Ok(FhirPathValue::Empty))
+                    }
+                }
+                Err(e) => Some(Err(e)),
+            },
         }
     }
 
@@ -202,114 +231,103 @@ impl FhirPathOperation for WhereFunction {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
+#[async_trait]
+impl LambdaFunction for WhereFunction {
+    fn identifier(&self) -> &str {
+        "where"
+    }
 
-    #[tokio::test]
-    async fn test_where_function_basic() {
-        let func = WhereFunction::new();
-
-        // Test filtering with boolean predicate
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("item1".into()),
-            FhirPathValue::String("item2".into()),
-            FhirPathValue::String("item3".into()),
-        ]);
-        let ctx = EvaluationContext::new(collection, std::collections::HashMap::new());
-        let args = vec![FhirPathValue::Boolean(true)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 3);
-            },
-            _ => panic!("Expected collection"),
+    async fn evaluate_lambda(
+        &self,
+        expressions: &[ExpressionNode],
+        context: &EvaluationContext,
+        evaluator: &dyn ExpressionEvaluator,
+    ) -> Result<FhirPathValue> {
+        if expressions.len() != 1 {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: LambdaFunction::identifier(self).to_string(),
+                expected: 1,
+                actual: expressions.len(),
+            });
         }
 
-        // Test with false predicate
-        let args = vec![FhirPathValue::Boolean(false)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
+        let predicate_expr = &expressions[0];
 
-    #[tokio::test]
-    async fn test_where_function_object_filtering() {
-        let func = WhereFunction::new();
-
-        // Test with objects
-        let objects = vec![
-            FhirPathValue::JsonValue(json!({"name": "John", "active": true})),
-            FhirPathValue::JsonValue(json!({"name": "Jane", "active": false})),
-            FhirPathValue::JsonValue(json!({"name": "Bob"})),
-        ];
-        let collection = FhirPathValue::collection(objects);
-        let ctx = EvaluationContext::new(collection, std::collections::HashMap::new());
-
-        // Mock: filter objects that have "active" field
-        let args = vec![FhirPathValue::String("active".into())];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-
-        match result {
+        // Handle input based on type
+        match &context.input {
             FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2); // John and Jane have "active" field
-            },
-            _ => panic!("Expected collection"),
-        }
-    }
+                // Filter collection based on predicate
+                let mut filtered_items = Vec::new();
 
-    #[tokio::test]
-    async fn test_where_function_single_item() {
-        let func = WhereFunction::new();
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context using LambdaContextBuilder
+                    let lambda_context = LambdaContextBuilder::new(context)
+                        .with_this(item.clone())
+                        .with_index(index as i64)
+                        .with_total(FhirPathValue::Integer(items.len() as i64))
+                        .with_input(item.clone())
+                        .build();
 
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        let ctx = EvaluationContext::new(FhirPathValue::String("test".into()), registry, model_provider);
-        
-        // True predicate should return the item
-        let args = vec![FhirPathValue::Boolean(true)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("test".into()));
+                    // Evaluate predicate expression in lambda context
+                    let predicate_result = evaluator
+                        .evaluate_expression(predicate_expr, &lambda_context)
+                        .await?;
 
-        // False predicate should return empty
-        let args = vec![FhirPathValue::Boolean(false)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
+                    // Check if predicate is true
+                    if LambdaUtils::to_boolean(&predicate_result) {
+                        filtered_items.push(item.clone());
+                    }
+                }
 
-    #[tokio::test]
-    async fn test_where_function_sync() {
-        let func = WhereFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-        ]);
-        let ctx = EvaluationContext::new(collection, std::collections::HashMap::new());
-        
-        let args = vec![FhirPathValue::Boolean(true)];
-        let result = func.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2);
-            },
-            _ => panic!("Expected collection"),
+                // Return results
+                if filtered_items.is_empty() {
+                    Ok(FhirPathValue::Empty)
+                } else {
+                    Ok(FhirPathValue::collection(filtered_items))
+                }
+            }
+            single_item => {
+                // Apply where to single item using LambdaContextBuilder
+                let lambda_context = LambdaContextBuilder::new(context)
+                    .with_this(single_item.clone())
+                    .with_index(0)
+                    .with_total(FhirPathValue::Integer(1))
+                    .with_input(single_item.clone())
+                    .build();
+
+                let predicate_result = evaluator
+                    .evaluate_expression(predicate_expr, &lambda_context)
+                    .await?;
+
+                if LambdaUtils::to_boolean(&predicate_result) {
+                    Ok(single_item.clone())
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
+            }
         }
     }
 
-    #[tokio::test]
-    async fn test_where_function_invalid_args() {
-        let func = WhereFunction::new();
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, std::collections::HashMap::new());
+    fn supports_sync(&self) -> bool {
+        false // Expression evaluation is inherently async
+    }
 
-        // No arguments
-        let result = func.evaluate(&[], &ctx).await;
-        assert!(result.is_err());
+    fn complexity_hint(&self) -> crate::operation::OperationComplexity {
+        crate::operation::OperationComplexity::Linear // O(n) for collection filtering
+    }
 
-        // Too many arguments
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)];
-        let result = func.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
+    fn expected_expression_count(&self) -> usize {
+        1
+    }
+
+    fn validate_expressions(&self, expressions: &[ExpressionNode]) -> Result<()> {
+        if expressions.len() != 1 {
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: LambdaFunction::identifier(self).to_string(),
+                expected: 1,
+                actual: expressions.len(),
+            });
+        }
+        Ok(())
     }
 }

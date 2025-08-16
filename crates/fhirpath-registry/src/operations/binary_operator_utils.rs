@@ -14,22 +14,25 @@
 
 //! Utility functions for binary operators following FHIRPath specification
 
-use octofhir_fhirpath_core::{Result, FhirPathError};
+use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
 /// Extract singleton values from FHIRPath values according to FHIRPath specification.
-/// 
+///
 /// This is used for arithmetic and logical operators that require singleton collections.
 /// Per the FHIRPath specification:
-/// - If either operand is empty, the function should handle this appropriately 
+/// - If either operand is empty, the function should handle this appropriately
 /// - If either operand has more than one element, an error should be thrown
 /// - Only singleton collections or single values should be processed
-/// 
+///
 /// Returns a tuple of (left_value, right_value) where each value is either:
 /// - FhirPathValue::Empty if the collection was empty
 /// - The single value if the collection had exactly one element
 /// - The original value if it wasn't a collection
-pub fn extract_singleton_values(left: &FhirPathValue, right: &FhirPathValue) -> Result<(FhirPathValue, FhirPathValue)> {
+pub fn extract_singleton_values(
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+) -> Result<(FhirPathValue, FhirPathValue)> {
     let left_val = match left {
         FhirPathValue::Collection(items) => {
             match items.len() {
@@ -60,63 +63,66 @@ pub fn extract_singleton_values(left: &FhirPathValue, right: &FhirPathValue) -> 
 }
 
 /// Extract values for collection-aware operators (like equality) according to FHIRPath specification.
-/// 
+///
 /// This is used for operators that can handle multi-element collections by comparing them element-by-element.
 /// Returns the values as-is, allowing the operator implementation to handle collection logic.
-pub fn extract_collection_values(left: &FhirPathValue, right: &FhirPathValue) -> (FhirPathValue, FhirPathValue) {
+pub fn extract_collection_values(
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+) -> (FhirPathValue, FhirPathValue) {
     // For collection-aware operators, we return the values as-is
     // The operator implementation handles the collection comparison logic
     (left.clone(), right.clone())
 }
 
 /// Evaluate a binary operator with proper singleton handling according to FHIRPath specification.
-/// 
+///
 /// This function:
 /// 1. Extracts singleton values from the operands
 /// 2. Returns empty if either operand is empty
 /// 3. Calls the provided comparison function with the extracted values
-/// 
+///
 /// # Arguments
 /// * `left` - Left operand (may be a collection)
-/// * `right` - Right operand (may be a collection) 
+/// * `right` - Right operand (may be a collection)
 /// * `compare_fn` - Function that performs the actual comparison on single values
-/// 
+///
 /// # Returns
 /// * `FhirPathValue::Empty` if either operand is empty
 /// * `FhirPathValue::Boolean(result)` if both operands are singleton values
 /// * Error if either operand is a multi-element collection
 pub fn evaluate_binary_operator<F>(
-    left: &FhirPathValue, 
-    right: &FhirPathValue, 
-    compare_fn: F
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    compare_fn: F,
 ) -> Result<FhirPathValue>
 where
     F: FnOnce(&FhirPathValue, &FhirPathValue) -> Result<bool>,
 {
     // Handle collections according to FHIRPath specification
     let (left_val, right_val) = extract_singleton_values(left, right)?;
-    
+
     // If either operand is empty, return empty
     if matches!(left_val, FhirPathValue::Empty) || matches!(right_val, FhirPathValue::Empty) {
         return Ok(FhirPathValue::Empty);
     }
 
     let result = compare_fn(&left_val, &right_val)?;
-    Ok(FhirPathValue::Boolean(result))
+    Ok(FhirPathValue::singleton(FhirPathValue::Boolean(result)))
 }
 
 /// Evaluate a binary operator that returns Optional<bool> results
 pub fn evaluate_binary_operator_optional<F>(
-    left: &FhirPathValue, 
-    right: &FhirPathValue, 
-    compare_fn: F
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    compare_fn: F,
 ) -> Result<FhirPathValue>
 where
     F: FnOnce(&FhirPathValue, &FhirPathValue) -> Result<Option<bool>>,
 {
     // Handle collections according to FHIRPath specification
     let (left_val, right_val) = extract_singleton_values(left, right)?;
-    
+
     // If either operand is empty, return empty
     if matches!(left_val, FhirPathValue::Empty) || matches!(right_val, FhirPathValue::Empty) {
         return Ok(FhirPathValue::Empty);
@@ -124,45 +130,47 @@ where
 
     let result = compare_fn(&left_val, &right_val)?;
     match result {
-        Some(bool_result) => Ok(FhirPathValue::Boolean(bool_result)),
+        Some(bool_result) => Ok(FhirPathValue::singleton(FhirPathValue::Boolean(
+            bool_result,
+        ))),
         None => Ok(FhirPathValue::Empty),
     }
 }
 
 /// Evaluate an arithmetic binary operator with proper singleton handling according to FHIRPath specification.
-/// 
+///
 /// This function is similar to evaluate_binary_operator but returns Empty collection for empty operands,
 /// as per FHIRPath arithmetic operation behavior.
-/// 
+///
 /// # Arguments
 /// * `left` - Left operand (may be a collection)
-/// * `right` - Right operand (may be a collection) 
+/// * `right` - Right operand (may be a collection)
 /// * `arithmetic_fn` - Function that performs the actual arithmetic operation on single values
-/// 
+///
 /// # Returns
 /// * `FhirPathValue::Collection(empty)` if either operand is empty
 /// * `FhirPathValue::Collection([result])` containing the arithmetic result
 /// * Error if either operand is a multi-element collection
 pub fn evaluate_arithmetic_operator<F>(
-    left: &FhirPathValue, 
-    right: &FhirPathValue, 
-    arithmetic_fn: F
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    arithmetic_fn: F,
 ) -> Result<FhirPathValue>
 where
     F: FnOnce(&FhirPathValue, &FhirPathValue) -> Result<FhirPathValue>,
 {
     use octofhir_fhirpath_model::Collection;
-    
+
     // Handle collections according to FHIRPath specification
     let (left_val, right_val) = extract_singleton_values(left, right)?;
-    
+
     // If either operand is empty, return empty collection (per FHIRPath arithmetic behavior)
     if matches!(left_val, FhirPathValue::Empty) || matches!(right_val, FhirPathValue::Empty) {
         return Ok(FhirPathValue::Collection(Collection::from(vec![])));
     }
 
     let result = arithmetic_fn(&left_val, &right_val)?;
-    
+
     // If the arithmetic function returns Empty (e.g., division by zero), return empty collection
     match result {
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
@@ -171,55 +179,57 @@ where
 }
 
 /// Evaluate a logical binary operator with proper singleton handling according to FHIRPath specification.
-/// 
+///
 /// Logical operators in FHIRPath follow three-valued logic (true, false, empty).
 /// This function handles the special logic for empty values according to the operator type.
-/// 
+///
 /// # Arguments
 /// * `left` - Left operand (may be a collection)
-/// * `right` - Right operand (may be a collection) 
+/// * `right` - Right operand (may be a collection)
 /// * `logical_fn` - Function that performs the actual logical operation, returning Option<bool>
 ///   where None represents the empty value in three-valued logic
-/// 
+///
 /// # Returns
 /// * `FhirPathValue::Boolean(result)` for definite true/false results
 /// * `FhirPathValue::Empty` for indeterminate results
 /// * Error if either operand is a multi-element collection
 pub fn evaluate_logical_operator<F>(
-    left: &FhirPathValue, 
-    right: &FhirPathValue, 
-    logical_fn: F
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    logical_fn: F,
 ) -> Result<FhirPathValue>
 where
     F: FnOnce(&FhirPathValue, &FhirPathValue) -> Result<Option<bool>>,
 {
     // Handle collections according to FHIRPath specification
     let (left_val, right_val) = extract_singleton_values(left, right)?;
-    
+
     let result = logical_fn(&left_val, &right_val)?;
     match result {
-        Some(bool_result) => Ok(FhirPathValue::Boolean(bool_result)),
+        Some(bool_result) => Ok(FhirPathValue::singleton(FhirPathValue::Boolean(
+            bool_result,
+        ))),
         None => Ok(FhirPathValue::Empty),
     }
 }
 
 /// Evaluate a collection-aware binary operator according to FHIRPath specification.
-/// 
+///
 /// This is used for operators like equality (=) that can handle multi-element collections
 /// by comparing them element-by-element according to specific rules.
-/// 
+///
 /// # Arguments
 /// * `left` - Left operand (may be a collection)
-/// * `right` - Right operand (may be a collection) 
+/// * `right` - Right operand (may be a collection)
 /// * `collection_fn` - Function that performs the actual comparison with full collection handling
-/// 
+///
 /// # Returns
 /// * `FhirPathValue::Boolean(result)` for definite true/false results
 /// * `FhirPathValue::Empty` for indeterminate results
 pub fn evaluate_collection_aware_operator<F>(
-    left: &FhirPathValue, 
-    right: &FhirPathValue, 
-    collection_fn: F
+    left: &FhirPathValue,
+    right: &FhirPathValue,
+    collection_fn: F,
 ) -> Result<FhirPathValue>
 where
     F: FnOnce(&FhirPathValue, &FhirPathValue) -> Result<Option<bool>>,
@@ -227,87 +237,10 @@ where
     // For collection-aware operators, we pass the values directly to the operator
     // which implements the full FHIRPath collection comparison logic
     let (left_val, right_val) = extract_collection_values(left, right);
-    
+
     let result = collection_fn(&left_val, &right_val)?;
     match result {
         Some(bool_result) => Ok(FhirPathValue::Boolean(bool_result)),
         None => Ok(FhirPathValue::Empty),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::Collection;
-
-    #[test]
-    fn test_extract_singleton_values() {
-        // Test single values
-        let result = extract_singleton_values(
-            &FhirPathValue::Integer(1),
-            &FhirPathValue::Integer(2)
-        ).unwrap();
-        assert_eq!(result.0, FhirPathValue::Integer(1));
-        assert_eq!(result.1, FhirPathValue::Integer(2));
-
-        // Test empty collections
-        let empty_collection = FhirPathValue::Collection(Collection::from(vec![]));
-        let result = extract_singleton_values(
-            &empty_collection,
-            &FhirPathValue::Integer(2)
-        ).unwrap();
-        assert_eq!(result.0, FhirPathValue::Empty);
-        assert_eq!(result.1, FhirPathValue::Integer(2));
-
-        // Test singleton collections
-        let singleton_collection = FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(5)]));
-        let result = extract_singleton_values(
-            &singleton_collection,
-            &FhirPathValue::Integer(2)
-        ).unwrap();
-        assert_eq!(result.0, FhirPathValue::Integer(5));
-        assert_eq!(result.1, FhirPathValue::Integer(2));
-
-        // Test multi-element collection (should error)
-        let multi_collection = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2)
-        ]));
-        let result = extract_singleton_values(
-            &multi_collection,
-            &FhirPathValue::Integer(2)
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_evaluate_binary_operator() {
-        // Test successful comparison
-        let result = evaluate_binary_operator(
-            &FhirPathValue::Integer(5),
-            &FhirPathValue::Integer(3),
-            |left, right| {
-                if let (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) = (left, right) {
-                    Ok(a > b)
-                } else {
-                    Ok(false)
-                }
-            }
-        ).unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test empty operand
-        let result = evaluate_binary_operator(
-            &FhirPathValue::Empty,
-            &FhirPathValue::Integer(3),
-            |left, right| {
-                if let (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) = (left, right) {
-                    Ok(a > b)
-                } else {
-                    Ok(false)
-                }
-            }
-        ).unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
     }
 }

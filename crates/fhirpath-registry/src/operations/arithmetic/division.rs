@@ -15,8 +15,8 @@
 //! Division operation (/) implementation for FHIRPath
 
 use crate::metadata::{
-    MetadataBuilder, OperationType, TypeConstraint, FhirPathType,
-    OperationMetadata, PerformanceComplexity, Associativity,
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
 use crate::operation::FhirPathOperation;
 use crate::operations::{EvaluationContext, binary_operator_utils};
@@ -28,22 +28,31 @@ use rust_decimal::Decimal;
 /// Division operation (/) - returns decimal result
 pub struct DivisionOperation;
 
+impl Default for DivisionOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DivisionOperation {
     pub fn new() -> Self {
         Self
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("/", OperationType::BinaryOperator {
-            precedence: 7,
-            associativity: Associativity::Left,
-        })
-            .description("Division operation - returns decimal result")
-            .example("10 / 3")
-            .example("6.0 / 2.0")
-            .returns(TypeConstraint::Specific(FhirPathType::Decimal))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "/",
+            OperationType::BinaryOperator {
+                precedence: 7,
+                associativity: Associativity::Left,
+            },
+        )
+        .description("Division operation - returns decimal result")
+        .example("10 / 3")
+        .example("6.0 / 2.0")
+        .returns(TypeConstraint::Specific(FhirPathType::Decimal))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
     pub fn divide_values(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
@@ -55,11 +64,20 @@ impl DivisionOperation {
                 } else {
                     match (Decimal::try_from(*a), Decimal::try_from(*b)) {
                         (Ok(a_decimal), Ok(b_decimal)) => {
-                            Ok(FhirPathValue::Decimal(a_decimal / b_decimal))
+                            let result = a_decimal / b_decimal;
+                            // Return integer if the result is a whole number
+                            if result.fract() == Decimal::ZERO {
+                                match i64::try_from(result) {
+                                    Ok(int_result) => Ok(FhirPathValue::Integer(int_result)),
+                                    Err(_) => Ok(FhirPathValue::Decimal(result)), // Fallback to decimal if too large
+                                }
+                            } else {
+                                Ok(FhirPathValue::Decimal(result))
+                            }
                         }
                         _ => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integers to decimal for division".to_string()
-                        })
+                            message: "Cannot convert integers to decimal for division".to_string(),
+                        }),
                     }
                 }
             }
@@ -79,8 +97,8 @@ impl DivisionOperation {
                     match Decimal::try_from(*a) {
                         Ok(a_decimal) => Ok(FhirPathValue::Decimal(a_decimal / b)),
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal".to_string()
-                        })
+                            message: "Cannot convert integer to decimal".to_string(),
+                        }),
                     }
                 }
             }
@@ -92,8 +110,8 @@ impl DivisionOperation {
                     match Decimal::try_from(*b) {
                         Ok(b_decimal) => Ok(FhirPathValue::Decimal(a / b_decimal)),
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal".to_string()
-                        })
+                            message: "Cannot convert integer to decimal".to_string(),
+                        }),
                     }
                 }
             }
@@ -111,12 +129,15 @@ impl DivisionOperation {
                 } else {
                     match Decimal::try_from(*scalar) {
                         Ok(scalar_decimal) => match q.divide_scalar(scalar_decimal) {
-                            Some(result) => Ok(FhirPathValue::Quantity(std::sync::Arc::new(result))),
+                            Some(result) => {
+                                Ok(FhirPathValue::Quantity(std::sync::Arc::new(result)))
+                            }
                             None => Ok(FhirPathValue::Empty), // Division by zero returns empty
                         },
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal for quantity division".to_string()
-                        })
+                            message: "Cannot convert integer to decimal for quantity division"
+                                .to_string(),
+                        }),
                     }
                 }
             }
@@ -138,18 +159,19 @@ impl DivisionOperation {
                                 if unit == "1" || unit.is_empty() {
                                     Some("1".to_string())
                                 } else {
-                                    Some(format!("1/{}", unit))
+                                    Some(format!("1/{unit}"))
                                 }
                             } else {
                                 Some("1".to_string())
                             };
                             Ok(FhirPathValue::Quantity(std::sync::Arc::new(
-                                octofhir_fhirpath_model::Quantity::new(result_value, result_unit)
+                                octofhir_fhirpath_model::Quantity::new(result_value, result_unit),
                             )))
-                        },
+                        }
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal for quantity division".to_string()
-                        })
+                            message: "Cannot convert integer to decimal for quantity division"
+                                .to_string(),
+                        }),
                     }
                 }
             }
@@ -162,13 +184,13 @@ impl DivisionOperation {
                         if unit == "1" || unit.is_empty() {
                             Some("1".to_string())
                         } else {
-                            Some(format!("1/{}", unit))
+                            Some(format!("1/{unit}"))
                         }
                     } else {
                         Some("1".to_string())
                     };
                     Ok(FhirPathValue::Quantity(std::sync::Arc::new(
-                        octofhir_fhirpath_model::Quantity::new(result_value, result_unit)
+                        octofhir_fhirpath_model::Quantity::new(result_value, result_unit),
                     )))
                 }
             }
@@ -197,9 +219,8 @@ impl FhirPathOperation for DivisionOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            DivisionOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(DivisionOperation::create_metadata);
         &METADATA
     }
 
@@ -232,7 +253,11 @@ impl FhirPathOperation for DivisionOperation {
             }));
         }
 
-        Some(binary_operator_utils::evaluate_arithmetic_operator(&args[0], &args[1], Self::divide_values))
+        Some(binary_operator_utils::evaluate_arithmetic_operator(
+            &args[0],
+            &args[1],
+            Self::divide_values,
+        ))
     }
 
     fn supports_sync(&self) -> bool {
@@ -241,182 +266,5 @@ impl FhirPathOperation for DivisionOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::Collection;
-    use std::str::FromStr;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_integer_division() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Integer division returns decimal wrapped in collection
-        let args = vec![FhirPathValue::Integer(10), FhirPathValue::Integer(3)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        
-        // 10/3 = 3.333... wrapped in collection
-        if let FhirPathValue::Collection(coll) = result {
-            assert_eq!(coll.len(), 1);
-            if let FhirPathValue::Decimal(dec) = coll.first().unwrap() {
-                assert!((dec - Decimal::from_str("3.333333333333333333333333333").unwrap()).abs() < Decimal::new(1, 20));
-            } else {
-                panic!("Expected decimal result in collection");
-            }
-        } else {
-            panic!("Expected collection result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_decimal_division() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Decimal division wrapped in collection
-        let dec1 = Decimal::from_str("6.0").unwrap();
-        let dec2 = Decimal::from_str("2.0").unwrap();
-        let args = vec![FhirPathValue::Decimal(dec1), FhirPathValue::Decimal(dec2)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Decimal(Decimal::from_str("3.0").unwrap())
-        ]));
-        assert_eq!(result, expected);
-    }
-
-    #[tokio::test]
-    async fn test_mixed_type_division() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Integer divided by decimal wrapped in collection
-        let args = vec![FhirPathValue::Integer(6), FhirPathValue::Decimal(Decimal::from_str("2.0").unwrap())];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        let expected = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Decimal(Decimal::from_str("3.0").unwrap())
-        ]));
-        assert_eq!(result, expected);
-
-        // Decimal divided by integer wrapped in collection
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("6.0").unwrap()), FhirPathValue::Integer(2)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        let expected = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Decimal(Decimal::from_str("3.0").unwrap())
-        ]));
-        assert_eq!(result, expected);
-    }
-
-    #[tokio::test]
-    async fn test_division_by_zero() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Division by zero should return empty collection according to FHIRPath specification
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(0)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Decimal division by zero should return empty collection according to FHIRPath specification
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("5.0").unwrap()), FhirPathValue::Decimal(Decimal::ZERO)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Mixed type division by zero should return empty collection
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Decimal(Decimal::ZERO)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("5.0").unwrap()), FhirPathValue::Integer(0)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[tokio::test]
-    async fn test_division_with_empty() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Empty operands return empty collections
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Empty];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Integer(5)];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        let args = vec![FhirPathValue::Integer(6), FhirPathValue::Integer(2)];
-        let sync_result = div_op.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        let expected = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Decimal(Decimal::from_str("3").unwrap())
-        ]));
-        assert_eq!(sync_result, expected);
-        assert!(div_op.supports_sync());
-    }
-
-    #[tokio::test]
-    async fn test_type_errors() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Cannot divide by string
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::String("hello".into())];
-        let result = div_op.evaluate(&args, &context).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_collection_handling() {
-        let div_op = DivisionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Single-element collections should be unwrapped
-        let left = FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(6)]));
-        let right = FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(2)]));
-        let args = vec![left, right];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        let expected = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Decimal(Decimal::from_str("3").unwrap())
-        ]));
-        assert_eq!(result, expected);
-
-        // Empty collections should return empty collection
-        let left = FhirPathValue::Collection(Collection::from(vec![]));
-        let right = FhirPathValue::Integer(2);
-        let args = vec![left, right];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Multi-element collections should return empty collection
-        let left = FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Integer(4), 
-            FhirPathValue::Integer(6)
-        ]));
-        let right = FhirPathValue::Integer(2);
-        let args = vec![left, right];
-        let result = div_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
     }
 }

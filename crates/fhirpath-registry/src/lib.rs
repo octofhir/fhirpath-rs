@@ -20,14 +20,13 @@
 
 // Core unified system - V2 Architecture
 pub use fhirpath_registry::{DispatchKey, FhirPathRegistry};
+pub use lambda::{
+    ExpressionEvaluator, LambdaContextBuilder, LambdaFunction, LambdaOperationWrapper, LambdaUtils,
+};
 pub use metadata::{
     Associativity, FhirPathType, FunctionMetadata, MetadataBuilder, OperationMetadata,
     OperationSpecificMetadata, OperationType, OperatorMetadata, PerformanceMetadata,
     TypeConstraint,
-};
-pub use lambda::{
-    ExpressionEvaluator, LambdaContextBuilder, LambdaFunction, LambdaOperationWrapper,
-    LambdaUtils,
 };
 pub use operation::{
     CollectionOperation, CompilableOperation, CompiledOperation, FhirPathOperation,
@@ -100,6 +99,7 @@ pub async fn create_standard_registry()
     MathOperations::register_all(&registry).await?;
     TypeOperations::register_all(&registry).await?;
     LambdaOperations::register_all(&registry).await?;
+    CdaOperations::register_all(&registry).await?;
 
     Ok(registry)
 }

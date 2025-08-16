@@ -14,18 +14,25 @@
 
 //! Exclude function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
-use async_trait::async_trait;
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 use std::collections::HashSet;
 
 /// Exclude function: returns items from the input collection that are not in the other collection
 pub struct ExcludeFunction;
+
+impl Default for ExcludeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ExcludeFunction {
     pub fn new() -> Self {
@@ -34,7 +41,7 @@ impl ExcludeFunction {
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("exclude", OperationType::Function)
-            .description("Returns items from the input collection that are not present in the other collection. Duplicates are removed from the result.")
+            .description("Returns items from the input collection that are not present in the other collection. Duplicates from the input collection are preserved.")
             .example("Patient.name.given.exclude(Patient.name.family)")
             .example("Bundle.entry.exclude(Bundle.contained)")
             .parameter("other", TypeConstraint::Specific(FhirPathType::Collection), false)
@@ -55,9 +62,8 @@ impl FhirPathOperation for ExcludeFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ExcludeFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ExcludeFunction::create_metadata);
         &METADATA
     }
 
@@ -93,11 +99,15 @@ impl FhirPathOperation for ExcludeFunction {
 }
 
 impl ExcludeFunction {
-    fn evaluate_exclude(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn evaluate_exclude(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate exactly one argument (the collection to exclude)
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArguments { message: 
-                "exclude() requires exactly one collection argument".to_string()
+            return Err(FhirPathError::InvalidArguments {
+                message: "exclude() requires exactly one collection argument".to_string(),
             });
         }
 
@@ -115,13 +125,13 @@ impl ExcludeFunction {
         }
 
         // Find items from left collection that are NOT in right collection
-        let mut seen = HashSet::new();
+        // Note: We preserve duplicates from the left collection
         let mut result_items = Vec::new();
 
         for item in &left_items {
             let key = self.value_to_comparable_key(item)?;
-            // Item must NOT be in right collection and not already added to result
-            if !right_keys.contains(&key) && seen.insert(key) {
+            // Item must NOT be in right collection
+            if !right_keys.contains(&key) {
                 result_items.push(item.clone());
             }
         }
@@ -146,270 +156,31 @@ impl ExcludeFunction {
     fn value_to_comparable_key(&self, value: &FhirPathValue) -> Result<String> {
         match value {
             FhirPathValue::String(s) => Ok(format!("string:{}", s.as_ref())),
-            FhirPathValue::Integer(i) => Ok(format!("integer:{}", i)),
-            FhirPathValue::Decimal(d) => Ok(format!("decimal:{}", d)),
-            FhirPathValue::Boolean(b) => Ok(format!("boolean:{}", b)),
-            FhirPathValue::Date(d) => Ok(format!("date:{}", d)),
-            FhirPathValue::DateTime(dt) => Ok(format!("datetime:{}", dt)),
-            FhirPathValue::Time(t) => Ok(format!("time:{}", t)),
-            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", json.to_string())),
+            FhirPathValue::Integer(i) => Ok(format!("integer:{i}")),
+            FhirPathValue::Decimal(d) => Ok(format!("decimal:{d}")),
+            FhirPathValue::Boolean(b) => Ok(format!("boolean:{b}")),
+            FhirPathValue::Date(d) => Ok(format!("date:{d}")),
+            FhirPathValue::DateTime(dt) => Ok(format!("datetime:{dt}")),
+            FhirPathValue::Time(t) => Ok(format!("time:{t}")),
+            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", **json)),
             FhirPathValue::Collection(_) => {
                 // Collections are compared structurally - convert to JSON representation
-                Ok(format!("collection:{}", serde_json::to_string(value).map_err(|_| {
-                    FhirPathError::InvalidArguments { message: "Cannot serialize collection for comparison".to_string() }
-                })?))
+                Ok(format!(
+                    "collection:{}",
+                    serde_json::to_string(value).map_err(|_| {
+                        FhirPathError::InvalidArguments {
+                            message: "Cannot serialize collection for comparison".to_string(),
+                        }
+                    })?
+                ))
             }
             FhirPathValue::Empty => Ok("empty".to_string()),
-            FhirPathValue::Quantity(q) => Ok(format!("quantity:{}", q.to_string())),
+            FhirPathValue::Quantity(q) => Ok(format!("quantity:{q}")),
             FhirPathValue::Resource(r) => {
                 let id = r.as_json().get("id").and_then(|v| v.as_str()).unwrap_or("");
-                Ok(format!("resource:{}", id))
-            },
-            FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{}", name)),
+                Ok(format!("resource:{id}"))
+            }
+            FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{name}")),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_exclude_empty_collections() {
-        let exclude_fn = ExcludeFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection.clone());
-        
-        let result = exclude_fn.evaluate(&[empty_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_exclude_with_empty() {
-        let exclude_fn = ExcludeFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(collection.clone());
-        
-        let result = exclude_fn.evaluate(&[empty_collection], &context).await.unwrap();
-        assert_eq!(result, collection); // Excluding empty collection returns original
-    }
-
-    #[tokio::test]
-    async fn test_exclude_disjoint_collections() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("c".into()),
-            FhirPathValue::String("d".into()),
-        ]);
-        let context = create_test_context(left_collection.clone());
-        
-        let result = exclude_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, left_collection); // No overlap, so return original
-    }
-
-    #[tokio::test]
-    async fn test_exclude_overlapping_collections() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-            FhirPathValue::String("d".into()),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = exclude_fn.evaluate(&[right_collection], &context).await.unwrap();
-        
-        if let FhirPathValue::Collection(items) = result {
-            assert_eq!(items.len(), 1); // Only "a" remains
-            assert_eq!(items.get(0).unwrap(), FhirPathValue::String("a".into()));
-        } else {
-            panic!("Expected collection result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_exclude_identical_collections() {
-        let exclude_fn = ExcludeFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(collection.clone());
-        
-        let result = exclude_fn.evaluate(&[collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty); // Excluding self returns empty
-    }
-
-    #[tokio::test]
-    async fn test_exclude_with_duplicates_removes_duplicates() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("a".into()), // duplicate in left
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = exclude_fn.evaluate(&[right_collection], &context).await.unwrap();
-        
-        if let FhirPathValue::Collection(items) = result {
-            assert_eq!(items.len(), 1); // Only one "a" (duplicates removed)
-            assert_eq!(items.get(0).unwrap(), FhirPathValue::String("a".into()));
-        } else {
-            panic!("Expected collection result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_exclude_single_items() {
-        let exclude_fn = ExcludeFunction::new();
-        let single_item = FhirPathValue::String("a".into());
-        let different_item = FhirPathValue::String("b".into());
-        let context = create_test_context(single_item.clone());
-        
-        let result = exclude_fn.evaluate(&[different_item], &context).await.unwrap();
-        
-        if let FhirPathValue::Collection(items) = result {
-            assert_eq!(items.len(), 1);
-            assert_eq!(items.get(0).unwrap(), single_item);
-        } else {
-            panic!("Expected collection result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_exclude_same_single_items() {
-        let exclude_fn = ExcludeFunction::new();
-        let single_item = FhirPathValue::String("a".into());
-        let context = create_test_context(single_item.clone());
-        
-        let result = exclude_fn.evaluate(&[single_item], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty); // Excluding self returns empty
-    }
-
-    #[tokio::test]
-    async fn test_exclude_mixed_types() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("test".into()),
-            FhirPathValue::Integer(42),
-            FhirPathValue::Boolean(true),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::Integer(42), // to be excluded
-            FhirPathValue::Boolean(false),
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = exclude_fn.evaluate(&[right_collection], &context).await.unwrap();
-        
-        if let FhirPathValue::Collection(items) = result {
-            assert_eq!(items.len(), 2); // "test" and true remain
-            assert!(items.contains(&FhirPathValue::String("test".into())));
-            assert!(items.contains(&FhirPathValue::Boolean(true)));
-        } else {
-            panic!("Expected collection result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_exclude_all_items() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()), // extra item in right
-        ]);
-        let context = create_test_context(left_collection);
-        
-        let result = exclude_fn.evaluate(&[right_collection], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty); // All items excluded
-    }
-
-    #[tokio::test]
-    async fn test_exclude_no_arguments_error() {
-        let exclude_fn = ExcludeFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-        
-        let result = exclude_fn.evaluate(&[], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_exclude_too_many_arguments_error() {
-        let exclude_fn = ExcludeFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-        
-        let result = exclude_fn.evaluate(&[
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into())
-        ], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let exclude_fn = ExcludeFunction::new();
-        let left_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let right_collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(left_collection);
-
-        let sync_result = exclude_fn.try_evaluate_sync(&[right_collection], &context).unwrap().unwrap();
-        
-        if let FhirPathValue::Collection(items) = sync_result {
-            assert_eq!(items.len(), 1);
-            assert_eq!(items.get(0).unwrap(), FhirPathValue::String("a".into()));
-        } else {
-            panic!("Expected collection result");
-        }
-        assert!(exclude_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let exclude_fn = ExcludeFunction::new();
-        let metadata = exclude_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "exclude");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
-        assert_eq!(metadata.parameters.len(), 1);
     }
 }

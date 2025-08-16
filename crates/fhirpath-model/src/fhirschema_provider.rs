@@ -278,20 +278,20 @@ impl FhirSchemaModelProvider {
                 // Choice type - create union
                 let choice_types: Vec<TypeReflectionInfo> = types
                     .iter()
-                    .filter_map(|t| {
+                    .map(|t| {
                         if self.is_primitive_type(&t.code) {
-                            Some(TypeReflectionInfo::SimpleType {
+                            TypeReflectionInfo::SimpleType {
                                 namespace: "System".to_string(),
                                 name: self.map_primitive_type(&t.code),
                                 base_type: None,
-                            })
+                            }
                         } else {
-                            Some(TypeReflectionInfo::ClassInfo {
+                            TypeReflectionInfo::ClassInfo {
                                 namespace: "FHIR".to_string(),
                                 name: t.code.clone(),
                                 base_type: self.get_hardcoded_base_type(&t.code),
                                 elements: vec![],
-                            })
+                            }
                         }
                     })
                     .collect();
@@ -650,6 +650,91 @@ impl ModelProvider for FhirSchemaModelProvider {
         _element_path: &str,
     ) -> Option<PrimitiveExtensionData> {
         None
+    }
+
+    async fn find_extensions_by_url(
+        &self,
+        value: &crate::FhirPathValue,
+        parent_resource: &crate::FhirPathValue,
+        _element_path: Option<&str>,
+        url: &str,
+    ) -> Vec<crate::FhirPathValue> {
+        use crate::FhirPathValue;
+
+        // First check for direct extensions on the value
+        if let FhirPathValue::JsonValue(json) = value {
+            if let Some(extensions) = json.as_json().get("extension") {
+                if let Some(ext_array) = extensions.as_array() {
+                    let mut matching_extensions = Vec::new();
+                    for ext in ext_array {
+                        if let Some(ext_obj) = ext.as_object() {
+                            if let Some(ext_url) = ext_obj.get("url") {
+                                if let Some(ext_url_str) = ext_url.as_str() {
+                                    if ext_url_str == url {
+                                        matching_extensions
+                                            .push(FhirPathValue::resource_from_json(ext.clone()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !matching_extensions.is_empty() {
+                        return matching_extensions;
+                    }
+                }
+            }
+        }
+
+        // For primitive values, check the underscore element in the parent resource
+        // This is FHIR-specific behavior where primitive extensions are stored in parallel underscore elements
+        if matches!(
+            value,
+            FhirPathValue::String(_)
+                | FhirPathValue::Integer(_)
+                | FhirPathValue::Decimal(_)
+                | FhirPathValue::Boolean(_)
+        ) {
+            if let FhirPathValue::JsonValue(parent_json) = parent_resource {
+                let parent_obj = parent_json.as_json();
+
+                // Look for all underscore properties (for primitive extensions)
+                for (key, underscore_value) in parent_obj
+                    .as_object()
+                    .unwrap_or(&serde_json::Map::new())
+                    .iter()
+                {
+                    if key.starts_with('_') {
+                        if let Some(extensions) = underscore_value.get("extension") {
+                            if let Some(ext_array) = extensions.as_array() {
+                                let mut matching_extensions = Vec::new();
+
+                                for ext in ext_array {
+                                    if let Some(ext_obj) = ext.as_object() {
+                                        if let Some(ext_url) = ext_obj.get("url") {
+                                            if let Some(ext_url_str) = ext_url.as_str() {
+                                                if ext_url_str == url {
+                                                    matching_extensions.push(
+                                                        FhirPathValue::resource_from_json(
+                                                            ext.clone(),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if !matching_extensions.is_empty() {
+                                    return matching_extensions;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Vec::new()
     }
 
     async fn get_search_params(&self, _resource_type: &str) -> Vec<SearchParameter> {

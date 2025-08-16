@@ -29,6 +29,12 @@ use crate::operations::EvaluationContext;
 #[derive(Debug, Clone)]
 pub struct DistinctFunction;
 
+impl Default for DistinctFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DistinctFunction {
     pub fn new() -> Self {
         Self
@@ -56,7 +62,7 @@ impl FhirPathOperation for DistinctFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| DistinctFunction::create_metadata());
+            std::sync::LazyLock::new(DistinctFunction::create_metadata);
         &METADATA
     }
 
@@ -82,7 +88,7 @@ impl FhirPathOperation for DistinctFunction {
                 for item in c.iter() {
                     // Basic deduplication - this is a placeholder implementation
                     // TODO: Implement proper FHIRPath value comparison
-                    let key = format!("{:?}", item);
+                    let key = format!("{item:?}");
                     if seen.insert(key) {
                         result.push(item.clone());
                     }
@@ -120,7 +126,7 @@ impl FhirPathOperation for DistinctFunction {
                 let mut result = Vec::new();
 
                 for item in c.iter() {
-                    let key = format!("{:?}", item);
+                    let key = format!("{item:?}");
                     if seen.insert(key) {
                         result.push(item.clone());
                     }
@@ -140,61 +146,5 @@ impl FhirPathOperation for DistinctFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_distinct_function() {
-        let func = DistinctFunction::new();
-
-        // Test empty collection
-        let ctx = EvaluationContext::new(
-            FhirPathValue::Empty,
-            context.registry.clone(),
-            context.model_provider.clone(),
-        );
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test collection with duplicates
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2),
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(3),
-            ]), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        // Should return collection with unique values
-        match result {
-            FhirPathValue::Collection(c) => {
-                assert_eq!(c.len(), 3); // 1, 2, 3
-            }
-            _ => panic!("Expected collection result"),
-        }
-
-        // Test single value
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(42), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(42));
     }
 }

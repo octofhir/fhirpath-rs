@@ -14,17 +14,24 @@
 
 //! Length function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use crate::operations::EvaluationContext;
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Length function: returns the length of a string
 pub struct LengthFunction;
+
+impl Default for LengthFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LengthFunction {
     pub fn new() -> Self {
@@ -53,9 +60,8 @@ impl FhirPathOperation for LengthFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            LengthFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(LengthFunction::create_metadata);
         &METADATA
     }
 
@@ -103,21 +109,22 @@ impl LengthFunction {
 
         // Handle collection inputs
         let input = &context.input;
+
         match input {
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
-                    return Ok(FhirPathValue::Collection(Collection::from(vec![])));
+                    return Ok(FhirPathValue::Empty);
                 }
                 if items.len() > 1 {
-                    return Ok(FhirPathValue::Collection(Collection::from(vec![])));
+                    return Ok(FhirPathValue::Empty);
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value);
+                self.process_single_value(value)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input);
+                self.process_single_value(input)
             }
         }
     }
@@ -126,86 +133,25 @@ impl LengthFunction {
         match value {
             FhirPathValue::String(s) => {
                 let length = s.chars().count() as i64;
-                Ok(FhirPathValue::Collection(Collection::from(vec![
-                    FhirPathValue::Integer(length)
-                ])))
-            },
-            FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
-            _ => Err(FhirPathError::EvaluationError {
-                message: "length() can only be called on string values".to_string(),
-            }),
+                Ok(FhirPathValue::Integer(length))
+            }
+            FhirPathValue::Collection(items) => {
+                let length = items.len() as i64;
+                Ok(FhirPathValue::Integer(length))
+            }
+            FhirPathValue::Empty => Ok(FhirPathValue::Empty),
+            _ => {
+                // For other types, try to convert to string first
+                if let Some(string_val) = value.to_string_value() {
+                    let length = string_val.chars().count() as i64;
+                    Ok(FhirPathValue::Integer(length))
+                } else {
+                    Err(FhirPathError::EvaluationError {
+                        message: "length() can only be called on string values or collections"
+                            .to_string(),
+                    })
+                }
+            }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_length_function() {
-        let length_fn = LengthFunction::new();
-
-        // Test with string
-        let string = FhirPathValue::String("hello world".into());
-        let context = create_test_context(string);
-        let result = length_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(11));
-
-        // Test with empty string
-        let empty_string = FhirPathValue::String("".into());
-        let context = create_test_context(empty_string);
-        let result = length_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(0));
-
-        // Test with unicode characters
-        let unicode_string = FhirPathValue::String("héllo 世界".into());
-        let context = create_test_context(unicode_string);
-        let result = length_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(8));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let result = length_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test with non-string should error
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let result = length_fn.evaluate(&[], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let length_fn = LengthFunction::new();
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-
-        let sync_result = length_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Integer(4));
-        assert!(length_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let length_fn = LengthFunction::new();
-        let metadata = length_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "length");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
     }
 }

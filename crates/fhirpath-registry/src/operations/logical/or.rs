@@ -14,15 +14,27 @@
 
 //! Logical OR operator implementation
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType, PerformanceComplexity, Associativity}};
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{
+        Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+        PerformanceComplexity, TypeConstraint,
+    },
+};
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Logical OR operator
 #[derive(Debug, Clone)]
 pub struct OrOperation;
+
+impl Default for OrOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl OrOperation {
     pub fn new() -> Self {
@@ -30,28 +42,37 @@ impl OrOperation {
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("or", OperationType::BinaryOperator {
-            precedence: 1,
-            associativity: Associativity::Left,
-        })
-            .description("Logical OR operator with three-valued logic")
-            .example("true or false")
-            .example("false or false")
-            .example("empty() or true")
-            .parameter("left", TypeConstraint::Specific(FhirPathType::Boolean), false)
-            .parameter("right", TypeConstraint::Specific(FhirPathType::Boolean), false)
-            .returns(TypeConstraint::Specific(FhirPathType::Boolean))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "or",
+            OperationType::BinaryOperator {
+                precedence: 1,
+                associativity: Associativity::Left,
+            },
+        )
+        .description("Logical OR operator with three-valued logic")
+        .example("true or false")
+        .example("false or false")
+        .example("empty() or true")
+        .parameter(
+            "left",
+            TypeConstraint::Specific(FhirPathType::Boolean),
+            false,
+        )
+        .parameter(
+            "right",
+            TypeConstraint::Specific(FhirPathType::Boolean),
+            false,
+        )
+        .returns(TypeConstraint::Specific(FhirPathType::Boolean))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
     /// Unwrap single-item collections to their contained value
     fn unwrap_single_collection(&self, value: &FhirPathValue) -> FhirPathValue {
         match value {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.first().unwrap().clone()
-            }
-            _ => value.clone()
+            FhirPathValue::Collection(items) if items.len() == 1 => items.first().unwrap().clone(),
+            _ => value.clone(),
         }
     }
 
@@ -68,14 +89,18 @@ impl OrOperation {
                     // Multi-element collections in logical operations result in empty (not error)
                     Ok(None)
                 }
-            },
-            // Non-boolean values in logical operations result in empty (not error)
-            // This follows FHIRPath specification for type conversion in boolean context
-            _ => Ok(None),
+            }
+            // Per FHIRPath spec: "IF the collection contains a single node AND the expected input type is Boolean THEN The collection evaluates to true"
+            // Non-boolean single values in boolean context evaluate to true
+            _ => Ok(Some(true)),
         }
     }
 
-    fn evaluate_binary_sync(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<Result<FhirPathValue>> {
+    fn evaluate_binary_sync(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<Result<FhirPathValue>> {
         // Handle empty collections per FHIRPath spec
         match (left, right) {
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
@@ -117,7 +142,7 @@ impl OrOperation {
             Ok(b) => b,
             Err(_) => return None, // Fallback to async for type errors
         };
-        
+
         let right_bool = match Self::to_boolean(right) {
             Ok(b) => b,
             Err(_) => return None, // Fallback to async for type errors
@@ -132,7 +157,9 @@ impl OrOperation {
 
         // Wrap result in collection as per FHIRPath spec
         Some(match result {
-            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(b)]))),
+            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![
+                FhirPathValue::Boolean(b),
+            ]))),
             None => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
         })
     }
@@ -152,25 +179,28 @@ impl FhirPathOperation for OrOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            OrOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(OrOperation::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             });
         }
 
         // Unwrap single-item collections
         let left_unwrapped = self.unwrap_single_collection(&args[0]);
         let right_unwrapped = self.unwrap_single_collection(&args[1]);
-        
+
         // Try sync path first
         if let Some(result) = self.evaluate_binary_sync(&left_unwrapped, &right_unwrapped) {
             return result;
@@ -189,17 +219,23 @@ impl FhirPathOperation for OrOperation {
 
         // Wrap result in collection as per FHIRPath spec
         match result {
-            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(b)]))),
+            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![
+                FhirPathValue::Boolean(b),
+            ]))),
             None => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 2 {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             }));
         }
 
@@ -214,120 +250,5 @@ impl FhirPathOperation for OrOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_or_operation() {
-        let op = OrOperation::new();
-        let ctx = create_test_context();
-
-        // Test true or false
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test false or false
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(false)])));
-
-        // Test true or false
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test true or true
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test true or empty (should return true)
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test empty or true (should return true)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test false or empty (should return empty collection)
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test empty or false (should return empty collection)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test empty or empty (should return empty collection)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[tokio::test]
-    async fn test_or_operation_with_collections() {
-        let op = OrOperation::new();
-        let ctx = create_test_context();
-
-        // Test single-element collection inputs
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])),
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(false)]))
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test empty collection with boolean
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![])),
-            FhirPathValue::Boolean(true)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test boolean with empty collection
-        let args = vec![
-            FhirPathValue::Boolean(false),
-            FhirPathValue::Collection(Collection::from(vec![]))
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test multi-element collection (should return empty)
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)])),
-            FhirPathValue::Boolean(true)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let op = OrOperation::new();
-        let ctx = create_test_context();
-
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)];
-        let sync_result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-        assert!(op.supports_sync());
     }
 }

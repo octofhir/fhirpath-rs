@@ -6,7 +6,7 @@
 use octofhir_fhirpath::ast::ExpressionNode;
 use octofhir_fhirpath::model::FhirPathValue;
 use octofhir_fhirpath::model::ModelProvider;
-use octofhir_fhirpath::{create_standard_registry, parse, FhirPathEngine, FhirPathRegistry};
+use octofhir_fhirpath::{FhirPathEngine, FhirPathRegistry, create_standard_registry, parse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -34,6 +34,10 @@ pub struct TestCase {
     /// Optional description
     #[serde(default)]
     pub description: Option<String>,
+
+    /// expression call allows to fail
+    #[serde(rename = "expectError")]
+    pub expect_error: Option<bool>,
 }
 
 /// Custom deserializer to handle "input": null as Some(Value::Null) instead of None
@@ -363,7 +367,7 @@ impl IntegrationTestRunner {
             Ok(result) => result,
             Err(e) => {
                 // Per FHIRPath spec, evaluation errors should return empty collection
-                // Check if expected result is empty array
+                // Check if an expected result is empty array
                 let expected = self.convert_expected_value(&test.expected);
                 if expected.is_empty() {
                     // This is expected - evaluation errors should produce empty

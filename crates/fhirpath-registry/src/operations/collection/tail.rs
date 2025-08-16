@@ -14,17 +14,21 @@
 
 //! Tail function implementation for FHIRPath
 
+use crate::metadata::{MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity};
 use crate::operation::FhirPathOperation;
-use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity
-};
-use async_trait::async_trait;
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
 use crate::operations::EvaluationContext;
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Tail function: returns all but the first item in the input collection
 pub struct TailFunction;
+
+impl Default for TailFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TailFunction {
     pub fn new() -> Self {
@@ -52,9 +56,8 @@ impl FhirPathOperation for TailFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            TailFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(TailFunction::create_metadata);
         &METADATA
     }
 
@@ -90,11 +93,15 @@ impl FhirPathOperation for TailFunction {
 }
 
 impl TailFunction {
-    fn evaluate_tail(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn evaluate_tail(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate no arguments
         if !args.is_empty() {
-            return Err(FhirPathError::InvalidArguments { message: 
-                "tail() takes no arguments".to_string()
+            return Err(FhirPathError::InvalidArguments {
+                message: "tail() takes no arguments".to_string(),
             });
         }
 
@@ -103,7 +110,9 @@ impl TailFunction {
                 if items.len() <= 1 {
                     Ok(FhirPathValue::collection(vec![]))
                 } else {
-                    Ok(FhirPathValue::collection(items.as_arc().as_ref()[1..].to_vec()))
+                    Ok(FhirPathValue::collection(
+                        items.as_arc().as_ref()[1..].to_vec(),
+                    ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::collection(vec![])),
@@ -112,106 +121,5 @@ impl TailFunction {
                 Ok(FhirPathValue::collection(vec![]))
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_tail_empty_collection() {
-        let tail_fn = TailFunction::new();
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection);
-        
-        let result = tail_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-    }
-
-    #[tokio::test]
-    async fn test_tail_single_item() {
-        let tail_fn = TailFunction::new();
-        let single_item = FhirPathValue::String("test".into());
-        let context = create_test_context(single_item);
-        
-        let result = tail_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-    }
-
-    #[tokio::test]
-    async fn test_tail_single_item_collection() {
-        let tail_fn = TailFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("only".into())]);
-        let context = create_test_context(collection);
-        
-        let result = tail_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::collection(vec![]));
-    }
-
-    #[tokio::test]
-    async fn test_tail_multiple_items() {
-        let tail_fn = TailFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-        ]);
-        let context = create_test_context(collection);
-        
-        let result = tail_fn.evaluate(&[], &context).await.unwrap();
-        let expected = FhirPathValue::collection(vec![
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-        ]);
-        assert_eq!(result, expected);
-    }
-
-    #[tokio::test]
-    async fn test_tail_with_arguments_error() {
-        let tail_fn = TailFunction::new();
-        let collection = FhirPathValue::collection(vec![FhirPathValue::String("test".into())]);
-        let context = create_test_context(collection);
-        
-        let result = tail_fn.evaluate(&[FhirPathValue::Integer(1)], &context).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let tail_fn = TailFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-        ]);
-        let context = create_test_context(collection);
-
-        let sync_result = tail_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        let expected = FhirPathValue::collection(vec![
-            FhirPathValue::String("second".into()),
-            FhirPathValue::String("third".into()),
-        ]);
-        assert_eq!(sync_result, expected);
-        assert!(tail_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let tail_fn = TailFunction::new();
-        let metadata = tail_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "tail");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
     }
 }

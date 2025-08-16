@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::super::engine::{FhirPathEngine, EvaluationConfig};
+use super::super::engine::{EvaluationConfig, FhirPathEngine};
 // Basic engine test placeholder - currently unused
 
 #[tokio::test]
@@ -29,27 +29,25 @@ async fn test_engine_with_custom_config() {
         max_recursion_depth: 500,
         timeout_ms: 15000,
         enable_lambda_optimization: false,
+        enable_sync_optimization: true,
         memory_limit_mb: Some(100),
+        max_expression_nodes: 10000,
+        max_collection_size: 100000,
     };
 
     // Create engine with mock provider first, then apply config
-    use octofhir_fhirpath_registry::create_standard_registries;
     use octofhir_fhirpath_model::MockModelProvider;
+    use octofhir_fhirpath_registry::create_standard_registry;
     use std::sync::Arc;
 
-    let (functions, operators) = create_standard_registries();
+    let registry = Arc::new(create_standard_registry().await.unwrap());
     let model_provider = Arc::new(MockModelProvider::empty());
 
-    let engine = FhirPathEngine::new_with_config(
-        Arc::new(functions),
-        Arc::new(operators),
-        model_provider,
-        config.clone(),
-    );
+    let engine = FhirPathEngine::new(registry, model_provider).with_config(config.clone());
 
     assert_eq!(engine.config().max_recursion_depth, 500);
     assert_eq!(engine.config().timeout_ms, 15000);
-    assert_eq!(engine.config().enable_lambda_optimization, false);
+    assert!(!engine.config().enable_lambda_optimization);
     assert_eq!(engine.config().memory_limit_mb, Some(100));
 }
 
@@ -58,7 +56,7 @@ async fn test_thread_safety() {
     let engine = FhirPathEngine::with_mock_provider();
 
     // Test that engine can be shared between threads
-    let engine_clone = engine.clone();
+    let engine_clone = engine;
     let handle = tokio::spawn(async move {
         // This should compile and run without issues
         let _ = engine_clone;

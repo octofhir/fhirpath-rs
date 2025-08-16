@@ -1,7 +1,7 @@
 {
   "name": "testResolve",
   "description": "resolve() with model provider",
-  "source": "user-feeedback",
+  "source": "user-feedback",
   "tests": [
     {
       "name": "testResolveBundle",

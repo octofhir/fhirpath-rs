@@ -2,13 +2,15 @@
 
 #[cfg(test)]
 mod signature_validation_tests {
-    use super::*;
-    use crate::operation::{FhirPathOperation};
-    use crate::metadata::{MetadataBuilder, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity};
-    use octofhir_fhirpath_core::{Result, FhirPathError};
-    use octofhir_fhirpath_model::FhirPathValue;
+
+    use crate::metadata::{
+        FhirPathType, MetadataBuilder, OperationType, PerformanceComplexity, TypeConstraint,
+    };
+    use crate::operation::FhirPathOperation;
     use crate::operations::EvaluationContext;
     use async_trait::async_trait;
+    use octofhir_fhirpath_core::{FhirPathError, Result};
+    use octofhir_fhirpath_model::FhirPathValue;
 
     struct MockFunction;
 
@@ -16,7 +18,11 @@ mod signature_validation_tests {
         fn create_metadata() -> crate::metadata::OperationMetadata {
             MetadataBuilder::new("mock", OperationType::Function)
                 .description("Mock function for testing signature validation")
-                .parameter("input", TypeConstraint::Specific(FhirPathType::String), false)
+                .parameter(
+                    "input",
+                    TypeConstraint::Specific(FhirPathType::String),
+                    false,
+                )
                 .returns(TypeConstraint::Specific(FhirPathType::Integer))
                 .performance(PerformanceComplexity::Constant, true)
                 .build()
@@ -34,8 +40,8 @@ mod signature_validation_tests {
         }
 
         fn metadata(&self) -> &crate::metadata::OperationMetadata {
-            static METADATA: std::sync::LazyLock<crate::metadata::OperationMetadata> = 
-                std::sync::LazyLock::new(|| MockFunction::create_metadata());
+            static METADATA: std::sync::LazyLock<crate::metadata::OperationMetadata> =
+                std::sync::LazyLock::new(MockFunction::create_metadata);
             &METADATA
         }
 
@@ -46,23 +52,33 @@ mod signature_validation_tests {
         ) -> Result<FhirPathValue> {
             Ok(FhirPathValue::Integer(42))
         }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
     }
 
     #[test]
     fn test_signature_based_validation() {
         let mock_fn = MockFunction;
-        
+
         // Test 1: Valid arguments (should pass)
         let valid_args = vec![FhirPathValue::String("hello".into())];
         let validation_result = mock_fn.validate_args(&valid_args);
-        assert!(validation_result.is_ok(), "Valid args should pass validation");
+        assert!(
+            validation_result.is_ok(),
+            "Valid args should pass validation"
+        );
 
         // Test 2: No arguments (should fail - requires 1 argument)
         let no_args: Vec<FhirPathValue> = vec![];
         let validation_result = mock_fn.validate_args(&no_args);
         assert!(validation_result.is_err(), "No args should fail validation");
-        
-        if let Err(FhirPathError::InvalidArgumentCount { expected, actual, .. }) = validation_result {
+
+        if let Err(FhirPathError::InvalidArgumentCount {
+            expected, actual, ..
+        }) = validation_result
+        {
             assert_eq!(expected, 1);
             assert_eq!(actual, 0);
         } else {
@@ -75,9 +91,15 @@ mod signature_validation_tests {
             FhirPathValue::String("world".into()),
         ];
         let validation_result = mock_fn.validate_args(&too_many_args);
-        assert!(validation_result.is_err(), "Too many args should fail validation");
-        
-        if let Err(FhirPathError::InvalidArgumentCount { expected, actual, .. }) = validation_result {
+        assert!(
+            validation_result.is_err(),
+            "Too many args should fail validation"
+        );
+
+        if let Err(FhirPathError::InvalidArgumentCount {
+            expected, actual, ..
+        }) = validation_result
+        {
             assert_eq!(expected, 1);
             assert_eq!(actual, 2);
         } else {
@@ -89,7 +111,7 @@ mod signature_validation_tests {
     fn test_signature_generation_from_metadata() {
         let mock_fn = MockFunction;
         let signature = mock_fn.signature();
-        
+
         // Test that signature was properly generated from metadata
         match signature {
             crate::operation::OperationSignature::Function(func_sig) => {

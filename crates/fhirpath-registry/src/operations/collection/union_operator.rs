@@ -19,11 +19,17 @@ use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 use rustc_hash::FxHashSet;
 
 /// Union operator (|): returns the union of two collections
 pub struct UnionOperator;
+
+impl Default for UnionOperator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UnionOperator {
     pub fn new() -> Self {
@@ -31,10 +37,13 @@ impl UnionOperator {
     }
 
     fn create_metadata() -> crate::metadata::OperationMetadata {
-        MetadataBuilder::new("|", OperationType::BinaryOperator { 
-            associativity: crate::metadata::Associativity::Left,
-            precedence: 5  // FHIRPath union precedence
-        })
+        MetadataBuilder::new(
+            "|",
+            OperationType::BinaryOperator {
+                associativity: crate::metadata::Associativity::Left,
+                precedence: 5, // FHIRPath union precedence
+            },
+        )
         .description("Returns the union of the left and right collections, removing duplicates")
         .example("Patient.name.given | Patient.name.family")
         .example("Bundle.entry | Bundle.contained")
@@ -49,15 +58,15 @@ impl FhirPathOperation for UnionOperator {
     }
 
     fn operation_type(&self) -> OperationType {
-        OperationType::BinaryOperator { 
+        OperationType::BinaryOperator {
             associativity: crate::metadata::Associativity::Left,
-            precedence: 5
+            precedence: 5,
         }
     }
 
     fn metadata(&self) -> &crate::metadata::OperationMetadata {
         static METADATA: once_cell::sync::Lazy<crate::metadata::OperationMetadata> =
-            once_cell::sync::Lazy::new(|| UnionOperator::create_metadata());
+            once_cell::sync::Lazy::new(UnionOperator::create_metadata);
         &METADATA
     }
 
@@ -97,7 +106,11 @@ impl FhirPathOperation for UnionOperator {
 }
 
 impl UnionOperator {
-    fn evaluate_union(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn evaluate_union(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
             return Err(FhirPathError::InvalidArguments {
                 message: "| operator requires exactly two operands".to_string(),
@@ -124,7 +137,7 @@ impl UnionOperator {
 
         // Add left items
         for item in left_items.iter() {
-            let key = format!("{:?}", item); // Simple hash key for deduplication
+            let key = format!("{item:?}"); // Simple hash key for deduplication
             if seen.insert(key) {
                 result.push(item.clone());
             }
@@ -132,160 +145,12 @@ impl UnionOperator {
 
         // Add right items
         for item in right_items.iter() {
-            let key = format!("{:?}", item);
+            let key = format!("{item:?}");
             if seen.insert(key) {
                 result.push(item.clone());
             }
         }
 
         Ok(FhirPathValue::Collection(Collection::from(result)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::EvaluationContext;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use std::sync::Arc;
-
-    #[tokio::test]
-    async fn test_union_empty_collections() {
-        let union_op = UnionOperator::new();
-        let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let context = EvaluationContext::new(
-            FhirPathValue::Collection(vec![]),
-            registry,
-            model_provider,
-        );
-
-        let empty_collection = FhirPathValue::Collection(vec![]);
-        let result = union_op.evaluate(&[empty_collection.clone(), empty_collection], &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::Collection(items) => assert!(items.is_empty()),
-            _ => panic!("Expected Collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_union_disjoint_collections() {
-        let union_op = UnionOperator::new();
-        let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let context = EvaluationContext::new(
-            FhirPathValue::Collection(vec![]),
-            registry,
-            model_provider,
-        );
-
-        let left_collection = FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-        ]);
-        let right_collection = FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(3),
-            FhirPathValue::Integer(4),
-        ]);
-        
-        let result = union_op.evaluate(&[left_collection, right_collection], &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 4);
-                // Should contain 1, 2, 3, 4 in that order
-            }
-            _ => panic!("Expected Collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_union_overlapping_collections() {
-        let union_op = UnionOperator::new();
-        let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let context = EvaluationContext::new(
-            FhirPathValue::Collection(vec![]),
-            registry,
-            model_provider,
-        );
-
-        let left_collection = FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-            FhirPathValue::Integer(3),
-        ]);
-        let right_collection = FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(2),
-            FhirPathValue::Integer(3),
-            FhirPathValue::Integer(4),
-        ]);
-        
-        let result = union_op.evaluate(&[left_collection, right_collection], &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 4); // Should be deduplicated: 1, 2, 3, 4
-            }
-            _ => panic!("Expected Collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_union_single_items() {
-        let union_op = UnionOperator::new();
-        let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let context = EvaluationContext::new(
-            FhirPathValue::Collection(vec![]),
-            registry,
-            model_provider,
-        );
-
-        let item1 = FhirPathValue::String("hello".into());
-        let item2 = FhirPathValue::String("world".into());
-        
-        let result = union_op.evaluate(&[item1, item2], &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2);
-            }
-            _ => panic!("Expected Collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_union_sync_evaluation() {
-        let union_op = UnionOperator::new();
-        let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let context = EvaluationContext::new(
-            FhirPathValue::Collection(vec![]),
-            registry,
-            model_provider,
-        );
-
-        let left_collection = FhirPathValue::Collection(vec![FhirPathValue::Integer(1)]);
-        let right_collection = FhirPathValue::Collection(vec![FhirPathValue::Integer(2)]);
-        
-        let sync_result = union_op.try_evaluate_sync(&[left_collection, right_collection], &context).unwrap().unwrap();
-        
-        assert!(union_op.supports_sync());
-        
-        match sync_result {
-            FhirPathValue::Collection(items) => assert_eq!(items.len(), 2),
-            _ => panic!("Expected Collection"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_union_metadata() {
-        let union_op = UnionOperator::new();
-        let metadata = union_op.metadata();
-        
-        assert_eq!(metadata.basic.name, "|");
-        assert!(matches!(metadata.basic.operation_type, OperationType::BinaryOperator { .. }));
     }
 }

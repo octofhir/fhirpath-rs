@@ -15,18 +15,25 @@
 //! Subtraction operation (-) implementation for FHIRPath
 
 use crate::metadata::{
-    MetadataBuilder, OperationType, TypeConstraint, FhirPathType,
-    OperationMetadata, PerformanceComplexity, Associativity,
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
 use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use num_traits::ToPrimitive;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 use rust_decimal::Decimal;
 
 /// Subtraction operation (-) - supports both binary and unary operations
 pub struct SubtractionOperation;
+
+impl Default for SubtractionOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SubtractionOperation {
     pub fn new() -> Self {
@@ -34,22 +41,29 @@ impl SubtractionOperation {
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("-", OperationType::BinaryOperator {
-            precedence: 6,
-            associativity: Associativity::Left,
-        })
-            .description("Binary subtraction operation and unary minus")
-            .example("5 - 2")
-            .example("-42")
-            .returns(TypeConstraint::OneOf(vec![
-                FhirPathType::Integer, 
-                FhirPathType::Decimal
-            ]))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "-",
+            OperationType::BinaryOperator {
+                precedence: 6,
+                associativity: Associativity::Left,
+            },
+        )
+        .description("Binary subtraction operation and unary minus")
+        .example("5 - 2")
+        .example("-42")
+        .returns(TypeConstraint::OneOf(vec![
+            FhirPathType::Integer,
+            FhirPathType::Decimal,
+        ]))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
-    fn evaluate_binary_sync(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<Result<FhirPathValue>> {
+    fn evaluate_binary_sync(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<Result<FhirPathValue>> {
         // Handle empty collections per FHIRPath spec
         match (left, right) {
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
@@ -89,47 +103,67 @@ impl SubtractionOperation {
 
         // Actual arithmetic operations on scalar values
         let result = match (left, right) {
-            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
-                a.checked_sub(*b)
-                    .map(FhirPathValue::Integer)
-                    .ok_or_else(|| FhirPathError::ArithmeticError {
-                        message: "Integer overflow in subtraction".to_string()
-                    })
-            }
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a
+                .checked_sub(*b)
+                .map(FhirPathValue::Integer)
+                .ok_or_else(|| FhirPathError::ArithmeticError {
+                    message: "Integer overflow in subtraction".to_string(),
+                }),
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 Ok(FhirPathValue::Decimal(a - b))
             }
-            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                match Decimal::try_from(*a) {
-                    Ok(a_decimal) => Ok(FhirPathValue::Decimal(a_decimal - b)),
-                    Err(_) => Err(FhirPathError::ArithmeticError {
-                        message: "Cannot convert integer to decimal".to_string()
-                    })
-                }
-            }
-            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                match Decimal::try_from(*b) {
-                    Ok(b_decimal) => Ok(FhirPathValue::Decimal(a - b_decimal)),
-                    Err(_) => Err(FhirPathError::ArithmeticError {
-                        message: "Cannot convert integer to decimal".to_string()
-                    })
-                }
-            }
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => match Decimal::try_from(*a) {
+                Ok(a_decimal) => Ok(FhirPathValue::Decimal(a_decimal - b)),
+                Err(_) => Err(FhirPathError::ArithmeticError {
+                    message: "Cannot convert integer to decimal".to_string(),
+                }),
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => match Decimal::try_from(*b) {
+                Ok(b_decimal) => Ok(FhirPathValue::Decimal(a - b_decimal)),
+                Err(_) => Err(FhirPathError::ArithmeticError {
+                    message: "Cannot convert integer to decimal".to_string(),
+                }),
+            },
             // Quantity subtraction - requires compatible units
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // For subtraction, quantities must have compatible dimensions
                 if a.has_compatible_dimensions(b) {
-                    match b.convert_to_compatible_unit(&a.unit.as_ref().unwrap_or(&"1".to_string())) {
+                    match b.convert_to_compatible_unit(a.unit.as_ref().unwrap_or(&"1".to_string()))
+                    {
                         Ok(converted_b) => {
                             let result_value = a.value - converted_b.value;
                             Ok(FhirPathValue::Quantity(std::sync::Arc::new(
-                                octofhir_fhirpath_model::Quantity::new(result_value, a.unit.clone())
+                                octofhir_fhirpath_model::Quantity::new(
+                                    result_value,
+                                    a.unit.clone(),
+                                ),
                             )))
-                        },
+                        }
                         Err(_) => return None, // Conversion failed, fallback to async
                     }
                 } else {
                     return None; // Incompatible units, fallback to async for error handling
+                }
+            }
+            // Date - Quantity operations
+            (FhirPathValue::Date(date), FhirPathValue::Quantity(qty)) => {
+                match self.subtract_quantity_from_date(date, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
+                }
+            }
+            // DateTime - Quantity operations
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity(qty)) => {
+                match self.subtract_quantity_from_datetime(datetime, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
+                }
+            }
+            // Time - Quantity operations
+            (FhirPathValue::Time(time), FhirPathValue::Quantity(qty)) => {
+                match self.subtract_quantity_from_time(time, qty) {
+                    Ok(result) => Ok(result),
+                    Err(_) => return None, // Fallback to async for error handling
                 }
             }
             _ => return None, // Fallback to async for complex cases
@@ -139,11 +173,16 @@ impl SubtractionOperation {
         Some(result.map(|val| FhirPathValue::Collection(Collection::from(vec![val]))))
     }
 
-    async fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue, _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Unwrap single-item collections
         let left_unwrapped = self.unwrap_single_collection(left);
         let right_unwrapped = self.unwrap_single_collection(right);
-        
+
         // Try sync path first
         if let Some(result) = self.evaluate_binary_sync(&left_unwrapped, &right_unwrapped) {
             return result;
@@ -151,47 +190,57 @@ impl SubtractionOperation {
 
         // Handle remaining cases
         let result = match (&left_unwrapped, &right_unwrapped) {
-            (FhirPathValue::Empty, _) => return Ok(FhirPathValue::Collection(Collection::from(vec![]))),
-            (_, FhirPathValue::Empty) => return Ok(FhirPathValue::Collection(Collection::from(vec![]))),
+            (FhirPathValue::Empty, _) => {
+                return Ok(FhirPathValue::Collection(Collection::from(vec![])));
+            }
+            (_, FhirPathValue::Empty) => {
+                return Ok(FhirPathValue::Collection(Collection::from(vec![])));
+            }
             _ => Err(FhirPathError::TypeError {
                 message: format!(
                     "Cannot subtract {} from {}",
-                    right_unwrapped.type_name(), left_unwrapped.type_name()
-                )
-            })
+                    right_unwrapped.type_name(),
+                    left_unwrapped.type_name()
+                ),
+            }),
         };
 
         // Wrap result in collection as per FHIRPath spec
         result.map(|val| FhirPathValue::Collection(Collection::from(vec![val])))
     }
 
-    async fn evaluate_unary(&self, value: &FhirPathValue, _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate_unary(
+        &self,
+        value: &FhirPathValue,
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle collections first
         let unwrapped = self.unwrap_single_collection(value);
-        
+
         // Unary minus - negate the value
         let result = match &unwrapped {
             FhirPathValue::Integer(i) => {
-                i.checked_neg()
-                    .map(FhirPathValue::Integer)
-                    .ok_or_else(|| FhirPathError::ArithmeticError {
-                        message: "Integer overflow in negation".to_string()
-                    })
+                i.checked_neg().map(FhirPathValue::Integer).ok_or_else(|| {
+                    FhirPathError::ArithmeticError {
+                        message: "Integer overflow in negation".to_string(),
+                    }
+                })
             }
             FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
             FhirPathValue::String(s) => {
                 // Try to convert string to number and negate
                 if let Ok(int_val) = s.parse::<i64>() {
-                    int_val.checked_neg()
+                    int_val
+                        .checked_neg()
                         .map(FhirPathValue::Integer)
                         .ok_or_else(|| FhirPathError::ArithmeticError {
-                            message: "Integer overflow in negation".to_string()
+                            message: "Integer overflow in negation".to_string(),
                         })
                 } else if let Ok(decimal_val) = s.parse::<Decimal>() {
                     Ok(FhirPathValue::Decimal(-decimal_val))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: format!("Cannot apply unary minus to string '{}'", s)
+                        message: format!("Cannot apply unary minus to string '{s}'"),
                     })
                 }
             }
@@ -205,12 +254,12 @@ impl SubtractionOperation {
             FhirPathValue::Quantity(q) => {
                 // Negate quantity value while preserving unit
                 Ok(FhirPathValue::Quantity(std::sync::Arc::new(
-                    octofhir_fhirpath_model::Quantity::new(-q.value, q.unit.clone())
+                    octofhir_fhirpath_model::Quantity::new(-q.value, q.unit.clone()),
                 )))
             }
             _ => Err(FhirPathError::TypeError {
-                message: format!("Cannot apply unary minus to {}", unwrapped.type_name())
-            })
+                message: format!("Cannot apply unary minus to {}", unwrapped.type_name()),
+            }),
         };
 
         // Wrap result in collection as per FHIRPath spec
@@ -232,9 +281,8 @@ impl FhirPathOperation for SubtractionOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            SubtractionOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(SubtractionOperation::create_metadata);
         &METADATA
     }
 
@@ -264,17 +312,24 @@ impl FhirPathOperation for SubtractionOperation {
                 // Unary minus sync evaluation
                 let unwrapped = self.unwrap_single_collection(&args[0]);
                 match &unwrapped {
-                    FhirPathValue::Integer(i) => {
-                        i.checked_neg()
-                            .map(FhirPathValue::Integer)
-                            .map(|val| FhirPathValue::Collection(Collection::from(vec![val])))
-                            .map(Ok)
-                            .or_else(|| Some(Err(FhirPathError::ArithmeticError {
-                                message: "Integer overflow in negation".to_string()
-                            })))
+                    FhirPathValue::Integer(i) => i
+                        .checked_neg()
+                        .map(FhirPathValue::Integer)
+                        .map(|val| FhirPathValue::Collection(Collection::from(vec![val])))
+                        .map(Ok)
+                        .or_else(|| {
+                            Some(Err(FhirPathError::ArithmeticError {
+                                message: "Integer overflow in negation".to_string(),
+                            }))
+                        }),
+                    FhirPathValue::Decimal(d) => {
+                        Some(Ok(FhirPathValue::Collection(Collection::from(vec![
+                            FhirPathValue::Decimal(-d),
+                        ]))))
                     }
-                    FhirPathValue::Decimal(d) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(-d)])))),
-                    FhirPathValue::Empty => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
+                    FhirPathValue::Empty => {
+                        Some(Ok(FhirPathValue::Collection(Collection::from(vec![]))))
+                    }
                     _ => None, // Fallback to async for string conversion
                 }
             }
@@ -304,107 +359,263 @@ impl SubtractionOperation {
     /// Unwrap single-item collections to their contained value
     fn unwrap_single_collection(&self, value: &FhirPathValue) -> FhirPathValue {
         match value {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.first().unwrap().clone()
-            }
-            _ => value.clone()
+            FhirPathValue::Collection(items) if items.len() == 1 => items.first().unwrap().clone(),
+            _ => value.clone(),
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
+    /// Subtract a quantity from a date value
+    fn subtract_quantity_from_date(
+        &self,
+        date: &chrono::NaiveDate,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value.to_i64().ok_or(FhirPathError::TypeError {
+            message: "Quantity value must be an integer for date arithmetic".to_string(),
+        })?;
 
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
+        let result_date = match unit {
+            "year" | "years" | "a" => {
+                if value >= 0 {
+                    date.checked_sub_months(chrono::Months::new((value * 12) as u32))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in year subtraction".to_string(),
+                        })?
+                } else {
+                    date.checked_add_months(chrono::Months::new((-value * 12) as u32))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in year subtraction".to_string(),
+                        })?
+                }
+            }
+            "month" | "months" | "mo" => {
+                if value >= 0 {
+                    date.checked_sub_months(chrono::Months::new(value as u32))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in month subtraction".to_string(),
+                        })?
+                } else {
+                    date.checked_add_months(chrono::Months::new((-value) as u32))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in month subtraction".to_string(),
+                        })?
+                }
+            }
+            "week" | "weeks" | "wk" => {
+                if value >= 0 {
+                    date.checked_sub_days(chrono::Days::new((value * 7) as u64))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in week subtraction".to_string(),
+                        })?
+                } else {
+                    date.checked_add_days(chrono::Days::new((-value * 7) as u64))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in week subtraction".to_string(),
+                        })?
+                }
+            }
+            "day" | "days" | "d" => {
+                if value >= 0 {
+                    date.checked_sub_days(chrono::Days::new(value as u64))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in day subtraction".to_string(),
+                        })?
+                } else {
+                    date.checked_add_days(chrono::Days::new((-value) as u64))
+                        .ok_or(FhirPathError::ArithmeticError {
+                            message: "Date overflow in day subtraction".to_string(),
+                        })?
+                }
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "Invalid unit '{unit}' for date subtraction. Must be years, months, weeks, or days"
+                    ),
+                });
+            }
+        };
+
+        Ok(FhirPathValue::Date(result_date))
     }
 
-    #[tokio::test]
-    async fn test_binary_subtraction() {
-        let sub_op = SubtractionOperation::new();
+    /// Subtract a quantity from a datetime value
+    fn subtract_quantity_from_datetime(
+        &self,
+        datetime: &chrono::DateTime<chrono::FixedOffset>,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value;
 
-        // Integer subtraction
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(2)];
-        let context = create_test_context(FhirPathValue::Empty);
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(3)])));
+        let result_datetime = match unit {
+            "year" | "years" | "a" => {
+                let months = -(value * rust_decimal::Decimal::from(12)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid year value".to_string(),
+                    },
+                )?;
+                datetime
+                    .date_naive()
+                    .checked_add_months(chrono::Months::new(months.unsigned_abs() as u32))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in year subtraction".to_string(),
+                    })?
+                    .and_time(datetime.time())
+                    .and_local_timezone(datetime.timezone())
+                    .single()
+                    .ok_or(FhirPathError::TypeError {
+                        message: "Timezone conversion error".to_string(),
+                    })?
+            }
+            "month" | "months" | "mo" => {
+                let months = -(value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid month value".to_string(),
+                })?);
+                datetime
+                    .date_naive()
+                    .checked_add_months(chrono::Months::new(months.unsigned_abs() as u32))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in month subtraction".to_string(),
+                    })?
+                    .and_time(datetime.time())
+                    .and_local_timezone(datetime.timezone())
+                    .single()
+                    .ok_or(FhirPathError::TypeError {
+                        message: "Timezone conversion error".to_string(),
+                    })?
+            }
+            "week" | "weeks" | "wk" => {
+                let days = (value * rust_decimal::Decimal::from(7)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid week value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_sub_days(chrono::Days::new(days as u64))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in week subtraction".to_string(),
+                    })?
+            }
+            "day" | "days" | "d" => {
+                let days = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid day value".to_string(),
+                })?;
+                datetime
+                    .checked_sub_days(chrono::Days::new(days as u64))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in day subtraction".to_string(),
+                    })?
+            }
+            "hour" | "hours" | "h" => {
+                let hours = (value * rust_decimal::Decimal::from(3600)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid hour value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(-hours))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in hour subtraction".to_string(),
+                    })?
+            }
+            "minute" | "minutes" | "min" => {
+                let minutes = (value * rust_decimal::Decimal::from(60)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid minute value".to_string(),
+                    },
+                )?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(-minutes))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in minute subtraction".to_string(),
+                    })?
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid second value".to_string(),
+                })?;
+                datetime
+                    .checked_add_signed(chrono::Duration::seconds(-seconds))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in second subtraction".to_string(),
+                    })?
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                let millis = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid millisecond value".to_string(),
+                })?;
+                datetime
+                    .checked_add_signed(chrono::Duration::milliseconds(-millis))
+                    .ok_or(FhirPathError::ArithmeticError {
+                        message: "DateTime overflow in millisecond subtraction".to_string(),
+                    })?
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!("Invalid unit '{unit}' for datetime subtraction"),
+                });
+            }
+        };
 
-        // Decimal subtraction
-        let dec1 = Decimal::from_str("5.5").unwrap();
-        let dec2 = Decimal::from_str("2.5").unwrap();
-        let args = vec![FhirPathValue::Decimal(dec1), FhirPathValue::Decimal(dec2)];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("3.0").unwrap())])));
-
-        // Mixed types
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Decimal(Decimal::from_str("2.5").unwrap())];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("2.5").unwrap())])));
+        Ok(FhirPathValue::DateTime(result_datetime))
     }
 
-    #[tokio::test]
-    async fn test_unary_minus() {
-        let sub_op = SubtractionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
+    /// Subtract a quantity from a time value
+    fn subtract_quantity_from_time(
+        &self,
+        time: &chrono::NaiveTime,
+        qty: &octofhir_fhirpath_model::Quantity,
+    ) -> Result<FhirPathValue> {
+        let default_unit = "1".to_string();
+        let unit = qty.unit.as_ref().unwrap_or(&default_unit).as_str();
+        let value = qty.value;
 
-        // Unary minus on integer
-        let args = vec![FhirPathValue::Integer(42)];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(-42)])));
+        let result_time = match unit {
+            "hour" | "hours" | "h" => {
+                let hours = (value * rust_decimal::Decimal::from(3600)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid hour value".to_string(),
+                    },
+                )?;
+                time.overflowing_add_signed(chrono::Duration::seconds(-hours))
+                    .0
+            }
+            "minute" | "minutes" | "min" => {
+                let minutes = (value * rust_decimal::Decimal::from(60)).to_i64().ok_or(
+                    FhirPathError::TypeError {
+                        message: "Invalid minute value".to_string(),
+                    },
+                )?;
+                time.overflowing_add_signed(chrono::Duration::seconds(-minutes))
+                    .0
+            }
+            "second" | "seconds" | "s" => {
+                let seconds = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid second value".to_string(),
+                })?;
+                time.overflowing_add_signed(chrono::Duration::seconds(-seconds))
+                    .0
+            }
+            "millisecond" | "milliseconds" | "ms" => {
+                let millis = value.to_i64().ok_or(FhirPathError::TypeError {
+                    message: "Invalid millisecond value".to_string(),
+                })?;
+                time.overflowing_add_signed(chrono::Duration::milliseconds(-millis))
+                    .0
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "Invalid unit '{unit}' for time subtraction. Must be hours, minutes, seconds, or milliseconds"
+                    ),
+                });
+            }
+        };
 
-        // Unary minus on decimal
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("3.14").unwrap())];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("-3.14").unwrap())])));
-
-        // Unary minus on string number
-        let args = vec![FhirPathValue::String("123".into())];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(-123)])));
-    }
-
-    #[tokio::test]
-    async fn test_subtraction_with_empty() {
-        let sub_op = SubtractionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Empty operands
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Empty];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Integer(5)];
-        let result = sub_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let sub_op = SubtractionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(2)];
-        let sync_result = sub_op.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(3)])));
-        assert!(sub_op.supports_sync());
-    }
-
-    #[tokio::test]
-    async fn test_type_errors() {
-        let sub_op = SubtractionOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Cannot subtract string from integer
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::String("hello".into())];
-        let result = sub_op.evaluate(&args, &context).await;
-        assert!(result.is_err());
+        Ok(FhirPathValue::Time(result_time))
     }
 }

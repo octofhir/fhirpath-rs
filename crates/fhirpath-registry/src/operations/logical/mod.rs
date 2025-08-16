@@ -15,16 +15,16 @@
 //! Logical operators module
 
 pub mod and;
-pub mod or;
-pub mod not;
-pub mod xor;
 pub mod implies;
+pub mod not;
+pub mod or;
+pub mod xor;
 
 pub use and::AndOperation;
-pub use or::OrOperation;
-pub use not::NotOperation;
-pub use xor::XorOperation;
 pub use implies::ImpliesOperation;
+pub use not::NotOperation;
+pub use or::OrOperation;
+pub use xor::XorOperation;
 
 /// Registry helper for logical operations
 pub struct LogicalOperations;

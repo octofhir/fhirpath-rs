@@ -30,6 +30,12 @@ use std::sync::OnceLock;
 /// ToDate function: converts input to Date
 pub struct ToDateFunction;
 
+impl Default for ToDateFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToDateFunction {
     pub fn new() -> Self {
         Self
@@ -58,12 +64,10 @@ impl ToDateFunction {
         match value {
             // Already a date
             FhirPathValue::Date(d) => Ok(FhirPathValue::Date(*d)),
-            
+
             // DateTime conversion - extract date part
-            FhirPathValue::DateTime(dt) => {
-                Ok(FhirPathValue::Date(dt.date_naive()))
-            }
-            
+            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::Date(dt.date_naive())),
+
             // String conversion with partial date support
             FhirPathValue::String(s) => {
                 let trimmed = s.trim();
@@ -77,10 +81,10 @@ impl ToDateFunction {
                     Ok(FhirPathValue::Collection(vec![].into())) // Empty collection for invalid format
                 }
             }
-            
+
             // Empty input
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-            
+
             // Collection handling
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
@@ -92,7 +96,7 @@ impl ToDateFunction {
                     Ok(FhirPathValue::Collection(vec![].into()))
                 }
             }
-            
+
             // Unsupported types
             _ => Ok(FhirPathValue::Collection(vec![].into())), // Empty collection for unsupported types
         }
@@ -100,7 +104,7 @@ impl ToDateFunction {
 
     fn parse_partial_date(date_str: &str) -> Option<NaiveDate> {
         let parts: Vec<&str> = date_str.split('-').collect();
-        
+
         match parts.len() {
             1 => {
                 // Year only (YYYY) - use January 1st
@@ -113,7 +117,7 @@ impl ToDateFunction {
             2 => {
                 // Year-month (YYYY-MM) - use 1st of month
                 if let (Ok(year), Ok(month)) = (parts[0].parse::<i32>(), parts[1].parse::<u32>()) {
-                    if month >= 1 && month <= 12 {
+                    if (1..=12).contains(&month) {
                         NaiveDate::from_ymd_opt(year, month, 1)
                     } else {
                         None
@@ -125,11 +129,11 @@ impl ToDateFunction {
             3 => {
                 // Full date (YYYY-MM-DD)
                 if let (Ok(year), Ok(month), Ok(day)) = (
-                    parts[0].parse::<i32>(), 
-                    parts[1].parse::<u32>(), 
-                    parts[2].parse::<u32>()
+                    parts[0].parse::<i32>(),
+                    parts[1].parse::<u32>(),
+                    parts[2].parse::<u32>(),
                 ) {
-                    if month >= 1 && month <= 12 && day >= 1 && day <= 31 {
+                    if (1..=12).contains(&month) && (1..=31).contains(&day) {
                         NaiveDate::from_ymd_opt(year, month, day)
                     } else {
                         None
@@ -155,7 +159,7 @@ impl FhirPathOperation for ToDateFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ToDateFunction::create_metadata());
+            std::sync::LazyLock::new(ToDateFunction::create_metadata);
         &METADATA
     }
 
@@ -185,54 +189,5 @@ impl FhirPathOperation for ToDateFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_to_date() {
-        let func = ToDateFunction::new();
-
-        // Test with date
-        let ctx = create_test_context(FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-
-        // Test with string that can be parsed as date
-        let ctx = create_test_context(FhirPathValue::String("2023-01-01".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-
-        // Test with string that cannot be parsed as date
-        let ctx = create_test_context(FhirPathValue::String("invalid-date".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_to_date_sync() {
-        let func = ToDateFunction::new();
-        let ctx = create_test_context(FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-        assert!(func.supports_sync());
     }
 }

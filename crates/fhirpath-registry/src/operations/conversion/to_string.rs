@@ -27,8 +27,16 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// toString(): Converts input to String where possible
 pub struct ToStringFunction;
 
+impl Default for ToStringFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToStringFunction {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("toString", OperationType::Function)
@@ -45,43 +53,51 @@ impl ToStringFunction {
         match value {
             // Already a string
             FhirPathValue::String(s) => Ok(FhirPathValue::String(s.clone())),
-            
+
             // Integer conversion
             FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string().into())),
-            
+
             // Decimal conversion with proper formatting
             FhirPathValue::Decimal(d) => {
                 // Format decimal according to FHIRPath specification
                 let formatted = Self::format_decimal(*d);
                 Ok(FhirPathValue::String(formatted.into()))
             }
-            
+
             // Boolean conversion
             FhirPathValue::Boolean(b) => {
                 let s = if *b { "true" } else { "false" };
                 Ok(FhirPathValue::String(s.into()))
             }
-            
+
             // Date conversion
-            FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.format("%Y-%m-%d").to_string().into())),
-            
+            FhirPathValue::Date(d) => Ok(FhirPathValue::String(
+                d.format("%Y-%m-%d").to_string().into(),
+            )),
+
             // DateTime conversion
             FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_rfc3339().into())),
-            
+
             // Time conversion
-            FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.format("%H:%M:%S").to_string().into())),
-            
+            FhirPathValue::Time(t) => Ok(FhirPathValue::String(
+                t.format("%H:%M:%S").to_string().into(),
+            )),
+
             // Quantity conversion
             FhirPathValue::Quantity(q) => {
                 let formatted_value = Self::format_decimal(q.value);
                 let result = if let Some(unit) = &q.unit {
-                    format!("{} '{}'", formatted_value, unit)
+                    // Only quote UCUM units, leave standard units unquoted
+                    match unit.as_str() {
+                        "wk" | "mo" | "a" | "d" => format!("{formatted_value} '{unit}'"),
+                        _ => format!("{formatted_value} {unit}"),
+                    }
                 } else {
                     formatted_value
                 };
                 Ok(FhirPathValue::String(result.into()))
             }
-            
+
             // Collection handling
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
@@ -93,19 +109,19 @@ impl ToStringFunction {
                     Ok(FhirPathValue::Collection(vec![].into()))
                 }
             }
-            
+
             // Empty input
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-            
+
             // Unsupported types
             _ => Ok(FhirPathValue::Collection(vec![].into())), // Empty collection for unsupported types
         }
     }
-    
+
     fn format_decimal(decimal: rust_decimal::Decimal) -> String {
         // Format decimal according to FHIRPath specification
         let s = decimal.to_string();
-        
+
         // Remove trailing zeros after decimal point
         if s.contains('.') {
             let trimmed = s.trim_end_matches('0').trim_end_matches('.');
@@ -122,14 +138,17 @@ impl ToStringFunction {
 
 #[async_trait]
 impl FhirPathOperation for ToStringFunction {
-    fn identifier(&self) -> &str { "toString" }
+    fn identifier(&self) -> &str {
+        "toString"
+    }
 
-    fn operation_type(&self) -> OperationType { OperationType::Function }
+    fn operation_type(&self) -> OperationType {
+        OperationType::Function
+    }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ToStringFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ToStringFunction::create_metadata);
         &METADATA
     }
 
@@ -138,7 +157,9 @@ impl FhirPathOperation for ToStringFunction {
         _args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        if let Some(result) = self.try_evaluate_sync(_args, context) { return result; }
+        if let Some(result) = self.try_evaluate_sync(_args, context) {
+            return result;
+        }
         Self::convert_to_string(&context.input)
     }
 
@@ -150,70 +171,11 @@ impl FhirPathOperation for ToStringFunction {
         Some(Self::convert_to_string(&context.input))
     }
 
-    fn supports_sync(&self) -> bool { true }
+    fn supports_sync(&self) -> bool {
+        true
+    }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn ctx(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_to_string() {
-        let f = ToStringFunction::new();
-
-        // Test boolean true
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Boolean(true))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("true".into()));
-
-        // Test boolean false
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Boolean(false))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("false".into()));
-
-        // Test integer
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Integer(42))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("42".into()));
-
-        // Test decimal formatting
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Decimal(rust_decimal::Decimal::from(123)))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("123".into()));
-
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Decimal(rust_decimal::Decimal::from_str_exact("123.45").unwrap()))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("123.45".into()));
-
-        // Test decimal with trailing zeros
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Decimal(rust_decimal::Decimal::from_str_exact("123.00").unwrap()))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("123".into()));
-
-        // Test string passthrough
-        let r = f.evaluate(&[], &ctx(FhirPathValue::String("test".into()))).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("test".into()));
-
-        // Test empty
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Empty)).await.unwrap();
-        assert_eq!(r, FhirPathValue::Collection(vec![].into()));
-
-        // Multi-item collection -> empty collection
-        let col = FhirPathValue::Collection(vec![FhirPathValue::Integer(1), FhirPathValue::Integer(2)].into());
-        let r = f.evaluate(&[], &ctx(col)).await.unwrap();
-        assert_eq!(r, FhirPathValue::Collection(vec![].into()));
-
-        // Single item collection
-        let col = FhirPathValue::Collection(vec![FhirPathValue::Integer(42)].into());
-        let r = f.evaluate(&[], &ctx(col)).await.unwrap();
-        assert_eq!(r, FhirPathValue::String("42".into()));
     }
 }

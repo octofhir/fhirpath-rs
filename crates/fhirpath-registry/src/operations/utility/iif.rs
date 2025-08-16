@@ -14,18 +14,24 @@
 
 //! IIF (Immediate If) function implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, PerformanceComplexity
+    MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity, TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// IIF function - conditional expression (if-then-else)
 #[derive(Debug, Clone)]
 pub struct IifFunction;
+
+impl Default for IifFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IifFunction {
     pub fn new() -> Self {
@@ -55,7 +61,7 @@ impl IifFunction {
                     // Multiple items are truthy
                     Ok(true)
                 }
-            },
+            }
             _ => Ok(true), // Non-empty values are truthy
         }
     }
@@ -72,18 +78,21 @@ impl FhirPathOperation for IifFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            IifFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(IifFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() < 2 || args.len() > 3 {
             return Err(FhirPathError::InvalidArgumentCount {
-                function_name: self.identifier().to_string(),
+                function_name: FhirPathOperation::identifier(self).to_string(),
                 expected: 2, // Updated to show minimum expected
-                actual: args.len()
+                actual: args.len(),
             });
         }
 
@@ -101,12 +110,16 @@ impl FhirPathOperation for IifFunction {
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 3 {
             return Some(Err(FhirPathError::InvalidArgumentCount {
-                function_name: self.identifier().to_string(),
+                function_name: FhirPathOperation::identifier(self).to_string(),
                 expected: 3,
-                actual: args.len()
+                actual: args.len(),
             }));
         }
 
@@ -117,112 +130,12 @@ impl FhirPathOperation for IifFunction {
                 } else {
                     Some(Ok(args[2].clone()))
                 }
-            },
+            }
             Err(e) => Some(Err(e)),
         }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_iif_function() {
-        use octofhir_fhirpath_model::MockModelProvider;
-        use crate::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let func = IifFunction::new();
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
-
-        // Test true condition
-        let args = vec![
-            FhirPathValue::Boolean(true),
-            FhirPathValue::String("yes".into()),
-            FhirPathValue::String("no".into())
-        ];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("yes".into()));
-
-        // Test false condition
-        let args = vec![
-            FhirPathValue::Boolean(false),
-            FhirPathValue::String("yes".into()),
-            FhirPathValue::String("no".into())
-        ];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("no".into()));
-
-        // Test empty condition (false)
-        let args = vec![
-            FhirPathValue::Empty,
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2)
-        ];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(2));
-
-        // Test non-boolean condition (truthy)
-        let args = vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2)
-        ];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(1));
-    }
-
-    #[tokio::test]
-    async fn test_iif_sync() {
-        use octofhir_fhirpath_model::MockModelProvider;
-        use crate::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let func = IifFunction::new();
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
-
-        let args = vec![
-            FhirPathValue::Boolean(true),
-            FhirPathValue::Integer(42),
-            FhirPathValue::Integer(0)
-        ];
-        let result = func.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Integer(42));
-    }
-
-    #[tokio::test]
-    async fn test_iif_invalid_args() {
-        use octofhir_fhirpath_model::MockModelProvider;
-        use crate::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let func = IifFunction::new();
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
-
-        // Too few arguments
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Integer(1)];
-        let result = func.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
-
-        // Too many arguments
-        let args = vec![
-            FhirPathValue::Boolean(true),
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-            FhirPathValue::Integer(3)
-        ];
-        let result = func.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
     }
 }

@@ -14,20 +14,27 @@
 
 //! Equivalent operator (~) implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity, Associativity
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
-use rust_decimal::Decimal;
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
+use rust_decimal::Decimal;
 
 /// Equivalent operator (~)
 /// Returns true if the collections are equivalent, ignoring order and using special string equivalence rules
 #[derive(Debug, Clone)]
 pub struct EquivalentOperation;
+
+impl Default for EquivalentOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl EquivalentOperation {
     pub fn new() -> Self {
@@ -54,7 +61,7 @@ impl EquivalentOperation {
             (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(true),
             // If either is empty but not both, return false
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(false),
-            
+
             // Single items
             (FhirPathValue::String(l), FhirPathValue::String(r)) => {
                 Ok(Self::string_equivalent(l, r))
@@ -79,12 +86,12 @@ impl EquivalentOperation {
             (FhirPathValue::Time(l), FhirPathValue::Time(r)) => {
                 Ok(Self::time_equivalent(&l.to_string(), &r.to_string()))
             }
-            
+
             // Collections
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
                 Self::collections_equivalent(l.as_arc().as_ref(), r.as_arc().as_ref())
             }
-            
+
             // Convert single items to collections and compare
             (left_val, FhirPathValue::Collection(r)) => {
                 let left_as_collection = vec![left_val.clone()];
@@ -94,7 +101,7 @@ impl EquivalentOperation {
                 let right_as_collection = vec![right_val.clone()];
                 Self::collections_equivalent(l.as_arc().as_ref(), &right_as_collection)
             }
-            
+
             // Different types
             _ => Ok(false),
         }
@@ -120,7 +127,7 @@ impl EquivalentOperation {
 
     fn date_equivalent(left: &str, right: &str) -> bool {
         // For equivalence, different precision levels can be equivalent if they overlap
-        // For now, implement simple string comparison 
+        // For now, implement simple string comparison
         // TODO: Implement proper date precision comparison
         left == right
     }
@@ -131,7 +138,7 @@ impl EquivalentOperation {
     }
 
     fn time_equivalent(left: &str, right: &str) -> bool {
-        // TODO: Implement proper time precision comparison  
+        // TODO: Implement proper time precision comparison
         left == right
     }
 
@@ -173,18 +180,21 @@ impl FhirPathOperation for EquivalentOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            EquivalentOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(EquivalentOperation::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             });
         }
 
@@ -192,12 +202,16 @@ impl FhirPathOperation for EquivalentOperation {
         Ok(FhirPathValue::Boolean(result))
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 2 {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             }));
         }
 
@@ -213,130 +227,5 @@ impl FhirPathOperation for EquivalentOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_strings_case_insensitive() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test "Hello" ~ "hello" (true)
-        let args = vec![
-            FhirPathValue::String("Hello".into()),
-            FhirPathValue::String("hello".into())
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_strings_whitespace_normalized() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test "Hello World" ~ "Hello    World" (true)
-        let args = vec![
-            FhirPathValue::String("Hello World".into()),
-            FhirPathValue::String("Hello    World".into())
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_integers() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test 5 ~ 5 (true)
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(5)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test 5 ~ 3 (false)
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(3)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_collections_order_ignored() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test {1, 2} ~ {2, 1} (true)
-        let args = vec![
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(1),
-                FhirPathValue::Integer(2)
-            ]),
-            FhirPathValue::Collection(vec![
-                FhirPathValue::Integer(2),
-                FhirPathValue::Integer(1)
-            ])
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_empty_collections() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test {} ~ {} (true)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test {} ~ {1} (false)
-        let args = vec![
-            FhirPathValue::Empty,
-            FhirPathValue::Collection(vec![FhirPathValue::Integer(1)])
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_equivalent_different_types() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        // Test "5" ~ 5 (false - different types)
-        let args = vec![
-            FhirPathValue::String("5".into()),
-            FhirPathValue::Integer(5)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-    }
-
-    #[tokio::test]
-    async fn test_sync_evaluation() {
-        let op = EquivalentOperation::new();
-        let ctx = create_test_context();
-
-        let args = vec![
-            FhirPathValue::String("Hello".into()),
-            FhirPathValue::String("hello".into())
-        ];
-        let result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
     }
 }

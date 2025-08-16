@@ -31,10 +31,42 @@ test-coverage-mock:
 test-official:
     cargo test --workspace run_official_tests -- --ignored --nocapture
 
-# Benchmark commands - Simplified single benchmark
+# Benchmark commands - New divan-based benchmarks
 bench:
-    @echo "🚀 FHIRPath Performance Benchmarks"
+    @echo "🚀 FHIRPath Performance Benchmarks (divan)"
+    @echo "=========================================="
+    @echo "📊 Running comprehensive benchmark suite..."
+    @echo "This tests tokenizer, parser, and evaluator across complexity levels"
+    cargo bench --package fhirpath-bench
+    @echo "✅ Benchmark complete! Results show ops/sec for each operation."
+
+bench-simple:
+    @echo "🟢 Running Simple Expression Benchmarks"
+    cargo bench --package fhirpath-bench -- "simple"
+
+bench-medium:
+    @echo "🟡 Running Medium Expression Benchmarks"
+    cargo bench --package fhirpath-bench -- "medium"
+
+bench-complex:
+    @echo "🔴 Running Complex Expression Benchmarks"
+    cargo bench --package fhirpath-bench -- "complex"
+
+bench-report:
+    @echo "📄 Generating Benchmark Report"
+    @echo "=============================="
+    cargo run --package fhirpath-bench --bin fhirpath-bench benchmark --run --output benchmark.md
+    @echo "✅ Benchmark report generated: benchmark.md"
+
+bench-list:
+    @echo "📋 Available Benchmark Expressions"
     @echo "=================================="
+    cargo run --package fhirpath-bench --bin fhirpath-bench list
+
+# Legacy benchmark command for compatibility
+bench-legacy:
+    @echo "🚀 FHIRPath Legacy Benchmarks"
+    @echo "============================="
     @echo "📊 Running unified benchmark suite..."
     @echo "This tests all components: tokenizer, parser, evaluator, and throughput"
     cargo run --package octofhir-fhirpath-benchmarks --bin benchmark-runner
@@ -44,9 +76,9 @@ bench:
     @echo "✓ Evaluator: Context operations and evaluation"
     @echo "✓ Throughput: High-volume operation testing"
 
-bench-full: bench
+bench-full: bench bench-report
     @echo "✅ Complete benchmark suite finished!"
-    @echo "💡 Results stored in target/criterion/"
+    @echo "💡 Results available in benchmark.md"
 
 # Documentation commands
 doc:
@@ -65,14 +97,37 @@ docs: doc
     @echo "📋 Available documentation:"
     @echo "  📖 API docs: target/doc/octofhir_fhirpath/index.html"
 
+# Profiling commands for performance analysis
+profile EXPRESSION *ARGS:
+    @echo "🔍 Profiling Expression: {{EXPRESSION}}"
+    @echo "======================================="
+    cargo run --package fhirpath-bench --bin fhirpath-bench profile "{{EXPRESSION}}" {{ARGS}}
+    @echo "✅ Profiling complete! Check ./profile_output/ for flamegraphs"
+
+profile-patient EXPRESSION:
+    @echo "🏥 Profiling with Patient Data: {{EXPRESSION}}"
+    just profile "{{EXPRESSION}}" --iterations 1000
+
+profile-bundle EXPRESSION:
+    @echo "📦 Profiling with Bundle Data: {{EXPRESSION}}"
+    just profile "{{EXPRESSION}}" --bundle --iterations 500
+
+profile-examples:
+    @echo "🔍 Running Example Profiling Sessions"
+    @echo "====================================="
+    @echo "Simple expression profiling..."
+    just profile-patient "Patient.active"
+    @echo "Medium expression profiling..."
+    just profile-patient "Patient.name.where(use = 'official').family"
+    @echo "Complex expression profiling..."
+    just profile-bundle "Bundle.entry.resource.count()"
+    @echo "✅ Example profiling sessions complete!"
+
 # Update benchmark documentation
-bench-update-docs:
-    @echo "📊 Updating Benchmark Documentation"
-    @echo "==================================="
-    @echo "🚀 Running benchmarks..."
-    just bench
-    @echo "📝 Extracting metrics and generating benchmark report..."
-    cargo run --package octofhir-fhirpath-benchmarks --bin extract-benchmark-metrics
+bench-update-docs: bench-report
+    @echo "📊 Benchmark Documentation Updated"
+    @echo "================================="
+    @echo "✅ Latest benchmark results saved to benchmark.md"
 
 # Development commands
 fmt:

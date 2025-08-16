@@ -18,8 +18,8 @@
 //! operations organized by category. Each operation supports both sync and async
 //! evaluation paths for optimal performance.
 
-use octofhir_fhirpath_model::{FhirPathValue, provider::ModelProvider};
 use crate::FhirPathRegistry;
+use octofhir_fhirpath_model::{FhirPathValue, provider::ModelProvider};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
@@ -28,16 +28,16 @@ use std::sync::Arc;
 pub struct EvaluationContext {
     /// Current input value being evaluated
     pub input: FhirPathValue,
-    
+
     /// Root input value (for %context and $resource variables)
     pub root: FhirPathValue,
-    
+
     /// Environment variables for the evaluation
     pub variables: FxHashMap<String, FhirPathValue>,
-    
+
     /// Registry for functions and operators
     pub registry: Arc<FhirPathRegistry>,
-    
+
     /// Model provider for type checking and validation (required)
     pub model_provider: Arc<dyn ModelProvider>,
 }
@@ -103,21 +103,22 @@ impl EvaluationContext {
 
 pub mod arithmetic;
 pub mod binary_operator_utils;
+pub mod cda;
 pub mod collection;
 pub mod comparison;
+pub mod conversion;
 pub mod datetime;
 pub mod fhir;
-pub mod string;
 pub mod lambda;
 pub mod logical;
 pub mod math;
+pub mod string;
 pub mod types;
-pub mod conversion;
 pub mod utility;
 
 // Re-export for convenience
 pub use arithmetic::ArithmeticOperations;
-
+pub use cda::{CdaOperations, HasTemplateIdOfFunction};
 pub use collection::CollectionOperations;
 
 pub use conversion::ConversionOperations;

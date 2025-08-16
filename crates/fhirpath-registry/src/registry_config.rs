@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy)]
 pub struct RegistryConfig {
     pub cache_size: usize,

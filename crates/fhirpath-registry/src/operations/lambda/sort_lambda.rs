@@ -23,13 +23,19 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use std::cmp::Ordering;
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 use rust_decimal::Decimal;
+use std::cmp::Ordering;
 
 /// Lambda-based Sort function implementation
 #[derive(Debug, Clone)]
 pub struct SortLambdaFunction;
+
+impl Default for SortLambdaFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SortLambdaFunction {
     pub fn new() -> Self {
@@ -58,12 +64,8 @@ impl SortLambdaFunction {
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a.cmp(b),
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a.cmp(b),
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a.cmp(b),
-            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                Decimal::from(*a).cmp(b)
-            },
-            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                a.cmp(&Decimal::from(*b))
-            },
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => Decimal::from(*a).cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => a.cmp(&Decimal::from(*b)),
             (FhirPathValue::Collection(a), FhirPathValue::Collection(b)) => {
                 match (a.len(), b.len()) {
                     (1, 1) => self.compare_values(a.first().unwrap(), b.first().unwrap()),
@@ -72,13 +74,13 @@ impl SortLambdaFunction {
                     (_, 0) => Ordering::Greater,
                     _ => Ordering::Equal,
                 }
-            },
+            }
             (FhirPathValue::Collection(a), other) if a.len() == 1 => {
                 self.compare_values(a.first().unwrap(), other)
-            },
+            }
             (other, FhirPathValue::Collection(b)) if b.len() == 1 => {
                 self.compare_values(other, b.first().unwrap())
-            },
+            }
             (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
             (FhirPathValue::Empty, _) => Ordering::Less,
             (_, FhirPathValue::Empty) => Ordering::Greater,
@@ -109,14 +111,18 @@ impl SortLambdaFunction {
     }
 
     /// Extract sort intent from expression AST
-    fn extract_sort_intent<'a>(&self, expression: &'a ExpressionNode) -> (&'a ExpressionNode, bool) {
+    fn extract_sort_intent<'a>(
+        &self,
+        expression: &'a ExpressionNode,
+    ) -> (&'a ExpressionNode, bool) {
         use octofhir_fhirpath_ast::UnaryOperator;
-        
+
         match expression {
-            ExpressionNode::UnaryOp { op: UnaryOperator::Minus, operand } => {
-                (operand.as_ref(), true)
-            },
-            _ => (expression, false)
+            ExpressionNode::UnaryOp {
+                op: UnaryOperator::Minus,
+                operand,
+            } => (operand.as_ref(), true),
+            _ => (expression, false),
         }
     }
 
@@ -129,7 +135,7 @@ impl SortLambdaFunction {
         evaluator: &dyn ExpressionEvaluator,
     ) -> Result<Vec<FhirPathValue>> {
         let mut sort_data = Vec::new();
-        
+
         for (index, item) in items.iter().enumerate() {
             let lambda_context = LambdaContextBuilder::new(context)
                 .with_this(item.clone())
@@ -140,14 +146,14 @@ impl SortLambdaFunction {
             let mut sort_keys = Vec::new();
             for expression in expressions {
                 let (actual_expr, is_descending) = self.extract_sort_intent(expression);
-                
+
                 let key_result = evaluator
                     .evaluate_expression(actual_expr, &lambda_context)
                     .await?;
-                
+
                 sort_keys.push((key_result, is_descending));
             }
-            
+
             sort_data.push((item.clone(), sort_keys));
         }
 
@@ -183,13 +189,16 @@ impl FhirPathOperation for SortLambdaFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            SortLambdaFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(SortLambdaFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         Err(FhirPathError::EvaluationError {
             message: format!(
                 "sort() is a lambda function and should be called via evaluate_lambda, not evaluate. Got {} pre-evaluated args.",
@@ -235,15 +244,25 @@ impl LambdaFunction for SortLambdaFunction {
         match expressions.len() {
             0 => {
                 let sorted_items = self.natural_sort(items)?;
-                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+                Ok(FhirPathValue::Collection(Collection::from_vec(
+                    sorted_items,
+                )))
             }
             1 => {
-                let sorted_items = self.lambda_sort(items, &[expressions[0].clone()], context, evaluator).await?;
-                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+                let sorted_items = self
+                    .lambda_sort(items, &[expressions[0].clone()], context, evaluator)
+                    .await?;
+                Ok(FhirPathValue::Collection(Collection::from_vec(
+                    sorted_items,
+                )))
             }
             2 => {
-                let sorted_items = self.lambda_sort(items, expressions, context, evaluator).await?;
-                Ok(FhirPathValue::Collection(Collection::from_vec(sorted_items)))
+                let sorted_items = self
+                    .lambda_sort(items, expressions, context, evaluator)
+                    .await?;
+                Ok(FhirPathValue::Collection(Collection::from_vec(
+                    sorted_items,
+                )))
             }
             _ => Err(FhirPathError::InvalidArgumentCount {
                 function_name: "sort".to_string(),

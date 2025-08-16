@@ -60,7 +60,7 @@ impl TestCoverageGenerator {
             "**Failed Tests**: {}\n",
             self.total_tests - self.passed_tests
         ));
-        report.push_str(&format!("**Pass Rate**: {:.1}%\n\n", pass_rate));
+        report.push_str(&format!("**Pass Rate**: {pass_rate:.1}%\n\n"));
 
         // Add details of failed tests
         let failed_tests: Vec<_> = self
@@ -73,7 +73,7 @@ impl TestCoverageGenerator {
         if !failed_tests.is_empty() {
             report.push_str("## Failed Tests\n\n");
             for test_name in failed_tests {
-                report.push_str(&format!("- {}\n", test_name));
+                report.push_str(&format!("- {test_name}\n"));
             }
         }
 

@@ -238,11 +238,7 @@ impl SourceLocation {
         let mut result = String::new();
         for (i, line) in lines[start_line..=end_line].iter().enumerate() {
             let line_num = start_line + i;
-            if line_num >= self.span.start.line && line_num <= self.span.end.line {
-                result.push_str(&format!("{:4} | {}\n", line_num + 1, line));
-            } else {
-                result.push_str(&format!("{:4} | {}\n", line_num + 1, line));
-            }
+            result.push_str(&format!("{:4} | {}\n", line_num + 1, line));
         }
 
         result

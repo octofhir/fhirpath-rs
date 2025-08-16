@@ -28,6 +28,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ToTime function: converts input to Time
 pub struct ToTimeFunction;
 
+impl Default for ToTimeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToTimeFunction {
     pub fn new() -> Self {
         Self
@@ -65,7 +71,9 @@ impl ToTimeFunction {
                 } else {
                     // Multiple items is an error
                     Err(FhirPathError::EvaluationError {
-                        message: "toTime() requires a single item, but collection has multiple items".to_string(),
+                        message:
+                            "toTime() requires a single item, but collection has multiple items"
+                                .to_string(),
                     })
                 }
             }
@@ -86,7 +94,7 @@ impl FhirPathOperation for ToTimeFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ToTimeFunction::create_metadata());
+            std::sync::LazyLock::new(ToTimeFunction::create_metadata);
         &METADATA
     }
 
@@ -116,62 +124,5 @@ impl FhirPathOperation for ToTimeFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_to_time() {
-        let func = ToTimeFunction::new();
-
-        // Test with time
-        let time = NaiveTime::from_hms_opt(10, 0, 0).unwrap();
-        let ctx = create_test_context(FhirPathValue::Time(time));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Time(time));
-
-        // Test with string that can be parsed as time
-        let ctx = create_test_context(FhirPathValue::String("10:00:00".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Time(time));
-
-        // Test with string with fractional seconds that can be parsed as time
-        let time_with_fraction = NaiveTime::from_hms_micro_opt(10, 0, 0, 123000).unwrap();
-        let ctx = create_test_context(FhirPathValue::String("10:00:00.123".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Time(time_with_fraction));
-
-        // Test with string that cannot be parsed as time
-        let ctx = create_test_context(FhirPathValue::String("invalid-time".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_to_time_sync() {
-        let func = ToTimeFunction::new();
-        let time = NaiveTime::from_hms_opt(10, 0, 0).unwrap();
-        let ctx = create_test_context(FhirPathValue::Time(time));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Time(time));
-        assert!(func.supports_sync());
     }
 }

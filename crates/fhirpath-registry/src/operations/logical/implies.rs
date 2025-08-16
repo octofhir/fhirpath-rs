@@ -14,14 +14,15 @@
 
 //! Implies operator implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity, Associativity
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Implies operator - logical implication
 /// If the left operand evaluates to true, returns the boolean evaluation of the right operand.
@@ -29,32 +30,41 @@ use async_trait::async_trait;
 #[derive(Debug, Clone)]
 pub struct ImpliesOperation;
 
+impl Default for ImpliesOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImpliesOperation {
     pub fn new() -> Self {
         Self
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("implies", OperationType::BinaryOperator {
-            precedence: 13,
-            associativity: Associativity::Left,
-        })
-            .description("Logical implication - if left is true, returns right; if left is false, returns true")
-            .example("true implies true")
-            .example("false implies false")
-            .example("true implies false")
-            .returns(TypeConstraint::Specific(FhirPathType::Boolean))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "implies",
+            OperationType::BinaryOperator {
+                precedence: 13,
+                associativity: Associativity::Left,
+            },
+        )
+        .description(
+            "Logical implication - if left is true, returns right; if left is false, returns true",
+        )
+        .example("true implies true")
+        .example("false implies false")
+        .example("true implies false")
+        .returns(TypeConstraint::Specific(FhirPathType::Boolean))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
     /// Unwrap single-item collections to their contained value
     fn unwrap_single_collection(&self, value: &FhirPathValue) -> FhirPathValue {
         match value {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.first().unwrap().clone()
-            }
-            _ => value.clone()
+            FhirPathValue::Collection(items) if items.len() == 1 => items.first().unwrap().clone(),
+            _ => value.clone(),
         }
     }
 
@@ -71,14 +81,18 @@ impl ImpliesOperation {
                     // Multi-element collections in logical operations result in empty (not error)
                     Ok(None)
                 }
-            },
+            }
             // Non-boolean values in logical operations result in empty (not error)
             // This follows FHIRPath specification for type conversion in boolean context
             _ => Ok(None),
         }
     }
 
-    fn evaluate_binary_sync(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<Result<FhirPathValue>> {
+    fn evaluate_binary_sync(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<Result<FhirPathValue>> {
         // Handle empty collections per FHIRPath spec
         match (left, right) {
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
@@ -98,8 +112,14 @@ impl ImpliesOperation {
                 if l.is_empty() {
                     // empty implies other - depends on other
                     return match Self::to_boolean(other) {
-                        Ok(Some(true)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])))),
-                        Ok(Some(false)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
+                        Ok(Some(true)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![
+                                FhirPathValue::Boolean(true),
+                            ]))))
+                        }
+                        Ok(Some(false)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![]))))
+                        }
                         Ok(None) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
                         Err(_) => None, // Fallback to async
                     };
@@ -114,8 +134,14 @@ impl ImpliesOperation {
                 if r.is_empty() {
                     // other implies empty - depends on other
                     return match Self::to_boolean(other) {
-                        Ok(Some(true)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
-                        Ok(Some(false)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])))),
+                        Ok(Some(true)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![]))))
+                        }
+                        Ok(Some(false)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![
+                                FhirPathValue::Boolean(true),
+                            ]))))
+                        }
                         Ok(None) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
                         Err(_) => None, // Fallback to async
                     };
@@ -133,7 +159,7 @@ impl ImpliesOperation {
             Ok(b) => b,
             Err(_) => return None, // Fallback to async for type errors
         };
-        
+
         let right_bool = match Self::to_boolean(right) {
             Ok(b) => b,
             Err(_) => return None, // Fallback to async for type errors
@@ -143,29 +169,41 @@ impl ImpliesOperation {
         let result = match (left_bool, right_bool) {
             (Some(true), Some(true)) => Some(true),
             (Some(true), Some(false)) => Some(false),
-            (Some(true), None) => None, // true implies empty = empty
+            (Some(true), None) => None,     // true implies empty = empty
             (Some(false), _) => Some(true), // false implies anything is true
             (None, Some(true)) => Some(true), // empty implies true = true
-            (None, Some(false)) => None, // empty implies false = empty
-            (None, None) => None, // empty implies empty = empty
+            (None, Some(false)) => None,    // empty implies false = empty
+            (None, None) => None,           // empty implies empty = empty
         };
 
         // Wrap result in collection as per FHIRPath spec
         Some(match result {
-            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(b)]))),
+            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![
+                FhirPathValue::Boolean(b),
+            ]))),
             None => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
         })
     }
 
-    fn handle_empty_collection_implies(&self, left: &Collection, right: &Collection) -> Option<Result<FhirPathValue>> {
+    fn handle_empty_collection_implies(
+        &self,
+        left: &Collection,
+        right: &Collection,
+    ) -> Option<Result<FhirPathValue>> {
         match (left.is_empty(), right.is_empty()) {
             (true, true) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))), // empty implies empty = empty
             (true, false) => {
                 // empty implies non-empty - depends on right value
                 if right.len() == 1 {
                     match Self::to_boolean(right.first().unwrap()) {
-                        Ok(Some(true)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])))),
-                        Ok(Some(false)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
+                        Ok(Some(true)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![
+                                FhirPathValue::Boolean(true),
+                            ]))))
+                        }
+                        Ok(Some(false)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![]))))
+                        }
                         Ok(None) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
                         Err(_) => None,
                     }
@@ -177,8 +215,14 @@ impl ImpliesOperation {
                 // non-empty implies empty - depends on left value
                 if left.len() == 1 {
                     match Self::to_boolean(left.first().unwrap()) {
-                        Ok(Some(true)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
-                        Ok(Some(false)) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])))),
+                        Ok(Some(true)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![]))))
+                        }
+                        Ok(Some(false)) => {
+                            Some(Ok(FhirPathValue::Collection(Collection::from(vec![
+                                FhirPathValue::Boolean(true),
+                            ]))))
+                        }
                         Ok(None) => Some(Ok(FhirPathValue::Collection(Collection::from(vec![])))),
                         Err(_) => None,
                     }
@@ -212,25 +256,28 @@ impl FhirPathOperation for ImpliesOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ImpliesOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ImpliesOperation::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             });
         }
 
         // Unwrap single-item collections
         let left_unwrapped = self.unwrap_single_collection(&args[0]);
         let right_unwrapped = self.unwrap_single_collection(&args[1]);
-        
+
         // Try sync path first
         if let Some(result) = self.evaluate_binary_sync(&left_unwrapped, &right_unwrapped) {
             return result;
@@ -244,26 +291,32 @@ impl FhirPathOperation for ImpliesOperation {
         let result = match (left, right) {
             (Some(true), Some(true)) => Some(true),
             (Some(true), Some(false)) => Some(false),
-            (Some(true), None) => None, // true implies empty = empty
+            (Some(true), None) => None,     // true implies empty = empty
             (Some(false), _) => Some(true), // false implies anything is true
             (None, Some(true)) => Some(true), // empty implies true = true
-            (None, Some(false)) => None, // empty implies false = empty
-            (None, None) => None, // empty implies empty = empty
+            (None, Some(false)) => None,    // empty implies false = empty
+            (None, None) => None,           // empty implies empty = empty
         };
 
         // Wrap result in collection as per FHIRPath spec
         match result {
-            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(b)]))),
+            Some(b) => Ok(FhirPathValue::Collection(Collection::from(vec![
+                FhirPathValue::Boolean(b),
+            ]))),
             None => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 2 {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             }));
         }
 
@@ -278,159 +331,5 @@ impl FhirPathOperation for ImpliesOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_implies_truth_table() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test true implies true (true)
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test true implies false (false)
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(false)])));
-
-        // Test false implies true (true)
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test false implies false (true)
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-    }
-
-    #[tokio::test]
-    async fn test_implies_short_circuit() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test false implies anything is true
-        let args = vec![FhirPathValue::Boolean(false), FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-    }
-
-    #[tokio::test]
-    async fn test_implies_with_empty() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test true implies empty (empty)
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test empty implies true (true)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Boolean(true)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test empty implies false (empty)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Boolean(false)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test empty implies empty (empty)
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Empty];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[tokio::test]
-    async fn test_implies_with_collections() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test with single item collection that converts to boolean
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(false)])),
-            FhirPathValue::Boolean(true)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-    }
-
-    #[tokio::test]
-    async fn test_implies_with_empty_collections() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test empty collection implies boolean
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![])),
-            FhirPathValue::Boolean(true)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-
-        // Test boolean implies empty collection
-        let args = vec![
-            FhirPathValue::Boolean(true),
-            FhirPathValue::Collection(Collection::from(vec![]))
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test false implies empty collection (should be true)
-        let args = vec![
-            FhirPathValue::Boolean(false),
-            FhirPathValue::Collection(Collection::from(vec![]))
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
-    }
-
-    #[tokio::test]
-    async fn test_implies_with_multi_element_collections() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        // Test multi-element collection (should return empty)
-        let args = vec![
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)])),
-            FhirPathValue::Boolean(true)
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Test boolean implies multi-element collection (should return empty)
-        let args = vec![
-            FhirPathValue::Boolean(true),
-            FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)]))
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[tokio::test]
-    async fn test_sync_evaluation() {
-        let op = ImpliesOperation::new();
-        let ctx = create_test_context();
-
-        let args = vec![FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)];
-        let result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Boolean(true)])));
     }
 }

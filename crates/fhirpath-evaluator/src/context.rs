@@ -23,6 +23,19 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+/// Lambda-specific metadata for implicit variables
+#[derive(Clone, Debug)]
+pub struct LambdaMetadata {
+    /// Current item being processed ($this)
+    pub current_item: FhirPathValue,
+
+    /// Current index in iteration ($index)
+    pub current_index: FhirPathValue,
+
+    /// Total count or accumulator ($total)
+    pub total_value: FhirPathValue,
+}
+
 /// Variable scope for defineVariable isolation with Copy-on-Write semantics
 #[derive(Clone, Debug)]
 pub struct VariableScope {
@@ -30,6 +43,8 @@ pub struct VariableScope {
     pub variables: Cow<'static, FxHashMap<String, FhirPathValue>>,
     /// Parent scope (for nested scoping)
     pub parent: Option<Arc<VariableScope>>,
+    /// Lambda-specific metadata for implicit variables
+    pub lambda_metadata: Option<LambdaMetadata>,
     /// Whether this scope owns its variables (true if variables were modified)
     owned: bool,
 }
@@ -46,6 +61,7 @@ impl VariableScope {
         Self {
             variables: Cow::Owned(FxHashMap::default()),
             parent: None,
+            lambda_metadata: None,
             owned: true,
         }
     }
@@ -61,11 +77,13 @@ impl VariableScope {
                     return Self {
                         variables: Cow::Owned(FxHashMap::default()),
                         parent: Some(Arc::new(parent)),
+                        lambda_metadata: None,
                         owned: false,
                     };
                 }
             }),
             parent: Some(Arc::new(parent)),
+            lambda_metadata: None,
             owned: false,
         }
     }
@@ -75,54 +93,57 @@ impl VariableScope {
         Self {
             variables: Cow::Owned(FxHashMap::default()),
             parent: Some(parent),
+            lambda_metadata: None,
             owned: false,
         }
     }
-    
+
     /// Create a lambda scope with implicit variables
     pub fn lambda_scope(
         parent: Option<Arc<VariableScope>>,
         current_item: FhirPathValue,
         index: usize,
-        total: usize,
+        total: FhirPathValue,
     ) -> Self {
-        let mut variables = FxHashMap::default();
-        
-        // Set lambda-specific implicit variables
-        variables.insert("$this".to_string(), current_item);
-        variables.insert("$index".to_string(), FhirPathValue::Integer(index as i64));
-        variables.insert("$total".to_string(), FhirPathValue::Integer(total as i64));
-        
+        let lambda_metadata = LambdaMetadata {
+            current_item,
+            current_index: FhirPathValue::Integer(index as i64),
+            total_value: total,
+        };
+
         Self {
-            variables: Cow::Owned(variables),
+            variables: Cow::Owned(FxHashMap::default()),
             parent,
+            lambda_metadata: Some(lambda_metadata),
             owned: true,
         }
     }
-    
+
     /// Create a lambda scope with custom parameter mappings
     pub fn lambda_scope_with_params(
         parent: Option<Arc<VariableScope>>,
         param_mappings: Vec<(String, FhirPathValue)>,
         current_item: FhirPathValue,
         index: usize,
-        total: usize,
+        total: FhirPathValue,
     ) -> Self {
         let mut variables = FxHashMap::default();
-        
+
         // Set explicit parameter mappings
         for (param_name, param_value) in param_mappings {
             variables.insert(param_name, param_value);
         }
-        
-        // Set lambda-specific implicit variables
-        variables.insert("$this".to_string(), current_item);
-        variables.insert("$index".to_string(), FhirPathValue::Integer(index as i64));
-        variables.insert("$total".to_string(), FhirPathValue::Integer(total as i64));
-        
+
+        let lambda_metadata = LambdaMetadata {
+            current_item,
+            current_index: FhirPathValue::Integer(index as i64),
+            total_value: total,
+        };
+
         Self {
             variables: Cow::Owned(variables),
             parent,
+            lambda_metadata: Some(lambda_metadata),
             owned: true,
         }
     }
@@ -136,7 +157,7 @@ impl VariableScope {
             // This matches FHIRPath spec behavior where system variables cannot be overridden
             return;
         }
-        
+
         // Trigger copy-on-write if we're borrowing
         if !self.owned {
             let mut new_vars = FxHashMap::default();
@@ -153,28 +174,41 @@ impl VariableScope {
             vars.insert(name, value);
         }
     }
-    
+
     /// Check if a variable name is a system variable that cannot be overridden
     fn is_system_variable(name: &str) -> bool {
         match name {
             // Standard environment variables (% prefix stripped during parsing)
             "context" | "resource" | "rootResource" | "sct" | "loinc" | "ucum" => true,
-            // Lambda variables ($ prefix kept)
+            // Lambda variables ($ prefix kept) - these are managed by lambda metadata
             "$this" | "$index" | "$total" => true,
             // Value set variables (without % prefix)
             name if name.starts_with("\"vs-") && name.ends_with('"') => true,
             name if name.starts_with("vs-") => true,
-            // System reserved prefixes
-            name if name.starts_with("$") => true, // All $ variables are system reserved
+            // System reserved prefixes - but allow user-defined $ variables that aren't lambda-specific
+            name if name.starts_with("$") && !matches!(name, "$this" | "$index" | "$total") => {
+                false
+            }
             _ => false,
         }
     }
 
     /// Get a variable from this scope or parent scopes
+    /// Resolution order: local -> lambda -> parent -> environment
     pub fn get_variable(&self, name: &str) -> Option<&FhirPathValue> {
         // First check local variables
         if let Some(value) = self.variables.get(name) {
             return Some(value);
+        }
+
+        // Then check lambda metadata for implicit variables
+        if let Some(ref lambda_meta) = self.lambda_metadata {
+            match name {
+                "$this" => return Some(&lambda_meta.current_item),
+                "$index" => return Some(&lambda_meta.current_index),
+                "$total" => return Some(&lambda_meta.total_value),
+                _ => {}
+            }
         }
 
         // Then check parent scopes
@@ -201,6 +235,7 @@ impl VariableScope {
                 Default::default(),
             )),
             parent: None,
+            lambda_metadata: None,
             owned: true,
         }
     }
@@ -305,6 +340,30 @@ impl EvaluationContext {
         }
     }
 
+    /// Create a lambda context with implicit variables ($this, $index, $total)
+    pub fn with_lambda_context(
+        &self,
+        current_item: FhirPathValue,
+        index: usize,
+        total: FhirPathValue,
+    ) -> Self {
+        let lambda_scope = VariableScope::lambda_scope(
+            Some(Arc::new(self.variable_scope.clone())),
+            current_item.clone(),
+            index,
+            total,
+        );
+
+        Self {
+            input: current_item,
+            root: self.root.clone(),
+            variable_scope: lambda_scope,
+            registry: self.registry.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
+        }
+    }
+
     /// Set a variable in the context
     /// System variables cannot be overridden (silently ignored)
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
@@ -343,16 +402,16 @@ impl EvaluationContext {
             annotations.clear();
         }
     }
-    
+
     /// Create a lambda-scoped context for expression evaluation
     pub fn create_lambda_scope(&self, variables: FxHashMap<String, FhirPathValue>) -> Self {
         let mut new_scope = VariableScope::new();
-        
+
         // Add lambda variables to the new scope
         for (name, value) in variables {
             new_scope.set_variable(name, value);
         }
-        
+
         Self {
             input: self.input.clone(),
             root: self.root.clone(),
@@ -362,13 +421,13 @@ impl EvaluationContext {
             type_annotations: Arc::new(Mutex::new(FxHashMap::default())), // Fresh cache for lambda context
         }
     }
-    
+
     /// Create context with lambda-specific implicit variables
     pub fn with_lambda_implicits(
         &self,
         current_item: FhirPathValue,
         index: usize,
-        total: usize,
+        total: FhirPathValue,
     ) -> Self {
         let lambda_scope = VariableScope::lambda_scope(
             Some(Arc::new(self.variable_scope.clone())),
@@ -376,7 +435,7 @@ impl EvaluationContext {
             index,
             total,
         );
-        
+
         Self {
             input: current_item,
             root: self.root.clone(),
@@ -386,14 +445,14 @@ impl EvaluationContext {
             type_annotations: self.type_annotations.clone(), // Share type annotations
         }
     }
-    
+
     /// Create context with both lambda parameters and implicit variables
     pub fn with_lambda_params_and_implicits(
         &self,
         param_mappings: Vec<(String, FhirPathValue)>,
         current_item: FhirPathValue,
         index: usize,
-        total: usize,
+        total: FhirPathValue,
     ) -> Self {
         let lambda_scope = VariableScope::lambda_scope_with_params(
             Some(Arc::new(self.variable_scope.clone())),
@@ -402,7 +461,7 @@ impl EvaluationContext {
             index,
             total,
         );
-        
+
         Self {
             input: current_item,
             root: self.root.clone(),
@@ -412,23 +471,132 @@ impl EvaluationContext {
             type_annotations: self.type_annotations.clone(), // Share type annotations
         }
     }
-    
+
     /// Push a new variable scope (for nested lambdas)
     pub fn push_scope(&mut self) {
-        let current_scope = std::mem::replace(&mut self.variable_scope, VariableScope::new());
+        let current_scope = std::mem::take(&mut self.variable_scope);
         self.variable_scope = VariableScope::child_from_shared(Arc::new(current_scope));
     }
-    
+
     /// Pop the current variable scope
     pub fn pop_scope(&mut self) {
         if let Some(parent) = &self.variable_scope.parent {
             self.variable_scope = (**parent).clone();
         }
     }
-    
+
     /// Get the root resource for context resolution
     pub fn get_root_resource(&self) -> &FhirPathValue {
         &self.root
+    }
+}
+
+/// Helper for consistent lambda context creation
+pub struct LambdaContextBuilder {
+    base_context: EvaluationContext,
+    current_item: Option<FhirPathValue>,
+    index: Option<usize>,
+    total: Option<FhirPathValue>,
+    param_mappings: Vec<(String, FhirPathValue)>,
+}
+
+impl LambdaContextBuilder {
+    /// Create a new lambda context builder from a base context
+    pub fn new(base_context: &EvaluationContext) -> Self {
+        Self {
+            base_context: base_context.clone(),
+            current_item: None,
+            index: None,
+            total: None,
+            param_mappings: Vec::new(),
+        }
+    }
+
+    /// Create a lambda context builder for a specific item and index
+    pub fn for_item(base_context: &EvaluationContext, item: FhirPathValue, index: usize) -> Self {
+        Self {
+            base_context: base_context.clone(),
+            current_item: Some(item),
+            index: Some(index),
+            total: None,
+            param_mappings: Vec::new(),
+        }
+    }
+
+    /// Set the current item ($this variable)
+    pub fn with_current_item(mut self, item: FhirPathValue) -> Self {
+        self.current_item = Some(item);
+        self
+    }
+
+    /// Set the current index ($index variable)
+    pub fn with_index(mut self, index: usize) -> Self {
+        self.index = Some(index);
+        self
+    }
+
+    /// Set the total value ($total variable)
+    pub fn with_total(mut self, total: FhirPathValue) -> Self {
+        self.total = Some(total);
+        self
+    }
+
+    /// Add a parameter mapping for lambda parameters
+    pub fn with_parameter(mut self, name: String, value: FhirPathValue) -> Self {
+        self.param_mappings.push((name, value));
+        self
+    }
+
+    /// Add multiple parameter mappings
+    pub fn with_parameters(mut self, params: Vec<(String, FhirPathValue)>) -> Self {
+        self.param_mappings.extend(params);
+        self
+    }
+
+    /// Build the lambda context
+    pub fn build(self) -> EvaluationContext {
+        let current_item = self
+            .current_item
+            .unwrap_or_else(|| self.base_context.input.clone());
+        let index = self.index.unwrap_or(0);
+        let total = self.total.unwrap_or(FhirPathValue::Integer(0));
+
+        if self.param_mappings.is_empty() {
+            // Use simple lambda scope
+            let lambda_scope = VariableScope::lambda_scope(
+                Some(Arc::new(self.base_context.variable_scope.clone())),
+                current_item.clone(),
+                index,
+                total,
+            );
+
+            EvaluationContext {
+                input: current_item,
+                root: self.base_context.root.clone(),
+                variable_scope: lambda_scope,
+                registry: self.base_context.registry.clone(),
+                model_provider: self.base_context.model_provider.clone(),
+                type_annotations: self.base_context.type_annotations.clone(),
+            }
+        } else {
+            // Use lambda scope with parameters
+            let lambda_scope = VariableScope::lambda_scope_with_params(
+                Some(Arc::new(self.base_context.variable_scope.clone())),
+                self.param_mappings,
+                current_item.clone(),
+                index,
+                total,
+            );
+
+            EvaluationContext {
+                input: current_item,
+                root: self.base_context.root.clone(),
+                variable_scope: lambda_scope,
+                registry: self.base_context.registry.clone(),
+                model_provider: self.base_context.model_provider.clone(),
+                type_annotations: self.base_context.type_annotations.clone(),
+            }
+        }
     }
 }
 
@@ -465,6 +633,7 @@ impl VariableScope {
         Self {
             variables: Cow::Owned(all_vars),
             parent: None,
+            lambda_metadata: None,
             owned: true,
         }
     }
@@ -541,8 +710,7 @@ impl ContextPool {
         registry: Arc<FhirPathRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
-        let template =
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
+        let template = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
 
         Self {
             pool: Arc::new(Mutex::new(VecDeque::with_capacity(max_size))),
@@ -682,10 +850,7 @@ pub struct StackContext<'a> {
 #[allow(dead_code)]
 impl<'a> StackContext<'a> {
     /// Create a new stack-allocated context
-    pub fn new(
-        input: &'a FhirPathValue,
-        registry: &'a FhirPathRegistry,
-    ) -> Self {
+    pub fn new(input: &'a FhirPathValue, registry: &'a FhirPathRegistry) -> Self {
         Self {
             root: input,
             input,
@@ -843,7 +1008,6 @@ impl ContextFactory {
             "where(",
             "select(",
             "all(",
-            "any(",
             "aggregate(",
             "defineVariable(",
             "repeat(",
@@ -1229,11 +1393,8 @@ mod tests {
     fn test_evaluation_context_inherited_scope() {
         let registry = Arc::new(FhirPathRegistry::new());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
-        let mut parent_ctx = EvaluationContext::new(
-            FhirPathValue::Integer(42),
-            registry,
-            model_provider,
-        );
+        let mut parent_ctx =
+            EvaluationContext::new(FhirPathValue::Integer(42), registry, model_provider);
 
         parent_ctx.set_variable(
             "parent_var".to_string(),

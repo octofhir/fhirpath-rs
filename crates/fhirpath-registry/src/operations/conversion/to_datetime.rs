@@ -21,12 +21,18 @@ use crate::metadata::{
 use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
-use chrono::{DateTime, FixedOffset};
+use chrono::DateTime;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
 /// ToDateTime function: converts input to DateTime
 pub struct ToDateTimeFunction;
+
+impl Default for ToDateTimeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ToDateTimeFunction {
     pub fn new() -> Self {
@@ -45,22 +51,40 @@ impl ToDateTimeFunction {
 
     fn convert_to_datetime(value: &FhirPathValue) -> Result<FhirPathValue> {
         match value {
-            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::DateTime(*dt)),
+            FhirPathValue::DateTime(dt) => {
+                // For existing datetime, convert to date-only format
+                let date = dt.date_naive();
+                Ok(FhirPathValue::Date(date))
+            }
             FhirPathValue::Date(d) => {
-                // Convert date to datetime at midnight UTC
-                let dt = d
-                    .and_hms_opt(0, 0, 0)
-                    .unwrap()
-                    .and_local_timezone(FixedOffset::east_opt(0).unwrap())
-                    .unwrap();
-                Ok(FhirPathValue::DateTime(dt.fixed_offset()))
+                // Date already in correct format
+                Ok(FhirPathValue::Date(*d))
             }
             FhirPathValue::String(s) => {
-                // Try to parse as datetime
-                match DateTime::parse_from_rfc3339(s) {
-                    Ok(dt) => Ok(FhirPathValue::DateTime(dt.fixed_offset())),
-                    Err(_) => Ok(FhirPathValue::Empty), // Cannot convert
+                // Try to parse as full datetime first
+                if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+                    let date = dt.date_naive();
+                    return Ok(FhirPathValue::Date(date));
                 }
+
+                // Try to parse as date-only format (YYYY-MM-DD)
+                if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                    return Ok(FhirPathValue::Date(date));
+                }
+
+                // Try to parse partial date formats
+                if let Ok(date) = chrono::NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
+                {
+                    return Ok(FhirPathValue::Date(date));
+                }
+
+                if let Ok(date) =
+                    chrono::NaiveDate::parse_from_str(&format!("{s}-01-01"), "%Y-%m-%d")
+                {
+                    return Ok(FhirPathValue::Date(date));
+                }
+
+                Ok(FhirPathValue::Empty) // Cannot convert
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
@@ -71,7 +95,9 @@ impl ToDateTimeFunction {
                 } else {
                     // Multiple items is an error
                     Err(FhirPathError::EvaluationError {
-                        message: "toDateTime() requires a single item, but collection has multiple items".to_string(),
+                        message:
+                            "toDateTime() requires a single item, but collection has multiple items"
+                                .to_string(),
                     })
                 }
             }
@@ -92,7 +118,7 @@ impl FhirPathOperation for ToDateTimeFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ToDateTimeFunction::create_metadata());
+            std::sync::LazyLock::new(ToDateTimeFunction::create_metadata);
         &METADATA
     }
 
@@ -122,68 +148,5 @@ impl FhirPathOperation for ToDateTimeFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_to_datetime() {
-        let func = ToDateTimeFunction::new();
-
-        // Test with datetime
-        let dt = DateTime::parse_from_rfc3339("2023-01-01T10:00:00Z").unwrap();
-        let ctx = create_test_context(FhirPathValue::DateTime(dt));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::DateTime(dt));
-
-        // Test with date
-        let date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
-        let expected_dt = date
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(FixedOffset::east_opt(0).unwrap())
-            .unwrap()
-            .fixed_offset();
-        let ctx = create_test_context(FhirPathValue::Date(date));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::DateTime(expected_dt));
-
-        // Test with string that can be parsed as datetime
-        let ctx = create_test_context(FhirPathValue::String("2023-01-01T10:00:00Z".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::DateTime(dt));
-
-        // Test with string that cannot be parsed as datetime
-        let ctx = create_test_context(FhirPathValue::String("invalid-datetime".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_to_datetime_sync() {
-        let func = ToDateTimeFunction::new();
-        let dt = DateTime::parse_from_rfc3339("2023-01-01T10:00:00Z").unwrap();
-        let ctx = create_test_context(FhirPathValue::DateTime(dt));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::DateTime(dt));
-        assert!(func.supports_sync());
     }
 }

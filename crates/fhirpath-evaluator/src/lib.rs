@@ -20,12 +20,11 @@ mod context;
 pub mod engine;
 
 // Primary engine
-pub use engine::{FhirPathEngine, EvaluationConfig};
+pub use engine::{EvaluationConfig, FhirPathEngine};
 
 // Essential evaluation functionality
-pub use context::{EvaluationContext, VariableScope};
+pub use context::{EvaluationContext, LambdaContextBuilder, LambdaMetadata, VariableScope};
 pub use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-
 
 // Comprehensive test suite for evaluator functionality
 #[cfg(test)]

@@ -257,7 +257,7 @@ impl Default for FunctionMetadata {
 }
 
 /// Metadata specific to operators
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OperatorMetadata {
     /// Whether this operator is commutative (a op b = b op a)
     pub commutative: bool,
@@ -270,17 +270,6 @@ pub struct OperatorMetadata {
 
     /// Whether this operator short-circuits evaluation
     pub short_circuit: bool,
-}
-
-impl Default for OperatorMetadata {
-    fn default() -> Self {
-        Self {
-            commutative: false,
-            associative: false,
-            identity: None,
-            short_circuit: false,
-        }
-    }
 }
 
 /// Builder for operation metadata

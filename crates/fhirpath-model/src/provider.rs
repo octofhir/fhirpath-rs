@@ -123,6 +123,15 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
         element_path: &str,
     ) -> Option<PrimitiveExtensionData>;
 
+    /// Find extensions by URL on a value (handles both direct extensions and primitive extensions)
+    async fn find_extensions_by_url(
+        &self,
+        value: &crate::FhirPathValue,
+        parent_resource: &crate::FhirPathValue,
+        element_path: Option<&str>,
+        url: &str,
+    ) -> Vec<crate::FhirPathValue>;
+
     /// Get search parameters for a resource type
     async fn get_search_params(&self, resource_type: &str) -> Vec<SearchParameter>;
 
@@ -149,6 +158,47 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
         self.is_subtype_of(resource_type, target_type).await
     }
 
+    /// Validate if a resource conforms to a specific StructureDefinition profile
+    /// Returns Ok(true) if the resource conforms, Ok(false) if it doesn't,
+    /// or Err if the profile cannot be resolved or validation fails
+    async fn validates_resource_against_profile(
+        &self,
+        resource: &crate::FhirPathValue,
+        profile_url: &str,
+    ) -> Result<bool, ModelError> {
+        // Extract the resource type from the resource
+        let resource_type = match resource {
+            crate::FhirPathValue::Resource(res) => {
+                res.resource_type().unwrap_or("Resource").to_string()
+            }
+            crate::FhirPathValue::JsonValue(json) => json
+                .as_json()
+                .get("resourceType")
+                .and_then(|rt| rt.as_str())
+                .unwrap_or("Resource")
+                .to_string(),
+            _ => return Ok(false), // Non-resources cannot conform to profiles
+        };
+
+        // For base FHIR resources, check if the profile URL matches the resource type
+        if profile_url.contains("/StructureDefinition/") {
+            let profile_name = profile_url
+                .split("/StructureDefinition/")
+                .last()
+                .unwrap_or("");
+
+            // Check if this is a base FHIR resource profile
+            if profile_name == resource_type {
+                return Ok(true);
+            }
+        }
+
+        // For more complex validation, use the validate_conformance method
+        // This is a simplified implementation - full validation would require
+        // fetching and analyzing the StructureDefinition
+        Ok(false)
+    }
+
     /// Get all properties of a type
     async fn get_properties(&self, type_name: &str) -> Vec<(String, TypeReflectionInfo)>;
 
@@ -161,6 +211,74 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
         type_name: &str,
         path: &str,
     ) -> Result<NavigationValidation, ModelError>;
+
+    /// Extract type name from FhirPathValue (handles TypeInfoObject, String, etc.)
+    /// This is a shared utility for type operations like is() and ofType()
+    fn extract_type_name(&self, type_arg: &crate::FhirPathValue) -> Result<String, ModelError> {
+        use crate::FhirPathValue;
+
+        match type_arg {
+            FhirPathValue::String(type_name) => Ok(type_name.to_string()),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                // Handle type identifiers like Patient, FHIR.Patient, System.Integer
+                if namespace.as_ref() == "System" {
+                    Ok(name.as_ref().to_string())
+                } else if namespace.as_ref() == "FHIR" {
+                    // For FHIR types, use just the name (e.g., "Patient" from "FHIR.Patient")
+                    Ok(name.as_ref().to_string())
+                } else {
+                    // For unqualified types, use the name directly
+                    Ok(name.as_ref().to_string())
+                }
+            }
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    // Recursively extract from single-item collection
+                    self.extract_type_name(items.iter().next().unwrap())
+                } else if items.is_empty() {
+                    Err(ModelError::ConstraintError {
+                        constraint_key: "type-conversion".to_string(),
+                        message: "Empty collection cannot be used as type argument".to_string(),
+                    })
+                } else {
+                    // Multiple items - try to extract a common type name if they're all strings
+                    let first_item = items.iter().next().unwrap();
+                    if let FhirPathValue::String(type_name) = first_item {
+                        Ok(type_name.to_string())
+                    } else {
+                        Err(ModelError::ConstraintError {
+                            constraint_key: "type-conversion".to_string(),
+                            message: format!(
+                                "Multi-item collection cannot be used as type argument, got {} items",
+                                items.len()
+                            ),
+                        })
+                    }
+                }
+            }
+            FhirPathValue::Resource(resource) => {
+                // If a resource is passed as type argument, use its resource type
+                if let Some(resource_type) = resource.resource_type() {
+                    Ok(resource_type.to_string())
+                } else {
+                    Ok("Resource".to_string())
+                }
+            }
+            value => {
+                // Try to convert to string as fallback
+                match value.to_string_value() {
+                    Some(s) => Ok(s),
+                    None => Err(ModelError::ConstraintError {
+                        constraint_key: "type-conversion".to_string(),
+                        message: format!(
+                            "Type argument must be convertible to string, got {}",
+                            value.type_name()
+                        ),
+                    }),
+                }
+            }
+        }
+    }
 }
 
 // Legacy compatibility - map old TypeInfo to new TypeReflectionInfo

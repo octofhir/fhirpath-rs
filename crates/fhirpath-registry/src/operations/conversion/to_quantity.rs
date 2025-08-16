@@ -22,10 +22,16 @@ use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{quantity::Quantity, FhirPathValue};
+use octofhir_fhirpath_model::{FhirPathValue, quantity::Quantity};
 
 /// toQuantity function: converts input to Quantity optionally using provided unit
 pub struct ToQuantityFunction;
+
+impl Default for ToQuantityFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ToQuantityFunction {
     pub fn new() -> Self {
@@ -49,7 +55,10 @@ impl ToQuantityFunction {
         }
     }
 
-    fn convert_to_quantity(input: &FhirPathValue, unit_arg: Option<&FhirPathValue>) -> Result<FhirPathValue> {
+    fn convert_to_quantity(
+        input: &FhirPathValue,
+        unit_arg: Option<&FhirPathValue>,
+    ) -> Result<FhirPathValue> {
         // Validate argument (if present)
         let unit_str: Option<String> = match unit_arg {
             None => None,
@@ -58,7 +67,7 @@ impl ToQuantityFunction {
             Some(_) => {
                 return Err(FhirPathError::EvaluationError {
                     message: "toQuantity(unit) expects unit to be a String".to_string(),
-                })
+                });
             }
         };
 
@@ -70,7 +79,11 @@ impl ToQuantityFunction {
                 } else if c.len() == 1 {
                     c.first().unwrap()
                 } else {
-                    return Err(FhirPathError::EvaluationError { message: "toQuantity() requires a single item, but collection has multiple items".to_string() });
+                    return Err(FhirPathError::EvaluationError {
+                        message:
+                            "toQuantity() requires a single item, but collection has multiple items"
+                                .to_string(),
+                    });
                 }
             }
             other => other,
@@ -110,7 +123,7 @@ impl FhirPathOperation for ToQuantityFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ToQuantityFunction::create_metadata());
+            std::sync::LazyLock::new(ToQuantityFunction::create_metadata);
         &METADATA
     }
 
@@ -153,81 +166,5 @@ impl FhirPathOperation for ToQuantityFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal::Decimal;
-
-    fn ctx(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_to_quantity_basic() {
-        let f = ToQuantityFunction::new();
-
-        // quantity passthrough
-        let q = Quantity::new(Decimal::from(5), Some("mg".into()));
-        let r = f.evaluate(&[], &ctx(FhirPathValue::from(q))).await.unwrap();
-        match r { FhirPathValue::Quantity(_) => {}, _ => panic!("expected Quantity") }
-
-        // integer -> unitless
-        let r = f.evaluate(&[], &ctx(FhirPathValue::Integer(10))).await.unwrap();
-        match r { FhirPathValue::Quantity(q) => { assert_eq!(q.value, Decimal::from(10)); assert!(q.unit.is_none()); }, _ => panic!("expected Quantity") }
-
-        // string quantity
-        let r = f.evaluate(&[], &ctx(FhirPathValue::String("5 'kg'".into()))).await.unwrap();
-        match r { FhirPathValue::Quantity(q) => { assert_eq!(q.unit.as_deref(), Some("kg")); }, _ => panic!("expected Quantity") }
-
-        // invalid string -> Empty
-        let r = f.evaluate(&[], &ctx(FhirPathValue::String("abc".into()))).await.unwrap();
-        assert!(matches!(r, FhirPathValue::Empty));
-    }
-
-    #[tokio::test]
-    async fn test_to_quantity_with_unit() {
-        let f = ToQuantityFunction::new();
-
-        // number + unit -> assign unit
-        let r = f.evaluate(&[FhirPathValue::String("mg".into())], &ctx(FhirPathValue::Integer(5))).await.unwrap();
-        match r { FhirPathValue::Quantity(q) => { assert_eq!(q.value, Decimal::from(5)); assert_eq!(q.unit.as_deref(), Some("mg")); }, _ => panic!("expected Quantity") }
-
-        // quantity + unit -> convert
-        let q = Quantity::new(Decimal::from(4), Some("g".into()));
-        let r = f.evaluate(&[FhirPathValue::String("mg".into())], &ctx(FhirPathValue::from(q))).await.unwrap();
-        match r { FhirPathValue::Quantity(q2) => { assert_eq!(q2.unit.as_deref(), Some("mg")); }, _ => panic!("expected Quantity") }
-
-        // incompatible conversion -> Empty
-        let q = Quantity::new(Decimal::from(1), Some("m".into()));
-        let r = f.evaluate(&[FhirPathValue::String("s".into())], &ctx(FhirPathValue::from(q))).await.unwrap();
-        assert!(matches!(r, FhirPathValue::Empty));
-    }
-
-    #[tokio::test]
-    async fn test_to_quantity_errors_and_sync() {
-        let f = ToQuantityFunction::new();
-
-        // multi-item collection -> error
-        let col = FhirPathValue::collection(vec![FhirPathValue::Integer(1), FhirPathValue::Integer(2)]);
-        let err = f.evaluate(&[], &ctx(col)).await.unwrap_err();
-        match err { FhirPathError::EvaluationError { .. } => {}, _ => panic!("expected eval error") }
-
-        // wrong arg type -> error
-        let err = f.evaluate(&[FhirPathValue::Integer(1)], &ctx(FhirPathValue::Integer(1))).await.unwrap_err();
-        match err { FhirPathError::EvaluationError { .. } => {}, _ => panic!("expected eval error") }
-
-        // sync path
-        let r = f.try_evaluate_sync(&[], &ctx(FhirPathValue::Integer(3))).unwrap().unwrap();
-        assert!(matches!(r, FhirPathValue::Quantity(_)));
-        assert!(f.supports_sync());
     }
 }

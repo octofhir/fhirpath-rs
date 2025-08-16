@@ -14,14 +14,14 @@
 
 //! Type checking and casting operations module
 
+pub mod as_op;
 pub mod is;
 pub mod is_operator;
-pub mod as_op;
 pub mod type_func;
 
+pub use as_op::AsOperation;
 pub use is::IsOperation;
 pub use is_operator::IsBinaryOperator;
-pub use as_op::AsOperation;
 pub use type_func::TypeFunction;
 
 /// Registry helper for type operations
@@ -29,8 +29,10 @@ pub struct TypeOperations;
 
 impl TypeOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
-        registry.register(IsOperation::new()).await?;
+        // Register binary operator for expressions like "true is Boolean"
         registry.register(IsBinaryOperator::new()).await?;
+        // Also register function version for method-style calls like "value.is(Type)"
+        registry.register(IsOperation::new()).await?;
         registry.register(AsOperation::new()).await?;
         registry.register(TypeFunction::new()).await?;
         Ok(())

@@ -14,11 +14,13 @@
 
 //! FHIR-specific functions module
 
-pub mod resolve;
+pub mod conforms_to;
 pub mod extension;
+pub mod resolve;
 
-pub use resolve::ResolveFunction;
+pub use conforms_to::ConformsToFunction;
 pub use extension::ExtensionFunction;
+pub use resolve::ResolveFunction;
 
 /// Registry helper for FHIR operations
 pub struct FhirOperations;
@@ -27,6 +29,7 @@ impl FhirOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
         registry.register(ResolveFunction::new()).await?;
         registry.register(ExtensionFunction::new()).await?;
+        registry.register(ConformsToFunction::new()).await?;
         Ok(())
     }
 }

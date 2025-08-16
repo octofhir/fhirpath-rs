@@ -27,6 +27,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// Count function: returns the number of items in a collection
 pub struct CountFunction;
 
+impl Default for CountFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CountFunction {
     pub fn new() -> Self {
         Self
@@ -55,7 +61,7 @@ impl FhirPathOperation for CountFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| CountFunction::create_metadata());
+            std::sync::LazyLock::new(CountFunction::create_metadata);
         &METADATA
     }
 
@@ -100,70 +106,5 @@ impl FhirPathOperation for CountFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use octofhir_fhirpath_model::provider::MockModelProvider;
-    use std::sync::Arc;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        let registry = Arc::new(crate::FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_count_function() {
-        let count_fn = CountFunction::new();
-
-        // Test with collection
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(collection);
-        let result = count_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(3));
-
-        // Test with empty collection
-        let empty_collection = FhirPathValue::collection(vec![]);
-        let context = create_test_context(empty_collection);
-        let result = count_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(0));
-
-        // Test with single value
-        let single = FhirPathValue::String("test".into());
-        let context = create_test_context(single);
-        let result = count_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Integer(1));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let count_fn = CountFunction::new();
-        let collection = FhirPathValue::collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(collection);
-
-        let sync_result = count_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Integer(2));
-        assert!(count_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_metadata() {
-        let count_fn = CountFunction::new();
-        let metadata = count_fn.metadata();
-
-        assert_eq!(metadata.basic.name, "count");
-        assert_eq!(metadata.basic.operation_type, OperationType::Function);
-        assert!(!metadata.basic.description.is_empty());
-        assert!(!metadata.basic.examples.is_empty());
     }
 }

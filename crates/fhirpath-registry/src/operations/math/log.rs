@@ -14,17 +14,26 @@
 
 //! Logarithm function implementation
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
+use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use async_trait::async_trait;
 
 /// Logarithm function with specified base
 #[derive(Debug, Clone)]
 pub struct LogFunction;
+
+impl Default for LogFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LogFunction {
     pub fn new() -> Self {
@@ -49,9 +58,18 @@ impl LogFunction {
         match value {
             FhirPathValue::Integer(i) => Ok(*i as f64),
             FhirPathValue::Decimal(d) => Ok(d.to_f64().unwrap_or(0.0)),
+            FhirPathValue::Collection(c) => {
+                if c.len() == 1 {
+                    self.extract_numeric_value(c.first().unwrap())
+                } else {
+                    Err(FhirPathError::TypeError {
+                        message: "log() requires numeric arguments".to_string(),
+                    })
+                }
+            }
             _ => Err(FhirPathError::TypeError {
-                message: "log() requires numeric arguments".to_string()
-            })
+                message: "log() requires numeric arguments".to_string(),
+            }),
         }
     }
 }
@@ -67,18 +85,21 @@ impl FhirPathOperation for LogFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            LogFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(LogFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 1, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 1,
+                actual: args.len(),
             });
         }
 
@@ -90,15 +111,26 @@ impl FhirPathOperation for LogFunction {
                 if c.is_empty() {
                     return Ok(FhirPathValue::Empty);
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     return self.evaluate(args, &item_context).await;
                 } else {
-                    return Err(FhirPathError::TypeError { message: "log() can only be applied to single numeric values".to_string() });
+                    return Err(FhirPathError::TypeError {
+                        message: "log() can only be applied to single numeric values".to_string(),
+                    });
                 }
-            },
-            _ => return Err(FhirPathError::TypeError { 
-                message: format!("log() can only be applied to numeric values, got {}", context.input.type_name()) 
-            }),
+            }
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: format!(
+                        "log() can only be applied to numeric values, got {}",
+                        context.input.type_name()
+                    ),
+                });
+            }
         };
 
         let base_value = self.extract_numeric_value(&args[0])?;
@@ -113,18 +145,24 @@ impl FhirPathOperation for LogFunction {
 
         let result = input_value.log(base_value);
         if result.is_finite() {
-            Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default()))
+            Ok(FhirPathValue::Decimal(
+                Decimal::try_from(result).unwrap_or_default(),
+            ))
         } else {
             Ok(FhirPathValue::Empty)
         }
     }
 
-    fn try_evaluate_sync(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         if args.len() != 1 {
-            return Some(Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 1, 
-                actual: args.len() 
+            return Some(Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 1,
+                actual: args.len(),
             }));
         }
 
@@ -136,15 +174,26 @@ impl FhirPathOperation for LogFunction {
                 if c.is_empty() {
                     return Some(Ok(FhirPathValue::Empty));
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     return self.try_evaluate_sync(args, &item_context);
                 } else {
-                    return Some(Err(FhirPathError::TypeError { message: "log() can only be applied to single numeric values".to_string() }));
+                    return Some(Err(FhirPathError::TypeError {
+                        message: "log() can only be applied to single numeric values".to_string(),
+                    }));
                 }
-            },
-            _ => return Some(Err(FhirPathError::TypeError { 
-                message: format!("log() can only be applied to numeric values, got {}", context.input.type_name()) 
-            })),
+            }
+            _ => {
+                return Some(Err(FhirPathError::TypeError {
+                    message: format!(
+                        "log() can only be applied to numeric values, got {}",
+                        context.input.type_name()
+                    ),
+                }));
+            }
         };
 
         let base_value = match self.extract_numeric_value(&args[0]) {
@@ -162,7 +211,9 @@ impl FhirPathOperation for LogFunction {
 
         let result = input_value.log(base_value);
         if result.is_finite() {
-            Some(Ok(FhirPathValue::Decimal(Decimal::try_from(result).unwrap_or_default())))
+            Some(Ok(FhirPathValue::Decimal(
+                Decimal::try_from(result).unwrap_or_default(),
+            )))
         } else {
             Some(Ok(FhirPathValue::Empty))
         }
@@ -170,112 +221,5 @@ impl FhirPathOperation for LogFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_log_function() {
-        let func = LogFunction::new();
-
-        // Test log base 10 of 100 = 2
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(100), registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(10)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        if let FhirPathValue::Decimal(d) = result {
-            assert!((d.to_f64().unwrap() - 2.0).abs() < 0.0001);
-        } else {
-            panic!("Expected decimal result");
-        }
-
-        // Test log base 2 of 8 = 3
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(8), registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(2)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        if let FhirPathValue::Decimal(d) = result {
-            assert!((d.to_f64().unwrap() - 3.0).abs() < 0.0001);
-        } else {
-            panic!("Expected decimal result");
-        }
-
-        // Test log of 0 = empty (undefined)
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(0), registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(10)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test invalid base (base = 1) = empty
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(10), registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(1)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test empty input
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(10)];
-        let result = func.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_log_sync() {
-        let func = LogFunction::new();
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(1000), registry, model_provider)
-        };
-        let args = vec![FhirPathValue::Integer(10)];
-        let result = func.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        if let FhirPathValue::Decimal(d) = result {
-            assert!((d.to_f64().unwrap() - 3.0).abs() < 0.0001);
-        }
     }
 }

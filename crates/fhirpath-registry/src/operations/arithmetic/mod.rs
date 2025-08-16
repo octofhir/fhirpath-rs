@@ -18,20 +18,20 @@ use crate::fhirpath_registry::FhirPathRegistry;
 use octofhir_fhirpath_core::Result;
 
 pub mod addition;
-pub mod subtraction;
-pub mod multiplication;
-pub mod division;
-pub mod div;
-pub mod mod_op;
 pub mod concatenation;
+pub mod div;
+pub mod division;
+pub mod mod_op;
+pub mod multiplication;
+pub mod subtraction;
 
 pub use addition::AdditionOperation;
-pub use subtraction::SubtractionOperation;
-pub use multiplication::MultiplicationOperation;
-pub use division::DivisionOperation;
-pub use div::DivOperation;
-pub use mod_op::ModOperation;
 pub use concatenation::ConcatenationOperation;
+pub use div::DivOperation;
+pub use division::DivisionOperation;
+pub use mod_op::ModOperation;
+pub use multiplication::MultiplicationOperation;
+pub use subtraction::SubtractionOperation;
 
 /// Utility struct for registering all arithmetic operations
 pub struct ArithmeticOperations;

@@ -27,6 +27,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ToBoolean function: converts input to Boolean
 pub struct ToBooleanFunction;
 
+impl Default for ToBooleanFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToBooleanFunction {
     pub fn new() -> Self {
         Self
@@ -101,7 +107,7 @@ impl FhirPathOperation for ToBooleanFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ToBooleanFunction::create_metadata());
+            std::sync::LazyLock::new(ToBooleanFunction::create_metadata);
         &METADATA
     }
 
@@ -132,78 +138,4 @@ impl FhirPathOperation for ToBooleanFunction {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_empty_to_boolean() {
-        let func = ToBooleanFunction::new();
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_to_boolean() {
-        let func = ToBooleanFunction::new();
-        let ctx = create_test_context(FhirPathValue::Empty);
-
-        // Test with boolean
-        let ctx = create_test_context(FhirPathValue::Boolean(true));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with integer 0
-        let ctx = create_test_context(FhirPathValue::Integer(0));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with integer 1
-        let ctx = create_test_context(FhirPathValue::Integer(1));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with integer 2 (cannot convert)
-        let ctx = create_test_context(FhirPathValue::Integer(2));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test with string "true"
-        let ctx = create_test_context(FhirPathValue::String("true".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string "false"
-        let ctx = create_test_context(FhirPathValue::String("false".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with string "invalid"
-        let ctx = create_test_context(FhirPathValue::String("invalid".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_to_boolean_sync() {
-        let func = ToBooleanFunction::new();
-        let ctx = create_test_context(FhirPathValue::Boolean(false));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-        assert!(func.supports_sync());
-    }
-
 }

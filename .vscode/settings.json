@@ -33,5 +33,6 @@
         "+stable"
     ],
     "rust-analyzer.cargo.allFeatures": false,
-    "rust-analyzer.cargo.noDefaultFeatures": false
+    "rust-analyzer.cargo.noDefaultFeatures": false,
+    "kiroAgent.configureMCP": "Disabled"
 }

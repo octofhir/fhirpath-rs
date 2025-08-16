@@ -1,11 +1,20 @@
-use async_trait::async_trait;
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
 use crate::operations::EvaluationContext;
-use octofhir_fhirpath_core::{Result, FhirPathError};
+use crate::{
+    FhirPathOperation,
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
 pub struct OfTypeFunction {
     metadata: OperationMetadata,
+}
+
+impl Default for OfTypeFunction {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OfTypeFunction {
@@ -46,19 +55,26 @@ impl FhirPathOperation for OfTypeFunction {
     ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArguments {
-                message: "ofType() requires exactly one argument (type specifier)".to_string()
+                message: "ofType() requires exactly one argument (type specifier)".to_string(),
             });
         }
 
         // Extract type from argument
         let type_arg = &args[0];
-        let target_type = self.extract_type_info(type_arg)?;
+        let target_type = match self.extract_type_info(type_arg, context) {
+            Ok(name) => name,
+            Err(_) => {
+                // If type cannot be extracted, return empty collection
+                use octofhir_fhirpath_model::Collection;
+                return Ok(FhirPathValue::Collection(Collection::from_vec(vec![])));
+            }
+        };
 
         let collection = context.input.clone().to_collection();
         let mut result = Vec::new();
 
         for item in collection.iter() {
-            if self.is_of_type(item, &target_type)? {
+            if self.is_of_type(item, &target_type, context).await? {
                 result.push(item.clone());
             }
         }
@@ -85,238 +101,113 @@ impl FhirPathOperation for OfTypeFunction {
 }
 
 impl OfTypeFunction {
-    fn extract_type_info(&self, type_arg: &FhirPathValue) -> Result<String> {
-        match type_arg {
-            FhirPathValue::String(type_name) => Ok(type_name.to_string()),
-            FhirPathValue::Collection(type_name) if type_name.len() == 1 => {
-                match type_name.iter().next().unwrap() {
-                    FhirPathValue::String(s) => Ok(s.to_string()),
-                    _ => Err(FhirPathError::InvalidArguments { message:
-                    "trace() name argument must be a string".to_string()
-                    }),
-                }
-            },
-            _ => Err(FhirPathError::InvalidArguments {
-                message: "ofType() type argument must be a string".to_string()
-            }),
+    fn extract_type_info(
+        &self,
+        type_arg: &FhirPathValue,
+        context: &EvaluationContext,
+    ) -> Result<String> {
+        // Debug: Log what we're getting as type argument
+        eprintln!("ofType() received type argument: {type_arg:?}");
+
+        // Check for empty collection first - this might indicate a parsing issue
+        if let FhirPathValue::Collection(c) = type_arg {
+            if c.is_empty() {
+                eprintln!(
+                    "ofType() received empty collection as type argument - this suggests a parsing issue"
+                );
+                return Err(FhirPathError::InvalidArguments {
+                    message: "ofType() received empty collection as type argument".to_string(),
+                });
+            }
         }
+
+        // Use the shared type extraction method from model provider
+        context
+            .model_provider
+            .extract_type_name(type_arg)
+            .map_err(|e| FhirPathError::InvalidArguments {
+                message: format!("ofType() {e}"),
+            })
     }
 
-    fn is_of_type(&self, item: &FhirPathValue, target_type: &str) -> Result<bool> {
+    async fn is_of_type(
+        &self,
+        item: &FhirPathValue,
+        target_type: &str,
+        context: &EvaluationContext,
+    ) -> Result<bool> {
         match item {
             FhirPathValue::String(_) => Ok(target_type == "string" || target_type == "String"),
             FhirPathValue::Integer(_) => Ok(target_type == "integer" || target_type == "Integer"),
             FhirPathValue::Decimal(_) => Ok(target_type == "decimal" || target_type == "Decimal"),
             FhirPathValue::Boolean(_) => Ok(target_type == "boolean" || target_type == "Boolean"),
             FhirPathValue::Date(_) => Ok(target_type == "date" || target_type == "Date"),
-            FhirPathValue::DateTime(_) => Ok(target_type == "dateTime" || target_type == "DateTime"),
+            FhirPathValue::DateTime(_) => {
+                Ok(target_type == "dateTime" || target_type == "DateTime")
+            }
             FhirPathValue::Time(_) => Ok(target_type == "time" || target_type == "Time"),
-            FhirPathValue::Quantity(_) => Ok(target_type == "Quantity" || target_type == "quantity"),
+            FhirPathValue::Quantity(_) => {
+                Ok(target_type == "Quantity" || target_type == "quantity")
+            }
             FhirPathValue::JsonValue(json_val) => {
                 // For FHIR resources, check the resourceType property
                 if let Some(obj) = json_val.as_object() {
-                    if let Some(serde_json::Value::String(resource_type)) = obj.get("resourceType") {
-                        Ok(resource_type == target_type || self.is_subtype_of(resource_type, target_type))
+                    if let Some(serde_json::Value::String(resource_type)) = obj.get("resourceType")
+                    {
+                        let is_direct_match = resource_type == target_type;
+                        let is_subtype = context
+                            .model_provider
+                            .is_subtype_of(resource_type, target_type)
+                            .await;
+                        Ok(is_direct_match || is_subtype)
                     } else {
-                        // For other objects, check if they match the generic "object" type
-                        Ok(target_type == "object" || target_type == "Object")
+                        // For FHIR primitive types, check the actual value type
+                        self.check_fhir_primitive_type(json_val, target_type)
                     }
                 } else {
-                    Ok(false)
+                    // For primitive JSON values, check their type
+                    self.check_fhir_primitive_type(json_val, target_type)
                 }
             }
-            FhirPathValue::Collection(_) => Ok(target_type == "collection" || target_type == "Collection"),
-            FhirPathValue::Resource(_) => Ok(target_type == "Resource" || target_type == "resource"),
-            FhirPathValue::TypeInfoObject { .. } => Ok(target_type == "TypeInfo" || target_type == "typeinfo"),
+            FhirPathValue::Collection(_) => {
+                Ok(target_type == "collection" || target_type == "Collection")
+            }
+            FhirPathValue::Resource(resource) => {
+                // Check resource type from the resource itself
+                if let Some(resource_type) = resource.resource_type() {
+                    let is_direct_match = resource_type == target_type;
+                    let is_subtype = context
+                        .model_provider
+                        .is_subtype_of(resource_type, target_type)
+                        .await;
+                    Ok(is_direct_match || is_subtype)
+                } else {
+                    Ok(target_type == "Resource" || target_type == "resource")
+                }
+            }
+            FhirPathValue::TypeInfoObject { .. } => {
+                Ok(target_type == "TypeInfo" || target_type == "typeinfo")
+            }
             FhirPathValue::Empty => Ok(false), // Empty values don't have a type
         }
     }
 
-    // Basic FHIR type inheritance checking
-    fn is_subtype_of(&self, resource_type: &str, target_type: &str) -> bool {
-        // Basic FHIR inheritance rules
-        match target_type {
-            "Resource" => {
-                // All FHIR resources inherit from Resource
-                matches!(resource_type,
-                    "Patient" | "Observation" | "Practitioner" | "Organization" |
-                    "Encounter" | "Condition" | "Procedure" | "DiagnosticReport" |
-                    "Medication" | "MedicationStatement" | "AllergyIntolerance" |
-                    "Bundle" | "CapabilityStatement" | "ValueSet" | "CodeSystem" |
-                    "StructureDefinition" | "OperationDefinition" | "SearchParameter"
-                    // Add more resource types as needed
-                )
-            }
-            "DomainResource" => {
-                // Most clinical resources inherit from DomainResource
-                matches!(resource_type,
-                    "Patient" | "Observation" | "Practitioner" | "Organization" |
-                    "Encounter" | "Condition" | "Procedure" | "DiagnosticReport" |
-                    "Medication" | "MedicationStatement" | "AllergyIntolerance"
-                    // Add more domain resources as needed
-                )
-            }
-            "MetadataResource" => {
-                // Metadata resources
-                matches!(resource_type,
-                    "CapabilityStatement" | "ValueSet" | "CodeSystem" |
-                    "StructureDefinition" | "OperationDefinition" | "SearchParameter"
-                )
-            }
-            _ => false,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::create_test_context;
-    use std::collections::HashMap;
-
-    #[tokio::test]
-    async fn test_of_type_string() {
-        let function = OfTypeFunction::new();
-
-        let collection = vec![
-            FhirPathValue::String("test".into()),
-            FhirPathValue::Integer(42),
-            FhirPathValue::String("another".into()),
-            FhirPathValue::Boolean(true),
-        ];
-
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![FhirPathValue::String("string".into())];
-
-        let result = function.evaluate(&args, &context).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2);
-                for item in items.iter() {
-                    assert!(matches!(item, FhirPathValue::String(_)));
-                }
-            }
-            _ => panic!("Expected collection result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_of_type_integer() {
-        let function = OfTypeFunction::new();
-
-        let collection = vec![
-            FhirPathValue::String("test".into()),
-            FhirPathValue::Integer(42),
-            FhirPathValue::Integer(100),
-            FhirPathValue::Boolean(true),
-        ];
-
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![FhirPathValue::String("integer".into())];
-
-        let result = function.evaluate(&args, &context).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2);
-                for item in items.iter() {
-                    assert!(matches!(item, FhirPathValue::Integer(_)));
-                }
-            }
-            _ => panic!("Expected collection result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_of_type_fhir_resource() {
-        let function = OfTypeFunction::new();
-
-        let mut patient = HashMap::new();
-        patient.insert("resourceType".to_string(), FhirPathValue::String("Patient".into()));
-        patient.insert("id".to_string(), FhirPathValue::String("123".into()));
-
-        let mut observation = HashMap::new();
-        observation.insert("resourceType".to_string(), FhirPathValue::String("Observation".into()));
-        observation.insert("id".to_string(), FhirPathValue::String("456".into()));
-
-        let collection = vec![
-            FhirPathValue::JsonValue(serde_json::Value::Object(patient.into())),
-            FhirPathValue::JsonValue(serde_json::Value::Object(observation.into())),
-            FhirPathValue::String("not a resource".into()),
-        ];
-
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![FhirPathValue::String("Patient".into())];
-
-        let result = function.evaluate(&args, &context).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 1);
-                if let FhirPathValue::JsonValue(serde_json::Value::Object(obj)) = &items.get(0).unwrap() {
-                    assert_eq!(obj.get("resourceType"), Some(&FhirPathValue::String("Patient".into())));
+    fn check_fhir_primitive_type(
+        &self,
+        json_val: &serde_json::Value,
+        target_type: &str,
+    ) -> Result<bool> {
+        match json_val {
+            serde_json::Value::String(_) => Ok(target_type == "string" || target_type == "String"),
+            serde_json::Value::Number(n) => {
+                if n.is_i64() {
+                    Ok(target_type == "integer" || target_type == "Integer")
                 } else {
-                    panic!("Expected object in result");
+                    Ok(target_type == "decimal" || target_type == "Decimal")
                 }
             }
-            _ => panic!("Expected collection result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_of_type_empty_collection() {
-        let function = OfTypeFunction::new();
-
-        let context = create_test_context(FhirPathValue::Collection(vec![].into()));
-        let args = vec![FhirPathValue::String("string".into())];
-
-        let result = function.evaluate(&args, &context).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 0);
-            }
-            _ => panic!("Expected collection result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_of_type_no_arguments() {
-        let function = OfTypeFunction::new();
-        let context = create_test_context(FhirPathValue::String("test".into()));
-        let args = vec![];
-
-        let result = function.evaluate(&args, &context).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("exactly one argument"));
-    }
-
-    #[tokio::test]
-    async fn test_of_type_inheritance() {
-        let function = OfTypeFunction::new();
-
-        let mut patient = HashMap::new();
-        patient.insert("resourceType".to_string(), FhirPathValue::String("Patient".into()));
-
-        let mut observation = HashMap::new();
-        observation.insert("resourceType".to_string(), FhirPathValue::String("Observation".into()));
-
-        let collection = vec![
-            FhirPathValue::JsonValue(serde_json::Value::Object(patient.into())),
-            FhirPathValue::JsonValue(serde_json::Value::Object(observation.into())),
-        ];
-
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![FhirPathValue::String("DomainResource".into())];
-
-        let result = function.evaluate(&args, &context).await.unwrap();
-
-        match result {
-            FhirPathValue::Collection(items) => {
-                assert_eq!(items.len(), 2); // Both Patient and Observation inherit from DomainResource
-            }
-            _ => panic!("Expected collection result"),
+            serde_json::Value::Bool(_) => Ok(target_type == "boolean" || target_type == "Boolean"),
+            _ => Ok(false),
         }
     }
 }

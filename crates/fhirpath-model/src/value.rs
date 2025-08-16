@@ -593,10 +593,13 @@ impl FhirPathValue {
         match self {
             // Already a quantity
             Self::Quantity(q) => Some(Arc::clone(q)),
-            // Integer to unitless quantity
-            Self::Integer(i) => Some(Arc::new(Quantity::unitless(Decimal::from(*i)))),
-            // Decimal to unitless quantity
-            Self::Decimal(d) => Some(Arc::new(Quantity::unitless(*d))),
+            // Integer to quantity with unit '1' (dimensionless)
+            Self::Integer(i) => Some(Arc::new(Quantity::new(
+                Decimal::from(*i),
+                Some("1".to_string()),
+            ))),
+            // Decimal to quantity with unit '1' (dimensionless)
+            Self::Decimal(d) => Some(Arc::new(Quantity::new(*d, Some("1".to_string())))),
             // String parsing for quantities with units
             Self::String(s) => {
                 // Try to parse as quantity with unit (e.g., "5 kg", "1.5 'm'")
@@ -612,19 +615,20 @@ impl FhirPathValue {
 
                     // Parse the numeric value
                     if let Ok(decimal_val) = value_str.parse::<Decimal>() {
-                        // Handle quoted units like 'wk', 'mo', 'a'
+                        // Handle quoted units like 'wk', 'mo', 'a' and standard units
                         let unit = if unit_str.starts_with('\'') && unit_str.ends_with('\'') {
-                            let unquoted = &unit_str[1..unit_str.len()-1];
-                            // Convert UCUM time units to their full form
-                            match unquoted {
-                                "wk" => Some("week".to_string()),
-                                "mo" => Some("month".to_string()),
-                                "a" => Some("year".to_string()),
-                                "d" => Some("day".to_string()),
-                                _ => Some(unquoted.to_string()),
-                            }
+                            let unquoted = &unit_str[1..unit_str.len() - 1];
+                            // Keep UCUM units as-is for proper comparison behavior
+                            Some(unquoted.to_string())
                         } else if !unit_str.is_empty() {
-                            Some(unit_str.to_string())
+                            // Only accept standard unquoted units, not UCUM abbreviations
+                            match unit_str {
+                                "day" | "week" | "month" | "year" | "kg" | "g" | "mg" | "m"
+                                | "cm" | "mm" => Some(unit_str.to_string()),
+                                // Reject unquoted UCUM abbreviations like "wk", "mo", "a"
+                                "wk" | "mo" | "a" | "d" => return None,
+                                _ => Some(unit_str.to_string()),
+                            }
                         } else {
                             None
                         };
@@ -632,13 +636,13 @@ impl FhirPathValue {
                         return Some(Arc::new(Quantity::new(decimal_val, unit)));
                     }
                 } else {
-                    // Try parsing as a simple number (unitless quantity)
+                    // Try parsing as a simple number (quantity with unit '1')
                     if let Ok(decimal_val) = s.parse::<Decimal>() {
-                        return Some(Arc::new(Quantity::unitless(decimal_val)));
+                        return Some(Arc::new(Quantity::new(decimal_val, Some("1".to_string()))));
                     }
                 }
                 None
-            },
+            }
             _ => None,
         }
     }
@@ -981,7 +985,19 @@ impl fmt::Debug for FhirPathValue {
             Self::Date(d) => write!(f, "Date({})", d.format("%Y-%m-%d")),
             Self::DateTime(dt) => write!(f, "DateTime({})", dt.to_rfc3339()),
             Self::Time(t) => write!(f, "Time({})", t.format("%H:%M:%S")),
-            Self::Quantity(q) => write!(f, "Quantity({q})"),
+            Self::Quantity(q) => {
+                // Use the same format as toString() for consistency
+                let formatted_value = q.value.to_string();
+                if let Some(unit) = &q.unit {
+                    // Only quote UCUM units, leave standard units unquoted
+                    match unit.as_str() {
+                        "wk" | "mo" | "a" | "d" => write!(f, "{formatted_value} '{unit}'"),
+                        _ => write!(f, "{formatted_value} {unit}"),
+                    }
+                } else {
+                    write!(f, "{formatted_value}")
+                }
+            }
             Self::Collection(items) => {
                 // Show the collection contents without nested Collection wrapper
                 let item_strings: Vec<String> =

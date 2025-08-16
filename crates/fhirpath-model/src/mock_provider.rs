@@ -316,6 +316,90 @@ impl ModelProvider for MockModelProvider {
         None
     }
 
+    async fn find_extensions_by_url(
+        &self,
+        value: &crate::FhirPathValue,
+        parent_resource: &crate::FhirPathValue,
+        element_path: Option<&str>,
+        url: &str,
+    ) -> Vec<crate::FhirPathValue> {
+        let _ = element_path; // Unused for now
+        use crate::FhirPathValue;
+
+        // First check for direct extensions on the value
+        if let FhirPathValue::JsonValue(json) = value {
+            if let Some(extensions) = json.as_json().get("extension") {
+                if let Some(ext_array) = extensions.as_array() {
+                    let mut matching_extensions = Vec::new();
+                    for ext in ext_array {
+                        if let Some(ext_obj) = ext.as_object() {
+                            if let Some(ext_url) = ext_obj.get("url") {
+                                if let Some(ext_url_str) = ext_url.as_str() {
+                                    if ext_url_str == url {
+                                        matching_extensions
+                                            .push(FhirPathValue::resource_from_json(ext.clone()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !matching_extensions.is_empty() {
+                        return matching_extensions;
+                    }
+                }
+            }
+        }
+
+        // For primitive values, check the underscore element in the parent resource
+        if matches!(
+            value,
+            FhirPathValue::String(_)
+                | FhirPathValue::Integer(_)
+                | FhirPathValue::Decimal(_)
+                | FhirPathValue::Boolean(_)
+        ) {
+            if let FhirPathValue::JsonValue(parent_json) = parent_resource {
+                let parent_obj = parent_json.as_json();
+
+                // Check common underscore properties
+                let underscore_properties =
+                    ["_birthDate", "_deceasedBoolean", "_active", "_gender"];
+
+                for underscore_prop in &underscore_properties {
+                    if let Some(underscore_element) = parent_obj.get(underscore_prop) {
+                        if let Some(extensions) = underscore_element.get("extension") {
+                            if let Some(ext_array) = extensions.as_array() {
+                                let mut matching_extensions = Vec::new();
+
+                                for ext in ext_array {
+                                    if let Some(ext_obj) = ext.as_object() {
+                                        if let Some(ext_url) = ext_obj.get("url") {
+                                            if let Some(ext_url_str) = ext_url.as_str() {
+                                                if ext_url_str == url {
+                                                    matching_extensions.push(
+                                                        FhirPathValue::resource_from_json(
+                                                            ext.clone(),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if !matching_extensions.is_empty() {
+                                    return matching_extensions;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Vec::new()
+    }
+
     async fn get_search_params(&self, _resource_type: &str) -> Vec<SearchParameter> {
         vec![]
     }

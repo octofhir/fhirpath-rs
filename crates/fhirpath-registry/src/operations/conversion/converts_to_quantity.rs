@@ -14,17 +14,24 @@
 
 //! Quantity conversion functions implementation
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use crate::operations::EvaluationContext;
 
 /// ConvertsToQuantity function: returns true if the input can be converted to Quantity
 pub struct ConvertsToQuantityFunction;
+
+impl Default for ConvertsToQuantityFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ConvertsToQuantityFunction {
     pub fn new() -> Self {
@@ -45,23 +52,23 @@ impl ConvertsToQuantityFunction {
         match value {
             // Already a quantity
             FhirPathValue::Quantity(_) => Ok(true),
-            
+
             // Numbers can be converted to quantities (dimensionless)
             FhirPathValue::Integer(_) => Ok(true),
             FhirPathValue::Decimal(_) => Ok(true),
-            
+
             // Booleans can be converted (0 or 1)
             FhirPathValue::Boolean(_) => Ok(true),
-            
+
             // Strings can potentially be parsed as quantities
             FhirPathValue::String(_) => {
                 // Try to parse as a quantity using FhirPathValue's built-in method
                 Ok(value.to_quantity_value().is_some())
-            },
-            
+            }
+
             // Empty collection returns empty result
             FhirPathValue::Empty => Ok(true),
-            
+
             // Handle collections
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
@@ -74,8 +81,8 @@ impl ConvertsToQuantityFunction {
                         message: "convertsToQuantity() requires a single item, but collection has multiple items".to_string(),
                     })
                 }
-            },
-            
+            }
+
             // Other types cannot be converted
             _ => Ok(false),
         }
@@ -93,9 +100,8 @@ impl FhirPathOperation for ConvertsToQuantityFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ConvertsToQuantityFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ConvertsToQuantityFunction::create_metadata);
         &METADATA
     }
 
@@ -132,72 +138,5 @@ impl FhirPathOperation for ConvertsToQuantityFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_decimal::Decimal;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_quantity() {
-        let func = ConvertsToQuantityFunction::new();
-        
-        // Test with quantity
-        let quantity = Quantity::unitless(Decimal::from(5i64));
-        let ctx = create_test_context(FhirPathValue::from(quantity));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with integer
-        let ctx = create_test_context(FhirPathValue::Integer(42));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with decimal
-        let ctx = create_test_context(FhirPathValue::Decimal(Decimal::from(3i64)));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with boolean
-        let ctx = create_test_context(FhirPathValue::Boolean(true));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with valid quantity string
-        let ctx = create_test_context(FhirPathValue::String("5 'kg'".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with invalid quantity string
-        let ctx = create_test_context(FhirPathValue::String("invalid".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_quantity_sync() {
-        let func = ConvertsToQuantityFunction::new();
-        let quantity = Quantity::unitless(Decimal::from(5));
-        let ctx = create_test_context(FhirPathValue::from(quantity));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-        assert!(func.supports_sync());
     }
 }

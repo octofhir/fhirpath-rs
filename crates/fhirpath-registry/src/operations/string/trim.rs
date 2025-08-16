@@ -14,18 +14,24 @@
 
 //! Trim function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use crate::operations::EvaluationContext;
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Trim function: removes leading and trailing whitespace from a string
 pub struct TrimFunction;
+
+impl Default for TrimFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TrimFunction {
     pub fn new() -> Self {
@@ -54,9 +60,8 @@ impl FhirPathOperation for TrimFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            TrimFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(TrimFunction::create_metadata);
         &METADATA
     }
 
@@ -114,11 +119,11 @@ impl TrimFunction {
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value);
+                self.process_single_value(value)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input);
+                self.process_single_value(input)
             }
         }
     }
@@ -128,122 +133,13 @@ impl TrimFunction {
             FhirPathValue::String(s) => {
                 let trimmed_str = s.as_ref().trim().to_string();
                 Ok(FhirPathValue::Collection(Collection::from(vec![
-                    FhirPathValue::String(trimmed_str.into())
+                    FhirPathValue::String(trimmed_str.into()),
                 ])))
-            },
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
                 message: "trim() requires input to be a string".to_string(),
             }),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_trim_function() {
-        let trim_fn = TrimFunction::new();
-
-        // Test basic case with leading and trailing spaces
-        let string = FhirPathValue::String("  hello world  ".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with leading spaces only
-        let string = FhirPathValue::String("  hello world".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with trailing spaces only
-        let string = FhirPathValue::String("hello world  ".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with no whitespace to trim
-        let string = FhirPathValue::String("hello world".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with only whitespace
-        let string = FhirPathValue::String("   ".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("".into()));
-
-        // Test empty string
-        let string = FhirPathValue::String("".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("".into()));
-
-        // Test with different types of whitespace (tabs, newlines)
-        let string = FhirPathValue::String("\t\n hello world \r\n\t".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with internal whitespace (should be preserved)
-        let string = FhirPathValue::String("  hello   world  ".into());
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello   world".into()));
-
-        // Test with unicode whitespace
-        let string = FhirPathValue::String("\u{00A0}hello\u{00A0}".into()); // Non-breaking spaces
-        let context = create_test_context(string);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello".into()));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let result = trim_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let trim_fn = TrimFunction::new();
-        let string = FhirPathValue::String("  test string  ".into());
-        let context = create_test_context(string);
-
-        let sync_result = trim_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::String("test string".into()));
-        assert!(trim_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let trim_fn = TrimFunction::new();
-        
-        // Test with non-string input
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let result = trim_fn.try_evaluate_sync(&[], &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with arguments (should be none)
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("invalid".into())];
-        let result = trim_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

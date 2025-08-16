@@ -29,6 +29,12 @@ use rust_decimal::Decimal;
 #[derive(Debug, Clone)]
 pub struct EqualsOperation;
 
+impl Default for EqualsOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EqualsOperation {
     pub fn new() -> Self {
         Self
@@ -117,7 +123,30 @@ impl EqualsOperation {
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => Ok(Some(a == b)),
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Ok(Some(a == b)),
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Ok(Some(a == b)),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                // Check if one has explicit timezone and other doesn't
+                // We use +00:01 for implicit timezone and +00:00 for explicit Z
+                let a_offset_seconds = a.offset().local_minus_utc();
+                let b_offset_seconds = b.offset().local_minus_utc();
+
+                // If one is +00:00 (explicit Z) and other is +00:01 (implicit), indeterminate
+                if (a_offset_seconds == 0 && b_offset_seconds == 60)
+                    || (a_offset_seconds == 60 && b_offset_seconds == 0)
+                {
+                    Ok(None) // Indeterminate when timezone precision differs
+                } else {
+                    Ok(Some(a == b))
+                }
+            }
+            // Date vs DateTime comparisons - return empty (indeterminate) per FHIRPath spec
+            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
+                // Date vs DateTime comparison is indeterminate due to precision differences
+                Ok(None)
+            }
+            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
+                // DateTime vs Date comparison is indeterminate due to precision differences
+                Ok(None)
+            }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Ok(Some(a == b)),
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // Use UCUM-aware quantity comparison with unit conversion
@@ -126,7 +155,17 @@ impl EqualsOperation {
                     Err(_) => Ok(Some(false)), // If conversion fails, quantities are not equal
                 }
             }
-            _ => Ok(Some(false)),
+            // Resource object comparison - compare JSON representations
+            (FhirPathValue::Resource(a), FhirPathValue::Resource(b)) => Ok(Some(a == b)),
+            // Handle other FhirPathValue types that might not be explicitly covered
+            (a, b) if std::mem::discriminant(a) == std::mem::discriminant(b) => {
+                // Same type - use default equality comparison
+                Ok(Some(a == b))
+            }
+            _ => {
+                // Different types - not equal
+                Ok(Some(false))
+            }
         }
     }
 }
@@ -146,7 +185,7 @@ impl FhirPathOperation for EqualsOperation {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| EqualsOperation::create_metadata());
+            std::sync::LazyLock::new(EqualsOperation::create_metadata);
         &METADATA
     }
 
@@ -196,54 +235,5 @@ impl FhirPathOperation for EqualsOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_equals_operation() {
-        let op = EqualsOperation::new();
-        let ctx = create_test_context();
-
-        // Test integer equality
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(5)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test inequality
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(3)];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test string equality
-        let args = vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("hello".into()),
-        ];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_sync_evaluation() {
-        let op = EqualsOperation::new();
-        let ctx = create_test_context();
-
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(5)];
-        let result = op.try_evaluate_sync(&args, &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
     }
 }

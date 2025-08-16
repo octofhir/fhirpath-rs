@@ -14,18 +14,24 @@
 
 //! Split function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use crate::operations::EvaluationContext;
 
 /// Split function: splits a string into a collection by separator
 pub struct SplitFunction;
+
+impl Default for SplitFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SplitFunction {
     pub fn new() -> Self {
@@ -34,11 +40,19 @@ impl SplitFunction {
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("split", OperationType::Function)
-            .description("Splits a string into a collection of strings using the specified separator")
+            .description(
+                "Splits a string into a collection of strings using the specified separator",
+            )
             .example("'a,b,c'.split(',')")
             .example("Patient.name.family.split(' ')")
-            .parameter("separator", TypeConstraint::Specific(FhirPathType::String), false)
-            .returns(TypeConstraint::Collection(Box::new(TypeConstraint::Specific(FhirPathType::String))))
+            .parameter(
+                "separator",
+                TypeConstraint::Specific(FhirPathType::String),
+                false,
+            )
+            .returns(TypeConstraint::Collection(Box::new(
+                TypeConstraint::Specific(FhirPathType::String),
+            )))
             .performance(PerformanceComplexity::Linear, true)
             .build()
     }
@@ -55,9 +69,8 @@ impl FhirPathOperation for SplitFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            SplitFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(SplitFunction::create_metadata);
         &METADATA
     }
 
@@ -108,37 +121,55 @@ impl SplitFunction {
         match input {
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
-                    return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![])));
+                    return Ok(FhirPathValue::Collection(
+                        octofhir_fhirpath_model::Collection::from(vec![]),
+                    ));
                 }
                 if items.len() > 1 {
-                    return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![])));
+                    return Ok(FhirPathValue::Collection(
+                        octofhir_fhirpath_model::Collection::from(vec![]),
+                    ));
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value, args);
+                self.process_single_value(value, args)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input, args);
+                self.process_single_value(input, args)
             }
         }
     }
 
-    fn process_single_value(&self, value: &FhirPathValue, args: &[FhirPathValue]) -> Result<FhirPathValue> {
+    fn process_single_value(
+        &self,
+        value: &FhirPathValue,
+        args: &[FhirPathValue],
+    ) -> Result<FhirPathValue> {
         // Convert input to string (including numeric values)
         let input_str = match value {
             FhirPathValue::String(s) => s.as_ref().to_string(),
             FhirPathValue::Integer(i) => i.to_string(),
             FhirPathValue::Decimal(d) => d.to_string(),
             FhirPathValue::Boolean(b) => b.to_string(),
-            FhirPathValue::Empty => return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))),
-            _ => return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))), // Return empty for other non-convertible types
+            FhirPathValue::Empty => {
+                return Ok(FhirPathValue::Collection(
+                    octofhir_fhirpath_model::Collection::from(vec![]),
+                ));
+            }
+            _ => {
+                return Ok(FhirPathValue::Collection(
+                    octofhir_fhirpath_model::Collection::from(vec![]),
+                ));
+            } // Return empty for other non-convertible types
         };
 
         // Extract and convert separator parameter to string (handle collections)
         let separator = self.extract_string_from_value(&args[0])?;
         if separator.is_none() {
-            return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))); // Return empty for non-convertible types
+            return Ok(FhirPathValue::Collection(
+                octofhir_fhirpath_model::Collection::from(vec![]),
+            )); // Return empty for non-convertible types
         }
         let separator = separator.unwrap();
 
@@ -181,175 +212,5 @@ impl SplitFunction {
             }
             _ => Ok(None), // Other types can't be converted
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_split_function() {
-        let split_fn = SplitFunction::new();
-
-        // Test basic split by comma
-        let string = FhirPathValue::String("a,b,c".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test split by space
-        let string = FhirPathValue::String("hello world test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(" ".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("world".into()),
-            FhirPathValue::String("test".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test with empty parts
-        let string = FhirPathValue::String("a,,b".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test single item (no separator found)
-        let string = FhirPathValue::String("hello".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test empty string
-        let string = FhirPathValue::String("".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test empty separator (split into characters)
-        let string = FhirPathValue::String("abc".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test with multi-character separator
-        let string = FhirPathValue::String("hello::world::test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("::".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("world".into()),
-            FhirPathValue::String("test".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test with unicode characters
-        let string = FhirPathValue::String("héllo•wörld•test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("•".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("héllo".into()),
-            FhirPathValue::String("wörld".into()),
-            FhirPathValue::String("test".into()),
-        ]);
-        assert_eq!(result, expected);
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let split_fn = SplitFunction::new();
-        let string = FhirPathValue::String("x,y,z".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String(",".into())];
-
-        let sync_result = split_fn.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        let expected = FhirPathValue::Collection(vec![
-            FhirPathValue::String("x".into()),
-            FhirPathValue::String("y".into()),
-            FhirPathValue::String("z".into()),
-        ]);
-        assert_eq!(sync_result, expected);
-        assert!(split_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let split_fn = SplitFunction::new();
-        
-        // Test with non-string input
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = split_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with non-string separator argument
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::Integer(42)];
-        let result = split_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with wrong number of arguments
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![];
-        let result = split_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

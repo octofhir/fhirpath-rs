@@ -14,17 +14,17 @@
 
 //! Date/time functions module
 
-pub mod now;
-pub mod today;
-pub mod time_of_day;
-pub mod low_boundary;
 pub mod high_boundary;
+pub mod low_boundary;
+pub mod now;
+pub mod time_of_day;
+pub mod today;
 
-pub use now::NowFunction;
-pub use today::TodayFunction;
-pub use time_of_day::TimeOfDayFunction;
-pub use low_boundary::LowBoundaryFunction;
 pub use high_boundary::HighBoundaryFunction;
+pub use low_boundary::LowBoundaryFunction;
+pub use now::NowFunction;
+pub use time_of_day::TimeOfDayFunction;
+pub use today::TodayFunction;
 
 /// Registry helper for datetime operations
 pub struct DateTimeOperations;

@@ -29,7 +29,7 @@ pub use octofhir_fhirpath_registry as registry;
 pub mod pipeline;
 
 // Primary engine - use this for all new code
-pub use octofhir_fhirpath_evaluator::{FhirPathEngine, EvaluationConfig, EvaluationContext};
+pub use octofhir_fhirpath_evaluator::{EvaluationConfig, EvaluationContext, FhirPathEngine};
 pub use octofhir_fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
 pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
 pub use octofhir_fhirpath_registry::{FhirPathRegistry, create_standard_registry};

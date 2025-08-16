@@ -281,6 +281,46 @@ impl FhirPathRegistry {
         meta.get(identifier).cloned()
     }
 
+    /// Check if an operation is a lambda function
+    ///
+    /// Lambda functions require raw expressions instead of pre-evaluated arguments
+    /// and support lambda-specific variables like $this, $index, $total.
+    pub async fn is_lambda_function(&self, identifier: &str) -> bool {
+        // Fast path: check known lambda function names
+        if matches!(
+            identifier,
+            "where" | "select" | "all" | "aggregate" | "repeat" | "sort"
+        ) {
+            return true;
+        }
+
+        // Registry lookup for trait-based detection
+        if let Some(operation) = self.get_operation(identifier).await {
+            // Check specific lambda function types since we can't downcast to trait objects
+            use crate::operations::collection::AllFunction;
+            use crate::operations::lambda::{
+                AggregateFunction, SelectFunction, SortLambdaFunction, WhereFunction,
+            };
+
+            operation.as_any().downcast_ref::<WhereFunction>().is_some()
+                || operation
+                    .as_any()
+                    .downcast_ref::<SelectFunction>()
+                    .is_some()
+                || operation
+                    .as_any()
+                    .downcast_ref::<SortLambdaFunction>()
+                    .is_some()
+                || operation
+                    .as_any()
+                    .downcast_ref::<AggregateFunction>()
+                    .is_some()
+                || operation.as_any().downcast_ref::<AllFunction>().is_some()
+        } else {
+            false
+        }
+    }
+
     /// List all registered operations
     pub async fn list_operations(&self) -> Vec<String> {
         let ops = self.operations.read().await;
@@ -337,7 +377,7 @@ impl FhirPathRegistry {
         for identifier in ops.keys() {
             if !meta.contains_key(identifier) {
                 return Err(FhirPathError::EvaluationError {
-                    message: format!("Operation '{}' missing metadata", identifier),
+                    message: format!("Operation '{identifier}' missing metadata"),
                 });
             }
         }
@@ -346,10 +386,7 @@ impl FhirPathRegistry {
         for identifier in meta.keys() {
             if !ops.contains_key(identifier) {
                 return Err(FhirPathError::EvaluationError {
-                    message: format!(
-                        "Metadata for '{}' has no corresponding operation",
-                        identifier
-                    ),
+                    message: format!("Metadata for '{identifier}' has no corresponding operation"),
                 });
             }
         }
@@ -425,7 +462,6 @@ pub struct RegistryStats {
 
 #[cfg(test)]
 mod tests {
-    use std::any::Any;
     use super::*;
     use crate::metadata::{
         BasicOperationInfo, FunctionMetadata, OperationSpecificMetadata, PerformanceMetadata,
@@ -435,6 +471,7 @@ mod tests {
     use crate::operations::EvaluationContext;
     use async_trait::async_trait;
     use octofhir_fhirpath_model::FhirPathValue;
+    use std::any::Any;
 
     // Mock operation for testing
     struct TestFunction;

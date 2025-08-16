@@ -14,15 +14,27 @@
 
 //! Is binary operator implementation - type checking operator
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType, PerformanceComplexity, Associativity}};
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{
+        Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+        PerformanceComplexity, TypeConstraint,
+    },
+};
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Is binary operator - checks if value is of specified type (x is Type syntax)
 #[derive(Debug, Clone)]
 pub struct IsBinaryOperator;
+
+impl Default for IsBinaryOperator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IsBinaryOperator {
     pub fn new() -> Self {
@@ -30,19 +42,28 @@ impl IsBinaryOperator {
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("is", OperationType::BinaryOperator {
-            precedence: 8,
-            associativity: Associativity::Left,
-        })
-            .description("Type checking binary operator - returns true if the input is of the specified type")
-            .example("Patient.active is Boolean")
-            .example("Patient.name is Collection")  
-            .example("Patient is Patient")
-            .parameter("value", TypeConstraint::Any, false)
-            .parameter("type", TypeConstraint::Specific(FhirPathType::String), false)
-            .returns(TypeConstraint::Specific(FhirPathType::Boolean))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "is",
+            OperationType::BinaryOperator {
+                precedence: 8,
+                associativity: Associativity::Left,
+            },
+        )
+        .description(
+            "Type checking binary operator - returns true if the input is of the specified type",
+        )
+        .example("Patient.active is Boolean")
+        .example("Patient.name is Collection")
+        .example("Patient is Patient")
+        .parameter("value", TypeConstraint::Any, false)
+        .parameter(
+            "type",
+            TypeConstraint::Specific(FhirPathType::String),
+            false,
+        )
+        .returns(TypeConstraint::Specific(FhirPathType::Boolean))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
     async fn check_type_with_provider(
@@ -51,43 +72,25 @@ impl IsBinaryOperator {
         context: &EvaluationContext,
     ) -> Result<bool> {
         // Reuse the same type checking logic from the function version
-        crate::operations::types::is::IsOperation::check_type_with_provider(value, type_name, context).await
+        crate::operations::types::is::IsOperation::check_type_with_provider(
+            value, type_name, context,
+        )
+        .await
     }
 
     /// Handle both direct strings and single-element collections containing strings or identifiers
-    fn extract_type_name(type_arg: &FhirPathValue) -> Result<String> {
-        match type_arg {
-            FhirPathValue::String(s) => Ok(s.as_ref().to_string()),
-            FhirPathValue::Collection(items) => {
-                match items.len() {
-                    0 => Err(FhirPathError::TypeError {
-                        message: "is operator type argument cannot be empty".to_string()
-                    }),
-                    1 => {
-                        Self::extract_type_name(items.first().unwrap())
-                    },
-                    _ => Err(FhirPathError::TypeError {
-                        message: "is operator type argument must be a single value".to_string()
-                    }),
-                }
-            },
-            // Handle TypeInfoObject (identifiers like Integer, String, etc.)
-            FhirPathValue::TypeInfoObject { namespace, name } => {
-                // For type identifiers, use just the name (e.g., "Integer" from "System.Integer")
-                Ok(name.as_ref().to_string())
-            },
-            // Handle other value types that might represent identifiers
-            value => {
-                // Try to convert any value to its string representation
-                // This handles cases where identifiers are parsed as other types
-                match value.to_string_value() {
-                    Some(s) => Ok(s),
-                    None => Err(FhirPathError::TypeError {
-                        message: format!("is operator type argument must be convertible to string, got {}", value.type_name())
-                    }),
-                }
-            },
-        }
+    fn extract_type_name(
+        &self,
+        type_arg: &FhirPathValue,
+        context: &EvaluationContext,
+    ) -> Result<String> {
+        // Use the shared type extraction method from model provider
+        context
+            .model_provider
+            .extract_type_name(type_arg)
+            .map_err(|e| FhirPathError::TypeError {
+                message: format!("is operator {e}"),
+            })
     }
 }
 
@@ -105,39 +108,46 @@ impl FhirPathOperation for IsBinaryOperator {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            IsBinaryOperator::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(IsBinaryOperator::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 2 {
-            return Err(FhirPathError::InvalidArgumentCount { 
-                function_name: self.identifier().to_string(), 
-                expected: 2, 
-                actual: args.len() 
+            return Err(FhirPathError::InvalidArgumentCount {
+                function_name: self.identifier().to_string(),
+                expected: 2,
+                actual: args.len(),
             });
         }
 
         // First argument is the value, second is the type
         let value = &args[0];
-        let type_name = Self::extract_type_name(&args[1])?;
+        let type_name = self.extract_type_name(&args[1], context)?;
 
         let result = Self::check_type_with_provider(value, &type_name, context).await?;
 
         Ok(FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Boolean(result)
+            FhirPathValue::Boolean(result),
         ])))
     }
 
-    fn try_evaluate_sync(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         // Type checking requires async ModelProvider calls, so cannot be done synchronously
         None
     }
 
     fn supports_sync(&self) -> bool {
-        false  // Type checking requires async ModelProvider calls
+        false // Type checking requires async ModelProvider calls
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {

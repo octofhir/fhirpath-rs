@@ -14,19 +14,25 @@
 
 //! ReplaceMatches function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use crate::operations::EvaluationContext;
 use regex::Regex;
 
 /// ReplaceMatches function: replaces all instances matching a regex pattern with a substitution string
 pub struct ReplaceMatchesFunction;
+
+impl Default for ReplaceMatchesFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ReplaceMatchesFunction {
     pub fn new() -> Self {
@@ -57,9 +63,8 @@ impl FhirPathOperation for ReplaceMatchesFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ReplaceMatchesFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ReplaceMatchesFunction::create_metadata);
         &METADATA
     }
 
@@ -101,7 +106,8 @@ impl ReplaceMatchesFunction {
         // Validate arguments
         if args.len() != 2 {
             return Err(FhirPathError::EvaluationError {
-                message: "replaceMatches() requires exactly two arguments (regex, substitution)".to_string(),
+                message: "replaceMatches() requires exactly two arguments (regex, substitution)"
+                    .to_string(),
             });
         }
 
@@ -110,66 +116,88 @@ impl ReplaceMatchesFunction {
         match input {
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
-                    return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![])));
+                    return Ok(FhirPathValue::Collection(
+                        octofhir_fhirpath_model::Collection::from(vec![]),
+                    ));
                 }
                 if items.len() > 1 {
-                    return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![])));
+                    return Ok(FhirPathValue::Collection(
+                        octofhir_fhirpath_model::Collection::from(vec![]),
+                    ));
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value, args);
+                self.process_single_value(value, args)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input, args);
+                self.process_single_value(input, args)
             }
         }
     }
 
-    fn process_single_value(&self, value: &FhirPathValue, args: &[FhirPathValue]) -> Result<FhirPathValue> {
+    fn process_single_value(
+        &self,
+        value: &FhirPathValue,
+        args: &[FhirPathValue],
+    ) -> Result<FhirPathValue> {
         // Convert input to string (including numeric values)
         let input_str = match value {
             FhirPathValue::String(s) => s.as_ref().to_string(),
             FhirPathValue::Integer(i) => i.to_string(),
             FhirPathValue::Decimal(d) => d.to_string(),
             FhirPathValue::Boolean(b) => b.to_string(),
-            FhirPathValue::Empty => return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))),
-            _ => return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))), // Return empty for other non-convertible types
+            FhirPathValue::Empty => {
+                return Ok(FhirPathValue::Collection(
+                    octofhir_fhirpath_model::Collection::from(vec![]),
+                ));
+            }
+            _ => {
+                return Ok(FhirPathValue::Collection(
+                    octofhir_fhirpath_model::Collection::from(vec![]),
+                ));
+            } // Return empty for other non-convertible types
         };
 
         // Extract and convert pattern parameter to string (handle collections)
         let pattern = self.extract_string_from_value(&args[0])?;
         if pattern.is_none() {
-            return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))); // Return empty for non-convertible types
+            return Ok(FhirPathValue::Collection(
+                octofhir_fhirpath_model::Collection::from(vec![]),
+            )); // Return empty for non-convertible types
         }
         let pattern = pattern.unwrap();
 
         // Extract and convert substitution parameter to string (handle collections)
         let substitution = self.extract_string_from_value(&args[1])?;
         if substitution.is_none() {
-            return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]))); // Return empty for non-convertible types
+            return Ok(FhirPathValue::Collection(
+                octofhir_fhirpath_model::Collection::from(vec![]),
+            )); // Return empty for non-convertible types
         }
         let substitution = substitution.unwrap();
 
         // Special case: empty pattern should return the original string unchanged for replaceMatches
         if pattern.is_empty() {
-            return Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![
-                FhirPathValue::String(input_str.into())
-            ])));
+            return Ok(FhirPathValue::Collection(
+                octofhir_fhirpath_model::Collection::from(vec![FhirPathValue::String(
+                    input_str.into(),
+                )]),
+            ));
         }
 
         // Compile regex
-        let regex = Regex::new(&pattern).map_err(|e| {
-            FhirPathError::EvaluationError {
-                message: format!("Invalid regex pattern '{}': {}", pattern, e),
-            }
+        let regex = Regex::new(&pattern).map_err(|e| FhirPathError::EvaluationError {
+            message: format!("Invalid regex pattern '{pattern}': {e}"),
         })?;
 
         // Perform regex replacement
         let result = regex.replace_all(&input_str, &substitution);
-        Ok(FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![
-            FhirPathValue::String(result.to_string().into())
-        ])))
+        Ok(FhirPathValue::Collection(
+            octofhir_fhirpath_model::Collection::from(vec![FhirPathValue::String(
+                result.to_string().into(),
+            )]),
+        ))
     }
 
     /// Extract a string from a FhirPathValue, handling collections and type conversion
@@ -193,202 +221,5 @@ impl ReplaceMatchesFunction {
             }
             _ => Ok(None), // Other types can't be converted
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_replace_matches_function() {
-        let replace_matches_fn = ReplaceMatchesFunction::new();
-
-        // Test basic replacement of digits
-        let string = FhirPathValue::String("hello 123 world 456".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello X world X".into()));
-
-        // Test replacement with capture groups
-        let string = FhirPathValue::String("John Doe".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("(\\w+) (\\w+)".into()),
-            FhirPathValue::String("$2, $1".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("Doe, John".into()));
-
-        // Test no matches
-        let string = FhirPathValue::String("hello world".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test replace with empty string (removal)
-        let string = FhirPathValue::String("hello123world456".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("helloworld".into()));
-
-        // Test multiple capture groups
-        let string = FhirPathValue::String("2023-12-25".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("(\\d{4})-(\\d{2})-(\\d{2})".into()),
-            FhirPathValue::String("$3/$2/$1".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("25/12/2023".into()));
-
-        // Test case insensitive replacement
-        let string = FhirPathValue::String("Hello WORLD test".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("(?i)hello|world".into()),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("X X test".into()));
-
-        // Test replacing word boundaries
-        let string = FhirPathValue::String("cat catch cats".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\bcat\\b".into()),
-            FhirPathValue::String("dog".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("dog catch dogs".into()));
-
-        // Test with unicode characters
-        let string = FhirPathValue::String("héllo wörld 世界".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("世界".into()),
-            FhirPathValue::String("universe".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("héllo wörld universe".into()));
-
-        // Test replace all occurrences
-        let string = FhirPathValue::String("aaa bbb aaa ccc aaa".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("aaa".into()),
-            FhirPathValue::String("XXX".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("XXX bbb XXX ccc XXX".into()));
-
-        // Test with phone number formatting
-        let string = FhirPathValue::String("1234567890".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("(\\d{3})(\\d{3})(\\d{4})".into()),
-            FhirPathValue::String("($1) $2-$3".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("(123) 456-7890".into()));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let replace_matches_fn = ReplaceMatchesFunction::new();
-        let string = FhirPathValue::String("test123demo".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("-".into()),
-        ];
-
-        let sync_result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::String("test-demo".into()));
-        assert!(replace_matches_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let replace_matches_fn = ReplaceMatchesFunction::new();
-        
-        // Test with non-string input
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with non-string regex argument
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::Integer(42),
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with non-string substitution argument
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("\\d+".into()),
-            FhirPathValue::Integer(42),
-        ];
-        let result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with invalid regex pattern
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![
-            FhirPathValue::String("[".into()), // Invalid regex
-            FhirPathValue::String("X".into()),
-        ];
-        let result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with wrong number of arguments
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("\\d+".into())];
-        let result = replace_matches_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

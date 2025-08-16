@@ -27,6 +27,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ConvertsToBoolean function: returns true if the input can be converted to Boolean
 pub struct ConvertsToBooleanFunction;
 
+impl Default for ConvertsToBooleanFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConvertsToBooleanFunction {
     pub fn new() -> Self {
         Self
@@ -92,7 +98,7 @@ impl FhirPathOperation for ConvertsToBooleanFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ConvertsToBooleanFunction::create_metadata());
+            std::sync::LazyLock::new(ConvertsToBooleanFunction::create_metadata);
         &METADATA
     }
 

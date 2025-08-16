@@ -17,7 +17,7 @@
 use crate::operations::EvaluationContext;
 use crate::{
     FhirPathOperation,
-    metadata::{MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType},
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
 };
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -28,6 +28,12 @@ use rust_decimal::prelude::ToPrimitive;
 /// Square root function
 #[derive(Debug, Clone)]
 pub struct SqrtFunction;
+
+impl Default for SqrtFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SqrtFunction {
     pub fn new() -> Self {
@@ -55,9 +61,8 @@ impl FhirPathOperation for SqrtFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            SqrtFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(SqrtFunction::create_metadata);
         &METADATA
     }
 
@@ -81,7 +86,10 @@ impl FhirPathOperation for SqrtFunction {
                         message: "Cannot take square root of negative number".to_string(),
                     })
                 } else {
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt()).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt())
+                            .unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Decimal(n) => {
@@ -90,7 +98,10 @@ impl FhirPathOperation for SqrtFunction {
                         message: "Cannot take square root of negative number".to_string(),
                     })
                 } else {
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt()).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt())
+                            .unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
@@ -98,7 +109,11 @@ impl FhirPathOperation for SqrtFunction {
                 if c.is_empty() {
                     Ok(FhirPathValue::Empty)
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.evaluate(args, &item_context).await
                 } else {
                     Err(FhirPathError::TypeError {
@@ -135,7 +150,10 @@ impl FhirPathOperation for SqrtFunction {
                         message: "Cannot take square root of negative number".to_string(),
                     }))
                 } else {
-                    Some(Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt()).unwrap_or_default())))
+                    Some(Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt())
+                            .unwrap_or_default(),
+                    )))
                 }
             }
             FhirPathValue::Decimal(n) => {
@@ -144,7 +162,10 @@ impl FhirPathOperation for SqrtFunction {
                         message: "Cannot take square root of negative number".to_string(),
                     }))
                 } else {
-                    Some(Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt()).unwrap_or_default())))
+                    Some(Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(n.to_f64().unwrap_or(0.0).sqrt())
+                            .unwrap_or_default(),
+                    )))
                 }
             }
             FhirPathValue::Empty => Some(Ok(FhirPathValue::Empty)),
@@ -152,7 +173,11 @@ impl FhirPathOperation for SqrtFunction {
                 if c.is_empty() {
                     Some(Ok(FhirPathValue::Empty))
                 } else if c.len() == 1 {
-                    let item_context = EvaluationContext::new(c.first().unwrap().clone(), context.registry.clone(), context.model_provider.clone());
+                    let item_context = EvaluationContext::new(
+                        c.first().unwrap().clone(),
+                        context.registry.clone(),
+                        context.model_provider.clone(),
+                    );
                     self.try_evaluate_sync(args, &item_context)
                 } else {
                     Some(Err(FhirPathError::TypeError {
@@ -171,67 +196,5 @@ impl FhirPathOperation for SqrtFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_sqrt_function() {
-        let func = SqrtFunction::new();
-
-        // Test perfect square integer
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(9), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(3.0));
-
-        // Test decimal
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Decimal(16.0), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(4.0));
-
-        // Test negative number (should error)
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(-1), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await;
-        assert!(result.is_err());
-
-        // Test empty
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
     }
 }

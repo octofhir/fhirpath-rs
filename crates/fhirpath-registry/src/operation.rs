@@ -85,8 +85,8 @@ pub trait FhirPathOperation: Send + Sync {
     /// Some(Result) if sync evaluation is supported, None otherwise
     fn try_evaluate_sync(
         &self,
-        args: &[FhirPathValue],
-        context: &EvaluationContext,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
         None // Default: async-only
     }
@@ -219,7 +219,7 @@ impl OperationSignature {
                 let left_type = metadata
                     .types
                     .parameters
-                    .get(0)
+                    .first()
                     .map(|p| type_constraint_to_type_info(&p.constraint))
                     .unwrap_or(TypeInfo::Any);
                 let right_type = metadata
@@ -241,7 +241,7 @@ impl OperationSignature {
                 let operand_type = metadata
                     .types
                     .parameters
-                    .get(0)
+                    .first()
                     .map(|p| type_constraint_to_type_info(&p.constraint))
                     .unwrap_or(TypeInfo::Any);
                 let result_type = type_constraint_to_type_info(&metadata.types.return_type);
@@ -274,7 +274,7 @@ fn type_constraint_to_type_info(constraint: &crate::metadata::TypeConstraint) ->
         TypeConstraint::OneOf(types) => {
             // For now, use the first type or Any if empty
             types
-                .get(0)
+                .first()
                 .map(fhir_type_to_type_info)
                 .unwrap_or(TypeInfo::Any)
         }
@@ -616,10 +616,10 @@ mod tests {
 
         // Test evaluation
         let context = {
+            use crate::FhirPathRegistry;
+            use octofhir_fhirpath_model::MockModelProvider;
             use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
+
             let registry = Arc::new(FhirPathRegistry::new());
             let model_provider = Arc::new(MockModelProvider::new());
             EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)

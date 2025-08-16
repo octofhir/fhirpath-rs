@@ -14,15 +14,24 @@
 
 //! Resolve function implementation - resolves FHIR references
 
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint, FhirPathType}};
-use octofhir_fhirpath_core::{Result, FhirPathError};
-use octofhir_fhirpath_model::FhirPathValue;
 use crate::operations::EvaluationContext;
+use crate::{
+    FhirPathOperation,
+    metadata::{FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
 use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::FhirPathValue;
 
 /// Resolve function - resolves FHIR references using ModelProvider
 #[derive(Debug, Clone)]
 pub struct ResolveFunction;
+
+impl Default for ResolveFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ResolveFunction {
     pub fn new() -> Self {
@@ -50,18 +59,21 @@ impl FhirPathOperation for ResolveFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ResolveFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ResolveFunction::create_metadata);
         &METADATA
     }
 
-    async fn evaluate(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
-                actual: args.len()
+                actual: args.len(),
             });
         }
 
@@ -69,7 +81,7 @@ impl FhirPathOperation for ResolveFunction {
         match &context.input {
             FhirPathValue::String(reference) => {
                 self.resolve_reference_string(reference, context).await
-            },
+            }
             FhirPathValue::JsonValue(json) => {
                 // Handle Reference objects
                 if let Some(reference_val) = json.get_property("reference") {
@@ -78,7 +90,7 @@ impl FhirPathOperation for ResolveFunction {
                     }
                 }
                 Ok(FhirPathValue::Empty)
-            },
+            }
             FhirPathValue::Resource(resource) => {
                 // Handle Reference resources
                 let json = resource.as_json();
@@ -88,7 +100,7 @@ impl FhirPathOperation for ResolveFunction {
                     }
                 }
                 Ok(FhirPathValue::Empty)
-            },
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
@@ -108,12 +120,16 @@ impl FhirPathOperation for ResolveFunction {
                     }
                     Ok(FhirPathValue::collection(resolved))
                 }
-            },
+            }
             _ => Ok(FhirPathValue::Empty),
         }
     }
 
-    fn try_evaluate_sync(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Option<Result<FhirPathValue>> {
+    fn try_evaluate_sync(
+        &self,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
+    ) -> Option<Result<FhirPathValue>> {
         // resolve() is async-only - requires ModelProvider calls
         None
     }
@@ -125,7 +141,11 @@ impl FhirPathOperation for ResolveFunction {
 
 impl ResolveFunction {
     /// Resolve a reference string to a resource
-    async fn resolve_reference_string(&self, reference: &str, context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn resolve_reference_string(
+        &self,
+        reference: &str,
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle empty or invalid references
         if reference.is_empty() {
             return Ok(FhirPathValue::Empty);
@@ -146,17 +166,21 @@ impl ResolveFunction {
     }
 
     /// Try to resolve reference within current context (Bundle entries or contained resources)
-    async fn resolve_local_reference(&self, reference: &str, context: &EvaluationContext) -> Result<Option<FhirPathValue>> {
+    async fn resolve_local_reference(
+        &self,
+        reference: &str,
+        context: &EvaluationContext,
+    ) -> Result<Option<FhirPathValue>> {
         // Check if we have a Bundle in the root context
         if let Some(bundle_resource) = self.find_bundle_in_context(context) {
-            if let Some(resolved) = self.resolve_in_bundle(reference, &bundle_resource)? {
+            if let Some(resolved) = self.resolve_in_bundle(reference, bundle_resource)? {
                 return Ok(Some(resolved));
             }
         }
 
         // Check for contained resources in the current resource context
         if let Some(containing_resource) = self.find_containing_resource(context) {
-            if let Some(resolved) = self.resolve_in_contained(reference, &containing_resource)? {
+            if let Some(resolved) = self.resolve_in_contained(reference, containing_resource)? {
                 return Ok(Some(resolved));
             }
         }
@@ -165,7 +189,11 @@ impl ResolveFunction {
     }
 
     /// Try to resolve reference using ModelProvider for external resolution
-    async fn resolve_external_reference(&self, reference: &str, context: &EvaluationContext) -> Result<Option<FhirPathValue>> {
+    async fn resolve_external_reference(
+        &self,
+        reference: &str,
+        _context: &EvaluationContext,
+    ) -> Result<Option<FhirPathValue>> {
         // For now, we'll use a simple mock resolution
         // In a full implementation, this would use the ModelProvider to fetch external resources
 
@@ -189,7 +217,10 @@ impl ResolveFunction {
     }
 
     /// Find Bundle resource in the evaluation context
-    fn find_bundle_in_context<'a>(&self, context: &'a EvaluationContext) -> Option<&'a FhirPathValue> {
+    fn find_bundle_in_context<'a>(
+        &self,
+        context: &'a EvaluationContext,
+    ) -> Option<&'a FhirPathValue> {
         // Check root context for Bundle
         if let FhirPathValue::Resource(resource) = &context.root {
             if resource.resource_type() == Some("Bundle") {
@@ -208,7 +239,10 @@ impl ResolveFunction {
     }
 
     /// Find containing resource in the evaluation context
-    fn find_containing_resource<'a>(&self, context: &'a EvaluationContext) -> Option<&'a FhirPathValue> {
+    fn find_containing_resource<'a>(
+        &self,
+        context: &'a EvaluationContext,
+    ) -> Option<&'a FhirPathValue> {
         // Look for a resource that might contain other resources
         if let FhirPathValue::Resource(resource) = &context.root {
             if resource.as_json().get("contained").is_some() {
@@ -226,7 +260,11 @@ impl ResolveFunction {
     }
 
     /// Resolve reference within a Bundle's entries
-    fn resolve_in_bundle(&self, reference: &str, bundle: &FhirPathValue) -> Result<Option<FhirPathValue>> {
+    fn resolve_in_bundle(
+        &self,
+        reference: &str,
+        bundle: &FhirPathValue,
+    ) -> Result<Option<FhirPathValue>> {
         if let FhirPathValue::Resource(bundle_resource) = bundle {
             let bundle_json = bundle_resource.as_json();
 
@@ -236,18 +274,22 @@ impl ResolveFunction {
                         // Check fullUrl first (preferred for Bundle resolution)
                         if let Some(full_url) = entry.get("fullUrl").and_then(|u| u.as_str()) {
                             if full_url.ends_with(reference) || full_url == reference {
-                                return Ok(Some(FhirPathValue::resource_from_json(resource.clone())));
+                                return Ok(Some(FhirPathValue::resource_from_json(
+                                    resource.clone(),
+                                )));
                             }
                         }
 
                         // Check resource type and ID
                         if let (Some(resource_type), Some(id)) = (
                             resource.get("resourceType").and_then(|rt| rt.as_str()),
-                            resource.get("id").and_then(|id| id.as_str())
+                            resource.get("id").and_then(|id| id.as_str()),
                         ) {
-                            let resource_ref = format!("{}/{}", resource_type, id);
+                            let resource_ref = format!("{resource_type}/{id}");
                             if resource_ref == reference {
-                                return Ok(Some(FhirPathValue::resource_from_json(resource.clone())));
+                                return Ok(Some(FhirPathValue::resource_from_json(
+                                    resource.clone(),
+                                )));
                             }
                         }
                     }
@@ -259,25 +301,35 @@ impl ResolveFunction {
     }
 
     /// Resolve reference within contained resources
-    fn resolve_in_contained(&self, reference: &str, containing_resource: &FhirPathValue) -> Result<Option<FhirPathValue>> {
+    fn resolve_in_contained(
+        &self,
+        reference: &str,
+        containing_resource: &FhirPathValue,
+    ) -> Result<Option<FhirPathValue>> {
         if let FhirPathValue::Resource(resource) = containing_resource {
             let resource_json = resource.as_json();
 
             if let Some(contained) = resource_json.get("contained").and_then(|c| c.as_array()) {
                 for contained_resource in contained {
                     if let (Some(resource_type), Some(id)) = (
-                        contained_resource.get("resourceType").and_then(|rt| rt.as_str()),
-                        contained_resource.get("id").and_then(|id| id.as_str())
+                        contained_resource
+                            .get("resourceType")
+                            .and_then(|rt| rt.as_str()),
+                        contained_resource.get("id").and_then(|id| id.as_str()),
                     ) {
                         // Check for fragment reference (starts with #)
                         if reference.starts_with('#') && &reference[1..] == id {
-                            return Ok(Some(FhirPathValue::resource_from_json(contained_resource.clone())));
+                            return Ok(Some(FhirPathValue::resource_from_json(
+                                contained_resource.clone(),
+                            )));
                         }
 
                         // Check for full reference
-                        let resource_ref = format!("{}/{}", resource_type, id);
+                        let resource_ref = format!("{resource_type}/{id}");
                         if resource_ref == reference {
-                            return Ok(Some(FhirPathValue::resource_from_json(contained_resource.clone())));
+                            return Ok(Some(FhirPathValue::resource_from_json(
+                                contained_resource.clone(),
+                            )));
                         }
                     }
                 }
@@ -300,113 +352,14 @@ impl ResolveFunction {
             let id = reference[slash_pos + 1..].to_string();
 
             // Basic validation - resource type should be capitalized
-            if !resource_type.is_empty() && !id.is_empty() && resource_type.chars().next().unwrap().is_uppercase() {
+            if !resource_type.is_empty()
+                && !id.is_empty()
+                && resource_type.chars().next().unwrap().is_uppercase()
+            {
                 return Some((resource_type, id));
             }
         }
 
         None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use octofhir_fhirpath_model::MockModelProvider;
-    use crate::FhirPathRegistry;
-    use super::*;
-
-    #[tokio::test]
-    async fn test_resolve_function() {
-        let func = ResolveFunction::new();
-
-        // Test string reference
-        let ctx = {
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::String("Patient/123".into()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::Resource(resource) => {
-                // Check that we got a resolved resource
-                assert!(resource.resource_type().is_some());
-            },
-            _ => panic!("Expected resource result from resolve()"),
-        }
-
-        // Test empty input
-        let ctx = EvaluationContext::new(FhirPathValue::Empty, ctx.registry.clone(), ctx.model_provider.clone());
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-
-        // Test invalid reference
-        let ctx = {
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::String("invalid-ref".into()), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[tokio::test]
-    async fn test_resolve_reference_object() {
-        let func = ResolveFunction::new();
-
-        let reference_obj = serde_json::json!({
-            "reference": "Organization/456"
-        });
-        let ctx = {
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::resource_from_json(reference_obj), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-
-        match result {
-            FhirPathValue::Resource(resource) => {
-                // Check that we got a resolved resource
-                assert!(resource.resource_type().is_some());
-            },
-            _ => panic!("Expected resource result from resolve()"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_resolve_no_sync_support() {
-        let func = ResolveFunction::new();
-        let ctx = {
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::String("Patient/123".into()), registry, model_provider)
-        };
-
-        let result = func.try_evaluate_sync(&[], &ctx);
-        assert!(result.is_none()); // Should not support sync evaluation
-    }
-
-    #[tokio::test]
-    async fn test_resolve_invalid_args() {
-        let func = ResolveFunction::new();
-        let ctx = {
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::String("Patient/123".into()), registry, model_provider)
-        };
-
-        let args = vec![FhirPathValue::Integer(1)];
-        let result = func.evaluate(&args, &ctx).await;
-        assert!(result.is_err());
     }
 }

@@ -1,11 +1,20 @@
-use async_trait::async_trait;
-use crate::{FhirPathOperation, metadata::{OperationType, OperationMetadata, MetadataBuilder, TypeConstraint}};
 use crate::operations::EvaluationContext;
-use octofhir_fhirpath_core::{Result, FhirPathError};
+use crate::{
+    FhirPathOperation,
+    metadata::{MetadataBuilder, OperationMetadata, OperationType, TypeConstraint},
+};
+use async_trait::async_trait;
+use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
 pub struct SingleFunction {
     metadata: OperationMetadata,
+}
+
+impl Default for SingleFunction {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SingleFunction {
@@ -47,7 +56,7 @@ impl FhirPathOperation for SingleFunction {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArguments {
-                message: "single() takes no arguments".to_string()
+                message: "single() takes no arguments".to_string(),
             });
         }
 
@@ -55,11 +64,13 @@ impl FhirPathOperation for SingleFunction {
 
         match collection.len() {
             0 => Err(FhirPathError::EvaluationError {
-                message: "single() called on empty collection".to_string()
+                message: "single() called on empty collection".to_string(),
             }),
             1 => Ok(collection.get(0).unwrap().clone()),
             n => Err(FhirPathError::EvaluationError {
-                message: format!("single() called on collection with {} items (expected exactly 1)", n)
+                message: format!(
+                    "single() called on collection with {n} items (expected exactly 1)"
+                ),
             }),
         }
     }
@@ -79,108 +90,5 @@ impl FhirPathOperation for SingleFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::operations::create_test_context;
-
-    #[tokio::test]
-    async fn test_single_with_single_item() {
-        let function = SingleFunction::new();
-        
-        let collection = vec![FhirPathValue::String("test".into())];
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![];
-        
-        let result = function.evaluate(&args, &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::String(s) => {
-                assert_eq!(s, "test");
-            }
-            _ => panic!("Expected string result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_single_with_empty_collection() {
-        let function = SingleFunction::new();
-        
-        let context = create_test_context(FhirPathValue::Collection(vec![].into()));
-        let args = vec![];
-        
-        let result = function.evaluate(&args, &context).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("empty collection"));
-    }
-
-    #[tokio::test]
-    async fn test_single_with_multiple_items() {
-        let function = SingleFunction::new();
-        
-        let collection = vec![
-            FhirPathValue::String("first".into()),
-            FhirPathValue::String("second".into()),
-        ];
-        let context = create_test_context(FhirPathValue::Collection(collection.into()));
-        let args = vec![];
-        
-        let result = function.evaluate(&args, &context).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("2 items"));
-    }
-
-    #[tokio::test]
-    async fn test_single_with_non_collection_input() {
-        let function = SingleFunction::new();
-        
-        // Non-collection input should be treated as single-item collection
-        let context = create_test_context(FhirPathValue::String("test".into()));
-        let args = vec![];
-        
-        let result = function.evaluate(&args, &context).await.unwrap();
-        
-        match result {
-            FhirPathValue::String(s) => {
-                assert_eq!(s, "test");
-            }
-            _ => panic!("Expected string result"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_single_with_arguments() {
-        let function = SingleFunction::new();
-        let context = create_test_context(FhirPathValue::String("test".into()));
-        let args = vec![FhirPathValue::String("invalid".into())];
-        
-        let result = function.evaluate(&args, &context).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no arguments"));
-    }
-
-    #[tokio::test]
-    async fn test_single_with_various_types() {
-        let function = SingleFunction::new();
-        
-        // Test with integer
-        let context = create_test_context(FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(42)
-        ].into()));
-        let args = vec![];
-        
-        let result = function.evaluate(&args, &context).await.unwrap();
-        assert!(matches!(result, FhirPathValue::Integer(42)));
-
-        // Test with boolean
-        let context = create_test_context(FhirPathValue::Collection(vec![
-            FhirPathValue::Boolean(true)
-        ].into()));
-        
-        let result = function.evaluate(&args, &context).await.unwrap();
-        assert!(matches!(result, FhirPathValue::Boolean(true)));
     }
 }

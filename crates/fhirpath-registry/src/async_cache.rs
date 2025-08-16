@@ -28,22 +28,22 @@ use tokio::sync::RwLock;
 pub struct CacheMetrics {
     /// Total number of cache hits
     pub hits: u64,
-    
+
     /// Total number of cache misses
     pub misses: u64,
-    
+
     /// Total number of insertions
     pub insertions: u64,
-    
+
     /// Total number of evictions
     pub evictions: u64,
-    
+
     /// Number of cache clears
     pub clears: u64,
-    
+
     /// Current cache size
     pub current_size: usize,
-    
+
     /// Maximum cache capacity
     pub capacity: usize,
 }
@@ -112,7 +112,7 @@ impl CacheMetrics {
 pub struct AsyncLruCache<K, V> {
     /// Inner LRU cache protected by read-write lock
     inner: Arc<RwLock<LruCache<K, V>>>,
-    
+
     /// Performance metrics
     metrics: Arc<RwLock<CacheMetrics>>,
 }
@@ -127,7 +127,7 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
     /// Panics if capacity is 0
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "Cache capacity must be greater than 0");
-        
+
         let cache = LruCache::new(NonZeroUsize::new(capacity).unwrap());
         let mut metrics = CacheMetrics::default();
         metrics.capacity = capacity;
@@ -210,11 +210,11 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
     /// * `value` - Value to insert
     pub async fn insert(&self, key: K, value: V) {
         let mut cache = self.inner.write().await;
-        let old_size = cache.len();
-        
+        let _old_size = cache.len();
+
         let evicted = cache.put(key, value);
         let new_size = cache.len();
-        
+
         // Update metrics
         {
             let mut metrics = self.metrics.write().await;
@@ -248,13 +248,13 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
     pub async fn remove(&self, key: &K) -> Option<V> {
         let mut cache = self.inner.write().await;
         let result = cache.pop(key);
-        
+
         if result.is_some() {
             let new_size = cache.len();
             let mut metrics = self.metrics.write().await;
             metrics.update_size(new_size);
         }
-        
+
         result
     }
 
@@ -262,7 +262,7 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
     pub async fn clear(&self) {
         let mut cache = self.inner.write().await;
         cache.clear();
-        
+
         // Update metrics
         {
             let mut metrics = self.metrics.write().await;
@@ -300,7 +300,7 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
         let mut metrics = self.metrics.write().await;
         let capacity = metrics.capacity;
         let current_size = metrics.current_size;
-        
+
         *metrics = CacheMetrics::default();
         metrics.capacity = capacity;
         metrics.current_size = current_size;
@@ -321,19 +321,19 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
         }
 
         let new_capacity_nz = NonZeroUsize::new(new_capacity).unwrap();
-        
+
         let mut cache = self.inner.write().await;
         cache.resize(new_capacity_nz);
-        
+
         let new_size = cache.len();
-        
+
         // Update metrics
         {
             let mut metrics = self.metrics.write().await;
             metrics.capacity = new_capacity;
             metrics.update_size(new_size);
         }
-        
+
         Ok(())
     }
 
@@ -344,7 +344,7 @@ impl<K: Hash + Eq + Clone, V: Clone> AsyncLruCache<K, V> {
     pub async fn estimated_memory_usage(&self) -> usize {
         let cache = self.inner.read().await;
         let entry_count = cache.len();
-        
+
         // Rough estimate: 64 bytes per entry for LRU overhead + key/value storage
         // This is a conservative estimate - actual usage varies by key/value types
         entry_count * 64
@@ -417,26 +417,25 @@ impl Default for CacheBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_cache_basic_operations() {
         let cache = AsyncLruCache::new(3);
-        
+
         // Test empty cache
         assert_eq!(cache.len().await, 0);
         assert!(cache.is_empty().await);
         assert_eq!(cache.capacity(), 3);
-        
+
         // Test insertion
         cache.insert("key1".to_string(), "value1".to_string()).await;
         assert_eq!(cache.len().await, 1);
         assert!(!cache.is_empty().await);
-        
+
         // Test retrieval
         let value = cache.get(&"key1".to_string()).await;
         assert_eq!(value, Some("value1".to_string()));
-        
+
         // Test non-existent key
         let value = cache.get(&"nonexistent".to_string()).await;
         assert_eq!(value, None);
@@ -445,41 +444,47 @@ mod tests {
     #[tokio::test]
     async fn test_cache_lru_eviction() {
         let cache = AsyncLruCache::new(2);
-        
+
         // Fill cache to capacity
         cache.insert("key1".to_string(), "value1".to_string()).await;
         cache.insert("key2".to_string(), "value2".to_string()).await;
         assert_eq!(cache.len().await, 2);
-        
+
         // Insert third item - should evict oldest
         cache.insert("key3".to_string(), "value3".to_string()).await;
         assert_eq!(cache.len().await, 2);
-        
+
         // key1 should be evicted
         assert_eq!(cache.get(&"key1".to_string()).await, None);
-        assert_eq!(cache.get(&"key2".to_string()).await, Some("value2".to_string()));
-        assert_eq!(cache.get(&"key3".to_string()).await, Some("value3".to_string()));
+        assert_eq!(
+            cache.get(&"key2".to_string()).await,
+            Some("value2".to_string())
+        );
+        assert_eq!(
+            cache.get(&"key3".to_string()).await,
+            Some("value3".to_string())
+        );
     }
 
     #[tokio::test]
     async fn test_cache_metrics() {
         let cache = AsyncLruCache::new(2);
-        
+
         // Test initial metrics
         let metrics = cache.metrics().await;
         assert_eq!(metrics.hits, 0);
         assert_eq!(metrics.misses, 0);
         assert_eq!(metrics.hit_ratio(), 0.0);
-        
+
         // Insert and access items
         cache.insert("key1".to_string(), "value1".to_string()).await;
-        
+
         // Hit
         cache.get(&"key1".to_string()).await;
-        
+
         // Miss
         cache.get(&"nonexistent".to_string()).await;
-        
+
         let metrics = cache.metrics().await;
         assert_eq!(metrics.hits, 1);
         assert_eq!(metrics.misses, 1);
@@ -490,12 +495,12 @@ mod tests {
     #[tokio::test]
     async fn test_cache_contains() {
         let cache = AsyncLruCache::new(2);
-        
+
         assert!(!cache.contains(&"key1".to_string()).await);
-        
+
         cache.insert("key1".to_string(), "value1".to_string()).await;
         assert!(cache.contains(&"key1".to_string()).await);
-        
+
         cache.remove(&"key1".to_string()).await;
         assert!(!cache.contains(&"key1".to_string()).await);
     }
@@ -503,54 +508,52 @@ mod tests {
     #[tokio::test]
     async fn test_cache_clear() {
         let cache = AsyncLruCache::new(5);
-        
+
         // Add several items
         for i in 0..3 {
-            cache.insert(format!("key{}", i), format!("value{}", i)).await;
+            cache.insert(format!("key{i}"), format!("value{i}")).await;
         }
         assert_eq!(cache.len().await, 3);
-        
+
         // Clear cache
         cache.clear().await;
         assert_eq!(cache.len().await, 0);
         assert!(cache.is_empty().await);
-        
+
         // Verify items are gone
         for i in 0..3 {
-            assert_eq!(cache.get(&format!("key{}", i)).await, None);
+            assert_eq!(cache.get(&format!("key{i}")).await, None);
         }
     }
 
     #[tokio::test]
     async fn test_cache_resize() {
         let cache = AsyncLruCache::new(3);
-        
+
         // Fill cache
         for i in 0..3 {
-            cache.insert(format!("key{}", i), format!("value{}", i)).await;
+            cache.insert(format!("key{i}"), format!("value{i}")).await;
         }
         assert_eq!(cache.len().await, 3);
-        
+
         // Resize to smaller capacity - should evict items
         cache.resize(2).await.unwrap();
         assert_eq!(cache.capacity(), 2);
         assert_eq!(cache.len().await, 2);
-        
+
         // Resize to larger capacity
         cache.resize(5).await.unwrap();
         assert_eq!(cache.capacity(), 5);
         assert_eq!(cache.len().await, 2);
-        
+
         // Test invalid resize
         assert!(cache.resize(0).await.is_err());
     }
 
     #[tokio::test]
     async fn test_cache_builder() {
-        let cache = CacheBuilder::new()
-            .capacity(100)
-            .build::<String, String>();
-        
+        let cache = CacheBuilder::new().capacity(100).build::<String, String>();
+
         assert_eq!(cache.capacity(), 100);
         assert_eq!(cache.len().await, 0);
     }
@@ -558,14 +561,14 @@ mod tests {
     #[tokio::test]
     async fn test_cache_snapshot() {
         let cache = AsyncLruCache::new(3);
-        
+
         // Add items
         cache.insert("key1".to_string(), "value1".to_string()).await;
         cache.insert("key2".to_string(), "value2".to_string()).await;
-        
+
         let snapshot = cache.snapshot().await;
         assert_eq!(snapshot.len(), 2);
-        
+
         // Snapshot should contain all items
         let keys: Vec<String> = snapshot.iter().map(|(k, _)| k.clone()).collect();
         assert!(keys.contains(&"key1".to_string()));
@@ -576,15 +579,15 @@ mod tests {
     async fn test_concurrent_access() {
         let cache = Arc::new(AsyncLruCache::new(100));
         let mut handles = vec![];
-        
+
         // Spawn multiple tasks accessing cache concurrently
         for i in 0..10 {
             let cache_clone = cache.clone();
             let handle = tokio::spawn(async move {
                 for j in 0..10 {
-                    let key = format!("key_{}_{}", i, j);
-                    let value = format!("value_{}_{}", i, j);
-                    
+                    let key = format!("key_{i}_{j}");
+                    let value = format!("value_{i}_{j}");
+
                     cache_clone.insert(key.clone(), value.clone()).await;
                     let retrieved = cache_clone.get(&key).await;
                     assert_eq!(retrieved, Some(value));
@@ -592,12 +595,12 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         for handle in handles {
             handle.await.unwrap();
         }
-        
+
         // Verify cache state
         assert!(cache.len().await <= 100);
         let metrics = cache.metrics().await;
@@ -607,11 +610,11 @@ mod tests {
     #[tokio::test]
     async fn test_stats_string() {
         let cache = AsyncLruCache::new(2);
-        
+
         cache.insert("key1".to_string(), "value1".to_string()).await;
         cache.get(&"key1".to_string()).await; // hit
         cache.get(&"nonexistent".to_string()).await; // miss
-        
+
         let stats = cache.stats_string().await;
         assert!(stats.contains("1 hits"));
         assert!(stats.contains("1 misses"));

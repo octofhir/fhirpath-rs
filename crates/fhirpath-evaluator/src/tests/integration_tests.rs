@@ -14,75 +14,119 @@
 
 //! Integration tests with real FHIR resources and complex scenarios
 
-use super::{TestUtils, as_single_integer, as_single_boolean, as_single_string, as_single_decimal, count, as_collection_strings};
+use super::{
+    TestUtils, as_collection_strings, as_single_boolean, as_single_decimal, as_single_integer,
+    as_single_string, count,
+};
 use serde_json::json;
 
 #[tokio::test]
 async fn test_patient_resource_navigation() {
-    let engine = TestUtils::create_test_engine();
+    let engine = TestUtils::create_test_engine().await.unwrap();
     let patient = TestUtils::sample_patient();
-    
+
     // Test all common Patient navigation patterns
     let test_cases = vec![
         ("name.family", vec!["Doe".to_string()]),
-        ("name.given", vec!["John".to_string(), "Robert".to_string(), "Johnny".to_string()]),
-        ("telecom.where(system='phone').value", vec!["555-1234".to_string()]),
-        ("telecom.where(system='email').value", vec!["john.doe@example.com".to_string()]),
+        (
+            "name.given",
+            vec![
+                "John".to_string(),
+                "Robert".to_string(),
+                "Johnny".to_string(),
+            ],
+        ),
+        (
+            "telecom.where(system='phone').value",
+            vec!["555-1234".to_string()],
+        ),
+        (
+            "telecom.where(system='email').value",
+            vec!["john.doe@example.com".to_string()],
+        ),
         ("address.line", vec!["123 Main St".to_string()]),
         ("address.city", vec!["Anytown".to_string()]),
         ("gender", vec!["male".to_string()]),
         ("birthDate", vec!["1974-12-25".to_string()]),
     ];
-    
+
     for (expression, expected) in test_cases {
         let result = engine.evaluate(expression, patient.clone()).await.unwrap();
         let actual = as_collection_strings(&result).unwrap_or_default();
-        
+
         // Check if we got the expected values (order might vary)
         for expected_val in expected {
-            assert!(actual.contains(&expected_val), 
-                   "Expected '{}' in result for expression '{}', got: {:?}", 
-                   expected_val, expression, actual);
+            assert!(
+                actual.contains(&expected_val),
+                "Expected '{expected_val}' in result for expression '{expression}', got: {actual:?}"
+            );
         }
     }
 }
 
 #[tokio::test]
 async fn test_bundle_resource_navigation() {
-    let engine = TestUtils::create_test_engine();
+    let engine = TestUtils::create_test_engine().await.unwrap();
     let bundle = TestUtils::sample_bundle();
-    
+
     // Test Bundle structure navigation
     let result = engine.evaluate("type", bundle.clone()).await.unwrap();
     assert_eq!(as_single_string(&result), Some("collection".to_string()));
-    
-    let result = engine.evaluate("entry.count()", bundle.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("entry.count()", bundle.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(2));
-    
+
     // Test filtering resources by type
-    let result = engine.evaluate("entry.resource.where(resourceType='Patient')", bundle.clone()).await.unwrap();
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Patient')",
+            bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(count(&result), 1);
-    
-    let result = engine.evaluate("entry.resource.where(resourceType='Observation')", bundle.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Observation')",
+            bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(count(&result), 1);
-    
+
     // Test accessing nested resource properties
-    let result = engine.evaluate("entry.resource.where(resourceType='Patient').name.given", bundle.clone()).await.unwrap();
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Patient').name.given",
+            bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert!(count(&result) >= 2); // Should have "John" and "Robert" at minimum
-    
+
     // Test cross-resource references
-    let result = engine.evaluate(
-        "entry.resource.where(resourceType='Observation').subject.reference", 
-        bundle
-    ).await.unwrap();
-    assert_eq!(as_single_string(&result), Some("Patient/example".to_string()));
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Observation').subject.reference",
+            bundle,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        as_single_string(&result),
+        Some("Patient/example".to_string())
+    );
 }
 
-#[tokio::test] 
+#[tokio::test]
 async fn test_complex_fhir_expressions() {
-    let engine = TestUtils::create_test_engine();
+    let engine = TestUtils::create_test_engine().await.unwrap();
     let patient = TestUtils::sample_patient();
-    
+
     // Test complex real-world FHIRPath expressions
     let expressions = vec![
         // Get primary phone number
@@ -100,59 +144,77 @@ async fn test_complex_fhir_expressions() {
         // Validate telecom has system and value
         "telecom.all(system.exists() and value.exists())",
     ];
-    
+
     for expression in expressions {
         let result = engine.evaluate(expression, patient.clone()).await;
-        assert!(result.is_ok(), "Failed to evaluate: {}", expression);
-        
+        assert!(result.is_ok(), "Failed to evaluate: {expression}");
+
         // Log results for inspection
         if let Ok(value) = result {
-            println!("Expression '{}' -> {:?}", expression, value);
+            println!("Expression '{expression}' -> {value:?}");
         }
     }
 }
 
 #[tokio::test]
 async fn test_fhir_resource_validation_patterns() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Test common validation patterns
     let valid_patient = TestUtils::sample_patient();
-    
+
     // Patient must have name
-    let result = engine.evaluate("name.exists()", valid_patient.clone()).await.unwrap();
+    let result = engine
+        .evaluate("name.exists()", valid_patient.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(true));
-    
+
     // Patient must have gender
-    let result = engine.evaluate("gender.exists()", valid_patient.clone()).await.unwrap();
+    let result = engine
+        .evaluate("gender.exists()", valid_patient.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(true));
-    
+
     // Check if patient has valid resource type
-    let result = engine.evaluate("resourceType = 'Patient'", valid_patient.clone()).await.unwrap();
+    let result = engine
+        .evaluate("resourceType = 'Patient'", valid_patient.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(true));
-    
+
     // Check if patient has identifier (our sample doesn't, so should be false)
-    let result = engine.evaluate("identifier.exists()", valid_patient.clone()).await.unwrap();
+    let result = engine
+        .evaluate("identifier.exists()", valid_patient.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(false));
-    
+
     // Test with invalid/incomplete resource
     let invalid_patient = json!({
         "resourceType": "Patient",
         "id": "invalid"
         // Missing required fields
     });
-    
-    let result = engine.evaluate("name.exists()", invalid_patient.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("name.exists()", invalid_patient.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(false));
-    
-    let result = engine.evaluate("gender.exists()", invalid_patient).await.unwrap();
+
+    let result = engine
+        .evaluate("gender.exists()", invalid_patient)
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(false));
 }
 
 #[tokio::test]
 async fn test_observation_resource_patterns() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Create a more complex Observation
     let observation = json!({
         "resourceType": "Observation",
@@ -199,25 +261,40 @@ async fn test_observation_resource_patterns() {
             }
         ]
     });
-    
+
     // Test Observation navigation patterns
-    let result = engine.evaluate("status", observation.clone()).await.unwrap();
+    let result = engine
+        .evaluate("status", observation.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("final".to_string()));
-    
-    let result = engine.evaluate("code.coding.code", observation.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("code.coding.code", observation.clone())
+        .await
+        .unwrap();
     let codes = as_collection_strings(&result).unwrap_or_default();
     assert!(codes.contains(&"29463-7".to_string()));
-    
-    let result = engine.evaluate("valueQuantity.value", observation.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("valueQuantity.value", observation.clone())
+        .await
+        .unwrap();
     if let Some(value) = as_single_decimal(&result) {
         assert!((value.to_string().parse::<f64>().unwrap_or(0.0) - 85.5).abs() < 0.001);
     }
-    
+
     // Test component navigation
-    let result = engine.evaluate("component.count()", observation.clone()).await.unwrap();
+    let result = engine
+        .evaluate("component.count()", observation.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(1));
-    
-    let result = engine.evaluate("component.valueQuantity.value", observation).await.unwrap();
+
+    let result = engine
+        .evaluate("component.valueQuantity.value", observation)
+        .await
+        .unwrap();
     if let Some(height) = as_single_integer(&result) {
         assert_eq!(height, 175);
     }
@@ -225,8 +302,8 @@ async fn test_observation_resource_patterns() {
 
 #[tokio::test]
 async fn test_medication_request_patterns() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     let medication_request = json!({
         "resourceType": "MedicationRequest",
         "id": "example",
@@ -265,23 +342,44 @@ async fn test_medication_request_patterns() {
             }]
         }]
     });
-    
+
     // Test MedicationRequest patterns
-    let result = engine.evaluate("status", medication_request.clone()).await.unwrap();
+    let result = engine
+        .evaluate("status", medication_request.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("active".to_string()));
-    
-    let result = engine.evaluate("intent", medication_request.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("intent", medication_request.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("order".to_string()));
-    
-    let result = engine.evaluate("medicationCodeableConcept.coding.code", medication_request.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "medicationCodeableConcept.coding.code",
+            medication_request.clone(),
+        )
+        .await
+        .unwrap();
     let codes = as_collection_strings(&result).unwrap_or_default();
     assert!(codes.contains(&"1049502".to_string()));
-    
+
     // Test dosage instruction navigation
-    let result = engine.evaluate("dosageInstruction.count()", medication_request.clone()).await.unwrap();
+    let result = engine
+        .evaluate("dosageInstruction.count()", medication_request.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(1));
-    
-    let result = engine.evaluate("dosageInstruction.doseAndRate.doseRange.low.value", medication_request).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "dosageInstruction.doseAndRate.doseRange.low.value",
+            medication_request,
+        )
+        .await
+        .unwrap();
     if let Some(dose) = as_single_integer(&result) {
         assert_eq!(dose, 1);
     }
@@ -289,8 +387,8 @@ async fn test_medication_request_patterns() {
 
 #[tokio::test]
 async fn test_practitioner_and_organization_patterns() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     let practitioner = json!({
         "resourceType": "Practitioner",
         "id": "example",
@@ -318,30 +416,45 @@ async fn test_practitioner_and_organization_patterns() {
             }
         }]
     });
-    
+
     // Test Practitioner patterns
-    let result = engine.evaluate("name.family", practitioner.clone()).await.unwrap();
+    let result = engine
+        .evaluate("name.family", practitioner.clone())
+        .await
+        .unwrap();
     let families = as_collection_strings(&result).unwrap_or_default();
     assert!(families.contains(&"Careful".to_string()));
-    
-    let result = engine.evaluate("name.given", practitioner.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("name.given", practitioner.clone())
+        .await
+        .unwrap();
     let given_names = as_collection_strings(&result).unwrap_or_default();
     assert!(given_names.contains(&"Adam".to_string()));
     assert!(given_names.contains(&"Dr.".to_string()));
-    
-    let result = engine.evaluate("qualification.code.coding.code", practitioner.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("qualification.code.coding.code", practitioner.clone())
+        .await
+        .unwrap();
     let codes = as_collection_strings(&result).unwrap_or_default();
     assert!(codes.contains(&"MD".to_string()));
-    
+
     // Test identifier access
-    let result = engine.evaluate("identifier.where(system='http://www.acme.org/practitioners').value", practitioner).await.unwrap();
+    let result = engine
+        .evaluate(
+            "identifier.where(system='http://www.acme.org/practitioners').value",
+            practitioner,
+        )
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("23".to_string()));
 }
 
 #[tokio::test]
 async fn test_complex_bundle_operations() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Create a larger bundle with multiple resource types
     let complex_bundle = json!({
         "resourceType": "Bundle",
@@ -375,38 +488,74 @@ async fn test_complex_bundle_operations() {
             }
         ]
     });
-    
+
     // Test bundle summary operations
-    let result = engine.evaluate("entry.count()", complex_bundle.clone()).await.unwrap();
+    let result = engine
+        .evaluate("entry.count()", complex_bundle.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(3));
-    
-    let result = engine.evaluate("total", complex_bundle.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("total", complex_bundle.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(3));
-    
+
     // Test filtering by resource type
-    let result = engine.evaluate("entry.resource.where(resourceType='Patient').count()", complex_bundle.clone()).await.unwrap();
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Patient').count()",
+            complex_bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(1));
-    
-    let result = engine.evaluate("entry.resource.where(resourceType='Practitioner').count()", complex_bundle.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Practitioner').count()",
+            complex_bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(1));
-    
-    let result = engine.evaluate("entry.resource.where(resourceType='Organization').count()", complex_bundle.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Organization').count()",
+            complex_bundle.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(1));
-    
+
     // Test cross-resource queries
-    let result = engine.evaluate("entry.resource.where(resourceType='Practitioner').name.family", complex_bundle.clone()).await.unwrap();
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Practitioner').name.family",
+            complex_bundle.clone(),
+        )
+        .await
+        .unwrap();
     let families = as_collection_strings(&result).unwrap_or_default();
     assert!(families.contains(&"Smith".to_string()));
-    
-    let result = engine.evaluate("entry.resource.where(resourceType='Organization').name", complex_bundle).await.unwrap();
+
+    let result = engine
+        .evaluate(
+            "entry.resource.where(resourceType='Organization').name",
+            complex_bundle,
+        )
+        .await
+        .unwrap();
     let org_names = as_collection_strings(&result).unwrap_or_default();
     assert!(org_names.contains(&"Test Hospital".to_string()));
 }
 
 #[tokio::test]
 async fn test_fhir_data_type_handling() {
-    let engine = TestUtils::create_test_engine();
-    
+    let engine = TestUtils::create_test_engine().await.unwrap();
+
     // Test various FHIR data types
     let resource_with_types = json!({
         "resourceType": "TestResource",
@@ -434,28 +583,49 @@ async fn test_fhir_data_type_handling() {
             "field2": 123
         }
     });
-    
+
     // Test accessing different data types
-    let result = engine.evaluate("booleanField", resource_with_types.clone()).await.unwrap();
+    let result = engine
+        .evaluate("booleanField", resource_with_types.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_boolean(&result), Some(true));
-    
-    let result = engine.evaluate("integerField", resource_with_types.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("integerField", resource_with_types.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(42));
-    
-    let result = engine.evaluate("stringField", resource_with_types.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("stringField", resource_with_types.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("hello world".to_string()));
-    
-    let result = engine.evaluate("arrayField.count()", resource_with_types.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("arrayField.count()", resource_with_types.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_integer(&result), Some(3));
-    
-    let result = engine.evaluate("codingField.code", resource_with_types.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("codingField.code", resource_with_types.clone())
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("test-code".to_string()));
-    
-    let result = engine.evaluate("quantityField.value", resource_with_types.clone()).await.unwrap();
+
+    let result = engine
+        .evaluate("quantityField.value", resource_with_types.clone())
+        .await
+        .unwrap();
     if let Some(value) = as_single_decimal(&result) {
         assert!((value.to_string().parse::<f64>().unwrap_or(0.0) - 85.5).abs() < 0.001);
     }
-    
-    let result = engine.evaluate("nestedObject.field1", resource_with_types).await.unwrap();
+
+    let result = engine
+        .evaluate("nestedObject.field1", resource_with_types)
+        .await
+        .unwrap();
     assert_eq!(as_single_string(&result), Some("value1".to_string()));
 }

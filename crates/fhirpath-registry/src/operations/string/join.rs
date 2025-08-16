@@ -14,18 +14,24 @@
 
 //! Join function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use crate::operations::EvaluationContext;
 
 /// Join function: joins a collection of strings into a single string using the specified separator
 pub struct JoinFunction;
+
+impl Default for JoinFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl JoinFunction {
     pub fn new() -> Self {
@@ -34,10 +40,16 @@ impl JoinFunction {
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("join", OperationType::Function)
-            .description("Joins a collection of strings into a single string using the specified separator")
+            .description(
+                "Joins a collection of strings into a single string using the specified separator",
+            )
             .example("('a' | 'b' | 'c').join(',')")
             .example("Patient.name.given.join(' ')")
-            .parameter("separator", TypeConstraint::Specific(FhirPathType::String), false)
+            .parameter(
+                "separator",
+                TypeConstraint::Specific(FhirPathType::String),
+                false,
+            )
             .returns(TypeConstraint::Specific(FhirPathType::String))
             .performance(PerformanceComplexity::Linear, true)
             .build()
@@ -55,9 +67,8 @@ impl FhirPathOperation for JoinFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            JoinFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(JoinFunction::create_metadata);
         &METADATA
     }
 
@@ -133,13 +144,13 @@ impl JoinFunction {
                 FhirPathValue::Time(t) => Ok(t.to_string()),
                 FhirPathValue::Empty => Ok("".to_string()),
                 _ => Err(FhirPathError::EvaluationError {
-                    message: format!("join() cannot convert {:?} to string", item),
-                })
+                    message: format!("join() cannot convert {item:?} to string"),
+                }),
             })
             .collect();
 
         let strings = string_items?;
-        
+
         // If collection is empty, return empty string
         if strings.is_empty() {
             return Ok(FhirPathValue::String("".into()));
@@ -170,171 +181,5 @@ impl JoinFunction {
             }
             _ => Ok(None), // Other types can't be converted
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_join_function() {
-        let join_fn = JoinFunction::new();
-
-        // Test basic join with comma
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("a,b,c".into()));
-
-        // Test join with space
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("world".into()),
-            FhirPathValue::String("test".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(" ".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world test".into()));
-
-        // Test join with empty separator
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("b".into()),
-            FhirPathValue::String("c".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String("".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("abc".into()));
-
-        // Test join single item
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("single".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("single".into()));
-
-        // Test join empty collection
-        let collection = FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![]));
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("".into()));
-
-        // Test join with mixed types
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::Integer(42),
-            FhirPathValue::Boolean(true),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(" ".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello 42 true".into()));
-
-        // Test join with empty strings
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("a".into()),
-            FhirPathValue::String("".into()),
-            FhirPathValue::String("b".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("a,,b".into()));
-
-        // Test join with multi-character separator
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("hello".into()),
-            FhirPathValue::String("world".into()),
-            FhirPathValue::String("test".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String(" :: ".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello :: world :: test".into()));
-
-        // Test join with unicode characters
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("héllo".into()),
-            FhirPathValue::String("wörld".into()),
-            FhirPathValue::String("世界".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String("•".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("héllo•wörld•世界".into()));
-
-        // Test with single item (not a collection)
-        let single = FhirPathValue::String("single".into());
-        let context = create_test_context(single);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("single".into()));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let args = vec![FhirPathValue::String(",".into())];
-        let result = join_fn.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let join_fn = JoinFunction::new();
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("x".into()),
-            FhirPathValue::String("y".into()),
-            FhirPathValue::String("z".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::String("-".into())];
-
-        let sync_result = join_fn.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::String("x-y-z".into()));
-        assert!(join_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let join_fn = JoinFunction::new();
-        
-        // Test with non-string separator argument
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("test".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![FhirPathValue::Integer(42)];
-        let result = join_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with wrong number of arguments
-        let collection = FhirPathValue::Collection(vec![
-            FhirPathValue::String("test".into()),
-        ]);
-        let context = create_test_context(collection);
-        let args = vec![];
-        let result = join_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

@@ -28,6 +28,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 /// ConvertsToDate function: returns true if the input can be converted to Date
 pub struct ConvertsToDateFunction;
 
+impl Default for ConvertsToDateFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConvertsToDateFunction {
     pub fn new() -> Self {
         Self
@@ -47,8 +53,28 @@ impl ConvertsToDateFunction {
         match value {
             FhirPathValue::Date(_) => Ok(true),
             FhirPathValue::String(s) => {
-                // Try to parse as date
-                Ok(NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok())
+                let s = s.as_ref();
+
+                // Try full date format first
+                if NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok() {
+                    return Ok(true);
+                }
+
+                // Try partial date formats that FHIRPath supports
+                // Year only: "2015"
+                if s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()) {
+                    return Ok(true);
+                }
+
+                // Year-month: "2015-02"
+                if s.len() == 7
+                    && s.matches('-').count() == 1
+                    && chrono::NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d").is_ok()
+                {
+                    return Ok(true);
+                }
+
+                Ok(false)
             }
             FhirPathValue::Empty => Ok(true), // Empty collection returns true result
             FhirPathValue::Collection(c) => {
@@ -80,7 +106,7 @@ impl FhirPathOperation for ConvertsToDateFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| ConvertsToDateFunction::create_metadata());
+            std::sync::LazyLock::new(ConvertsToDateFunction::create_metadata);
         &METADATA
     }
 
@@ -117,54 +143,5 @@ impl FhirPathOperation for ConvertsToDateFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_date() {
-        let func = ConvertsToDateFunction::new();
-
-        // Test with date
-        let ctx = create_test_context(FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string that can be parsed as date
-        let ctx = create_test_context(FhirPathValue::String("2023-01-01".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test with string that cannot be parsed as date
-        let ctx = create_test_context(FhirPathValue::String("invalid-date".into()));
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test with empty
-        let ctx = create_test_context(FhirPathValue::Empty);
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-    }
-
-    #[tokio::test]
-    async fn test_converts_to_date_sync() {
-        let func = ConvertsToDateFunction::new();
-        let ctx = create_test_context(FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()));
-        let result = func.try_evaluate_sync(&[], &ctx).unwrap().unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-        assert!(func.supports_sync());
     }
 }

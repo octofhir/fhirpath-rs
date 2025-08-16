@@ -15,38 +15,38 @@
 //! Conversion functions module
 
 pub mod converts_to_boolean;
-pub mod to_boolean;
-pub mod converts_to_quantity;
-pub mod to_quantity;
-pub mod converts_to_string;
-pub mod to_string;
-pub mod converts_to_integer;
-pub mod to_integer;
-pub mod converts_to_decimal;
-pub mod to_decimal;
 pub mod converts_to_date;
-pub mod to_date;
 pub mod converts_to_datetime;
-pub mod to_datetime;
+pub mod converts_to_decimal;
+pub mod converts_to_integer;
+pub mod converts_to_quantity;
+pub mod converts_to_string;
 pub mod converts_to_time;
+pub mod to_boolean;
+pub mod to_date;
+pub mod to_datetime;
+pub mod to_decimal;
+pub mod to_integer;
+pub mod to_quantity;
+pub mod to_string;
 pub mod to_time;
 // TODO: Add other conversion modules as they are implemented
 
 pub use converts_to_boolean::ConvertsToBooleanFunction;
-pub use to_boolean::ToBooleanFunction;
-pub use converts_to_quantity::ConvertsToQuantityFunction;
-pub use to_quantity::ToQuantityFunction;
-pub use converts_to_string::ConvertsToStringFunction;
-pub use to_string::ToStringFunction;
-pub use converts_to_integer::ConvertsToIntegerFunction;
-pub use to_integer::ToIntegerFunction;
-pub use converts_to_decimal::ConvertsToDecimalFunction;
-pub use to_decimal::ToDecimalFunction;
 pub use converts_to_date::ConvertsToDateFunction;
-pub use to_date::ToDateFunction;
 pub use converts_to_datetime::ConvertsToDateTimeFunction;
-pub use to_datetime::ToDateTimeFunction;
+pub use converts_to_decimal::ConvertsToDecimalFunction;
+pub use converts_to_integer::ConvertsToIntegerFunction;
+pub use converts_to_quantity::ConvertsToQuantityFunction;
+pub use converts_to_string::ConvertsToStringFunction;
 pub use converts_to_time::ConvertsToTimeFunction;
+pub use to_boolean::ToBooleanFunction;
+pub use to_date::ToDateFunction;
+pub use to_datetime::ToDateTimeFunction;
+pub use to_decimal::ToDecimalFunction;
+pub use to_integer::ToIntegerFunction;
+pub use to_quantity::ToQuantityFunction;
+pub use to_string::ToStringFunction;
 pub use to_time::ToTimeFunction;
 
 /// Registry helper for conversion operations

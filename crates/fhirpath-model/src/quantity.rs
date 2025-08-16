@@ -311,7 +311,7 @@ impl Quantity {
                 } else if r.is_empty() || r == "1" {
                     Some(l.clone())
                 } else {
-                    Some(format!("{}.{}", l, r))
+                    Some(format!("{l}.{r}"))
                 }
             }
             (Some(u), None) | (None, Some(u)) => {
@@ -326,7 +326,10 @@ impl Quantity {
     }
 
     /// Combine units for division (e.g., "g" / "m" = "g/m", "m" / "m" = "1")
-    fn combine_units_divide(numerator: &Option<String>, denominator: &Option<String>) -> Option<String> {
+    fn combine_units_divide(
+        numerator: &Option<String>,
+        denominator: &Option<String>,
+    ) -> Option<String> {
         match (numerator, denominator) {
             (Some(num), Some(den)) => {
                 if num == den {
@@ -337,10 +340,10 @@ impl Quantity {
                     Some(num.clone())
                 } else if num.is_empty() || num == "1" {
                     // Dimensionless divided by unit
-                    Some(format!("1/{}", den))
+                    Some(format!("1/{den}"))
                 } else {
                     // Different units
-                    Some(format!("{}/{}", num, den))
+                    Some(format!("{num}/{den}"))
                 }
             }
             (Some(num), None) => {
@@ -352,7 +355,7 @@ impl Quantity {
                 if den.is_empty() || den == "1" {
                     Some("1".to_string())
                 } else {
-                    Some(format!("1/{}", den))
+                    Some(format!("1/{den}"))
                 }
             }
             (None, None) => {

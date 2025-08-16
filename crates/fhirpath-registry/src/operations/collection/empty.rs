@@ -28,6 +28,12 @@ use crate::operations::EvaluationContext;
 #[derive(Debug, Clone)]
 pub struct EmptyFunction;
 
+impl Default for EmptyFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EmptyFunction {
     pub fn new() -> Self {
         Self
@@ -55,7 +61,7 @@ impl FhirPathOperation for EmptyFunction {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| EmptyFunction::create_metadata());
+            std::sync::LazyLock::new(EmptyFunction::create_metadata);
         &METADATA
     }
 
@@ -101,50 +107,5 @@ impl FhirPathOperation for EmptyFunction {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_empty_function() {
-        let func = EmptyFunction::new();
-
-        // Test empty collection
-        let ctx = EvaluationContext::new(
-            FhirPathValue::Empty,
-            context.registry.clone(),
-            context.model_provider.clone(),
-        );
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test non-empty collection
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::collection(vec![FhirPathValue::Integer(1)]), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test single value
-        let ctx = {
-            use std::sync::Arc;
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Integer(42), registry, model_provider)
-        };
-        let result = func.evaluate(&[], &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
     }
 }

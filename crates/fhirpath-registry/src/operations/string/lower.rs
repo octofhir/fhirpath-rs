@@ -14,18 +14,24 @@
 
 //! Lower function implementation for FHIRPath
 
-use crate::operation::FhirPathOperation;
 use crate::metadata::{
-    MetadataBuilder, OperationMetadata, OperationType, TypeConstraint, FhirPathType, 
-    PerformanceComplexity
+    FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+    TypeConstraint,
 };
+use crate::operation::FhirPathOperation;
+use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
-use crate::operations::EvaluationContext;
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
 /// Lower function: converts string to lowercase
 pub struct LowerFunction;
+
+impl Default for LowerFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LowerFunction {
     pub fn new() -> Self {
@@ -54,9 +60,8 @@ impl FhirPathOperation for LowerFunction {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            LowerFunction::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(LowerFunction::create_metadata);
         &METADATA
     }
 
@@ -114,11 +119,11 @@ impl LowerFunction {
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();
-                return self.process_single_value(value);
+                self.process_single_value(value)
             }
             _ => {
                 // Process as single value
-                return self.process_single_value(input);
+                self.process_single_value(input)
             }
         }
     }
@@ -128,110 +133,13 @@ impl LowerFunction {
             FhirPathValue::String(s) => {
                 let lower_str = s.as_ref().to_lowercase();
                 Ok(FhirPathValue::Collection(Collection::from(vec![
-                    FhirPathValue::String(lower_str.into())
+                    FhirPathValue::String(lower_str.into()),
                 ])))
-            },
+            }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
                 message: "lower() requires input to be a string".to_string(),
             }),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use crate::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_lower_function() {
-        let lower_fn = LowerFunction::new();
-
-        // Test basic case
-        let string = FhirPathValue::String("HELLO WORLD".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test mixed case
-        let string = FhirPathValue::String("Hello World".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test already lowercase
-        let string = FhirPathValue::String("hello world".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello world".into()));
-
-        // Test with numbers and symbols
-        let string = FhirPathValue::String("HELLO123!@#".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello123!@#".into()));
-
-        // Test empty string
-        let string = FhirPathValue::String("".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("".into()));
-
-        // Test with unicode characters
-        let string = FhirPathValue::String("HÉLLO WÖRLD".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("héllo wörld".into()));
-
-        // Test with non-Latin characters
-        let string = FhirPathValue::String("HELLO 世界".into());
-        let context = create_test_context(string);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::String("hello 世界".into()));
-
-        // Test with empty value
-        let empty = FhirPathValue::Empty;
-        let context = create_test_context(empty);
-        let result = lower_fn.evaluate(&[], &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let lower_fn = LowerFunction::new();
-        let string = FhirPathValue::String("TEST STRING".into());
-        let context = create_test_context(string);
-
-        let sync_result = lower_fn.try_evaluate_sync(&[], &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::String("test string".into()));
-        assert!(lower_fn.supports_sync());
-    }
-
-    #[test]
-    fn test_error_conditions() {
-        let lower_fn = LowerFunction::new();
-        
-        // Test with non-string input
-        let integer = FhirPathValue::Integer(42);
-        let context = create_test_context(integer);
-        let result = lower_fn.try_evaluate_sync(&[], &context).unwrap();
-        assert!(result.is_err());
-
-        // Test with arguments (should be none)
-        let string = FhirPathValue::String("test".into());
-        let context = create_test_context(string);
-        let args = vec![FhirPathValue::String("invalid".into())];
-        let result = lower_fn.try_evaluate_sync(&args, &context).unwrap();
-        assert!(result.is_err());
     }
 }

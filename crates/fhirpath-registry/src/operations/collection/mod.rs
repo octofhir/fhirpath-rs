@@ -35,13 +35,13 @@ pub mod is_distinct;
 pub mod last;
 pub mod skip;
 // Sort is handled by lambda functions
+pub mod in_op;
 pub mod subset_of;
 pub mod superset_of;
 pub mod tail;
 pub mod take;
 pub mod union;
 pub mod union_operator;
-// pub mod in_op;
 
 pub use all::AllFunction;
 pub use all_false::AllFalseFunction;
@@ -61,13 +61,13 @@ pub use is_distinct::IsDistinctFunction;
 pub use last::LastFunction;
 pub use skip::SkipFunction;
 // Sort is handled by lambda functions
+pub use in_op::InOperation;
 pub use subset_of::SubsetOfFunction;
 pub use superset_of::SupersetOfFunction;
 pub use tail::TailFunction;
 pub use take::TakeFunction;
 pub use union::UnionFunction;
 pub use union_operator::UnionOperator;
-// use crate::operations::collection::in_op::InOperation;
 
 /// Utility struct for registering all collection operations
 pub struct CollectionOperations;
@@ -80,7 +80,7 @@ impl CollectionOperations {
         registry.register(DistinctFunction::new()).await?;
         registry.register(EmptyFunction::new()).await?;
         registry.register(ExistsFunction::new()).await?;
-        // registry.register(InOperation::new()).await?;
+        registry.register(InOperation::new()).await?;
 
         // Navigation functions
         registry.register(FirstFunction::new()).await?;
@@ -108,6 +108,11 @@ impl CollectionOperations {
 
         // Union operator (|)
         registry.register(UnionOperator::new()).await?;
+
+        // CDA functions
+        registry
+            .register(crate::operations::HasTemplateIdOfFunction::new())
+            .await?;
 
         Ok(())
     }

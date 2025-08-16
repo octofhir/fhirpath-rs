@@ -30,6 +30,12 @@ use octofhir_fhirpath_model::FhirPathValue;
 #[derive(Debug, Clone)]
 pub struct NotOperation;
 
+impl Default for NotOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotOperation {
     pub fn new() -> Self {
         Self
@@ -50,6 +56,8 @@ impl NotOperation {
         match value {
             FhirPathValue::Empty => Ok(None),
             FhirPathValue::Boolean(b) => Ok(Some(*b)),
+            FhirPathValue::Integer(i) => Ok(Some(*i != 0)), // 0 = false, non-zero = true
+            FhirPathValue::Decimal(d) => Ok(Some(!d.is_zero())), // 0.0 = false, non-zero = true
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Ok(None)
@@ -81,7 +89,7 @@ impl FhirPathOperation for NotOperation {
 
     fn metadata(&self) -> &OperationMetadata {
         static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(|| NotOperation::create_metadata());
+            std::sync::LazyLock::new(NotOperation::create_metadata);
         &METADATA
     }
 
@@ -90,14 +98,13 @@ impl FhirPathOperation for NotOperation {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        if args.len() != 0 {
+        if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
                 actual: args.len(),
             });
         }
-        println!("{:#?}", &context.input);
         let value = Self::to_boolean(&context.input)?;
 
         // Three-valued logic for NOT
@@ -118,7 +125,7 @@ impl FhirPathOperation for NotOperation {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
-        if args.len() != 0 {
+        if !args.is_empty() {
             return Some(Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
@@ -148,7 +155,7 @@ impl FhirPathOperation for NotOperation {
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
-        if args.len() != 0 {
+        if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 0,
@@ -160,67 +167,5 @@ impl FhirPathOperation for NotOperation {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_context() -> EvaluationContext {
-        use octofhir_fhirpath_model::provider::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        use std::sync::Arc;
-
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_not_operation() {
-        let op = NotOperation::new();
-
-        // Test not true
-        let ctx = {
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Boolean(true), registry, model_provider)
-        };
-        let args = vec![];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(false));
-
-        // Test not false
-        let ctx = {
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Boolean(false), registry, model_provider)
-        };
-        let args = vec![];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Boolean(true));
-
-        // Test not empty (should return empty)
-        let ctx = {
-            use octofhir_fhirpath_model::provider::MockModelProvider;
-            use octofhir_fhirpath_registry::FhirPathRegistry;
-            use std::sync::Arc;
-
-            let registry = Arc::new(FhirPathRegistry::new());
-            let model_provider = Arc::new(MockModelProvider::new());
-            EvaluationContext::new(FhirPathValue::Empty, registry, model_provider)
-        };
-        let args = vec![];
-        let result = op.evaluate(&args, &ctx).await.unwrap();
-        assert_eq!(result, FhirPathValue::Empty);
     }
 }

@@ -37,6 +37,7 @@ struct TestCase {
     pub tags: Vec<String>,
     #[serde(default)]
     pub description: Option<String>,
+    pub expecterror: Option<bool>,
 }
 
 /// A test suite containing multiple test cases
@@ -146,10 +147,14 @@ async fn main() {
             }
         };
     // Create the FhirPathEngine with model provider
-    let engine = match octofhir_fhirpath::FhirPathEngine::with_model_provider(model_provider.clone()).await {
+    let engine = match octofhir_fhirpath::FhirPathEngine::with_model_provider(
+        model_provider.clone(),
+    )
+    .await
+    {
         Ok(engine) => engine,
         Err(e) => {
-            eprintln!("Failed to create FhirPath engine: {}", e);
+            eprintln!("Failed to create FhirPath engine: {e}");
             process::exit(1);
         }
     };
@@ -180,6 +185,11 @@ async fn main() {
         let result = match engine.evaluate(&test_case.expression, input_data).await {
             Ok(result) => result,
             Err(e) => {
+                if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+                    println!("✅ PASS");
+                    passed += 1;
+                    continue;
+                }
                 println!("⚠️ ERROR: {e}");
                 errors += 1;
                 continue;

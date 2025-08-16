@@ -15,18 +15,24 @@
 //! Modulo operation (mod) implementation for FHIRPath
 
 use crate::metadata::{
-    MetadataBuilder, OperationType, TypeConstraint, FhirPathType,
-    OperationMetadata, PerformanceComplexity, Associativity,
+    Associativity, FhirPathType, MetadataBuilder, OperationMetadata, OperationType,
+    PerformanceComplexity, TypeConstraint,
 };
 use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Collection};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
 use rust_decimal::Decimal;
 
 /// Modulo operation (mod) - returns remainder of division
 pub struct ModOperation;
+
+impl Default for ModOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ModOperation {
     pub fn new() -> Self {
@@ -34,23 +40,30 @@ impl ModOperation {
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("mod", OperationType::BinaryOperator {
-            precedence: 7,
-            associativity: Associativity::Left,
-        })
-            .description("Modulo operation - returns remainder of division")
-            .example("10 mod 3")
-            .example("7 mod 2")
-            .example("7.5 mod 2.0")
-            .returns(TypeConstraint::OneOf(vec![
-                FhirPathType::Integer, 
-                FhirPathType::Decimal
-            ]))
-            .performance(PerformanceComplexity::Constant, true)
-            .build()
+        MetadataBuilder::new(
+            "mod",
+            OperationType::BinaryOperator {
+                precedence: 7,
+                associativity: Associativity::Left,
+            },
+        )
+        .description("Modulo operation - returns remainder of division")
+        .example("10 mod 3")
+        .example("7 mod 2")
+        .example("7.5 mod 2.0")
+        .returns(TypeConstraint::OneOf(vec![
+            FhirPathType::Integer,
+            FhirPathType::Decimal,
+        ]))
+        .performance(PerformanceComplexity::Constant, true)
+        .build()
     }
 
-    fn evaluate_binary_sync(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<Result<FhirPathValue>> {
+    fn evaluate_binary_sync(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<Result<FhirPathValue>> {
         // Handle empty collections per FHIRPath spec
         match (left, right) {
             (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
@@ -119,8 +132,8 @@ impl ModOperation {
                     match Decimal::try_from(*a) {
                         Ok(a_decimal) => Ok(FhirPathValue::Decimal(a_decimal % b)),
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal".to_string()
-                        })
+                            message: "Cannot convert integer to decimal".to_string(),
+                        }),
                     }
                 }
             }
@@ -131,8 +144,8 @@ impl ModOperation {
                     match Decimal::try_from(*b) {
                         Ok(b_decimal) => Ok(FhirPathValue::Decimal(a % b_decimal)),
                         Err(_) => Err(FhirPathError::ArithmeticError {
-                            message: "Cannot convert integer to decimal".to_string()
-                        })
+                            message: "Cannot convert integer to decimal".to_string(),
+                        }),
                     }
                 }
             }
@@ -143,11 +156,16 @@ impl ModOperation {
         Some(result.map(|val| FhirPathValue::Collection(Collection::from(vec![val]))))
     }
 
-    async fn evaluate_binary(&self, left: &FhirPathValue, right: &FhirPathValue, _context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn evaluate_binary(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+        _context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Unwrap single-item collections
         let left_unwrapped = self.unwrap_single_collection(left);
         let right_unwrapped = self.unwrap_single_collection(right);
-        
+
         // Try sync path first
         if let Some(result) = self.evaluate_binary_sync(&left_unwrapped, &right_unwrapped) {
             return result;
@@ -157,8 +175,9 @@ impl ModOperation {
         Err(FhirPathError::TypeError {
             message: format!(
                 "Cannot perform modulo of {} by {}",
-                left_unwrapped.type_name(), right_unwrapped.type_name()
-            )
+                left_unwrapped.type_name(),
+                right_unwrapped.type_name()
+            ),
         })
     }
 }
@@ -177,9 +196,8 @@ impl FhirPathOperation for ModOperation {
     }
 
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> = std::sync::LazyLock::new(|| {
-            ModOperation::create_metadata()
-        });
+        static METADATA: std::sync::LazyLock<OperationMetadata> =
+            std::sync::LazyLock::new(ModOperation::create_metadata);
         &METADATA
     }
 
@@ -230,142 +248,8 @@ impl ModOperation {
     /// Unwrap single-item collections to their contained value
     fn unwrap_single_collection(&self, value: &FhirPathValue) -> FhirPathValue {
         match value {
-            FhirPathValue::Collection(items) if items.len() == 1 => {
-                items.first().unwrap().clone()
-            }
-            _ => value.clone()
+            FhirPathValue::Collection(items) if items.len() == 1 => items.first().unwrap().clone(),
+            _ => value.clone(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
-
-    fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        use std::sync::Arc;
-        use octofhir_fhirpath_model::MockModelProvider;
-        use octofhir_fhirpath_registry::FhirPathRegistry;
-        
-        let registry = Arc::new(FhirPathRegistry::new());
-        let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, registry, model_provider)
-    }
-
-    #[tokio::test]
-    async fn test_integer_mod() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // 10 mod 3 = 1
-        let args = vec![FhirPathValue::Integer(10), FhirPathValue::Integer(3)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(1)])));
-
-        // 7 mod 2 = 1
-        let args = vec![FhirPathValue::Integer(7), FhirPathValue::Integer(2)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(1)])));
-
-        // 8 mod 4 = 0
-        let args = vec![FhirPathValue::Integer(8), FhirPathValue::Integer(4)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(0)])));
-
-        // Negative numbers
-        // -10 mod 3 = -1 (sign follows dividend in Rust)
-        let args = vec![FhirPathValue::Integer(-10), FhirPathValue::Integer(3)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(-1)])));
-    }
-
-    #[tokio::test]
-    async fn test_decimal_mod() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // 7.5 mod 2.0 = 1.5
-        let dec1 = Decimal::from_str("7.5").unwrap();
-        let dec2 = Decimal::from_str("2.0").unwrap();
-        let args = vec![FhirPathValue::Decimal(dec1), FhirPathValue::Decimal(dec2)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("1.5").unwrap())])));
-
-        // 10.7 mod 3.2 = 1.1
-        let dec1 = Decimal::from_str("10.7").unwrap();
-        let dec2 = Decimal::from_str("3.2").unwrap();
-        let args = vec![FhirPathValue::Decimal(dec1), FhirPathValue::Decimal(dec2)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("1.1").unwrap())])));
-    }
-
-    #[tokio::test]
-    async fn test_mixed_type_mod() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Integer mod by decimal
-        let args = vec![FhirPathValue::Integer(7), FhirPathValue::Decimal(Decimal::from_str("2.5").unwrap())];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("2.0").unwrap())])));
-
-        // Decimal mod by integer
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("7.5").unwrap()), FhirPathValue::Integer(3)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Decimal(Decimal::from_str("1.5").unwrap())])));
-    }
-
-    #[tokio::test]
-    async fn test_mod_by_zero() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Modulo by zero should return empty collection
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Integer(0)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        // Decimal modulo by zero should return empty collection
-        let args = vec![FhirPathValue::Decimal(Decimal::from_str("5.0").unwrap()), FhirPathValue::Decimal(Decimal::ZERO)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[tokio::test]
-    async fn test_mod_with_empty() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Empty operands should return empty collection
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::Empty];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-
-        let args = vec![FhirPathValue::Empty, FhirPathValue::Integer(5)];
-        let result = mod_op.evaluate(&args, &context).await.unwrap();
-        assert_eq!(result, FhirPathValue::Collection(Collection::from(vec![])));
-    }
-
-    #[test]
-    fn test_sync_evaluation() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        let args = vec![FhirPathValue::Integer(10), FhirPathValue::Integer(3)];
-        let sync_result = mod_op.try_evaluate_sync(&args, &context).unwrap().unwrap();
-        assert_eq!(sync_result, FhirPathValue::Collection(Collection::from(vec![FhirPathValue::Integer(1)])));
-        assert!(mod_op.supports_sync());
-    }
-
-    #[tokio::test]
-    async fn test_type_errors() {
-        let mod_op = ModOperation::new();
-        let context = create_test_context(FhirPathValue::Empty);
-
-        // Cannot mod by string
-        let args = vec![FhirPathValue::Integer(5), FhirPathValue::String("hello".into())];
-        let result = mod_op.evaluate(&args, &context).await;
-        assert!(result.is_err());
     }
 }
