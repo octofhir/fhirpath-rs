@@ -299,7 +299,7 @@ async fn test_lambda_with_different_types() {
     let engine = TestUtils::create_test_engine().await.unwrap();
 
     // Test with mixed type collections
-    let data = json!([1, "hello", true, 3.14]);
+    let data = json!([1, "hello", true, std::f64::consts::PI]);
 
     // Filter by type using lambda
     let result = engine

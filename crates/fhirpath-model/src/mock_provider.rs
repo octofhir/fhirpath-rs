@@ -683,10 +683,10 @@ impl ModelProvider for MockModelProvider {
         reference_url: &str,
     ) -> Option<super::provider::ReferenceComponents> {
         // Handle fragment references
-        if reference_url.starts_with('#') {
+        if let Some(stripped) = reference_url.strip_prefix('#') {
             return Some(super::provider::ReferenceComponents {
                 resource_type: "".to_string(),
-                resource_id: reference_url[1..].to_string(),
+                resource_id: stripped.to_string(),
                 version_id: None,
                 fragment: Some(reference_url.to_string()),
                 full_url: None,
@@ -724,7 +724,7 @@ impl ModelProvider for MockModelProvider {
                             resource_type,
                             resource_id,
                             version_id,
-                            fragment: url.fragment().map(|f| format!("#{}", f)),
+                            fragment: url.fragment().map(|f| format!("#{f}")),
                             full_url: Some(reference_url.to_string()),
                             base_url: Some(base_url),
                         });

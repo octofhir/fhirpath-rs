@@ -45,9 +45,10 @@ async fn test_all_literal_types() {
     assert_eq!(as_single_integer(&result), Some(0));
 
     // Decimal literals
-    let result = engine.evaluate("3.14", json!({})).await.unwrap();
+    let result = engine.evaluate("5.25", json!({})).await.unwrap();
     if let Some(decimal_val) = as_single_decimal(&result) {
-        assert!((decimal_val.to_string().parse::<f64>().unwrap_or(0.0) - 3.14).abs() < 0.001);
+        let expected = 5.25;
+        assert!((decimal_val.to_string().parse::<f64>().unwrap_or(0.0) - expected).abs() < 0.001);
     } else {
         panic!("Expected decimal value");
     }

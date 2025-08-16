@@ -618,10 +618,10 @@ mod tests {
         pools.return_json_value(json_num);
 
         // Get values back
-        let val1 = pools.get_json_value();
-        let val2 = pools.get_json_value();
-        let val3 = pools.get_json_value();
-        let val4 = pools.get_json_value();
+        let _val1 = pools.get_json_value();
+        let _val2 = pools.get_json_value();
+        let _val3 = pools.get_json_value();
+        let _val4 = pools.get_json_value();
 
         // Should have gotten 4 values from pool
         let stats = pools.stats();

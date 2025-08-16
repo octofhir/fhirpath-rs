@@ -56,7 +56,7 @@ async fn test_numeric_precision_regression() {
         .unwrap();
 
     if let Some(decimal_result) = as_single_decimal(&result) {
-        let expected = 3.14159 + 2.71828;
+        let expected = std::f64::consts::PI + std::f64::consts::E;
         let actual = decimal_result.to_string().parse::<f64>().unwrap_or(0.0);
         assert!(
             (actual - expected).abs() < 0.0001,
@@ -122,10 +122,9 @@ async fn test_boolean_coercion_regression() {
     let result = engine.evaluate("0 and true", json!({})).await;
     // This depends on how boolean coercion is implemented
     // The important thing is that it's consistent
-    match result {
-        Ok(_) => {}  // Either result is acceptable as long as it's consistent
-        Err(_) => {} // Error is also acceptable if not supported
-    }
+    // Either result is acceptable as long as it's consistent
+    // Error is also acceptable if not supported
+    if result.is_ok() {};
 }
 
 #[tokio::test]

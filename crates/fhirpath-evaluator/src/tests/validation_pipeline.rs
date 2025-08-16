@@ -389,9 +389,7 @@ impl ValidationPipeline {
             .count() as f64
             * 5.0;
 
-        (base_score + coverage_bonus - critical_penalty)
-            .max(0.0)
-            .min(100.0)
+        (base_score + coverage_bonus - critical_penalty).clamp(0.0, 100.0)
     }
 }
 

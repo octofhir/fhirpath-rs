@@ -561,7 +561,7 @@ async fn test_fhir_data_type_handling() {
         "resourceType": "TestResource",
         "booleanField": true,
         "integerField": 42,
-        "decimalField": 3.14159,
+        "decimalField": std::f64::consts::PI,
         "stringField": "hello world",
         "dateField": "2023-12-25",
         "dateTimeField": "2023-12-25T10:30:00Z",

@@ -731,7 +731,7 @@ impl ModelProvider for FhirSchemaModelProvider {
 
                         // Check if fullUrl ends with the reference (accounting for base URL)
                         // Example: fullUrl="http://localhost:8080/fhir/Medication/123" should match reference="Medication/123"
-                        if full_url.ends_with(&format!("/{}", reference_url)) {
+                        if full_url.ends_with(&format!("/{reference_url}")) {
                             return Some(crate::FhirPathValue::resource_from_json(
                                 resource.clone(),
                             ));
@@ -800,10 +800,10 @@ impl ModelProvider for FhirSchemaModelProvider {
         reference_url: &str,
     ) -> Option<super::provider::ReferenceComponents> {
         // Handle fragment references
-        if reference_url.starts_with('#') {
+        if let Some(stripped) = reference_url.strip_prefix('#') {
             return Some(super::provider::ReferenceComponents {
                 resource_type: "".to_string(),
-                resource_id: reference_url[1..].to_string(),
+                resource_id: stripped.to_string(),
                 version_id: None,
                 fragment: Some(reference_url.to_string()),
                 full_url: None,
@@ -841,7 +841,7 @@ impl ModelProvider for FhirSchemaModelProvider {
                             resource_type,
                             resource_id,
                             version_id,
-                            fragment: url.fragment().map(|f| format!("#{}", f)),
+                            fragment: url.fragment().map(|f| format!("#{f}")),
                             full_url: Some(reference_url.to_string()),
                             base_url: Some(base_url),
                         });
