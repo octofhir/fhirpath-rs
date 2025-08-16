@@ -151,7 +151,7 @@ Output Directory: {}
 ## Files Generated
 
 1. `{}_tokenize.svg` - Tokenization flamegraph
-2. `{}_parse.svg` - Parsing flamegraph  
+2. `{}_parse.svg` - Parsing flamegraph
 3. `{}_evaluate.svg` - Evaluation flamegraph
 
 ## Usage
@@ -161,7 +161,7 @@ To view flamegraphs, open the SVG files in a web browser.
 ## Notes
 
 - Profiling was performed with {} iterations
-- Data source: {} 
+- Data source: {}
 - All times are in CPU time, not wall-clock time
 - Flamegraphs show function call stacks and their relative CPU usage
 

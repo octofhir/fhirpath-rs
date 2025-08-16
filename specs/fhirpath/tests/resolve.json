@@ -25,13 +25,41 @@
       "inputfile": "bundle-small.json",
       "expected": [
         {
-          "_resolved": true,
+          "code": {
+            "coding": [
+              {
+                "code": "62584089701",
+                "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-ndc"
+              }
+            ]
+          },
           "id": "60d3201b-f9da-5dc8-956f-fc72c515e953",
+          "identifier": [
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-ndc",
+              "value": "62584089701"
+            },
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-formulary-drug-cd",
+              "value": "FOLI1"
+            },
+            {
+              "system": "http://fhir.mimic.mit.edu/CodeSystem/medication-name",
+              "value": "FoLIC Acid"
+            }
+          ],
           "meta": {
-            "lastUpdated": "2024-01-01T00:00:00Z",
+            "lastUpdated": "2025-07-30T17:39:59.813+00:00",
+            "profile": [
+              "http://fhir.mimic.mit.edu/StructureDefinition/mimic-medication"
+            ],
             "versionId": "1"
           },
-          "resourceType": "Medication"
+          "resourceType": "Medication",
+          "text": {
+            "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><div class=\"hapiHeaderText\"> 62584089701 </div></div>",
+            "status": "generated"
+          }
         }
       ]
     }

@@ -27,6 +27,28 @@ pub struct MockModelProvider {
 }
 
 impl MockModelProvider {
+    /// Helper method to check if a resource is a Bundle
+    fn is_bundle_resource(&self, resource: &crate::FhirPathValue) -> bool {
+        match resource {
+            crate::FhirPathValue::Resource(res) => res.resource_type() == Some("Bundle"),
+            crate::FhirPathValue::JsonValue(json) => json
+                .as_json()
+                .get("resourceType")
+                .and_then(|rt| rt.as_str())
+                .map(|rt| rt == "Bundle")
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
+
+    /// Helper method to check if two resources are the same
+    fn is_same_resource(
+        &self,
+        resource1: &crate::FhirPathValue,
+        resource2: &crate::FhirPathValue,
+    ) -> bool {
+        std::ptr::eq(resource1, resource2)
+    }
     /// Create a new mock provider with basic FHIR types
     pub fn new() -> Self {
         let mut provider = Self::default();
@@ -513,6 +535,243 @@ impl ModelProvider for MockModelProvider {
                 )]
             },
         })
+    }
+
+    // Enhanced reference resolution methods for MockModelProvider
+    async fn resolve_reference_in_context(
+        &self,
+        reference_url: &str,
+        root_resource: &crate::FhirPathValue,
+        current_resource: Option<&crate::FhirPathValue>,
+    ) -> Option<crate::FhirPathValue> {
+        // Handle empty references
+        if reference_url.is_empty() {
+            return None;
+        }
+
+        // ALWAYS try to resolve within Bundle context first if root is a Bundle
+        // This is critical for Bundle.entry.resource.medicationReference.resolve() scenarios
+        if self.is_bundle_resource(root_resource) {
+            if let Some(resolved) = self.resolve_in_bundle(reference_url, root_resource).await {
+                return Some(resolved);
+            }
+        }
+
+        // Then try to resolve within contained resources in current resource
+        if let Some(current) = current_resource {
+            if let Some(resolved) = self.resolve_in_contained(reference_url, current).await {
+                return Some(resolved);
+            }
+        }
+
+        // Also check root resource for contained resources (if different from current)
+        if current_resource.is_some()
+            && !self.is_same_resource(current_resource.unwrap(), root_resource)
+        {
+            if let Some(resolved) = self
+                .resolve_in_contained(reference_url, root_resource)
+                .await
+            {
+                return Some(resolved);
+            }
+        }
+
+        // If root is not a Bundle but current is a Bundle, try that too
+        if let Some(current) = current_resource {
+            if self.is_bundle_resource(current) && !self.is_bundle_resource(root_resource) {
+                if let Some(resolved) = self.resolve_in_bundle(reference_url, current).await {
+                    return Some(resolved);
+                }
+            }
+        }
+
+        // Finally try external resolution (returns None for MockModelProvider)
+        self.resolve_external_reference(reference_url).await
+    }
+
+    async fn resolve_in_bundle(
+        &self,
+        reference_url: &str,
+        bundle: &crate::FhirPathValue,
+    ) -> Option<crate::FhirPathValue> {
+        let bundle_json = match bundle {
+            crate::FhirPathValue::Resource(bundle_resource) => bundle_resource.as_json(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_json(),
+            _ => return None,
+        };
+
+        if let Some(entries) = bundle_json.get("entry").and_then(|e| e.as_array()) {
+            for entry in entries {
+                if let Some(resource) = entry.get("resource") {
+                    // Check fullUrl first (preferred for Bundle resolution)
+                    if let Some(full_url) = entry.get("fullUrl").and_then(|u| u.as_str()) {
+                        if full_url.ends_with(reference_url) || full_url == reference_url {
+                            return Some(crate::FhirPathValue::resource_from_json(
+                                resource.clone(),
+                            ));
+                        }
+                    }
+
+                    // Check resource type and ID
+                    if let (Some(resource_type), Some(id)) = (
+                        resource.get("resourceType").and_then(|rt| rt.as_str()),
+                        resource.get("id").and_then(|id| id.as_str()),
+                    ) {
+                        let resource_ref = format!("{resource_type}/{id}");
+                        if resource_ref == reference_url {
+                            return Some(crate::FhirPathValue::resource_from_json(
+                                resource.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    async fn resolve_in_contained(
+        &self,
+        reference_url: &str,
+        containing_resource: &crate::FhirPathValue,
+    ) -> Option<crate::FhirPathValue> {
+        let resource_json = match containing_resource {
+            crate::FhirPathValue::Resource(resource) => resource.as_json(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_json(),
+            _ => return None,
+        };
+
+        if let Some(contained) = resource_json.get("contained").and_then(|c| c.as_array()) {
+            for contained_resource in contained {
+                if let (Some(resource_type), Some(id)) = (
+                    contained_resource
+                        .get("resourceType")
+                        .and_then(|rt| rt.as_str()),
+                    contained_resource.get("id").and_then(|id| id.as_str()),
+                ) {
+                    // Check for fragment reference (starts with #)
+                    if reference_url.starts_with('#') && &reference_url[1..] == id {
+                        return Some(crate::FhirPathValue::resource_from_json(
+                            contained_resource.clone(),
+                        ));
+                    }
+
+                    // Check for full reference
+                    let resource_ref = format!("{resource_type}/{id}");
+                    if resource_ref == reference_url {
+                        return Some(crate::FhirPathValue::resource_from_json(
+                            contained_resource.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    async fn resolve_external_reference(
+        &self,
+        _reference_url: &str,
+    ) -> Option<crate::FhirPathValue> {
+        // MockModelProvider should not create placeholders for external references
+        // Bundle resolution should take precedence over external resolution
+        None
+    }
+
+    fn parse_reference_url(
+        &self,
+        reference_url: &str,
+    ) -> Option<super::provider::ReferenceComponents> {
+        // Handle fragment references
+        if reference_url.starts_with('#') {
+            return Some(super::provider::ReferenceComponents {
+                resource_type: "".to_string(),
+                resource_id: reference_url[1..].to_string(),
+                version_id: None,
+                fragment: Some(reference_url.to_string()),
+                full_url: None,
+                base_url: None,
+            });
+        }
+
+        // Handle full URLs
+        if reference_url.starts_with("http://") || reference_url.starts_with("https://") {
+            if let Ok(url) = url::Url::parse(reference_url) {
+                let path = url.path();
+                // Extract resource type and ID from path like /Patient/123
+                let path_segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+
+                if path_segments.len() >= 2 {
+                    let resource_type = path_segments[path_segments.len() - 2].to_string();
+                    let resource_id = path_segments[path_segments.len() - 1].to_string();
+
+                    // Check for version history
+                    let (resource_id, version_id) = if path_segments.len() >= 4
+                        && path_segments[path_segments.len() - 3] == "_history"
+                    {
+                        (
+                            path_segments[path_segments.len() - 4].to_string(),
+                            Some(resource_id),
+                        )
+                    } else {
+                        (resource_id, None)
+                    };
+
+                    if let Some(host_str) = url.host_str() {
+                        let base_url = format!("{}://{}", url.scheme(), host_str);
+
+                        return Some(super::provider::ReferenceComponents {
+                            resource_type,
+                            resource_id,
+                            version_id,
+                            fragment: url.fragment().map(|f| format!("#{}", f)),
+                            full_url: Some(reference_url.to_string()),
+                            base_url: Some(base_url),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Handle ResourceType/id format
+        if let Some(slash_pos) = reference_url.find('/') {
+            let resource_type = reference_url[..slash_pos].to_string();
+            let remaining = &reference_url[slash_pos + 1..];
+
+            // Check for version history
+            if let Some(history_pos) = remaining.find("/_history/") {
+                let resource_id = remaining[..history_pos].to_string();
+                let version_id = remaining[history_pos + 10..].to_string();
+
+                return Some(super::provider::ReferenceComponents {
+                    resource_type,
+                    resource_id,
+                    version_id: Some(version_id),
+                    fragment: None,
+                    full_url: None,
+                    base_url: None,
+                });
+            } else {
+                let resource_id = remaining.to_string();
+
+                // Basic validation - resource type should be capitalized
+                if !resource_type.is_empty()
+                    && !resource_id.is_empty()
+                    && resource_type.chars().next().unwrap().is_uppercase()
+                {
+                    return Some(super::provider::ReferenceComponents {
+                        resource_type,
+                        resource_id,
+                        version_id: None,
+                        fragment: None,
+                        full_url: None,
+                        base_url: None,
+                    });
+                }
+            }
+        }
+
+        None
     }
 }
 

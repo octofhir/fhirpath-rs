@@ -14,8 +14,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 | **Total Test Suites** | 100 | 100% |
 | **Total Individual Tests** | 1017 | 100% |
 | **Passing Tests** | 904 | 88.9% |
-| **Failing Tests** | 103 | 10.1% |
-| **Error Tests** | 10 | 1.0% |
+| **Failing Tests** | 102 | 10.0% |
+| **Error Tests** | 11 | 1.1% |
 
 ## Test Results by Suite
 
@@ -142,5 +142,5 @@ The fhirpath-rs implementation currently passes approximately **88.9% of all FHI
 
 ---
 
-*Report generated on: 2025-08-16 13:43:27*
+*Report generated on: 2025-08-16 15:45:06*
 *Command: `just test-coverage` or `cargo run --package fhirpath-tools --bin test-coverage`*

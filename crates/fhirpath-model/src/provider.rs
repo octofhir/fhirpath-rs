@@ -57,6 +57,23 @@ pub use octofhir_fhir_model::boxing::{
 // Re-export error types
 pub use octofhir_fhir_model::error::{ModelError, Result as ModelResult};
 
+/// Components of a parsed FHIR reference URL
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReferenceComponents {
+    /// Resource type (e.g., "Patient")
+    pub resource_type: String,
+    /// Resource ID
+    pub resource_id: String,
+    /// Version ID (if specified with /_history/)
+    pub version_id: Option<String>,
+    /// Fragment identifier (for contained resources, starts with #)
+    pub fragment: Option<String>,
+    /// Full URL (if the reference was a complete URL)
+    pub full_url: Option<String>,
+    /// Base URL (extracted from full URL)
+    pub base_url: Option<String>,
+}
+
 /// Async-first ModelProvider trait for FHIR type introspection and validation
 /// This replaces the synchronous ModelProvider with an async-first design
 #[async_trait]
@@ -105,6 +122,41 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
         reference_url: &str,
         context: &dyn ResolutionContext,
     ) -> Option<Box<dyn ValueReflection>>;
+
+    /// Resolve a reference to a FhirPathValue in the context of a specific Bundle or resource
+    /// This is the enhanced method that the resolve() function should use
+    async fn resolve_reference_in_context(
+        &self,
+        reference_url: &str,
+        root_resource: &crate::FhirPathValue,
+        current_resource: Option<&crate::FhirPathValue>,
+    ) -> Option<crate::FhirPathValue>;
+
+    /// Resolve a reference within a Bundle's entries by fullUrl or resource type/id
+    async fn resolve_in_bundle(
+        &self,
+        reference_url: &str,
+        bundle: &crate::FhirPathValue,
+    ) -> Option<crate::FhirPathValue>;
+
+    /// Resolve a reference within contained resources (fragment references starting with #)
+    async fn resolve_in_contained(
+        &self,
+        reference_url: &str,
+        containing_resource: &crate::FhirPathValue,
+    ) -> Option<crate::FhirPathValue>;
+
+    /// Resolve an external reference (ResourceType/id format) using FHIR server or other external provider
+    async fn resolve_external_reference(&self, reference_url: &str)
+    -> Option<crate::FhirPathValue>;
+
+    /// Parse a reference URL into its components (resource type, id, version, fragment)
+    fn parse_reference_url(&self, reference_url: &str) -> Option<ReferenceComponents>;
+
+    /// Get the base URL for this provider's FHIR server (if any)
+    fn get_base_fhir_url(&self) -> Option<String> {
+        None
+    }
 
     /// Analyze a FHIRPath expression
     async fn analyze_expression(&self, expression: &str) -> Result<ExpressionAnalysis, ModelError>;

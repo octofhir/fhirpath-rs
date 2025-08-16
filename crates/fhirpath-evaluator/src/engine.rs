@@ -1973,12 +1973,14 @@ impl FhirPathEngine {
 
         // Get operation from registry and evaluate
         if let Some(operation) = self.registry.get_operation(symbol).await {
-            // Create registry context for operation evaluation
-            let registry_context = octofhir_fhirpath_registry::operations::EvaluationContext::new(
-                input,
-                self.registry.clone(),
-                self.model_provider.clone(),
-            );
+            // Create registry context for operation evaluation - PRESERVE ORIGINAL ROOT
+            let registry_context =
+                octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
+                    input,
+                    context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
+                    self.registry.clone(),
+                    self.model_provider.clone(),
+                );
 
             operation
                 .evaluate(&[left, right], &registry_context)
@@ -2016,12 +2018,14 @@ impl FhirPathEngine {
 
         // Get operation from registry and evaluate
         if let Some(operation) = self.registry.get_operation(symbol).await {
-            // Create registry context for operation evaluation
-            let registry_context = octofhir_fhirpath_registry::operations::EvaluationContext::new(
-                input,
-                self.registry.clone(),
-                self.model_provider.clone(),
-            );
+            // Create registry context for operation evaluation - PRESERVE ORIGINAL ROOT
+            let registry_context =
+                octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
+                    input,
+                    context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
+                    self.registry.clone(),
+                    self.model_provider.clone(),
+                );
 
             operation
                 .evaluate(&[operand_value], &registry_context)
@@ -2984,10 +2988,11 @@ impl FhirPathEngine {
 
                     // Get method from registry and evaluate
                     if let Some(operation) = self.registry.get_operation(method_name).await {
-                        // Create registry context with the object as input (context) for the method
+                        // Create registry context with the object as input (context) for the method - PRESERVE ORIGINAL ROOT
                         let registry_context =
-                            octofhir_fhirpath_registry::operations::EvaluationContext::new(
+                            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
                                 object,
+                                context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
                                 self.registry.clone(),
                                 self.model_provider.clone(),
                             );

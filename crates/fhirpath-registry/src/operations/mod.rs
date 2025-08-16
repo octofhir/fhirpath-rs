@@ -85,6 +85,22 @@ impl EvaluationContext {
         }
     }
 
+    /// Create a new evaluation context preserving root from another context
+    pub fn with_preserved_root(
+        input: FhirPathValue,
+        original_root: FhirPathValue,
+        registry: Arc<FhirPathRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Self {
+        Self {
+            root: original_root,
+            input,
+            variables: FxHashMap::default(),
+            registry,
+            model_provider,
+        }
+    }
+
     /// Create a new context with different focus/input value (alias for with_input)
     pub fn with_focus(&self, input: FhirPathValue) -> Self {
         self.with_input(input)

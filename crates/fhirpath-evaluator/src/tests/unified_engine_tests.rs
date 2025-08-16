@@ -292,7 +292,7 @@ async fn test_recursion_depth_limit() {
             if let Some(int_val) = as_single_integer(&value) {
                 assert_eq!(int_val, 51);
             }
-        }  
+        }
         Err(_) => {} // Hit recursion limit as expected - this is also valid
     }
 }
