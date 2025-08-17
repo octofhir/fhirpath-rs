@@ -103,8 +103,8 @@ impl UpperFunction {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "upper() takes no arguments".to_string(),
             });
         }
@@ -140,8 +140,8 @@ impl UpperFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "upper() requires input to be a string".to_string(),
             }),
         }

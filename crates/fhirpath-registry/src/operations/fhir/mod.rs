@@ -14,11 +14,15 @@
 
 //! FHIR-specific functions module
 
+pub mod children;
 pub mod conforms_to;
+pub mod descendants;
 pub mod extension;
 pub mod resolve;
 
+pub use children::ChildrenFunction;
 pub use conforms_to::ConformsToFunction;
+pub use descendants::DescendantsFunction;
 pub use extension::ExtensionFunction;
 pub use resolve::ResolveFunction;
 
@@ -30,6 +34,8 @@ impl FhirOperations {
         registry.register(ResolveFunction::new()).await?;
         registry.register(ExtensionFunction::new()).await?;
         registry.register(ConformsToFunction::new()).await?;
+        registry.register(ChildrenFunction::new()).await?;
+        registry.register(DescendantsFunction::new()).await?;
         Ok(())
     }
 }

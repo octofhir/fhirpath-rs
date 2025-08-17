@@ -14,6 +14,7 @@
 
 // Evaluation context for FHIRPath expressions
 
+use octofhir_fhirpath_model::json_arc::ArcJsonValue;
 use octofhir_fhirpath_model::{
     FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
 };
@@ -516,8 +517,6 @@ impl EvaluationContext {
     /// Create context for item iteration in lambda functions
     /// This method provides a clean way to create item-specific contexts for lambda evaluation
     pub fn for_item(&self, item: FhirPathValue) -> Self {
-        use octofhir_fhirpath_model::{json_arc::ArcJsonValue, resource::FhirResource};
-
         // Determine the appropriate context input based on the item type
         let item_context_input = match &item {
             octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),
@@ -548,8 +547,6 @@ impl EvaluationContext {
 
     /// Create context for item iteration with explicit index and total
     pub fn for_item_with_metadata(&self, item: FhirPathValue, index: usize, total: usize) -> Self {
-        use octofhir_fhirpath_model::{json_arc::ArcJsonValue, resource::FhirResource};
-
         // Determine the appropriate context input based on the item type
         let item_context_input = match &item {
             octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),

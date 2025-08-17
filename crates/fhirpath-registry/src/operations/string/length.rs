@@ -103,8 +103,8 @@ impl LengthFunction {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "length() takes no arguments".to_string(),
             });
         }
@@ -149,8 +149,8 @@ impl LengthFunction {
                     Ok(FhirPathValue::Integer(length))
                 } else {
                     Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "length() can only be called on string values or collections"
                             .to_string(),
                     })

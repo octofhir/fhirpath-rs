@@ -71,8 +71,8 @@ impl ToTimeFunction {
                 } else {
                     // Multiple items is an error
                     Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message:
                             "toTime() requires a single item, but collection has multiple items"
                                 .to_string(),

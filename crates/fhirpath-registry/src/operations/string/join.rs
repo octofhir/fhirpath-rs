@@ -110,8 +110,8 @@ impl JoinFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "join() requires exactly one argument (separator)".to_string(),
             });
         }
@@ -120,8 +120,8 @@ impl JoinFunction {
         let separator = self.extract_string_from_value(&args[0])?;
         if separator.is_none() {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "join() separator parameter must be a string".to_string(),
             });
         }

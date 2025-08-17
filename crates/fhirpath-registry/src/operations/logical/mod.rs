@@ -12,30 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Logical operators module
+//! Logical functions module (operators moved to evaluator)
 
-pub mod and;
-pub mod implies;
 pub mod not;
-pub mod or;
-pub mod xor;
 
-pub use and::AndOperation;
-pub use implies::ImpliesOperation;
 pub use not::NotOperation;
-pub use or::OrOperation;
-pub use xor::XorOperation;
 
-/// Registry helper for logical operations
+/// Registry helper for logical functions
 pub struct LogicalOperations;
 
 impl LogicalOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
-        registry.register(AndOperation::new()).await?;
-        registry.register(OrOperation::new()).await?;
         registry.register(NotOperation::new()).await?;
-        registry.register(XorOperation::new()).await?;
-        registry.register(ImpliesOperation::new()).await?;
         Ok(())
     }
 }

@@ -19,7 +19,7 @@ use crate::metadata::{
 };
 use crate::operation::FhirPathOperation;
 use crate::operations::EvaluationContext;
-use crate::operations::lambda::ChildrenFunction;
+use crate::operations::fhir::ChildrenFunction;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};

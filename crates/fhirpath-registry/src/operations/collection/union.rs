@@ -121,14 +121,20 @@ impl UnionFunction {
 
         // Add items from left collection first
         for item in &left_items {
-            if !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+            if !result_items
+                .iter()
+                .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+            {
                 result_items.push(item.clone());
             }
         }
 
         // Add items from right collection, skipping duplicates
         for item in &right_items {
-            if !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+            if !result_items
+                .iter()
+                .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+            {
                 result_items.push(item.clone());
             }
         }
@@ -144,5 +150,4 @@ impl UnionFunction {
             _ => vec![value.clone()],
         }
     }
-
 }

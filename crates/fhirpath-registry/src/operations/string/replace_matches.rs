@@ -106,8 +106,8 @@ impl ReplaceMatchesFunction {
         // Validate arguments
         if args.len() != 2 {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "replaceMatches() requires exactly two arguments (regex, substitution)"
                     .to_string(),
             });
@@ -190,8 +190,8 @@ impl ReplaceMatchesFunction {
 
         // Compile regex
         let regex = Regex::new(&pattern).map_err(|e| FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+            expression: None,
+            location: None,
             message: format!("Invalid regex pattern '{pattern}': {e}"),
         })?;
 

@@ -14,102 +14,155 @@
 
 //! Logical operations evaluator
 
-use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
+use octofhir_fhirpath_core::EvaluationResult;
 use octofhir_fhirpath_model::FhirPathValue;
-use octofhir_fhirpath_registry::{
-    FhirPathRegistry, operations::EvaluationContext as RegistryEvaluationContext,
-};
-use std::sync::Arc;
 
 /// Specialized evaluator for logical operations
 pub struct LogicalEvaluator;
 
 impl LogicalEvaluator {
-    /// Helper method to evaluate binary logical operations via registry
-    async fn evaluate_binary_operation(
-        symbol: &str,
-        left: &FhirPathValue,
-        right: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
-    ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation(symbol).await {
-            operation.evaluate(&[left.clone(), right.clone()], context).await
-                .map_err(|e| EvaluationError::InvalidOperation {
-                    message: format!("Logical operation '{symbol}' error: {e}"),
-                })
-        } else {
-            Err(EvaluationError::InvalidOperation {
-                message: format!("Logical operation '{symbol}' not found in registry"),
-            })
+    /// Helper to handle collection extraction for logical operations
+    fn extract_operands<'a>(
+        left: &'a FhirPathValue,
+        right: &'a FhirPathValue,
+    ) -> (Option<&'a FhirPathValue>, Option<&'a FhirPathValue>) {
+        let left_val = match left {
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    items.first()
+                } else if items.is_empty() {
+                    None
+                } else {
+                    None // Multi-element collections not supported for logical operations
+                }
+            }
+            FhirPathValue::Empty => None,
+            val => Some(val),
+        };
+
+        let right_val = match right {
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    items.first()
+                } else if items.is_empty() {
+                    None
+                } else {
+                    None // Multi-element collections not supported for logical operations
+                }
+            }
+            FhirPathValue::Empty => None,
+            val => Some(val),
+        };
+
+        (left_val, right_val)
+    }
+
+    /// Helper to extract boolean value or convert to boolean per FHIRPath rules
+    fn to_boolean(value: &FhirPathValue) -> Option<bool> {
+        match value {
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Integer(i) => Some(*i != 0),
+            FhirPathValue::Decimal(d) => Some(!d.is_zero()),
+            FhirPathValue::String(s) => Some(!s.is_empty()),
+            FhirPathValue::Collection(items) => Some(!items.is_empty()),
+            FhirPathValue::Empty => None,
+            _ => Some(true), // Other types are considered truthy in FHIRPath
         }
     }
 
-    /// Helper method to evaluate unary logical operations via registry
-    async fn evaluate_unary_operation(
-        symbol: &str,
-        operand: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
-    ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation(symbol).await {
-            operation.evaluate(&[operand.clone()], context).await
-                .map_err(|e| EvaluationError::InvalidOperation {
-                    message: format!("Unary logical operation '{symbol}' error: {e}"),
-                })
-        } else {
-            Err(EvaluationError::InvalidOperation {
-                message: format!("Unary logical operation '{symbol}' not found in registry"),
-            })
-        }
-    }
-
-    /// Evaluate logical AND operation
+    /// Evaluate logical AND operation (FHIRPath three-valued logic)
     pub async fn evaluate_and(
         left: &FhirPathValue,
         right: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        Self::evaluate_binary_operation("and", left, right, registry, context).await
+        let (left_val, right_val) = Self::extract_operands(left, right);
+
+        match (
+            left_val.and_then(Self::to_boolean),
+            right_val.and_then(Self::to_boolean),
+        ) {
+            (Some(false), _) | (_, Some(false)) => Ok(FhirPathValue::Boolean(false)), // Short-circuit: false AND anything = false
+            (Some(true), Some(true)) => Ok(FhirPathValue::Boolean(true)),
+            _ => Ok(FhirPathValue::Empty), // Any empty/null operand with non-false other = empty
+        }
     }
 
-    /// Evaluate logical OR operation
+    /// Evaluate logical OR operation (FHIRPath three-valued logic)
     pub async fn evaluate_or(
         left: &FhirPathValue,
         right: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        Self::evaluate_binary_operation("or", left, right, registry, context).await
+        let (left_val, right_val) = Self::extract_operands(left, right);
+
+        match (
+            left_val.and_then(Self::to_boolean),
+            right_val.and_then(Self::to_boolean),
+        ) {
+            (Some(true), _) | (_, Some(true)) => Ok(FhirPathValue::Boolean(true)), // Short-circuit: true OR anything = true
+            (Some(false), Some(false)) => Ok(FhirPathValue::Boolean(false)),
+            _ => Ok(FhirPathValue::Empty), // Any empty/null operand with non-true other = empty
+        }
     }
 
     /// Evaluate logical XOR operation
     pub async fn evaluate_xor(
         left: &FhirPathValue,
         right: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        Self::evaluate_binary_operation("xor", left, right, registry, context).await
+        let (left_val, right_val) = Self::extract_operands(left, right);
+
+        match (
+            left_val.and_then(Self::to_boolean),
+            right_val.and_then(Self::to_boolean),
+        ) {
+            (Some(left_bool), Some(right_bool)) => {
+                Ok(FhirPathValue::Boolean(left_bool != right_bool))
+            }
+            _ => Ok(FhirPathValue::Empty), // Any empty operand = empty result
+        }
     }
 
     /// Evaluate logical NOT operation
-    pub async fn evaluate_not(
-        operand: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
-    ) -> EvaluationResult<FhirPathValue> {
-        Self::evaluate_unary_operation("not", operand, registry, context).await
+    pub async fn evaluate_not(operand: &FhirPathValue) -> EvaluationResult<FhirPathValue> {
+        let value = match operand {
+            FhirPathValue::Collection(items) => {
+                if items.len() == 1 {
+                    items.first().unwrap()
+                } else {
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+            val => val,
+        };
+
+        match Self::to_boolean(value) {
+            Some(b) => Ok(FhirPathValue::Boolean(!b)),
+            None => Ok(FhirPathValue::Empty),
+        }
     }
 
-    /// Evaluate implies operation
+    /// Evaluate implies operation (FHIRPath logical implication)
     pub async fn evaluate_implies(
         left: &FhirPathValue,
         right: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
-        context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        Self::evaluate_binary_operation("implies", left, right, registry, context).await
+        let (left_val, right_val) = Self::extract_operands(left, right);
+
+        // Logical implication: A implies B = (not A) or B
+        // In three-valued logic:
+        // - false implies anything = true
+        // - true implies true = true
+        // - true implies false = false
+        // - anything implies empty = empty (unless left is false)
+        // - empty implies anything = empty
+        match (
+            left_val.and_then(Self::to_boolean),
+            right_val.and_then(Self::to_boolean),
+        ) {
+            (Some(false), _) => Ok(FhirPathValue::Boolean(true)), // false implies anything = true
+            (Some(true), Some(true)) => Ok(FhirPathValue::Boolean(true)),
+            (Some(true), Some(false)) => Ok(FhirPathValue::Boolean(false)),
+            _ => Ok(FhirPathValue::Empty), // Any empty operand (except false left) = empty result
+        }
     }
 }

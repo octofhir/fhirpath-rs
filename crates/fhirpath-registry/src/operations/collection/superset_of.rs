@@ -123,7 +123,10 @@ impl SupersetOfFunction {
 
         // Check if all items from right collection are in left collection using FHIRPath equality
         for item in &right_items {
-            if !left_items.iter().any(|left_item| item.fhirpath_equals(left_item)) {
+            if !left_items
+                .iter()
+                .any(|left_item| item.fhirpath_equals(left_item))
+            {
                 // Found an item in right that's not in left - not a superset
                 return Ok(FhirPathValue::Boolean(false));
             }

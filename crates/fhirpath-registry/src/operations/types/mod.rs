@@ -12,28 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Type checking and casting operations module
+//! Type checking and casting functions module (operators moved to evaluator)
 
 pub mod as_op;
 pub mod is;
-pub mod is_operator;
+pub mod of_type;
 pub mod type_func;
 
 pub use as_op::AsOperation;
 pub use is::IsOperation;
-pub use is_operator::IsBinaryOperator;
+pub use of_type::OfTypeFunction;
 pub use type_func::TypeFunction;
 
-/// Registry helper for type operations
+/// Registry helper for type functions
 pub struct TypeOperations;
 
 impl TypeOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
-        // Register binary operator for expressions like "true is Boolean"
-        registry.register(IsBinaryOperator::new()).await?;
-        // Also register function version for method-style calls like "value.is(Type)"
+        // Function version for method-style calls like "value.is(Type)" and "value.as(Type)"
         registry.register(IsOperation::new()).await?;
         registry.register(AsOperation::new()).await?;
+        registry.register(OfTypeFunction::new()).await?;
         registry.register(TypeFunction::new()).await?;
         Ok(())
     }

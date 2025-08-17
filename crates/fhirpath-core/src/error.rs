@@ -35,7 +35,11 @@ pub struct SourceLocation {
 impl SourceLocation {
     /// Create a new source location
     pub fn new(line: usize, column: usize, position: usize) -> Self {
-        Self { line, column, position }
+        Self {
+            line,
+            column,
+            position,
+        }
     }
 }
 
@@ -287,9 +291,9 @@ impl FhirPathError {
 
     /// Create an evaluation error with expression context
     pub fn evaluation_error_with_context(
-        message: impl Into<String>, 
+        message: impl Into<String>,
         expression: Option<String>,
-        location: Option<SourceLocation>
+        location: Option<SourceLocation>,
     ) -> Self {
         Self::EvaluationError {
             message: message.into(),
@@ -309,9 +313,9 @@ impl FhirPathError {
 
     /// Create a function error with arguments context
     pub fn function_error_with_args(
-        function_name: impl Into<String>, 
+        function_name: impl Into<String>,
         message: impl Into<String>,
-        arguments: Option<Vec<String>>
+        arguments: Option<Vec<String>>,
     ) -> Self {
         Self::FunctionError {
             function_name: function_name.into(),
@@ -449,7 +453,7 @@ impl FhirPathError {
         operation: impl Into<String>,
         left_type: Option<String>,
         right_type: Option<String>,
-        message: impl Into<String>
+        message: impl Into<String>,
     ) -> Self {
         Self::InvalidOperation {
             operation: operation.into(),
@@ -472,7 +476,7 @@ impl FhirPathError {
     pub fn type_mismatch_with_context(
         expected: impl Into<String>,
         actual: impl Into<String>,
-        context: impl Into<String>
+        context: impl Into<String>,
     ) -> Self {
         Self::TypeMismatch {
             expected: expected.into(),
@@ -506,7 +510,10 @@ impl FhirPathError {
     }
 
     /// Create a recursion limit exceeded error with expression context
-    pub fn recursion_limit_exceeded_with_expression(limit: usize, expression: impl Into<String>) -> Self {
+    pub fn recursion_limit_exceeded_with_expression(
+        limit: usize,
+        expression: impl Into<String>,
+    ) -> Self {
         Self::RecursionLimitExceeded {
             limit,
             expression: Some(expression.into()),
@@ -550,13 +557,19 @@ impl FhirPathError {
     /// Add expression context to an error
     pub fn with_expression(mut self, expression: &str) -> Self {
         match &mut self {
-            Self::EvaluationError { expression: expr, .. } => {
+            Self::EvaluationError {
+                expression: expr, ..
+            } => {
                 *expr = Some(expression.to_string());
             }
-            Self::TimeoutError { expression: expr, .. } => {
+            Self::TimeoutError {
+                expression: expr, ..
+            } => {
                 *expr = Some(expression.to_string());
             }
-            Self::RecursionLimitExceeded { expression: expr, .. } => {
+            Self::RecursionLimitExceeded {
+                expression: expr, ..
+            } => {
                 *expr = Some(expression.to_string());
             }
             _ => {}
@@ -566,11 +579,8 @@ impl FhirPathError {
 
     /// Add location context to an error
     pub fn with_location(mut self, location: SourceLocation) -> Self {
-        match &mut self {
-            Self::EvaluationError { location: loc, .. } => {
-                *loc = Some(location);
-            }
-            _ => {}
+        if let Self::EvaluationError { location: loc, .. } = &mut self {
+            *loc = Some(location);
         }
         self
     }
@@ -604,11 +614,11 @@ impl<T> ErrorContext<T> for Result<T> {
     fn with_function_context(self, function_name: &str) -> Result<T> {
         self.map_err(|e| e.with_context(&format!("function {function_name}")))
     }
-    
+
     fn with_operation_context(self, operation: &str) -> Result<T> {
         self.map_err(|e| e.with_context(&format!("operation {operation}")))
     }
-    
+
     fn with_expression_context(self, expression: &str) -> Result<T> {
         self.map_err(|e| e.with_expression(expression))
     }
@@ -634,7 +644,10 @@ mod tests {
     fn test_basic_error_constructors() {
         // Test parse error
         let parse_err = FhirPathError::parse_error(5, "Unexpected token");
-        assert!(matches!(parse_err, FhirPathError::ParseError { position: 5, .. }));
+        assert!(matches!(
+            parse_err,
+            FhirPathError::ParseError { position: 5, .. }
+        ));
 
         // Test type error
         let type_err = FhirPathError::type_error("Type mismatch");
@@ -660,49 +673,64 @@ mod tests {
             "addition",
             Some("String".to_string()),
             Some("Integer".to_string()),
-            "Cannot add string and integer"
+            "Cannot add string and integer",
         );
-        assert!(matches!(invalid_op_types, FhirPathError::InvalidOperation { 
-            left_type: Some(_), 
-            right_type: Some(_),
-            ..
-        }));
+        assert!(matches!(
+            invalid_op_types,
+            FhirPathError::InvalidOperation {
+                left_type: Some(_),
+                right_type: Some(_),
+                ..
+            }
+        ));
 
         // Test type mismatch
         let type_mismatch = FhirPathError::type_mismatch("Integer", "String");
         assert!(matches!(type_mismatch, FhirPathError::TypeMismatch { .. }));
 
         // Test type mismatch with context
-        let type_mismatch_ctx = FhirPathError::type_mismatch_with_context(
-            "Integer",
-            "String", 
-            "arithmetic operation"
-        );
-        assert!(matches!(type_mismatch_ctx, FhirPathError::TypeMismatch { 
-            context: Some(_),
-            ..
-        }));
+        let type_mismatch_ctx =
+            FhirPathError::type_mismatch_with_context("Integer", "String", "arithmetic operation");
+        assert!(matches!(
+            type_mismatch_ctx,
+            FhirPathError::TypeMismatch {
+                context: Some(_),
+                ..
+            }
+        ));
 
         // Test timeout error
         let timeout_err = FhirPathError::timeout_error(5000);
-        assert!(matches!(timeout_err, FhirPathError::TimeoutError { timeout_ms: 5000, .. }));
+        assert!(matches!(
+            timeout_err,
+            FhirPathError::TimeoutError {
+                timeout_ms: 5000,
+                ..
+            }
+        ));
 
         // Test recursion limit exceeded
         let recursion_err = FhirPathError::recursion_limit_exceeded(100);
-        assert!(matches!(recursion_err, FhirPathError::RecursionLimitExceeded { limit: 100, .. }));
+        assert!(matches!(
+            recursion_err,
+            FhirPathError::RecursionLimitExceeded { limit: 100, .. }
+        ));
 
         // Test memory limit exceeded
         let memory_err = FhirPathError::memory_limit_exceeded(512, 600);
-        assert!(matches!(memory_err, FhirPathError::MemoryLimitExceeded { 
-            limit_mb: 512, 
-            current_mb: 600 
-        }));
+        assert!(matches!(
+            memory_err,
+            FhirPathError::MemoryLimitExceeded {
+                limit_mb: 512,
+                current_mb: 600
+            }
+        ));
     }
 
     #[test]
     fn test_error_context_helpers() {
         let err = FhirPathError::evaluation_error("Test error");
-        
+
         // Test with_context
         let err_with_ctx = err.clone().with_context("test context");
         if let FhirPathError::EvaluationError { message, .. } = err_with_ctx {
@@ -741,7 +769,7 @@ mod tests {
             assert!(message.contains("(context: function count)"));
         }
 
-        // Test operation context  
+        // Test operation context
         let with_op_ctx = err_result.clone().with_operation_context("division");
         assert!(with_op_ctx.is_err());
         if let Err(FhirPathError::EvaluationError { message, .. }) = with_op_ctx {
@@ -775,37 +803,34 @@ mod tests {
             "division",
             Some("String".to_string()),
             Some("Integer".to_string()),
-            "Cannot divide string by integer"
+            "Cannot divide string by integer",
         );
-        let display = format!("{}", invalid_op);
+        let display = format!("{invalid_op}");
         assert!(display.contains("Invalid operation 'division'"));
         assert!(display.contains("Cannot divide string by integer"));
 
         // Test TypeMismatch display
-        let type_mismatch = FhirPathError::type_mismatch_with_context(
-            "Integer",
-            "String",
-            "arithmetic operation"
-        );
-        let display = format!("{}", type_mismatch);
+        let type_mismatch =
+            FhirPathError::type_mismatch_with_context("Integer", "String", "arithmetic operation");
+        let display = format!("{type_mismatch}");
         assert!(display.contains("Type mismatch: expected Integer, got String"));
         assert!(display.contains("in arithmetic operation"));
 
         // Test TimeoutError display
         let timeout = FhirPathError::timeout_error_with_expression(5000, "Patient.name.where(...)");
-        let display = format!("{}", timeout);
+        let display = format!("{timeout}");
         assert!(display.contains("Evaluation timeout after 5000ms"));
         assert!(display.contains("in expression: Patient.name.where(...)"));
 
         // Test RecursionLimitExceeded display
         let recursion = FhirPathError::recursion_limit_exceeded_with_expression(100, "recursive()");
-        let display = format!("{}", recursion);
+        let display = format!("{recursion}");
         assert!(display.contains("Recursion limit of 100 exceeded"));
         assert!(display.contains("in expression: recursive()"));
 
         // Test MemoryLimitExceeded display
         let memory = FhirPathError::memory_limit_exceeded(512, 600);
-        let display = format!("{}", memory);
+        let display = format!("{memory}");
         assert!(display.contains("Memory limit of 512MB exceeded (current: 600MB)"));
     }
 
@@ -815,9 +840,9 @@ mod tests {
         let func_err = FhirPathError::function_error_with_args(
             "count",
             "Invalid arguments",
-            Some(args.clone())
+            Some(args.clone()),
         );
-        
+
         if let FhirPathError::FunctionError { arguments, .. } = func_err {
             assert_eq!(arguments, Some(args));
         } else {
@@ -831,10 +856,15 @@ mod tests {
         let eval_err = FhirPathError::evaluation_error_with_context(
             "Evaluation failed",
             Some("Patient.name".to_string()),
-            Some(location.clone())
+            Some(location.clone()),
         );
-        
-        if let FhirPathError::EvaluationError { expression, location: loc, .. } = eval_err {
+
+        if let FhirPathError::EvaluationError {
+            expression,
+            location: loc,
+            ..
+        } = eval_err
+        {
             assert_eq!(expression, Some("Patient.name".to_string()));
             assert_eq!(loc, Some(location));
         } else {
@@ -852,9 +882,15 @@ mod tests {
         assert!(matches!(overflow, FhirPathError::ArithmeticOverflow { .. }));
 
         let unknown_func = FhirPathError::unknown_function("unknownFunction");
-        assert!(matches!(unknown_func, FhirPathError::UnknownFunction { .. }));
+        assert!(matches!(
+            unknown_func,
+            FhirPathError::UnknownFunction { .. }
+        ));
 
         let invalid_args = FhirPathError::invalid_argument_count("count", 1, 2);
-        assert!(matches!(invalid_args, FhirPathError::InvalidArgumentCount { .. }));
+        assert!(matches!(
+            invalid_args,
+            FhirPathError::InvalidArgumentCount { .. }
+        ));
     }
 }

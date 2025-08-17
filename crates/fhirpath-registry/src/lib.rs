@@ -36,7 +36,7 @@ pub use operation::{
 // Core system modules
 pub mod async_cache;
 pub mod fhirpath_registry;
-pub mod lambda;
+mod lambda;
 pub mod metadata;
 pub mod operation;
 
@@ -87,33 +87,17 @@ pub async fn create_standard_registry()
     let registry = FhirPathRegistry::new();
 
     use operations::*;
-    ArithmeticOperations::register_all(&registry).await?;
+
     CollectionOperations::register_all(&registry).await?;
     StringOperations::register_all(&registry).await?;
-    ComparisonOperations::register_all(&registry).await?;
     DateTimeOperations::register_all(&registry).await?;
     FhirOperations::register_all(&registry).await?;
     UtilityOperations::register_all(&registry).await?;
     ConversionOperations::register_all(&registry).await?;
-    LogicalOperations::register_all(&registry).await?;
     MathOperations::register_all(&registry).await?;
     TypeOperations::register_all(&registry).await?;
-    LambdaOperations::register_all(&registry).await?;
     CdaOperations::register_all(&registry).await?;
+    LogicalOperations::register_all(&registry).await?;
 
     Ok(registry)
-}
-
-#[cfg(test)]
-mod integration_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_standard_registry_creation() {
-        let result = create_standard_registry().await;
-        assert!(result.is_ok());
-
-        let _registry = result.unwrap();
-        // TODO: Add tests for specific operations once they are implemented
-    }
 }

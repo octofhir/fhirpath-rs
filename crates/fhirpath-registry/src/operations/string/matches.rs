@@ -109,8 +109,8 @@ impl MatchesFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "matches() requires exactly one argument (regex)".to_string(),
             });
         }
@@ -136,8 +136,8 @@ impl MatchesFunction {
                 FhirPathValue::String(s) => s,
                 _ => {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "matches() regex parameter must be a string".to_string(),
                     });
                 }
@@ -168,8 +168,8 @@ impl MatchesFunction {
 
         let regex =
             Regex::new(&pattern_with_flags).map_err(|e| FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: format!("Invalid regex pattern '{}': {}", pattern.as_ref(), e),
             })?;
 
@@ -192,8 +192,8 @@ impl MatchesFunction {
                         }
                         _ => {
                             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "matches() can only be applied to strings".to_string(),
                             });
                         }
@@ -203,8 +203,8 @@ impl MatchesFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message:
                     "matches() can only be applied to strings or collections containing strings"
                         .to_string(),

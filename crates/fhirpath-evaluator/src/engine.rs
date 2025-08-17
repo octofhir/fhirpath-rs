@@ -78,7 +78,6 @@
 use crate::context::EvaluationContext as LocalEvaluationContext;
 use crate::evaluators::{
     ArithmeticEvaluator, CollectionEvaluator, ComparisonEvaluator, LogicalEvaluator,
-    NavigationEvaluator,
 };
 use async_trait::async_trait;
 use octofhir_fhirpath_ast::ExpressionNode;
@@ -620,8 +619,9 @@ impl FhirPathEngine {
             self.model_provider.clone(),
         );
 
-        // Use the AST evaluation method
-        self.evaluate_ast(&ast, fhir_value, &context).await
+        // Use the AST evaluation method and ensure result is always a collection
+        let result = self.evaluate_ast(&ast, fhir_value, &context).await?;
+        Ok(Self::ensure_collection_result(result))
     }
 
     /// Evaluates a FHIRPath expression with environment variables.
@@ -763,8 +763,18 @@ impl FhirPathEngine {
             variables.into_iter().collect(),
         );
 
-        // Use the AST evaluation method (to be implemented in Task 2)
-        self.evaluate_ast(&ast, fhir_value, &context).await
+        // Use the AST evaluation method and ensure result is always a collection
+        let result = self.evaluate_ast(&ast, fhir_value, &context).await?;
+        Ok(Self::ensure_collection_result(result))
+    }
+
+    /// Ensures that evaluation results are always collections per FHIRPath spec.
+    /// Transforms FhirPathValue::Empty to an empty collection.
+    pub fn ensure_collection_result(value: FhirPathValue) -> FhirPathValue {
+        match value {
+            FhirPathValue::Empty => FhirPathValue::Collection(Default::default()),
+            other => other,
+        }
     }
 
     /// Evaluates a pre-parsed FHIRPath expression (AST) against input data.
@@ -961,7 +971,7 @@ impl FhirPathEngine {
                 // Check if this identifier looks like a type name
                 // Type names typically start with uppercase letter
                 name.chars().next().is_some_and(|c| c.is_uppercase()) ||
-                // Or are known primitive type names  
+                // Or are known primitive type names
                 matches!(name.as_str(), "boolean" | "integer" | "decimal" | "string" | "date" | "datetime" | "time" | "collection" | "empty" | "quantity")
             }
             _ => false,
@@ -1264,7 +1274,7 @@ impl FhirPathEngine {
                     octofhir_fhirpath_model::Quantity::new(decimal_value, Some(unit.clone()));
                 FhirPathValue::Quantity(std::sync::Arc::new(quantity))
             }
-            Null => FhirPathValue::Empty,
+            Null => return Ok(FhirPathValue::Empty),
         };
 
         Ok(FhirPathValue::collection(vec![value]))
@@ -1930,7 +1940,7 @@ impl FhirPathEngine {
         }
     }
 
-    /// Evaluate binary operations
+    /// Evaluate binary operations using new operator modules
     async fn evaluate_binary_operation(
         &self,
         op_data: &octofhir_fhirpath_ast::BinaryOpData,
@@ -1948,241 +1958,149 @@ impl FhirPathEngine {
             .evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
             .await?;
 
-        // Create registry context for evaluation
-        let registry_context =
-            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                input.clone(),
-                context.root.clone(),
-                self.registry.clone(),
-                self.model_provider.clone(),
-            );
-
-        // Use specialized evaluators based on operation type
-        match &op_data.op {
+        // Use evaluators - these return natural types without forced collection wrapping
+        let result = match &op_data.op {
             // Arithmetic operations
             octofhir_fhirpath_ast::BinaryOperator::Add => {
-                ArithmeticEvaluator::evaluate_addition(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_addition(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Subtract => {
-                ArithmeticEvaluator::evaluate_subtraction(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_subtraction(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Multiply => {
-                ArithmeticEvaluator::evaluate_multiplication(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_multiplication(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Divide => {
-                ArithmeticEvaluator::evaluate_division(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
-            }
-            octofhir_fhirpath_ast::BinaryOperator::IntegerDivide => {
-                ArithmeticEvaluator::evaluate_integer_division(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_division(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Modulo => {
-                ArithmeticEvaluator::evaluate_modulo(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_modulo(&left, &right).await?
+            }
+            octofhir_fhirpath_ast::BinaryOperator::IntegerDivide => {
+                ArithmeticEvaluator::evaluate_integer_division(&left, &right).await?
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Concatenate => {
+                self.evaluate_concatenate(left, right).await?
             }
 
             // Comparison operations
             octofhir_fhirpath_ast::BinaryOperator::Equal => {
-                ComparisonEvaluator::evaluate_equals(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_equals(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::NotEqual => {
-                ComparisonEvaluator::evaluate_not_equals(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_not_equals(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::LessThan => {
-                ComparisonEvaluator::evaluate_less_than(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_less_than(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::LessThanOrEqual => {
-                ComparisonEvaluator::evaluate_less_than_or_equal(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_less_than_or_equal(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::GreaterThan => {
-                ComparisonEvaluator::evaluate_greater_than(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_greater_than(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::GreaterThanOrEqual => {
-                ComparisonEvaluator::evaluate_greater_than_or_equal(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_greater_than_or_equal(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Equivalent => {
-                ComparisonEvaluator::evaluate_equivalent(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_equivalent(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::NotEquivalent => {
-                ComparisonEvaluator::evaluate_not_equivalent(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ComparisonEvaluator::evaluate_not_equivalent(&left, &right).await?
             }
 
             // Logical operations
             octofhir_fhirpath_ast::BinaryOperator::And => {
-                LogicalEvaluator::evaluate_and(&left, &right, &self.registry, &registry_context)
-                    .await
+                LogicalEvaluator::evaluate_and(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Or => {
-                LogicalEvaluator::evaluate_or(&left, &right, &self.registry, &registry_context)
-                    .await
+                LogicalEvaluator::evaluate_or(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Xor => {
-                LogicalEvaluator::evaluate_xor(&left, &right, &self.registry, &registry_context)
-                    .await
+                LogicalEvaluator::evaluate_xor(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::Implies => {
-                LogicalEvaluator::evaluate_implies(&left, &right, &self.registry, &registry_context)
-                    .await
+                LogicalEvaluator::evaluate_implies(&left, &right).await?
             }
 
             // Collection operations
-            octofhir_fhirpath_ast::BinaryOperator::Union => {
-                CollectionEvaluator::evaluate_union(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+            octofhir_fhirpath_ast::BinaryOperator::Contains => {
+                CollectionEvaluator::evaluate_contains(&left, &right).await?
             }
             octofhir_fhirpath_ast::BinaryOperator::In => {
-                CollectionEvaluator::evaluate_in(&left, &right, &self.registry, &registry_context)
-                    .await
+                CollectionEvaluator::evaluate_in(&left, &right).await?
             }
-            octofhir_fhirpath_ast::BinaryOperator::Contains => {
-                CollectionEvaluator::evaluate_contains(
-                    &left,
-                    &right,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+            octofhir_fhirpath_ast::BinaryOperator::Union => {
+                CollectionEvaluator::evaluate_union(&left, &right).await?
             }
 
-            // Navigation operations
+            // Type checking operations
             octofhir_fhirpath_ast::BinaryOperator::Is => {
-                NavigationEvaluator::evaluate_is(&left, &right, &self.registry, &registry_context)
-                    .await
-            }
-
-            // Fall back to legacy approach for any remaining operations
-            _ => {
-                self.evaluate_binary_operation_legacy(op_data, left, right, input, context)
-                    .await
-            }
-        }
-    }
-
-    /// Legacy binary operation evaluation (fallback for operations not yet in specialized evaluators)
-    async fn evaluate_binary_operation_legacy(
-        &self,
-        op_data: &octofhir_fhirpath_ast::BinaryOpData,
-        left: FhirPathValue,
-        right: FhirPathValue,
-        input: FhirPathValue,
-        context: &LocalEvaluationContext,
-    ) -> EvaluationResult<FhirPathValue> {
-        let symbol = match &op_data.op {
-            octofhir_fhirpath_ast::BinaryOperator::Concatenate => "&",
-            _ => {
-                return Err(EvaluationError::InvalidOperation {
-                    message: format!("Unsupported binary operator: {:?}", op_data.op),
-                });
+                self.evaluate_is_operator(&left, &right).await?
             }
         };
 
-        if let Some(operation) = self.registry.get_operation(symbol).await {
-            let registry_context =
-                octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                    input,
-                    context.root.clone(),
-                    self.registry.clone(),
-                    self.model_provider.clone(),
-                );
+        // Return raw result - collection wrapping handled by main evaluate functions
+        Ok(result)
+    }
 
-            operation
-                .evaluate(&[left, right], &registry_context)
-                .await
-                .map_err(|e| EvaluationError::InvalidOperation {
-                    message: format!("Binary operator error: {e}"),
-                })
-        } else {
-            Err(EvaluationError::InvalidOperation {
-                message: format!("Unknown binary operator: {symbol}"),
-            })
-        }
+    /// Evaluate concatenation (&) operator
+    /// Per FHIRPath spec: For strings, concatenates the strings, where an empty operand
+    /// is taken to be the empty string. This differs from + which returns empty collection
+    /// when one operand is empty.
+    async fn evaluate_concatenate(
+        &self,
+        left: FhirPathValue,
+        right: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        use octofhir_fhirpath_model::FhirPathValue;
+        println!("{left:#?}");
+        println!("{right:#?}");
+        // Extract string from left operand
+        let left_str = match &left {
+            FhirPathValue::Empty => String::new(),
+            FhirPathValue::String(s) => s.to_string(),
+            FhirPathValue::Collection(col) => {
+                if col.is_empty() {
+                    String::new()
+                } else if col.len() == 1 {
+                    // Single element collection - check if it's a string
+                    match col.first().unwrap() {
+                        FhirPathValue::String(s) => s.to_string(),
+                        _ => String::new(),
+                    }
+                } else {
+                    // Multiple elements - per spec, this should return empty
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+            _ => return Ok(FhirPathValue::Empty), // Non-string operand
+        };
+
+        // Extract string from right operand
+        let right_str = match &right {
+            FhirPathValue::Empty => String::new(), // Empty operand returns Empty
+            FhirPathValue::String(s) => s.to_string(),
+            FhirPathValue::Collection(col) => {
+                if col.is_empty() {
+                    String::new()
+                } else if col.len() == 1 {
+                    // Single element collection - check if it's a string
+                    match col.first().unwrap() {
+                        FhirPathValue::String(s) => s.to_string(),
+                        _ => String::new(),
+                    }
+                } else {
+                    // Multiple elements - per spec, this should return empty
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+            _ => return Ok(FhirPathValue::Empty), // Non-string operand
+        };
+
+        Ok(FhirPathValue::String(
+            format!("{left_str}{right_str}").into(),
+        ))
     }
 
     /// Evaluate unary operations
@@ -2211,24 +2129,13 @@ impl FhirPathEngine {
         // Use specialized evaluators based on operation type
         match op {
             octofhir_fhirpath_ast::UnaryOperator::Plus => {
-                ArithmeticEvaluator::evaluate_unary_plus(
-                    &operand_value,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_unary_plus(&operand_value).await
             }
             octofhir_fhirpath_ast::UnaryOperator::Minus => {
-                ArithmeticEvaluator::evaluate_unary_minus(
-                    &operand_value,
-                    &self.registry,
-                    &registry_context,
-                )
-                .await
+                ArithmeticEvaluator::evaluate_unary_minus(&operand_value).await
             }
             octofhir_fhirpath_ast::UnaryOperator::Not => {
-                LogicalEvaluator::evaluate_not(&operand_value, &self.registry, &registry_context)
-                    .await
+                LogicalEvaluator::evaluate_not(&operand_value).await
             }
         }
     }
@@ -2699,27 +2606,26 @@ impl FhirPathEngine {
 
         match &input {
             FhirPathValue::Collection(items) => {
-                let mut filtered_items = Vec::new();
+                // Pre-allocate with better capacity estimation (assume ~25% pass rate)
+                let estimated_capacity = (items.len() / 4).max(4).min(64);
+                let mut filtered_items = Vec::with_capacity(estimated_capacity);
 
                 for (index, item) in items.iter().enumerate() {
-                    // Create lambda context with $this variable set to current item
-                    let mut lambda_context = context.clone();
-                    lambda_context.set_variable("$this".to_string(), item.clone());
-                    lambda_context
-                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
-                    lambda_context = lambda_context.with_input(item.clone());
+                    // Create lambda context with $this, $index variables - avoid unnecessary clone
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
 
-                    // Evaluate predicate expression in lambda context
+                    // Evaluate predicate expression in lambda context - avoid clone by using reference
                     let predicate_result = self
                         .evaluate_node_async(
                             predicate_expr,
-                            item.clone(),
+                            item.clone(), // Still needed for evaluation input
                             &lambda_context,
                             depth + 1,
                         )
                         .await?;
 
-                    // Check if predicate is true
+                    // Check if predicate is true - only clone when item passes filter
                     if self.is_truthy(&predicate_result) {
                         filtered_items.push(item.clone());
                     }
@@ -2734,10 +2640,8 @@ impl FhirPathEngine {
             }
             single_item => {
                 // Apply where to single item
-                let mut lambda_context = context.clone();
-                lambda_context.set_variable("$this".to_string(), single_item.clone());
-                lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(0));
-                lambda_context = lambda_context.with_input(single_item.clone());
+                let lambda_context =
+                    context.with_lambda_context(single_item.clone(), 0, FhirPathValue::Empty);
 
                 let predicate_result = self
                     .evaluate_node_async(
@@ -2778,15 +2682,13 @@ impl FhirPathEngine {
 
         match &input {
             FhirPathValue::Collection(items) => {
-                let mut results = Vec::new();
+                // Pre-allocate with estimated capacity to reduce reallocations
+                let mut results = Vec::with_capacity(items.len());
 
                 for (index, item) in items.iter().enumerate() {
-                    // Create lambda context with $this variable set to current item
-                    let mut lambda_context = context.clone();
-                    lambda_context.set_variable("$this".to_string(), item.clone());
-                    lambda_context
-                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
-                    lambda_context = lambda_context.with_input(item.clone());
+                    // Create lambda context with $this, $index variables
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
 
                     // Evaluate transform expression in lambda context
                     let transform_result = self
@@ -2816,10 +2718,8 @@ impl FhirPathEngine {
             }
             single_item => {
                 // Apply select to single item
-                let mut lambda_context = context.clone();
-                lambda_context.set_variable("$this".to_string(), single_item.clone());
-                lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(0));
-                lambda_context = lambda_context.with_input(single_item.clone());
+                let lambda_context =
+                    context.with_lambda_context(single_item.clone(), 0, FhirPathValue::Empty);
 
                 let result = self
                     .evaluate_node_async(
@@ -2945,8 +2845,7 @@ impl FhirPathEngine {
                 // Single value - this is an error according to FHIRPath spec
                 return Err(EvaluationError::InvalidOperation {
                     message: format!(
-                        "repeat() function can only be applied to collections, not single values. Input was: {:?}",
-                        input
+                        "repeat() function can only be applied to collections, not single values. Input was: {input:?}"
                     ),
                 });
             }
@@ -3042,11 +2941,16 @@ impl FhirPathEngine {
         }
 
         let aggregation_expr = &func_data.args[0];
-
         // Evaluate initial value if provided
         let initial_value = if func_data.args.len() == 2 {
-            self.evaluate_node_async(&func_data.args[1], input.clone(), context, depth + 1)
-                .await?
+            // The initial value should be evaluated independently, not against the input collection
+            self.evaluate_node_async(
+                &func_data.args[1],
+                context.input.clone(),
+                context,
+                depth + 1,
+            )
+            .await?
         } else {
             FhirPathValue::Empty
         };
@@ -3056,19 +2960,15 @@ impl FhirPathEngine {
                 let mut accumulator = initial_value;
 
                 for (index, item) in items.iter().enumerate() {
-                    // Create lambda context with $this and $total variables
-                    let mut lambda_context = context.clone();
-                    lambda_context.set_variable("$this".to_string(), item.clone());
-                    lambda_context.set_variable("$total".to_string(), accumulator.clone());
-                    lambda_context
-                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
-                    lambda_context = lambda_context.with_input(item.clone());
+                    // Create lambda context with $this, $index, and $total variables
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, accumulator.clone());
 
                     // Evaluate aggregation expression in lambda context
                     accumulator = self
                         .evaluate_node_async(
                             aggregation_expr,
-                            item.clone(),
+                            lambda_context.input.clone(),
                             &lambda_context,
                             depth + 1,
                         )
@@ -3079,15 +2979,12 @@ impl FhirPathEngine {
             }
             single_item => {
                 // For single item, apply aggregation once
-                let mut lambda_context = context.clone();
-                lambda_context.set_variable("$this".to_string(), single_item.clone());
-                lambda_context.set_variable("$total".to_string(), initial_value.clone());
-                lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(0));
-                lambda_context = lambda_context.with_input(single_item.clone());
+                let lambda_context =
+                    context.with_lambda_context(single_item.clone(), 0, initial_value.clone());
 
                 self.evaluate_node_async(
                     aggregation_expr,
-                    single_item.clone(),
+                    lambda_context.input.clone(),
                     &lambda_context,
                     depth + 1,
                 )
@@ -3128,8 +3025,12 @@ impl FhirPathEngine {
                     // Create lambda context with $this variable set to current item
                     let mut lambda_context = context.clone();
                     lambda_context.set_variable("$this".to_string(), item.clone());
-                    lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
-                    lambda_context.set_variable("$total".to_string(), FhirPathValue::Integer(items.len() as i64));
+                    lambda_context
+                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    lambda_context.set_variable(
+                        "$total".to_string(),
+                        FhirPathValue::Integer(items.len() as i64),
+                    );
                     lambda_context = lambda_context.with_input(item.clone());
 
                     // Evaluate predicate expression in lambda context
@@ -3158,7 +3059,7 @@ impl FhirPathEngine {
                         }
                         _ => self.is_truthy(&predicate_result),
                     };
-                    
+
                     if !is_predicate_true {
                         return Ok(FhirPathValue::Boolean(false));
                     }
@@ -3205,7 +3106,7 @@ impl FhirPathEngine {
                     }
                     _ => self.is_truthy(&predicate_result),
                 };
-                
+
                 Ok(FhirPathValue::Boolean(is_predicate_true))
             }
         }
@@ -3285,17 +3186,17 @@ impl FhirPathEngine {
                         )]));
                     }
                 }
-                LambdaType::Any => {
-                    // Any: return true if any result is true
-                    if self.is_truthy(&result) {
-                        return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                            true,
-                        )]));
-                    }
-                }
                 LambdaType::Aggregate => {
                     // Aggregate: accumulate results
                     results.push(result);
+                }
+                LambdaType::Sort | LambdaType::Repeat => {
+                    // These are handled by dedicated functions, not generic lambda evaluation
+                    return Err(EvaluationError::InvalidOperation {
+                        message: format!(
+                            "Lambda type {lambda_type:?} should be handled by dedicated function"
+                        ),
+                    });
                 }
             }
         }
@@ -3305,9 +3206,6 @@ impl FhirPathEngine {
             LambdaType::All => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
                 true,
             )])), // All were true
-            LambdaType::Any => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                false,
-            )])), // None were true
             LambdaType::Aggregate => {
                 // For aggregate, return the final accumulated value
                 if results.len() == 1 {
@@ -3695,6 +3593,51 @@ impl FhirPathEngine {
             _ => format!("{item:?}"),
         }
     }
+
+    /// Evaluate the 'is' binary operator for type checking
+    async fn evaluate_is_operator(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Get the Is operation from the registry and delegate to it
+        if let Some(is_operation) = self.registry.get_operation("is").await {
+            let registry_context = RegistryEvaluationContext {
+                input: left.clone(),
+                root: left.clone(),
+                variables: Default::default(),
+                registry: self.registry.clone(),
+                model_provider: self.model_provider.clone(),
+            };
+
+            // Call the Is operation with both values as arguments (binary-style)
+            let result = is_operation
+                .evaluate(&[left.clone(), right.clone()], &registry_context)
+                .await
+                .map_err(|e| EvaluationError::InvalidOperation {
+                    message: format!("is operator error: {e}"),
+                })?;
+
+            // Extract the boolean result from the collection wrapper
+            match result {
+                FhirPathValue::Collection(items) => {
+                    if let Some(FhirPathValue::Boolean(result)) = items.first() {
+                        Ok(FhirPathValue::Boolean(*result))
+                    } else if items.is_empty() {
+                        Ok(FhirPathValue::Boolean(false))
+                    } else {
+                        Ok(FhirPathValue::Boolean(false))
+                    }
+                }
+                FhirPathValue::Boolean(result) => Ok(FhirPathValue::Boolean(result)),
+                _ => Ok(FhirPathValue::Boolean(false)),
+            }
+        } else {
+            Err(EvaluationError::InvalidOperation {
+                message: "is operation not found in registry".to_string(),
+            })
+        }
+    }
 }
 
 /// Lambda expression types for evaluation
@@ -3706,10 +3649,12 @@ pub enum LambdaType {
     Where,
     /// All validation - return true if all items satisfy condition
     All,
-    /// Any validation - return true if any item satisfies condition
-    Any,
     /// Aggregate accumulation - accumulate results
     Aggregate,
+    /// Sort ordering - sort collection by expression
+    Sort,
+    /// Repeat projection - repeat expression until no new items
+    Repeat,
 }
 
 // Thread safety by design - all fields are Send + Sync

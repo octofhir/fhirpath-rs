@@ -23,7 +23,6 @@ pub mod all_true;
 pub mod any_false;
 pub mod any_true;
 pub mod combine;
-pub mod contains_op;
 pub mod count;
 pub mod distinct;
 pub mod empty;
@@ -33,15 +32,14 @@ pub mod first;
 pub mod intersect;
 pub mod is_distinct;
 pub mod last;
+pub mod single;
 pub mod skip;
 // Sort is handled by lambda functions
-pub mod in_op;
 pub mod subset_of;
 pub mod superset_of;
 pub mod tail;
 pub mod take;
 pub mod union;
-pub mod union_operator;
 
 // all function moved to engine
 pub use all_false::AllFalseFunction;
@@ -49,7 +47,6 @@ pub use all_true::AllTrueFunction;
 pub use any_false::AnyFalseFunction;
 pub use any_true::AnyTrueFunction;
 pub use combine::CombineFunction;
-pub use contains_op::ContainsOperation;
 pub use count::CountFunction;
 pub use distinct::DistinctFunction;
 pub use empty::EmptyFunction;
@@ -59,15 +56,14 @@ pub use first::FirstFunction;
 pub use intersect::IntersectFunction;
 pub use is_distinct::IsDistinctFunction;
 pub use last::LastFunction;
+pub use single::SingleFunction;
 pub use skip::SkipFunction;
 // Sort is handled by lambda functions
-pub use in_op::InOperation;
 pub use subset_of::SubsetOfFunction;
 pub use superset_of::SupersetOfFunction;
 pub use tail::TailFunction;
 pub use take::TakeFunction;
 pub use union::UnionFunction;
-pub use union_operator::UnionOperator;
 
 /// Utility struct for registering all collection operations
 pub struct CollectionOperations;
@@ -80,11 +76,11 @@ impl CollectionOperations {
         registry.register(DistinctFunction::new()).await?;
         registry.register(EmptyFunction::new()).await?;
         registry.register(ExistsFunction::new()).await?;
-        registry.register(InOperation::new()).await?;
 
         // Navigation functions
         registry.register(FirstFunction::new()).await?;
         registry.register(LastFunction::new()).await?;
+        registry.register(SingleFunction::new()).await?;
         registry.register(TailFunction::new()).await?;
         registry.register(SkipFunction::new()).await?;
         registry.register(TakeFunction::new()).await?;
@@ -105,9 +101,6 @@ impl CollectionOperations {
         registry.register(ExcludeFunction::new()).await?;
         registry.register(UnionFunction::new()).await?;
         registry.register(CombineFunction::new()).await?;
-
-        // Union operator (|)
-        registry.register(UnionOperator::new()).await?;
 
         // CDA functions
         registry

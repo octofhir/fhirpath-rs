@@ -151,7 +151,7 @@ impl FhirResource {
                         }
                     }
                 }
-                
+
                 // Return the first valid match (deterministic based on JSON ordering)
                 if let Some((_, value)) = valid_matches.first() {
                     return Some(value);
@@ -183,7 +183,7 @@ impl FhirResource {
                         }
                     }
                 }
-                
+
                 // Return the first valid match
                 if let Some(key) = valid_matches.first() {
                     return self.data.get_property(key);
@@ -376,9 +376,12 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(observation_string);
-        
+
         // Both direct and polymorphic access should work
-        assert_eq!(resource.get_property("valueString"), Some(&json!("test result")));
+        assert_eq!(
+            resource.get_property("valueString"),
+            Some(&json!("test result"))
+        );
         assert_eq!(resource.get_property("value"), Some(&json!("test result")));
     }
 
@@ -399,13 +402,16 @@ mod tests {
             "value": 120,
             "unit": "mmHg"
         });
-        
-        assert_eq!(resource.get_property("valueQuantity"), Some(&expected_quantity));
+
+        assert_eq!(
+            resource.get_property("valueQuantity"),
+            Some(&expected_quantity)
+        );
         assert_eq!(resource.get_property("value"), Some(&expected_quantity));
 
         // Test with valueBoolean
         let observation_boolean = json!({
-            "resourceType": "Observation", 
+            "resourceType": "Observation",
             "id": "obs3",
             "valueBoolean": true
         });
@@ -426,16 +432,22 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(test_resource);
-        
+
         // Should match valueString (uppercase S), not the lowercase variants
         let result = resource.get_property("value");
         assert!(result.is_some());
         assert_eq!(result, Some(&json!("should_match")));
-        
+
         // Direct access to non-matching properties should still work
-        assert_eq!(resource.get_property("valuetype"), Some(&json!("should_not_match")));
-        assert_eq!(resource.get_property("valuelowercase"), Some(&json!("should_not_match_either")));
-        
+        assert_eq!(
+            resource.get_property("valuetype"),
+            Some(&json!("should_not_match"))
+        );
+        assert_eq!(
+            resource.get_property("valuelowercase"),
+            Some(&json!("should_not_match_either"))
+        );
+
         // Test with only lowercase variants (should return None)
         let test_resource_lowercase_only = json!({
             "resourceType": "TestResource",
@@ -470,10 +482,16 @@ mod tests {
                 "display": "Nizatidine"
             }]
         });
-        
+
         // Both direct and polymorphic access should work
-        assert_eq!(resource.get_property("medicationCodeableConcept"), Some(&expected_medication));
-        assert_eq!(resource.get_property("medication"), Some(&expected_medication));
+        assert_eq!(
+            resource.get_property("medicationCodeableConcept"),
+            Some(&expected_medication)
+        );
+        assert_eq!(
+            resource.get_property("medication"),
+            Some(&expected_medication)
+        );
     }
 
     #[test]
@@ -486,10 +504,13 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(test_resource);
-        
+
         // Should get direct value, not polymorphic
         assert_eq!(resource.get_property("value"), Some(&json!("direct_value")));
-        assert_eq!(resource.get_property("valueString"), Some(&json!("polymorphic_value")));
+        assert_eq!(
+            resource.get_property("valueString"),
+            Some(&json!("polymorphic_value"))
+        );
     }
 
     #[test]
@@ -515,10 +536,10 @@ mod tests {
         });
 
         let resource = FhirResource::from_json(observation);
-        
+
         // Both get_property and get_property_arc should work for polymorphic access
         assert_eq!(resource.get_property("value"), Some(&json!("test via arc")));
-        
+
         let arc_result = resource.get_property_arc("value");
         assert!(arc_result.is_some());
         if let Some(arc_json) = arc_result {

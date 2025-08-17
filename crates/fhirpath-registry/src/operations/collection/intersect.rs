@@ -121,8 +121,13 @@ impl IntersectFunction {
 
         for item in &left_items {
             // Check if item is in right collection and not already in result
-            if right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) 
-                && !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+            if right_items
+                .iter()
+                .any(|right_item| item.fhirpath_equals(right_item))
+                && !result_items
+                    .iter()
+                    .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+            {
                 result_items.push(item.clone());
             }
         }

@@ -365,14 +365,18 @@ impl FhirPathRegistry {
         // Check that every operation has metadata
         for identifier in ops.keys() {
             if !meta.contains_key(identifier) {
-                return Err(FhirPathError::evaluation_error(format!("Operation '{identifier}' missing metadata")));
+                return Err(FhirPathError::evaluation_error(format!(
+                    "Operation '{identifier}' missing metadata"
+                )));
             }
         }
 
         // Check that every metadata entry has an operation
         for identifier in meta.keys() {
             if !ops.contains_key(identifier) {
-                return Err(FhirPathError::evaluation_error(format!("Metadata for '{identifier}' has no corresponding operation")));
+                return Err(FhirPathError::evaluation_error(format!(
+                    "Metadata for '{identifier}' has no corresponding operation"
+                )));
             }
         }
 

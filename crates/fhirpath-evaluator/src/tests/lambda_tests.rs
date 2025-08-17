@@ -952,7 +952,7 @@ async fn test_enhanced_lambda_repeat_safety_limits() {
         }
         Err(err) => {
             // Should fail with safety limit error if too many iterations
-            let error_msg = format!("{:?}", err);
+            let error_msg = format!("{err:?}");
             assert!(
                 error_msg.contains("maximum iterations")
                     || error_msg.contains("maximum result size"),

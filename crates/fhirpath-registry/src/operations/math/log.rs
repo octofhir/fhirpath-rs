@@ -54,16 +54,19 @@ impl LogFunction {
             .build()
     }
 
-    fn extract_numeric_value(&self, value: &FhirPathValue) -> Result<f64> {
+    fn extract_numeric_value(&self, value: &FhirPathValue) -> Result<Option<f64>> {
         match value {
-            FhirPathValue::Integer(i) => Ok(*i as f64),
-            FhirPathValue::Decimal(d) => Ok(d.to_f64().unwrap_or(0.0)),
+            FhirPathValue::Integer(i) => Ok(Some(*i as f64)),
+            FhirPathValue::Decimal(d) => Ok(Some(d.to_f64().unwrap_or(0.0))),
+            FhirPathValue::Empty => Ok(None), // Empty returns None to indicate empty result
             FhirPathValue::Collection(c) => {
-                if c.len() == 1 {
+                if c.is_empty() {
+                    Ok(None) // Empty collection returns None per FHIRPath spec
+                } else if c.len() == 1 {
                     self.extract_numeric_value(c.first().unwrap())
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "log() requires numeric arguments".to_string(),
+                        message: "log() requires single numeric argument".to_string(),
                     })
                 }
             }
@@ -133,7 +136,10 @@ impl FhirPathOperation for LogFunction {
             }
         };
 
-        let base_value = self.extract_numeric_value(&args[0])?;
+        let base_value = match self.extract_numeric_value(&args[0])? {
+            Some(val) => val,
+            None => return Ok(FhirPathValue::Empty), // If base is empty, result is empty per FHIRPath spec
+        };
 
         // Check for invalid inputs
         if input_value <= 0.0 {
@@ -197,7 +203,8 @@ impl FhirPathOperation for LogFunction {
         };
 
         let base_value = match self.extract_numeric_value(&args[0]) {
-            Ok(val) => val,
+            Ok(Some(val)) => val,
+            Ok(None) => return Some(Ok(FhirPathValue::Empty)), // If base is empty, result is empty per FHIRPath spec
             Err(e) => return Some(Err(e)),
         };
 

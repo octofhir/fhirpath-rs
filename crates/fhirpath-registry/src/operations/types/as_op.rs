@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! As operator implementation - type casting
+//! As operator implementation - type casting that returns the value if it matches the type
 
 use crate::operations::EvaluationContext;
 use crate::{
     FhirPathOperation,
     metadata::{
-        Associativity, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
+        FhirPathType, MetadataBuilder, OperationMetadata, OperationType, PerformanceComplexity,
         TypeConstraint,
     },
 };
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{Collection, FhirPathValue};
-use rust_decimal::{prelude::FromPrimitive, prelude::ToPrimitive};
+use octofhir_fhirpath_model::FhirPathValue;
 
-/// As operator - casts value to specified type
+/// As operator - returns the value if it is of the specified type, otherwise returns empty
 #[derive(Debug, Clone)]
 pub struct AsOperation;
 
@@ -43,149 +42,33 @@ impl AsOperation {
     }
 
     fn create_metadata() -> OperationMetadata {
-        MetadataBuilder::new("as", OperationType::BinaryOperator {
-            precedence: 8,
-            associativity: Associativity::Left,
-        })
-            .description("Type casting operator - casts value to specified type or returns empty if conversion fails")
-            .example("'123' as Integer")
-            .example("Patient.active as Boolean")
-            .example("42 as String")
-            .parameter("value", TypeConstraint::Any, false)
-            .parameter("type", TypeConstraint::Any, false)
+        MetadataBuilder::new("as", OperationType::Function)
+            .description(
+                "Type casting function - returns the input if it is of the specified type, otherwise empty",
+            )
+            .example("Observation.value.as(Quantity).unit")
+            .example("(Observation.value as Quantity).unit")
+            .parameter(
+                "type",
+                TypeConstraint::Specific(FhirPathType::String),
+                false,
+            )
             .returns(TypeConstraint::Any)
-            .performance(PerformanceComplexity::Linear, true)
+            .performance(PerformanceComplexity::Constant, true)
             .build()
     }
 
-    async fn cast_value_with_provider(
+    /// Check if value is of specified type using the same logic as IsOperation
+    pub async fn check_type_with_provider(
         value: &FhirPathValue,
         type_name: &str,
         context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        // Normalize type name - handle both FHIR.String and string formats
-        let normalized_type = Self::normalize_type_name(type_name);
-
-        // Handle primitive FHIRPath types first (these don't need ModelProvider)
-        match normalized_type.to_lowercase().as_str() {
-            "boolean" => return Self::cast_to_boolean(value),
-            "integer" => return Self::cast_to_integer(value),
-            "decimal" => return Self::cast_to_decimal(value),
-            "string" => return Self::cast_to_string(value),
-            _ => {}
-        }
-
-        // For FHIR types, use ModelProvider to check type compatibility
-        let value_type = Self::extract_fhir_type(value);
-        if let Some(value_type) = value_type {
-            // Use ModelProvider for accurate FHIR type checking
-            let is_compatible = context
-                .model_provider
-                .is_type_compatible(&value_type, &normalized_type)
-                .await;
-            if is_compatible {
-                Ok(value.clone())
-            } else {
-                Ok(FhirPathValue::Empty)
-            }
-        } else {
-            // Not a FHIR resource/type
-            Ok(FhirPathValue::Empty)
-        }
-    }
-
-    /// Normalize type names to handle various namespace formats per FHIRPath specification
-    /// Supports: String, FHIR.String, System.String, `String`, etc.
-    fn normalize_type_name(type_name: &str) -> String {
-        // Handle backticks first
-        let cleaned = type_name.trim_matches('`');
-
-        // Handle various namespace prefixes per FHIRPath specification
-        if let Some(stripped) = cleaned.strip_prefix("FHIR.") {
-            stripped.to_string()
-        } else if let Some(stripped) = cleaned.strip_prefix("fhir.") {
-            stripped.to_string()
-        } else if let Some(stripped) = cleaned.strip_prefix("System.") {
-            stripped.to_string()
-        } else if let Some(stripped) = cleaned.strip_prefix("system.") {
-            stripped.to_string()
-        } else {
-            cleaned.to_string()
-        }
-    }
-
-    fn extract_fhir_type(value: &FhirPathValue) -> Option<String> {
-        match value {
-            FhirPathValue::Resource(resource) => resource.resource_type().map(|s| s.to_string()),
-            FhirPathValue::JsonValue(json) => json
-                .as_json()
-                .get("resourceType")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            _ => None,
-        }
-    }
-
-    fn cast_to_boolean(value: &FhirPathValue) -> Result<FhirPathValue> {
-        match value {
-            FhirPathValue::Boolean(_) => Ok(value.clone()),
-            FhirPathValue::String(s) => match s.to_lowercase().as_str() {
-                "true" => Ok(FhirPathValue::Boolean(true)),
-                "false" => Ok(FhirPathValue::Boolean(false)),
-                _ => Ok(FhirPathValue::Empty),
-            },
-            FhirPathValue::Integer(n) => match n {
-                0 => Ok(FhirPathValue::Boolean(false)),
-                1 => Ok(FhirPathValue::Boolean(true)),
-                _ => Ok(FhirPathValue::Empty),
-            },
-            _ => Ok(FhirPathValue::Empty),
-        }
-    }
-
-    fn cast_to_integer(value: &FhirPathValue) -> Result<FhirPathValue> {
-        match value {
-            FhirPathValue::Integer(_) => Ok(value.clone()),
-            FhirPathValue::String(s) => match s.parse::<i64>() {
-                Ok(n) => Ok(FhirPathValue::Integer(n)),
-                Err(_) => Ok(FhirPathValue::Empty),
-            },
-            FhirPathValue::Decimal(d) => {
-                if d.fract() == rust_decimal::Decimal::ZERO {
-                    Ok(FhirPathValue::Integer(d.to_i64().unwrap_or(0)))
-                } else {
-                    Ok(FhirPathValue::Empty)
-                }
-            }
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::Integer(if *b { 1 } else { 0 })),
-            _ => Ok(FhirPathValue::Empty),
-        }
-    }
-
-    fn cast_to_decimal(value: &FhirPathValue) -> Result<FhirPathValue> {
-        match value {
-            FhirPathValue::Decimal(_) => Ok(value.clone()),
-            FhirPathValue::Integer(n) => {
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*n)))
-            }
-            FhirPathValue::String(s) => match s.parse::<f64>() {
-                Ok(d) => Ok(FhirPathValue::Decimal(
-                    rust_decimal::Decimal::from_f64(d).unwrap_or_default(),
-                )),
-                Err(_) => Ok(FhirPathValue::Empty),
-            },
-            _ => Ok(FhirPathValue::Empty),
-        }
-    }
-
-    fn cast_to_string(value: &FhirPathValue) -> Result<FhirPathValue> {
-        match value {
-            FhirPathValue::String(_) => Ok(value.clone()),
-            FhirPathValue::Integer(n) => Ok(FhirPathValue::String(n.to_string().into())),
-            FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string().into())),
-            FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string().into())),
-            _ => Ok(FhirPathValue::Empty),
-        }
+    ) -> Result<bool> {
+        // Use the same type checking logic as IsOperation
+        crate::operations::types::is::IsOperation::check_type_with_provider(
+            value, type_name, context,
+        )
+        .await
     }
 }
 
@@ -196,10 +79,7 @@ impl FhirPathOperation for AsOperation {
     }
 
     fn operation_type(&self) -> OperationType {
-        OperationType::BinaryOperator {
-            precedence: 8,
-            associativity: Associativity::Left,
-        }
+        OperationType::Function
     }
 
     fn metadata(&self) -> &OperationMetadata {
@@ -213,65 +93,77 @@ impl FhirPathOperation for AsOperation {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        if args.len() != 1 {
+        if args.is_empty() {
+            // If no arguments provided, return empty collection
+            return Ok(FhirPathValue::Empty);
+        }
+
+        // Handle both function-style (1 arg) and binary-style (2 args) calls
+        let (value_to_check, type_name) = if args.len() == 1 {
+            // Function-style: value.as(Type) - use context.input as the value
+            let type_name = context
+                .model_provider
+                .extract_type_name(&args[0])
+                .map_err(|e| FhirPathError::TypeError {
+                    message: format!("as operator {e}"),
+                })?;
+            (&context.input, type_name)
+        } else if args.len() == 2 {
+            // Binary-style: value as Type - use first arg as value, second as type
+            // Check if the value is an empty collection - if so, return empty
+            if let FhirPathValue::Collection(c) = &args[0] {
+                if c.is_empty() {
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+
+            let type_name = context
+                .model_provider
+                .extract_type_name(&args[1])
+                .map_err(|e| FhirPathError::TypeError {
+                    message: format!("as operator {e}"),
+                })?;
+            (&args[0], type_name)
+        } else {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
                 expected: 1,
                 actual: args.len(),
             });
-        }
-
-        let type_name = match &args[0] {
-            FhirPathValue::String(s) => s.as_ref(),
-            FhirPathValue::TypeInfoObject { name, .. } => name.as_ref(),
-            _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "as operator type argument must be a string or type identifier"
-                        .to_string(),
-                });
-            }
         };
 
-        match &context.input {
+        let result = match value_to_check {
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
-                    Ok(FhirPathValue::Collection(Collection::from(vec![])))
+                    FhirPathValue::Empty
                 } else if c.len() == 1 {
-                    let cast_result =
-                        Self::cast_value_with_provider(c.first().unwrap(), type_name, context)
-                            .await?;
-                    if matches!(cast_result, FhirPathValue::Empty) {
-                        Ok(FhirPathValue::Collection(Collection::from(vec![])))
+                    let value = c.first().unwrap();
+                    let matches_type =
+                        Self::check_type_with_provider(value, &type_name, context).await?;
+                    if matches_type {
+                        value.clone()
                     } else {
-                        Ok(FhirPathValue::Collection(Collection::from(vec![
-                            cast_result,
-                        ])))
+                        FhirPathValue::Empty
                     }
                 } else {
-                    // For multiple items, try to cast each and return a collection of successful casts
-                    let mut results = Vec::new();
-                    for item in c.iter() {
-                        let cast_result =
-                            Self::cast_value_with_provider(item, type_name, context).await?;
-                        if !matches!(cast_result, FhirPathValue::Empty) {
-                            results.push(cast_result);
-                        }
-                    }
-                    Ok(FhirPathValue::Collection(Collection::from(results)))
+                    // More than one item - return error per FHIRPath spec
+                    return Err(FhirPathError::TypeError {
+                        message: "as operator requires a single item".to_string(),
+                    });
                 }
             }
             single_value => {
-                let cast_result =
-                    Self::cast_value_with_provider(single_value, type_name, context).await?;
-                if matches!(cast_result, FhirPathValue::Empty) {
-                    Ok(FhirPathValue::Collection(Collection::from(vec![])))
+                let matches_type =
+                    Self::check_type_with_provider(single_value, &type_name, context).await?;
+                if matches_type {
+                    single_value.clone()
                 } else {
-                    Ok(FhirPathValue::Collection(Collection::from(vec![
-                        cast_result,
-                    ])))
+                    FhirPathValue::Empty
                 }
             }
-        }
+        };
+
+        Ok(result)
     }
 
     fn try_evaluate_sync(
@@ -279,19 +171,19 @@ impl FhirPathOperation for AsOperation {
         _args: &[FhirPathValue],
         _context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
-        // Type casting may require async ModelProvider calls for FHIR types
+        // Type checking requires async ModelProvider calls, so cannot be done synchronously
         None
     }
 
     fn supports_sync(&self) -> bool {
-        false // Type casting may require async ModelProvider calls for FHIR types
+        false // Type checking requires async ModelProvider calls
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
-        if args.len() != 1 {
+        if args.len() != 1 && args.len() != 2 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: self.identifier().to_string(),
-                expected: 1,
+                expected: 2,
                 actual: args.len(),
             });
         }

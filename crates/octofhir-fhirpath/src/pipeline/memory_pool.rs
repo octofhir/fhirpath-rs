@@ -463,7 +463,7 @@ impl PoolMonitor {
                 #[cfg(feature = "diagnostics")]
                 {
                     let stats = self.pools.comprehensive_stats().await;
-                    log::debug!("Memory pool stats: {:?}", stats);
+                    log::debug!("Memory pool stats: {stats:?}");
                 }
             }
         })

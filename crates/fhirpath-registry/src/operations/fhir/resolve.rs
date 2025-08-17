@@ -191,7 +191,7 @@ impl ResolveFunction {
         reference: &str,
         context: &EvaluationContext,
     ) -> Result<Option<FhirPathValue>> {
-        eprintln!("DEBUG: Trying direct Bundle resolution for '{}'", reference);
+        eprintln!("DEBUG: Trying direct Bundle resolution for '{reference}'");
 
         // WORKAROUND: When context.root is Collection instead of Bundle (context lost),
         // we can try to use the UnifiedRegistry to re-evaluate the Bundle expression
@@ -248,7 +248,7 @@ impl ResolveFunction {
         for var_name in ["context", "resource", "rootResource"] {
             if let Some(value) = context.variables.get(var_name) {
                 if self.is_bundle_resource(value) {
-                    eprintln!("DEBUG: Found Bundle in %{} variable", var_name);
+                    eprintln!("DEBUG: Found Bundle in %{var_name} variable");
                     return Some(value.clone());
                 }
             }

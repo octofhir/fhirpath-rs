@@ -123,7 +123,10 @@ impl SubsetOfFunction {
 
         // Check if all items from left collection are in right collection using FHIRPath equality
         for item in &left_items {
-            if !right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) {
+            if !right_items
+                .iter()
+                .any(|right_item| item.fhirpath_equals(right_item))
+            {
                 // Found an item in left that's not in right - not a subset
                 return Ok(FhirPathValue::Boolean(false));
             }

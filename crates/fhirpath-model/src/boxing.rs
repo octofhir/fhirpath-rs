@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Runtime value boxing implementation following ADR-009
+//! Runtime value boxing implementation
 //!
 //! This module implements universal value boxing to preserve metadata
 //! and type information throughout FHIRPath evaluation.
@@ -47,7 +47,7 @@ pub struct Extension {
     pub value: Option<Value>,
 }
 
-/// Universal boxed value interface following ADR-009
+/// Universal boxed value interface
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxedValue {
     /// The actual value

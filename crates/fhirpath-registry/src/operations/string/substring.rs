@@ -105,8 +105,8 @@ impl SubstringFunction {
         // Validate arguments
         if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "substring() requires 1 or 2 arguments (start, optional length)"
                     .to_string(),
             });
@@ -148,8 +148,8 @@ impl SubstringFunction {
                     string_val.into()
                 } else {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message:
                             "substring() requires input to be a string or convertible to string"
                                 .to_string(),

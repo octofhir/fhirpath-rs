@@ -119,7 +119,10 @@ impl IsDistinctFunction {
                 // Use FHIRPath equality to check for duplicates
                 let mut seen = Vec::new();
                 for item in items.iter() {
-                    if seen.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+                    if seen
+                        .iter()
+                        .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+                    {
                         // Duplicate found
                         return Ok(FhirPathValue::Boolean(false));
                     }

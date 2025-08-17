@@ -87,8 +87,8 @@ impl FhirPathOperation for ContainsFunction {
                 self.evaluate_collection_contains(&args[0], &args[1])
             }
             _ => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: format!(
                     "contains() expects 1 argument (substring) or 2 arguments (collection, item), got {}",
                     args.len()
@@ -106,8 +106,8 @@ impl FhirPathOperation for ContainsFunction {
             1 => Some(self.evaluate_contains(args, context)),
             2 => Some(self.evaluate_collection_contains(&args[0], &args[1])),
             _ => Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: format!(
                     "contains() expects 1 argument (substring) or 2 arguments (collection, item), got {}",
                     args.len()
@@ -134,8 +134,8 @@ impl ContainsFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "contains() requires exactly one argument (substring)".to_string(),
             });
         }
@@ -147,8 +147,8 @@ impl ContainsFunction {
                 FhirPathValue::String(s) => s.as_ref(),
                 _ => {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "contains() substring parameter must be a string".to_string(),
                     });
                 }
@@ -197,8 +197,8 @@ impl ContainsFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: "contains() requires input to be a string".to_string(),
             }),
         }
@@ -210,8 +210,6 @@ impl ContainsFunction {
         left: &FhirPathValue,
         right: &FhirPathValue,
     ) -> Result<FhirPathValue> {
-        use crate::operations::comparison::equals::EqualsOperation;
-
         // Right operand must be single item
         let right_collection = right.clone().to_collection();
         if right_collection.len() != 1 {
@@ -228,13 +226,30 @@ impl ContainsFunction {
             return Ok(FhirPathValue::Boolean(false));
         }
 
-        // Search for the item using equality semantics
+        // Search for the item using equality semantics (use direct comparison)
         for item in search_collection.iter() {
-            if EqualsOperation::compare_equal(item, search_item)? {
+            if self.values_equal(item, search_item)? {
                 return Ok(FhirPathValue::Boolean(true));
             }
         }
 
         Ok(FhirPathValue::Boolean(false))
+    }
+
+    /// Basic equality comparison for values
+    fn values_equal(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<bool> {
+        use FhirPathValue::*;
+
+        match (left, right) {
+            (String(a), String(b)) => Ok(a == b),
+            (Integer(a), Integer(b)) => Ok(a == b),
+            (Decimal(a), Decimal(b)) => Ok(a == b),
+            (Boolean(a), Boolean(b)) => Ok(a == b),
+            (Date(a), Date(b)) => Ok(a == b),
+            (DateTime(a), DateTime(b)) => Ok(a == b),
+            (Time(a), Time(b)) => Ok(a == b),
+            (Empty, Empty) => Ok(true),
+            _ => Ok(false), // Different types are not equal
+        }
     }
 }

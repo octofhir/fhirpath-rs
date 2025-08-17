@@ -83,8 +83,8 @@ impl FhirPathOperation for SqrtFunction {
             FhirPathValue::Integer(n) => {
                 if *n < 0 {
                     Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Cannot take square root of negative number".to_string(),
                     })
                 } else {
@@ -97,8 +97,8 @@ impl FhirPathOperation for SqrtFunction {
             FhirPathValue::Decimal(n) => {
                 if n.is_sign_negative() {
                     Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Cannot take square root of negative number".to_string(),
                     })
                 } else {
@@ -151,8 +151,8 @@ impl FhirPathOperation for SqrtFunction {
             FhirPathValue::Integer(n) => {
                 if *n < 0 {
                     Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Cannot take square root of negative number".to_string(),
                     }))
                 } else {
@@ -165,8 +165,8 @@ impl FhirPathOperation for SqrtFunction {
             FhirPathValue::Decimal(n) => {
                 if n.is_sign_negative() {
                     Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Cannot take square root of negative number".to_string(),
                     }))
                 } else {

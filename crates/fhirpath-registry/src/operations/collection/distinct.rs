@@ -85,7 +85,10 @@ impl FhirPathOperation for DistinctFunction {
 
                 for item in c.iter() {
                     // Use FHIRPath equality for proper deduplication
-                    if !result.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+                    if !result
+                        .iter()
+                        .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+                    {
                         result.push(item.clone());
                     }
                 }
@@ -116,7 +119,10 @@ impl FhirPathOperation for DistinctFunction {
 
                 for item in c.iter() {
                     // Use FHIRPath equality for proper deduplication
-                    if !result.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
+                    if !result
+                        .iter()
+                        .any(|existing: &FhirPathValue| existing.fhirpath_equals(item))
+                    {
                         result.push(item.clone());
                     }
                 }

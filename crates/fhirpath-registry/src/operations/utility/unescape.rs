@@ -151,16 +151,16 @@ impl UnescapeFunction {
                                                 result.push(unicode_char);
                                             } else {
                                                 return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                                    expression: None,
+                                                    location: None,
                                                     message: "Invalid unicode code point"
                                                         .to_string(),
                                                 });
                                             }
                                         } else {
                                             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                                expression: None,
+                                                location: None,
                                                 message: "Invalid unicode escape sequence"
                                                     .to_string(),
                                             });
@@ -233,16 +233,16 @@ impl FhirPathOperation for UnescapeFunction {
                         FhirPathValue::String(s) => s.as_ref(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "unescape() target parameter must be a string".to_string(),
                             });
                         }
                     }
                 } else {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "unescape() target parameter must be a single string".to_string(),
                     });
                 }
@@ -270,8 +270,8 @@ impl FhirPathOperation for UnescapeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "unescape() requires a string input".to_string(),
                             });
                         }
@@ -280,8 +280,8 @@ impl FhirPathOperation for UnescapeFunction {
                     return Ok(FhirPathValue::Collection(Collection::new()));
                 } else {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "unescape() requires a single string value".to_string(),
                     });
                 }
@@ -323,16 +323,16 @@ impl FhirPathOperation for UnescapeFunction {
                         FhirPathValue::String(s) => s.as_ref(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "unescape() target parameter must be a string".to_string(),
                             }));
                         }
                     }
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "unescape() target parameter must be a single string".to_string(),
                     }));
                 }
@@ -357,8 +357,8 @@ impl FhirPathOperation for UnescapeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "unescape() requires a string input".to_string(),
                             }));
                         }
@@ -367,8 +367,8 @@ impl FhirPathOperation for UnescapeFunction {
                     return Some(Ok(FhirPathValue::Collection(Collection::new())));
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "unescape() requires a single string value".to_string(),
                     }));
                 }

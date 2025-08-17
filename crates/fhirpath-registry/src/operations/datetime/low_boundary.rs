@@ -501,8 +501,8 @@ impl FhirPathOperation for LowBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "lowBoundary() precision parameter must be a single integer"
                             .to_string(),
                     });
@@ -752,8 +752,8 @@ impl FhirPathOperation for LowBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "lowBoundary() precision parameter must be a single integer"
                             .to_string(),
                     }));

@@ -26,7 +26,7 @@ impl SingleFunction {
 
     fn create_metadata() -> OperationMetadata {
         MetadataBuilder::new("single", OperationType::Function)
-            .description("Returns the single item in the collection. If the collection contains more than one item, or is empty, an error is returned")
+            .description("Returns the single item in the collection if there is exactly one item. Returns empty collection if input is empty. Signals error if multiple items exist")
             .returns(TypeConstraint::Any)
             .example("Patient.name.single()")
             .example("Bundle.entry.single().resource")
@@ -63,14 +63,11 @@ impl FhirPathOperation for SingleFunction {
         let collection = context.input.clone().to_collection();
 
         match collection.len() {
-            0 => Err(FhirPathError::function_error(
-                "single",
-                "Cannot call single() on empty collection"
-            )),
+            0 => Ok(FhirPathValue::Empty),
             1 => Ok(collection.get(0).unwrap().clone()),
             n => Err(FhirPathError::function_error(
                 "single",
-                &format!("single() requires exactly one item, found {n}")
+                format!("single() requires exactly one item, found {n}"),
             )),
         }
     }

@@ -122,7 +122,10 @@ impl ExcludeFunction {
 
         for item in &left_items {
             // Item must NOT be in right collection
-            if !right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) {
+            if !right_items
+                .iter()
+                .any(|right_item| item.fhirpath_equals(right_item))
+            {
                 result_items.push(item.clone());
             }
         }

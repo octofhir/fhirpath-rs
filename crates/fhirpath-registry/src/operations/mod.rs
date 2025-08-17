@@ -117,15 +117,12 @@ impl EvaluationContext {
     }
 }
 
-pub mod arithmetic;
-pub mod binary_operator_utils;
 pub mod cda;
 pub mod collection;
 pub mod comparison;
 pub mod conversion;
 pub mod datetime;
 pub mod fhir;
-pub mod lambda;
 pub mod logical;
 pub mod math;
 pub mod string;
@@ -133,7 +130,6 @@ pub mod types;
 pub mod utility;
 
 // Re-export for convenience
-pub use arithmetic::ArithmeticOperations;
 pub use cda::{CdaOperations, HasTemplateIdOfFunction};
 pub use collection::CollectionOperations;
 
@@ -143,7 +139,6 @@ pub use string::StringOperations;
 pub use comparison::ComparisonOperations;
 pub use datetime::DateTimeOperations;
 pub use fhir::FhirOperations;
-pub use lambda::LambdaOperations;
 pub use logical::LogicalOperations;
 pub use math::MathOperations;
 pub use types::TypeOperations;

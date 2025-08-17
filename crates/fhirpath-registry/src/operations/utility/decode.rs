@@ -103,8 +103,8 @@ impl DecodeFunction {
                     match percent_encoding::percent_decode(input.as_bytes()).decode_utf8() {
                         Ok(decoded) => Ok(decoded.to_string()),
                         Err(_) => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                            expression: None,
+                            location: None,
                             message: "Invalid URL encoded input".to_string(),
                         }),
                     }
@@ -115,8 +115,8 @@ impl DecodeFunction {
             "hex" => {
                 if input.len() % 2 != 0 {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Hex string must have even length".to_string(),
                     });
                 }
@@ -125,15 +125,15 @@ impl DecodeFunction {
                 for chunk in input.as_bytes().chunks(2) {
                     let hex_str =
                         std::str::from_utf8(chunk).map_err(|_| FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                            expression: None,
+                            location: None,
                             message: "Invalid hex characters".to_string(),
                         })?;
 
                     let byte = u8::from_str_radix(hex_str, 16).map_err(|_| {
                         FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                            expression: None,
+                            location: None,
                             message: "Invalid hex characters".to_string(),
                         }
                     })?;
@@ -144,15 +144,15 @@ impl DecodeFunction {
                 match String::from_utf8(decoded_bytes) {
                     Ok(decoded_string) => Ok(decoded_string),
                     Err(_) => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "Invalid UTF-8 sequence in hex decoded data".to_string(),
                     }),
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                expression: None,
+                location: None,
                 message: format!(
                     "Unsupported encoding type: '{encoding}'. Supported types are: 'base64', 'url', 'hex'"
                 ),
@@ -203,8 +203,8 @@ impl FhirPathOperation for DecodeFunction {
                         Some(FhirPathValue::String(s)) => s.clone(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "decode() requires a string input".to_string(),
                             });
                         }
@@ -213,8 +213,8 @@ impl FhirPathOperation for DecodeFunction {
                     return Ok(FhirPathValue::Collection(vec![].into()));
                 } else {
                     return Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "decode() requires a single string value".to_string(),
                     });
                 }
@@ -281,8 +281,8 @@ impl FhirPathOperation for DecodeFunction {
                         Some(FhirPathValue::String(s)) => s.clone(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                                expression: None,
+                                location: None,
                                 message: "decode() requires a string input".to_string(),
                             }));
                         }
@@ -291,8 +291,8 @@ impl FhirPathOperation for DecodeFunction {
                     return Some(Ok(FhirPathValue::Collection(vec![].into())));
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
+                        expression: None,
+                        location: None,
                         message: "decode() requires a single string value".to_string(),
                     }));
                 }
