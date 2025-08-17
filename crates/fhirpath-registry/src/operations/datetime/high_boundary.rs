@@ -747,6 +747,8 @@ impl FhirPathOperation for HighBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "highBoundary() precision parameter must be a single integer"
                             .to_string(),
                     });
@@ -937,11 +939,15 @@ impl FhirPathOperation for HighBoundaryFunction {
                     Ok(FhirPathValue::Collection(Collection::new()))
                 } else {
                     Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "highBoundary() requires a single value".to_string()
                     })
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "highBoundary() requires a decimal, integer, quantity, date, datetime, or time value".to_string()
             }),
         }
@@ -992,6 +998,8 @@ impl FhirPathOperation for HighBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "highBoundary() precision parameter must be a single integer"
                             .to_string(),
                     }));
@@ -1188,11 +1196,15 @@ impl FhirPathOperation for HighBoundaryFunction {
                     Ok(FhirPathValue::Collection(Collection::new()))
                 } else {
                     Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "highBoundary() requires a single value".to_string()
                     })
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "highBoundary() requires a decimal, integer, quantity, date, datetime, or time value".to_string()
             }),
         };

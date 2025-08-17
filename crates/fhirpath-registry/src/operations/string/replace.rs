@@ -113,6 +113,8 @@ impl ReplaceFunction {
         // Validate arguments
         if args.len() != 2 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "replace() requires exactly two arguments (pattern, substitution)"
                     .to_string(),
             });

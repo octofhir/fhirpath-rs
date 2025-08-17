@@ -63,15 +63,15 @@ impl FhirPathOperation for SingleFunction {
         let collection = context.input.clone().to_collection();
 
         match collection.len() {
-            0 => Err(FhirPathError::EvaluationError {
-                message: "single() called on empty collection".to_string(),
-            }),
+            0 => Err(FhirPathError::function_error(
+                "single",
+                "Cannot call single() on empty collection"
+            )),
             1 => Ok(collection.get(0).unwrap().clone()),
-            n => Err(FhirPathError::EvaluationError {
-                message: format!(
-                    "single() called on collection with {n} items (expected exactly 1)"
-                ),
-            }),
+            n => Err(FhirPathError::function_error(
+                "single",
+                &format!("single() requires exactly one item, found {n}")
+            )),
         }
     }
 

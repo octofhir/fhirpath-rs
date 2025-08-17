@@ -66,6 +66,8 @@ impl ToQuantityFunction {
             Some(FhirPathValue::Empty) => None,
             Some(_) => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "toQuantity(unit) expects unit to be a String".to_string(),
                 });
             }
@@ -80,6 +82,8 @@ impl ToQuantityFunction {
                     c.first().unwrap()
                 } else {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message:
                             "toQuantity() requires a single item, but collection has multiple items"
                                 .to_string(),
@@ -140,6 +144,8 @@ impl FhirPathOperation for ToQuantityFunction {
             0 => Self::convert_to_quantity(&context.input, None),
             1 => Self::convert_to_quantity(&context.input, Some(&args[0])),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "toQuantity() expects zero or one argument".to_string(),
             }),
         }
@@ -154,6 +160,8 @@ impl FhirPathOperation for ToQuantityFunction {
             0 => Self::convert_to_quantity(&context.input, None),
             1 => Self::convert_to_quantity(&context.input, Some(&args[0])),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "toQuantity() expects zero or one argument".to_string(),
             }),
         };

@@ -200,13 +200,11 @@ impl AdditionOperation {
             (_, FhirPathValue::Empty) => {
                 return Ok(FhirPathValue::Collection(Collection::from(vec![])));
             }
-            _ => Err(FhirPathError::TypeError {
-                message: format!(
-                    "Cannot add {} and {}",
-                    left_unwrapped.type_name(),
-                    right_unwrapped.type_name()
-                ),
-            }),
+            _ => Err(FhirPathError::type_mismatch_with_context(
+                "numeric types",
+                format!("{} and {}", left_unwrapped.type_name(), right_unwrapped.type_name()),
+                "addition operation"
+            )),
         };
 
         // Wrap result in collection as per FHIRPath spec
@@ -231,9 +229,11 @@ impl AdditionOperation {
                 } else if let Ok(decimal_val) = s.parse::<Decimal>() {
                     Ok(FhirPathValue::Decimal(decimal_val))
                 } else {
-                    Err(FhirPathError::TypeError {
-                        message: format!("Cannot apply unary plus to string '{s}'"),
-                    })
+                    Err(FhirPathError::type_mismatch_with_context(
+                        "numeric string",
+                        format!("non-numeric string '{s}'"),
+                        "unary plus operation"
+                    ))
                 }
             }
             FhirPathValue::Empty => return Ok(FhirPathValue::Collection(Collection::from(vec![]))),
@@ -243,9 +243,11 @@ impl AdditionOperation {
             FhirPathValue::Collection(items) if items.len() > 1 => {
                 return Ok(FhirPathValue::Collection(Collection::from(vec![])));
             }
-            _ => Err(FhirPathError::TypeError {
-                message: format!("Cannot apply unary plus to {}", unwrapped.type_name()),
-            }),
+            _ => Err(FhirPathError::type_mismatch_with_context(
+                "numeric types",
+                unwrapped.type_name(),
+                "unary plus operation"
+            )),
         };
 
         // Wrap result in collection as per FHIRPath spec

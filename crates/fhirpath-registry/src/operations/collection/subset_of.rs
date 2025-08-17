@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// SubsetOf function: returns true if the input collection is a subset of the other collection
 pub struct SubsetOfFunction;
@@ -122,17 +121,9 @@ impl SubsetOfFunction {
             return Ok(FhirPathValue::Boolean(true));
         }
 
-        // Build a set of keys from the right collection for efficient lookup
-        let mut right_keys = HashSet::new();
-        for item in &right_items {
-            let key = self.value_to_comparable_key(item)?;
-            right_keys.insert(key);
-        }
-
-        // Check if all items from left collection are in right collection
+        // Check if all items from left collection are in right collection using FHIRPath equality
         for item in &left_items {
-            let key = self.value_to_comparable_key(item)?;
-            if !right_keys.contains(&key) {
+            if !right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) {
                 // Found an item in left that's not in right - not a subset
                 return Ok(FhirPathValue::Boolean(false));
             }

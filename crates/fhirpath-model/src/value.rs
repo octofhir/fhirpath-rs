@@ -424,6 +424,20 @@ impl FhirPathValue {
         Self::Empty
     }
 
+    /// Normalize collection result
+    /// - Empty collections → `FhirPathValue::Empty`
+    /// - Single-item collections → unwrapped single value
+    /// - Multi-item collections → `FhirPathValue::Collection`
+    pub fn normalize_collection_result(items: Vec<FhirPathValue>) -> FhirPathValue {
+        if items.is_empty() {
+            FhirPathValue::Empty
+        } else if items.len() == 1 {
+            items.into_iter().next().unwrap()
+        } else {
+            FhirPathValue::Collection(Collection::from_vec(items))
+        }
+    }
+
     /// Create a collection from a vector of values
     pub fn collection(values: Vec<FhirPathValue>) -> Self {
         Self::Collection(Collection::from_vec(values))
@@ -789,6 +803,78 @@ impl FhirPathValue {
             _ => false,
         }
     }
+
+    /// FHIRPath-specific equality checking (separate from PartialEq)
+    /// 
+    /// This method implements FHIRPath equality rules that include:
+    /// - Numeric type coercion (Integer vs Decimal)
+    /// - Collection comparison with element-wise equality
+    /// - Proper handling of Empty values
+    /// - Mixed single value vs single-item collection comparison
+    pub fn fhirpath_equals(&self, other: &FhirPathValue) -> bool {
+        use rust_decimal::Decimal;
+        
+        match (self, other) {
+            // Boolean equality
+            (Self::Boolean(a), Self::Boolean(b)) => a == b,
+            
+            // String equality
+            (Self::String(a), Self::String(b)) => a == b,
+            
+            // Numeric equality with type coercion
+            (Self::Integer(a), Self::Integer(b)) => a == b,
+            (Self::Decimal(a), Self::Decimal(b)) => a == b,
+            (Self::Integer(a), Self::Decimal(b)) => Decimal::from(*a) == *b,
+            (Self::Decimal(a), Self::Integer(b)) => *a == Decimal::from(*b),
+            
+            // Date/Time equality
+            (Self::Date(a), Self::Date(b)) => a == b,
+            (Self::DateTime(a), Self::DateTime(b)) => a == b,
+            (Self::Time(a), Self::Time(b)) => a == b,
+            
+            // Quantity equality (with unit compatibility)
+            (Self::Quantity(a), Self::Quantity(b)) => {
+                a.value == b.value && a.unit == b.unit
+            }
+            
+            // Collection equality (element-wise)
+            (Self::Collection(a), Self::Collection(b)) => {
+                a.len() == b.len() && 
+                a.iter().zip(b.iter()).all(|(x, y)| x.fhirpath_equals(y))
+            }
+            
+            // Empty equality
+            (Self::Empty, Self::Empty) => true,
+            
+            // Mixed single value vs single-item collection
+            (Self::Collection(coll), single) => {
+                coll.len() == 1 && coll.first().map_or(false, |item| item.fhirpath_equals(single))
+            }
+            (single, Self::Collection(coll)) => {
+                coll.len() == 1 && coll.first().map_or(false, |item| single.fhirpath_equals(item))
+            }
+            
+            // JsonValue equality
+            (Self::JsonValue(a), Self::JsonValue(b)) => a.as_json() == b.as_json(),
+            
+            // Resource equality (compare JSON representations)
+            (Self::Resource(a), Self::Resource(b)) => a.to_json() == b.to_json(),
+            
+            // TypeInfo equality
+            (Self::TypeInfoObject { namespace: ns1, name: n1 }, 
+             Self::TypeInfoObject { namespace: ns2, name: n2 }) => {
+                ns1 == ns2 && n1 == n2
+            }
+            
+            // All other combinations are not equal
+            _ => false,
+        }
+    }
+    
+    /// Static version for convenience
+    pub fn equals_static(left: &FhirPathValue, right: &FhirPathValue) -> bool {
+        left.fhirpath_equals(right)
+    }
 }
 
 /// Convert from serde_json::Value to FhirPathValue with CoW optimization
@@ -825,7 +911,12 @@ impl From<Value> for FhirPathValue {
             }
             Value::Array(arr) => {
                 let items: Vec<FhirPathValue> = arr.into_iter().map(FhirPathValue::from).collect();
-                Self::Collection(Collection::from_vec(items))
+                // Always return Collection for arrays to preserve semantics
+                if items.is_empty() {
+                    FhirPathValue::Empty
+                } else {
+                    FhirPathValue::Collection(Collection::from_vec(items))
+                }
             }
             Value::Object(ref obj) => {
                 // Check if this looks like a Quantity
@@ -1427,5 +1518,244 @@ mod tests {
             assert_eq!(namespace.as_ref(), "System");
             assert_eq!(name.as_ref(), "String");
         }
+    }
+
+    #[test]
+    fn test_fhirpath_equality_basics() {
+        // Boolean equality
+        assert!(FhirPathValue::Boolean(true).fhirpath_equals(&FhirPathValue::Boolean(true)));
+        assert!(!FhirPathValue::Boolean(true).fhirpath_equals(&FhirPathValue::Boolean(false)));
+
+        // String equality
+        assert!(FhirPathValue::String(Arc::from("hello")).fhirpath_equals(&FhirPathValue::String(Arc::from("hello"))));
+        assert!(!FhirPathValue::String(Arc::from("hello")).fhirpath_equals(&FhirPathValue::String(Arc::from("world"))));
+
+        // Empty equality
+        assert!(FhirPathValue::Empty.fhirpath_equals(&FhirPathValue::Empty));
+        assert!(!FhirPathValue::Empty.fhirpath_equals(&FhirPathValue::Boolean(true)));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_numeric_coercion() {
+        use rust_decimal::Decimal;
+
+        // Integer equality
+        assert!(FhirPathValue::Integer(42).fhirpath_equals(&FhirPathValue::Integer(42)));
+        assert!(!FhirPathValue::Integer(42).fhirpath_equals(&FhirPathValue::Integer(43)));
+
+        // Decimal equality
+        let dec1 = FhirPathValue::Decimal(Decimal::from(42));
+        let dec2 = FhirPathValue::Decimal(Decimal::from(42));
+        assert!(dec1.fhirpath_equals(&dec2));
+
+        // Cross-type numeric equality (Integer vs Decimal)
+        let int_val = FhirPathValue::Integer(42);
+        let dec_val = FhirPathValue::Decimal(Decimal::from(42));
+        assert!(int_val.fhirpath_equals(&dec_val));
+        assert!(dec_val.fhirpath_equals(&int_val));
+
+        // Cross-type numeric inequality
+        let int_val = FhirPathValue::Integer(42);
+        let dec_val = FhirPathValue::Decimal(Decimal::from(43));
+        assert!(!int_val.fhirpath_equals(&dec_val));
+        assert!(!dec_val.fhirpath_equals(&int_val));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_collections() {
+        // Collection vs Collection
+        let coll1 = FhirPathValue::collection(vec![
+            FhirPathValue::Integer(1),
+            FhirPathValue::Integer(2),
+        ]);
+        let coll2 = FhirPathValue::collection(vec![
+            FhirPathValue::Integer(1),
+            FhirPathValue::Integer(2),
+        ]);
+        let coll3 = FhirPathValue::collection(vec![
+            FhirPathValue::Integer(1),
+            FhirPathValue::Integer(3),
+        ]);
+        
+        assert!(coll1.fhirpath_equals(&coll2));
+        assert!(!coll1.fhirpath_equals(&coll3));
+
+        // Different length collections
+        let coll_short = FhirPathValue::collection(vec![FhirPathValue::Integer(1)]);
+        assert!(!coll1.fhirpath_equals(&coll_short));
+
+        // Empty collections
+        let empty1 = FhirPathValue::Empty;
+        let empty2 = FhirPathValue::Empty;
+        assert!(empty1.fhirpath_equals(&empty2));
+        assert!(empty2.fhirpath_equals(&empty1));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_single_vs_collection() {
+        // Single item vs single-item collection
+        let single = FhirPathValue::Integer(42);
+        let single_coll = FhirPathValue::collection(vec![FhirPathValue::Integer(42)]);
+        
+        assert!(single.fhirpath_equals(&single_coll));
+        assert!(single_coll.fhirpath_equals(&single));
+
+        // Single item vs multi-item collection
+        let multi_coll = FhirPathValue::collection(vec![
+            FhirPathValue::Integer(42),
+            FhirPathValue::Integer(43),
+        ]);
+        assert!(!single.fhirpath_equals(&multi_coll));
+        assert!(!multi_coll.fhirpath_equals(&single));
+
+        // Different single values vs single-item collections
+        let different_single = FhirPathValue::Integer(43);
+        assert!(!different_single.fhirpath_equals(&single_coll));
+        assert!(!single_coll.fhirpath_equals(&different_single));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_complex_collections() {
+        use rust_decimal::Decimal;
+
+        // Collections with mixed types that coerce
+        let coll1 = FhirPathValue::collection(vec![
+            FhirPathValue::Integer(42),
+            FhirPathValue::String(Arc::from("hello")),
+        ]);
+        let coll2 = FhirPathValue::collection(vec![
+            FhirPathValue::Decimal(Decimal::from(42)), // Should equal Integer(42)
+            FhirPathValue::String(Arc::from("hello")),
+        ]);
+        
+        assert!(coll1.fhirpath_equals(&coll2));
+
+        // Nested collections
+        let nested1 = FhirPathValue::collection(vec![
+            FhirPathValue::collection(vec![FhirPathValue::Integer(1)]),
+            FhirPathValue::Integer(2),
+        ]);
+        let nested2 = FhirPathValue::collection(vec![
+            FhirPathValue::collection(vec![FhirPathValue::Integer(1)]),
+            FhirPathValue::Integer(2),
+        ]);
+        
+        assert!(nested1.fhirpath_equals(&nested2));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_date_time() {
+        use chrono::{DateTime, NaiveDate, NaiveTime};
+
+        // Date equality
+        let date1 = FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap());
+        let date2 = FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 1).unwrap());
+        let date3 = FhirPathValue::Date(NaiveDate::from_ymd_opt(2023, 1, 2).unwrap());
+        
+        assert!(date1.fhirpath_equals(&date2));
+        assert!(!date1.fhirpath_equals(&date3));
+
+        // Time equality
+        let time1 = FhirPathValue::Time(NaiveTime::from_hms_opt(12, 0, 0).unwrap());
+        let time2 = FhirPathValue::Time(NaiveTime::from_hms_opt(12, 0, 0).unwrap());
+        let time3 = FhirPathValue::Time(NaiveTime::from_hms_opt(13, 0, 0).unwrap());
+        
+        assert!(time1.fhirpath_equals(&time2));
+        assert!(!time1.fhirpath_equals(&time3));
+
+        // DateTime equality
+        let dt1 = FhirPathValue::DateTime(
+            DateTime::parse_from_rfc3339("2023-01-01T12:00:00Z").unwrap().fixed_offset()
+        );
+        let dt2 = FhirPathValue::DateTime(
+            DateTime::parse_from_rfc3339("2023-01-01T12:00:00Z").unwrap().fixed_offset()
+        );
+        
+        assert!(dt1.fhirpath_equals(&dt2));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_quantities() {
+        use rust_decimal::Decimal;
+        use crate::quantity::Quantity;
+
+        // Same quantities
+        let q1 = FhirPathValue::Quantity(Arc::new(Quantity::new(
+            Decimal::from(5), 
+            Some("kg".to_string())
+        )));
+        let q2 = FhirPathValue::Quantity(Arc::new(Quantity::new(
+            Decimal::from(5), 
+            Some("kg".to_string())
+        )));
+        
+        assert!(q1.fhirpath_equals(&q2));
+
+        // Different values
+        let q3 = FhirPathValue::Quantity(Arc::new(Quantity::new(
+            Decimal::from(6), 
+            Some("kg".to_string())
+        )));
+        
+        assert!(!q1.fhirpath_equals(&q3));
+
+        // Different units
+        let q4 = FhirPathValue::Quantity(Arc::new(Quantity::new(
+            Decimal::from(5), 
+            Some("g".to_string())
+        )));
+        
+        assert!(!q1.fhirpath_equals(&q4));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_type_info() {
+        // TypeInfo equality
+        let type1 = FhirPathValue::TypeInfoObject {
+            namespace: Arc::from("FHIR"),
+            name: Arc::from("Patient"),
+        };
+        let type2 = FhirPathValue::TypeInfoObject {
+            namespace: Arc::from("FHIR"),
+            name: Arc::from("Patient"),
+        };
+        let type3 = FhirPathValue::TypeInfoObject {
+            namespace: Arc::from("FHIR"),
+            name: Arc::from("Observation"),
+        };
+        
+        assert!(type1.fhirpath_equals(&type2));
+        assert!(!type1.fhirpath_equals(&type3));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_json_values() {
+        use serde_json::json;
+
+        // JSON value equality
+        let json1 = FhirPathValue::json_value(json!({"name": "test", "value": 42}));
+        let json2 = FhirPathValue::json_value(json!({"name": "test", "value": 42}));
+        let json3 = FhirPathValue::json_value(json!({"name": "test", "value": 43}));
+        
+        assert!(json1.fhirpath_equals(&json2));
+        assert!(!json1.fhirpath_equals(&json3));
+    }
+
+    #[test]
+    fn test_fhirpath_equality_cross_type_negative() {
+        // Different types should not be equal (except numeric coercion)
+        assert!(!FhirPathValue::Boolean(true).fhirpath_equals(&FhirPathValue::String(Arc::from("true"))));
+        assert!(!FhirPathValue::Integer(42).fhirpath_equals(&FhirPathValue::String(Arc::from("42"))));
+        assert!(!FhirPathValue::Empty.fhirpath_equals(&FhirPathValue::Boolean(false)));
+    }
+
+    #[test]
+    fn test_equals_static_method() {
+        let val1 = FhirPathValue::Integer(42);
+        let val2 = FhirPathValue::Integer(42);
+        let val3 = FhirPathValue::Integer(43);
+        
+        assert!(FhirPathValue::equals_static(&val1, &val2));
+        assert!(!FhirPathValue::equals_static(&val1, &val3));
     }
 }

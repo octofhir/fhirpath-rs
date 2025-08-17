@@ -63,18 +63,6 @@ bench-list:
     @echo "=================================="
     cargo run --package fhirpath-bench --bin fhirpath-bench list
 
-# Legacy benchmark command for compatibility
-bench-legacy:
-    @echo "🚀 FHIRPath Legacy Benchmarks"
-    @echo "============================="
-    @echo "📊 Running unified benchmark suite..."
-    @echo "This tests all components: tokenizer, parser, evaluator, and throughput"
-    cargo run --package octofhir-fhirpath-benchmarks --bin benchmark-runner
-    @echo "📈 Performance Summary:"
-    @echo "✓ Tokenizer: Optimized for 10M+ operations/second"
-    @echo "✓ Parser: Optimized for 1M+ operations/second"
-    @echo "✓ Evaluator: Context operations and evaluation"
-    @echo "✓ Throughput: High-volume operation testing"
 
 bench-full: bench bench-report
     @echo "✅ Complete benchmark suite finished!"

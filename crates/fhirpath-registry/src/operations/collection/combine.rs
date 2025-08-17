@@ -121,11 +121,7 @@ impl CombineFunction {
         result_items.extend(left_items);
         result_items.extend(right_items);
 
-        if result_items.is_empty() {
-            Ok(FhirPathValue::Empty)
-        } else {
-            Ok(FhirPathValue::collection(result_items))
-        }
+        Ok(FhirPathValue::normalize_collection_result(result_items))
     }
 
     /// Convert a FhirPathValue to a vector of items (flattening if it's a collection)

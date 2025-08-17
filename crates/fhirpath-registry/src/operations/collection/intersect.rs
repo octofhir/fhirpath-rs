@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// Intersect function: returns the intersection of two collections
 pub struct IntersectFunction;
@@ -117,30 +116,18 @@ impl IntersectFunction {
         let left_items = self.to_collection_items(&context.input);
         let right_items = self.to_collection_items(other);
 
-        // Build a set of keys from the right collection for efficient lookup
-        let mut right_keys = HashSet::new();
-        for item in &right_items {
-            let key = self.value_to_comparable_key(item)?;
-            right_keys.insert(key);
-        }
-
-        // Find items from left collection that are also in right collection
-        let mut seen = HashSet::new();
+        // Find items from left collection that are also in right collection using FHIRPath equality
         let mut result_items = Vec::new();
 
         for item in &left_items {
-            let key = self.value_to_comparable_key(item)?;
-            // Item must be in right collection and not already added to result
-            if right_keys.contains(&key) && seen.insert(key) {
+            // Check if item is in right collection and not already in result
+            if right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) 
+                && !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                 result_items.push(item.clone());
             }
         }
 
-        if result_items.is_empty() {
-            Ok(FhirPathValue::Empty)
-        } else {
-            Ok(FhirPathValue::collection(result_items))
-        }
+        Ok(FhirPathValue::normalize_collection_result(result_items))
     }
 
     /// Convert a FhirPathValue to a vector of items (flattening if it's a collection)

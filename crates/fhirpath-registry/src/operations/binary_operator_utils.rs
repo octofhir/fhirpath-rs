@@ -40,6 +40,8 @@ pub fn extract_singleton_values(
                 1 => items.get(0).unwrap().clone(),
                 _ => return Err(FhirPathError::EvaluationError {
                     message: "Binary operators require singleton collections (collections with 0 or 1 elements)".to_string(),
+                    expression: None,
+                    location: None,
                 }),
             }
         },
@@ -53,6 +55,8 @@ pub fn extract_singleton_values(
                 1 => items.get(0).unwrap().clone(),
                 _ => return Err(FhirPathError::EvaluationError {
                     message: "Binary operators require singleton collections (collections with 0 or 1 elements)".to_string(),
+                    expression: None,
+                    location: None,
                 }),
             }
         },

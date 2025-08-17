@@ -17,7 +17,7 @@
 use crate::fhirpath_registry::FhirPathRegistry;
 use octofhir_fhirpath_core::Result;
 
-pub mod all;
+// all function moved to engine
 pub mod all_false;
 pub mod all_true;
 pub mod any_false;
@@ -43,7 +43,7 @@ pub mod take;
 pub mod union;
 pub mod union_operator;
 
-pub use all::AllFunction;
+// all function moved to engine
 pub use all_false::AllFalseFunction;
 pub use all_true::AllTrueFunction;
 pub use any_false::AnyFalseFunction;
@@ -91,7 +91,7 @@ impl CollectionOperations {
         // Sort is handled by lambda functions
 
         // Boolean collection functions
-        registry.register(AllFunction::new()).await?;
+        // AllFunction moved to engine
         registry.register(AllTrueFunction::new()).await?;
         registry.register(AnyTrueFunction::new()).await?;
         registry.register(AllFalseFunction::new()).await?;

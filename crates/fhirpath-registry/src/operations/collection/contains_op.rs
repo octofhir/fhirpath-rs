@@ -125,6 +125,8 @@ impl FhirPathOperation for ContainsOperation {
     ) -> Option<Result<FhirPathValue>> {
         if args.len() != 2 {
             return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: format!(
                     "contains operator requires exactly 2 arguments, got {}",
                     args.len()

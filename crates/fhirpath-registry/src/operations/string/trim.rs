@@ -103,6 +103,8 @@ impl TrimFunction {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "trim() takes no arguments".to_string(),
             });
         }
@@ -138,6 +140,8 @@ impl TrimFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "trim() requires input to be a string".to_string(),
             }),
         }

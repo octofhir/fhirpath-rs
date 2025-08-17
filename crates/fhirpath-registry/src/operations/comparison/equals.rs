@@ -82,7 +82,7 @@ impl EqualsOperation {
                     return Ok(Some(false));
                 }
 
-                // Compare element by element
+                // Compare element by element using FHIRPath equality
                 for (left_item, right_item) in l.iter().zip(r.iter()) {
                     match Self::compare_equal_with_collections(left_item, right_item)? {
                         Some(false) => return Ok(Some(false)), // Any element not equal = whole not equal
@@ -109,20 +109,7 @@ impl EqualsOperation {
                 }
             }
 
-            // Scalar value comparisons
-            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Ok(Some(a == b)),
-            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => Ok(Some(a == b)),
-            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                Ok(Some((a - b).abs() < Decimal::new(1, 10)))
-            }
-            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
-                Ok(Some((Decimal::from(*a) - b).abs() < Decimal::new(1, 10)))
-            }
-            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
-                Ok(Some((a - Decimal::from(*b)).abs() < Decimal::new(1, 10)))
-            }
-            (FhirPathValue::String(a), FhirPathValue::String(b)) => Ok(Some(a == b)),
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Ok(Some(a == b)),
+            // Special handling for DateTime comparisons with timezone precision
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
                 // Check if one has explicit timezone and other doesn't
                 // We use +00:01 for implicit timezone and +00:00 for explicit Z
@@ -147,7 +134,7 @@ impl EqualsOperation {
                 // DateTime vs Date comparison is indeterminate due to precision differences
                 Ok(None)
             }
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Ok(Some(a == b)),
+            // Quantity comparison with UCUM conversion
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 // Use UCUM-aware quantity comparison with unit conversion
                 match a.equals_with_conversion(b) {
@@ -155,16 +142,10 @@ impl EqualsOperation {
                     Err(_) => Ok(Some(false)), // If conversion fails, quantities are not equal
                 }
             }
-            // Resource object comparison - compare JSON representations
-            (FhirPathValue::Resource(a), FhirPathValue::Resource(b)) => Ok(Some(a == b)),
-            // Handle other FhirPathValue types that might not be explicitly covered
-            (a, b) if std::mem::discriminant(a) == std::mem::discriminant(b) => {
-                // Same type - use default equality comparison
-                Ok(Some(a == b))
-            }
+
+            // For all other scalar comparisons, use FHIRPath equality
             _ => {
-                // Different types - not equal
-                Ok(Some(false))
+                Ok(Some(left.fhirpath_equals(right)))
             }
         }
     }

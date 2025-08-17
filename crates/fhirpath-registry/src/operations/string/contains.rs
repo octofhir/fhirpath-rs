@@ -87,6 +87,8 @@ impl FhirPathOperation for ContainsFunction {
                 self.evaluate_collection_contains(&args[0], &args[1])
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: format!(
                     "contains() expects 1 argument (substring) or 2 arguments (collection, item), got {}",
                     args.len()
@@ -104,6 +106,8 @@ impl FhirPathOperation for ContainsFunction {
             1 => Some(self.evaluate_contains(args, context)),
             2 => Some(self.evaluate_collection_contains(&args[0], &args[1])),
             _ => Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: format!(
                     "contains() expects 1 argument (substring) or 2 arguments (collection, item), got {}",
                     args.len()
@@ -130,6 +134,8 @@ impl ContainsFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "contains() requires exactly one argument (substring)".to_string(),
             });
         }
@@ -141,12 +147,16 @@ impl ContainsFunction {
                 FhirPathValue::String(s) => s.as_ref(),
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "contains() substring parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "contains() substring parameter must be a string".to_string(),
                 });
             }
@@ -187,6 +197,8 @@ impl ContainsFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "contains() requires input to be a string".to_string(),
             }),
         }

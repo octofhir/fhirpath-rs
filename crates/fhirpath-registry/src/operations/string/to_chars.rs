@@ -105,6 +105,8 @@ impl ToCharsFunction {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "toChars() takes no arguments".to_string(),
             });
         }
@@ -134,12 +136,16 @@ impl ToCharsFunction {
                         Ok(FhirPathValue::Collection(chars.into()))
                     }
                     _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "toChars() requires input to be a string".to_string(),
                     }),
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "toChars() requires input to be a string".to_string(),
             }),
         }

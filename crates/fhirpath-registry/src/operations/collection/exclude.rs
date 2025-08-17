@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// Exclude function: returns items from the input collection that are not in the other collection
 pub struct ExcludeFunction;
@@ -117,30 +116,18 @@ impl ExcludeFunction {
         let left_items = self.to_collection_items(&context.input);
         let right_items = self.to_collection_items(other);
 
-        // Build a set of keys from the right collection for efficient lookup
-        let mut right_keys = HashSet::new();
-        for item in &right_items {
-            let key = self.value_to_comparable_key(item)?;
-            right_keys.insert(key);
-        }
-
-        // Find items from left collection that are NOT in right collection
+        // Find items from left collection that are NOT in right collection using FHIRPath equality
         // Note: We preserve duplicates from the left collection
         let mut result_items = Vec::new();
 
         for item in &left_items {
-            let key = self.value_to_comparable_key(item)?;
             // Item must NOT be in right collection
-            if !right_keys.contains(&key) {
+            if !right_items.iter().any(|right_item| item.fhirpath_equals(right_item)) {
                 result_items.push(item.clone());
             }
         }
 
-        if result_items.is_empty() {
-            Ok(FhirPathValue::Empty)
-        } else {
-            Ok(FhirPathValue::collection(result_items))
-        }
+        Ok(FhirPathValue::normalize_collection_result(result_items))
     }
 
     /// Convert a FhirPathValue to a vector of items (flattening if it's a collection)

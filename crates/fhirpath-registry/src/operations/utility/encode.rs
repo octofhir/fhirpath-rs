@@ -118,6 +118,8 @@ impl FhirPathOperation for EncodeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "encode() requires a string input".to_string(),
                             });
                         }
@@ -126,12 +128,16 @@ impl FhirPathOperation for EncodeFunction {
                     return Ok(FhirPathValue::Collection(Collection::new()));
                 } else {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "encode() requires a single string value".to_string(),
                     });
                 }
             }
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "encode() requires a string input".to_string(),
                 });
             }
@@ -152,6 +158,8 @@ impl FhirPathOperation for EncodeFunction {
             }
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "encode() encoding parameter must be a string".to_string(),
                 });
             }
@@ -188,6 +196,8 @@ impl FhirPathOperation for EncodeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "encode() requires a string input".to_string(),
                             }));
                         }
@@ -196,12 +206,16 @@ impl FhirPathOperation for EncodeFunction {
                     return Some(Ok(FhirPathValue::Collection(Collection::new())));
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "encode() requires a single string value".to_string(),
                     }));
                 }
             }
             _ => {
                 return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "encode() requires a string input".to_string(),
                 }));
             }
@@ -222,6 +236,8 @@ impl FhirPathOperation for EncodeFunction {
             }
             _ => {
                 return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "encode() encoding parameter must be a string".to_string(),
                 }));
             }

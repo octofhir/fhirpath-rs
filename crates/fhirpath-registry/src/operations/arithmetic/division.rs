@@ -194,13 +194,12 @@ impl DivisionOperation {
                     )))
                 }
             }
-            _ => Err(FhirPathError::TypeError {
-                message: format!(
-                    "Cannot divide {} by {}",
-                    left.type_name(),
-                    right.type_name()
-                ),
-            }),
+            _ => Err(FhirPathError::invalid_operation_with_types(
+                "division",
+                Some(left.type_name().to_string()),
+                Some(right.type_name().to_string()),
+                format!("Cannot divide {} by {}", left.type_name(), right.type_name())
+            )),
         }
     }
 }

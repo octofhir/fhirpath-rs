@@ -84,6 +84,8 @@ impl ToBooleanFunction {
                 } else {
                     // Multiple items is an error
                     Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message:
                             "toBoolean() requires a single item, but collection has multiple items"
                                 .to_string(),

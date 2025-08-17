@@ -77,7 +77,7 @@ impl ConvertsToStringFunction {
                 } else if c.len() == 1 {
                     Self::can_convert_to_string(c.first().unwrap())
                 } else {
-                    Err(FhirPathError::EvaluationError { message: "convertsToString() requires a single item, but collection has multiple items".to_string() })
+                    Err(FhirPathError::evaluation_error("convertsToString() requires a single item, but collection has multiple items".to_string() ))
                 }
             }
             // Other complex types cannot convert

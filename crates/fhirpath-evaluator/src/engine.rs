@@ -76,6 +76,10 @@
 //! ```
 
 use crate::context::EvaluationContext as LocalEvaluationContext;
+use crate::evaluators::{
+    ArithmeticEvaluator, CollectionEvaluator, ComparisonEvaluator, LogicalEvaluator,
+    NavigationEvaluator,
+};
 use async_trait::async_trait;
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
@@ -1934,33 +1938,6 @@ impl FhirPathEngine {
         context: &LocalEvaluationContext,
         depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
-        // Get the operator symbol
-        let symbol = match &op_data.op {
-            octofhir_fhirpath_ast::BinaryOperator::Add => "+",
-            octofhir_fhirpath_ast::BinaryOperator::Subtract => "-",
-            octofhir_fhirpath_ast::BinaryOperator::Multiply => "*",
-            octofhir_fhirpath_ast::BinaryOperator::Divide => "/",
-            octofhir_fhirpath_ast::BinaryOperator::IntegerDivide => "div",
-            octofhir_fhirpath_ast::BinaryOperator::Modulo => "mod",
-            octofhir_fhirpath_ast::BinaryOperator::Equal => "=",
-            octofhir_fhirpath_ast::BinaryOperator::NotEqual => "!=",
-            octofhir_fhirpath_ast::BinaryOperator::LessThan => "<",
-            octofhir_fhirpath_ast::BinaryOperator::LessThanOrEqual => "<=",
-            octofhir_fhirpath_ast::BinaryOperator::GreaterThan => ">",
-            octofhir_fhirpath_ast::BinaryOperator::GreaterThanOrEqual => ">=",
-            octofhir_fhirpath_ast::BinaryOperator::Equivalent => "~",
-            octofhir_fhirpath_ast::BinaryOperator::NotEquivalent => "!~",
-            octofhir_fhirpath_ast::BinaryOperator::And => "and",
-            octofhir_fhirpath_ast::BinaryOperator::Or => "or",
-            octofhir_fhirpath_ast::BinaryOperator::Xor => "xor",
-            octofhir_fhirpath_ast::BinaryOperator::Implies => "implies",
-            octofhir_fhirpath_ast::BinaryOperator::Union => "|",
-            octofhir_fhirpath_ast::BinaryOperator::Concatenate => "&",
-            octofhir_fhirpath_ast::BinaryOperator::In => "in",
-            octofhir_fhirpath_ast::BinaryOperator::Contains => "contains",
-            octofhir_fhirpath_ast::BinaryOperator::Is => "is",
-        };
-
         // Evaluate left operand
         let left = self
             .evaluate_node_async(&op_data.left, input.clone(), context, depth + 1)
@@ -1971,13 +1948,226 @@ impl FhirPathEngine {
             .evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
             .await?;
 
-        // Get operation from registry and evaluate
+        // Create registry context for evaluation
+        let registry_context =
+            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
+                input.clone(),
+                context.root.clone(),
+                self.registry.clone(),
+                self.model_provider.clone(),
+            );
+
+        // Use specialized evaluators based on operation type
+        match &op_data.op {
+            // Arithmetic operations
+            octofhir_fhirpath_ast::BinaryOperator::Add => {
+                ArithmeticEvaluator::evaluate_addition(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Subtract => {
+                ArithmeticEvaluator::evaluate_subtraction(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Multiply => {
+                ArithmeticEvaluator::evaluate_multiplication(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Divide => {
+                ArithmeticEvaluator::evaluate_division(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::IntegerDivide => {
+                ArithmeticEvaluator::evaluate_integer_division(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Modulo => {
+                ArithmeticEvaluator::evaluate_modulo(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+
+            // Comparison operations
+            octofhir_fhirpath_ast::BinaryOperator::Equal => {
+                ComparisonEvaluator::evaluate_equals(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::NotEqual => {
+                ComparisonEvaluator::evaluate_not_equals(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::LessThan => {
+                ComparisonEvaluator::evaluate_less_than(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::LessThanOrEqual => {
+                ComparisonEvaluator::evaluate_less_than_or_equal(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::GreaterThan => {
+                ComparisonEvaluator::evaluate_greater_than(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::GreaterThanOrEqual => {
+                ComparisonEvaluator::evaluate_greater_than_or_equal(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Equivalent => {
+                ComparisonEvaluator::evaluate_equivalent(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::NotEquivalent => {
+                ComparisonEvaluator::evaluate_not_equivalent(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+
+            // Logical operations
+            octofhir_fhirpath_ast::BinaryOperator::And => {
+                LogicalEvaluator::evaluate_and(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Or => {
+                LogicalEvaluator::evaluate_or(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Xor => {
+                LogicalEvaluator::evaluate_xor(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Implies => {
+                LogicalEvaluator::evaluate_implies(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+
+            // Collection operations
+            octofhir_fhirpath_ast::BinaryOperator::Union => {
+                CollectionEvaluator::evaluate_union(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::In => {
+                CollectionEvaluator::evaluate_in(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+            octofhir_fhirpath_ast::BinaryOperator::Contains => {
+                CollectionEvaluator::evaluate_contains(
+                    &left,
+                    &right,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+
+            // Navigation operations
+            octofhir_fhirpath_ast::BinaryOperator::Is => {
+                NavigationEvaluator::evaluate_is(&left, &right, &self.registry, &registry_context)
+                    .await
+            }
+
+            // Fall back to legacy approach for any remaining operations
+            _ => {
+                self.evaluate_binary_operation_legacy(op_data, left, right, input, context)
+                    .await
+            }
+        }
+    }
+
+    /// Legacy binary operation evaluation (fallback for operations not yet in specialized evaluators)
+    async fn evaluate_binary_operation_legacy(
+        &self,
+        op_data: &octofhir_fhirpath_ast::BinaryOpData,
+        left: FhirPathValue,
+        right: FhirPathValue,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        let symbol = match &op_data.op {
+            octofhir_fhirpath_ast::BinaryOperator::Concatenate => "&",
+            _ => {
+                return Err(EvaluationError::InvalidOperation {
+                    message: format!("Unsupported binary operator: {:?}", op_data.op),
+                });
+            }
+        };
+
         if let Some(operation) = self.registry.get_operation(symbol).await {
-            // Create registry context for operation evaluation - PRESERVE ORIGINAL ROOT
             let registry_context =
                 octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
                     input,
-                    context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
+                    context.root.clone(),
                     self.registry.clone(),
                     self.model_provider.clone(),
                 );
@@ -2004,39 +2194,42 @@ impl FhirPathEngine {
         context: &LocalEvaluationContext,
         depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
-        // Get the operator symbol
-        let symbol = match op {
-            octofhir_fhirpath_ast::UnaryOperator::Plus => "+",
-            octofhir_fhirpath_ast::UnaryOperator::Minus => "-",
-            octofhir_fhirpath_ast::UnaryOperator::Not => "not",
-        };
-
         // Evaluate operand
         let operand_value = self
             .evaluate_node_async(operand, input.clone(), context, depth + 1)
             .await?;
 
-        // Get operation from registry and evaluate
-        if let Some(operation) = self.registry.get_operation(symbol).await {
-            // Create registry context for operation evaluation - PRESERVE ORIGINAL ROOT
-            let registry_context =
-                octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                    input,
-                    context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
-                    self.registry.clone(),
-                    self.model_provider.clone(),
-                );
+        // Create registry context for operation evaluation - PRESERVE ORIGINAL ROOT
+        let registry_context =
+            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
+                input,
+                context.root.clone(), // ✅ PRESERVE ORIGINAL ROOT
+                self.registry.clone(),
+                self.model_provider.clone(),
+            );
 
-            operation
-                .evaluate(&[operand_value], &registry_context)
+        // Use specialized evaluators based on operation type
+        match op {
+            octofhir_fhirpath_ast::UnaryOperator::Plus => {
+                ArithmeticEvaluator::evaluate_unary_plus(
+                    &operand_value,
+                    &self.registry,
+                    &registry_context,
+                )
                 .await
-                .map_err(|e| EvaluationError::InvalidOperation {
-                    message: format!("Unary operator error: {e}"),
-                })
-        } else {
-            Err(EvaluationError::InvalidOperation {
-                message: format!("Unknown unary operator: {symbol}"),
-            })
+            }
+            octofhir_fhirpath_ast::UnaryOperator::Minus => {
+                ArithmeticEvaluator::evaluate_unary_minus(
+                    &operand_value,
+                    &self.registry,
+                    &registry_context,
+                )
+                .await
+            }
+            octofhir_fhirpath_ast::UnaryOperator::Not => {
+                LogicalEvaluator::evaluate_not(&operand_value, &self.registry, &registry_context)
+                    .await
+            }
         }
     }
 
@@ -2426,85 +2619,62 @@ impl FhirPathEngine {
         func_data: &octofhir_fhirpath_ast::FunctionCallData,
         input: FhirPathValue,
         context: &LocalEvaluationContext,
-        _depth: usize,
+        depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
-        // Get operation from registry
-        if let Some(operation) = self.registry.get_operation(&func_data.name).await {
-            // Create registry context for lambda evaluation with variables from engine context
-            let all_variables = context.variable_scope.collect_all_variables();
-            let registry_context =
-                octofhir_fhirpath_registry::operations::EvaluationContext::with_variables(
-                    input,
-                    self.registry.clone(),
-                    self.model_provider.clone(),
-                    all_variables,
-                );
-
-            // Try specific lambda function types for proper lambda function evaluation
-            use octofhir_fhirpath_registry::lambda::LambdaFunction;
-            use octofhir_fhirpath_registry::operations::collection::AllFunction;
-            use octofhir_fhirpath_registry::operations::lambda::{
-                AggregateFunction, RepeatFunction, SelectFunction, SortLambdaFunction,
-                WhereFunction,
-            };
-
-            if let Some(where_func) = operation.as_any().downcast_ref::<WhereFunction>() {
-                where_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
+        // lambda functions are handled directly in engine
+        // for better context handling rather than delegating to registry.
+        match func_data.name.as_str() {
+            "where" => {
+                self.evaluate_where_lambda(func_data, input, context, depth)
                     .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else if let Some(select_func) = operation.as_any().downcast_ref::<SelectFunction>() {
-                select_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
-                    .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else if let Some(sort_func) = operation.as_any().downcast_ref::<SortLambdaFunction>()
-            {
-                sort_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
-                    .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else if let Some(aggregate_func) =
-                operation.as_any().downcast_ref::<AggregateFunction>()
-            {
-                aggregate_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
-                    .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else if let Some(repeat_func) = operation.as_any().downcast_ref::<RepeatFunction>() {
-                repeat_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
-                    .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else if let Some(all_func) = operation.as_any().downcast_ref::<AllFunction>() {
-                all_func
-                    .evaluate_lambda(&func_data.args, &registry_context, self)
-                    .await
-                    .map_err(|e| EvaluationError::InvalidOperation {
-                        message: format!("Lambda function error in {}: {}", func_data.name, e),
-                    })
-            } else {
-                Err(EvaluationError::InvalidOperation {
-                    message: format!(
-                        "Function {} is not a recognized lambda function",
-                        func_data.name
-                    ),
-                })
             }
-        } else {
-            Err(EvaluationError::InvalidOperation {
-                message: format!("Unknown lambda function: {}", func_data.name),
-            })
+            "select" => {
+                self.evaluate_select_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "sort" => {
+                self.evaluate_sort_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "repeat" => {
+                self.evaluate_repeat_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "aggregate" => {
+                self.evaluate_aggregate_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "all" => {
+                self.evaluate_all_lambda(func_data, input, context, depth)
+                    .await
+            }
+            _ => {
+                // Fallback to registry for other lambda functions not yet moved to engine
+                if let Some(operation) = self.registry.get_operation(&func_data.name).await {
+                    // Create registry context for lambda evaluation with variables from engine context
+                    let all_variables = context.variable_scope.collect_all_variables();
+                    let registry_context =
+                        octofhir_fhirpath_registry::operations::EvaluationContext::with_variables(
+                            input,
+                            self.registry.clone(),
+                            self.model_provider.clone(),
+                            all_variables,
+                        );
+
+                    // For now, fallback to error for unknown lambda functions
+                    // since we've moved the main ones to dedicated engine methods
+                    Err(EvaluationError::InvalidOperation {
+                        message: format!(
+                            "Lambda function {} is not yet supported in dedicated engine mode",
+                            func_data.name
+                        ),
+                    })
+                } else {
+                    Err(EvaluationError::InvalidOperation {
+                        message: format!("Unknown lambda function: {}", func_data.name),
+                    })
+                }
+            }
         }
     }
 
@@ -2661,6 +2831,382 @@ impl FhirPathEngine {
                     .await?;
 
                 Ok(result)
+            }
+        }
+    }
+
+    /// Evaluate sort lambda function
+    async fn evaluate_sort_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        let items = match &input {
+            FhirPathValue::Collection(collection) => collection.iter().cloned().collect::<Vec<_>>(),
+            single_item => vec![single_item.clone()],
+        };
+
+        if items.is_empty() {
+            return Ok(FhirPathValue::Empty);
+        }
+
+        match func_data.args.len() {
+            0 => {
+                // Natural sort without lambda expression
+                let mut sorted_items = items;
+                sorted_items.sort_by(|a, b| self.compare_fhir_values(a, b));
+                Ok(FhirPathValue::collection(sorted_items))
+            }
+            1 | 2 => {
+                // Lambda sort with 1 or 2 criteria
+                let mut sort_data = Vec::new();
+
+                for (index, item) in items.iter().enumerate() {
+                    let mut lambda_context = context.clone();
+                    lambda_context.set_variable("$this".to_string(), item.clone());
+                    lambda_context
+                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    lambda_context = lambda_context.with_input(item.clone());
+
+                    let mut sort_keys = Vec::new();
+                    for sort_expr in &func_data.args {
+                        let (actual_expr, is_descending) = self.extract_sort_intent(sort_expr);
+
+                        let key_result = self
+                            .evaluate_node_async(
+                                actual_expr,
+                                item.clone(),
+                                &lambda_context,
+                                depth + 1,
+                            )
+                            .await?;
+
+                        sort_keys.push((key_result, is_descending));
+                    }
+
+                    sort_data.push((item.clone(), sort_keys));
+                }
+
+                // Sort using the pre-evaluated keys
+                sort_data.sort_by(|(_, keys_a), (_, keys_b)| {
+                    for ((key_a, desc_a), (key_b, desc_b)) in keys_a.iter().zip(keys_b.iter()) {
+                        let base_cmp = self.compare_fhir_values(key_a, key_b);
+                        let cmp = if *desc_a || *desc_b {
+                            base_cmp.reverse()
+                        } else {
+                            base_cmp
+                        };
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
+                    }
+                    std::cmp::Ordering::Equal
+                });
+
+                let sorted_items: Vec<FhirPathValue> =
+                    sort_data.into_iter().map(|(item, _)| item).collect();
+                Ok(FhirPathValue::collection(sorted_items))
+            }
+            _ => Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "sort() supports 0, 1, or 2 arguments, got {}",
+                    func_data.args.len()
+                ),
+            }),
+        }
+    }
+
+    /// Evaluate repeat lambda function
+    async fn evaluate_repeat_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "repeat() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        // CRITICAL: repeat() can only be applied to collections, not single values
+        match &input {
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            FhirPathValue::Collection(_) => {
+                // Valid - continue with collection processing
+            }
+            _ => {
+                // Single value - this is an error according to FHIRPath spec
+                return Err(EvaluationError::InvalidOperation {
+                    message: format!(
+                        "repeat() function can only be applied to collections, not single values. Input was: {:?}",
+                        input
+                    ),
+                });
+            }
+        }
+
+        let projection_expr = &func_data.args[0];
+
+        let mut result = Vec::new();
+        let mut current_items = input.to_collection().into_iter().collect::<Vec<_>>();
+        let mut seen_items = std::collections::HashSet::new();
+
+        // Add initial items to seen set but NOT to result (repeat() excludes initial items)
+        for item in &current_items {
+            let item_key = self.item_to_key(item);
+            seen_items.insert(item_key);
+        }
+
+        // Continue until no new items are found or we hit safety limits
+        const MAX_ITERATIONS: usize = 1000; // Prevent infinite loops
+        const MAX_RESULT_SIZE: usize = 10000; // Prevent memory explosion
+        let mut iteration_count = 0;
+
+        loop {
+            iteration_count += 1;
+
+            // Safety check: prevent infinite loops
+            if iteration_count > MAX_ITERATIONS {
+                return Err(EvaluationError::InvalidOperation {
+                    message: format!("repeat() exceeded maximum iterations ({MAX_ITERATIONS})"),
+                });
+            }
+
+            // Safety check: prevent memory explosion
+            if result.len() > MAX_RESULT_SIZE {
+                return Err(EvaluationError::InvalidOperation {
+                    message: format!("repeat() exceeded maximum result size ({MAX_RESULT_SIZE})"),
+                });
+            }
+
+            let mut new_items = Vec::new();
+            let mut found_new = false;
+
+            for item in &current_items {
+                // Create context with current item as input
+                let mut lambda_context = context.clone();
+                lambda_context.set_variable("$this".to_string(), item.clone());
+                lambda_context = lambda_context.with_input(item.clone());
+
+                // Evaluate projection expression
+                let projected = self
+                    .evaluate_node_async(projection_expr, item.clone(), &lambda_context, depth + 1)
+                    .await?;
+                let projected_collection = projected.to_collection();
+
+                // Add new items that haven't been seen before
+                for proj_item in projected_collection.iter() {
+                    let item_key = self.item_to_key(proj_item);
+                    if !seen_items.contains(&item_key) {
+                        seen_items.insert(item_key);
+                        new_items.push(proj_item.clone());
+                        result.push(proj_item.clone());
+                        found_new = true;
+                    }
+                }
+            }
+
+            if !found_new {
+                break;
+            }
+
+            current_items = new_items;
+        }
+
+        Ok(FhirPathValue::collection(result))
+    }
+
+    /// Evaluate aggregate lambda function
+    async fn evaluate_aggregate_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Validate arguments: aggregate(expression) or aggregate(expression, initial_value)
+        if func_data.args.is_empty() || func_data.args.len() > 2 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "aggregate() requires 1 or 2 arguments, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let aggregation_expr = &func_data.args[0];
+
+        // Evaluate initial value if provided
+        let initial_value = if func_data.args.len() == 2 {
+            self.evaluate_node_async(&func_data.args[1], input.clone(), context, depth + 1)
+                .await?
+        } else {
+            FhirPathValue::Empty
+        };
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                let mut accumulator = initial_value;
+
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context with $this and $total variables
+                    let mut lambda_context = context.clone();
+                    lambda_context.set_variable("$this".to_string(), item.clone());
+                    lambda_context.set_variable("$total".to_string(), accumulator.clone());
+                    lambda_context
+                        .set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    lambda_context = lambda_context.with_input(item.clone());
+
+                    // Evaluate aggregation expression in lambda context
+                    accumulator = self
+                        .evaluate_node_async(
+                            aggregation_expr,
+                            item.clone(),
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+                }
+
+                Ok(accumulator)
+            }
+            single_item => {
+                // For single item, apply aggregation once
+                let mut lambda_context = context.clone();
+                lambda_context.set_variable("$this".to_string(), single_item.clone());
+                lambda_context.set_variable("$total".to_string(), initial_value.clone());
+                lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(0));
+                lambda_context = lambda_context.with_input(single_item.clone());
+
+                self.evaluate_node_async(
+                    aggregation_expr,
+                    single_item.clone(),
+                    &lambda_context,
+                    depth + 1,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Evaluate all lambda function
+    async fn evaluate_all_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Validate arguments: all(predicate)
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "all() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let predicate_expr = &func_data.args[0];
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                // Empty collection - all() returns true for empty collections
+                if items.is_empty() {
+                    return Ok(FhirPathValue::Boolean(true));
+                }
+
+                // Check predicate for each item
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context with $this variable set to current item
+                    let mut lambda_context = context.clone();
+                    lambda_context.set_variable("$this".to_string(), item.clone());
+                    lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
+                    lambda_context.set_variable("$total".to_string(), FhirPathValue::Integer(items.len() as i64));
+                    lambda_context = lambda_context.with_input(item.clone());
+
+                    // Evaluate predicate expression in lambda context
+                    let predicate_result = self
+                        .evaluate_node_async(
+                            predicate_expr,
+                            item.clone(),
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // Check if predicate is true - need to handle collections properly for lambda functions
+                    let is_predicate_true = match &predicate_result {
+                        FhirPathValue::Boolean(b) => *b,
+                        FhirPathValue::Collection(items) => {
+                            // For lambda predicates, we need to check the actual boolean values
+                            if items.len() == 1 {
+                                match items.first().unwrap() {
+                                    FhirPathValue::Boolean(b) => *b,
+                                    _ => self.is_truthy(&predicate_result),
+                                }
+                            } else {
+                                self.is_truthy(&predicate_result)
+                            }
+                        }
+                        _ => self.is_truthy(&predicate_result),
+                    };
+                    
+                    if !is_predicate_true {
+                        return Ok(FhirPathValue::Boolean(false));
+                    }
+                }
+
+                // All items satisfied the criteria
+                Ok(FhirPathValue::Boolean(true))
+            }
+            FhirPathValue::Empty => {
+                // Empty collection - all() returns true
+                Ok(FhirPathValue::Boolean(true))
+            }
+            single_item => {
+                // Apply all to single item
+                let mut lambda_context = context.clone();
+                lambda_context.set_variable("$this".to_string(), single_item.clone());
+                lambda_context.set_variable("$index".to_string(), FhirPathValue::Integer(0));
+                lambda_context.set_variable("$total".to_string(), FhirPathValue::Integer(1));
+                lambda_context = lambda_context.with_input(single_item.clone());
+
+                // Evaluate predicate expression in lambda context
+                let predicate_result = self
+                    .evaluate_node_async(
+                        predicate_expr,
+                        single_item.clone(),
+                        &lambda_context,
+                        depth + 1,
+                    )
+                    .await?;
+
+                // Return the boolean result of the predicate - handle collections properly
+                let is_predicate_true = match &predicate_result {
+                    FhirPathValue::Boolean(b) => *b,
+                    FhirPathValue::Collection(items) => {
+                        // For lambda predicates, we need to check the actual boolean values
+                        if items.len() == 1 {
+                            match items.first().unwrap() {
+                                FhirPathValue::Boolean(b) => *b,
+                                _ => self.is_truthy(&predicate_result),
+                            }
+                        } else {
+                            self.is_truthy(&predicate_result)
+                        }
+                    }
+                    _ => self.is_truthy(&predicate_result),
+                };
+                
+                Ok(FhirPathValue::Boolean(is_predicate_true))
             }
         }
     }
@@ -2877,90 +3423,68 @@ impl FhirPathEngine {
             method_name => {
                 // Check if this is a lambda function first
                 if self.is_lambda_function(method_name).await {
-                    // Handle lambda method call - use raw expression arguments
-                    if let Some(operation) = self.registry.get_operation(method_name).await {
-                        // Try to downcast to specific lambda function types
-                        use octofhir_fhirpath_registry::lambda::LambdaFunction;
-                        use octofhir_fhirpath_registry::operations::collection::AllFunction;
-                        use octofhir_fhirpath_registry::operations::lambda::{
-                            AggregateFunction, RepeatFunction, SelectFunction, SortLambdaFunction,
-                            WhereFunction,
-                        };
+                    // Handle lambda method call using dedicated engine methods
+                    // Create FunctionCallData structure to reuse existing lambda methods
+                    let func_data = octofhir_fhirpath_ast::FunctionCallData {
+                        name: method_name.to_string(),
+                        args: args.iter().cloned().collect(),
+                    };
 
-                        // Create registry context with the object as input for the lambda and variables from engine context
-                        let all_variables = context.variable_scope.collect_all_variables();
-                        let registry_context = octofhir_fhirpath_registry::operations::EvaluationContext::with_variables(
-                            object,
-                            self.registry.clone(),
-                            self.model_provider.clone(),
-                            all_variables,
-                        );
-
-                        // Try each lambda function type
-                        if let Some(where_func) = operation.as_any().downcast_ref::<WhereFunction>()
-                        {
-                            where_func
-                                .evaluate_lambda(args, &registry_context, self)
+                    match method_name {
+                        "where" => {
+                            self.evaluate_where_lambda(&func_data, object, context, depth)
                                 .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else if let Some(select_func) =
-                            operation.as_any().downcast_ref::<SelectFunction>()
-                        {
-                            select_func
-                                .evaluate_lambda(args, &registry_context, self)
-                                .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else if let Some(sort_func) =
-                            operation.as_any().downcast_ref::<SortLambdaFunction>()
-                        {
-                            sort_func
-                                .evaluate_lambda(args, &registry_context, self)
-                                .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else if let Some(aggregate_func) =
-                            operation.as_any().downcast_ref::<AggregateFunction>()
-                        {
-                            aggregate_func
-                                .evaluate_lambda(args, &registry_context, self)
-                                .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else if let Some(repeat_func) =
-                            operation.as_any().downcast_ref::<RepeatFunction>()
-                        {
-                            repeat_func
-                                .evaluate_lambda(args, &registry_context, self)
-                                .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else if let Some(all_func) =
-                            operation.as_any().downcast_ref::<AllFunction>()
-                        {
-                            all_func
-                                .evaluate_lambda(args, &registry_context, self)
-                                .await
-                                .map_err(|e| EvaluationError::InvalidOperation {
-                                    message: format!("Lambda method error in {method_name}: {e}"),
-                                })
-                        } else {
-                            Err(EvaluationError::InvalidOperation {
-                                message: format!(
-                                    "Method {method_name} is not a recognized lambda function"
-                                ),
-                            })
                         }
-                    } else {
-                        Err(EvaluationError::InvalidOperation {
-                            message: format!("Unknown lambda method: {method_name}"),
-                        })
+                        "select" => {
+                            self.evaluate_select_lambda(&func_data, object, context, depth)
+                                .await
+                        }
+                        "sort" => {
+                            self.evaluate_sort_lambda(&func_data, object, context, depth)
+                                .await
+                        }
+                        "repeat" => {
+                            self.evaluate_repeat_lambda(&func_data, object, context, depth)
+                                .await
+                        }
+                        "aggregate" => {
+                            self.evaluate_aggregate_lambda(&func_data, object, context, depth)
+                                .await
+                        }
+                        "all" => {
+                            self.evaluate_all_lambda(&func_data, object, context, depth)
+                                .await
+                        }
+                        _ => {
+                            // Fallback to registry for other lambda functions not yet moved to engine
+                            if let Some(operation) = self.registry.get_operation(method_name).await
+                            {
+                                // Create registry context with the object as input for the lambda and variables from engine context
+                                let all_variables = context.variable_scope.collect_all_variables();
+                                let registry_context = octofhir_fhirpath_registry::operations::EvaluationContext::with_variables(
+                                    object,
+                                    self.registry.clone(),
+                                    self.model_provider.clone(),
+                                    all_variables,
+                                );
+
+                                // Use generic lambda function evaluation for remaining functions
+                                // Note: We can't downcast to dyn LambdaFunction due to size constraints
+                                // For now, use the operation directly if it implements lambda evaluation
+                                operation
+                                    .evaluate(&[], &registry_context)
+                                    .await
+                                    .map_err(|e| EvaluationError::InvalidOperation {
+                                        message: format!(
+                                            "Lambda method error in {method_name}: {e}"
+                                        ),
+                                    })
+                            } else {
+                                Err(EvaluationError::InvalidOperation {
+                                    message: format!("Unknown lambda method: {method_name}"),
+                                })
+                            }
+                        }
                     }
                 } else {
                     // Standard method call - pre-evaluate arguments
@@ -3079,6 +3603,98 @@ impl FhirPathEngine {
         }
         Ok(())
     }
+
+    /// Compare two FhirPathValue instances for sorting
+    fn compare_fhir_values(&self, a: &FhirPathValue, b: &FhirPathValue) -> std::cmp::Ordering {
+        use rust_decimal::Decimal;
+        use std::cmp::Ordering;
+
+        match (a, b) {
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a.cmp(b),
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => a.cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a.cmp(b),
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => a.cmp(b),
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a.cmp(b),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a.cmp(b),
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a.cmp(b),
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => Decimal::from(*a).cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => a.cmp(&Decimal::from(*b)),
+            (FhirPathValue::Collection(a), FhirPathValue::Collection(b)) => {
+                match (a.len(), b.len()) {
+                    (1, 1) => self.compare_fhir_values(a.first().unwrap(), b.first().unwrap()),
+                    (0, 0) => Ordering::Equal,
+                    (0, _) => Ordering::Less,
+                    (_, 0) => Ordering::Greater,
+                    _ => Ordering::Equal,
+                }
+            }
+            (FhirPathValue::Collection(a), other) if a.len() == 1 => {
+                self.compare_fhir_values(a.first().unwrap(), other)
+            }
+            (other, FhirPathValue::Collection(b)) if b.len() == 1 => {
+                self.compare_fhir_values(other, b.first().unwrap())
+            }
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
+            (FhirPathValue::Empty, _) => Ordering::Less,
+            (_, FhirPathValue::Empty) => Ordering::Greater,
+            _ => self.type_precedence(a).cmp(&self.type_precedence(b)),
+        }
+    }
+
+    /// Define type precedence for mixed-type sorting
+    fn type_precedence(&self, value: &FhirPathValue) -> u8 {
+        match value {
+            FhirPathValue::Empty => 0,
+            FhirPathValue::Boolean(_) => 1,
+            FhirPathValue::Integer(_) => 2,
+            FhirPathValue::Decimal(_) => 3,
+            FhirPathValue::String(_) => 4,
+            FhirPathValue::Date(_) => 5,
+            FhirPathValue::DateTime(_) => 6,
+            FhirPathValue::Time(_) => 7,
+            FhirPathValue::Collection(_) => 8,
+            _ => 9,
+        }
+    }
+
+    /// Extract sort intent from expression AST - detect descending sort (unary minus)
+    fn extract_sort_intent<'a>(
+        &self,
+        expression: &'a ExpressionNode,
+    ) -> (&'a ExpressionNode, bool) {
+        use octofhir_fhirpath_ast::UnaryOperator;
+
+        match expression {
+            ExpressionNode::UnaryOp {
+                op: UnaryOperator::Minus,
+                operand,
+            } => (operand.as_ref(), true),
+            _ => (expression, false),
+        }
+    }
+
+    /// Generate a unique key for an item to detect duplicates in repeat()
+    fn item_to_key(&self, item: &FhirPathValue) -> String {
+        match item {
+            FhirPathValue::String(s) => format!("string:{s}"),
+            FhirPathValue::Integer(i) => format!("integer:{i}"),
+            FhirPathValue::Decimal(d) => format!("decimal:{d}"),
+            FhirPathValue::Boolean(b) => format!("boolean:{b}"),
+            FhirPathValue::JsonValue(json_val) => {
+                // For JSON objects, use id if available, otherwise use a hash-like approach
+                if let Some(obj) = json_val.as_object() {
+                    if let Some(serde_json::Value::String(id)) = obj.get("id") {
+                        format!("object:id:{id}")
+                    } else {
+                        format!("object:hash:{obj:?}")
+                    }
+                } else {
+                    format!("json:{json_val:?}")
+                }
+            }
+            _ => format!("{item:?}"),
+        }
+    }
 }
 
 /// Lambda expression types for evaluation
@@ -3153,7 +3769,11 @@ impl ExpressionEvaluator for FhirPathEngine {
             .await
             .map_err(|e| match e {
                 EvaluationError::InvalidOperation { message } => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError { message }
+                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
+                        message,
+                        expression: None,
+                        location: None,
+                    }
                 }
                 EvaluationError::TypeError { expected, actual } => {
                     octofhir_fhirpath_core::FhirPathError::TypeError {
@@ -3161,19 +3781,30 @@ impl ExpressionEvaluator for FhirPathEngine {
                     }
                 }
                 EvaluationError::RuntimeError { message } => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError { message }
+                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
+                        message,
+                        expression: None,
+                        location: None,
+                    }
                 }
                 EvaluationError::Function(message) => {
                     octofhir_fhirpath_core::FhirPathError::FunctionError {
                         function_name: "unknown".to_string(),
                         message,
+                        arguments: None,
                     }
                 }
                 EvaluationError::Operator(message) => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError { message }
+                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
+                        message,
+                        expression: None,
+                        location: None,
+                    }
                 }
                 _ => octofhir_fhirpath_core::FhirPathError::EvaluationError {
                     message: e.to_string(),
+                    expression: None,
+                    location: None,
                 },
             })
     }

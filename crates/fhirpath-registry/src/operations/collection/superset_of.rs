@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// SupersetOf function: returns true if the input collection is a superset of the other collection
 pub struct SupersetOfFunction;
@@ -122,17 +121,9 @@ impl SupersetOfFunction {
             return Ok(FhirPathValue::Boolean(true));
         }
 
-        // Build a set of keys from the left collection for efficient lookup
-        let mut left_keys = HashSet::new();
-        for item in &left_items {
-            let key = self.value_to_comparable_key(item)?;
-            left_keys.insert(key);
-        }
-
-        // Check if all items from right collection are in left collection
+        // Check if all items from right collection are in left collection using FHIRPath equality
         for item in &right_items {
-            let key = self.value_to_comparable_key(item)?;
-            if !left_keys.contains(&key) {
+            if !left_items.iter().any(|left_item| item.fhirpath_equals(left_item)) {
                 // Found an item in right that's not in left - not a superset
                 return Ok(FhirPathValue::Boolean(false));
             }

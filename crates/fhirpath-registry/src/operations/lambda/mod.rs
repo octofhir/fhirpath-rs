@@ -14,41 +14,27 @@
 
 //! Lambda-supporting functions module
 
-pub mod aggregate;
 pub mod children;
 pub mod descendants;
 pub mod of_type;
-pub mod repeat;
-pub mod select;
 pub mod single;
-pub mod sort_lambda;
-pub mod where_fn;
 
-pub use aggregate::AggregateFunction;
 pub use children::ChildrenFunction;
 pub use descendants::DescendantsFunction;
 pub use of_type::OfTypeFunction;
-pub use repeat::RepeatFunction;
-pub use select::SelectFunction;
 pub use single::SingleFunction;
-pub use sort_lambda::SortLambdaFunction;
-pub use where_fn::WhereFunction;
 
 /// Registry helper for lambda operations
 pub struct LambdaOperations;
 
 impl LambdaOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
-        // Register the hybrid functions that support both regular and lambda modes
-        registry.register(WhereFunction::new()).await?;
-        registry.register(SelectFunction::new()).await?;
-        registry.register(AggregateFunction::new()).await?;
-        registry.register(RepeatFunction::new()).await?;
+        // Register the remaining lambda functions that are not handled in engine
+        // Main lambda functions (where, select, aggregate, sort, repeat) are now handled directly in the engine
         registry.register(OfTypeFunction::new()).await?;
         registry.register(SingleFunction::new()).await?;
         registry.register(ChildrenFunction::new()).await?;
         registry.register(DescendantsFunction::new()).await?;
-        registry.register(SortLambdaFunction::new()).await?;
         Ok(())
     }
 }

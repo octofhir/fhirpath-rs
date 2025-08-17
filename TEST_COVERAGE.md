@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2025-08-16
+Generated on: 2025-08-17
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,8 +13,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 100 | 100% |
 | **Total Individual Tests** | 1017 | 100% |
-| **Passing Tests** | 904 | 88.9% |
-| **Failing Tests** | 102 | 10.0% |
+| **Passing Tests** | 901 | 88.6% |
+| **Failing Tests** | 105 | 10.3% |
 | **Error Tests** | 11 | 1.1% |
 
 ## Test Results by Suite
@@ -22,7 +22,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 ### ✅ Fully Passing (100%)
 
 - **abs.json** - 4/4 tests
-- **aggregate.json** - 4/4 tests
 - **all.json** - 4/4 tests
 - **basics.json** - 7/7 tests
 - **boolean-implies.json** - 9/9 tests
@@ -51,7 +50,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **floor.json** - 4/4 tests
 - **from--zulip.json** - 2/2 tests
 - **index-of.json** - 6/6 tests
-- **index-part.json** - 1/1 tests
 - **indexer.json** - 2/2 tests
 - **intersect.json** - 4/4 tests
 - **join.json** - 1/1 tests
@@ -129,18 +127,20 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🔴 Major Issues (0-30%)
 
-- **define-variable.json** - 23.8% (5/21 tests) - Issues
+- **define-variable.json** - 28.6% (6/21 tests) - Issues
+- **aggregate.json** - 25.0% (1/4 tests) - Issues
+- **index-part.json** - 0.0% (0/1 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **88.9% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **88.6% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 100
 - **Total Tests**: 1017
-- **Pass Rate**: 88.9%
+- **Pass Rate**: 88.6%
 
 ---
 
-*Report generated on: 2025-08-16 15:45:06*
+*Report generated on: 2025-08-17 11:29:00*
 *Command: `just test-coverage` or `cargo run --package fhirpath-tools --bin test-coverage`*

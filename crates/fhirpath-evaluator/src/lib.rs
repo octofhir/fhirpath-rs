@@ -18,6 +18,7 @@
 
 mod context;
 pub mod engine;
+pub mod evaluators;
 
 // Primary engine
 pub use engine::{EvaluationConfig, FhirPathEngine};

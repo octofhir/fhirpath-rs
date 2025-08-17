@@ -112,6 +112,8 @@ impl SplitFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "split() requires exactly one argument (separator)".to_string(),
             });
         }

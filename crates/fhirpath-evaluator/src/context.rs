@@ -489,6 +489,94 @@ impl EvaluationContext {
     pub fn get_root_resource(&self) -> &FhirPathValue {
         &self.root
     }
+
+    /// Create a new context with a specific $this value for lambda evaluation
+    pub fn with_this_value(&self, this_value: FhirPathValue) -> Self {
+        // Create a new context with the this_value as the current input
+        // and ensure $this variable is available
+        let mut new_context = Self {
+            input: this_value.clone(),
+            root: self.root.clone(),
+            variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
+            registry: self.registry.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
+        };
+
+        // Set the $this variable explicitly
+        new_context.set_variable("this".to_string(), this_value);
+        new_context
+    }
+
+    /// Get the current $this value, falling back to current input
+    pub fn get_this_value(&self) -> &FhirPathValue {
+        self.get_variable("this").unwrap_or(&self.input)
+    }
+
+    /// Create context for item iteration in lambda functions
+    /// This method provides a clean way to create item-specific contexts for lambda evaluation
+    pub fn for_item(&self, item: FhirPathValue) -> Self {
+        use octofhir_fhirpath_model::{json_arc::ArcJsonValue, resource::FhirResource};
+
+        // Determine the appropriate context input based on the item type
+        let item_context_input = match &item {
+            octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),
+            octofhir_fhirpath_model::FhirPathValue::Resource(resource) => {
+                ArcJsonValue::new(resource.to_json())
+            }
+            _ => {
+                // For other types, convert to JSON for context evaluation
+                ArcJsonValue::new(serde_json::Value::from(item.clone()))
+            }
+        };
+
+        // Create a new context with the item as both the input and $this value
+        Self {
+            input: octofhir_fhirpath_model::FhirPathValue::JsonValue(item_context_input),
+            root: self.root.clone(),
+            variable_scope: VariableScope::lambda_scope(
+                Some(Arc::new(self.variable_scope.clone())),
+                item.clone(),
+                0, // Default index, can be overridden
+                octofhir_fhirpath_model::FhirPathValue::Integer(0), // Default total
+            ),
+            registry: self.registry.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
+        }
+    }
+
+    /// Create context for item iteration with explicit index and total
+    pub fn for_item_with_metadata(&self, item: FhirPathValue, index: usize, total: usize) -> Self {
+        use octofhir_fhirpath_model::{json_arc::ArcJsonValue, resource::FhirResource};
+
+        // Determine the appropriate context input based on the item type
+        let item_context_input = match &item {
+            octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),
+            octofhir_fhirpath_model::FhirPathValue::Resource(resource) => {
+                ArcJsonValue::new(resource.to_json())
+            }
+            _ => {
+                // For other types, convert to JSON for context evaluation
+                ArcJsonValue::new(serde_json::Value::from(item.clone()))
+            }
+        };
+
+        // Create a new context with the item as both the input and $this value
+        Self {
+            input: octofhir_fhirpath_model::FhirPathValue::JsonValue(item_context_input),
+            root: self.root.clone(),
+            variable_scope: VariableScope::lambda_scope(
+                Some(Arc::new(self.variable_scope.clone())),
+                item.clone(),
+                index,
+                octofhir_fhirpath_model::FhirPathValue::Integer(total as i64),
+            ),
+            registry: self.registry.clone(),
+            model_provider: self.model_provider.clone(),
+            type_annotations: self.type_annotations.clone(),
+        }
+    }
 }
 
 /// Helper for consistent lambda context creation

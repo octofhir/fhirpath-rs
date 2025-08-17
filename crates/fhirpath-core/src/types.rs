@@ -15,7 +15,7 @@
 //! FHIR Type Registry and Type System
 //!
 //! This module provides a lightweight type registry for FHIR types without full struct generation.
-//! It supports type hierarchy checking and polymorphic element detection as specified in ADR-004.
+//! It supports type hierarchy checking and polymorphic element detection.
 
 use std::collections::HashMap;
 use std::collections::HashSet;

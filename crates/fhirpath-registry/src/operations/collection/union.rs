@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// Union function: returns the union of two collections, removing duplicates
 pub struct UnionFunction;
@@ -117,31 +116,24 @@ impl UnionFunction {
         let left_items = self.to_collection_items(&context.input);
         let right_items = self.to_collection_items(other);
 
-        // Use HashSet to track unique items
-        let mut seen = HashSet::new();
+        // Use FHIRPath equality for deduplication
         let mut result_items = Vec::new();
 
         // Add items from left collection first
         for item in &left_items {
-            let key = self.value_to_comparable_key(item)?;
-            if seen.insert(key) {
+            if !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                 result_items.push(item.clone());
             }
         }
 
         // Add items from right collection, skipping duplicates
         for item in &right_items {
-            let key = self.value_to_comparable_key(item)?;
-            if seen.insert(key) {
+            if !result_items.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                 result_items.push(item.clone());
             }
         }
 
-        if result_items.is_empty() {
-            Ok(FhirPathValue::Empty)
-        } else {
-            Ok(FhirPathValue::collection(result_items))
-        }
+        Ok(FhirPathValue::normalize_collection_result(result_items))
     }
 
     /// Convert a FhirPathValue to a vector of items (flattening if it's a collection)
@@ -153,35 +145,4 @@ impl UnionFunction {
         }
     }
 
-    /// Convert a FhirPathValue to a comparable key for duplicate detection
-    fn value_to_comparable_key(&self, value: &FhirPathValue) -> Result<String> {
-        match value {
-            FhirPathValue::String(s) => Ok(format!("string:{}", s.as_ref())),
-            FhirPathValue::Integer(i) => Ok(format!("integer:{i}")),
-            FhirPathValue::Decimal(d) => Ok(format!("decimal:{d}")),
-            FhirPathValue::Boolean(b) => Ok(format!("boolean:{b}")),
-            FhirPathValue::Date(d) => Ok(format!("date:{d}")),
-            FhirPathValue::DateTime(dt) => Ok(format!("datetime:{dt}")),
-            FhirPathValue::Time(t) => Ok(format!("time:{t}")),
-            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", **json)),
-            FhirPathValue::Collection(_) => {
-                // Collections are compared structurally - convert to JSON representation
-                Ok(format!(
-                    "collection:{}",
-                    serde_json::to_string(value).map_err(|_| {
-                        FhirPathError::InvalidArguments {
-                            message: "Cannot serialize collection for comparison".to_string(),
-                        }
-                    })?
-                ))
-            }
-            FhirPathValue::Empty => Ok("empty".to_string()),
-            FhirPathValue::Quantity(q) => Ok(format!("quantity:{q}")),
-            FhirPathValue::Resource(r) => {
-                let id = r.as_json().get("id").and_then(|v| v.as_str()).unwrap_or("");
-                Ok(format!("resource:{id}"))
-            }
-            FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{name}")),
-        }
-    }
 }

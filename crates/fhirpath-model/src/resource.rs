@@ -136,15 +136,25 @@ impl FhirResource {
                     return Some(value);
                 }
 
-                // Handle FHIR polymorphic properties (e.g., value -> valueString, valueInteger, etc.)
-                if path == "value" {
-                    // Look for value[x] properties
-                    for key in obj.keys() {
-                        if key.starts_with("value") && key.len() > 5 {
-                            // Found a value[x] property (like valueString, valueInteger, etc.)
-                            return obj.get(key);
+                // FHIR choice type polymorphic access
+                // Check for properties that start with the requested property name
+                // and have an uppercase letter immediately following (e.g., "value" matches "valueString")
+                // Collect all valid matches and return the first one found
+                let mut valid_matches = Vec::new();
+                for (key, value) in obj.iter() {
+                    if key.starts_with(path) && key.len() > path.len() {
+                        // Check if the next character after the property name is uppercase
+                        if let Some(next_char) = key.chars().nth(path.len()) {
+                            if next_char.is_uppercase() {
+                                valid_matches.push((key, value));
+                            }
                         }
                     }
+                }
+                
+                // Return the first valid match (deterministic based on JSON ordering)
+                if let Some((_, value)) = valid_matches.first() {
+                    return Some(value);
                 }
 
                 None
@@ -159,13 +169,24 @@ impl FhirResource {
         let result = self.data.get_property(path);
 
         // Handle FHIR polymorphic properties if direct access failed
-        if result.is_none() && path == "value" {
+        if result.is_none() {
             if let Value::Object(obj) = self.data.as_json() {
-                // Look for value[x] properties
+                // FHIR choice type polymorphic access
+                let mut valid_matches = Vec::new();
                 for key in obj.keys() {
-                    if key.starts_with("value") && key.len() > 5 {
-                        return self.data.get_property(key);
+                    if key.starts_with(path) && key.len() > path.len() {
+                        // Check if the next character after the property name is uppercase
+                        if let Some(next_char) = key.chars().nth(path.len()) {
+                            if next_char.is_uppercase() {
+                                valid_matches.push(key);
+                            }
+                        }
                     }
+                }
+                
+                // Return the first valid match
+                if let Some(key) = valid_matches.first() {
+                    return self.data.get_property(key);
                 }
             }
         }
@@ -343,5 +364,165 @@ mod tests {
         assert!(resource.is_primitive_extension("id"));
         assert!(resource.get_primitive_extension("id").is_some());
         assert!(!resource.is_primitive_extension("resourceType"));
+    }
+
+    #[test]
+    fn test_fhir_choice_type_polymorphic_access() {
+        // Test with Observation.value[x] polymorphic access
+        let observation_string = json!({
+            "resourceType": "Observation",
+            "id": "obs1",
+            "valueString": "test result"
+        });
+
+        let resource = FhirResource::from_json(observation_string);
+        
+        // Both direct and polymorphic access should work
+        assert_eq!(resource.get_property("valueString"), Some(&json!("test result")));
+        assert_eq!(resource.get_property("value"), Some(&json!("test result")));
+    }
+
+    #[test]
+    fn test_fhir_choice_type_different_types() {
+        // Test with valueQuantity
+        let observation_quantity = json!({
+            "resourceType": "Observation",
+            "id": "obs2",
+            "valueQuantity": {
+                "value": 120,
+                "unit": "mmHg"
+            }
+        });
+
+        let resource = FhirResource::from_json(observation_quantity);
+        let expected_quantity = json!({
+            "value": 120,
+            "unit": "mmHg"
+        });
+        
+        assert_eq!(resource.get_property("valueQuantity"), Some(&expected_quantity));
+        assert_eq!(resource.get_property("value"), Some(&expected_quantity));
+
+        // Test with valueBoolean
+        let observation_boolean = json!({
+            "resourceType": "Observation", 
+            "id": "obs3",
+            "valueBoolean": true
+        });
+
+        let resource = FhirResource::from_json(observation_boolean);
+        assert_eq!(resource.get_property("valueBoolean"), Some(&json!(true)));
+        assert_eq!(resource.get_property("value"), Some(&json!(true)));
+    }
+
+    #[test]
+    fn test_fhir_choice_type_case_sensitivity() {
+        // Test that only uppercase letters after the base property name match
+        let test_resource = json!({
+            "resourceType": "TestResource",
+            "valueString": "should_match",
+            "valuetype": "should_not_match",
+            "valuelowercase": "should_not_match_either"
+        });
+
+        let resource = FhirResource::from_json(test_resource);
+        
+        // Should match valueString (uppercase S), not the lowercase variants
+        let result = resource.get_property("value");
+        assert!(result.is_some());
+        assert_eq!(result, Some(&json!("should_match")));
+        
+        // Direct access to non-matching properties should still work
+        assert_eq!(resource.get_property("valuetype"), Some(&json!("should_not_match")));
+        assert_eq!(resource.get_property("valuelowercase"), Some(&json!("should_not_match_either")));
+        
+        // Test with only lowercase variants (should return None)
+        let test_resource_lowercase_only = json!({
+            "resourceType": "TestResource",
+            "valuetype": "lowercase_only",
+            "valuelowercase": "also_lowercase"
+        });
+
+        let resource2 = FhirResource::from_json(test_resource_lowercase_only);
+        assert_eq!(resource2.get_property("value"), None);
+    }
+
+    #[test]
+    fn test_fhir_choice_type_medication_property() {
+        // Test other common FHIR choice types beyond just "value"
+        let medication_request = json!({
+            "resourceType": "MedicationRequest",
+            "id": "med1",
+            "medicationCodeableConcept": {
+                "coding": [{
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "code": "582620",
+                    "display": "Nizatidine"
+                }]
+            }
+        });
+
+        let resource = FhirResource::from_json(medication_request);
+        let expected_medication = json!({
+            "coding": [{
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "code": "582620",
+                "display": "Nizatidine"
+            }]
+        });
+        
+        // Both direct and polymorphic access should work
+        assert_eq!(resource.get_property("medicationCodeableConcept"), Some(&expected_medication));
+        assert_eq!(resource.get_property("medication"), Some(&expected_medication));
+    }
+
+    #[test]
+    fn test_fhir_choice_type_direct_property_priority() {
+        // Test that direct property access takes priority over polymorphic
+        let test_resource = json!({
+            "resourceType": "TestResource",
+            "value": "direct_value",
+            "valueString": "polymorphic_value"
+        });
+
+        let resource = FhirResource::from_json(test_resource);
+        
+        // Should get direct value, not polymorphic
+        assert_eq!(resource.get_property("value"), Some(&json!("direct_value")));
+        assert_eq!(resource.get_property("valueString"), Some(&json!("polymorphic_value")));
+    }
+
+    #[test]
+    fn test_fhir_choice_type_no_match() {
+        // Test that accessing a choice type property that doesn't exist returns None
+        let observation_no_value = json!({
+            "resourceType": "Observation",
+            "id": "obs4",
+            "status": "final"
+        });
+
+        let resource = FhirResource::from_json(observation_no_value);
+        assert_eq!(resource.get_property("value"), None);
+        assert_eq!(resource.get_property("medication"), None);
+    }
+
+    #[test]
+    fn test_fhir_choice_type_arc_access() {
+        // Test that Arc-optimized access also supports polymorphic access
+        let observation = json!({
+            "resourceType": "Observation",
+            "valueString": "test via arc"
+        });
+
+        let resource = FhirResource::from_json(observation);
+        
+        // Both get_property and get_property_arc should work for polymorphic access
+        assert_eq!(resource.get_property("value"), Some(&json!("test via arc")));
+        
+        let arc_result = resource.get_property_arc("value");
+        assert!(arc_result.is_some());
+        if let Some(arc_json) = arc_result {
+            assert_eq!(arc_json.as_json(), &json!("test via arc"));
+        }
     }
 }

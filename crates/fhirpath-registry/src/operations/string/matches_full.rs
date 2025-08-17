@@ -105,6 +105,8 @@ impl MatchesFullFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "matchesFull() requires exactly one argument (regex)".to_string(),
             });
         }
@@ -117,12 +119,16 @@ impl MatchesFullFunction {
                 FhirPathValue::String(s) => s,
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "matchesFull() regex parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "matchesFull() regex parameter must be a string".to_string(),
                 });
             }
@@ -151,6 +157,8 @@ impl MatchesFullFunction {
 
                 let regex =
                     Regex::new(&anchored_pattern).map_err(|e| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: format!("Invalid regex pattern '{}': {}", pattern.as_ref(), e),
                     })?;
 
@@ -167,6 +175,8 @@ impl MatchesFullFunction {
                 } else if collection.len() > 1 {
                     // Multiple items - signal error per spec
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "matchesFull() evaluation ended - input collection contains multiple items".to_string(),
                     });
                 } else {
@@ -187,6 +197,8 @@ impl MatchesFullFunction {
 
                             let regex = Regex::new(&anchored_pattern).map_err(|e| {
                                 FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                     message: format!(
                                         "Invalid regex pattern '{}': {}",
                                         pattern.as_ref(),
@@ -200,12 +212,16 @@ impl MatchesFullFunction {
                         }
                         FhirPathValue::Empty => Ok(FhirPathValue::Empty),
                         _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                             message: "matchesFull() can only be applied to strings".to_string(),
                         }),
                     }
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message:
                     "matchesFull() can only be applied to strings or collections containing strings"
                         .to_string(),

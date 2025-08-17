@@ -104,6 +104,8 @@ impl IndexOfFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "indexOf() requires exactly one argument (substring)".to_string(),
             });
         }

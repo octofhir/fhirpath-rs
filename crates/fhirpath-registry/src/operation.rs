@@ -588,6 +588,8 @@ mod tests {
         fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
             if !args.is_empty() {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "test operation takes no arguments".to_string(),
                 });
             }

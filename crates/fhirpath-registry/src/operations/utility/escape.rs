@@ -133,18 +133,24 @@ impl FhirPathOperation for EscapeFunction {
                         FhirPathValue::String(s) => s.as_ref(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "escape() target parameter must be a string".to_string(),
                             });
                         }
                     }
                 } else {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "escape() target parameter must be a single string".to_string(),
                     });
                 }
             }
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: format!(
                         "escape() target parameter must be a string, got: {:?}",
                         args[0]
@@ -164,6 +170,8 @@ impl FhirPathOperation for EscapeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "escape() requires a string input".to_string(),
                             });
                         }
@@ -172,12 +180,16 @@ impl FhirPathOperation for EscapeFunction {
                     return Ok(FhirPathValue::Collection(Collection::new()));
                 } else {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "escape() requires a single string value".to_string(),
                     });
                 }
             }
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "escape() requires a string input".to_string(),
                 });
             }
@@ -211,18 +223,24 @@ impl FhirPathOperation for EscapeFunction {
                         FhirPathValue::String(s) => s.as_ref(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "escape() target parameter must be a string".to_string(),
                             }));
                         }
                     }
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "escape() target parameter must be a single string".to_string(),
                     }));
                 }
             }
             _ => {
                 return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "escape() target parameter must be a string".to_string(),
                 }));
             }
@@ -239,6 +257,8 @@ impl FhirPathOperation for EscapeFunction {
                         FhirPathValue::String(s) => s.clone(),
                         _ => {
                             return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "escape() requires a string input".to_string(),
                             }));
                         }
@@ -247,12 +267,16 @@ impl FhirPathOperation for EscapeFunction {
                     return Some(Ok(FhirPathValue::Collection(Collection::new())));
                 } else {
                     return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "escape() requires a single string value".to_string(),
                     }));
                 }
             }
             _ => {
                 return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "escape() requires a string input".to_string(),
                 }));
             }

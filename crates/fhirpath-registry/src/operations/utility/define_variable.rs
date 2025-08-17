@@ -110,6 +110,8 @@ impl DefineVariableFunction {
         // Validate arguments: defineVariable(name) or defineVariable(name, value)
         if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "defineVariable() requires 1 or 2 arguments (name, [value])".to_string(),
             });
         }
@@ -121,12 +123,16 @@ impl DefineVariableFunction {
                 FhirPathValue::String(name) => name.as_ref(),
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "defineVariable() name parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "defineVariable() name parameter must be a string".to_string(),
                 });
             }
@@ -135,6 +141,8 @@ impl DefineVariableFunction {
         // Check if the variable name is a system variable (protected)
         if Self::is_system_variable(var_name) {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: format!("Cannot override system variable '{var_name}'"),
             });
         }

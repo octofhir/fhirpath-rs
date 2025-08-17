@@ -108,6 +108,8 @@ impl StartsWithFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "startsWith() requires exactly one argument (prefix)".to_string(),
             });
         }
@@ -119,12 +121,16 @@ impl StartsWithFunction {
                 FhirPathValue::String(s) => s.as_ref(),
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "startsWith() prefix parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "startsWith() prefix parameter must be a string".to_string(),
                 });
             }
@@ -161,6 +167,8 @@ impl StartsWithFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "startsWith() requires input to be a string".to_string(),
             }),
         }

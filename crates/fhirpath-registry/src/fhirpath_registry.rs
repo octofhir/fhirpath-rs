@@ -294,30 +294,19 @@ impl FhirPathRegistry {
             return true;
         }
 
-        // Registry lookup for trait-based detection
-        if let Some(operation) = self.get_operation(identifier).await {
-            // Check specific lambda function types since we can't downcast to trait objects
-            use crate::operations::collection::AllFunction;
-            use crate::operations::lambda::{
-                AggregateFunction, SelectFunction, SortLambdaFunction, WhereFunction,
-            };
-
-            operation.as_any().downcast_ref::<WhereFunction>().is_some()
-                || operation
-                    .as_any()
-                    .downcast_ref::<SelectFunction>()
-                    .is_some()
-                || operation
-                    .as_any()
-                    .downcast_ref::<SortLambdaFunction>()
-                    .is_some()
-                || operation
-                    .as_any()
-                    .downcast_ref::<AggregateFunction>()
-                    .is_some()
-                || operation.as_any().downcast_ref::<AllFunction>().is_some()
-        } else {
-            false
+        // Main lambda functions are now handled directly in the engine
+        match identifier {
+            "where" | "select" | "sort" | "repeat" | "aggregate" | "all" => true,
+            _ => {
+                // Check remaining registry lambda functions
+                if let Some(_operation) = self.get_operation(identifier).await {
+                    // For now, assume all remaining operations in registry might be lambda functions
+                    // This will be refined as we add specific lambda functions to engine
+                    false // No specific lambda functions left in registry for now
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -376,18 +365,14 @@ impl FhirPathRegistry {
         // Check that every operation has metadata
         for identifier in ops.keys() {
             if !meta.contains_key(identifier) {
-                return Err(FhirPathError::EvaluationError {
-                    message: format!("Operation '{identifier}' missing metadata"),
-                });
+                return Err(FhirPathError::evaluation_error(format!("Operation '{identifier}' missing metadata")));
             }
         }
 
         // Check that every metadata entry has an operation
         for identifier in meta.keys() {
             if !ops.contains_key(identifier) {
-                return Err(FhirPathError::EvaluationError {
-                    message: format!("Metadata for '{identifier}' has no corresponding operation"),
-                });
+                return Err(FhirPathError::evaluation_error(format!("Metadata for '{identifier}' has no corresponding operation")));
             }
         }
 

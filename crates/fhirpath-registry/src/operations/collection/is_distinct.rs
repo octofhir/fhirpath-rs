@@ -23,7 +23,6 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 /// IsDistinct function: returns true if all items in the collection are distinct
 pub struct IsDistinctFunction;
@@ -117,15 +116,14 @@ impl IsDistinctFunction {
                     return Ok(FhirPathValue::Boolean(true));
                 }
 
-                // Use HashSet to check for duplicates
-                let mut seen = HashSet::new();
+                // Use FHIRPath equality to check for duplicates
+                let mut seen = Vec::new();
                 for item in items.iter() {
-                    // Convert item to a comparable representation
-                    let key = self.value_to_comparable_key(item)?;
-                    if !seen.insert(key) {
+                    if seen.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                         // Duplicate found
                         return Ok(FhirPathValue::Boolean(false));
                     }
+                    seen.push(item.clone());
                 }
 
                 // All items are distinct

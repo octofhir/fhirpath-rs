@@ -109,6 +109,8 @@ impl MatchesFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "matches() requires exactly one argument (regex)".to_string(),
             });
         }
@@ -134,12 +136,16 @@ impl MatchesFunction {
                 FhirPathValue::String(s) => s,
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "matches() regex parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "matches() regex parameter must be a string".to_string(),
                 });
             }
@@ -162,6 +168,8 @@ impl MatchesFunction {
 
         let regex =
             Regex::new(&pattern_with_flags).map_err(|e| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: format!("Invalid regex pattern '{}': {}", pattern.as_ref(), e),
             })?;
 
@@ -184,20 +192,19 @@ impl MatchesFunction {
                         }
                         _ => {
                             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                                 message: "matches() can only be applied to strings".to_string(),
                             });
                         }
                     }
                 }
-                if results.is_empty() {
-                    Ok(FhirPathValue::Empty)
-                } else {
-                    use octofhir_fhirpath_model::Collection;
-                    Ok(FhirPathValue::Collection(Collection::from_vec(results)))
-                }
+                Ok(FhirPathValue::normalize_collection_result(results))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message:
                     "matches() can only be applied to strings or collections containing strings"
                         .to_string(),

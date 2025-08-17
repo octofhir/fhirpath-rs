@@ -108,6 +108,8 @@ impl EndsWithFunction {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "endsWith() requires exactly one argument (suffix)".to_string(),
             });
         }
@@ -119,12 +121,16 @@ impl EndsWithFunction {
                 FhirPathValue::String(s) => s.as_ref(),
                 _ => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "endsWith() suffix parameter must be a string".to_string(),
                     });
                 }
             },
             _ => {
                 return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                     message: "endsWith() suffix parameter must be a string".to_string(),
                 });
             }
@@ -161,6 +167,8 @@ impl EndsWithFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(Collection::from(vec![]))),
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "endsWith() requires input to be a string".to_string(),
             }),
         }

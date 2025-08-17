@@ -501,6 +501,8 @@ impl FhirPathOperation for LowBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "lowBoundary() precision parameter must be a single integer"
                             .to_string(),
                     });
@@ -691,11 +693,15 @@ impl FhirPathOperation for LowBoundaryFunction {
                     Ok(FhirPathValue::Collection(Collection::new()))
                 } else {
                     Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "lowBoundary() requires a single value".to_string()
                     })
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "lowBoundary() requires a decimal, integer, quantity, date, datetime, or time value".to_string()
             }),
         }
@@ -746,6 +752,8 @@ impl FhirPathOperation for LowBoundaryFunction {
                 }
                 FhirPathValue::Collection(_) => {
                     return Some(Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "lowBoundary() precision parameter must be a single integer"
                             .to_string(),
                     }));
@@ -942,11 +950,15 @@ impl FhirPathOperation for LowBoundaryFunction {
                     Ok(FhirPathValue::Collection(Collection::new()))
                 } else {
                     Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "lowBoundary() requires a single value".to_string()
                     })
                 }
             }
             _ => Err(FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                 message: "lowBoundary() requires a decimal, integer, quantity, date, datetime, or time value".to_string()
             }),
         };

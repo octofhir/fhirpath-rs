@@ -80,11 +80,15 @@ impl LessThanOrEqualOperation {
                 let date_low_boundary = date
                     .and_hms_opt(0, 0, 0)
                     .ok_or_else(|| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "Invalid date for conversion to datetime".to_string(),
                     })?
                     .and_local_timezone(datetime.timezone())
                     .single()
                     .ok_or_else(|| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "Timezone conversion error".to_string(),
                     })?;
                 Ok(Some(date_low_boundary <= *datetime))
@@ -95,11 +99,15 @@ impl LessThanOrEqualOperation {
                 let date_high_boundary = date
                     .and_hms_milli_opt(23, 59, 59, 999)
                     .ok_or_else(|| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "Invalid date for conversion to datetime".to_string(),
                     })?
                     .and_local_timezone(datetime.timezone())
                     .single()
                     .ok_or_else(|| FhirPathError::EvaluationError {
+                    expression: None,
+                    location: None,
                         message: "Timezone conversion error".to_string(),
                     })?;
                 Ok(Some(*datetime <= date_high_boundary))

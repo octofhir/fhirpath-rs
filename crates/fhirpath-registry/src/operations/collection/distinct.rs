@@ -17,7 +17,6 @@
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashSet;
 
 use crate::metadata::{
     FhirPathType, MetadataBuilder, OperationMetadata, OperationType, TypeConstraint,
@@ -82,25 +81,16 @@ impl FhirPathOperation for DistinctFunction {
         match &context.input {
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
-                let mut seen = HashSet::new();
                 let mut result = Vec::new();
 
                 for item in c.iter() {
-                    // Basic deduplication - this is a placeholder implementation
-                    // TODO: Implement proper FHIRPath value comparison
-                    let key = format!("{item:?}");
-                    if seen.insert(key) {
+                    // Use FHIRPath equality for proper deduplication
+                    if !result.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                         result.push(item.clone());
                     }
                 }
 
-                if result.is_empty() {
-                    Ok(FhirPathValue::Empty)
-                } else if result.len() == 1 {
-                    Ok(result.into_iter().next().unwrap())
-                } else {
-                    Ok(FhirPathValue::collection(result))
-                }
+                Ok(FhirPathValue::normalize_collection_result(result))
             }
             single => Ok(single.clone()), // Single values are already distinct
         }
@@ -122,23 +112,16 @@ impl FhirPathOperation for DistinctFunction {
         match &context.input {
             FhirPathValue::Empty => Some(Ok(FhirPathValue::Empty)),
             FhirPathValue::Collection(c) => {
-                let mut seen = HashSet::new();
                 let mut result = Vec::new();
 
                 for item in c.iter() {
-                    let key = format!("{item:?}");
-                    if seen.insert(key) {
+                    // Use FHIRPath equality for proper deduplication
+                    if !result.iter().any(|existing: &FhirPathValue| existing.fhirpath_equals(item)) {
                         result.push(item.clone());
                     }
                 }
 
-                if result.is_empty() {
-                    Some(Ok(FhirPathValue::Empty))
-                } else if result.len() == 1 {
-                    Some(Ok(result.into_iter().next().unwrap()))
-                } else {
-                    Some(Ok(FhirPathValue::collection(result)))
-                }
+                Some(Ok(FhirPathValue::normalize_collection_result(result)))
             }
             single => Some(Ok(single.clone())),
         }
