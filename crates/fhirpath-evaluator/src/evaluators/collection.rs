@@ -152,10 +152,8 @@ impl CollectionEvaluator {
             ),
             FhirPathValue::Empty => "empty".to_string(),
             FhirPathValue::Collection(items) => {
-                let item_keys: Vec<String> = items
-                    .iter()
-                    .map(Self::value_to_comparable_key)
-                    .collect();
+                let item_keys: Vec<String> =
+                    items.iter().map(Self::value_to_comparable_key).collect();
                 format!("collection:[{}]", item_keys.join(","))
             }
             FhirPathValue::TypeInfoObject { namespace, name } => {

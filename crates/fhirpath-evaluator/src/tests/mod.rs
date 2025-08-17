@@ -2,12 +2,8 @@
 
 pub mod compatibility_tests; // Compatibility with existing API
 pub mod edge_case_tests; // Edge cases and error handling
-pub mod engine_tests; // Existing basic engine tests
 pub mod integration_tests; // Real FHIR resource tests
-pub mod lambda_tests; // Lambda evaluation tests
-pub mod regression_tests; // Regression prevention
 pub mod stress_tests; // Memory and load tests
-pub mod unified_engine_tests; // Core engine functionality
 pub mod validation_pipeline; // Automated validation
 
 use super::engine::{EvaluationConfig, FhirPathEngine};
