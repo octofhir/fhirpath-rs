@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "fhirpath-bench"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2217,7 +2217,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2271,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-ast"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "log",
  "octofhir-fhirpath-core",
@@ -2282,7 +2282,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-core"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "log",
@@ -2298,7 +2298,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-diagnostics"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "colored",
  "log",
@@ -2311,7 +2311,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-evaluator"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2341,7 +2341,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-model"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "async-trait",
  "bumpalo",
@@ -2374,7 +2374,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-parser"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "compact_str",
  "dashmap",
@@ -2397,7 +2397,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-registry"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2433,7 +2433,7 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirpath-tools"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "chrono",
