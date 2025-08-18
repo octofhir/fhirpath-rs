@@ -5,6 +5,17 @@ use fhirpath_bench::{BenchmarkExpressions, generate_benchmark_summary};
 use std::fs;
 use std::path::PathBuf;
 
+/// Format numbers in human-friendly format (K, M, etc.)
+fn format_ops_per_sec(ops_per_sec: f64) -> String {
+    if ops_per_sec >= 1_000_000.0 {
+        format!("{:.1}M ops/sec", ops_per_sec / 1_000_000.0)
+    } else if ops_per_sec >= 1_000.0 {
+        format!("{:.1}K ops/sec", ops_per_sec / 1_000.0)
+    } else {
+        format!("{:.0} ops/sec", ops_per_sec)
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "fhirpath-bench")]
 #[command(about = "FHIRPath-rs benchmarking and profiling tool")]
@@ -149,7 +160,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let elapsed = start_time.elapsed();
             let ops_per_sec = (iterations as f64) / elapsed.as_secs_f64();
 
-            bench_results.push(format!("  - `{expr}`: {ops_per_sec:.2} ops/sec"));
+            bench_results.push(format!("  - `{expr}`: {}", format_ops_per_sec(ops_per_sec)));
         }
 
         bench_results
@@ -170,7 +181,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let elapsed = start_time.elapsed();
             let ops_per_sec = (iterations as f64) / elapsed.as_secs_f64();
 
-            bench_results.push(format!("  - `{expr}`: {ops_per_sec:.2} ops/sec"));
+            bench_results.push(format!("  - `{expr}`: {}", format_ops_per_sec(ops_per_sec)));
         }
 
         bench_results
@@ -197,7 +208,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let elapsed = start_time.elapsed();
             let ops_per_sec = (iterations as f64) / elapsed.as_secs_f64();
 
-            bench_results.push(format!("  - `{expr}`: {ops_per_sec:.2} ops/sec"));
+            bench_results.push(format!("  - `{expr}`: {}", format_ops_per_sec(ops_per_sec)));
         }
 
         bench_results

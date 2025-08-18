@@ -386,11 +386,8 @@ impl<'input> PrattParser<'input> {
             (Token::Time(_), Token::Time(_)) => true,
             (Token::Quantity { .. }, Token::Quantity { .. }) => true,
 
-            // Identifiers (regular and interned)
+            // Identifiers
             (Token::Identifier(_), Token::Identifier(_)) => true,
-            (Token::Identifier(_), Token::InternedIdentifier(_)) => true,
-            (Token::InternedIdentifier(_), Token::Identifier(_)) => true,
-            (Token::InternedIdentifier(_), Token::InternedIdentifier(_)) => true,
 
             // Unit tokens (exact matches)
             (Token::Plus, Token::Plus) => true,
@@ -498,23 +495,6 @@ impl<'input> PrattParser<'input> {
                     Ok(ExpressionNode::lambda_single(name, body))
                 } else {
                     Ok(ExpressionNode::identifier(name))
-                }
-            }
-
-            // Interned identifiers
-            Some(Token::InternedIdentifier(name_arc)) => {
-                let name = name_arc.as_ref().to_string(); // Clone to avoid borrowing issues
-                self.advance()?;
-                // Check for function call
-                if let Some(Token::LeftParen) = self.current() {
-                    self.parse_function_call(&name)
-                } else if let Some(Token::Arrow) = self.current() {
-                    // Single parameter lambda: param => expression
-                    self.advance()?; // consume =>
-                    let body = self.parse_expression_with_precedence(Precedence::Implies)?;
-                    Ok(ExpressionNode::lambda_single(&name, body))
-                } else {
-                    Ok(ExpressionNode::identifier(&name))
                 }
             }
 
@@ -779,11 +759,6 @@ impl<'input> PrattParser<'input> {
                                     self.advance()?;
                                     var_name_parts.push(name);
                                 }
-                                Some(Token::InternedIdentifier(name)) => {
-                                    let name = name.as_ref().to_string();
-                                    self.advance()?;
-                                    var_name_parts.push(name);
-                                }
                                 Some(Token::Minus) => {
                                     self.advance()?;
                                     var_name_parts.push("-".to_string());
@@ -854,7 +829,6 @@ impl<'input> PrattParser<'input> {
                 self.advance()?;
                 let name = match self.current() {
                     Some(Token::Identifier(name)) => (*name).to_string(),
-                    Some(Token::InternedIdentifier(name)) => name.as_ref().to_string(),
                     Some(Token::Where) => "where".to_string(),
                     Some(Token::Select) => "select".to_string(),
                     Some(Token::All) => "all".to_string(),
@@ -991,7 +965,6 @@ impl<'input> PrattParser<'input> {
     fn parse_path_or_method(&mut self, base: ExpressionNode) -> ParseResult<ExpressionNode> {
         let name = match self.current() {
             Some(Token::Identifier(name)) => (*name).to_string(),
-            Some(Token::InternedIdentifier(arc_name)) => arc_name.as_ref().to_string(),
             Some(Token::Where) => "where".to_string(),
             Some(Token::Select) => "select".to_string(),
             Some(Token::All) => "all".to_string(),
@@ -1012,7 +985,6 @@ impl<'input> PrattParser<'input> {
                 self.advance()?;
                 let backtick_name = match self.current() {
                     Some(Token::Identifier(name)) => (*name).to_string(),
-                    Some(Token::InternedIdentifier(arc_name)) => arc_name.as_ref().to_string(),
                     Some(Token::Where) => "where".to_string(),
                     Some(Token::Select) => "select".to_string(),
                     Some(Token::All) => "all".to_string(),

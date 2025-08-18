@@ -53,3 +53,9 @@ pub use octofhir_fhirpath_model::fhir_model;
 
 // Re-export from local modules (minimal local integration code)
 pub mod value_ext;
+
+// Re-export conversion utilities for easier access
+pub use utils::{
+    JsonResult, fhir_value_to_serde, from_sonic, parse_as_fhir_value, parse_json, parse_with_serde,
+    reformat_json, serde_to_fhir_value, serde_to_sonic, sonic_to_serde, to_sonic,
+};

@@ -119,11 +119,8 @@ impl<'input> TokenStream<'input> {
             (Token::Time(_), Token::Time(_)) => true,
             (Token::Quantity { .. }, Token::Quantity { .. }) => true,
 
-            // Identifiers (regular and interned)
+            // Identifiers
             (Token::Identifier(_), Token::Identifier(_)) => true,
-            (Token::Identifier(_), Token::InternedIdentifier(_)) => true,
-            (Token::InternedIdentifier(_), Token::Identifier(_)) => true,
-            (Token::InternedIdentifier(_), Token::InternedIdentifier(_)) => true,
 
             // Unit tokens (exact matches)
             (Token::Plus, Token::Plus) => true,

@@ -33,10 +33,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "canary"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use a more stable cache key that will match across commits
+          prefix-key: "canary-publish"
+          # Share cache with other jobs
+          shared-key: "publish-crates"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -187,10 +187,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "canary-${{ matrix.target }}"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use a stable cache key with target-specific suffix
+          prefix-key: "canary-binary"
+          # Share cache across binary builds but separate from publish
+          shared-key: "binary-${{ matrix.target }}"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true

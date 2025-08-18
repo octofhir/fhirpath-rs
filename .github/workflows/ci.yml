@@ -37,10 +37,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "ci-${{ matrix.os }}-${{ matrix.rust }}"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use stable cache keys that will match across similar builds
+          prefix-key: "ci-test"
+          # Share cache across similar configurations
+          shared-key: "${{ matrix.os }}-${{ matrix.rust }}"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -83,10 +83,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "coverage"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use stable cache key for coverage builds
+          prefix-key: "ci-coverage"
+          # Share cache across coverage runs
+          shared-key: "coverage"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -126,10 +126,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "security"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use stable cache key for security builds
+          prefix-key: "ci-security"
+          # Share cache across security runs
+          shared-key: "security"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true

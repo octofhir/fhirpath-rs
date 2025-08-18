@@ -35,10 +35,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # Cache key prefix for this workflow
-          prefix-key: "publish"
-          # Additional cache key components
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Use a stable cache key for publish workflow
+          prefix-key: "release-publish"
+          # Share cache across publish runs
+          shared-key: "publish-crates"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true

@@ -46,6 +46,7 @@ regex = "1.11.1"
 rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
 rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0"
 sonic-rs = "0.5.3"
 smallvec = { version = "1.11", features = ["serde"] }
 thiserror = "2"

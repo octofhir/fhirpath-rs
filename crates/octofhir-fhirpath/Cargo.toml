@@ -64,6 +64,7 @@ regex = { workspace = true }
 rust_decimal = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 sonic-rs = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
