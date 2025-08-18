@@ -155,12 +155,14 @@ impl SupersetOfFunction {
             FhirPathValue::Date(d) => Ok(format!("date:{d}")),
             FhirPathValue::DateTime(dt) => Ok(format!("datetime:{dt}")),
             FhirPathValue::Time(t) => Ok(format!("time:{t}")),
-            FhirPathValue::JsonValue(json) => Ok(format!("json:{}", **json)),
+            FhirPathValue::JsonValue(json) => {
+                Ok(format!("json:{}", json.to_string().unwrap_or_default()))
+            }
             FhirPathValue::Collection(_) => {
                 // Collections are compared structurally - convert to JSON representation
                 Ok(format!(
                     "collection:{}",
-                    serde_json::to_string(value).map_err(|_| {
+                    sonic_rs::to_string(value).map_err(|_| {
                         FhirPathError::InvalidArguments {
                             message: "Cannot serialize collection for comparison".to_string(),
                         }
@@ -170,7 +172,11 @@ impl SupersetOfFunction {
             FhirPathValue::Empty => Ok("empty".to_string()),
             FhirPathValue::Quantity(q) => Ok(format!("quantity:{q}")),
             FhirPathValue::Resource(r) => {
-                let id = r.as_json().get("id").and_then(|v| v.as_str()).unwrap_or("");
+                let id = r
+                    .as_json_value()
+                    .get_property("id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
                 Ok(format!("resource:{id}"))
             }
             FhirPathValue::TypeInfoObject { name, .. } => Ok(format!("typeinfo:{name}")),

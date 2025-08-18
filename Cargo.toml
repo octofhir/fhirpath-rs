@@ -37,8 +37,8 @@ nom = "8.0.0"
 nom_locate = "5.0.0-beta.5"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { version = "0.1.1", features = ["serde"] }
-octofhir-fhirschema = { version = "0.2.2", features = ["memory-storage"] }
-octofhir-canonical-manager = { version = "0.1.4" }
+octofhir-fhirschema = { version = "0.2.3", features = ["memory-storage"] }
+octofhir-canonical-manager = { version = "0.1.5" }
 url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.4"
@@ -46,7 +46,7 @@ regex = "1.11.1"
 rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
 rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
+sonic-rs = "0.5.3"
 smallvec = { version = "1.11", features = ["serde"] }
 thiserror = "2"
 typed-arena = "2.0.2"
@@ -66,7 +66,10 @@ futures = "0.3"
 tokio = { version = "1.47.1", features = ["full"] }
 
 # HTTP client for external profile fetching
-reqwest = { version = "0.12.22", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12.22", features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
 
 # CLI dependencies
 clap = { version = "4", features = ["derive"] }

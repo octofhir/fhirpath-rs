@@ -8,7 +8,7 @@ pub mod validation_pipeline; // Automated validation
 
 use super::engine::{EvaluationConfig, FhirPathEngine};
 use octofhir_fhirpath_model::FhirPathValue;
-use serde_json::json;
+use sonic_rs::json;
 use std::time::Instant;
 
 /// Test helper utilities
@@ -41,7 +41,7 @@ impl TestUtils {
     pub async fn benchmark_expression(
         engine: &FhirPathEngine,
         expression: &str,
-        data: serde_json::Value,
+        data: sonic_rs::Value,
         iterations: usize,
     ) -> (
         std::time::Duration,
@@ -61,7 +61,7 @@ impl TestUtils {
     }
 
     /// Create sample FHIR Patient resource
-    pub fn sample_patient() -> serde_json::Value {
+    pub fn sample_patient() -> sonic_rs::Value {
         json!({
             "resourceType": "Patient",
             "id": "example",
@@ -103,7 +103,7 @@ impl TestUtils {
     }
 
     /// Create sample FHIR Bundle resource
-    pub fn sample_bundle() -> serde_json::Value {
+    pub fn sample_bundle() -> sonic_rs::Value {
         json!({
             "resourceType": "Bundle",
             "id": "example",
@@ -129,12 +129,12 @@ impl TestUtils {
     }
 
     /// Create sample numeric data for mathematical tests
-    pub fn numeric_test_data() -> serde_json::Value {
+    pub fn numeric_test_data() -> sonic_rs::Value {
         json!([1, 2, 3, 4, 5, -1, -2, 0, 100, 1000])
     }
 
     /// Create sample string data for string function tests
-    pub fn string_test_data() -> serde_json::Value {
+    pub fn string_test_data() -> sonic_rs::Value {
         json!([
             "hello",
             "world",
@@ -148,12 +148,12 @@ impl TestUtils {
     }
 
     /// Create sample boolean data
-    pub fn boolean_test_data() -> serde_json::Value {
+    pub fn boolean_test_data() -> sonic_rs::Value {
         json!([true, false, true, true, false])
     }
 
     /// Create complex nested data structure
-    pub fn complex_nested_data() -> serde_json::Value {
+    pub fn complex_nested_data() -> sonic_rs::Value {
         json!({
             "level1": {
                 "level2": {
@@ -297,6 +297,7 @@ impl TestUtils {}
 #[cfg(test)]
 mod test_utils_tests {
     use super::*;
+    use sonic_rs::JsonValueTrait;
 
     #[tokio::test]
     async fn test_engine_creation() {

@@ -34,11 +34,13 @@ path = "src/bin/octofhir_fhirpath.rs"
 # Workspace crates
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = ["terminal"] }
+octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = [
+    "terminal",
+] }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
-octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
-octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator", features = [] }
 
 # Core dependencies
 anyhow = { workspace = true }
@@ -62,7 +64,7 @@ regex = { workspace = true }
 rust_decimal = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+sonic-rs = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
 typed-arena = { workspace = true }
@@ -93,7 +95,7 @@ rstest = "0.26"
 serde-xml-rs = "0.8"
 
 [features]
-default = []
+default = []                                                        # sonic-rs is now included by default in model crate
 diagnostics = ["colored", "octofhir-fhirpath-diagnostics/terminal"]
 serde = []
 terminal = ["colored", "octofhir-fhirpath-diagnostics/terminal"]

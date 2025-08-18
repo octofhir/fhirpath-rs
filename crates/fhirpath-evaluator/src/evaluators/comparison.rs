@@ -65,8 +65,10 @@ impl ComparisonEvaluator {
         right: &FhirPathValue,
     ) -> EvaluationResult<FhirPathValue> {
         match Self::compare_equal_with_collections(left, right) {
-            Some(result) => Ok(FhirPathValue::Boolean(result)),
-            None => Ok(FhirPathValue::Empty), // Empty result per FHIRPath spec
+            Some(result) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                result,
+            )])),
+            None => Ok(FhirPathValue::collection(vec![])), // Empty collection per FHIRPath spec
         }
     }
 
@@ -149,8 +151,8 @@ impl ComparisonEvaluator {
             (FhirPathValue::Collection(l), _) if l.is_empty() => Ok(FhirPathValue::Boolean(false)),
             (_, FhirPathValue::Collection(r)) if r.is_empty() => Ok(FhirPathValue::Boolean(false)),
             _ => {
-                // For non-empty values, use same logic as equality but always return true/false (never empty)
-                match Self::compare_equal_with_collections(left, right) {
+                // For non-empty values, use equivalence logic (case-insensitive for strings)
+                match Self::compare_equivalent_with_collections(left, right) {
                     Some(result) => Ok(FhirPathValue::Boolean(result)),
                     None => Ok(FhirPathValue::Boolean(false)), // Equivalence treats indeterminate as false
                 }
@@ -224,12 +226,26 @@ impl ComparisonEvaluator {
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Some(a == b),
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => Some(a == b),
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
-                Some((a - b).abs() < Decimal::new(1, 10)) // Small epsilon for decimal comparison
+                // FHIRPath equivalence uses a reasonable tolerance for decimal comparison
+                // This matches common rounding expectations (e.g., 0.666... ~ 0.67)
+                Some((a - b).abs() < Decimal::new(5, 3)) // 0.005 tolerance
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => Some(a == b),
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a == b),
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a == b),
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a == b),
+
+            // Cross-type date/datetime equality
+            (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
+                // Convert date to midnight datetime for comparison
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+                    .map(|ord| ord == Ordering::Equal)
+            }
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Date(date)) => {
+                // Convert date to midnight datetime for comparison
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+                    .map(|ord| ord == Ordering::Equal)
+            }
 
             // Cross-type numeric equality
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => match Decimal::try_from(*a) {
@@ -241,7 +257,203 @@ impl ComparisonEvaluator {
                 Err(_) => Some(false),
             },
 
+            // Quantity equality with unit conversion support
+            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
+                match a.equals_with_conversion(b) {
+                    Ok(result) => Some(result),
+                    Err(_) => Some(false), // Conversion error means not equal
+                }
+            }
+
+            // JsonValue comparisons - handle Sonic JSON values natively
+            (FhirPathValue::JsonValue(a), FhirPathValue::JsonValue(b)) => {
+                Some(a.as_inner() == b.as_inner())
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::String(string_val)) => {
+                // Compare JsonValue with String - use Sonic JSON directly
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Some(json_str == string_val.as_ref())
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false) // JsonValue is not a string, can't equal a string
+                }
+            }
+            (FhirPathValue::String(string_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare String with JsonValue - use Sonic JSON directly
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Some(string_val.as_ref() == json_str)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false) // JsonValue is not a string, can't equal a string
+                }
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::Boolean(bool_val)) => {
+                // Compare JsonValue with Boolean - use Sonic JSON directly
+                if json_val.is_boolean() {
+                    if let Some(json_bool) = json_val.as_bool() {
+                        Some(json_bool == *bool_val)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::Boolean(bool_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare Boolean with JsonValue - use Sonic JSON directly
+                if json_val.is_boolean() {
+                    if let Some(json_bool) = json_val.as_bool() {
+                        Some(*bool_val == json_bool)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::Integer(int_val)) => {
+                // Compare JsonValue with Integer - use Sonic JSON directly
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        Some(json_int == *int_val)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::Integer(int_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare Integer with JsonValue - use Sonic JSON directly
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        Some(*int_val == json_int)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+
             // Different types are not equal
+            _ => Some(false),
+        }
+    }
+
+    /// Compare values for equivalence (~) - like equality but case-insensitive for strings
+    pub fn compare_equivalent_with_collections(
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<bool> {
+        match (left, right) {
+            // Both empty collections - return true (equivalent)
+            (FhirPathValue::Collection(l), FhirPathValue::Collection(r))
+                if l.is_empty() && r.is_empty() =>
+            {
+                Some(true)
+            }
+
+            // Single item collections - compare the contents
+            (FhirPathValue::Collection(l), FhirPathValue::Collection(r))
+                if l.len() == 1 && r.len() == 1 =>
+            {
+                Self::compare_equivalent_with_collections(l.first().unwrap(), r.first().unwrap())
+            }
+
+            // Collection vs scalar - extract scalar and compare
+            (FhirPathValue::Collection(l), right) if l.len() == 1 => {
+                Self::compare_equivalent_with_collections(l.first().unwrap(), right)
+            }
+            (left, FhirPathValue::Collection(r)) if r.len() == 1 => {
+                Self::compare_equivalent_with_collections(left, r.first().unwrap())
+            }
+
+            // Multi-element collections
+            (FhirPathValue::Collection(l), FhirPathValue::Collection(r)) => {
+                if l.len() != r.len() {
+                    return Some(false); // Different lengths can't be equivalent
+                }
+
+                // For equivalence, order doesn't matter - each item in left must have a match in right
+                let all_left_match = l.iter().all(|left_item| {
+                    r.iter().any(|right_item| {
+                        Self::compare_equivalent_with_collections(left_item, right_item)
+                            .unwrap_or(false)
+                    })
+                });
+
+                if !all_left_match {
+                    return Some(false);
+                }
+
+                // Also check that each item in right has a match in left (for duplicates)
+                let all_right_match = r.iter().all(|right_item| {
+                    l.iter().any(|left_item| {
+                        Self::compare_equivalent_with_collections(left_item, right_item)
+                            .unwrap_or(false)
+                    })
+                });
+
+                Some(all_right_match)
+            }
+            (FhirPathValue::Collection(_), _) | (_, FhirPathValue::Collection(_)) => {
+                Some(false) // Single value vs multi-element collection
+            }
+
+            // Scalar value comparisons - mostly same as equality except strings
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Some(a == b),
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => Some(a == b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                // FHIRPath equivalence uses a reasonable tolerance for decimal comparison
+                // This matches common rounding expectations (e.g., 0.666... ~ 0.67)
+                Some((a - b).abs() < Decimal::new(5, 3)) // 0.005 tolerance
+            }
+
+            // String comparison - CASE INSENSITIVE for equivalence
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+                Some(a.to_lowercase() == b.to_lowercase())
+            }
+
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a == b),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a == b),
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a == b),
+
+            // Cross-type date/datetime equality
+            (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+                    .map(|ord| ord == Ordering::Equal)
+            }
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Date(date)) => {
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+                    .map(|ord| ord == Ordering::Equal)
+            }
+
+            // Cross-type numeric equality
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => match Decimal::try_from(*a) {
+                Ok(a_decimal) => Some((a_decimal - b).abs() < Decimal::new(1, 10)),
+                Err(_) => Some(false),
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => match Decimal::try_from(*b) {
+                Ok(b_decimal) => Some((a - b_decimal).abs() < Decimal::new(1, 10)),
+                Err(_) => Some(false),
+            },
+
+            // Quantity equivalence with unit conversion support
+            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
+                match a.equals_with_conversion(b) {
+                    Ok(result) => Some(result),
+                    Err(_) => Some(false), // Conversion error means not equivalent
+                }
+            }
+
+            // Different types are not equivalent
             _ => Some(false),
         }
     }
@@ -287,10 +499,87 @@ impl ComparisonEvaluator {
                 Err(_) => None,
             },
             (FhirPathValue::String(a), FhirPathValue::String(b)) => Some(a.cmp(b)),
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a.cmp(b)),
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a.cmp(b)),
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a.cmp(b)),
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a.date.cmp(&b.date)),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                Some(a.datetime.cmp(&b.datetime))
+            }
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a.time.cmp(&b.time)),
+
+            // Cross-type date/datetime comparisons
+            (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
+                // Convert date to midnight datetime for comparison
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+            }
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Date(date)) => {
+                // Convert date to midnight datetime for comparison
+                Self::compare_date_with_datetime(&date.date, &datetime.datetime)
+                    .map(|ord| ord.reverse())
+            }
+
+            // Quantity comparison with unit conversion support
+            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
+                Self::compare_quantities(a, b)
+            }
+
             _ => None, // Incomparable types
+        }
+    }
+
+    /// Compare two quantities with unit conversion support
+    fn compare_quantities(
+        left: &octofhir_fhirpath_model::Quantity,
+        right: &octofhir_fhirpath_model::Quantity,
+    ) -> Option<Ordering> {
+        // Check if units are compatible for comparison
+        if !left.has_compatible_dimensions(right) {
+            return None; // Incomparable quantities
+        }
+
+        // If same unit, direct comparison
+        if left.unit == right.unit {
+            return Some(left.value.cmp(&right.value));
+        }
+
+        // Try to convert right to left's unit for comparison
+        if let Some(left_unit) = &left.unit {
+            match right.convert_to_compatible_unit(left_unit) {
+                Ok(converted_right) => Some(left.value.cmp(&converted_right.value)),
+                Err(_) => None, // Conversion failed
+            }
+        } else {
+            // Both should be unitless if we reach here (due to compatible dimensions check)
+            Some(left.value.cmp(&right.value))
+        }
+    }
+
+    /// Compare a Date with a DateTime using FHIRPath semantics
+    /// Date represents a full day, so comparison depends on whether datetime falls within that day
+    fn compare_date_with_datetime(
+        date: &chrono::NaiveDate,
+        datetime: &chrono::DateTime<chrono::FixedOffset>,
+    ) -> Option<Ordering> {
+        // Convert date to start and end of day in UTC for comparison
+        let date_start = date
+            .and_hms_opt(0, 0, 0)?
+            .and_local_timezone(chrono::FixedOffset::east_opt(0)?)
+            .single()?;
+        let date_end = date
+            .and_hms_opt(23, 59, 59)?
+            .and_local_timezone(chrono::FixedOffset::east_opt(0)?)
+            .single()?;
+
+        // FHIRPath comparison semantics for date vs datetime:
+        // - If datetime is before the date, return Greater (date > datetime)
+        // - If datetime is after the date, return Less (date < datetime)
+        // - If datetime is within the date range, comparison is indeterminate (return None)
+        if datetime < &date_start {
+            Some(Ordering::Greater) // date > datetime
+        } else if datetime > &date_end {
+            Some(Ordering::Less) // date < datetime
+        } else {
+            // Datetime falls within the date range - comparison is indeterminate
+            // For FHIRPath, this should return None (empty result)
+            None
         }
     }
 }

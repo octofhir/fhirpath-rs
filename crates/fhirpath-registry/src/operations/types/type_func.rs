@@ -25,6 +25,7 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use sonic_rs::JsonValueTrait;
 
 /// Type function operation - returns type information for values
 pub struct TypeFunction;
@@ -79,7 +80,7 @@ impl TypeFunction {
             }
             FhirPathValue::JsonValue(json) => {
                 if let Some(resource_type) =
-                    json.as_json().get("resourceType").and_then(|v| v.as_str())
+                    json.as_inner().get("resourceType").and_then(|v| v.as_str())
                 {
                     ("FHIR".to_string(), resource_type.to_string())
                 } else {

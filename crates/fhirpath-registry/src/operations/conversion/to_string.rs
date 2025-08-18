@@ -71,17 +71,13 @@ impl ToStringFunction {
             }
 
             // Date conversion
-            FhirPathValue::Date(d) => Ok(FhirPathValue::String(
-                d.format("%Y-%m-%d").to_string().into(),
-            )),
+            FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.to_string().into())),
 
             // DateTime conversion
-            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_rfc3339().into())),
+            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_string().into())),
 
             // Time conversion
-            FhirPathValue::Time(t) => Ok(FhirPathValue::String(
-                t.format("%H:%M:%S").to_string().into(),
-            )),
+            FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.to_string().into())),
 
             // Quantity conversion
             FhirPathValue::Quantity(q) => {

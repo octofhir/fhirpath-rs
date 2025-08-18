@@ -3,7 +3,7 @@ use octofhir_fhirpath_evaluator::FhirPathEngine;
 use octofhir_fhirpath_model::FhirSchemaModelProvider;
 use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
 use octofhir_fhirpath_registry::FhirPathRegistry;
-use serde_json::Value;
+use sonic_rs::Value;
 use std::sync::Arc;
 
 pub mod profiling;
@@ -48,6 +48,7 @@ impl Default for BenchmarkExpressions {
                 "Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100",
                 "Bundle.entry.resource.descendants().where($this is Reference).reference",
                 "Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value",
+                "Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value",
             ],
         }
     }
@@ -55,7 +56,7 @@ impl Default for BenchmarkExpressions {
 
 /// Sample FHIR data for benchmarking
 pub fn get_sample_patient() -> Value {
-    serde_json::json!({
+    sonic_rs::json!({
         "resourceType": "Patient",
         "id": "example",
         "active": true,
@@ -104,10 +105,10 @@ pub fn get_sample_bundle() -> Value {
 
     match std::fs::read_to_string(bundle_path) {
         Ok(content) => {
-            serde_json::from_str(&content).unwrap_or_else(|e| {
+            sonic_rs::from_str(&content).unwrap_or_else(|e| {
                 eprintln!("Failed to parse bundle-medium.json: {e}");
                 // Fallback to a minimal bundle structure
-                serde_json::json!({
+                sonic_rs::json!({
                     "resourceType": "Bundle",
                     "id": "fallback-bundle",
                     "type": "collection",
@@ -125,7 +126,7 @@ pub fn get_sample_bundle() -> Value {
                 "Using fallback bundle. Make sure to run benchmarks from the workspace root."
             );
             // Fallback to a minimal bundle structure
-            serde_json::json!({
+            sonic_rs::json!({
                 "resourceType": "Bundle",
                 "id": "fallback-bundle",
                 "type": "collection",

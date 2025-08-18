@@ -786,10 +786,9 @@ impl FhirPathOperation for HighBoundaryFunction {
             FhirPathValue::Decimal(d) => {
                 match self.calculate_decimal_high_boundary(*d, precision) {
                     Some(result) => {
-                        // If precision is 0 or 1 and result is zero, return as integer
-                        if (precision == Some(0) || precision == Some(1)) && result == Decimal::ZERO {
-                            Ok(FhirPathValue::Integer(0))
-                        } else if precision == Some(0) && result.fract() == Decimal::ZERO {
+                        // Always return numeric values for decimal inputs
+                        // If precision is 0 and result is an integer, return as Integer
+                        if precision == Some(0) && result.fract() == Decimal::ZERO {
                             if let Some(int_result) = result.to_i64() {
                                 Ok(FhirPathValue::Integer(int_result))
                             } else {
@@ -851,23 +850,26 @@ impl FhirPathOperation for HighBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-12" (December is the high boundary for year)
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-12").into()))
                     }
                     Some(8) => {
                         // Day precision - return as date "@YYYY-MM-DD"
-                        let date_str = d.format("%Y-%m-%d").to_string();
+                        let date_str = d.date.format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     _ => {
                         // Default behavior - return as datetime
-                        let high_boundary = self.calculate_date_high_boundary_typed(d, precision)?;
-                        Ok(FhirPathValue::DateTime(high_boundary))
+                        let high_boundary = self.calculate_date_high_boundary_typed(&d.date, precision)?;
+                        Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                            high_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -876,22 +878,22 @@ impl FhirPathOperation for HighBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-12" (December is the high boundary for year)
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-12").into()))
                     }
                     Some(8) => {
                         // Day precision - return as string "@YYYY-MM-DD"
-                        let date_str = dt.format("%Y-%m-%d").to_string();
+                        let date_str = dt.datetime.date_naive().format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     Some(17) => {
                         // Millisecond precision - handle timezone correctly
-                        let datetime_str = dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+                        let datetime_str = dt.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
 
                         // Check if the original datetime had a timezone by checking if it's UTC (+0000)
                         // For high boundary, if no explicit timezone was provided, use -12:00
@@ -908,8 +910,11 @@ impl FhirPathOperation for HighBoundaryFunction {
                     }
                     _ => {
                         // Default behavior or other precisions - return as datetime
-                        let high_boundary = self.calculate_datetime_high_boundary_typed(dt, precision)?;
-                        Ok(FhirPathValue::DateTime(high_boundary))
+                        let high_boundary = self.calculate_datetime_high_boundary_typed(&dt.datetime, precision)?;
+                        Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                            high_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -919,15 +924,18 @@ impl FhirPathOperation for HighBoundaryFunction {
                     Some(9) => {
                         // Millisecond precision - return as string "@T..."
                         // For precision 9, extend to maximum milliseconds
-                        let hour = t.hour();
-                        let minute = t.minute();
+                        let hour = t.time.hour();
+                        let minute = t.time.minute();
                         let expanded_time = format!("{hour:02}:{minute:02}:59.999");
                         Ok(FhirPathValue::String(format!("@T{expanded_time}").into()))
                     }
                     _ => {
                         // Default behavior - return as time
-                        let high_boundary = self.calculate_time_high_boundary_typed(t, precision)?;
-                        Ok(FhirPathValue::Time(high_boundary))
+                        let high_boundary = self.calculate_time_high_boundary_typed(&t.time, precision)?;
+                        Ok(FhirPathValue::Time(octofhir_fhirpath_model::PrecisionTime::new(
+                            high_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -1037,10 +1045,9 @@ impl FhirPathOperation for HighBoundaryFunction {
             FhirPathValue::Decimal(d) => {
                 match self.calculate_decimal_high_boundary(*d, precision) {
                     Some(result) => {
-                        // If precision is 0 or 1 and result is zero, return as integer
-                        if (precision == Some(0) || precision == Some(1)) && result == Decimal::ZERO {
-                            Ok(FhirPathValue::Integer(0))
-                        } else if precision == Some(0) && result.fract() == Decimal::ZERO {
+                        // Always return numeric values for decimal inputs
+                        // If precision is 0 and result is an integer, return as Integer
+                        if precision == Some(0) && result.fract() == Decimal::ZERO {
                             if let Some(int_result) = result.to_i64() {
                                 Ok(FhirPathValue::Integer(int_result))
                             } else {
@@ -1102,23 +1109,26 @@ impl FhirPathOperation for HighBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-12" (December is the high boundary for year)
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-12").into()))
                     }
                     Some(8) => {
                         // Day precision - return as date "@YYYY-MM-DD"
-                        let date_str = d.format("%Y-%m-%d").to_string();
+                        let date_str = d.date.format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     _ => {
                         // Default behavior - return as datetime
-                        match self.calculate_date_high_boundary_typed(d, precision) {
-                            Ok(high_boundary) => Ok(FhirPathValue::DateTime(high_boundary)),
+                        match self.calculate_date_high_boundary_typed(&d.date, precision) {
+                            Ok(high_boundary) => Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                                high_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }
@@ -1129,22 +1139,22 @@ impl FhirPathOperation for HighBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-12" (December is the high boundary for year)
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-12").into()))
                     }
                     Some(8) => {
                         // Day precision - return as string "@YYYY-MM-DD"
-                        let date_str = dt.format("%Y-%m-%d").to_string();
+                        let date_str = dt.datetime.date_naive().format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     Some(17) => {
                         // Millisecond precision - handle timezone correctly
-                        let datetime_str = dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+                        let datetime_str = dt.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
 
                         // Check if the original datetime had a timezone by checking if it's UTC (+0000)
                         // For high boundary, if no explicit timezone was provided, use -12:00
@@ -1161,8 +1171,11 @@ impl FhirPathOperation for HighBoundaryFunction {
                     }
                     _ => {
                         // Default behavior or other precisions - return as datetime
-                        match self.calculate_datetime_high_boundary_typed(dt, precision) {
-                            Ok(high_boundary) => Ok(FhirPathValue::DateTime(high_boundary)),
+                        match self.calculate_datetime_high_boundary_typed(&dt.datetime, precision) {
+                            Ok(high_boundary) => Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                                high_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }
@@ -1174,15 +1187,18 @@ impl FhirPathOperation for HighBoundaryFunction {
                     Some(9) => {
                         // Millisecond precision - return as string "@T..."
                         // For precision 9, extend to maximum milliseconds
-                        let hour = t.hour();
-                        let minute = t.minute();
+                        let hour = t.time.hour();
+                        let minute = t.time.minute();
                         let expanded_time = format!("{hour:02}:{minute:02}:59.999");
                         Ok(FhirPathValue::String(format!("@T{expanded_time}").into()))
                     }
                     _ => {
                         // Default behavior - return as time
-                        match self.calculate_time_high_boundary_typed(t, precision) {
-                            Ok(high_boundary) => Ok(FhirPathValue::Time(high_boundary)),
+                        match self.calculate_time_high_boundary_typed(&t.time, precision) {
+                            Ok(high_boundary) => Ok(FhirPathValue::Time(octofhir_fhirpath_model::PrecisionTime::new(
+                                high_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }

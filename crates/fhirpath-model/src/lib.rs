@@ -19,11 +19,9 @@
 
 pub mod boxing;
 pub mod cache;
-pub mod choice_types;
 pub mod error;
 pub mod fhirschema_provider;
-pub mod json_arc;
-pub mod lazy;
+pub mod json_value;
 pub mod mock_provider;
 pub mod profile_resolver;
 pub mod provider;
@@ -31,27 +29,24 @@ pub mod quantity;
 pub mod resource;
 pub mod smart_collection;
 pub mod string_intern;
+pub mod temporal;
 pub mod type_coercion;
-pub mod type_mapper;
 pub mod types;
 pub mod value;
-pub mod value_pool;
 
 // Re-export main types
 pub use fhirschema_provider::FhirSchemaModelProvider;
+// JsonParser functionality is integrated into JsonValue directly
+pub use json_value::JsonValue;
 pub use mock_provider::MockModelProvider;
 pub use provider::ModelProvider;
 pub use quantity::Quantity;
 pub use smart_collection::{SmartCollection, SmartCollectionBuilder};
+pub use temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 pub use value::{Collection, FhirPathValue};
-// pub use types::FhirType; // FhirType may not exist in types module
 
 // Re-export value pool functionality
 pub use string_intern::{InternerStats, global_interner_stats};
-pub use value_pool::{
-    CombinedValuePoolStats, ValuePoolConfig, clear_global_pools, configure_global_pools,
-    global_pool_stats,
-};
 
 // Re-export from workspace crates for convenience
 pub use octofhir_fhirpath_core::{FhirPathError, Result};

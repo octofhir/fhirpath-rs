@@ -93,36 +93,41 @@ impl DescendantsFunction {
     fn get_children_from_value(&self, value: &FhirPathValue) -> Vec<FhirPathValue> {
         match value {
             FhirPathValue::JsonValue(json_val) => {
-                if let Some(obj) = json_val.as_object() {
-                    // Get all property values as children
+                if json_val.is_object() {
+                    // Get all property values as children - using object iterator
                     let mut children = Vec::new();
-                    for (_property_name, property_value) in obj.iter() {
-                        // Each property value becomes a child node
-                        // Arrays ARE unrolled - each element becomes a separate child
-                        if let Some(arr) = property_value.as_array() {
-                            for element in arr {
-                                children.push(FhirPathValue::from(element.clone()));
+                    if let Some(iter) = json_val.object_iter() {
+                        for (_property_name, property_value) in iter {
+                            // Each property value becomes a child node
+                            // Arrays ARE unrolled - each element becomes a separate child
+                            if property_value.is_array() {
+                                if let Some(array_iter) = property_value.array_iter() {
+                                    for element in array_iter {
+                                        children.push(FhirPathValue::JsonValue(element));
+                                    }
+                                }
+                            } else {
+                                children.push(FhirPathValue::JsonValue(property_value));
                             }
-                        } else {
-                            children.push(FhirPathValue::from(property_value.clone()));
                         }
                     }
                     children
-                } else if let Some(arr) = json_val.as_array() {
+                } else if json_val.is_array() {
                     // If the input itself is an array, each element is a child
-                    arr.iter()
-                        .map(|value| FhirPathValue::from(value.clone()))
-                        .collect()
+                    if let Some(iter) = json_val.array_iter() {
+                        iter.map(FhirPathValue::JsonValue).collect()
+                    } else {
+                        Vec::new()
+                    }
                 } else {
                     // Primitive values have no children
                     Vec::new()
                 }
             }
             FhirPathValue::Resource(resource) => {
-                // For FHIR resources, get children from their JSON representation
-                self.get_children_from_value(&FhirPathValue::JsonValue(
-                    resource.as_json().clone().into(),
-                ))
+                // For FHIR resources, get children from their JSON representation - no conversions!
+                let json_value = resource.as_json_value().clone();
+                self.get_children_from_value(&FhirPathValue::JsonValue(json_value))
             }
             FhirPathValue::Collection(items) => {
                 // Get children of all items in collection
@@ -148,15 +153,15 @@ impl DescendantsFunction {
             FhirPathValue::Time(t) => format!("time:{t}"),
             FhirPathValue::JsonValue(json) => {
                 // For JSON objects, try to use id if available
-                if let Some(obj) = json.as_object() {
-                    if let Some(id_val) = obj.get("id") {
+                if json.is_object() {
+                    if let Some(id_val) = json.get_property("id") {
                         if let Some(id_str) = id_val.as_str() {
                             return format!("json:id:{id_str}");
                         }
                     }
                 }
                 // Fallback to string representation
-                format!("json:{}", **json)
+                format!("json:{}", json.to_string().unwrap_or_default())
             }
             FhirPathValue::Collection(items) => {
                 format!("collection:len:{}", items.len())
@@ -164,7 +169,11 @@ impl DescendantsFunction {
             FhirPathValue::Empty => "empty".to_string(),
             FhirPathValue::Quantity(q) => format!("quantity:{q}"),
             FhirPathValue::Resource(r) => {
-                let id = r.as_json().get("id").and_then(|v| v.as_str()).unwrap_or("");
+                let id = r
+                    .as_json_value()
+                    .get_property("id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
                 format!("resource:{id}")
             }
             FhirPathValue::TypeInfoObject { name, .. } => format!("typeinfo:{name}"),

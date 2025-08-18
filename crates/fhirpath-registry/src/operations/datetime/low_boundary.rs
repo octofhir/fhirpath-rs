@@ -605,23 +605,26 @@ impl FhirPathOperation for LowBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-01" (January is the low boundary for year)
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-01").into()))
                     }
                     Some(8) => {
                         // Day precision - return as date "@YYYY-MM-DD"
-                        let date_str = d.format("%Y-%m-%d").to_string();
+                        let date_str = d.date.format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     _ => {
                         // Default behavior - return as datetime
-                        let low_boundary = self.calculate_date_low_boundary_typed(d)?;
-                        Ok(FhirPathValue::DateTime(low_boundary))
+                        let low_boundary = self.calculate_date_low_boundary_typed(&d.date)?;
+                        Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                            low_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -630,22 +633,22 @@ impl FhirPathOperation for LowBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-01" (January is the low boundary for year)
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-01").into()))
                     }
                     Some(8) => {
                         // Day precision - return as string "@YYYY-MM-DD"
-                        let date_str = dt.format("%Y-%m-%d").to_string();
+                        let date_str = dt.datetime.date_naive().format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     Some(17) => {
                         // Millisecond precision - handle timezone correctly
-                        let datetime_str = dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+                        let datetime_str = dt.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
 
                         // Check if the original datetime had a timezone by checking if it's UTC (+0000)
                         // For low boundary, if no explicit timezone was provided, use +12:00
@@ -662,8 +665,11 @@ impl FhirPathOperation for LowBoundaryFunction {
                     }
                     _ => {
                         // Default behavior or other precisions - return as datetime
-                        let low_boundary = self.calculate_datetime_low_boundary_typed(dt)?;
-                        Ok(FhirPathValue::DateTime(low_boundary))
+                        let low_boundary = self.calculate_datetime_low_boundary_typed(&dt.datetime)?;
+                        Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                            low_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -673,15 +679,18 @@ impl FhirPathOperation for LowBoundaryFunction {
                     Some(9) => {
                         // Millisecond precision - return as string "@T..."
                         // For precision 9, extend to minimum milliseconds
-                        let hour = t.hour();
-                        let minute = t.minute();
+                        let hour = t.time.hour();
+                        let minute = t.time.minute();
                         let expanded_time = format!("{hour:02}:{minute:02}:00.000");
                         Ok(FhirPathValue::String(format!("@T{expanded_time}").into()))
                     }
                     _ => {
                         // Default behavior - return as time
-                        let low_boundary = self.calculate_time_low_boundary_typed(t)?;
-                        Ok(FhirPathValue::Time(low_boundary))
+                        let low_boundary = self.calculate_time_low_boundary_typed(&t.time)?;
+                        Ok(FhirPathValue::Time(octofhir_fhirpath_model::PrecisionTime::new(
+                            low_boundary,
+                            octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                        )))
                     }
                 }
             }
@@ -856,23 +865,26 @@ impl FhirPathOperation for LowBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-01" (January is the low boundary for year)
-                        let year = d.format("%Y").to_string();
+                        let year = d.date.format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-01").into()))
                     }
                     Some(8) => {
                         // Day precision - return as date "@YYYY-MM-DD"
-                        let date_str = d.format("%Y-%m-%d").to_string();
+                        let date_str = d.date.format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     _ => {
                         // Default behavior - return as datetime
-                        match self.calculate_date_low_boundary_typed(d) {
-                            Ok(low_boundary) => Ok(FhirPathValue::DateTime(low_boundary)),
+                        match self.calculate_date_low_boundary_typed(&d.date) {
+                            Ok(low_boundary) => Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                                low_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }
@@ -883,22 +895,22 @@ impl FhirPathOperation for LowBoundaryFunction {
                 match precision {
                     Some(3) => {
                         // Year precision - return as string "@YYYY"
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}").into()))
                     }
                     Some(6) => {
                         // Month precision - return as string "@YYYY-01" (January is the low boundary for year)
-                        let year = dt.format("%Y").to_string();
+                        let year = dt.datetime.date_naive().format("%Y").to_string();
                         Ok(FhirPathValue::String(format!("@{year}-01").into()))
                     }
                     Some(8) => {
                         // Day precision - return as string "@YYYY-MM-DD"
-                        let date_str = dt.format("%Y-%m-%d").to_string();
+                        let date_str = dt.datetime.date_naive().format("%Y-%m-%d").to_string();
                         Ok(FhirPathValue::String(format!("@{date_str}").into()))
                     }
                     Some(17) => {
                         // Millisecond precision - handle timezone correctly
-                        let datetime_str = dt.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+                        let datetime_str = dt.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
 
                         // Check if the original datetime had a timezone by checking if it's UTC (+0000)
                         // For low boundary, if no explicit timezone was provided, use +12:00
@@ -915,8 +927,11 @@ impl FhirPathOperation for LowBoundaryFunction {
                     }
                     _ => {
                         // Default behavior or other precisions - return as datetime
-                        match self.calculate_datetime_low_boundary_typed(dt) {
-                            Ok(low_boundary) => Ok(FhirPathValue::DateTime(low_boundary)),
+                        match self.calculate_datetime_low_boundary_typed(&dt.datetime) {
+                            Ok(low_boundary) => Ok(FhirPathValue::DateTime(octofhir_fhirpath_model::PrecisionDateTime::new(
+                                low_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }
@@ -928,15 +943,18 @@ impl FhirPathOperation for LowBoundaryFunction {
                     Some(9) => {
                         // Millisecond precision - return as string "@T..."
                         // For precision 9, extend to minimum milliseconds
-                        let hour = t.hour();
-                        let minute = t.minute();
+                        let hour = t.time.hour();
+                        let minute = t.time.minute();
                         let expanded_time = format!("{hour:02}:{minute:02}:00.000");
                         Ok(FhirPathValue::String(format!("@T{expanded_time}").into()))
                     }
                     _ => {
                         // Default behavior - return as time
-                        match self.calculate_time_low_boundary_typed(t) {
-                            Ok(low_boundary) => Ok(FhirPathValue::Time(low_boundary)),
+                        match self.calculate_time_low_boundary_typed(&t.time) {
+                            Ok(low_boundary) => Ok(FhirPathValue::Time(octofhir_fhirpath_model::PrecisionTime::new(
+                                low_boundary,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for boundaries
+                            ))),
                             Err(e) => Err(e),
                         }
                     }

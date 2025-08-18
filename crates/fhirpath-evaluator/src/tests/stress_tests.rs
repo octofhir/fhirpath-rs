@@ -15,7 +15,7 @@
 //! Stress and load testing for the unified FHIRPath engine
 
 use super::{TestUtils, as_single_boolean, as_single_integer, as_single_string};
-use serde_json::json;
+use sonic_rs::json;
 use std::sync::Arc;
 use tokio::task;
 
@@ -404,7 +404,7 @@ async fn test_edge_case_data_handling() {
         }),
         // Wide structures
         ("wide_object", {
-            let mut obj = serde_json::Map::new();
+            let mut obj = std::collections::HashMap::new();
             for i in 0..1000 {
                 obj.insert(format!("key_{i}"), json!(format!("value_{}", i)));
             }

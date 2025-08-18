@@ -62,11 +62,12 @@ impl ConvertsToStringFunction {
             | FhirPathValue::Quantity(_) => Ok(true),
             // JSON simple types convertible by to_string_value()
             FhirPathValue::JsonValue(json) => {
-                use serde_json::Value;
-                Ok(matches!(
-                    json.as_json(),
-                    Value::String(_) | Value::Bool(_) | Value::Number(_) | Value::Null
-                ))
+                let inner = json.as_inner();
+                use sonic_rs::JsonValueTrait;
+                Ok(inner.as_str().is_some()
+                    || inner.as_bool().is_some()
+                    || inner.as_f64().is_some()
+                    || inner.is_null())
             }
             // Empty yields empty result; spec treats convertsTo* on empty as true
             FhirPathValue::Empty => Ok(true),

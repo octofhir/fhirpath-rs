@@ -15,7 +15,7 @@
 //! Edge case and error handling tests
 
 use super::{TestUtils, as_single_integer, as_single_string};
-use serde_json::json;
+use sonic_rs::json;
 
 #[tokio::test]
 async fn test_type_coercion_edge_cases() {
@@ -155,11 +155,9 @@ async fn test_resource_exhaustion_protection() {
     assert!(result.is_ok(), "Moderately nested expression should work");
 
     // Test very wide object access - this should work fine
-    let wide_object: serde_json::Value = json!(
-        (0..1000)
-            .map(|i| (format!("key_{i}"), json!(i)))
-            .collect::<serde_json::Map<String, serde_json::Value>>()
-    );
+    let wide_object_map: std::collections::HashMap<String, sonic_rs::Value> =
+        (0..1000).map(|i| (format!("key_{i}"), json!(i))).collect();
+    let wide_object: sonic_rs::Value = json!(wide_object_map);
 
     let result = engine.evaluate("key_500", wide_object).await.unwrap();
     assert_eq!(as_single_integer(&result), Some(500));

@@ -52,41 +52,49 @@ impl HasTemplateIdOfFunction {
         match value {
             FhirPathValue::JsonValue(json) => {
                 // Check if this is a ClinicalDocument with the expected template
-                if let Some(resource_type) = json.get("resourceType").and_then(|v| v.as_str()) {
-                    if resource_type == "ClinicalDocument" {
-                        // Check if this document has the structural elements of a CCD
-                        if json.get("component").is_some()
-                            && json
-                                .get("component")
-                                .and_then(|c| c.get("structuredBody"))
-                                .is_some()
-                        {
-                            return true;
+                if let Some(resource_type_val) = json.get_property("resourceType") {
+                    if let Some(resource_type) = resource_type_val.as_str() {
+                        if resource_type == "ClinicalDocument" {
+                            // Check if this document has the structural elements of a CCD
+                            if json.get_property("component").is_some()
+                                && json
+                                    .get_property("component")
+                                    .and_then(|c| c.get_property("structuredBody"))
+                                    .is_some()
+                            {
+                                return true;
+                            }
                         }
                     }
                 }
 
                 // Check meta.profile for FHIR resources
-                if let Some(meta) = json.get("meta") {
-                    if let Some(profiles) = meta.get("profile") {
-                        if let Some(profile_array) = profiles.as_array() {
-                            return profile_array
-                                .iter()
-                                .any(|p| p.as_str() == Some(template_id));
+                if let Some(meta) = json.get_property("meta") {
+                    if let Some(profiles) = meta.get_property("profile") {
+                        if profiles.is_array() {
+                            if let Some(iter) = profiles.array_iter() {
+                                for p in iter {
+                                    if p.as_str() == Some(template_id) {
+                                        return true;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
                 // Check templateId field for CDA documents
-                if let Some(template_ids) = json.get("templateId") {
-                    if let Some(template_array) = template_ids.as_array() {
-                        return template_array.iter().any(|t| {
-                            if let Some(root) = t.get("@root") {
-                                root.as_str() == Some(template_id)
-                            } else {
-                                false
+                if let Some(template_ids) = json.get_property("templateId") {
+                    if template_ids.is_array() {
+                        if let Some(iter) = template_ids.array_iter() {
+                            for t in iter {
+                                if let Some(root) = t.get_property("@root") {
+                                    if root.as_str() == Some(template_id) {
+                                        return true;
+                                    }
+                                }
                             }
-                        });
+                        }
                     }
                 }
 
@@ -199,12 +207,14 @@ impl HasTemplateIdOfFunction {
                     // Check if root is a ClinicalDocument and we're looking for it
                     match &context.root {
                         FhirPathValue::JsonValue(root_json) => {
-                            if let Some(resource_type) =
-                                root_json.get("resourceType").and_then(|v| v.as_str())
+                            if let Some(resource_type_val) = root_json.get_property("resourceType")
                             {
-                                if resource_type == "ClinicalDocument" {
-                                    let result = self.has_template_id(&context.root, template_id);
-                                    return Ok(FhirPathValue::Boolean(result));
+                                if let Some(resource_type) = resource_type_val.as_str() {
+                                    if resource_type == "ClinicalDocument" {
+                                        let result =
+                                            self.has_template_id(&context.root, template_id);
+                                        return Ok(FhirPathValue::Boolean(result));
+                                    }
                                 }
                             }
                         }
@@ -212,13 +222,15 @@ impl HasTemplateIdOfFunction {
                             // Root is a collection, check if first item is ClinicalDocument
                             if let Some(first_item) = root_items.first() {
                                 if let FhirPathValue::JsonValue(root_json) = first_item {
-                                    if let Some(resource_type) =
-                                        root_json.get("resourceType").and_then(|v| v.as_str())
+                                    if let Some(resource_type_val) =
+                                        root_json.get_property("resourceType")
                                     {
-                                        if resource_type == "ClinicalDocument" {
-                                            let result =
-                                                self.has_template_id(first_item, template_id);
-                                            return Ok(FhirPathValue::Boolean(result));
+                                        if let Some(resource_type) = resource_type_val.as_str() {
+                                            if resource_type == "ClinicalDocument" {
+                                                let result =
+                                                    self.has_template_id(first_item, template_id);
+                                                return Ok(FhirPathValue::Boolean(result));
+                                            }
                                         }
                                     }
                                 }
@@ -237,13 +249,13 @@ impl HasTemplateIdOfFunction {
             FhirPathValue::Empty => {
                 // If current context is empty, check if root is a ClinicalDocument
                 if let FhirPathValue::JsonValue(root_json) = &context.root {
-                    if let Some(resource_type) =
-                        root_json.get("resourceType").and_then(|v| v.as_str())
-                    {
-                        if resource_type == "ClinicalDocument" {
-                            return Ok(FhirPathValue::Boolean(
-                                self.has_template_id(&context.root, template_id),
-                            ));
+                    if let Some(resource_type_val) = root_json.get_property("resourceType") {
+                        if let Some(resource_type) = resource_type_val.as_str() {
+                            if resource_type == "ClinicalDocument" {
+                                return Ok(FhirPathValue::Boolean(
+                                    self.has_template_id(&context.root, template_id),
+                                ));
+                            }
                         }
                     }
                 }

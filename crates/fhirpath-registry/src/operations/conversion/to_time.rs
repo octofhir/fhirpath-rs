@@ -51,13 +51,23 @@ impl ToTimeFunction {
 
     fn convert_to_time(value: &FhirPathValue) -> Result<FhirPathValue> {
         match value {
-            FhirPathValue::Time(t) => Ok(FhirPathValue::Time(*t)),
+            FhirPathValue::Time(t) => Ok(FhirPathValue::Time(t.clone())),
             FhirPathValue::String(s) => {
                 // Try to parse as time
                 match NaiveTime::parse_from_str(s, "%H:%M:%S") {
-                    Ok(t) => Ok(FhirPathValue::Time(t)),
+                    Ok(t) => Ok(FhirPathValue::Time(
+                        octofhir_fhirpath_model::PrecisionTime::new(
+                            t,
+                            octofhir_fhirpath_model::TemporalPrecision::Second,
+                        ),
+                    )),
                     Err(_) => match NaiveTime::parse_from_str(s, "%H:%M:%S%.f") {
-                        Ok(t) => Ok(FhirPathValue::Time(t)),
+                        Ok(t) => Ok(FhirPathValue::Time(
+                            octofhir_fhirpath_model::PrecisionTime::new(
+                                t,
+                                octofhir_fhirpath_model::TemporalPrecision::Millisecond,
+                            ),
+                        )),
                         Err(_) => Ok(FhirPathValue::Empty), // Cannot convert
                     },
                 }

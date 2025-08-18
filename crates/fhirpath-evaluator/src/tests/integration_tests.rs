@@ -18,7 +18,7 @@ use super::{
     TestUtils, as_collection_strings, as_single_boolean, as_single_decimal, as_single_integer,
     as_single_string, count,
 };
-use serde_json::json;
+use sonic_rs::json;
 
 #[tokio::test]
 async fn test_patient_resource_navigation() {

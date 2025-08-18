@@ -232,10 +232,10 @@ impl TraceFunction {
     fn get_property_value(&self, value: &FhirPathValue, property: &str) -> Result<FhirPathValue> {
         match value {
             FhirPathValue::JsonValue(json_val) => {
-                if let Some(obj) = json_val.as_object() {
-                    if let Some(prop_value) = obj.get(property) {
-                        // Convert from serde_json::Value to FhirPathValue
-                        Ok(self.json_to_fhir_path_value(prop_value)?)
+                if json_val.is_object() {
+                    if let Some(prop_value) = json_val.get_property(property) {
+                        // Convert from JsonValue to FhirPathValue
+                        Ok(FhirPathValue::JsonValue(prop_value))
                     } else {
                         Ok(FhirPathValue::Collection(vec![].into()))
                     }
@@ -262,34 +262,6 @@ impl TraceFunction {
     }
 
     // Simple JSON to FhirPathValue conversion
-    fn json_to_fhir_path_value(&self, value: &serde_json::Value) -> Result<FhirPathValue> {
-        match value {
-            serde_json::Value::String(s) => Ok(FhirPathValue::String(s.as_str().into())),
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    Ok(FhirPathValue::Integer(i))
-                } else {
-                    // For simplicity, convert all other numbers to integers
-                    Ok(FhirPathValue::Integer(n.as_f64().unwrap_or(0.0) as i64))
-                }
-            }
-            serde_json::Value::Bool(b) => Ok(FhirPathValue::Boolean(*b)),
-            serde_json::Value::Array(arr) => {
-                let items: Result<Vec<_>> = arr
-                    .iter()
-                    .map(|v| self.json_to_fhir_path_value(v))
-                    .collect();
-                Ok(FhirPathValue::Collection(items?.into()))
-            }
-            serde_json::Value::Object(_) => {
-                // For objects, wrap back in JsonValue
-                Ok(FhirPathValue::JsonValue(
-                    octofhir_fhirpath_model::json_arc::ArcJsonValue::new(value.clone()),
-                ))
-            }
-            serde_json::Value::Null => Ok(FhirPathValue::Empty),
-        }
-    }
 
     fn format_value(value: &FhirPathValue) -> String {
         match value {
@@ -299,7 +271,9 @@ impl TraceFunction {
             FhirPathValue::Decimal(d) => d.to_string(),
             FhirPathValue::String(s) => format!("'{s}'"),
             FhirPathValue::Date(d) => format!("@{d}"),
-            FhirPathValue::DateTime(dt) => format!("@{}", dt.format("%Y-%m-%dT%H:%M:%S%.3fZ")),
+            FhirPathValue::DateTime(dt) => {
+                format!("@{}", dt.datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ"))
+            }
             FhirPathValue::Time(t) => format!("@T{t}"),
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {

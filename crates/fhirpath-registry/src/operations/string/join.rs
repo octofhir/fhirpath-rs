@@ -146,6 +146,16 @@ impl JoinFunction {
                 FhirPathValue::DateTime(dt) => Ok(dt.to_string()),
                 FhirPathValue::Date(d) => Ok(d.to_string()),
                 FhirPathValue::Time(t) => Ok(t.to_string()),
+                FhirPathValue::JsonValue(json_val) => {
+                    // Convert JsonValue to string
+                    match json_val.as_str() {
+                        Some(s) => Ok(s.to_string()),
+                        None => {
+                            // For non-string JSON values, use JSON representation
+                            Ok(json_val.as_inner().to_string())
+                        }
+                    }
+                }
                 FhirPathValue::Empty => Ok("".to_string()),
                 _ => Err(FhirPathError::EvaluationError {
                     expression: None,

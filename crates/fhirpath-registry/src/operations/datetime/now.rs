@@ -81,7 +81,12 @@ impl FhirPathOperation for NowFunction {
         }
 
         let now = Utc::now().fixed_offset();
-        Ok(FhirPathValue::DateTime(now))
+        Ok(FhirPathValue::DateTime(
+            octofhir_fhirpath_model::PrecisionDateTime::new(
+                now,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Full precision for now()
+            ),
+        ))
     }
 
     fn try_evaluate_sync(
@@ -98,7 +103,12 @@ impl FhirPathOperation for NowFunction {
         }
 
         let now = Utc::now().fixed_offset();
-        Some(Ok(FhirPathValue::DateTime(now)))
+        Some(Ok(FhirPathValue::DateTime(
+            octofhir_fhirpath_model::PrecisionDateTime::new(
+                now,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Full precision for now()
+            ),
+        )))
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {

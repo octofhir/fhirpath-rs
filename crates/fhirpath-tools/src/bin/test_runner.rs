@@ -17,7 +17,7 @@
 //! Usage: cargo run --bin test_runner <test_file.json>
 
 use octofhir_fhirpath::FhirPathValue;
-use serde_json::Value;
+use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -56,7 +56,7 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
     let input_path = specs_dir.join(inputfile);
 
     let content = fs::read_to_string(&input_path)?;
-    let data: Value = serde_json::from_str(&content)?;
+    let data: Value = sonic_rs::from_str(&content)?;
     Ok(data)
 }
 
@@ -64,8 +64,11 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 /// Simplified comparison with proper handling of FHIRPath collection semantics
 fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
     // Convert actual to JSON for uniform comparison
-    let actual_json = match serde_json::to_value(actual) {
-        Ok(json) => json,
+    let actual_json = match sonic_rs::to_string(actual) {
+        Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+            Ok(json) => json,
+            Err(_) => return false,
+        },
         Err(_) => return false,
     };
 
@@ -77,16 +80,44 @@ fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
     // FHIRPath collection handling: expected single value should match [single_value]
     match (expected, &actual_json) {
         // Test expects single value, actual is collection with one item
-        (expected_single, Value::Array(actual_arr)) if actual_arr.len() == 1 => {
-            expected_single == &actual_arr[0]
+        (expected_single, actual_json) if actual_json.is_array() => {
+            if let Some(actual_arr) = actual_json.as_array() {
+                if actual_arr.len() == 1 {
+                    expected_single == &actual_arr[0]
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
         }
         // Test expects array, actual is single value (shouldn't happen with new spec compliance but handle it)
-        (Value::Array(expected_arr), actual_single) if expected_arr.len() == 1 => {
-            &expected_arr[0] == actual_single
+        (expected, actual_single) if expected.is_array() => {
+            if let Some(expected_arr) = expected.as_array() {
+                if expected_arr.len() == 1 {
+                    &expected_arr[0] == actual_single
+                } else {
+                    expected == actual_single
+                }
+            } else {
+                false
+            }
         }
         // Both empty
-        (Value::Array(expected_arr), Value::Null) if expected_arr.is_empty() => true,
-        (Value::Null, Value::Array(actual_arr)) if actual_arr.is_empty() => true,
+        (expected, actual_json) if expected.is_array() && actual_json.is_null() => {
+            if let Some(expected_arr) = expected.as_array() {
+                expected_arr.is_empty()
+            } else {
+                false
+            }
+        }
+        (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
+            if let Some(actual_arr) = actual_json.as_array() {
+                actual_arr.is_empty()
+            } else {
+                false
+            }
+        }
         // Default: no match
         _ => false,
     }
@@ -112,7 +143,7 @@ async fn main() {
         }
     };
 
-    let test_suite: TestSuite = match serde_json::from_str(&content) {
+    let test_suite: TestSuite = match sonic_rs::from_str(&content) {
         Ok(suite) => suite,
         Err(e) => {
             eprintln!("❌ Failed to parse test file: {e}");
@@ -178,7 +209,7 @@ async fn main() {
         } else if let Some(ref input) = test_case.input {
             input.clone()
         } else {
-            Value::Null
+            Value::new_null()
         };
 
         // Evaluate expression
@@ -206,10 +237,14 @@ async fn main() {
             if let Some(inputfile) = &test_case.inputfile {
                 println!("   Input file: {inputfile}");
             }
-            let expected_json =
-                serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
-            let actual_json = match serde_json::to_value(&result) {
-                Ok(v) => serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{result:?}")),
+            let expected_json = sonic_rs::to_string_pretty(&test_case.expected).unwrap_or_default();
+            let actual_json = match sonic_rs::to_string(&result) {
+                Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+                    Ok(v) => {
+                        sonic_rs::to_string_pretty(&v).unwrap_or_else(|_| format!("{result:?}"))
+                    }
+                    Err(_) => format!("{result:?}"),
+                },
                 Err(_) => format!("{result:?}"),
             };
             println!("   Expected: {expected_json}");

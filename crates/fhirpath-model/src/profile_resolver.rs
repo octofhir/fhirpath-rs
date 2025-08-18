@@ -58,9 +58,9 @@ pub struct ResolvedElement {
     /// Profile-specific constraints
     pub constraints: Vec<ConstraintInfo>,
     /// Fixed value that this element must have
-    pub fixed_value: Option<serde_json::Value>,
+    pub fixed_value: Option<sonic_rs::Value>,
     /// Pattern value that this element should match
-    pub pattern_value: Option<serde_json::Value>,
+    pub pattern_value: Option<sonic_rs::Value>,
     /// Binding information
     pub binding: Option<BindingInfo>,
     /// Whether this element is modified by the profile
@@ -103,6 +103,13 @@ pub struct BindingInfo {
 }
 
 impl ProfileResolver {
+    /// Convert serde_json::Value to sonic_rs::Value using string conversion
+    fn convert_json_value(value: &serde_json::Value) -> sonic_rs::Value {
+        // Since serde_json is not in dependencies but is used by octofhir-fhirschema,
+        // we need to serialize to string and then parse with sonic_rs
+        let json_str = value.to_string();
+        sonic_rs::from_str(&json_str).unwrap_or(sonic_rs::Value::new_null())
+    }
     /// Create a new profile resolver
     pub fn new() -> Self {
         Self {
@@ -334,8 +341,8 @@ impl ProfileResolver {
                 .iter()
                 .map(|c| self.convert_constraint(c))
                 .collect(),
-            fixed_value: element.fixed.clone(),
-            pattern_value: element.pattern.clone(),
+            fixed_value: element.fixed.as_ref().map(Self::convert_json_value),
+            pattern_value: element.pattern.as_ref().map(Self::convert_json_value),
             binding: element.binding.as_ref().map(|b| self.convert_binding(b)),
             is_profiled: false,
         })
@@ -393,10 +400,13 @@ impl ProfileResolver {
 
         // Override fixed/pattern values
         if profile_element.fixed.is_some() {
-            base_element.fixed_value = profile_element.fixed.clone();
+            base_element.fixed_value = profile_element.fixed.as_ref().map(Self::convert_json_value);
         }
         if profile_element.pattern.is_some() {
-            base_element.pattern_value = profile_element.pattern.clone();
+            base_element.pattern_value = profile_element
+                .pattern
+                .as_ref()
+                .map(Self::convert_json_value);
         }
 
         // Override binding if more restrictive

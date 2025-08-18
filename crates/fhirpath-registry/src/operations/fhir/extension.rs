@@ -22,6 +22,7 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
+use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 
 /// Extension function - finds extensions by URL
 #[derive(Debug, Clone)]
@@ -39,11 +40,7 @@ impl ExtensionFunction {
     }
 
     /// Find extensions in JSON, checking both direct extensions and underscore elements
-    fn find_extensions_in_json(
-        &self,
-        json: &serde_json::Value,
-        url: &str,
-    ) -> Result<FhirPathValue> {
+    fn find_extensions_in_json(&self, json: &sonic_rs::Value, url: &str) -> Result<FhirPathValue> {
         let mut matching_extensions = Vec::new();
 
         // First, check for direct extension array
@@ -51,7 +48,7 @@ impl ExtensionFunction {
             if let Some(ext_array) = extensions.as_array() {
                 for ext in ext_array {
                     if let Some(ext_obj) = ext.as_object() {
-                        if let Some(ext_url) = ext_obj.get("url") {
+                        if let Some(ext_url) = ext_obj.get(&"url") {
                             if let Some(ext_url_str) = ext_url.as_str() {
                                 if ext_url_str == url {
                                     matching_extensions
@@ -87,7 +84,7 @@ impl ExtensionFunction {
         let root_resource = &context.root;
 
         if let FhirPathValue::JsonValue(root_json) = root_resource {
-            let root_obj = root_json.as_json();
+            let root_obj = root_json.as_sonic_value();
 
             // Look for common primitive properties that might have underscore extensions
             let underscore_properties = ["_birthDate", "_deceasedBoolean", "_active", "_gender"];
@@ -100,7 +97,7 @@ impl ExtensionFunction {
 
                             for ext in ext_array {
                                 if let Some(ext_obj) = ext.as_object() {
-                                    if let Some(ext_url) = ext_obj.get("url") {
+                                    if let Some(ext_url) = ext_obj.get(&"url") {
                                         if let Some(ext_url_str) = ext_url.as_str() {
                                             if ext_url_str == url {
                                                 matching_extensions.push(

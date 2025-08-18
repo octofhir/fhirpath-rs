@@ -14,7 +14,7 @@ categories = ["parser-implementations", "science"]
 [dependencies]
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
@@ -31,7 +31,9 @@ async-trait = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+sonic-rs = { workspace = true }
+
+# Legacy compatibility only - removed
 
 # Error handling
 thiserror = { workspace = true }
@@ -44,6 +46,9 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 tracing = { workspace = true }
 rust_decimal = { workspace = true }
 rustc-hash = { workspace = true }
+
+[features]
+default = []
 
 [dev-dependencies]
 criterion = { version = "0.7.0", features = ["html_reports"] }

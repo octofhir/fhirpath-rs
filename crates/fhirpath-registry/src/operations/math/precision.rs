@@ -49,18 +49,13 @@ impl PrecisionFunction {
     }
 
     fn calculate_decimal_precision(&self, decimal: &rust_decimal::Decimal) -> i64 {
-        // Convert to string to count significant digits
+        // For FHIRPath precision, we need to count ALL significant digits including trailing zeros
+        // This is different from mathematical significance - it's about the precision of the representation
         let decimal_str = decimal.to_string();
 
-        // Remove trailing zeros after decimal point
-        let trimmed = if decimal_str.contains('.') {
-            decimal_str.trim_end_matches('0').trim_end_matches('.')
-        } else {
-            &decimal_str
-        };
-
-        // Count digits excluding the decimal point and negative sign
-        let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
+        // Count all digits excluding the decimal point and negative sign
+        // FHIRPath precision includes trailing zeros as they indicate precision
+        let digit_count = decimal_str.chars().filter(|c| c.is_ascii_digit()).count();
 
         digit_count as i64
     }
@@ -176,22 +171,23 @@ impl FhirPathOperation for PrecisionFunction {
             }
             FhirPathValue::Date(date) => {
                 // Convert date back to string representation for precision calculation
-                let date_str = format!("{}", date.format("%Y-%m-%d"));
+                let date_str = format!("{}", date.date.format("%Y-%m-%d"));
                 let precision = self.calculate_date_precision_from_string(&date_str);
                 Ok(FhirPathValue::Integer(precision))
             }
             FhirPathValue::DateTime(datetime) => {
                 // Convert datetime back to string representation for precision calculation
-                let datetime_str = format!("{}", datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
+                let datetime_str =
+                    format!("{}", datetime.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
                 let precision = self.calculate_datetime_precision_from_string(&datetime_str);
                 Ok(FhirPathValue::Integer(precision))
             }
             FhirPathValue::Time(time) => {
                 // Convert time back to string representation for precision calculation
-                let time_str = if time.nanosecond() > 0 {
-                    format!("{}", time.format("%H:%M:%S%.3f"))
+                let time_str = if time.time.nanosecond() > 0 {
+                    format!("{}", time.time.format("%H:%M:%S%.3f"))
                 } else {
-                    format!("{}", time.format("%H:%M:%S"))
+                    format!("{}", time.time.format("%H:%M:%S"))
                 };
                 let precision = self.calculate_time_precision_from_string(&time_str);
                 Ok(FhirPathValue::Integer(precision))
@@ -246,22 +242,23 @@ impl FhirPathOperation for PrecisionFunction {
             }
             FhirPathValue::Date(date) => {
                 // Convert date back to string representation for precision calculation
-                let date_str = format!("{}", date.format("%Y-%m-%d"));
+                let date_str = format!("{}", date.date.format("%Y-%m-%d"));
                 let precision = self.calculate_date_precision_from_string(&date_str);
                 Some(Ok(FhirPathValue::Integer(precision)))
             }
             FhirPathValue::DateTime(datetime) => {
                 // Convert datetime back to string representation for precision calculation
-                let datetime_str = format!("{}", datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
+                let datetime_str =
+                    format!("{}", datetime.datetime.format("%Y-%m-%dT%H:%M:%S%.3f%z"));
                 let precision = self.calculate_datetime_precision_from_string(&datetime_str);
                 Some(Ok(FhirPathValue::Integer(precision)))
             }
             FhirPathValue::Time(time) => {
                 // Convert time back to string representation for precision calculation
-                let time_str = if time.nanosecond() > 0 {
-                    format!("{}", time.format("%H:%M:%S%.3f"))
+                let time_str = if time.time.nanosecond() > 0 {
+                    format!("{}", time.time.format("%H:%M:%S%.3f"))
                 } else {
-                    format!("{}", time.format("%H:%M:%S"))
+                    format!("{}", time.time.format("%H:%M:%S"))
                 };
                 let precision = self.calculate_time_precision_from_string(&time_str);
                 Some(Ok(FhirPathValue::Integer(precision)))

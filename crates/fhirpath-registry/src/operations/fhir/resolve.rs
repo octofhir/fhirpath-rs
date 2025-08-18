@@ -22,6 +22,7 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
+use sonic_rs::JsonValueTrait;
 
 /// Resolve function - resolves FHIR references using ModelProvider
 #[derive(Debug, Clone)]
@@ -84,7 +85,7 @@ impl FhirPathOperation for ResolveFunction {
             }
             FhirPathValue::JsonValue(json) => {
                 // Handle Reference objects - extract reference field
-                if let Some(reference_val) = json.as_json().get("reference") {
+                if let Some(reference_val) = json.as_inner().get("reference") {
                     if let Some(reference) = reference_val.as_str() {
                         return self.resolve_reference_string(reference, context).await;
                     }
@@ -172,42 +173,46 @@ impl ResolveFunction {
         reference: &str,
         context: &EvaluationContext,
     ) -> Result<Option<FhirPathValue>> {
-        // Use ModelProvider for all resolution logic
+        // Determine the correct resource context for resolution
+        // The resolve() function can find resources in Bundle entries OR contained resources
+        // So we need to check multiple potential contexts in order of preference:
+
+        let resource_context = if self.can_contain_resources(&context.root) {
+            // Root can contain resources (Bundle, or resource with contained), use it directly
+            &context.root
+        } else {
+            // Root doesn't contain resources, check FHIRPath environment variables
+            // These variables should contain the original resource context
+            if let Some(context_var) = context.get_variable("context") {
+                if self.can_contain_resources(context_var) {
+                    context_var
+                } else {
+                    &context.root
+                }
+            } else if let Some(resource_var) = context.get_variable("resource") {
+                if self.can_contain_resources(resource_var) {
+                    resource_var
+                } else {
+                    &context.root
+                }
+            } else if let Some(root_resource_var) = context.get_variable("rootResource") {
+                if self.can_contain_resources(root_resource_var) {
+                    root_resource_var
+                } else {
+                    &context.root
+                }
+            } else {
+                &context.root
+            }
+        };
+
+        // Use ModelProvider for all resolution logic with the correct resource context
         if let Some(resolved) = context
             .model_provider
-            .resolve_reference_in_context(reference, &context.root, Some(&context.input))
+            .resolve_reference_in_context(reference, resource_context, Some(&context.input))
             .await
         {
             return Ok(Some(resolved));
-        }
-
-        Ok(None)
-    }
-
-    /// Try to resolve reference directly by searching through Bundle-like structures
-    /// This is a temporary workaround for the context issue
-    async fn try_direct_bundle_resolution(
-        &self,
-        reference: &str,
-        context: &EvaluationContext,
-    ) -> Result<Option<FhirPathValue>> {
-        eprintln!("DEBUG: Trying direct Bundle resolution for '{reference}'");
-
-        // WORKAROUND: When context.root is Collection instead of Bundle (context lost),
-        // we can try to use the UnifiedRegistry to re-evaluate the Bundle expression
-        // from the original root context.
-
-        // Try to use the evaluation registry to get the Bundle context
-        if let Some(bundle_value) = self.try_reconstruct_bundle_context(context).await? {
-            eprintln!("DEBUG: Reconstructed Bundle context, attempting resolution");
-            if let Some(resolved) = context
-                .model_provider
-                .resolve_in_bundle(reference, &bundle_value)
-                .await
-            {
-                eprintln!("DEBUG: Successfully resolved reference in reconstructed Bundle");
-                return Ok(Some(resolved));
-            }
         }
 
         Ok(None)
@@ -232,13 +237,6 @@ impl ResolveFunction {
             return Ok(Some(bundle_context));
         }
 
-        // Strategy 3: Examine the current context for Bundle signatures
-        // If we're evaluating Bundle entries but root got lost, try to reconstruct
-        if let Some(bundle_context) = self.analyze_context_for_bundle_traces(context).await? {
-            return Ok(Some(bundle_context));
-        }
-
-        eprintln!("DEBUG: All Bundle context discovery strategies failed");
         Ok(None)
     }
 
@@ -285,15 +283,6 @@ impl ResolveFunction {
         &self,
         context: &EvaluationContext,
     ) -> Result<Option<FhirPathValue>> {
-        // The fundamental issue: context.root is Collection instead of Bundle
-        // This means that somewhere the original Bundle context was lost.
-        //
-        // However, we need the Bundle to resolve references. Since the expression starts with
-        // "Bundle.entry.resource...", the original input should be a Bundle.
-        //
-        // Let's implement a proper solution by checking if we can reconstruct the Bundle
-        // from the evaluation context information.
-
         // Check standard FHIRPath environment variables
         if let Some(bundle_value) = context.variables.get("context") {
             if self.is_bundle_resource(bundle_value) {
@@ -331,7 +320,7 @@ impl ResolveFunction {
     /// Create a test Bundle context for debugging (temporary hack)
     fn create_test_bundle_context(&self) -> FhirPathValue {
         // Create the test Bundle that matches our test case
-        let bundle_json = serde_json::json!({
+        let bundle_json = sonic_rs::json!({
             "resourceType": "Bundle",
             "entry": [
                 {
@@ -421,11 +410,33 @@ impl ResolveFunction {
         match resource {
             FhirPathValue::Resource(res) => res.resource_type() == Some("Bundle"),
             FhirPathValue::JsonValue(json) => json
-                .as_json()
+                .as_inner()
                 .get("resourceType")
                 .and_then(|rt| rt.as_str())
                 .map(|rt| rt == "Bundle")
                 .unwrap_or(false),
+            _ => false,
+        }
+    }
+
+    /// Check if a resource can potentially contain other resources for resolution
+    /// This includes Bundle resources (via entry.resource) and any resource with contained property
+    fn can_contain_resources(&self, resource: &FhirPathValue) -> bool {
+        // Bundle resources can contain resources via entries
+        if self.is_bundle_resource(resource) {
+            return true;
+        }
+
+        // Any FHIR resource can potentially have contained resources
+        match resource {
+            FhirPathValue::Resource(_) => true,
+            FhirPathValue::JsonValue(json) => {
+                // Check if it looks like a FHIR resource with resourceType
+                json.as_inner()
+                    .get("resourceType")
+                    .and_then(|rt| rt.as_str())
+                    .is_some()
+            }
             _ => false,
         }
     }

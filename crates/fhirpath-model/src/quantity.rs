@@ -366,27 +366,19 @@ impl Quantity {
     }
 
     /// Convert to JSON representation
-    pub fn to_json(&self) -> serde_json::Value {
-        let mut obj = serde_json::Map::new();
+    pub fn to_json(&self) -> sonic_rs::Value {
+        let mut obj = sonic_rs::object! {};
 
-        // Convert decimal to JSON value
-        let value_json = if let Ok(f) = self.value.try_into() {
-            if let Some(num) = serde_json::Number::from_f64(f) {
-                serde_json::Value::Number(num)
-            } else {
-                serde_json::Value::String(self.value.to_string())
-            }
-        } else {
-            serde_json::Value::String(self.value.to_string())
-        };
+        // Convert decimal to JSON value - use string representation for precision
+        let value_json = sonic_rs::Value::from(self.value.to_string().as_str());
 
-        obj.insert("value".to_string(), value_json);
+        obj.insert("value", value_json);
 
         if let Some(unit) = &self.unit {
-            obj.insert("unit".to_string(), serde_json::Value::String(unit.clone()));
+            obj.insert("unit", sonic_rs::Value::from(unit.as_str()));
         }
 
-        serde_json::Value::Object(obj)
+        obj.into()
     }
 }
 

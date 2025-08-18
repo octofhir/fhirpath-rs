@@ -20,6 +20,14 @@ mod context;
 pub mod engine;
 pub mod evaluators;
 
+// Modular evaluation components
+mod evaluation;
+mod functions;
+mod lambda;
+mod operations;
+mod parsing;
+mod utils;
+
 // Primary engine
 pub use engine::{EvaluationConfig, FhirPathEngine};
 

@@ -18,7 +18,9 @@ octofhir-fhirpath-model = { path = "../fhirpath-model" }
 
 # Core dependencies
 serde = { workspace = true }
-serde_json = { workspace = true }
+sonic-rs = { workspace = true }
+
+# Legacy compatibility only - removed
 smallvec = { workspace = true }
 rustc-hash = { workspace = true }
 indexmap = { workspace = true }

@@ -65,6 +65,11 @@ impl CollectionEvaluator {
         let collection_items = Self::to_collection(collection);
         let search_items = Self::to_collection(item);
 
+        // According to FHIRPath spec: if search item is empty, return empty collection
+        if search_items.is_empty() {
+            return Ok(FhirPathValue::Collection(Default::default()));
+        }
+
         // Contains returns true if ALL items from the search are found in the collection
         let all_found = search_items.iter().all(|search_item| {
             collection_items
@@ -72,9 +77,7 @@ impl CollectionEvaluator {
                 .any(|collection_item| Self::values_equal(collection_item, search_item))
         });
 
-        Ok(FhirPathValue::Boolean(
-            all_found && !search_items.is_empty(),
-        ))
+        Ok(FhirPathValue::Boolean(all_found))
     }
 
     /// Evaluate in operation (checks if item is in collection)

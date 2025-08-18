@@ -18,7 +18,7 @@
 //! and type information throughout FHIRPath evaluation.
 
 use crate::FhirPathValue;
-use serde_json::Value;
+use sonic_rs::{JsonContainerTrait, Value};
 
 /// Type information for boxed values
 #[derive(Debug, Clone, PartialEq)]
@@ -227,55 +227,55 @@ impl Boxing {
 
     /// Convert JSON value to FhirPathValue
     fn json_to_fhirpath_value(value: &Value) -> FhirPathValue {
-        match value {
-            Value::Null => FhirPathValue::Empty,
-            Value::Bool(b) => FhirPathValue::Boolean(*b),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    FhirPathValue::Integer(i)
-                } else if let Some(f) = n.as_f64() {
-                    match rust_decimal::Decimal::try_from(f) {
-                        Ok(d) => FhirPathValue::Decimal(d),
-                        Err(_) => FhirPathValue::JsonValue(crate::json_arc::ArcJsonValue::new(
-                            value.clone(),
-                        )),
-                    }
-                } else {
-                    FhirPathValue::JsonValue(crate::json_arc::ArcJsonValue::new(value.clone()))
+        use sonic_rs::JsonValueTrait;
+
+        if value.is_null() {
+            FhirPathValue::Empty
+        } else if let Some(b) = value.as_bool() {
+            FhirPathValue::Boolean(b)
+        } else if let Some(i) = value.as_i64() {
+            FhirPathValue::Integer(i)
+        } else if let Some(f) = value.as_f64() {
+            match rust_decimal::Decimal::try_from(f) {
+                Ok(d) => FhirPathValue::Decimal(d),
+                Err(_) => {
+                    let sonic_value = value.clone();
+                    FhirPathValue::JsonValue(crate::json_value::JsonValue::new(sonic_value))
                 }
             }
-            Value::String(s) => FhirPathValue::String(s.as_str().into()),
-            Value::Array(_) | Value::Object(_) => {
-                FhirPathValue::JsonValue(crate::json_arc::ArcJsonValue::new(value.clone()))
-            }
+        } else if let Some(s) = value.as_str() {
+            FhirPathValue::String(s.into())
+        } else {
+            // Arrays and objects
+            let sonic_value = value.clone();
+            FhirPathValue::JsonValue(crate::json_value::JsonValue::new(sonic_value))
         }
     }
 
     /// Infer FHIR type from JSON value
     fn infer_fhir_type_from_value(value: &Value) -> (String, Option<String>) {
-        match value {
-            Value::Bool(_) => ("boolean".to_string(), None),
-            Value::Number(n) => {
-                if n.is_f64() {
-                    ("decimal".to_string(), None)
-                } else {
-                    ("integer".to_string(), None)
-                }
+        use sonic_rs::JsonValueTrait;
+
+        if value.as_bool().is_some() {
+            ("boolean".to_string(), None)
+        } else if let Some(f) = value.as_f64() {
+            if f.fract() != 0.0 {
+                ("decimal".to_string(), None)
+            } else {
+                ("integer".to_string(), None)
             }
-            Value::String(s) => {
-                // Try to infer more specific string types
-                if s.starts_with("urn:uuid:") {
-                    ("uuid".to_string(), None)
-                } else if s.starts_with("http://")
-                    || s.starts_with("https://")
-                    || s.starts_with("urn:")
-                {
-                    ("uri".to_string(), None)
-                } else {
-                    ("string".to_string(), None)
-                }
+        } else if let Some(s) = value.as_str() {
+            // Try to infer more specific string types
+            if s.starts_with("urn:uuid:") {
+                ("uuid".to_string(), None)
+            } else if s.starts_with("http://") || s.starts_with("https://") || s.starts_with("urn:")
+            {
+                ("uri".to_string(), None)
+            } else {
+                ("string".to_string(), None)
             }
-            _ => ("Resource".to_string(), None),
+        } else {
+            ("Resource".to_string(), None)
         }
     }
 
@@ -298,34 +298,43 @@ impl Boxing {
 
     /// Parse primitive extensions from JSON
     fn parse_primitive_extensions(extensions_json: Option<Value>) -> Option<PrimitiveElement> {
-        if let Some(Value::Object(obj)) = extensions_json {
-            let extensions: Vec<Extension> = obj
-                .get("extension")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|ext| {
-                            if let Value::Object(ext_obj) = ext {
-                                Some(Extension {
-                                    url: ext_obj
-                                        .get("url")
-                                        .and_then(|u| u.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    value: ext_obj.get("value").cloned(),
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
+        use sonic_rs::JsonValueTrait;
 
-            let id = obj.get("id").and_then(|v| v.as_str()).map(String::from);
+        if let Some(json_value) = extensions_json {
+            if json_value.is_object() {
+                let extensions: Vec<Extension> = json_value
+                    .get("extension")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|ext| {
+                                if ext.is_object() {
+                                    Some(Extension {
+                                        url: ext
+                                            .get("url")
+                                            .and_then(|u| u.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        value: ext.get("value").cloned(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
-            if !extensions.is_empty() || id.is_some() {
-                Some(PrimitiveElement { id, extensions })
+                let id = json_value
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+
+                if !extensions.is_empty() || id.is_some() {
+                    Some(PrimitiveElement { id, extensions })
+                } else {
+                    None
+                }
             } else {
                 None
             }
@@ -338,7 +347,7 @@ impl Boxing {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use sonic_rs::json;
 
     #[test]
     fn test_boxed_value_creation() {

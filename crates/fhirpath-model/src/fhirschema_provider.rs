@@ -25,6 +25,7 @@ use octofhir_fhirschema::{
     ModelProvider as FhirSchemaModelProviderTrait, PackageSpec,
     package::manager::PackageManagerConfig,
 };
+use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,10 +51,8 @@ impl FhirSchemaModelProvider {
         match resource {
             crate::FhirPathValue::Resource(res) => res.resource_type() == Some("Bundle"),
             crate::FhirPathValue::JsonValue(json) => json
-                .as_json()
-                .get("resourceType")
-                .and_then(|rt| rt.as_str())
-                .map(|rt| rt == "Bundle")
+                .get_property("resourceType")
+                .and_then(|rt| rt.as_str().map(|s| s == "Bundle"))
                 .unwrap_or(false),
             _ => false,
         }
@@ -713,7 +712,7 @@ impl ModelProvider for FhirSchemaModelProvider {
     ) -> Option<crate::FhirPathValue> {
         let bundle_json = match bundle {
             crate::FhirPathValue::Resource(bundle_resource) => bundle_resource.as_json(),
-            crate::FhirPathValue::JsonValue(json_value) => json_value.as_json(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_sonic_value().clone(),
             _ => return None,
         };
 
@@ -724,17 +723,17 @@ impl ModelProvider for FhirSchemaModelProvider {
                     if let Some(full_url) = entry.get("fullUrl").and_then(|u| u.as_str()) {
                         // Exact match
                         if full_url == reference_url {
-                            return Some(crate::FhirPathValue::resource_from_json(
-                                resource.clone(),
-                            ));
+                            // Convert serde_json::Value to sonic_rs::Value
+                            let sonic_value = resource.clone();
+                            return Some(crate::FhirPathValue::resource_from_json(sonic_value));
                         }
 
                         // Check if fullUrl ends with the reference (accounting for base URL)
                         // Example: fullUrl="http://localhost:8080/fhir/Medication/123" should match reference="Medication/123"
                         if full_url.ends_with(&format!("/{reference_url}")) {
-                            return Some(crate::FhirPathValue::resource_from_json(
-                                resource.clone(),
-                            ));
+                            // Convert serde_json::Value to sonic_rs::Value
+                            let sonic_value = resource.clone();
+                            return Some(crate::FhirPathValue::resource_from_json(sonic_value));
                         }
                     }
 
@@ -745,9 +744,9 @@ impl ModelProvider for FhirSchemaModelProvider {
                     ) {
                         let resource_ref = format!("{resource_type}/{id}");
                         if resource_ref == reference_url {
-                            return Some(crate::FhirPathValue::resource_from_json(
-                                resource.clone(),
-                            ));
+                            // Convert serde_json::Value to sonic_rs::Value
+                            let sonic_value = resource.clone();
+                            return Some(crate::FhirPathValue::resource_from_json(sonic_value));
                         }
                     }
                 }
@@ -763,7 +762,7 @@ impl ModelProvider for FhirSchemaModelProvider {
     ) -> Option<crate::FhirPathValue> {
         let resource_json = match containing_resource {
             crate::FhirPathValue::Resource(resource) => resource.as_json(),
-            crate::FhirPathValue::JsonValue(json_value) => json_value.as_json(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_sonic_value().clone(),
             _ => return None,
         };
 
@@ -777,17 +776,19 @@ impl ModelProvider for FhirSchemaModelProvider {
                 ) {
                     // Check for fragment reference (starts with #)
                     if reference_url.starts_with('#') && &reference_url[1..] == id {
-                        return Some(crate::FhirPathValue::resource_from_json(
-                            contained_resource.clone(),
-                        ));
+                        // Convert serde_json::Value to sonic_rs::Value
+                        let sonic_value =
+                            sonic_rs::from_str(&contained_resource.to_string()).unwrap();
+                        return Some(crate::FhirPathValue::resource_from_json(sonic_value));
                     }
 
                     // Check for full reference
                     let resource_ref = format!("{resource_type}/{id}");
                     if resource_ref == reference_url {
-                        return Some(crate::FhirPathValue::resource_from_json(
-                            contained_resource.clone(),
-                        ));
+                        // Convert serde_json::Value to sonic_rs::Value
+                        let sonic_value =
+                            sonic_rs::from_str(&contained_resource.to_string()).unwrap();
+                        return Some(crate::FhirPathValue::resource_from_json(sonic_value));
                     }
                 }
             }
@@ -934,16 +935,19 @@ impl ModelProvider for FhirSchemaModelProvider {
 
         // First check for direct extensions on the value
         if let FhirPathValue::JsonValue(json) = value {
-            if let Some(extensions) = json.as_json().get("extension") {
+            if let Some(extensions) = json.as_inner().get("extension") {
                 if let Some(ext_array) = extensions.as_array() {
                     let mut matching_extensions = Vec::new();
                     for ext in ext_array {
                         if let Some(ext_obj) = ext.as_object() {
-                            if let Some(ext_url) = ext_obj.get("url") {
+                            if let Some(ext_url) = ext_obj.get(&"url") {
                                 if let Some(ext_url_str) = ext_url.as_str() {
                                     if ext_url_str == url {
+                                        // Convert serde_json::Value to sonic_rs::Value
+                                        let sonic_value =
+                                            sonic_rs::from_str(&ext.to_string()).unwrap();
                                         matching_extensions
-                                            .push(FhirPathValue::resource_from_json(ext.clone()));
+                                            .push(FhirPathValue::resource_from_json(sonic_value));
                                     }
                                 }
                             }
@@ -966,37 +970,36 @@ impl ModelProvider for FhirSchemaModelProvider {
                 | FhirPathValue::Boolean(_)
         ) {
             if let FhirPathValue::JsonValue(parent_json) = parent_resource {
-                let parent_obj = parent_json.as_json();
+                let parent_obj = parent_json.as_sonic_value();
 
                 // Look for all underscore properties (for primitive extensions)
-                for (key, underscore_value) in parent_obj
-                    .as_object()
-                    .unwrap_or(&serde_json::Map::new())
-                    .iter()
-                {
-                    if key.starts_with('_') {
-                        if let Some(extensions) = underscore_value.get("extension") {
-                            if let Some(ext_array) = extensions.as_array() {
-                                let mut matching_extensions = Vec::new();
+                if let Some(obj) = parent_obj.as_object() {
+                    for (key, underscore_value) in obj.iter() {
+                        if key.starts_with('_') {
+                            if let Some(extensions) = underscore_value.get("extension") {
+                                if let Some(ext_array) = extensions.as_array() {
+                                    let mut matching_extensions = Vec::new();
 
-                                for ext in ext_array {
-                                    if let Some(ext_obj) = ext.as_object() {
-                                        if let Some(ext_url) = ext_obj.get("url") {
-                                            if let Some(ext_url_str) = ext_url.as_str() {
-                                                if ext_url_str == url {
-                                                    matching_extensions.push(
-                                                        FhirPathValue::resource_from_json(
-                                                            ext.clone(),
-                                                        ),
-                                                    );
+                                    for ext in ext_array {
+                                        if let Some(ext_obj) = ext.as_object() {
+                                            if let Some(ext_url) = ext_obj.get(&"url") {
+                                                if let Some(ext_url_str) = ext_url.as_str() {
+                                                    if ext_url_str == url {
+                                                        // ext is already a sonic_rs::Value
+                                                        matching_extensions.push(
+                                                            FhirPathValue::resource_from_json(
+                                                                ext.clone(),
+                                                            ),
+                                                        );
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
 
-                                if !matching_extensions.is_empty() {
-                                    return matching_extensions;
+                                    if !matching_extensions.is_empty() {
+                                        return matching_extensions;
+                                    }
                                 }
                             }
                         }

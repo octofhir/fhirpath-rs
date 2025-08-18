@@ -16,11 +16,10 @@
 
 use crate::context::EvaluationContext as LocalEvaluationContext;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_model::{FhirPathValue, JsonValue};
 use octofhir_fhirpath_registry::{
     FhirPathRegistry, operations::EvaluationContext as RegistryEvaluationContext,
 };
-use serde_json::Value;
 use std::sync::Arc;
 
 /// Specialized evaluator for navigation and member access operations
@@ -59,7 +58,12 @@ impl NavigationEvaluator {
                             }
                         }
                     }
-                    Ok(FhirPathValue::normalize_collection_result(result_items))
+                    // Create collection and flatten nested collections (FHIRPath navigation semantics)
+                    let collection = octofhir_fhirpath_model::Collection::from_vec(result_items);
+                    let flattened = collection.flatten();
+                    Ok(FhirPathValue::normalize_collection_result(
+                        flattened.into_vec(),
+                    ))
                 }
 
                 _ => Ok(FhirPathValue::Empty),
@@ -69,21 +73,23 @@ impl NavigationEvaluator {
 
     /// Evaluate member access on JSON values with polymorphic FHIR support
     async fn evaluate_json_member_access(
-        json: &Value,
+        json: &JsonValue,
         member: &str,
     ) -> EvaluationResult<FhirPathValue> {
         // Direct property access
-        if let Some(value) = json.get(member) {
-            return Ok(FhirPathValue::from(value.clone()));
+        if let Some(value) = json.get_property(member) {
+            return Ok(Self::convert_json_to_fhirpath_value(value));
         }
 
         // FHIR choice type polymorphic access
-        if let Some(obj) = json.as_object() {
-            for (key, value) in obj {
-                if key.starts_with(member) && key.len() > member.len() {
-                    if let Some(next_char) = key.chars().nth(member.len()) {
-                        if next_char.is_uppercase() {
-                            return Ok(FhirPathValue::from(value.clone()));
+        if json.is_object() {
+            if let Some(iter) = json.object_iter() {
+                for (key, value) in iter {
+                    if key.starts_with(member) && key.len() > member.len() {
+                        if let Some(next_char) = key.chars().nth(member.len()) {
+                            if next_char.is_uppercase() {
+                                return Ok(Self::convert_json_to_fhirpath_value(value));
+                            }
                         }
                     }
                 }
@@ -91,6 +97,88 @@ impl NavigationEvaluator {
         }
 
         Ok(FhirPathValue::Empty)
+    }
+
+    /// Convert JsonValue to proper FhirPathValue type using Sonic JSON natively
+    pub fn convert_json_to_fhirpath_value(json_value: JsonValue) -> FhirPathValue {
+        use octofhir_fhirpath_model::FhirPathValue;
+        use rust_decimal::Decimal;
+        use std::sync::Arc;
+
+        // Use Sonic JSON API directly to determine the correct FhirPath type
+        if json_value.is_boolean() {
+            if let Some(b) = json_value.as_bool() {
+                FhirPathValue::Boolean(b)
+            } else {
+                FhirPathValue::JsonValue(json_value)
+            }
+        } else if json_value.is_number() {
+            // Try integer first, then decimal
+            if let Some(i) = json_value.as_i64() {
+                FhirPathValue::Integer(i)
+            } else if let Some(f) = json_value.as_f64() {
+                // Convert float to Decimal for precision
+                if let Ok(decimal) = Decimal::try_from(f) {
+                    FhirPathValue::Decimal(decimal)
+                } else {
+                    FhirPathValue::JsonValue(json_value)
+                }
+            } else {
+                FhirPathValue::JsonValue(json_value)
+            }
+        } else if json_value.is_string() {
+            if let Some(s) = json_value.as_str() {
+                use chrono::{DateTime, NaiveDate, NaiveTime};
+
+                // Try to parse as date/datetime/time first
+                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                    FhirPathValue::Date(octofhir_fhirpath_model::temporal::PrecisionDate::new(
+                        date,
+                        octofhir_fhirpath_model::temporal::TemporalPrecision::Day,
+                    ))
+                } else if let Ok(datetime) = DateTime::parse_from_rfc3339(s) {
+                    FhirPathValue::DateTime(
+                        octofhir_fhirpath_model::temporal::PrecisionDateTime::new(
+                            datetime.fixed_offset(),
+                            octofhir_fhirpath_model::temporal::TemporalPrecision::Millisecond,
+                        ),
+                    )
+                } else if let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S") {
+                    FhirPathValue::Time(octofhir_fhirpath_model::temporal::PrecisionTime::new(
+                        time,
+                        octofhir_fhirpath_model::temporal::TemporalPrecision::Second,
+                    ))
+                } else if let Ok(time) = NaiveTime::parse_from_str(s, "%H:%M:%S%.f") {
+                    FhirPathValue::Time(octofhir_fhirpath_model::temporal::PrecisionTime::new(
+                        time,
+                        octofhir_fhirpath_model::temporal::TemporalPrecision::Millisecond,
+                    ))
+                } else {
+                    FhirPathValue::String(Arc::from(s))
+                }
+            } else {
+                FhirPathValue::JsonValue(json_value)
+            }
+        } else if json_value.is_array() {
+            // Convert array elements to proper FhirPath types
+            if let Some(iter) = json_value.array_iter() {
+                let items: Vec<FhirPathValue> =
+                    iter.map(Self::convert_json_to_fhirpath_value).collect();
+
+                if items.is_empty() {
+                    FhirPathValue::Empty
+                } else {
+                    FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from_vec(items))
+                }
+            } else {
+                FhirPathValue::JsonValue(json_value)
+            }
+        } else if json_value.is_null() {
+            FhirPathValue::Empty
+        } else {
+            // For complex objects, keep as JsonValue (they might be FHIR resources)
+            FhirPathValue::JsonValue(json_value)
+        }
     }
 
     /// Evaluate children operation (get immediate child elements)

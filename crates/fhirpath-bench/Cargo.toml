@@ -18,7 +18,7 @@ path = "src/main.rs"
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
-octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 
 # Benchmarking
@@ -31,8 +31,8 @@ pprof = { workspace = true, features = ["flamegraph"] }
 clap.workspace = true
 
 # JSON handling
-serde_json.workspace = true
 serde.workspace = true
+sonic-rs = { workspace = true }
 
 # Async
 tokio.workspace = true
@@ -46,6 +46,9 @@ thiserror.workspace = true
 log.workspace = true
 env_logger = "0.11"
 chrono.workspace = true
+
+[features]
+default = []
 
 [lib]
 name = "fhirpath_bench"

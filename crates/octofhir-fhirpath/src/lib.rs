@@ -27,10 +27,13 @@ pub use octofhir_fhirpath_registry as registry;
 
 // Main implementation modules
 pub mod pipeline;
+pub mod utils;
 
 // Primary engine - use this for all new code
 pub use octofhir_fhirpath_evaluator::{EvaluationConfig, EvaluationContext, FhirPathEngine};
-pub use octofhir_fhirpath_model::{FhirPathValue, SmartCollection, SmartCollectionBuilder};
+pub use octofhir_fhirpath_model::{
+    FhirPathValue, JsonValue, SmartCollection, SmartCollectionBuilder,
+};
 pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
 pub use octofhir_fhirpath_registry::{FhirPathRegistry, create_standard_registry};
 
@@ -39,7 +42,7 @@ pub use octofhir_fhirpath_ast::{
     BinaryOpData, BinaryOperator, ConditionalData, ExpressionNode, FunctionCallData, LambdaData,
     LiteralValue, MethodCallData, UnaryOperator,
 };
-pub use octofhir_fhirpath_core::{FhirPathError, FhirTypeRegistry, Result};
+pub use octofhir_fhirpath_core::{FhirPathError, Result};
 pub use octofhir_fhirpath_diagnostics::{
     Diagnostic, DiagnosticBuilder, DiagnosticCode, DiagnosticReporter, DiagnosticSeverity,
 };

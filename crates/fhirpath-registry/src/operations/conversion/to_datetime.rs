@@ -53,35 +53,60 @@ impl ToDateTimeFunction {
         match value {
             FhirPathValue::DateTime(dt) => {
                 // For existing datetime, convert to date-only format
-                let date = dt.date_naive();
-                Ok(FhirPathValue::Date(date))
+                let date = dt.datetime.date_naive();
+                Ok(FhirPathValue::Date(
+                    octofhir_fhirpath_model::PrecisionDate::new(
+                        date,
+                        octofhir_fhirpath_model::TemporalPrecision::Day,
+                    ),
+                ))
             }
             FhirPathValue::Date(d) => {
                 // Date already in correct format
-                Ok(FhirPathValue::Date(*d))
+                Ok(FhirPathValue::Date(d.clone()))
             }
             FhirPathValue::String(s) => {
                 // Try to parse as full datetime first
                 if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
                     let date = dt.date_naive();
-                    return Ok(FhirPathValue::Date(date));
+                    return Ok(FhirPathValue::Date(
+                        octofhir_fhirpath_model::PrecisionDate::new(
+                            date,
+                            octofhir_fhirpath_model::TemporalPrecision::Day,
+                        ),
+                    ));
                 }
 
                 // Try to parse as date-only format (YYYY-MM-DD)
                 if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-                    return Ok(FhirPathValue::Date(date));
+                    return Ok(FhirPathValue::Date(
+                        octofhir_fhirpath_model::PrecisionDate::new(
+                            date,
+                            octofhir_fhirpath_model::TemporalPrecision::Day,
+                        ),
+                    ));
                 }
 
                 // Try to parse partial date formats
                 if let Ok(date) = chrono::NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
                 {
-                    return Ok(FhirPathValue::Date(date));
+                    return Ok(FhirPathValue::Date(
+                        octofhir_fhirpath_model::PrecisionDate::new(
+                            date,
+                            octofhir_fhirpath_model::TemporalPrecision::Day,
+                        ),
+                    ));
                 }
 
                 if let Ok(date) =
                     chrono::NaiveDate::parse_from_str(&format!("{s}-01-01"), "%Y-%m-%d")
                 {
-                    return Ok(FhirPathValue::Date(date));
+                    return Ok(FhirPathValue::Date(
+                        octofhir_fhirpath_model::PrecisionDate::new(
+                            date,
+                            octofhir_fhirpath_model::TemporalPrecision::Day,
+                        ),
+                    ));
                 }
 
                 Ok(FhirPathValue::Empty) // Cannot convert

@@ -63,17 +63,30 @@ impl ToDateFunction {
     fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
         match value {
             // Already a date
-            FhirPathValue::Date(d) => Ok(FhirPathValue::Date(*d)),
+            FhirPathValue::Date(d) => Ok(FhirPathValue::Date(d.clone())),
 
             // DateTime conversion - extract date part
-            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::Date(dt.date_naive())),
+            FhirPathValue::DateTime(dt) => {
+                let naive_date = dt.datetime.date_naive();
+                Ok(FhirPathValue::Date(
+                    octofhir_fhirpath_model::PrecisionDate::new(
+                        naive_date,
+                        octofhir_fhirpath_model::TemporalPrecision::Day, // Default to day precision
+                    ),
+                ))
+            }
 
             // String conversion with partial date support
             FhirPathValue::String(s) => {
                 let trimmed = s.trim();
                 if Self::date_regex().is_match(trimmed) {
                     if let Some(date) = Self::parse_partial_date(trimmed) {
-                        Ok(FhirPathValue::Date(date))
+                        Ok(FhirPathValue::Date(
+                            octofhir_fhirpath_model::PrecisionDate::new(
+                                date,
+                                octofhir_fhirpath_model::TemporalPrecision::Day, // Default to day precision
+                            ),
+                        ))
                     } else {
                         Ok(FhirPathValue::Collection(vec![].into())) // Empty collection for invalid date
                     }

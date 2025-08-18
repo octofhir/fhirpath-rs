@@ -200,7 +200,7 @@ impl FhirPathOperation for PowerFunction {
 
         // Determine return type based on inputs and result
         match (&base, &exponent) {
-            (NumericInput::Integer(b), NumericInput::Integer(e)) => {
+            (NumericInput::Integer(_b), NumericInput::Integer(e)) => {
                 // Integer to integer power
                 if *e >= 0
                     && result_f == result_f.trunc()
@@ -302,7 +302,7 @@ impl FhirPathOperation for PowerFunction {
 
         // Determine return type based on inputs and result
         match (&base, &exponent) {
-            (NumericInput::Integer(b), NumericInput::Integer(e)) => {
+            (NumericInput::Integer(_b), NumericInput::Integer(e)) => {
                 // Integer to integer power
                 if *e >= 0
                     && result_f == result_f.trunc()

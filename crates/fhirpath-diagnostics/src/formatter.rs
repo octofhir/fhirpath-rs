@@ -91,9 +91,9 @@ impl DiagnosticFormatter {
                 {
                     let json_diagnostics: Vec<_> = diagnostics
                         .iter()
-                        .map(|d| serde_json::to_value(d).unwrap())
+                        .map(|d| sonic_rs::to_value(d).unwrap())
                         .collect();
-                    serde_json::to_string_pretty(&json_diagnostics).unwrap()
+                    sonic_rs::to_string_pretty(&json_diagnostics).unwrap()
                 }
                 #[cfg(not(feature = "serde"))]
                 {
@@ -214,7 +214,7 @@ impl DiagnosticFormatter {
     fn format_json(&self, diagnostic: &Diagnostic) -> String {
         #[cfg(feature = "serde")]
         {
-            serde_json::to_string_pretty(diagnostic).unwrap()
+            sonic_rs::to_string_pretty(diagnostic).unwrap()
         }
 
         #[cfg(not(feature = "serde"))]

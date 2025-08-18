@@ -180,7 +180,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     async fn run_evaluate_benchmark(
         name: &str,
         expressions: &[&str],
-        data: &serde_json::Value,
+        data: &sonic_rs::Value,
         engine: &FhirPathEngine,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();

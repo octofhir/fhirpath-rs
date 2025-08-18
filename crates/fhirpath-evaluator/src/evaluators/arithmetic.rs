@@ -213,16 +213,131 @@ impl ArithmeticEvaluator {
             }
             // DateTime + Quantity operations
             (FhirPathValue::DateTime(dt), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_datetime(dt, q)
+                Self::add_quantity_to_datetime(&dt.datetime, q)
             }
             // Date + Quantity operations
             (FhirPathValue::Date(date), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_date(date, q)
+                Self::add_quantity_to_date(&date.date, q)
             }
             // Time + Quantity operations
             (FhirPathValue::Time(time), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_time(time, q)
+                Self::add_quantity_to_time(&time.time, q)
             }
+            // JsonValue arithmetic operations - handle Sonic JSON values
+            (FhirPathValue::JsonValue(left_json), FhirPathValue::JsonValue(right_json)) => {
+                Self::add_json_values(left_json, right_json)
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::Integer(int_val)) => {
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        json_int
+                            .checked_add(*int_val)
+                            .map(FhirPathValue::Integer)
+                            .ok_or_else(|| EvaluationError::InvalidOperation {
+                                message: "Integer overflow in addition".to_string(),
+                            })
+                    } else if let Some(json_float) = json_val.as_f64() {
+                        match Decimal::try_from(json_float) {
+                            Ok(json_decimal) => match Decimal::try_from(*int_val) {
+                                Ok(int_decimal) => {
+                                    Ok(FhirPathValue::Decimal(json_decimal + int_decimal))
+                                }
+                                Err(_) => Err(EvaluationError::InvalidOperation {
+                                    message: "Cannot convert integer to decimal".to_string(),
+                                }),
+                            },
+                            Err(_) => Err(EvaluationError::InvalidOperation {
+                                message: "Cannot convert JsonValue number to decimal".to_string(),
+                            }),
+                        }
+                    } else {
+                        Err(EvaluationError::TypeError {
+                            expected: "numeric value".to_string(),
+                            actual: "non-numeric JsonValue".to_string(),
+                        })
+                    }
+                } else {
+                    Err(EvaluationError::TypeError {
+                        expected: "numeric JsonValue".to_string(),
+                        actual: "non-numeric JsonValue".to_string(),
+                    })
+                }
+            }
+            (FhirPathValue::Integer(int_val), FhirPathValue::JsonValue(json_val)) => {
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        int_val
+                            .checked_add(json_int)
+                            .map(FhirPathValue::Integer)
+                            .ok_or_else(|| EvaluationError::InvalidOperation {
+                                message: "Integer overflow in addition".to_string(),
+                            })
+                    } else if let Some(json_float) = json_val.as_f64() {
+                        match Decimal::try_from(json_float) {
+                            Ok(json_decimal) => match Decimal::try_from(*int_val) {
+                                Ok(int_decimal) => {
+                                    Ok(FhirPathValue::Decimal(int_decimal + json_decimal))
+                                }
+                                Err(_) => Err(EvaluationError::InvalidOperation {
+                                    message: "Cannot convert integer to decimal".to_string(),
+                                }),
+                            },
+                            Err(_) => Err(EvaluationError::InvalidOperation {
+                                message: "Cannot convert JsonValue number to decimal".to_string(),
+                            }),
+                        }
+                    } else {
+                        Err(EvaluationError::TypeError {
+                            expected: "numeric value".to_string(),
+                            actual: "non-numeric JsonValue".to_string(),
+                        })
+                    }
+                } else {
+                    Err(EvaluationError::TypeError {
+                        expected: "numeric JsonValue".to_string(),
+                        actual: "non-numeric JsonValue".to_string(),
+                    })
+                }
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::String(string_val)) => {
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Ok(FhirPathValue::String(
+                            format!("{json_str}{string_val}").into(),
+                        ))
+                    } else {
+                        Err(EvaluationError::TypeError {
+                            expected: "string JsonValue".to_string(),
+                            actual: "non-string JsonValue".to_string(),
+                        })
+                    }
+                } else {
+                    Err(EvaluationError::TypeError {
+                        expected: "string JsonValue".to_string(),
+                        actual: "non-string JsonValue".to_string(),
+                    })
+                }
+            }
+            (FhirPathValue::String(string_val), FhirPathValue::JsonValue(json_val)) => {
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Ok(FhirPathValue::String(
+                            format!("{string_val}{json_str}").into(),
+                        ))
+                    } else {
+                        Err(EvaluationError::TypeError {
+                            expected: "string JsonValue".to_string(),
+                            actual: "non-string JsonValue".to_string(),
+                        })
+                    }
+                } else {
+                    Err(EvaluationError::TypeError {
+                        expected: "string JsonValue".to_string(),
+                        actual: "non-string JsonValue".to_string(),
+                    })
+                }
+            }
+
             // Handle Empty values - any operation with Empty returns Empty per FHIRPath spec
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
             // Handle unsupported combinations that should return empty per FHIRPath spec
@@ -264,15 +379,15 @@ impl ArithmeticEvaluator {
             },
             // Date - Quantity operations (subtract time-based quantities from dates)
             (FhirPathValue::Date(date), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_date(date, q)
+                Self::subtract_quantity_from_date(&date.date, q)
             }
             // DateTime - Quantity operations (subtract time-based quantities from datetime)
             (FhirPathValue::DateTime(dt), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_datetime(dt, q)
+                Self::subtract_quantity_from_datetime(&dt.datetime, q)
             }
             // Time - Quantity operations (subtract time-based quantities from time)
             (FhirPathValue::Time(time), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_time(time, q)
+                Self::subtract_quantity_from_time(&time.time, q)
             }
             // String subtraction is not defined - return empty per FHIRPath spec
             (FhirPathValue::String(_), FhirPathValue::String(_)) => Ok(FhirPathValue::Empty),
@@ -333,9 +448,8 @@ impl ArithmeticEvaluator {
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 // Integer division returns decimal in FHIRPath
                 match (Decimal::try_from(*a), Decimal::try_from(*b)) {
@@ -349,17 +463,15 @@ impl ArithmeticEvaluator {
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 Ok(FhirPathValue::Decimal(a / b))
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 match Decimal::try_from(*a) {
                     Ok(a_decimal) => Ok(FhirPathValue::Decimal(a_decimal / b)),
@@ -370,9 +482,8 @@ impl ArithmeticEvaluator {
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 match Decimal::try_from(*b) {
                     Ok(b_decimal) => Ok(FhirPathValue::Decimal(a / b_decimal)),
@@ -384,9 +495,8 @@ impl ArithmeticEvaluator {
             // Quantity division operations
             (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
                 if b.value.is_zero() {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Division by zero quantity".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 Self::divide_quantities(a, b)
             }
@@ -406,17 +516,15 @@ impl ArithmeticEvaluator {
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Modulo by zero".to_string(),
-                    });
+                    // Modulo by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 Ok(FhirPathValue::Integer(a % b))
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Modulo by zero".to_string(),
-                    });
+                    // Modulo by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 Ok(FhirPathValue::Decimal(a % b))
             }
@@ -436,34 +544,74 @@ impl ArithmeticEvaluator {
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Integer division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
                 // Integer division returns integer (truncated division)
                 Ok(FhirPathValue::Integer(a / b))
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(EvaluationError::InvalidOperation {
-                        message: "Integer division by zero".to_string(),
-                    });
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
                 }
-                // Convert to integer division
-                let a_int = a
-                    .trunc()
-                    .to_i64()
-                    .ok_or(EvaluationError::InvalidOperation {
-                        message: "Cannot convert decimal to integer for div operation".to_string(),
-                    })?;
-                let b_int = b
-                    .trunc()
-                    .to_i64()
-                    .ok_or(EvaluationError::InvalidOperation {
-                        message: "Cannot convert decimal to integer for div operation".to_string(),
-                    })?;
-                Ok(FhirPathValue::Integer(a_int / b_int))
+                // Integer division: divide first, then truncate to integer
+                let result = a / b;
+                let result_int =
+                    result
+                        .trunc()
+                        .to_i64()
+                        .ok_or(EvaluationError::InvalidOperation {
+                            message: "Cannot convert division result to integer for div operation"
+                                .to_string(),
+                        })?;
+                Ok(FhirPathValue::Integer(result_int))
             }
+
+            // Mixed integer/decimal cases
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
+                }
+                // Convert integer to decimal for division, then truncate result
+                let a_decimal =
+                    Decimal::try_from(*a).map_err(|_| EvaluationError::InvalidOperation {
+                        message: "Cannot convert integer to decimal for div operation".to_string(),
+                    })?;
+                let result = a_decimal / b;
+                let result_int =
+                    result
+                        .trunc()
+                        .to_i64()
+                        .ok_or(EvaluationError::InvalidOperation {
+                            message: "Cannot convert division result to integer for div operation"
+                                .to_string(),
+                        })?;
+                Ok(FhirPathValue::Integer(result_int))
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    // Division by zero returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Collection(Default::default()));
+                }
+                // Convert integer to decimal for division, then truncate result
+                let b_decimal =
+                    Decimal::try_from(*b).map_err(|_| EvaluationError::InvalidOperation {
+                        message: "Cannot convert integer to decimal for div operation".to_string(),
+                    })?;
+                let result = a / b_decimal;
+                let result_int =
+                    result
+                        .trunc()
+                        .to_i64()
+                        .ok_or(EvaluationError::InvalidOperation {
+                            message: "Cannot convert division result to integer for div operation"
+                                .to_string(),
+                        })?;
+                Ok(FhirPathValue::Integer(result_int))
+            }
+
             // Handle Empty values - any operation with Empty returns Empty per FHIRPath spec
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
             _ => Err(EvaluationError::TypeError {
@@ -570,7 +718,12 @@ impl ArithmeticEvaluator {
         let duration = Duration::nanoseconds(duration_nanos);
 
         if let Some(new_dt) = dt.checked_add_signed(duration) {
-            Ok(FhirPathValue::DateTime(new_dt))
+            Ok(FhirPathValue::DateTime(
+                octofhir_fhirpath_model::PrecisionDateTime::new(
+                    new_dt,
+                    octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                ),
+            ))
         } else {
             Err(EvaluationError::InvalidOperation {
                 message: "DateTime arithmetic overflow".to_string(),
@@ -632,7 +785,12 @@ impl ArithmeticEvaluator {
         let duration = Duration::days(days as i64);
 
         if let Some(new_date) = date.checked_add_signed(duration) {
-            Ok(FhirPathValue::Date(new_date))
+            Ok(FhirPathValue::Date(
+                octofhir_fhirpath_model::PrecisionDate::new(
+                    new_date,
+                    octofhir_fhirpath_model::TemporalPrecision::Day, // Default precision for arithmetic
+                ),
+            ))
         } else {
             Err(EvaluationError::InvalidOperation {
                 message: "Date arithmetic overflow".to_string(),
@@ -695,7 +853,12 @@ impl ArithmeticEvaluator {
         let duration = Duration::nanoseconds(duration_nanos);
 
         let new_time = time.overflowing_add_signed(duration).0;
-        Ok(FhirPathValue::Time(new_time))
+        Ok(FhirPathValue::Time(
+            octofhir_fhirpath_model::PrecisionTime::new(
+                new_time,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+            ),
+        ))
     }
 
     /// Divide two quantities
@@ -717,7 +880,7 @@ impl ArithmeticEvaluator {
             // Left is dimensionless, right has unit - invert right unit
             (None, Some(right_unit)) => Some(format!("1/{right_unit}")),
             // Both dimensionless
-            (None, None) => None,
+            (None, None) => Some("1".to_string()),
         };
 
         let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
@@ -743,12 +906,12 @@ impl ArithmeticEvaluator {
                     Some(format!("{left_unit}.{right_unit}"))
                 }
             }
-            // Left has unit, right is dimensionless
+            // Left has unit, right is dimensionless (or unit "1")
             (Some(left_unit), None) => Some(left_unit.clone()),
-            // Left is dimensionless, right has unit
+            // Left is dimensionless (or unit "1"), right has unit
             (None, Some(right_unit)) => Some(right_unit.clone()),
             // Both dimensionless
-            (None, None) => None,
+            (None, None) => Some("1".to_string()),
         };
 
         let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
@@ -807,7 +970,12 @@ impl ArithmeticEvaluator {
         let duration = Duration::days(-(days as i64));
 
         if let Some(new_date) = date.checked_add_signed(duration) {
-            Ok(FhirPathValue::Date(new_date))
+            Ok(FhirPathValue::Date(
+                octofhir_fhirpath_model::PrecisionDate::new(
+                    new_date,
+                    octofhir_fhirpath_model::TemporalPrecision::Day, // Default precision for arithmetic
+                ),
+            ))
         } else {
             Err(EvaluationError::InvalidOperation {
                 message: "Date arithmetic overflow".to_string(),
@@ -901,7 +1069,12 @@ impl ArithmeticEvaluator {
         let duration = Duration::nanoseconds(-duration_nanos);
 
         if let Some(new_dt) = dt.checked_add_signed(duration) {
-            Ok(FhirPathValue::DateTime(new_dt))
+            Ok(FhirPathValue::DateTime(
+                octofhir_fhirpath_model::PrecisionDateTime::new(
+                    new_dt,
+                    octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                ),
+            ))
         } else {
             Err(EvaluationError::InvalidOperation {
                 message: "DateTime arithmetic overflow".to_string(),
@@ -963,6 +1136,61 @@ impl ArithmeticEvaluator {
         let duration = Duration::nanoseconds(-duration_nanos);
 
         let new_time = time.overflowing_add_signed(duration).0;
-        Ok(FhirPathValue::Time(new_time))
+        Ok(FhirPathValue::Time(
+            octofhir_fhirpath_model::PrecisionTime::new(
+                new_time,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+            ),
+        ))
+    }
+
+    /// Helper method to add two JsonValue numbers using Sonic JSON directly
+    fn add_json_values(
+        left_json: &octofhir_fhirpath_model::JsonValue,
+        right_json: &octofhir_fhirpath_model::JsonValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Use Sonic JSON directly for better performance
+        if left_json.is_number() && right_json.is_number() {
+            // Try integer addition first
+            if let (Some(left_int), Some(right_int)) = (left_json.as_i64(), right_json.as_i64()) {
+                left_int
+                    .checked_add(right_int)
+                    .map(FhirPathValue::Integer)
+                    .ok_or_else(|| EvaluationError::InvalidOperation {
+                        message: "Integer overflow in addition".to_string(),
+                    })
+            } else {
+                // Fall back to decimal addition
+                let left_decimal = left_json
+                    .as_f64()
+                    .and_then(|f| Decimal::try_from(f).ok())
+                    .ok_or_else(|| EvaluationError::InvalidOperation {
+                        message: "Cannot convert left JsonValue to decimal".to_string(),
+                    })?;
+                let right_decimal = right_json
+                    .as_f64()
+                    .and_then(|f| Decimal::try_from(f).ok())
+                    .ok_or_else(|| EvaluationError::InvalidOperation {
+                        message: "Cannot convert right JsonValue to decimal".to_string(),
+                    })?;
+                Ok(FhirPathValue::Decimal(left_decimal + right_decimal))
+            }
+        } else if left_json.is_string() && right_json.is_string() {
+            if let (Some(left_str), Some(right_str)) = (left_json.as_str(), right_json.as_str()) {
+                Ok(FhirPathValue::String(
+                    format!("{left_str}{right_str}").into(),
+                ))
+            } else {
+                Err(EvaluationError::TypeError {
+                    expected: "valid string JsonValues".to_string(),
+                    actual: "invalid string JsonValues".to_string(),
+                })
+            }
+        } else {
+            Err(EvaluationError::TypeError {
+                expected: "numeric or string JsonValues".to_string(),
+                actual: "incompatible JsonValue types".to_string(),
+            })
+        }
     }
 }

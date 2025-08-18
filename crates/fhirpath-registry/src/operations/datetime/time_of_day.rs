@@ -92,7 +92,12 @@ impl FhirPathOperation for TimeOfDayFunction {
         )
         .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
 
-        Ok(FhirPathValue::Time(naive_time))
+        Ok(FhirPathValue::Time(
+            octofhir_fhirpath_model::PrecisionTime::new(
+                naive_time,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Full precision for timeOfDay()
+            ),
+        ))
     }
 
     fn try_evaluate_sync(
@@ -121,7 +126,12 @@ impl FhirPathOperation for TimeOfDayFunction {
         )
         .unwrap_or_else(|| NaiveTime::from_hms_opt(0, 0, 0).unwrap());
 
-        Some(Ok(FhirPathValue::Time(naive_time)))
+        Some(Ok(FhirPathValue::Time(
+            octofhir_fhirpath_model::PrecisionTime::new(
+                naive_time,
+                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Full precision for timeOfDay()
+            ),
+        )))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

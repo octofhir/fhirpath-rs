@@ -19,9 +19,7 @@
 
 pub mod error;
 pub mod evaluation;
-pub mod types;
 
 // Re-export main types
 pub use error::{FhirPathError, Result};
 pub use evaluation::{EvaluationError, EvaluationResult};
-pub use types::FhirTypeRegistry;

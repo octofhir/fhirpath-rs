@@ -1,0 +1,404 @@
+//! Lambda function implementations for FHIRPath
+//!
+//! This module contains implementations for FHIRPath lambda functions like where(),
+//! select(), sort(), repeat(), aggregate(), and all(). Lambda functions receive
+//! raw expressions and control their own evaluation context.
+
+use crate::context::EvaluationContext as LocalEvaluationContext;
+use octofhir_fhirpath_ast::FunctionCallData;
+use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
+use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use std::collections::HashSet;
+
+/// Lambda function implementations for the FHIRPath engine
+impl crate::FhirPathEngine {
+    /// Evaluate where lambda function
+    pub async fn evaluate_where_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "where() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let predicate_expr = &func_data.args[0];
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                // Pre-allocate with better capacity estimation (assume ~25% pass rate)
+                let estimated_capacity = (items.len() / 4).max(4).min(64);
+                let mut filtered_items = Vec::with_capacity(estimated_capacity);
+
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context with $this, $index variables - avoid unnecessary clone
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
+
+                    // Evaluate predicate expression in lambda context - avoid clone by using reference
+                    let predicate_result = self
+                        .evaluate_node_async(
+                            predicate_expr,
+                            item.clone(), // Still needed for evaluation input
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // Check if predicate is truthy using the engine's truthiness logic
+                    if self.is_truthy(&predicate_result) {
+                        filtered_items.push(item.clone());
+                    }
+                }
+
+                Ok(FhirPathValue::Collection(Collection::from(filtered_items)))
+            }
+            other => {
+                // For non-collections, where() acts like a conditional
+                // Create lambda context with single item
+                let lambda_context =
+                    context.with_lambda_context(other.clone(), 0, FhirPathValue::Empty);
+
+                let predicate_result = self
+                    .evaluate_node_async(predicate_expr, other.clone(), &lambda_context, depth + 1)
+                    .await?;
+
+                if self.is_truthy(&predicate_result) {
+                    Ok(other.clone())
+                } else {
+                    Ok(FhirPathValue::Collection(Collection::from(vec![])))
+                }
+            }
+        }
+    }
+
+    /// Evaluate select lambda function
+    pub async fn evaluate_select_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "select() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let expr = &func_data.args[0];
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                let mut result_items = Vec::new();
+
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context for each item
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
+
+                    // Evaluate expression for each item
+                    let item_result = self
+                        .evaluate_node_async(expr, item.clone(), &lambda_context, depth + 1)
+                        .await?;
+
+                    // Add result to collection - select() can return multiple values per item
+                    match item_result {
+                        FhirPathValue::Collection(sub_items) => {
+                            result_items.extend(sub_items.into_iter());
+                        }
+                        FhirPathValue::Empty => {
+                            // Skip empty results
+                        }
+                        other => result_items.push(other),
+                    }
+                }
+
+                Ok(FhirPathValue::Collection(Collection::from(result_items)))
+            }
+            other => {
+                // For single items, select() acts like a simple transformation
+                let lambda_context =
+                    context.with_lambda_context(other.clone(), 0, FhirPathValue::Empty);
+
+                self.evaluate_node_async(expr, other.clone(), &lambda_context, depth + 1)
+                    .await
+            }
+        }
+    }
+
+    /// Evaluate sort lambda function
+    pub async fn evaluate_sort_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // sort() can have 0 or 1 argument
+        if func_data.args.len() > 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "sort() requires 0 or 1 arguments, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    return Ok(input);
+                }
+
+                let mut items_with_sort_keys: Vec<(FhirPathValue, FhirPathValue)> = Vec::new();
+
+                // If no sort expression provided, sort by the items themselves
+                if func_data.args.is_empty() {
+                    for item in items.iter() {
+                        items_with_sort_keys.push((item.clone(), item.clone()));
+                    }
+                } else {
+                    // Evaluate sort expression for each item
+                    let sort_expr = &func_data.args[0];
+
+                    for (index, item) in items.iter().enumerate() {
+                        let lambda_context =
+                            context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
+
+                        let sort_key = self
+                            .evaluate_node_async(
+                                sort_expr,
+                                item.clone(),
+                                &lambda_context,
+                                depth + 1,
+                            )
+                            .await?;
+
+                        items_with_sort_keys.push((item.clone(), sort_key));
+                    }
+                }
+
+                // Sort items by their sort keys
+                items_with_sort_keys.sort_by(|(_, a), (_, b)| self.compare_fhir_values(a, b));
+
+                // Extract sorted items
+                let sorted_items: Vec<FhirPathValue> = items_with_sort_keys
+                    .into_iter()
+                    .map(|(item, _)| item)
+                    .collect();
+
+                Ok(FhirPathValue::Collection(Collection::from(sorted_items)))
+            }
+            other => {
+                // Single items are already "sorted"
+                Ok(other.clone())
+            }
+        }
+    }
+
+    /// Evaluate repeat lambda function
+    pub async fn evaluate_repeat_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "repeat() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let expr = &func_data.args[0];
+        let mut all_results = Vec::new();
+        let mut current_input = input;
+        let mut seen_values = HashSet::new();
+
+        // Prevent infinite loops with a reasonable iteration limit
+        const MAX_ITERATIONS: usize = 1000;
+        let mut iterations = 0;
+
+        loop {
+            iterations += 1;
+            if iterations > MAX_ITERATIONS {
+                return Err(EvaluationError::InvalidOperation {
+                    message: "repeat() exceeded maximum iterations (1000)".to_string(),
+                });
+            }
+
+            // Evaluate expression with current input
+            let result = self
+                .evaluate_node_async(expr, current_input.clone(), context, depth + 1)
+                .await?;
+
+            // Check if we got empty result (stop condition)
+            match &result {
+                FhirPathValue::Empty => break,
+                FhirPathValue::Collection(items) if items.is_empty() => break,
+                _ => {
+                    // Check for cycles using a simple string representation
+                    let result_key = self.item_to_key(&result);
+                    if seen_values.contains(&result_key) {
+                        break; // Cycle detected
+                    }
+                    seen_values.insert(result_key);
+
+                    // Add result to collection
+                    match result.clone() {
+                        FhirPathValue::Collection(items) => {
+                            all_results.extend(items.into_iter());
+                        }
+                        other => all_results.push(other),
+                    }
+
+                    // Set up for next iteration
+                    current_input = result;
+                }
+            }
+        }
+
+        Ok(FhirPathValue::Collection(Collection::from(all_results)))
+    }
+
+    /// Evaluate aggregate lambda function
+    pub async fn evaluate_aggregate_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // aggregate() requires 1 or 2 arguments: aggregate(iterator) or aggregate(iterator, init)
+        if func_data.args.is_empty() || func_data.args.len() > 2 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "aggregate() requires 1 or 2 arguments, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let iterator_expr = &func_data.args[0];
+
+        // Initial value (default to empty)
+        let mut accumulator = if func_data.args.len() == 2 {
+            self.evaluate_node_async(&func_data.args[1], input.clone(), context, depth + 1)
+                .await?
+        } else {
+            FhirPathValue::Empty
+        };
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context with $this (current item) and $total (accumulator)
+                    let lambda_context = context.with_lambda_context(
+                        item.clone(),
+                        index,
+                        accumulator.clone(), // $total
+                    );
+
+                    // Evaluate iterator expression
+                    accumulator = self
+                        .evaluate_node_async(
+                            iterator_expr,
+                            item.clone(),
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+                }
+            }
+            other => {
+                // Single item aggregation
+                let lambda_context =
+                    context.with_lambda_context(other.clone(), 0, accumulator.clone());
+
+                accumulator = self
+                    .evaluate_node_async(iterator_expr, other.clone(), &lambda_context, depth + 1)
+                    .await?;
+            }
+        }
+
+        Ok(accumulator)
+    }
+
+    /// Evaluate all lambda function
+    pub async fn evaluate_all_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() != 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "all() requires exactly 1 argument, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        let condition_expr = &func_data.args[0];
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    // Empty collection: all() returns true
+                    return Ok(FhirPathValue::Boolean(true));
+                }
+
+                for (index, item) in items.iter().enumerate() {
+                    // Create lambda context
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
+
+                    // Evaluate condition
+                    let condition_result = self
+                        .evaluate_node_async(
+                            condition_expr,
+                            item.clone(),
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // If any condition is false, return false
+                    if !self.is_truthy(&condition_result) {
+                        return Ok(FhirPathValue::Boolean(false));
+                    }
+                }
+
+                // All conditions passed
+                Ok(FhirPathValue::Boolean(true))
+            }
+            other => {
+                // Single item: evaluate condition
+                let lambda_context =
+                    context.with_lambda_context(other.clone(), 0, FhirPathValue::Empty);
+
+                let condition_result = self
+                    .evaluate_node_async(condition_expr, other.clone(), &lambda_context, depth + 1)
+                    .await?;
+
+                Ok(FhirPathValue::Boolean(self.is_truthy(&condition_result)))
+            }
+        }
+    }
+}

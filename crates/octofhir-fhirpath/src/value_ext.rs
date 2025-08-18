@@ -20,7 +20,7 @@ use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use octofhir_ucum::{self, OwnedUnitExpr};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
 use std::sync::Arc;
 
 /// Core value type for FHIRPath expressions
@@ -87,7 +87,7 @@ impl FhirResource {
     pub fn new(data: Value) -> Self {
         let resource_type = data
             .as_object()
-            .and_then(|obj| obj.get("resourceType"))
+            .and_then(|obj| obj.get(&"resourceType"))
             .and_then(|rt| rt.as_str())
             .map(|s| s.to_string());
 
@@ -110,9 +110,10 @@ impl FhirResource {
     /// Get a property value by path
     pub fn get_property(&self, path: &str) -> Option<&Value> {
         // Handle simple property access on JSON objects
-        match &self.data {
-            Value::Object(obj) => obj.get(path),
-            _ => None,
+        if let Some(obj) = self.data.as_object() {
+            obj.get(&path)
+        } else {
+            None
         }
     }
 
@@ -124,16 +125,14 @@ impl FhirResource {
             let mut current = &self.data;
 
             for part in parts {
-                match current {
-                    Value::Object(obj) => {
-                        current = obj.get(part)?;
-                    }
-                    Value::Array(_arr) => {
-                        // For arrays, collect results from each element
-                        // This is handled by the caller in evaluate_path_navigation
-                        return None;
-                    }
-                    _ => return None,
+                if let Some(obj) = current.as_object() {
+                    current = obj.get(&part)?;
+                } else if current.as_array().is_some() {
+                    // For arrays, collect results from each element
+                    // This is handled by the caller in evaluate_path_navigation
+                    return None;
+                } else {
+                    return None;
                 }
             }
             Some(current)
@@ -466,71 +465,68 @@ impl FhirPathValue {
     }
 }
 
-/// Convert from serde_json::Value to FhirPathValue
+/// Convert from sonic_rs::Value to FhirPathValue
 impl From<Value> for FhirPathValue {
     fn from(value: Value) -> Self {
-        match value {
-            Value::Bool(b) => Self::Boolean(b),
-            Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    Self::Integer(i)
-                } else if let Some(f) = n.as_f64() {
-                    Self::Decimal(Decimal::try_from(f).unwrap_or_default())
-                } else {
-                    Self::String(n.to_string())
-                }
+        if let Some(b) = value.as_bool() {
+            Self::Boolean(b)
+        } else if let Some(i) = value.as_i64() {
+            Self::Integer(i)
+        } else if let Some(f) = value.as_f64() {
+            Self::Decimal(Decimal::try_from(f).unwrap_or_default())
+        } else if let Some(s) = value.as_str() {
+            // Try to parse as date/datetime/time first
+            if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                Self::Date(date)
+            } else if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(s) {
+                Self::DateTime(datetime.with_timezone(&chrono::Utc))
+            } else if let Ok(time) = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S") {
+                Self::Time(time)
+            } else if let Ok(time) = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f") {
+                Self::Time(time)
+            } else {
+                Self::String(s.to_string())
             }
-            Value::String(s) => {
-                // Try to parse as date/datetime/time first
-                if let Ok(date) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
-                    Self::Date(date)
-                } else if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(&s) {
-                    Self::DateTime(datetime.with_timezone(&chrono::Utc))
-                } else if let Ok(time) = chrono::NaiveTime::parse_from_str(&s, "%H:%M:%S") {
-                    Self::Time(time)
-                } else if let Ok(time) = chrono::NaiveTime::parse_from_str(&s, "%H:%M:%S%.f") {
-                    Self::Time(time)
-                } else {
-                    Self::String(s)
-                }
-            }
-            Value::Array(arr) => {
-                let items: Vec<FhirPathValue> = arr.into_iter().map(FhirPathValue::from).collect();
-                Self::Collection(items)
-            }
-            Value::Object(ref obj) => {
-                // Check if this looks like a Quantity
-                if obj.contains_key("value")
-                    && (obj.contains_key("unit") || obj.contains_key("code"))
-                {
-                    if let Some(value_json) = obj.get("value") {
-                        if let Some(value_num) = value_json.as_f64() {
-                            let unit = obj
-                                .get("unit")
-                                .or_else(|| obj.get("code"))
-                                .and_then(|u| u.as_str())
-                                .map(|s| s.to_string());
+        } else if let Some(arr) = value.as_array() {
+            let items: Vec<FhirPathValue> =
+                arr.iter().map(|v| FhirPathValue::from(v.clone())).collect();
+            Self::Collection(items)
+        } else if let Some(obj) = value.as_object() {
+            // Check if this looks like a Quantity
+            if obj.contains_key(&"value")
+                && (obj.contains_key(&"unit") || obj.contains_key(&"code"))
+            {
+                if let Some(value_json) = obj.get(&"value") {
+                    if let Some(value_num) = value_json.as_f64() {
+                        let unit = obj
+                            .get(&"unit")
+                            .or_else(|| obj.get(&"code"))
+                            .and_then(|u| u.as_str())
+                            .map(|s| s.to_string());
 
-                            if let Ok(decimal_value) = Decimal::try_from(value_num) {
-                                return Self::Quantity {
-                                    value: decimal_value,
-                                    unit: unit.clone(),
-                                    ucum_expr: unit.as_ref().and_then(|u| Self::parse_ucum_unit(u)),
-                                };
-                            }
+                        if let Ok(decimal_value) = Decimal::try_from(value_num) {
+                            return Self::Quantity {
+                                value: decimal_value,
+                                unit: unit.clone(),
+                                ucum_expr: unit.as_ref().and_then(|u| Self::parse_ucum_unit(u)),
+                            };
                         }
                     }
                 }
-
-                // Check if this is a FHIR resource (has resourceType)
-                if obj.contains_key("resourceType") {
-                    Self::Resource(FhirResource::new(value))
-                } else {
-                    // For other objects, wrap as Resource but without resourceType
-                    Self::Resource(FhirResource::new(value))
-                }
             }
-            Value::Null => Self::Empty,
+
+            // Check if this is a FHIR resource (has resourceType)
+            if obj.contains_key(&"resourceType") {
+                Self::Resource(FhirResource::new(value))
+            } else {
+                // For other objects, wrap as Resource but without resourceType
+                Self::Resource(FhirResource::new(value))
+            }
+        } else if value.is_null() {
+            Self::Empty
+        } else {
+            // Fallback for any other type
+            Self::String(value.to_string())
         }
     }
 }
@@ -563,52 +559,47 @@ impl std::fmt::Display for FhirPathValue {
     }
 }
 
-/// Convert from FhirPathValue to serde_json::Value
+/// Convert from FhirPathValue to sonic_rs::Value
 impl From<FhirPathValue> for Value {
     fn from(fhir_value: FhirPathValue) -> Self {
         match fhir_value {
-            FhirPathValue::Boolean(b) => Value::Bool(b),
-            FhirPathValue::Integer(i) => Value::Number(i.into()),
+            FhirPathValue::Boolean(b) => sonic_rs::json!(b),
+            FhirPathValue::Integer(i) => sonic_rs::json!(i),
             FhirPathValue::Decimal(d) => {
-                // Convert decimal to JSON number - may lose precision
-                if let Ok(f) = d.try_into() {
-                    if let Some(num) = serde_json::Number::from_f64(f) {
-                        Value::Number(num)
-                    } else {
-                        Value::String(d.to_string())
-                    }
+                // Try to convert decimal to f64, fallback to string
+                if let Ok(f) = TryInto::<f64>::try_into(d) {
+                    sonic_rs::json!(f)
                 } else {
-                    Value::String(d.to_string())
+                    sonic_rs::json!(d.to_string())
                 }
             }
-            FhirPathValue::String(s) => Value::String(s),
-            FhirPathValue::Date(d) => Value::String(d.format("%Y-%m-%d").to_string()),
-            FhirPathValue::DateTime(dt) => Value::String(dt.to_rfc3339()),
-            FhirPathValue::Time(t) => Value::String(t.format("%H:%M:%S").to_string()),
+            FhirPathValue::String(s) => sonic_rs::json!(s),
+            FhirPathValue::Date(d) => sonic_rs::json!(d.format("%Y-%m-%d").to_string()),
+            FhirPathValue::DateTime(dt) => sonic_rs::json!(dt.to_rfc3339()),
+            FhirPathValue::Time(t) => sonic_rs::json!(t.format("%H:%M:%S").to_string()),
             FhirPathValue::Quantity { value, unit, .. } => {
-                let mut obj = serde_json::Map::new();
-                // Convert decimal to JSON value using the same logic as above
-                let value_json = if let Ok(f) = value.try_into() {
-                    if let Some(num) = serde_json::Number::from_f64(f) {
-                        Value::Number(num)
-                    } else {
-                        Value::String(value.to_string())
-                    }
+                let value_json = if let Ok(f) = TryInto::<f64>::try_into(value) {
+                    sonic_rs::json!(f)
                 } else {
-                    Value::String(value.to_string())
+                    sonic_rs::json!(value.to_string())
                 };
-                obj.insert("value".to_string(), value_json);
                 if let Some(unit) = unit {
-                    obj.insert("unit".to_string(), Value::String(unit));
+                    sonic_rs::json!({
+                        "value": value_json,
+                        "unit": unit
+                    })
+                } else {
+                    sonic_rs::json!({
+                        "value": value_json
+                    })
                 }
-                Value::Object(obj)
             }
             FhirPathValue::Collection(items) => {
                 let json_items: Vec<Value> = items.into_iter().map(Value::from).collect();
-                Value::Array(json_items)
+                sonic_rs::json!(json_items)
             }
             FhirPathValue::Resource(resource) => resource.data,
-            FhirPathValue::Empty => Value::Null,
+            FhirPathValue::Empty => sonic_rs::json!(null),
         }
     }
 }
@@ -631,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_json_conversion() {
-        let json_val = serde_json::json!({"name": "test", "value": 42});
+        let json_val = sonic_rs::json!({"name": "test", "value": 42});
         let fhir_val = FhirPathValue::from(json_val.clone());
 
         match fhir_val {

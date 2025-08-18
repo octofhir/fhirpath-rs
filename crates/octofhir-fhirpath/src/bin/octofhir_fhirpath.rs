@@ -19,7 +19,7 @@
 use clap::{Parser, Subcommand};
 use octofhir_fhirpath::model::provider::PackageSpec;
 use octofhir_fhirpath::parse;
-use serde_json::{Value as JsonValue, from_str as parse_json};
+use sonic_rs::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
 use std::sync::Arc;
@@ -147,7 +147,7 @@ async fn handle_evaluate(
     // Handle empty input case
     let resource: JsonValue = if resource_data.trim().is_empty() {
         // Use empty object for empty input
-        JsonValue::Object(serde_json::Map::new())
+        parse_json("{}").unwrap_or_default()
     } else {
         // Parse JSON resource
         match parse_json(&resource_data) {
@@ -230,7 +230,7 @@ async fn handle_evaluate(
     for var_spec in variables {
         if let Some((name, value_str)) = var_spec.split_once('=') {
             // Try to parse value as JSON first
-            let value = match serde_json::from_str::<serde_json::Value>(value_str) {
+            let value = match parse_json::<JsonValue>(value_str) {
                 Ok(json_value) => octofhir_fhirpath::FhirPathValue::from(json_value),
                 Err(_) => {
                     // If JSON parsing fails, treat as string
@@ -267,12 +267,12 @@ async fn handle_evaluate(
             }
 
             let output = if pretty {
-                match serde_json::to_string_pretty(&result) {
+                match sonic_rs::to_string_pretty(&result) {
                     Ok(json) => json,
                     Err(_) => format!("{result:?}"),
                 }
             } else {
-                match serde_json::to_string(&result) {
+                match sonic_rs::to_string(&result) {
                     Ok(json) => json,
                     Err(_) => format!("{result:?}"),
                 }

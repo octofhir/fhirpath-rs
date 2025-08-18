@@ -51,26 +51,33 @@ impl ChildrenFunction {
     fn get_children_from_value(&self, value: &FhirPathValue) -> Vec<FhirPathValue> {
         match value {
             FhirPathValue::JsonValue(json_val) => {
-                if let Some(obj) = json_val.as_object() {
+                if json_val.is_object() {
                     // Get all property values as children
                     let mut children = Vec::new();
-                    for (_property_name, property_value) in obj.iter() {
-                        // Each property value becomes a child node
-                        // Arrays ARE unrolled - each element becomes a separate child
-                        if let Some(arr) = property_value.as_array() {
-                            for element in arr {
-                                children.push(FhirPathValue::from(element.clone()));
+                    // Use sonic-rs object iteration - no conversions!
+                    if let Some(iter) = json_val.object_iter() {
+                        for (_property_name, property_value) in iter {
+                            // Each property value becomes a child node
+                            // Arrays ARE unrolled - each element becomes a separate child
+                            if property_value.is_array() {
+                                if let Some(array_iter) = property_value.array_iter() {
+                                    for element in array_iter {
+                                        children.push(FhirPathValue::JsonValue(element));
+                                    }
+                                }
+                            } else {
+                                children.push(FhirPathValue::JsonValue(property_value));
                             }
-                        } else {
-                            children.push(FhirPathValue::from(property_value.clone()));
                         }
                     }
                     children
-                } else if let Some(arr) = json_val.as_array() {
+                } else if json_val.is_array() {
                     // If the input itself is an array, each element is a child
-                    arr.iter()
-                        .map(|value| FhirPathValue::from(value.clone()))
-                        .collect()
+                    if let Some(iter) = json_val.array_iter() {
+                        iter.map(FhirPathValue::JsonValue).collect()
+                    } else {
+                        Vec::new()
+                    }
                 } else {
                     // Primitive values have no children
                     Vec::new()
@@ -78,9 +85,9 @@ impl ChildrenFunction {
             }
             FhirPathValue::Resource(resource) => {
                 // For FHIR resources, get children from their JSON representation
-                self.get_children_from_value(&FhirPathValue::JsonValue(
-                    resource.as_json().clone().into(),
-                ))
+                // Use the resource's existing JSON value directly - no conversions!
+                let json_value = resource.as_json_value().clone();
+                self.get_children_from_value(&FhirPathValue::JsonValue(json_value))
             }
             FhirPathValue::Collection(items) => {
                 // Get children of all items in collection

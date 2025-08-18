@@ -14,7 +14,7 @@
 
 // Evaluation context for FHIRPath expressions
 
-use octofhir_fhirpath_model::json_arc::ArcJsonValue;
+use octofhir_fhirpath_model::JsonValue;
 use octofhir_fhirpath_model::{
     FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
 };
@@ -112,8 +112,29 @@ impl VariableScope {
             total_value: total,
         };
 
+        // Initialize with inherited environment variables from parent
+        let mut variables = FxHashMap::default();
+
+        // Copy critical environment variables from parent scope to ensure they're accessible
+        // This fixes the issue where lambda contexts lose access to Bundle context
+        if let Some(ref parent_scope) = parent {
+            let env_vars = [
+                "context",
+                "resource",
+                "rootResource",
+                "sct",
+                "loinc",
+                "ucum",
+            ];
+            for var_name in &env_vars {
+                if let Some(var_value) = parent_scope.get_variable(var_name) {
+                    variables.insert(var_name.to_string(), var_value.clone());
+                }
+            }
+        }
+
         Self {
-            variables: Cow::Owned(FxHashMap::default()),
+            variables: Cow::Owned(variables),
             parent,
             lambda_metadata: Some(lambda_metadata),
             owned: true,
@@ -130,7 +151,24 @@ impl VariableScope {
     ) -> Self {
         let mut variables = FxHashMap::default();
 
-        // Set explicit parameter mappings
+        // Copy critical environment variables from parent scope to ensure they're accessible
+        if let Some(ref parent_scope) = parent {
+            let env_vars = [
+                "context",
+                "resource",
+                "rootResource",
+                "sct",
+                "loinc",
+                "ucum",
+            ];
+            for var_name in &env_vars {
+                if let Some(var_value) = parent_scope.get_variable(var_name) {
+                    variables.insert(var_name.to_string(), var_value.clone());
+                }
+            }
+        }
+
+        // Set explicit parameter mappings (these can override environment variables if needed)
         for (param_name, param_value) in param_mappings {
             variables.insert(param_name, param_value);
         }
@@ -159,6 +197,17 @@ impl VariableScope {
             return;
         }
 
+        self.set_variable_internal(name, value);
+    }
+
+    /// Internal method to set variables without system variable protection
+    /// Used during context initialization to set standard environment variables
+    pub(crate) fn set_system_variable(&mut self, name: String, value: FhirPathValue) {
+        self.set_variable_internal(name, value);
+    }
+
+    /// Internal method that actually sets the variable
+    fn set_variable_internal(&mut self, name: String, value: FhirPathValue) {
         // Trigger copy-on-write if we're borrowing
         if !self.owned {
             let mut new_vars = FxHashMap::default();
@@ -248,8 +297,8 @@ pub struct EvaluationContext {
     /// Current input value being evaluated
     pub input: FhirPathValue,
 
-    /// Root input value (for %context and $resource variables)
-    pub root: FhirPathValue,
+    /// Root input value (for %context and $resource variables) - shared for memory efficiency
+    pub root: Arc<FhirPathValue>,
 
     /// Variable scope stack for proper scoping
     pub variable_scope: VariableScope,
@@ -272,7 +321,7 @@ impl EvaluationContext {
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
-            root: input.clone(),
+            root: Arc::new(input.clone()),
             input,
             variable_scope: VariableScope::new(),
             registry,
@@ -296,7 +345,7 @@ impl EvaluationContext {
         }
 
         Self {
-            root: input.clone(),
+            root: Arc::new(input.clone()),
             input,
             variable_scope,
             registry,
@@ -309,7 +358,7 @@ impl EvaluationContext {
     pub fn with_input(&self, input: FhirPathValue) -> Self {
         Self {
             input,
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: self.variable_scope.clone(),
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -321,7 +370,7 @@ impl EvaluationContext {
     pub fn with_fresh_variable_scope(&self) -> Self {
         Self {
             input: self.input.clone(),
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::new(),
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -333,7 +382,7 @@ impl EvaluationContext {
     pub fn with_inherited_scope(&self, input: FhirPathValue) -> Self {
         Self {
             input,
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -357,7 +406,7 @@ impl EvaluationContext {
 
         Self {
             input: current_item,
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: lambda_scope,
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -369,6 +418,12 @@ impl EvaluationContext {
     /// System variables cannot be overridden (silently ignored)
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
         self.variable_scope.set_variable(name, value);
+    }
+
+    /// Set a system variable during context initialization
+    /// This bypasses the system variable protection for initial setup
+    pub(crate) fn set_system_variable(&mut self, name: String, value: FhirPathValue) {
+        self.variable_scope.set_system_variable(name, value);
     }
 
     /// Get a variable from the context
@@ -415,7 +470,7 @@ impl EvaluationContext {
 
         Self {
             input: self.input.clone(),
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -439,7 +494,7 @@ impl EvaluationContext {
 
         Self {
             input: current_item,
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: lambda_scope,
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -465,7 +520,7 @@ impl EvaluationContext {
 
         Self {
             input: current_item,
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: lambda_scope,
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -488,7 +543,7 @@ impl EvaluationContext {
 
     /// Get the root resource for context resolution
     pub fn get_root_resource(&self) -> &FhirPathValue {
-        &self.root
+        self.root.as_ref()
     }
 
     /// Create a new context with a specific $this value for lambda evaluation
@@ -497,7 +552,7 @@ impl EvaluationContext {
         // and ensure $this variable is available
         let mut new_context = Self {
             input: this_value.clone(),
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::child_from_shared(Arc::new(self.variable_scope.clone())),
             registry: self.registry.clone(),
             model_provider: self.model_provider.clone(),
@@ -521,18 +576,18 @@ impl EvaluationContext {
         let item_context_input = match &item {
             octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),
             octofhir_fhirpath_model::FhirPathValue::Resource(resource) => {
-                ArcJsonValue::new(resource.to_json())
+                resource.as_json_value().clone()
             }
             _ => {
-                // For other types, convert to JSON for context evaluation
-                ArcJsonValue::new(serde_json::Value::from(item.clone()))
+                // For other types, create a basic JSON representation
+                JsonValue::from_value(&item).unwrap_or_else(|_| JsonValue::parse("null").unwrap())
             }
         };
 
         // Create a new context with the item as both the input and $this value
         Self {
             input: octofhir_fhirpath_model::FhirPathValue::JsonValue(item_context_input),
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::lambda_scope(
                 Some(Arc::new(self.variable_scope.clone())),
                 item.clone(),
@@ -551,18 +606,18 @@ impl EvaluationContext {
         let item_context_input = match &item {
             octofhir_fhirpath_model::FhirPathValue::JsonValue(json) => json.clone(),
             octofhir_fhirpath_model::FhirPathValue::Resource(resource) => {
-                ArcJsonValue::new(resource.to_json())
+                resource.as_json_value().clone()
             }
             _ => {
-                // For other types, convert to JSON for context evaluation
-                ArcJsonValue::new(serde_json::Value::from(item.clone()))
+                // For other types, create a basic JSON representation
+                JsonValue::from_value(&item).unwrap_or_else(|_| JsonValue::parse("null").unwrap())
             }
         };
 
         // Create a new context with the item as both the input and $this value
         Self {
             input: octofhir_fhirpath_model::FhirPathValue::JsonValue(item_context_input),
-            root: self.root.clone(),
+            root: self.root.clone(), // Arc::clone is cheap
             variable_scope: VariableScope::lambda_scope(
                 Some(Arc::new(self.variable_scope.clone())),
                 item.clone(),
@@ -819,7 +874,7 @@ impl ContextPool {
             if let Some(mut context) = pool.pop_front() {
                 // Reset the context for reuse
                 context.input = input.clone();
-                context.root = input;
+                context.root = Arc::new(input);
                 context.variable_scope = VariableScope::new();
                 // Clear type annotations for fresh context
                 context.clear_type_annotations();
@@ -899,7 +954,7 @@ impl Drop for PooledContext {
             // Clear sensitive data before returning to pool
             self.context.variable_scope = VariableScope::new();
             self.context.input = FhirPathValue::Empty;
-            self.context.root = FhirPathValue::Empty;
+            self.context.root = Arc::new(FhirPathValue::Empty);
             // Clear type annotations
             self.context.clear_type_annotations();
 
@@ -973,7 +1028,7 @@ impl<'a> StackContext<'a> {
             Arc::new(FhirPathRegistry::new()), // Use new unified registry
             mock_provider,
         );
-        context.root = self.root.clone();
+        context.root = Arc::new(self.root.clone()); // Convert to Arc
 
         // Convert variables to owned form
         for (name, value) in &self.variables {
@@ -1028,7 +1083,7 @@ impl<'a> ContextStorage<'a> {
     pub fn root(&self) -> &FhirPathValue {
         match self {
             Self::Stack(ctx) => ctx.root,
-            Self::Heap(ctx) => &ctx.root,
+            Self::Heap(ctx) => ctx.root.as_ref(),
         }
     }
 
@@ -1215,11 +1270,11 @@ mod tests {
             child.input,
             FhirPathValue::String("child".to_string().into())
         );
-        assert_eq!(child.root, input); // Root should be preserved
+        assert_eq!(*child.root, input); // Root should be preserved
 
         let fresh = ctx.with_fresh_variable_scope();
         assert_eq!(fresh.input, input);
-        assert_eq!(fresh.root, input);
+        assert_eq!(*fresh.root, input);
     }
 
     #[test]
@@ -1260,7 +1315,7 @@ mod tests {
         // Convert to heap context
         let heap_ctx = stack_ctx.to_heap_context();
         assert_eq!(heap_ctx.input, input);
-        assert_eq!(heap_ctx.root, input);
+        assert_eq!(*heap_ctx.root, input);
         assert_eq!(heap_ctx.get_variable("test_var"), Some(&var_value));
     }
 

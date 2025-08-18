@@ -8,7 +8,7 @@ use octofhir_fhirpath::model::FhirPathValue;
 use octofhir_fhirpath::model::ModelProvider;
 use octofhir_fhirpath::{FhirPathEngine, FhirPathRegistry, create_standard_registry, parse};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,7 @@ where
     D: serde::Deserializer<'de>,
 {
     let opt = Option::<Value>::deserialize(deserializer)?;
-    Ok(opt.or(Some(Value::Null)))
+    Ok(opt.or(Some(Value::new_null())))
 }
 
 /// A test suite containing multiple test cases
@@ -202,7 +202,7 @@ impl IntegrationTestRunner {
             )
         })?;
 
-        let suite: TestSuite = serde_json::from_str(&content)
+        let suite: TestSuite = sonic_rs::from_str(&content)
             .map_err(|e| format!("Failed to parse test suite JSON: {e}"))?;
 
         Ok(suite)
@@ -244,7 +244,7 @@ impl IntegrationTestRunner {
             )
         })?;
 
-        let json_value: Value = serde_json::from_str(&content)
+        let json_value: Value = sonic_rs::from_str(&content)
             .map_err(|e| format!("Failed to parse JSON in {filename}: {e}"))?;
 
         if self.verbose {
@@ -274,8 +274,11 @@ impl IntegrationTestRunner {
     /// Simplified comparison with proper handling of FHIRPath collection semantics
     fn compare_results(&self, actual: &FhirPathValue, expected: &Value) -> bool {
         // Convert actual to JSON for uniform comparison
-        let actual_json = match serde_json::to_value(actual) {
-            Ok(json) => json,
+        let actual_json = match sonic_rs::to_string(actual) {
+            Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+                Ok(json) => json,
+                Err(_) => return false,
+            },
             Err(_) => return false,
         };
 
@@ -287,16 +290,44 @@ impl IntegrationTestRunner {
         // FHIRPath collection handling: expected single value should match [single_value]
         match (expected, &actual_json) {
             // Test expects single value, actual is collection with one item
-            (expected_single, Value::Array(actual_arr)) if actual_arr.len() == 1 => {
-                expected_single == &actual_arr[0]
+            (expected_single, actual_json) if actual_json.is_array() => {
+                if let Some(actual_arr) = actual_json.as_array() {
+                    if actual_arr.len() == 1 {
+                        expected_single == &actual_arr[0]
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             }
             // Test expects array, actual is single value (shouldn't happen with new spec compliance but handle it)
-            (Value::Array(expected_arr), actual_single) if expected_arr.len() == 1 => {
-                &expected_arr[0] == actual_single
+            (expected, actual_single) if expected.is_array() => {
+                if let Some(expected_arr) = expected.as_array() {
+                    if expected_arr.len() == 1 {
+                        &expected_arr[0] == actual_single
+                    } else {
+                        expected == actual_single
+                    }
+                } else {
+                    false
+                }
             }
             // Both empty
-            (Value::Array(expected_arr), Value::Null) if expected_arr.is_empty() => true,
-            (Value::Null, Value::Array(actual_arr)) if actual_arr.is_empty() => true,
+            (expected, actual_json) if expected.is_array() && actual_json.is_null() => {
+                if let Some(expected_arr) = expected.as_array() {
+                    expected_arr.is_empty()
+                } else {
+                    false
+                }
+            }
+            (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
+                if let Some(actual_arr) = actual_json.as_array() {
+                    actual_arr.is_empty()
+                } else {
+                    false
+                }
+            }
             // Default: no match
             _ => false,
         }
@@ -384,7 +415,7 @@ impl IntegrationTestRunner {
             println!("Result: {result:?}");
             println!(
                 "Expected: {}",
-                serde_json::to_string(&test.expected).unwrap_or_default()
+                sonic_rs::to_string(&test.expected).unwrap_or_default()
             );
         }
 
@@ -393,7 +424,9 @@ impl IntegrationTestRunner {
             TestResult::Passed
         } else {
             // Convert actual result to JSON for comparison
-            let actual_json = serde_json::to_value(&result).unwrap_or_default();
+            let actual_json = sonic_rs::to_string(&result)
+                .and_then(|s| sonic_rs::from_str::<Value>(&s))
+                .unwrap_or_default();
             TestResult::Failed {
                 expected: test.expected.clone(),
                 actual: actual_json,
@@ -482,11 +515,11 @@ impl IntegrationTestRunner {
                     }
                     println!(
                         "   Expected: {}",
-                        serde_json::to_string_pretty(&expected).unwrap_or_default()
+                        sonic_rs::to_string_pretty(&expected).unwrap_or_default()
                     );
                     println!(
                         "   Actual:   {}",
-                        serde_json::to_string_pretty(&actual).unwrap_or_default()
+                        sonic_rs::to_string_pretty(&actual).unwrap_or_default()
                     );
                     println!();
                 }

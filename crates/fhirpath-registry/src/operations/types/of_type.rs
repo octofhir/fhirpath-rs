@@ -151,22 +151,26 @@ impl OfTypeFunction {
             }
             FhirPathValue::JsonValue(json_val) => {
                 // For FHIR resources, check the resourceType property
-                if let Some(obj) = json_val.as_object() {
-                    if let Some(serde_json::Value::String(resource_type)) = obj.get("resourceType")
-                    {
-                        let is_direct_match = resource_type == target_type;
-                        let is_subtype = context
-                            .model_provider
-                            .is_subtype_of(resource_type, target_type)
-                            .await;
-                        Ok(is_direct_match || is_subtype)
+                if json_val.is_object() {
+                    if let Some(resource_type_val) = json_val.get_property("resourceType") {
+                        if let Some(resource_type) = resource_type_val.as_str() {
+                            let is_direct_match = resource_type == target_type;
+                            let is_subtype = context
+                                .model_provider
+                                .is_subtype_of(resource_type, target_type)
+                                .await;
+                            Ok(is_direct_match || is_subtype)
+                        } else {
+                            // For FHIR primitive types, check the actual value type
+                            self.check_fhir_primitive_type_sonic(json_val, target_type)
+                        }
                     } else {
                         // For FHIR primitive types, check the actual value type
-                        self.check_fhir_primitive_type(json_val, target_type)
+                        self.check_fhir_primitive_type_sonic(json_val, target_type)
                     }
                 } else {
                     // For primitive JSON values, check their type
-                    self.check_fhir_primitive_type(json_val, target_type)
+                    self.check_fhir_primitive_type_sonic(json_val, target_type)
                 }
             }
             FhirPathValue::Collection(_) => {
@@ -194,20 +198,43 @@ impl OfTypeFunction {
 
     fn check_fhir_primitive_type(
         &self,
-        json_val: &serde_json::Value,
+        json_val: &sonic_rs::Value,
         target_type: &str,
     ) -> Result<bool> {
-        match json_val {
-            serde_json::Value::String(_) => Ok(target_type == "string" || target_type == "String"),
-            serde_json::Value::Number(n) => {
-                if n.is_i64() {
-                    Ok(target_type == "integer" || target_type == "Integer")
-                } else {
-                    Ok(target_type == "decimal" || target_type == "Decimal")
-                }
+        use sonic_rs::JsonValueTrait;
+
+        if json_val.as_str().is_some() {
+            Ok(target_type == "string" || target_type == "String")
+        } else if let Some(n) = json_val.as_f64() {
+            if n.fract() == 0.0 {
+                Ok(target_type == "integer" || target_type == "Integer")
+            } else {
+                Ok(target_type == "decimal" || target_type == "Decimal")
             }
-            serde_json::Value::Bool(_) => Ok(target_type == "boolean" || target_type == "Boolean"),
-            _ => Ok(false),
+        } else if json_val.as_bool().is_some() {
+            Ok(target_type == "boolean" || target_type == "Boolean")
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn check_fhir_primitive_type_sonic(
+        &self,
+        json_val: &octofhir_fhirpath_model::JsonValue,
+        target_type: &str,
+    ) -> Result<bool> {
+        if json_val.as_str().is_some() {
+            Ok(target_type == "string" || target_type == "String")
+        } else if json_val.is_number() {
+            if json_val.as_i64().is_some() {
+                Ok(target_type == "integer" || target_type == "Integer")
+            } else {
+                Ok(target_type == "decimal" || target_type == "Decimal")
+            }
+        } else if json_val.as_bool().is_some() {
+            Ok(target_type == "boolean" || target_type == "Boolean")
+        } else {
+            Ok(false)
         }
     }
 }

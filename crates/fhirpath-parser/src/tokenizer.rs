@@ -978,8 +978,22 @@ impl<'input> Tokenizer<'input> {
         // Fast path for time literals (@T...)
         if self.bytes[self.pos] == b'T' {
             self.pos += 1; // Skip 'T'
+            let time_start = self.pos;
             self.parse_time_part()?;
-            return Ok(Token::Time(self.slice(start, self.pos)));
+
+            // Check if timezone information was parsed
+            // If timezone exists, this should be treated as invalid DateTime (not Time)
+            let time_slice = &self.bytes[time_start..self.pos];
+            let has_timezone = time_slice
+                .iter()
+                .any(|&b| b == b'Z' || b == b'+' || b == b'-');
+
+            if has_timezone {
+                // Time literals with timezone are invalid, but parse as DateTime to let .is(Time) handle it
+                return Ok(Token::DateTime(self.slice(start, self.pos)));
+            } else {
+                return Ok(Token::Time(self.slice(start, self.pos)));
+            }
         }
 
         // Parse date part

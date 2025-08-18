@@ -111,11 +111,11 @@ impl FhirPathOperation for NotOperation {
         let result = match value {
             Some(true) => Some(false),
             Some(false) => Some(true),
-            None => None, // NOT of empty is empty
+            None => Some(true), // NOT of empty is true per FHIRPath specification
         };
 
         match result {
-            Some(b) => Ok(FhirPathValue::Boolean(b)),
+            Some(b) => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(b)])),
             None => Ok(FhirPathValue::Empty),
         }
     }
@@ -138,11 +138,13 @@ impl FhirPathOperation for NotOperation {
                 let result = match value {
                     Some(true) => Some(false),
                     Some(false) => Some(true),
-                    None => None,
+                    None => Some(true), // NOT of empty is true per FHIRPath specification
                 };
 
                 match result {
-                    Some(b) => Some(Ok(FhirPathValue::Boolean(b))),
+                    Some(b) => Some(Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
+                        b,
+                    )]))),
                     None => Some(Ok(FhirPathValue::Empty)),
                 }
             }

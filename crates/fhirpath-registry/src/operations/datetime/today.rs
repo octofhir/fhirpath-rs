@@ -81,7 +81,12 @@ impl FhirPathOperation for TodayFunction {
         }
 
         let today = Utc::now().date_naive();
-        Ok(FhirPathValue::Date(today))
+        Ok(FhirPathValue::Date(
+            octofhir_fhirpath_model::PrecisionDate::new(
+                today,
+                octofhir_fhirpath_model::TemporalPrecision::Day, // Day precision for today()
+            ),
+        ))
     }
 
     fn try_evaluate_sync(
@@ -98,7 +103,12 @@ impl FhirPathOperation for TodayFunction {
         }
 
         let today = Utc::now().date_naive();
-        Some(Ok(FhirPathValue::Date(today)))
+        Some(Ok(FhirPathValue::Date(
+            octofhir_fhirpath_model::PrecisionDate::new(
+                today,
+                octofhir_fhirpath_model::TemporalPrecision::Day, // Day precision for today()
+            ),
+        )))
     }
 
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {

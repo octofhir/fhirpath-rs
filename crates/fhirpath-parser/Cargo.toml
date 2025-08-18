@@ -20,7 +20,6 @@ octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 nom = { workspace = true }
 nom_locate = { workspace = true }
 serde = { workspace = true, optional = true }
-serde_json = { workspace = true }
 log = { workspace = true }
 smallvec = { workspace = true }
 rustc-hash = { workspace = true }

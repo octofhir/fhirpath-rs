@@ -245,9 +245,12 @@ impl TypeCoercion {
     /// Coerce value to date
     pub fn coerce_to_date(value: &FhirPathValue) -> CoercionResult<FhirPathValue> {
         match value {
-            FhirPathValue::Date(d) => Ok(FhirPathValue::Date(*d)),
+            FhirPathValue::Date(d) => Ok(FhirPathValue::Date(d.clone())),
             FhirPathValue::String(s) => match chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-                Ok(date) => Ok(FhirPathValue::Date(date)),
+                Ok(date) => Ok(FhirPathValue::Date(crate::temporal::PrecisionDate::new(
+                    date,
+                    crate::temporal::TemporalPrecision::Day, // Default precision for coercion
+                ))),
                 Err(_) => Err(CoercionError::InvalidFormat {
                     value: s.to_string(),
                     target_type: "Date".to_string(),
@@ -273,18 +276,29 @@ impl TypeCoercion {
     /// Coerce value to datetime
     pub fn coerce_to_datetime(value: &FhirPathValue) -> CoercionResult<FhirPathValue> {
         match value {
-            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::DateTime(*dt)),
+            FhirPathValue::DateTime(dt) => Ok(FhirPathValue::DateTime(dt.clone())),
             FhirPathValue::Date(d) => {
                 // Convert date to datetime at midnight
                 let dt = d
+                    .date
                     .and_hms_opt(0, 0, 0)
                     .unwrap()
                     .and_local_timezone(chrono::FixedOffset::east_opt(0).unwrap())
                     .unwrap();
-                Ok(FhirPathValue::DateTime(dt))
+                Ok(FhirPathValue::DateTime(
+                    crate::temporal::PrecisionDateTime::new(
+                        dt,
+                        crate::temporal::TemporalPrecision::Day, // Preserve date precision
+                    ),
+                ))
             }
             FhirPathValue::String(s) => match chrono::DateTime::parse_from_rfc3339(s) {
-                Ok(dt) => Ok(FhirPathValue::DateTime(dt.fixed_offset())),
+                Ok(dt) => Ok(FhirPathValue::DateTime(
+                    crate::temporal::PrecisionDateTime::new(
+                        dt.fixed_offset(),
+                        crate::temporal::TemporalPrecision::Millisecond, // Full precision for RFC3339
+                    ),
+                )),
                 Err(_) => Err(CoercionError::InvalidFormat {
                     value: s.to_string(),
                     target_type: "DateTime".to_string(),
@@ -310,11 +324,17 @@ impl TypeCoercion {
     /// Coerce value to time
     pub fn coerce_to_time(value: &FhirPathValue) -> CoercionResult<FhirPathValue> {
         match value {
-            FhirPathValue::Time(t) => Ok(FhirPathValue::Time(*t)),
+            FhirPathValue::Time(t) => Ok(FhirPathValue::Time(t.clone())),
             FhirPathValue::String(s) => match chrono::NaiveTime::parse_from_str(s, "%H:%M:%S") {
-                Ok(time) => Ok(FhirPathValue::Time(time)),
+                Ok(time) => Ok(FhirPathValue::Time(crate::temporal::PrecisionTime::new(
+                    time,
+                    crate::temporal::TemporalPrecision::Second, // Default to second precision
+                ))),
                 Err(_) => match chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f") {
-                    Ok(time) => Ok(FhirPathValue::Time(time)),
+                    Ok(time) => Ok(FhirPathValue::Time(crate::temporal::PrecisionTime::new(
+                        time,
+                        crate::temporal::TemporalPrecision::Second, // Default to second precision
+                    ))),
                     Err(_) => Err(CoercionError::InvalidFormat {
                         value: s.to_string(),
                         target_type: "Time".to_string(),

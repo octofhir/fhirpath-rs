@@ -29,6 +29,7 @@ pub use octofhir_fhirschema::PackageSpec;
 
 // Define our own async-first ModelProvider trait
 use async_trait::async_trait;
+use sonic_rs::JsonValueTrait;
 
 // Re-export type reflection system
 pub use octofhir_fhir_model::reflection::{
@@ -224,7 +225,7 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
                 res.resource_type().unwrap_or("Resource").to_string()
             }
             crate::FhirPathValue::JsonValue(json) => json
-                .as_json()
+                .as_inner()
                 .get("resourceType")
                 .and_then(|rt| rt.as_str())
                 .unwrap_or("Resource")

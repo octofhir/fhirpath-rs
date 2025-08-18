@@ -23,6 +23,7 @@ use crate::operations::EvaluationContext;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
+use sonic_rs::JsonContainerTrait;
 
 /// HasValue function - returns true if the input collection contains exactly one item that has a value
 #[derive(Debug, Clone)]
@@ -55,13 +56,19 @@ impl HasValueFunction {
             FhirPathValue::Empty => false,
             FhirPathValue::Collection(items) => !items.is_empty(),
             FhirPathValue::String(s) => !s.is_empty(),
-            FhirPathValue::JsonValue(json) => match json.as_json() {
-                serde_json::Value::Object(obj) => !obj.is_empty(),
-                serde_json::Value::Array(arr) => !arr.is_empty(),
-                serde_json::Value::String(s) => !s.is_empty(),
-                serde_json::Value::Null => false,
-                _ => true,
-            },
+            FhirPathValue::JsonValue(json) => {
+                use sonic_rs::JsonValueTrait;
+                let inner = json.as_inner();
+                if let Some(obj) = inner.as_object() {
+                    !obj.is_empty()
+                } else if let Some(arr) = inner.as_array() {
+                    !arr.is_empty()
+                } else if let Some(s) = inner.as_str() {
+                    !s.is_empty()
+                } else {
+                    !inner.is_null()
+                }
+            }
             // All other value types are considered to have value if they exist
             _ => true,
         }

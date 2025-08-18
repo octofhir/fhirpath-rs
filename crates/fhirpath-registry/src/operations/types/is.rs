@@ -25,6 +25,7 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use sonic_rs::JsonValueTrait;
 
 /// Is operator - checks if value is of a specified type
 #[derive(Debug, Clone)]
@@ -139,7 +140,7 @@ impl IsOperation {
         match value {
             FhirPathValue::Resource(resource) => resource.resource_type().map(|s| s.to_string()),
             FhirPathValue::JsonValue(json) => json
-                .as_json()
+                .as_inner()
                 .get("resourceType")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
@@ -224,9 +225,13 @@ impl FhirPathOperation for IsOperation {
             }
         };
 
-        Ok(FhirPathValue::Collection(Collection::from(vec![
-            FhirPathValue::Boolean(result),
-        ])))
+        if result {
+            Ok(FhirPathValue::Collection(Collection::from(vec![
+                FhirPathValue::Boolean(true),
+            ])))
+        } else {
+            Ok(FhirPathValue::Collection(Collection::from(vec![])))
+        }
     }
 
     fn try_evaluate_sync(

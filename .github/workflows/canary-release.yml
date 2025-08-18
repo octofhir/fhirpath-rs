@@ -148,9 +148,6 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             postfix: linux-x64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            postfix: linux-x64-musl
           - os: macos-latest
             target: x86_64-apple-darwin
             postfix: macos-x64
@@ -204,10 +201,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config
 
-      - name: Install musl tools (Linux musl only)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get install -y musl-tools musl-dev
 
       - name: Build octofhir-fhirpath binary
         run: |
@@ -280,7 +273,6 @@ jobs:
 
             ## Available Binaries
             - `octofhir-fhirpath-linux-x64` - Linux x86_64 (glibc)
-            - `octofhir-fhirpath-linux-x64-musl` - Linux x86_64 (musl, static)
             - `octofhir-fhirpath-macos-x64` - macOS Intel
             - `octofhir-fhirpath-macos-arm64` - macOS Apple Silicon
             - `octofhir-fhirpath-windows-x64.exe` - Windows x86_64
