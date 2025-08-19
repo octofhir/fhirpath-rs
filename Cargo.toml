@@ -48,7 +48,7 @@ rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
 sonic-rs = "0.5.3"
-smallvec = { version = "1.11", features = ["serde"] }
+smallvec = { version = "1.13", features = ["serde", "const_new"] }
 thiserror = "2"
 typed-arena = "2.0.2"
 bumpalo = { version = "3.16", features = ["collections"] }

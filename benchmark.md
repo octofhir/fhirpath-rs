@@ -1,6 +1,6 @@
 # FHIRPath-rs Benchmark Results
 
-Generated on: 2025-08-18 21:39:18 UTC
+Generated on: 2025-08-19 07:42:13 UTC
 
 ## Overview
 
@@ -47,79 +47,79 @@ Bundle operations and resolve() calls:
 
 ```
 ## Tokenization Benchmarks
-  - `Patient.active`: 478306.87 ops/sec
-  - `Patient.name.family`: 385096.76 ops/sec
-  - `Patient.birthDate`: 789993.62 ops/sec
-  - `Patient.gender`: 665612.78 ops/sec
-  - `true`: 2209129.45 ops/sec
-  - `false`: 2626685.02 ops/sec
-  - `1 + 2`: 2558094.32 ops/sec
-  - `Patient.name.count()`: 440165.06 ops/sec
-  - `Patient.name.where(use = 'official').family`: 226733.82 ops/sec
-  - `Patient.telecom.where(system = 'phone').value`: 249311.77 ops/sec
-  - `Patient.extension.where(url = 'http://example.org').value`: 237569.64 ops/sec
-  - `Patient.contact.name.family`: 300868.79 ops/sec
-  - `Patient.birthDate > @1980-01-01`: 639641.80 ops/sec
-  - `Patient.name.family.substring(0, 3)`: 276838.99 ops/sec
-  - `Patient.telecom.exists(system = 'email')`: 267725.72 ops/sec
-  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 261392.40 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 183566.23 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 181063.74 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 134158.41 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 153879.68 ops/sec
-  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 218652.93 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 125218.47 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 99330.76 ops/sec
+  - `Patient.active`: 1.4M ops/sec
+  - `Patient.name.family`: 988.1K ops/sec
+  - `Patient.birthDate`: 1.9M ops/sec
+  - `Patient.gender`: 1.4M ops/sec
+  - `true`: 3.0M ops/sec
+  - `false`: 2.9M ops/sec
+  - `1 + 2`: 3.6M ops/sec
+  - `Patient.name.count()`: 856.7K ops/sec
+  - `Patient.name.where(use = 'official').family`: 441.2K ops/sec
+  - `Patient.telecom.where(system = 'phone').value`: 474.1K ops/sec
+  - `Patient.extension.where(url = 'http://example.org').value`: 530.3K ops/sec
+  - `Patient.contact.name.family`: 740.2K ops/sec
+  - `Patient.birthDate > @1980-01-01`: 1.3M ops/sec
+  - `Patient.name.family.substring(0, 3)`: 633.6K ops/sec
+  - `Patient.telecom.exists(system = 'email')`: 588.5K ops/sec
+  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 477.2K ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 316.8K ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 318.6K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 244.3K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 278.8K ops/sec
+  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 369.6K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 229.6K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 181.0K ops/sec
 
 ## Parsing Benchmarks
-  - `Patient.active`: 446686.21 ops/sec
-  - `Patient.name.family`: 323978.46 ops/sec
-  - `Patient.birthDate`: 633428.96 ops/sec
-  - `Patient.gender`: 570382.98 ops/sec
-  - `true`: 2213613.72 ops/sec
-  - `false`: 2135798.33 ops/sec
-  - `1 + 2`: 1630212.40 ops/sec
-  - `Patient.name.count()`: 336983.99 ops/sec
-  - `Patient.name.where(use = 'official').family`: 172928.11 ops/sec
-  - `Patient.telecom.where(system = 'phone').value`: 189612.39 ops/sec
-  - `Patient.extension.where(url = 'http://example.org').value`: 168048.39 ops/sec
-  - `Patient.contact.name.family`: 254073.11 ops/sec
-  - `Patient.birthDate > @1980-01-01`: 496472.81 ops/sec
-  - `Patient.name.family.substring(0, 3)`: 225980.22 ops/sec
-  - `Patient.telecom.exists(system = 'email')`: 211437.01 ops/sec
-  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 184518.87 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 134207.92 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 134276.26 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 97225.03 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 114144.38 ops/sec
-  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 169583.73 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 91248.85 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 72323.36 ops/sec
+  - `Patient.active`: 820.9K ops/sec
+  - `Patient.name.family`: 576.7K ops/sec
+  - `Patient.birthDate`: 922.0K ops/sec
+  - `Patient.gender`: 890.1K ops/sec
+  - `true`: 2.3M ops/sec
+  - `false`: 2.3M ops/sec
+  - `1 + 2`: 1.6M ops/sec
+  - `Patient.name.count()`: 498.3K ops/sec
+  - `Patient.name.where(use = 'official').family`: 259.4K ops/sec
+  - `Patient.telecom.where(system = 'phone').value`: 256.4K ops/sec
+  - `Patient.extension.where(url = 'http://example.org').value`: 257.6K ops/sec
+  - `Patient.contact.name.family`: 389.3K ops/sec
+  - `Patient.birthDate > @1980-01-01`: 671.1K ops/sec
+  - `Patient.name.family.substring(0, 3)`: 345.9K ops/sec
+  - `Patient.telecom.exists(system = 'email')`: 312.5K ops/sec
+  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 252.2K ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 156.0K ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 160.8K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 121.2K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 143.0K ops/sec
+  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 209.4K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 112.3K ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 94.1K ops/sec
 
 ## Evaluation Benchmarks
-  - `Patient.active`: 93341.57 ops/sec
-  - `Patient.name.family`: 52025.75 ops/sec
-  - `Patient.birthDate`: 93603.77 ops/sec
-  - `Patient.gender`: 98023.26 ops/sec
-  - `true`: 172006.02 ops/sec
-  - `false`: 180018.00 ops/sec
-  - `1 + 2`: 141668.14 ops/sec
-  - `Patient.name.count()`: 51825.80 ops/sec
-  - `Patient.name.where(use = 'official').family`: 25363.01 ops/sec
-  - `Patient.telecom.where(system = 'phone').value`: 26166.02 ops/sec
-  - `Patient.extension.where(url = 'http://example.org').value`: 47151.28 ops/sec
-  - `Patient.contact.name.family`: 78290.63 ops/sec
-  - `Patient.birthDate > @1980-01-01`: 70237.05 ops/sec
-  - `Patient.name.family.substring(0, 3)`: 36373.56 ops/sec
-  - `Patient.telecom.exists(system = 'email')`: 59594.76 ops/sec
-  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 49079.75 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 26.20 ops/sec
-  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 29.64 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 30.45 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 1.00 ops/sec
-  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 62.54 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 30.63 ops/sec
-  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 15.30 ops/sec
+  - `Patient.active`: 99.2K ops/sec
+  - `Patient.name.family`: 53.6K ops/sec
+  - `Patient.birthDate`: 101.3K ops/sec
+  - `Patient.gender`: 104.9K ops/sec
+  - `true`: 183.6K ops/sec
+  - `false`: 184.2K ops/sec
+  - `1 + 2`: 132.3K ops/sec
+  - `Patient.name.count()`: 73.7K ops/sec
+  - `Patient.name.where(use = 'official').family`: 28.5K ops/sec
+  - `Patient.telecom.where(system = 'phone').value`: 27.9K ops/sec
+  - `Patient.extension.where(url = 'http://example.org').value`: 53.0K ops/sec
+  - `Patient.contact.name.family`: 84.0K ops/sec
+  - `Patient.birthDate > @1980-01-01`: 77.3K ops/sec
+  - `Patient.name.family.substring(0, 3)`: 41.5K ops/sec
+  - `Patient.telecom.exists(system = 'email')`: 68.5K ops/sec
+  - `Patient.identifier.where(system = 'http://example.org/mrn').value`: 53.3K ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()`: 29 ops/sec
+  - `Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()`: 28 ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()`: 28 ops/sec
+  - `Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100`: 1 ops/sec
+  - `Bundle.entry.resource.descendants().where($this is Reference).reference`: 60 ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value`: 28 ops/sec
+  - `Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value`: 14 ops/sec
 ```
 
 ## Performance Summary

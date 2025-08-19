@@ -18,7 +18,6 @@
 //! for FHIRPath expression trees.
 
 pub mod expression;
-pub mod intern;
 pub mod operator;
 pub mod visitor;
 
@@ -27,6 +26,5 @@ pub use expression::{
     BinaryOpData, ConditionalData, ExpressionNode, FunctionCallData, LambdaData, LiteralValue,
     MethodCallData,
 };
-pub use intern::*; // Re-export all items from intern module
 pub use operator::{BinaryOperator, UnaryOperator};
 pub use visitor::*; // Re-export all items from visitor module

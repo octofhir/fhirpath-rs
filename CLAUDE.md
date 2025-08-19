@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust organized as a **workspace with 8 specialized crates**:
+This is a FHIRPath implementation in Rust organized as a **workspace with 11 specialized crates**:
 
 ### Workspace Structure
 - **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
 - **fhirpath-core**: Core types, errors, and evaluation results  
+- **fhirpath-ast**: Abstract Syntax Tree definitions, operators, and visitor patterns
+- **fhirpath-diagnostics**: Error reporting, diagnostic formatting, and LSP integration
 - **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
 - **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
 - **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
@@ -99,8 +101,14 @@ just install-tools
 # Watch for changes and run tests
 just watch
 
+# Watch for changes (check only)
+just watch-check
+
 # Expand macros for debugging
 just expand [ITEM]
+
+# Install profiling tools
+just install-profiling-tools
 ```
 
 ### Test-Specific Commands
@@ -111,7 +119,10 @@ just test-case test-case-name
 # Run failed expression tests
 just test-failed
 
-# Release preparation (full QA + docs)
+# Test coverage with tarpaulin (HTML report)
+just coverage
+
+# Release preparation (full QA + docs)  
 just release-prep
 ```
 
@@ -152,6 +163,21 @@ just cli-help
 
 # Run CLI with custom arguments
 just cli [arguments...]
+```
+
+### Profiling Commands
+```bash
+# Profile specific expression
+just profile "Patient.name.given"
+
+# Profile with Patient data
+just profile-patient "Patient.name.where(use = 'official').family"
+
+# Profile with Bundle data
+just profile-bundle "Bundle.entry.resource.count()"
+
+# Run example profiling sessions
+just profile-examples
 ```
 
 ### Environment Variables Support
@@ -263,7 +289,6 @@ Apply the following guidelines when developing fhirpath-core:
 - FHIRSchema spec: https://fhir-schema.github.io/fhir-schema/intro.html
 - Uses nom library version 8 for parsing
 - For UCUM units: use https://github.com/octofhir/ucum-rs or local path `./…/ucum-rs`
-- Criterion version 0.7
 
 
 ## Development Process

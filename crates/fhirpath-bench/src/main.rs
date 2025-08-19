@@ -12,7 +12,7 @@ fn format_ops_per_sec(ops_per_sec: f64) -> String {
     } else if ops_per_sec >= 1_000.0 {
         format!("{:.1}K ops/sec", ops_per_sec / 1_000.0)
     } else {
-        format!("{:.0} ops/sec", ops_per_sec)
+        format!("{ops_per_sec:.0} ops/sec")
     }
 }
 
