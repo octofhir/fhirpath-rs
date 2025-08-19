@@ -2105,9 +2105,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-canonical-manager"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "502370e0a7198771dc1e04d7925455ff1df81a5bbc7c3b928c394b123b2115c2"
+checksum = "15aac44a5b7a406387c0a75821be3a40098bdbda03c5567c19fdcaa02c3cde11"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2874,7 +2874,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
