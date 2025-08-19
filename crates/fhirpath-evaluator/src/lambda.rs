@@ -33,26 +33,22 @@ impl crate::FhirPathEngine {
 
         match &input {
             FhirPathValue::Collection(items) => {
-                // Pre-allocate with better capacity estimation (assume ~25% pass rate)
-                let estimated_capacity = (items.len() / 4).max(4).min(64);
+                let estimated_capacity = (items.len() / 4).clamp(4, 64);
                 let mut filtered_items = Vec::with_capacity(estimated_capacity);
 
                 for (index, item) in items.iter().enumerate() {
-                    // Create lambda context with $this, $index variables - avoid unnecessary clone
                     let lambda_context =
                         context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
 
-                    // Evaluate predicate expression in lambda context - avoid clone by using reference
                     let predicate_result = self
                         .evaluate_node_async(
                             predicate_expr,
-                            item.clone(), // Still needed for evaluation input
+                            item.clone(),
                             &lambda_context,
                             depth + 1,
                         )
                         .await?;
 
-                    // Check if predicate is truthy using the engine's truthiness logic
                     if self.is_truthy(&predicate_result) {
                         filtered_items.push(item.clone());
                     }
@@ -61,8 +57,6 @@ impl crate::FhirPathEngine {
                 Ok(FhirPathValue::Collection(Collection::from(filtered_items)))
             }
             other => {
-                // For non-collections, where() acts like a conditional
-                // Create lambda context with single item
                 let lambda_context =
                     context.with_lambda_context(other.clone(), 0, FhirPathValue::Empty);
 

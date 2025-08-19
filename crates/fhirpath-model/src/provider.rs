@@ -271,6 +271,10 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
         use crate::FhirPathValue;
 
         match type_arg {
+            FhirPathValue::Empty => Err(ModelError::ConstraintError {
+                constraint_key: "type-conversion".to_string(),
+                message: "Empty value cannot be used as type argument".to_string(),
+            }),
             FhirPathValue::String(type_name) => Ok(type_name.to_string()),
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 // Handle type identifiers like Patient, FHIR.Patient, System.Integer

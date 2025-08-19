@@ -1,0 +1,117 @@
+{
+  "name": "testToLong",
+  "description": "testToLong",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testToLongInteger",
+      "expression": "42.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [42]
+    },
+    {
+      "name": "testToLongLargeInteger",
+      "expression": "9223372036854775807.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [9223372036854775807]
+    },
+    {
+      "name": "testToLongNegativeInteger",
+      "expression": "(-123).toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [-123]
+    },
+    {
+      "name": "testToLongZero",
+      "expression": "0.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [0]
+    },
+    {
+      "name": "testToLongStringNumber",
+      "expression": "'12345'.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [12345]
+    },
+    {
+      "name": "testToLongStringNegative",
+      "expression": "'-999'.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [-999]
+    },
+    {
+      "name": "testToLongStringLarge",
+      "expression": "'9223372036854775807'.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [9223372036854775807]
+    },
+    {
+      "name": "testToLongDecimalNoFraction",
+      "expression": "123.0.toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [123]
+    },
+    {
+      "name": "testToLongNegativeDecimalNoFraction",
+      "expression": "(-456.0).toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [-456]
+    },
+    {
+      "name": "testToLongCollection",
+      "expression": "(42 | '123' | 456.0).toLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [42, 123, 456]
+    }
+  ]
+}

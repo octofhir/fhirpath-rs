@@ -1,0 +1,183 @@
+{
+  "name": "testConvertsToLong",
+  "description": "testConvertsToLong",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testConvertsToLongInteger",
+      "expression": "42.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongLargeInteger",
+      "expression": "9223372036854775807.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongNegativeInteger",
+      "expression": "(-123).convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongZero",
+      "expression": "0.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongValidString",
+      "expression": "'12345'.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongStringNegative",
+      "expression": "'-999'.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongStringLarge",
+      "expression": "'9223372036854775807'.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongDecimalNoFraction",
+      "expression": "123.0.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongNegativeDecimalNoFraction",
+      "expression": "(-456.0).convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true]
+    },
+    {
+      "name": "testConvertsToLongDecimalWithFraction",
+      "expression": "123.45.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [false]
+    },
+    {
+      "name": "testConvertsToLongInvalidString",
+      "expression": "'hello'.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [false]
+    },
+    {
+      "name": "testConvertsToLongStringWithFraction",
+      "expression": "'123.45'.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [false]
+    },
+    {
+      "name": "testConvertsToLongBoolean",
+      "expression": "true.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [false]
+    },
+    {
+      "name": "testConvertsToLongDate",
+      "expression": "@2023-05-15.convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [false]
+    },
+    {
+      "name": "testConvertsToLongMixedCollection",
+      "expression": "(42 | 'hello' | '123' | 45.6 | 78.0).convertsToLong()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [true, false, true, false, true]
+    },
+    {
+      "name": "testConvertsToLongFiltering",
+      "expression": "(42 | 'hello' | '123' | 45.6 | 78.0).where(convertsToLong())",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testConvertsToLong"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [42, "123", 78.0]
+    }
+  ]
+}

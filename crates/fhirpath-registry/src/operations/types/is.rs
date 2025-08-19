@@ -187,11 +187,15 @@ impl FhirPathOperation for IsOperation {
             (&context.input, type_name)
         } else if args.len() == 2 {
             // Binary-style: value is Type - use first arg as value, second as type
-            // Check if the value is an empty collection - if so, just return false
-            if let FhirPathValue::Collection(c) = &args[0] {
-                if c.is_empty() {
+            // Check if the value is empty - if so, just return false
+            match &args[0] {
+                FhirPathValue::Empty => {
                     return Ok(FhirPathValue::Boolean(false));
                 }
+                FhirPathValue::Collection(c) if c.is_empty() => {
+                    return Ok(FhirPathValue::Boolean(false));
+                }
+                _ => {}
             }
 
             let type_name = context
@@ -210,6 +214,10 @@ impl FhirPathOperation for IsOperation {
         };
 
         let result = match value_to_check {
+            FhirPathValue::Empty => {
+                // Empty values are not instances of any type, so return false
+                false
+            }
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     false

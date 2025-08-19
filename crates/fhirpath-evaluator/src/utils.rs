@@ -50,6 +50,27 @@ impl crate::FhirPathEngine {
         }
     }
 
+    /// Convert FHIRPath value to boolean according to strict FHIRPath rules
+    /// Used for functions like iif() that require strict boolean conditions
+    /// Returns Some(bool) for valid boolean values, None for non-boolean values
+    pub fn to_boolean_strict(&self, value: &FhirPathValue) -> Option<bool> {
+        match value {
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Empty => Some(false),
+            FhirPathValue::Collection(c) => {
+                if c.is_empty() {
+                    Some(false)
+                } else if c.len() == 1 {
+                    self.to_boolean_strict(c.first().unwrap())
+                } else {
+                    // Multiple items - not a valid boolean
+                    None
+                }
+            }
+            _ => None, // Non-boolean values are not valid
+        }
+    }
+
     /// Validate that a collection size doesn't exceed configured limits
     pub fn validate_collection_size(&self, size: usize) -> EvaluationResult<()> {
         if size > self.config().max_collection_size {

@@ -440,16 +440,18 @@ pub trait CollectionOperation: FhirPathOperation {
     ///
     /// This is a convenience method for operations that primarily work with collections.
     /// The default implementation delegates to the main evaluate method.
-    async fn evaluate_collection(
+    fn evaluate_collection(
         &self,
         collection: &[FhirPathValue],
         args: &[FhirPathValue],
         context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        // Create a temporary context with the collection as focus
-        let collection_value = FhirPathValue::collection(collection.to_vec());
-        let collection_context = context.with_focus(collection_value);
-        self.evaluate(args, &collection_context).await
+    ) -> impl std::future::Future<Output = Result<FhirPathValue>> + Send {
+        async {
+            // Create a temporary context with the collection as focus
+            let collection_value = FhirPathValue::collection(collection.to_vec());
+            let collection_context = context.with_focus(collection_value);
+            self.evaluate(args, &collection_context).await
+        }
     }
 }
 
@@ -459,14 +461,16 @@ pub trait ScalarOperation: FhirPathOperation {
     ///
     /// This is a convenience method for operations that work on scalar values.
     /// The default implementation delegates to the main evaluate method.
-    async fn evaluate_scalar(
+    fn evaluate_scalar(
         &self,
         value: &FhirPathValue,
         args: &[FhirPathValue],
         context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        let scalar_context = context.with_focus(value.clone());
-        self.evaluate(args, &scalar_context).await
+    ) -> impl std::future::Future<Output = Result<FhirPathValue>> + Send {
+        async {
+            let scalar_context = context.with_focus(value.clone());
+            self.evaluate(args, &scalar_context).await
+        }
     }
 }
 

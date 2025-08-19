@@ -65,6 +65,10 @@ impl Quantity {
             "year" | "years" => "a".to_string(),
             "millisecond" | "milliseconds" => "ms".to_string(),
 
+            // Mass/weight units - common non-UCUM to UCUM mappings
+            "lbs" | "lb" | "pounds" | "pound" => "[lb_av]".to_string(),
+            "oz" | "ounces" | "ounce" => "[oz_av]".to_string(),
+
             _ => {
                 // Check if it's already a valid UCUM unit - if so, keep it as-is
                 // This preserves units like "g", "mg", "m", "cm", etc. without

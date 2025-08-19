@@ -414,6 +414,37 @@ impl EvaluationContext {
         }
     }
 
+    /// Create lambda context preserving existing lambda variables (especially $index) from current context
+    /// This is useful for functions like iif() that need to preserve lambda context when used inside select()
+    pub fn with_lambda_context_preserving_index(&self, current_item: FhirPathValue) -> Self {
+        // Get current lambda metadata if it exists
+        if let Some(current_lambda) = &self.variable_scope.lambda_metadata {
+            // Preserve existing lambda metadata but update $this to current_item
+            let lambda_scope = VariableScope::lambda_scope(
+                Some(Arc::new(self.variable_scope.clone())),
+                current_item.clone(),
+                // Preserve existing index by extracting from current_index
+                match &current_lambda.current_index {
+                    FhirPathValue::Integer(idx) => *idx as usize,
+                    _ => 0,
+                },
+                current_lambda.total_value.clone(),
+            );
+
+            Self {
+                input: current_item,
+                root: self.root.clone(),
+                variable_scope: lambda_scope,
+                registry: self.registry.clone(),
+                model_provider: self.model_provider.clone(),
+                type_annotations: self.type_annotations.clone(),
+            }
+        } else {
+            // No existing lambda context, create a simple one with index 0
+            self.with_lambda_context(current_item, 0, FhirPathValue::Empty)
+        }
+    }
+
     /// Set a variable in the context
     /// System variables cannot be overridden (silently ignored)
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {

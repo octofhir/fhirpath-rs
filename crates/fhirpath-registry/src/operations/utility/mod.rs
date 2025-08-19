@@ -20,7 +20,6 @@ pub mod define_variable;
 pub mod encode;
 pub mod escape;
 pub mod has_value;
-pub mod iif;
 pub mod trace;
 pub mod unescape;
 
@@ -30,7 +29,6 @@ pub use define_variable::DefineVariableFunction;
 pub use encode::EncodeFunction;
 pub use escape::EscapeFunction;
 pub use has_value::HasValueFunction;
-pub use iif::IifFunction;
 pub use trace::TraceFunction;
 pub use unescape::UnescapeFunction;
 
@@ -39,7 +37,6 @@ pub struct UtilityOperations;
 
 impl UtilityOperations {
     pub async fn register_all(registry: &crate::FhirPathRegistry) -> crate::Result<()> {
-        registry.register(IifFunction::new()).await?;
         registry.register(TraceFunction::new()).await?;
         registry.register(HasValueFunction::new()).await?;
         registry.register(EncodeFunction::new()).await?;

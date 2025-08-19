@@ -1,0 +1,62 @@
+{
+  "name": "testHourOf",
+  "description": "testHourOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testHourOfDateTime",
+      "expression": "@2023-05-15T14:30:00.hourOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [14]
+    },
+    {
+      "name": "testHourOfDateTimeMidnight",
+      "expression": "@2023-05-15T00:00:00.hourOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [0]
+    },
+    {
+      "name": "testHourOfDateTimeNoon",
+      "expression": "@2023-05-15T12:00:00.hourOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [12]
+    },
+    {
+      "name": "testHourOfDateTimeWithTimezone",
+      "expression": "@2023-05-15T14:30:00-05:00.hourOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [14]
+    },
+    {
+      "name": "testHourOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T09:00:00 | @2023-05-15T15:30:00 | @2023-05-15T23:59:59).hourOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testHourOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [9, 15, 23]
+    }
+  ]
+}

@@ -13,7 +13,7 @@
       ],
       "inputfile": "patient-container-example.json",
       "expected": [
-        1
+        "1"
       ]
     },
     {

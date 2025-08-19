@@ -1064,7 +1064,6 @@ mod tests {
     fn test_arrow_token_simple() {
         let mut tokenizer = Tokenizer::new("=>");
         let token = tokenizer.next_token().unwrap().unwrap();
-        println!("Arrow token test: {token:?}");
         assert_eq!(token, Token::Arrow);
     }
 

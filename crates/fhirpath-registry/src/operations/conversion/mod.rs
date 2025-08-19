@@ -19,6 +19,7 @@ pub mod converts_to_date;
 pub mod converts_to_datetime;
 pub mod converts_to_decimal;
 pub mod converts_to_integer;
+pub mod converts_to_long; // NEW
 pub mod converts_to_quantity;
 pub mod converts_to_string;
 pub mod converts_to_time;
@@ -27,6 +28,7 @@ pub mod to_date;
 pub mod to_datetime;
 pub mod to_decimal;
 pub mod to_integer;
+pub mod to_long; // NEW
 pub mod to_quantity;
 pub mod to_string;
 pub mod to_time;
@@ -37,6 +39,7 @@ pub use converts_to_date::ConvertsToDateFunction;
 pub use converts_to_datetime::ConvertsToDateTimeFunction;
 pub use converts_to_decimal::ConvertsToDecimalFunction;
 pub use converts_to_integer::ConvertsToIntegerFunction;
+pub use converts_to_long::ConvertsToLongFunction; // NEW
 pub use converts_to_quantity::ConvertsToQuantityFunction;
 pub use converts_to_string::ConvertsToStringFunction;
 pub use converts_to_time::ConvertsToTimeFunction;
@@ -45,6 +48,7 @@ pub use to_date::ToDateFunction;
 pub use to_datetime::ToDateTimeFunction;
 pub use to_decimal::ToDecimalFunction;
 pub use to_integer::ToIntegerFunction;
+pub use to_long::ToLongFunction; // NEW
 pub use to_quantity::ToQuantityFunction;
 pub use to_string::ToStringFunction;
 pub use to_time::ToTimeFunction;
@@ -70,6 +74,11 @@ impl ConversionOperations {
         registry.register(ToDateTimeFunction::new()).await?;
         registry.register(ConvertsToTimeFunction::new()).await?;
         registry.register(ToTimeFunction::new()).await?;
+
+        // NEW: Long integer functions
+        registry.register(ToLongFunction::new()).await?;
+        registry.register(ConvertsToLongFunction::new()).await?;
+
         // TODO: Register other conversion functions as they are implemented
         Ok(())
     }

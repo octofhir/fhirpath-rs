@@ -186,20 +186,47 @@ impl crate::FhirPathEngine {
             .evaluate_node_async(&cond_data.condition, input.clone(), context, depth + 1)
             .await?;
 
-        // Check if condition is true
-        let is_true = self.is_truthy(&condition);
+        // Check if condition is a valid boolean (strict checking for iif function)
+        let is_true = match &condition {
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Empty => Some(false),
+            FhirPathValue::Collection(c) => {
+                if c.is_empty() {
+                    Some(false)
+                } else if c.len() == 1 {
+                    // Single item collection: check if it's a boolean
+                    match c.first().unwrap() {
+                        FhirPathValue::Boolean(b) => Some(*b),
+                        FhirPathValue::Empty => Some(false),
+                        _ => None, // Non-boolean single item
+                    }
+                } else {
+                    // Multiple items - not valid for iif condition
+                    None
+                }
+            }
+            _ => None, // Non-boolean values are not valid for iif
+        };
 
-        if is_true {
-            // Evaluate true branch
-            self.evaluate_node_async(&cond_data.then_expr, input, context, depth + 1)
-                .await
-        } else if let Some(else_expr) = &cond_data.else_expr {
-            // Evaluate false branch if present
-            self.evaluate_node_async(else_expr, input, context, depth + 1)
-                .await
-        } else {
-            // No else branch, return empty
-            Ok(FhirPathValue::Empty)
+        match is_true {
+            Some(true) => {
+                // Valid boolean condition that's true
+                self.evaluate_node_async(&cond_data.then_expr, input, context, depth + 1)
+                    .await
+            }
+            Some(false) => {
+                // Valid boolean condition that's false
+                if let Some(else_expr) = &cond_data.else_expr {
+                    self.evaluate_node_async(else_expr, input, context, depth + 1)
+                        .await
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
+            }
+            None => {
+                // Invalid condition (non-boolean) - return empty
+                Ok(FhirPathValue::Empty)
+            }
         }
     }
 }

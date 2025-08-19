@@ -456,31 +456,4 @@ mod tests {
             FhirPathValue::String("item".into())
         ])));
     }
-
-    // Note: This test is commented out because we don't have NotOperation implemented yet
-    // #[tokio::test]
-    // async fn test_lambda_operation_wrapper() {
-    //     use crate::operations::logical::NotOperation;
-    //
-    //     let not_op = NotOperation::new();
-    //     let wrapper = LambdaOperationWrapper::wrap(Box::new(not_op));
-    //
-    //     assert_eq!(wrapper.identifier(), "not");
-    //     assert!(!wrapper.is_lambda_function());
-    //
-    //     // Test that wrapper delegates properly
-    //     let registry = Arc::new(crate::FhirPathRegistry::new());
-    //     let model_provider = Arc::new(MockModelProvider::new());
-    //     let context = EvaluationContext::new(
-    //         FhirPathValue::Boolean(true),
-    //         registry,
-    //         model_provider,
-    //     );
-    //
-    //     let result = wrapper
-    //         .evaluate(&[FhirPathValue::Boolean(true)], &context)
-    //         .await
-    //         .unwrap();
-    //     assert_eq!(result, FhirPathValue::collection(vec![FhirPathValue::Boolean(false)]));
-    // }
 }

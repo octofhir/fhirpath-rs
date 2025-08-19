@@ -1,0 +1,82 @@
+{
+  "name": "yearOf",
+  "description": "yearOf() function tests",
+  "source": "official",
+  "tests": [
+    {
+      "name": "yearOfDate",
+      "expression": "@2023-05-15.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2023]
+    },
+    {
+      "name": "yearOfDateTime",
+      "expression": "@2023-12-25T14:30:00.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2023]
+    },
+    {
+      "name": "yearOfDateTimeWithTimezone",
+      "expression": "@2023-01-01T00:00:00-05:00.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2023]
+    },
+    {
+      "name": "yearOfLeapYear",
+      "expression": "@2024-02-29.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2024]
+    },
+    {
+      "name": "yearOfOldDate",
+      "expression": "@1900-01-01.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [1900]
+    },
+    {
+      "name": "yearOfFutureDate",
+      "expression": "@2050-12-31.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2050]
+    },
+    {
+      "name": "yearOfEmptyCollection",
+      "expression": "{}.yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": []
+    },
+    {
+      "name": "yearOfCollectionOfDates",
+      "expression": "(@2023-01-01 | @2024-01-01).yearOf()",
+      "input": null,
+      "tags": ["yearOf"],
+      "inputfile": "patient-example.json",
+      "expected": [2023, 2024]
+    },
+    {
+      "name": "yearOfPatientBirthDate",
+      "expression": "Patient.birthDate.yearOf()",
+      "input": {
+        "resourceType": "Patient",
+        "birthDate": "1990-07-15"
+      },
+      "tags": ["yearOf"],
+      "inputfile": null,
+      "expected": [1990]
+    }
+  ]
+}

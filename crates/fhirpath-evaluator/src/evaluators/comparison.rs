@@ -14,6 +14,7 @@
 
 //! Comparison operations evaluator
 
+use chrono::{Datelike, Timelike};
 use octofhir_fhirpath_core::EvaluationResult;
 use octofhir_fhirpath_model::FhirPathValue;
 use rust_decimal::Decimal;
@@ -231,9 +232,23 @@ impl ComparisonEvaluator {
                 Some((a - b).abs() < Decimal::new(5, 3)) // 0.005 tolerance
             }
             (FhirPathValue::String(a), FhirPathValue::String(b)) => Some(a == b),
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a == b),
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a == b),
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a == b),
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
+                // Different precision levels make equality indeterminate
+                if a.precision != b.precision {
+                    None
+                } else {
+                    Some(a == b)
+                }
+            }
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                // For DateTime equality, compare the actual datetime values
+                // If times are equal, they're equal regardless of precision
+                Some(a.datetime == b.datetime)
+            }
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
+                // For Time equality, compare the actual time values
+                Some(a.time == b.time)
+            }
 
             // Cross-type date/datetime equality
             (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
@@ -421,9 +436,22 @@ impl ComparisonEvaluator {
                 Some(a.to_lowercase() == b.to_lowercase())
             }
 
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a == b),
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a == b),
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a == b),
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
+                // Different precision levels make equivalence indeterminate
+                if a.precision != b.precision {
+                    None
+                } else {
+                    Some(a == b)
+                }
+            }
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                // For DateTime equivalence, compare the actual datetime values
+                Some(a.datetime == b.datetime)
+            }
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
+                // For Time equivalence, compare the actual time values
+                Some(a.time == b.time)
+            }
 
             // Cross-type date/datetime equality
             (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
@@ -499,11 +527,39 @@ impl ComparisonEvaluator {
                 Err(_) => None,
             },
             (FhirPathValue::String(a), FhirPathValue::String(b)) => Some(a.cmp(b)),
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => Some(a.date.cmp(&b.date)),
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
-                Some(a.datetime.cmp(&b.datetime))
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
+                // Check if precisions are compatible - if different, comparison is indeterminate
+                if a.precision != b.precision {
+                    None // Different precision levels make comparison indeterminate
+                } else {
+                    Some(a.date.cmp(&b.date))
+                }
             }
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a.time.cmp(&b.time)),
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                // For DateTime comparison with different precisions, check if comparison is indeterminate
+                let cmp_result = a.datetime.cmp(&b.datetime);
+                if cmp_result == Ordering::Equal {
+                    Some(Ordering::Equal) // Same moment in time, regardless of precision
+                } else if a.precision == b.precision {
+                    Some(cmp_result) // Same precision, definite comparison
+                } else {
+                    // Different precisions - check if values are indeterminate
+                    // If they differ only in precision (e.g., 10:30 vs 10:30:00), it's indeterminate
+                    Self::compare_datetime_with_precision_check(a, b)
+                }
+            }
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
+                // For Time comparison with different precisions
+                let cmp_result = a.time.cmp(&b.time);
+                if cmp_result == Ordering::Equal {
+                    Some(Ordering::Equal) // Same moment in time, regardless of precision
+                } else if a.precision == b.precision {
+                    Some(cmp_result) // Same precision, definite comparison
+                } else {
+                    // Different precisions - check if values are indeterminate
+                    Self::compare_time_with_precision_check(a, b)
+                }
+            }
 
             // Cross-type date/datetime comparisons
             (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
@@ -549,6 +605,135 @@ impl ComparisonEvaluator {
         } else {
             // Both should be unitless if we reach here (due to compatible dimensions check)
             Some(left.value.cmp(&right.value))
+        }
+    }
+
+    /// Compare DateTime values with precision-aware logic
+    fn compare_datetime_with_precision_check(
+        a: &octofhir_fhirpath_model::PrecisionDateTime,
+        b: &octofhir_fhirpath_model::PrecisionDateTime,
+    ) -> Option<Ordering> {
+        use octofhir_fhirpath_model::TemporalPrecision;
+
+        // Truncate both datetimes to the lowest precision level
+        let min_precision = std::cmp::min(a.precision, b.precision);
+
+        match min_precision {
+            TemporalPrecision::Year => {
+                let a_year = a.datetime.year();
+                let b_year = b.datetime.year();
+                Some(a_year.cmp(&b_year))
+            }
+            TemporalPrecision::Month => {
+                let a_month = (a.datetime.year(), a.datetime.month());
+                let b_month = (b.datetime.year(), b.datetime.month());
+                Some(a_month.cmp(&b_month))
+            }
+            TemporalPrecision::Day => {
+                let a_date = a.datetime.date_naive();
+                let b_date = b.datetime.date_naive();
+                Some(a_date.cmp(&b_date))
+            }
+            TemporalPrecision::Hour => {
+                let a_hour = (a.datetime.date_naive(), a.datetime.hour());
+                let b_hour = (b.datetime.date_naive(), b.datetime.hour());
+                Some(a_hour.cmp(&b_hour))
+            }
+            TemporalPrecision::Minute => {
+                let a_min = (
+                    a.datetime.date_naive(),
+                    a.datetime.hour(),
+                    a.datetime.minute(),
+                );
+                let b_min = (
+                    b.datetime.date_naive(),
+                    b.datetime.hour(),
+                    b.datetime.minute(),
+                );
+                // Check if they're equal at minute level - if so, comparison is indeterminate
+                if a_min == b_min {
+                    None // Indeterminate - could be equal or different depending on seconds
+                } else {
+                    Some(a_min.cmp(&b_min))
+                }
+            }
+            TemporalPrecision::Second => {
+                let a_sec = (
+                    a.datetime.date_naive(),
+                    a.datetime.hour(),
+                    a.datetime.minute(),
+                    a.datetime.second(),
+                );
+                let b_sec = (
+                    b.datetime.date_naive(),
+                    b.datetime.hour(),
+                    b.datetime.minute(),
+                    b.datetime.second(),
+                );
+                // Check if they're equal at second level - if so, comparison is indeterminate
+                if a_sec == b_sec {
+                    None // Indeterminate - could be equal or different depending on milliseconds
+                } else {
+                    Some(a_sec.cmp(&b_sec))
+                }
+            }
+            TemporalPrecision::Millisecond => {
+                // Full precision comparison
+                Some(a.datetime.cmp(&b.datetime))
+            }
+        }
+    }
+
+    /// Compare Time values with precision-aware logic
+    fn compare_time_with_precision_check(
+        a: &octofhir_fhirpath_model::PrecisionTime,
+        b: &octofhir_fhirpath_model::PrecisionTime,
+    ) -> Option<Ordering> {
+        use octofhir_fhirpath_model::TemporalPrecision;
+
+        // Truncate both times to the lowest precision level
+        let min_precision = std::cmp::min(a.precision, b.precision);
+
+        match min_precision {
+            TemporalPrecision::Hour => {
+                let a_hour = a.time.hour();
+                let b_hour = b.time.hour();
+                Some(a_hour.cmp(&b_hour))
+            }
+            TemporalPrecision::Minute => {
+                let a_min = (a.time.hour(), a.time.minute());
+                let b_min = (b.time.hour(), b.time.minute());
+                // Check if they're equal at minute level - if so, comparison is indeterminate
+                if a_min == b_min {
+                    None // Indeterminate - could be equal or different depending on seconds
+                } else {
+                    Some(a_min.cmp(&b_min))
+                }
+            }
+            TemporalPrecision::Second => {
+                let a_sec = (a.time.hour(), a.time.minute(), a.time.second());
+                let b_sec = (b.time.hour(), b.time.minute(), b.time.second());
+                // Check if they're equal at second level - if so, comparison is indeterminate
+                if a_sec == b_sec {
+                    None // Indeterminate - could be equal or different depending on milliseconds
+                } else {
+                    Some(a_sec.cmp(&b_sec))
+                }
+            }
+            TemporalPrecision::Millisecond => {
+                // Full precision comparison
+                Some(a.time.cmp(&b.time))
+            }
+            _ => {
+                // Default to minute precision for time
+                let a_min = (a.time.hour(), a.time.minute());
+                let b_min = (b.time.hour(), b.time.minute());
+                if a_min == b_min {
+                    None
+                } else {
+                    Some(a_min.cmp(&b_min))
+                }
+            }
         }
     }
 

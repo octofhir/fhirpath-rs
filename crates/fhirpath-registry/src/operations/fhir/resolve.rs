@@ -246,7 +246,6 @@ impl ResolveFunction {
         for var_name in ["context", "resource", "rootResource"] {
             if let Some(value) = context.variables.get(var_name) {
                 if self.is_bundle_resource(value) {
-                    eprintln!("DEBUG: Found Bundle in %{var_name} variable");
                     return Some(value.clone());
                 }
             }
@@ -286,21 +285,18 @@ impl ResolveFunction {
         // Check standard FHIRPath environment variables
         if let Some(bundle_value) = context.variables.get("context") {
             if self.is_bundle_resource(bundle_value) {
-                eprintln!("DEBUG: Found Bundle in %context environment variable");
                 return Ok(Some(bundle_value.clone()));
             }
         }
 
         if let Some(bundle_value) = context.variables.get("resource") {
             if self.is_bundle_resource(bundle_value) {
-                eprintln!("DEBUG: Found Bundle in %resource environment variable");
                 return Ok(Some(bundle_value.clone()));
             }
         }
 
         if let Some(bundle_value) = context.variables.get("rootResource") {
             if self.is_bundle_resource(bundle_value) {
-                eprintln!("DEBUG: Found Bundle in %rootResource environment variable");
                 return Ok(Some(bundle_value.clone()));
             }
         }
@@ -313,7 +309,6 @@ impl ResolveFunction {
         // but for now we'll implement a workaround by trying to access the Bundle through
         // the registry or context variables.
 
-        eprintln!("DEBUG: Could not find Bundle in context variables");
         Ok(None)
     }
 
@@ -371,7 +366,6 @@ impl ResolveFunction {
         // In FHIRPath, %context refers to the original input context
         if let Some(context_var) = context.variables.get("context") {
             if self.is_bundle_resource(context_var) {
-                eprintln!("DEBUG: Found Bundle in %context variable");
                 return Some(context_var.clone());
             }
         }
@@ -379,14 +373,12 @@ impl ResolveFunction {
         // Check %resource and %rootResource variables
         if let Some(resource_var) = context.variables.get("resource") {
             if self.is_bundle_resource(resource_var) {
-                eprintln!("DEBUG: Found Bundle in %resource variable");
                 return Some(resource_var.clone());
             }
         }
 
         if let Some(root_resource_var) = context.variables.get("rootResource") {
             if self.is_bundle_resource(root_resource_var) {
-                eprintln!("DEBUG: Found Bundle in %rootResource variable");
                 return Some(root_resource_var.clone());
             }
         }
@@ -395,13 +387,11 @@ impl ResolveFunction {
         if let FhirPathValue::Collection(items) = &context.root {
             for item in items.iter() {
                 if self.is_bundle_resource(item) {
-                    eprintln!("DEBUG: Found Bundle in collection item");
                     return Some(item.clone());
                 }
             }
         }
 
-        eprintln!("DEBUG: No Bundle found in context");
         None
     }
 

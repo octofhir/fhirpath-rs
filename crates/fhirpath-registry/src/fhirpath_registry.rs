@@ -289,14 +289,14 @@ impl FhirPathRegistry {
         // Fast path: check known lambda function names
         if matches!(
             identifier,
-            "where" | "select" | "all" | "aggregate" | "repeat" | "sort"
+            "where" | "select" | "all" | "aggregate" | "repeat" | "sort" | "iif"
         ) {
             return true;
         }
 
         // Main lambda functions are now handled directly in the engine
         match identifier {
-            "where" | "select" | "sort" | "repeat" | "aggregate" | "all" => true,
+            "where" | "select" | "sort" | "repeat" | "aggregate" | "all" | "iif" => true,
             _ => {
                 // Check remaining registry lambda functions
                 if let Some(_operation) = self.get_operation(identifier).await {

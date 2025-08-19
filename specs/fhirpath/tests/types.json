@@ -880,7 +880,9 @@
         "fhirpath-lab",
         "testTypes"
       ],
-      "expected": []
+      "expected": [
+        true
+      ]
     },
     {
       "name": "testStringQuantityYearLiteralToQuantity",
@@ -890,7 +892,9 @@
         "fhirpath-lab",
         "testTypes"
       ],
-      "expected": []
+      "expected": [
+        true
+      ]
     },
     {
       "name": "testStringDecimalLiteralToQuantity",

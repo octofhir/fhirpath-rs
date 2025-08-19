@@ -1,0 +1,62 @@
+{
+  "name": "testTimezoneOffsetOf",
+  "description": "testTimezoneOffsetOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testTimezoneOffsetOfDateTimeUTC",
+      "expression": "@2023-05-15T14:30:00Z.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [0]
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimePositive",
+      "expression": "@2023-05-15T14:30:00+05:00.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [300]
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimeNegative",
+      "expression": "@2023-05-15T14:30:00-05:00.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [-300]
+    },
+    {
+      "name": "testTimezoneOffsetOfDateTimePositiveMinutes",
+      "expression": "@2023-05-15T14:30:00+05:30.timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [330]
+    },
+    {
+      "name": "testTimezoneOffsetOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T14:30:00Z | @2023-05-15T14:30:00+02:00 | @2023-05-15T14:30:00-03:00).timezoneOffsetOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testTimezoneOffsetOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [0, 120, -180]
+    }
+  ]
+}

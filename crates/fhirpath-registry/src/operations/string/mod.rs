@@ -21,6 +21,7 @@ pub mod contains;
 pub mod ends_with;
 pub mod index_of;
 pub mod join;
+pub mod last_index_of; // NEW
 pub mod length;
 pub mod lower;
 pub mod matches;
@@ -38,6 +39,7 @@ pub use contains::ContainsFunction;
 pub use ends_with::EndsWithFunction;
 pub use index_of::IndexOfFunction;
 pub use join::JoinFunction;
+pub use last_index_of::LastIndexOfFunction; // NEW
 pub use length::LengthFunction;
 pub use lower::LowerFunction;
 pub use matches::MatchesFunction;
@@ -62,6 +64,7 @@ impl StringOperations {
 
         // Basic string search functions
         registry.register(IndexOfFunction::new()).await?;
+        registry.register(LastIndexOfFunction::new()).await?; // NEW
         registry.register(SubstringFunction::new()).await?;
         registry.register(StartsWithFunction::new()).await?;
         registry.register(EndsWithFunction::new()).await?;

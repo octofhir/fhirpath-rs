@@ -135,25 +135,53 @@ impl crate::FhirPathEngine {
             });
         }
 
+        // According to FHIRPath spec, iif() only works on single values, not collections
+        // If input is a collection with multiple items, return empty collection
+        match &input {
+            FhirPathValue::Collection(col) if col.len() > 1 => {
+                return Ok(FhirPathValue::collection(vec![]));
+            }
+            _ => {}
+        }
+
+        // Create lambda context preserving existing lambda variables from outer context
+        // but set $this to current input
+        let lambda_context = context.with_lambda_context_preserving_index(input.clone());
+
         // Evaluate condition
         let condition = self
-            .evaluate_node_async(&func_data.args[0], input.clone(), context, depth + 1)
+            .evaluate_node_async(
+                &func_data.args[0],
+                input.clone(),
+                &lambda_context,
+                depth + 1,
+            )
             .await?;
 
-        // Check if condition is true
-        let is_true = self.is_truthy(&condition);
+        // Check if condition is a valid boolean according to FHIRPath spec
+        // Only boolean true/false are valid, non-boolean values make iif return empty
+        let boolean_result = self.to_boolean_strict(&condition);
 
-        if is_true {
-            // Evaluate then expression
-            self.evaluate_node_async(&func_data.args[1], input, context, depth + 1)
-                .await
-        } else if func_data.args.len() == 3 {
-            // Evaluate else expression
-            self.evaluate_node_async(&func_data.args[2], input, context, depth + 1)
-                .await
-        } else {
-            // No else expression provided
-            Ok(FhirPathValue::collection(vec![]))
+        match boolean_result {
+            Some(true) => {
+                // Evaluate then expression
+                self.evaluate_node_async(&func_data.args[1], input, &lambda_context, depth + 1)
+                    .await
+            }
+            Some(false) => {
+                if func_data.args.len() == 3 {
+                    // Evaluate else expression
+                    self.evaluate_node_async(&func_data.args[2], input, &lambda_context, depth + 1)
+                        .await
+                } else {
+                    // No else expression provided
+                    Ok(FhirPathValue::collection(vec![]))
+                }
+            }
+            None => {
+                // Non-boolean condition - return empty collection per FHIRPath spec
+                Ok(FhirPathValue::collection(vec![]))
+            }
         }
     }
 
@@ -203,6 +231,10 @@ impl crate::FhirPathEngine {
             }
             "all" => {
                 self.evaluate_all_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "iif" => {
+                self.evaluate_iif_function(func_data, input, context, depth)
                     .await
             }
             _ => Err(EvaluationError::InvalidOperation {

@@ -284,7 +284,7 @@ Apply the following guidelines when developing fhirpath-core:
 
 ## Specifications and Dependencies
 
-- FHIRPath specification reference in `specs/` folder
+- FHIRPath specification reference in [HL7](https://build.fhir.org/ig/HL7/FHIRPath/)
 - Official test cases in `specs/fhirpath/tests/` 
 - FHIRSchema spec: https://fhir-schema.github.io/fhir-schema/intro.html
 - Uses nom library version 8 for parsing

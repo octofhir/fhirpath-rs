@@ -1,0 +1,87 @@
+{
+  "name": "testDayOf",
+  "description": "testDayOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testDayOfDateFirstOfMonth",
+      "expression": "@2023-05-01.dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [1]
+    },
+    {
+      "name": "testDayOfDateMiddleOfMonth",
+      "expression": "@2023-05-15.dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [15]
+    },
+    {
+      "name": "testDayOfDateEndOfMonth",
+      "expression": "@2023-05-31.dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [31]
+    },
+    {
+      "name": "testDayOfDateTime",
+      "expression": "@2023-12-25T14:30:00.dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [25]
+    },
+    {
+      "name": "testDayOfLeapYear",
+      "expression": "@2024-02-29.dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [29]
+    },
+    {
+      "name": "testDayOfCollectionOfDates",
+      "expression": "(@2023-01-01 | @2023-05-15 | @2023-12-31).dayOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [1, 15, 31]
+    },
+    {
+      "name": "testDayOfPatientBirthDate",
+      "expression": "Patient.birthDate.dayOf()",
+      "input": {
+        "resourceType": "Patient",
+        "birthDate": "1990-07-15"
+      },
+      "tags": [
+        "fhirpath-lab",
+        "testDayOf"
+      ],
+      "inputfile": null,
+      "expected": [15]
+    }
+  ]
+}

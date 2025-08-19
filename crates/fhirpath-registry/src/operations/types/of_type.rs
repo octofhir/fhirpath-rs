@@ -106,15 +106,9 @@ impl OfTypeFunction {
         type_arg: &FhirPathValue,
         context: &EvaluationContext,
     ) -> Result<String> {
-        // Debug: Log what we're getting as type argument
-        eprintln!("ofType() received type argument: {type_arg:?}");
-
         // Check for empty collection first - this might indicate a parsing issue
         if let FhirPathValue::Collection(c) = type_arg {
             if c.is_empty() {
-                eprintln!(
-                    "ofType() received empty collection as type argument - this suggests a parsing issue"
-                );
                 return Err(FhirPathError::InvalidArguments {
                     message: "ofType() received empty collection as type argument".to_string(),
                 });

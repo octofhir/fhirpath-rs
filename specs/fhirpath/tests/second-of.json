@@ -1,0 +1,62 @@
+{
+  "name": "testSecondOf",
+  "description": "testSecondOf",
+  "source": "fhirpath-lab",
+  "tests": [
+    {
+      "name": "testSecondOfDateTime",
+      "expression": "@2023-05-15T14:30:45.secondOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [45]
+    },
+    {
+      "name": "testSecondOfDateTimeZero",
+      "expression": "@2023-05-15T14:30:00.secondOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [0]
+    },
+    {
+      "name": "testSecondOfDateTimeMax",
+      "expression": "@2023-05-15T14:30:59.secondOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [59]
+    },
+    {
+      "name": "testSecondOfDateTimeWithTimezone",
+      "expression": "@2023-05-15T14:30:30-03:00.secondOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [30]
+    },
+    {
+      "name": "testSecondOfCollectionOfDateTimes",
+      "expression": "(@2023-05-15T14:30:15 | @2023-05-15T14:30:30 | @2023-05-15T14:30:45).secondOf()",
+      "input": null,
+      "tags": [
+        "fhirpath-lab",
+        "testSecondOf"
+      ],
+      "inputfile": "patient-example.json",
+      "expected": [15, 30, 45]
+    }
+  ]
+}
