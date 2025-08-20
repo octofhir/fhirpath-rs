@@ -1,5 +1,12 @@
 [package]
 name = "octofhir-fhirpath-analyzer"
+description = "FHIRPath static analysis and type-enriched AST engine with semantic validation"
+categories = [
+    "science",
+    "parsing",
+    "data-structures",
+    "development-tools::profiling",
+]
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
