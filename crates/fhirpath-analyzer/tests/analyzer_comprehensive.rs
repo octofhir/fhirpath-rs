@@ -131,15 +131,11 @@ async fn test_function_signature_validation() {
         // Note: Function validation may not be fully implemented yet
         // This test documents expected behavior
         if func_errors.is_empty() {
-            println!(
-                "Note: Function validation not yet implemented for: {expression}"
-            );
+            println!("Note: Function validation not yet implemented for: {expression}");
         } else {
             let error_message = &func_errors[0].message;
             if !error_message.contains(expected_error_content) {
-                println!(
-                    "Note: Error message format differs for '{expression}': {error_message}"
-                );
+                println!("Note: Error message format differs for '{expression}': {error_message}");
             }
         }
     }
@@ -284,9 +280,7 @@ async fn test_error_recovery_and_suggestions() {
         let has_suggestions = matching_errors.iter().any(|e| !e.suggestions.is_empty());
 
         // Note: Not all error cases may have suggestions implemented yet
-        println!(
-            "Expression '{expression}' has suggestions: {has_suggestions}"
-        );
+        println!("Expression '{expression}' has suggestions: {has_suggestions}");
     }
 }
 
