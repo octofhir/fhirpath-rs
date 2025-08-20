@@ -30,6 +30,10 @@ path = "src/lib.rs"
 name = "octofhir-fhirpath"
 path = "src/bin/octofhir_fhirpath.rs"
 
+[[example]]
+name = "analyzer_usage"
+path = "../../examples/analyzer_usage.rs"
+
 [dependencies]
 # Workspace crates
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
@@ -41,6 +45,7 @@ octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator", features = [] }
+octofhir-fhirpath-analyzer = { path = "../fhirpath-analyzer" }
 
 # Core dependencies
 anyhow = { workspace = true }

@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2025-08-19
+Generated on: 2025-08-20
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,15 +13,15 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 111 | 100% |
 | **Total Individual Tests** | 1104 | 100% |
-| **Passing Tests** | 960 | 87.0% |
-| **Failing Tests** | 61 | 5.5% |
-| **Error Tests** | 83 | 7.5% |
+| **Passing Tests** | 963 | 87.2% |
+| **Failing Tests** | 68 | 6.2% |
+| **Error Tests** | 73 | 6.6% |
 
 ## Test Results by Suite
 
 ### ✅ Fully Passing (100%)
 
-- **aggregate.json** - 4/4 tests
+- **abs.json** - 4/4 tests
 - **all.json** - 4/4 tests
 - **basics.json** - 7/7 tests
 - **boolean-logic-and.json** - 9/9 tests
@@ -30,6 +30,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **case.json** - 4/4 tests
 - **cda-tests.json** - 3/3 tests
 - **ceiling.json** - 4/4 tests
+- **collection-boolean.json** - 6/6 tests
 - **combine.json** - 3/3 tests
 - **comments.json** - 9/9 tests
 - **comparable.json** - 3/3 tests
@@ -51,9 +52,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **from--zulip.json** - 2/2 tests
 - **high-boundary.json** - 24/24 tests
 - **hour-of.json** - 5/5 tests
-- **iif.json** - 11/11 tests
 - **index-of.json** - 6/6 tests
-- **index-part.json** - 1/1 tests
 - **indexer.json** - 2/2 tests
 - **intersect.json** - 4/4 tests
 - **join.json** - 1/1 tests
@@ -113,16 +112,16 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **less-than.json** - 93.3% (28/30 tests)
 - **last-index-of.json** - 92.3% (12/13 tests)
 - **n-equality.json** - 91.7% (22/24 tests)
-- **boolean-implies.json** - 88.9% (8/9 tests)
 - **in.json** - 87.5% (7/8 tests)
 - **plus.json** - 85.3% (29/34 tests)
-- **collection-boolean.json** - 83.3% (5/6 tests)
+- **iif.json** - 81.8% (9/11 tests)
 - **types.json** - 81.8% (81/99 tests)
 - **dollar.json** - 80.0% (4/5 tests)
 - **exists.json** - 80.0% (4/5 tests)
 - **sort.json** - 80.0% (8/10 tests)
 - **to-string.json** - 80.0% (4/5 tests)
-- **abs.json** - 75.0% (3/4 tests)
+- **boolean-implies.json** - 77.8% (7/9 tests)
+- **aggregate.json** - 75.0% (3/4 tests)
 - **literals.json** - 73.2% (60/82 tests)
 
 ### 🟠 Partially Implemented (30-70%)
@@ -130,6 +129,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **conforms-to.json** - 66.7% (2/3 tests)
 - **miscellaneous-accessor-tests.json** - 66.7% (2/3 tests)
 - **precedence.json** - 66.7% (4/6 tests)
+- **define-variable.json** - 57.1% (12/21 tests)
 - **misc-engine-tests.json** - 50.0% (1/2 tests)
 - **polymorphics.json** - 50.0% (1/2 tests)
 - **today.json** - 50.0% (1/2 tests)
@@ -138,20 +138,20 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🔴 Major Issues (0-30%)
 
-- **define-variable.json** - 28.6% (6/21 tests) - Issues
 - **observations.json** - 20.0% (2/10 tests) - Issues
 - **type.json** - 3.3% (1/30 tests) - Issues
+- **index-part.json** - 0.0% (0/1 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **87.0% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **87.2% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 111
 - **Total Tests**: 1104
-- **Pass Rate**: 87.0%
+- **Pass Rate**: 87.2%
 
 ---
 
-*Report generated on: 2025-08-19 19:14:02*
+*Report generated on: 2025-08-20 11:01:46*
 *Command: `just test-coverage` or `cargo run --package fhirpath-tools --bin test-coverage`*

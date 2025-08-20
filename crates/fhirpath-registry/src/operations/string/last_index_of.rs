@@ -195,17 +195,6 @@ impl LastIndexOfFunction {
             }
         }
     }
-
-    fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
-        if args.len() != 1 {
-            return Err(FhirPathError::EvaluationError {
-                expression: None,
-                location: None,
-                message: "lastIndexOf() requires exactly 1 argument".to_string(),
-            });
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]

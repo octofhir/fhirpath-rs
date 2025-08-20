@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/octofhir-fhirpath",
+    "crates/fhirpath-analyzer",
     "crates/fhirpath-core",
     "crates/fhirpath-ast",
     "crates/fhirpath-diagnostics",

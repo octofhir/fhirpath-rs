@@ -22,7 +22,7 @@ octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 
 # Benchmarking
-divan = "0.1.14"
+divan = "0.1.21"
 
 # Profiling and flamegraph
 pprof = { workspace = true, features = ["flamegraph"] }

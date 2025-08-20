@@ -158,9 +158,9 @@ impl crate::FhirPathEngine {
             )
             .await?;
 
-        // Check if condition is a valid boolean according to FHIRPath spec
-        // Only boolean true/false are valid, non-boolean values make iif return empty
-        let boolean_result = self.to_boolean_strict(&condition);
+        // Convert condition to boolean using FHIRPath boolean conversion rules
+        // Non-empty collections, non-zero numbers, non-empty strings are truthy
+        let boolean_result = self.to_boolean_fhirpath(&condition);
 
         match boolean_result {
             Some(true) => {
@@ -179,7 +179,7 @@ impl crate::FhirPathEngine {
                 }
             }
             None => {
-                // Non-boolean condition - return empty collection per FHIRPath spec
+                // Invalid condition (shouldn't happen with FHIRPath conversion) - return empty
                 Ok(FhirPathValue::collection(vec![]))
             }
         }

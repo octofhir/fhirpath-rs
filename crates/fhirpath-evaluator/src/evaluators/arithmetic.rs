@@ -153,7 +153,9 @@ impl ArithmeticEvaluator {
 
         // Unary plus just returns the operand for numeric types
         match value {
-            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(value.clone()),
+            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) | FhirPathValue::Quantity(_) => {
+                Ok(value.clone())
+            }
             _ => Err(EvaluationError::TypeError {
                 expected: "numeric type".to_string(),
                 actual: value.type_name().to_string(),
@@ -177,6 +179,10 @@ impl ArithmeticEvaluator {
         match value {
             FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(-i)),
             FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
+            FhirPathValue::Quantity(q) => {
+                let negated_value = -q.value;
+                Ok(FhirPathValue::quantity(negated_value, q.unit.clone()))
+            }
             _ => Err(EvaluationError::TypeError {
                 expected: "numeric type".to_string(),
                 actual: value.type_name().to_string(),

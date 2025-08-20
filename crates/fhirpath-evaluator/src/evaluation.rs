@@ -263,7 +263,7 @@ impl crate::FhirPathEngine {
         var_name: &str,
         context: &LocalEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if let Some(value) = context.variable_scope.variables.get(var_name) {
+        if let Some(value) = context.variable_scope.get_variable(var_name) {
             Ok(value.clone())
         } else {
             // Check for built-in environment variables

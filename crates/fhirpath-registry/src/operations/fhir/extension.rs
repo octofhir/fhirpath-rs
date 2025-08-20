@@ -86,35 +86,37 @@ impl ExtensionFunction {
         if let FhirPathValue::JsonValue(root_json) = root_resource {
             let root_obj = root_json.as_sonic_value();
 
-            // Look for common primitive properties that might have underscore extensions
-            let underscore_properties = ["_birthDate", "_deceasedBoolean", "_active", "_gender"];
+            // Look for all properties that start with underscore (primitive extensions)
+            if let Some(root_map) = root_obj.as_object() {
+                for (property_name, property_value) in root_map {
+                    if property_name.starts_with('_') {
+                        if let Some(extensions) = property_value.get("extension") {
+                            if let Some(ext_array) = extensions.as_array() {
+                                let mut matching_extensions = Vec::new();
 
-            for underscore_prop in &underscore_properties {
-                if let Some(underscore_element) = root_obj.get(underscore_prop) {
-                    if let Some(extensions) = underscore_element.get("extension") {
-                        if let Some(ext_array) = extensions.as_array() {
-                            let mut matching_extensions = Vec::new();
-
-                            for ext in ext_array {
-                                if let Some(ext_obj) = ext.as_object() {
-                                    if let Some(ext_url) = ext_obj.get(&"url") {
-                                        if let Some(ext_url_str) = ext_url.as_str() {
-                                            if ext_url_str == url {
-                                                matching_extensions.push(
-                                                    FhirPathValue::resource_from_json(ext.clone()),
-                                                );
+                                for ext in ext_array {
+                                    if let Some(ext_obj) = ext.as_object() {
+                                        if let Some(ext_url) = ext_obj.get(&"url") {
+                                            if let Some(ext_url_str) = ext_url.as_str() {
+                                                if ext_url_str == url {
+                                                    matching_extensions.push(
+                                                        FhirPathValue::resource_from_json(
+                                                            ext.clone(),
+                                                        ),
+                                                    );
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            if !matching_extensions.is_empty() {
-                                return if matching_extensions.len() == 1 {
-                                    Ok(matching_extensions.into_iter().next().unwrap())
-                                } else {
-                                    Ok(FhirPathValue::collection(matching_extensions))
-                                };
+                                if !matching_extensions.is_empty() {
+                                    return if matching_extensions.len() == 1 {
+                                        Ok(matching_extensions.into_iter().next().unwrap())
+                                    } else {
+                                        Ok(FhirPathValue::collection(matching_extensions))
+                                    };
+                                }
                             }
                         }
                     }
@@ -194,6 +196,12 @@ impl FhirPathOperation for ExtensionFunction {
 
         match extensions.len() {
             0 => {
+                // Try primitive extension lookup as fallback
+                let primitive_result = self.find_primitive_extensions(context, url).await?;
+                if !matches!(primitive_result, FhirPathValue::Empty) {
+                    return Ok(primitive_result);
+                }
+
                 // Handle collection case by delegating to collection processing
                 match &context.input {
                     FhirPathValue::Collection(c) => {

@@ -71,6 +71,26 @@ impl crate::FhirPathEngine {
         }
     }
 
+    /// Convert a value to boolean using FHIRPath standard boolean conversion rules
+    /// Non-empty collections, non-zero numbers, non-empty strings are truthy
+    pub fn to_boolean_fhirpath(&self, value: &FhirPathValue) -> Option<bool> {
+        match value {
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Empty => Some(false),
+            FhirPathValue::Collection(c) => {
+                if c.is_empty() {
+                    Some(false)
+                } else {
+                    Some(true) // Non-empty collections are truthy in FHIRPath
+                }
+            }
+            FhirPathValue::Integer(i) => Some(*i != 0),
+            FhirPathValue::Decimal(d) => Some(!d.is_zero()),
+            FhirPathValue::String(s) => Some(!s.is_empty()),
+            _ => Some(true), // Other types (Date, DateTime, etc.) are considered truthy
+        }
+    }
+
     /// Validate that a collection size doesn't exceed configured limits
     pub fn validate_collection_size(&self, size: usize) -> EvaluationResult<()> {
         if size > self.config().max_collection_size {

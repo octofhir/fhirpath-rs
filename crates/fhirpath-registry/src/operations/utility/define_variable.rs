@@ -154,16 +154,9 @@ impl DefineVariableFunction {
             context.input.clone()
         };
 
-        // Set the variable in the current context
-        // Note: This approach updates the context that will be used for subsequent operations
-        let mut updated_context = context.clone();
-        updated_context
-            .variables
-            .insert(var_name.to_string(), var_value);
-
-        // Return the current input for chaining
-        // The variable context modification should be handled at the evaluator level
-        Ok(context.input.clone())
+        // Return the variable value as the result
+        // The variable context modification is handled at the evaluator level
+        Ok(var_value)
     }
 
     /// Check if a variable name is a system variable that cannot be overridden

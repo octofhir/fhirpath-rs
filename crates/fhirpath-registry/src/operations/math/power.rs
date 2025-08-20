@@ -84,14 +84,6 @@ impl PowerFunction {
             }),
         }
     }
-
-    fn is_empty_value(&self, value: &FhirPathValue) -> bool {
-        match value {
-            FhirPathValue::Empty => true,
-            FhirPathValue::Collection(c) => c.is_empty(),
-            _ => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -106,10 +98,6 @@ impl NumericInput {
             NumericInput::Integer(i) => *i as f64,
             NumericInput::Decimal(d) => d.to_f64().unwrap_or(0.0),
         }
-    }
-
-    fn is_integer(&self) -> bool {
-        matches!(self, NumericInput::Integer(_))
     }
 }
 

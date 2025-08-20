@@ -816,6 +816,11 @@ impl<'input> PrattParser<'input> {
                 // Unary plus is essentially a no-op, just parse the operand
                 self.parse_expression_with_precedence(Precedence::Unary)
             }
+            Some(Token::Not) => {
+                self.advance()?;
+                let operand = self.parse_expression_with_precedence(Precedence::Unary)?;
+                Ok(ExpressionNode::unary_op(UnaryOperator::Not, operand))
+            }
 
             // Empty collections
             Some(Token::LeftBrace) => {

@@ -1,0 +1,33 @@
+[package]
+name = "octofhir-fhirpath-analyzer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+# Core workspace dependencies
+octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
+octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
+octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
+octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
+
+# Performance and concurrency
+dashmap = { workspace = true }
+lru = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# JSON processing
+sonic-rs = { workspace = true }
+
+# Error handling and data structures
+thiserror = { workspace = true }
+indexmap = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+divan = "0.1.21"

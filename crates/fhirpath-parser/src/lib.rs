@@ -43,3 +43,8 @@ pub fn parse_expression(input: &str) -> Result<ExpressionNode> {
     pratt::parse_expression_pratt(input)
         .map_err(|e| octofhir_fhirpath_core::FhirPathError::parse_error(0, e.to_string()))
 }
+
+/// Alias for parse_expression for convenience
+pub fn parse(input: &str) -> Result<ExpressionNode> {
+    parse_expression(input)
+}

@@ -153,16 +153,17 @@ impl LogicalEvaluator {
         // - false implies anything = true
         // - true implies true = true
         // - true implies false = false
-        // - anything implies empty = empty (unless left is false)
-        // - empty implies anything = empty
+        // - empty implies anything = true (empty is falsy, so treated like false)
+        // - anything implies empty = empty (unless left is false/empty)
         match (
             left_val.and_then(Self::to_boolean),
             right_val.and_then(Self::to_boolean),
         ) {
             (Some(false), _) => Ok(FhirPathValue::Boolean(true)), // false implies anything = true
+            (None, _) => Ok(FhirPathValue::Boolean(true)), // empty implies anything = true (empty is falsy)
             (Some(true), Some(true)) => Ok(FhirPathValue::Boolean(true)),
             (Some(true), Some(false)) => Ok(FhirPathValue::Boolean(false)),
-            _ => Ok(FhirPathValue::Empty), // Any empty operand (except false left) = empty result
+            (Some(true), None) => Ok(FhirPathValue::Empty), // true implies empty = empty
         }
     }
 }
