@@ -139,52 +139,103 @@ impl crate::FhirPathEngine {
         context: &LocalEvaluationContext,
         depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
-        // sort() can have 0 or 1 argument
-        if func_data.args.len() > 1 {
-            return Err(EvaluationError::InvalidOperation {
-                message: format!(
-                    "sort() requires 0 or 1 arguments, got {}",
-                    func_data.args.len()
-                ),
-            });
-        }
-
         match &input {
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
                     return Ok(input);
                 }
 
-                let mut items_with_sort_keys: Vec<(FhirPathValue, FhirPathValue)> = Vec::new();
+                let mut items_with_sort_keys: Vec<(FhirPathValue, Vec<(FhirPathValue, bool)>)> =
+                    Vec::new();
 
                 // If no sort expression provided, sort by the items themselves
                 if func_data.args.is_empty() {
                     for item in items.iter() {
-                        items_with_sort_keys.push((item.clone(), item.clone()));
+                        items_with_sort_keys.push((item.clone(), vec![(item.clone(), false)]));
                     }
                 } else {
-                    // Evaluate sort expression for each item
-                    let sort_expr = &func_data.args[0];
-
+                    // Evaluate sort expressions for each item
                     for (index, item) in items.iter().enumerate() {
                         let lambda_context =
                             context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
 
-                        let sort_key = self
-                            .evaluate_node_async(
-                                sort_expr,
-                                item.clone(),
-                                &lambda_context,
-                                depth + 1,
-                            )
-                            .await?;
+                        let mut sort_keys = Vec::new();
 
-                        items_with_sort_keys.push((item.clone(), sort_key));
+                        for sort_expr in &func_data.args {
+                            // Extract sort intent (detect descending sort with unary minus)
+                            let (actual_expr, is_descending) = self.extract_sort_intent(sort_expr);
+
+                            let sort_key = self
+                                .evaluate_node_async(
+                                    actual_expr,
+                                    item.clone(),
+                                    &lambda_context,
+                                    depth + 1,
+                                )
+                                .await?;
+
+                            sort_keys.push((sort_key, is_descending));
+                        }
+
+                        items_with_sort_keys.push((item.clone(), sort_keys));
                     }
                 }
 
-                // Sort items by their sort keys
-                items_with_sort_keys.sort_by(|(_, a), (_, b)| self.compare_fhir_values(a, b));
+                // Sort items by their sort keys (supporting multiple criteria)
+                items_with_sort_keys.sort_by(|(_, keys_a), (_, keys_b)| {
+                    use std::cmp::Ordering;
+
+                    // Find the first non-empty sort key for comparison
+                    for ((key_a, desc_a), (key_b, desc_b)) in keys_a.iter().zip(keys_b.iter()) {
+                        let is_empty_a = match key_a {
+                            FhirPathValue::Collection(c) if c.is_empty() => true,
+                            FhirPathValue::Empty => true,
+                            _ => false,
+                        };
+                        let is_empty_b = match key_b {
+                            FhirPathValue::Collection(c) if c.is_empty() => true,
+                            FhirPathValue::Empty => true,
+                            _ => false,
+                        };
+
+                        // If both keys are empty for this criterion, continue to next criterion
+                        if is_empty_a && is_empty_b {
+                            continue;
+                        }
+
+                        // If only one is empty, prefer the non-empty one
+                        let ordering = if is_empty_a && !is_empty_b {
+                            Ordering::Greater // Empty sorts after non-empty in ascending
+                        } else if !is_empty_a && is_empty_b {
+                            Ordering::Less // Non-empty sorts before empty in ascending
+                        } else {
+                            // Both non-empty, do normal comparison
+                            self.compare_fhir_values(key_a, key_b)
+                        };
+
+                        // Apply descending sort if needed
+                        let final_ordering = if *desc_a != *desc_b {
+                            // If one is descending and one isn't, we have a logic error
+                            // but let's handle it gracefully
+                            if *desc_a {
+                                ordering.reverse()
+                            } else {
+                                ordering
+                            }
+                        } else if *desc_a {
+                            // Both descending
+                            ordering.reverse()
+                        } else {
+                            // Both ascending
+                            ordering
+                        };
+
+                        if final_ordering != Ordering::Equal {
+                            return final_ordering;
+                        }
+                    }
+                    Ordering::Equal
+                });
 
                 // Extract sorted items
                 let sorted_items: Vec<FhirPathValue> = items_with_sort_keys

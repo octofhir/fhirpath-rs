@@ -457,26 +457,3 @@ async fn test_validation_report_functionality() {
     report.finish();
     assert!(report.total_execution_time() > Duration::from_nanos(1));
 }
-
-/// Utility for running individual test suites
-pub struct TestSuiteRunner;
-
-impl TestSuiteRunner {
-    pub async fn run_suite(suite_name: &str) -> TestSuiteResult {
-        match suite_name {
-            "core" => ValidationPipeline::run_core_tests().await,
-            "lambda" => ValidationPipeline::run_lambda_tests().await,
-            "performance" => ValidationPipeline::run_performance_tests().await,
-            "integration" => ValidationPipeline::run_integration_tests().await,
-            "official" => ValidationPipeline::run_official_tests().await,
-            "stress" => ValidationPipeline::run_stress_tests().await,
-            "compatibility" => ValidationPipeline::run_compatibility_tests().await,
-            "edge_cases" => ValidationPipeline::run_edge_case_tests().await,
-            "regression" => ValidationPipeline::run_regression_tests().await,
-            _ => {
-                println!("Unknown test suite: {suite_name}");
-                TestSuiteResult::new(0, 0)
-            }
-        }
-    }
-}

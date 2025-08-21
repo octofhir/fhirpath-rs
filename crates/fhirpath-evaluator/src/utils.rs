@@ -285,6 +285,19 @@ impl crate::FhirPathEngine {
                         | "date"
                         | "dateTime"
                         | "time"
+                        | "uri"
+                        | "url"
+                        | "canonical"
+                        | "code"
+                        | "id"
+                        | "markdown"
+                        | "base64Binary"
+                        | "instant"
+                        | "oid"
+                        | "positiveInt"
+                        | "unsignedInt"
+                        | "uuid"
+                        | "xhtml"
                         | "Boolean"
                         | "Integer"
                         | "Decimal"
@@ -308,7 +321,43 @@ impl crate::FhirPathEngine {
                 // Type names typically start with uppercase letter
                 name.chars().next().is_some_and(|c| c.is_uppercase()) ||
                 // Or are known primitive type names
-                matches!(name.as_str(), "boolean" | "integer" | "decimal" | "string" | "date" | "datetime" | "time" | "collection" | "empty" | "quantity")
+                matches!(name.as_str(), "boolean" | "integer" | "decimal" | "string" | "date" | "datetime" | "time" | "uri" | "url" | "canonical" | "code" | "id" | "markdown" | "base64Binary" | "instant" | "oid" | "positiveInt" | "unsignedInt" | "uuid" | "xhtml" | "collection" | "empty" | "quantity")
+            }
+            ExpressionNode::Path { base, path } => {
+                // Handle qualified type names like FHIR.uuid, System.Boolean
+                if let ExpressionNode::Identifier(namespace) = base.as_ref() {
+                    // Check for known type namespaces and valid type names
+                    matches!(namespace.as_str(), "FHIR" | "System")
+                        && (path.chars().next().is_some_and(|c| c.is_uppercase())
+                            || matches!(
+                                path.as_str(),
+                                "boolean"
+                                    | "integer"
+                                    | "decimal"
+                                    | "string"
+                                    | "date"
+                                    | "datetime"
+                                    | "time"
+                                    | "uri"
+                                    | "url"
+                                    | "canonical"
+                                    | "code"
+                                    | "id"
+                                    | "markdown"
+                                    | "base64Binary"
+                                    | "instant"
+                                    | "oid"
+                                    | "positiveInt"
+                                    | "unsignedInt"
+                                    | "uuid"
+                                    | "xhtml"
+                                    | "collection"
+                                    | "empty"
+                                    | "quantity"
+                            ))
+                } else {
+                    false
+                }
             }
             _ => false,
         }

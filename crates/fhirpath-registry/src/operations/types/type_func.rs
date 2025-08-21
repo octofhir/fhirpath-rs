@@ -24,11 +24,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use octofhir_fhirpath_model::{Collection, FhirPathValue, JsonValue};
 use sonic_rs::JsonValueTrait;
 
 /// Type function operation - returns type information for values
-pub struct TypeFunction;
+pub struct TypeFunction {
+    metadata: OperationMetadata,
+}
 
 impl Default for TypeFunction {
     fn default() -> Self {
@@ -38,7 +40,9 @@ impl Default for TypeFunction {
 
 impl TypeFunction {
     pub fn new() -> Self {
-        Self
+        Self {
+            metadata: Self::create_metadata(),
+        }
     }
 
     fn create_metadata() -> OperationMetadata {
@@ -49,51 +53,106 @@ impl TypeFunction {
             .build()
     }
 
-    /// Create a type object with namespace and name properties
-    fn create_type_object(namespace: &str, name: &str) -> FhirPathValue {
-        FhirPathValue::TypeInfoObject {
-            namespace: namespace.into(),
-            name: name.into(),
+    /// Enhanced type determination that considers FHIR context
+    async fn get_type_object_from_value(
+        value: &FhirPathValue,
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
+        match value {
+            FhirPathValue::Boolean(_) => {
+                // Check if this value comes from FHIR context (i.e., from navigation like Patient.active)
+                if Self::is_fhir_context(context) {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from("boolean"),
+                    })
+                } else {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("System"),
+                        name: std::sync::Arc::from("Boolean"),
+                    })
+                }
+            }
+            FhirPathValue::Integer(_) => {
+                if Self::is_fhir_context(context) {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from("integer"),
+                    })
+                } else {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("System"),
+                        name: std::sync::Arc::from("Integer"),
+                    })
+                }
+            }
+            FhirPathValue::String(_) => {
+                if Self::is_fhir_context(context) {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from("string"),
+                    })
+                } else {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("System"),
+                        name: std::sync::Arc::from("String"),
+                    })
+                }
+            }
+            FhirPathValue::Decimal(_) => {
+                if Self::is_fhir_context(context) {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from("decimal"),
+                    })
+                } else {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("System"),
+                        name: std::sync::Arc::from("Decimal"),
+                    })
+                }
+            }
+            FhirPathValue::JsonValue(json_val) => {
+                // For JSON values, try to determine the FHIR type from context
+                if let Some(resource_type) = Self::extract_resource_type(json_val) {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from(resource_type),
+                    })
+                } else {
+                    Ok(FhirPathValue::TypeInfoObject {
+                        namespace: std::sync::Arc::from("FHIR"),
+                        name: std::sync::Arc::from("Element"),
+                    })
+                }
+            }
+            _ => Ok(FhirPathValue::TypeInfoObject {
+                namespace: std::sync::Arc::from("FHIR"),
+                name: std::sync::Arc::from("Element"),
+            }),
         }
     }
 
-    /// Get type information for a FhirPathValue
-    fn get_type_info(value: &FhirPathValue) -> (String, String) {
-        match value {
-            // System types
-            FhirPathValue::Boolean(_) => ("System".to_string(), "Boolean".to_string()),
-            FhirPathValue::Integer(_) => ("System".to_string(), "Integer".to_string()),
-            FhirPathValue::Decimal(_) => ("System".to_string(), "Decimal".to_string()),
-            FhirPathValue::String(_) => ("System".to_string(), "String".to_string()),
-            FhirPathValue::Date(_) => ("System".to_string(), "Date".to_string()),
-            FhirPathValue::DateTime(_) => ("System".to_string(), "DateTime".to_string()),
-            FhirPathValue::Time(_) => ("System".to_string(), "Time".to_string()),
-            FhirPathValue::Quantity(_) => ("System".to_string(), "Quantity".to_string()),
-
-            // FHIR types - check different value variants
-            FhirPathValue::Resource(resource) => {
-                if let Some(resource_type) = resource.resource_type() {
-                    ("FHIR".to_string(), resource_type.to_string())
-                } else {
-                    ("FHIR".to_string(), "Resource".to_string())
-                }
+    /// Check if the current evaluation context suggests we're working with FHIR data
+    fn is_fhir_context(context: &EvaluationContext) -> bool {
+        // Check if the root context contains FHIR resource data
+        match &context.root {
+            FhirPathValue::JsonValue(json_val) => {
+                // Check if this looks like a FHIR resource
+                json_val.as_inner().get("resourceType").is_some()
             }
-            FhirPathValue::JsonValue(json) => {
-                if let Some(resource_type) =
-                    json.as_inner().get("resourceType").and_then(|v| v.as_str())
-                {
-                    ("FHIR".to_string(), resource_type.to_string())
-                } else {
-                    ("System".to_string(), "Object".to_string())
-                }
-            }
-
-            // Collections
-            FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),
-
-            // Other types
-            _ => ("System".to_string(), "Any".to_string()),
+            _ => false,
         }
+    }
+
+    /// Extract resource type from JSON value if it's a FHIR resource
+    fn extract_resource_type(json_val: &JsonValue) -> Option<String> {
+        if let Some(resource_type) = json_val.as_inner().get("resourceType") {
+            if let Some(type_str) = resource_type.as_str() {
+                return Some(type_str.to_string());
+            }
+        }
+        None
     }
 }
 
@@ -111,9 +170,7 @@ impl FhirPathOperation for TypeFunction {
 
     /// Get operation metadata
     fn metadata(&self) -> &OperationMetadata {
-        static METADATA: std::sync::LazyLock<OperationMetadata> =
-            std::sync::LazyLock::new(TypeFunction::create_metadata);
-        &METADATA
+        &self.metadata
     }
 
     /// Evaluate the type function
@@ -136,15 +193,15 @@ impl FhirPathOperation for TypeFunction {
                     FhirPathError::evaluation_error("Empty collection in type function")
                 })?;
 
-                let (namespace, name) = Self::get_type_info(first_item);
+                let type_object = Self::get_type_object_from_value(first_item, context).await?;
                 Ok(FhirPathValue::Collection(Collection::from_vec(vec![
-                    Self::create_type_object(&namespace, &name),
+                    type_object,
                 ])))
             }
             _ => {
-                let (namespace, name) = Self::get_type_info(input);
+                let type_object = Self::get_type_object_from_value(input, context).await?;
                 Ok(FhirPathValue::Collection(Collection::from_vec(vec![
-                    Self::create_type_object(&namespace, &name),
+                    type_object,
                 ])))
             }
         }

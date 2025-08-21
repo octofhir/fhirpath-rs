@@ -27,8 +27,12 @@ pub use octofhir_fhir_model::provider::{
 };
 pub use octofhir_fhirschema::PackageSpec;
 
+// Import choice type mapper
+use crate::choice_type_mapper::ChoiceVariant;
+
 // Define our own async-first ModelProvider trait
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use sonic_rs::JsonValueTrait;
 
 // Re-export type reflection system
@@ -194,8 +198,7 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
     /// Get the FHIR version supported by this provider
     fn fhir_version(&self) -> FhirVersion;
 
-    /// Check if child_type is a subtype of parent_type
-    async fn is_subtype_of(&self, child_type: &str, parent_type: &str) -> bool;
+    // is_subtype_of moved to advanced operations section below
 
     /// Check if a resource type matches a target type (includes inheritance)
     /// This method performs a comprehensive type compatibility check:
@@ -336,6 +339,220 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
             }
         }
     }
+
+    /// Check if a property is a choice type (value[x] pattern)
+    async fn is_choice_property(&self, type_name: &str, property: &str) -> bool {
+        let _ = (type_name, property);
+        false
+    }
+
+    /// Get all available choice variants for a choice property
+    async fn get_choice_variants(&self, type_name: &str, property: &str) -> Vec<ChoiceVariant> {
+        let _ = (type_name, property);
+        vec![]
+    }
+
+    /// Resolve the actual choice property from data
+    async fn resolve_choice_property(
+        &self,
+        type_name: &str,
+        property: &str,
+        data: &crate::FhirPathValue,
+    ) -> Option<String> {
+        let _ = (type_name, property, data);
+        None
+    }
+
+    /// Get the base property name from a choice variant (e.g., "valueQuantity" -> "value")
+    async fn get_choice_base_property(
+        &self,
+        type_name: &str,
+        variant_property: &str,
+    ) -> Option<String> {
+        let _ = (type_name, variant_property);
+        None
+    }
+
+    // === Advanced Type Operations ===
+
+    /// Check if a type is a subtype of another (inheritance checking)
+    async fn is_subtype_of(&self, derived_type: &str, base_type: &str) -> bool {
+        // Default implementation - should be overridden by providers
+        derived_type == base_type
+    }
+
+    /// Get all supertypes of a given type (inheritance chain)
+    async fn get_supertypes(&self, type_name: &str) -> Vec<String> {
+        // Default implementation returns empty
+        let _ = type_name;
+        vec![]
+    }
+
+    /// Check if a type is abstract (cannot be instantiated)
+    async fn is_abstract_type(&self, type_name: &str) -> bool {
+        // Default implementation - Resource and Element are abstract
+        matches!(
+            type_name,
+            "Resource" | "DomainResource" | "Element" | "Base"
+        )
+    }
+
+    /// Attempt to cast a value to a target type
+    async fn try_cast_value(
+        &self,
+        value: &crate::FhirPathValue,
+        target_type: &str,
+    ) -> Result<Option<crate::FhirPathValue>, ModelError> {
+        let source_type = self.get_value_type_name(value);
+
+        // Same type - direct return
+        if source_type == target_type {
+            return Ok(Some(value.clone()));
+        }
+
+        // Check if source type is subtype of target (upcast)
+        if self.is_subtype_of(&source_type, target_type).await {
+            return Ok(Some(value.clone()));
+        }
+
+        // Check if target type is subtype of source (downcast)
+        if self.is_subtype_of(target_type, &source_type).await {
+            return self.try_downcast_value(value, target_type).await;
+        }
+
+        // Try primitive type conversions
+        self.try_primitive_conversion(value, target_type).await
+    }
+
+    /// Check if a value is of a specific type (for 'is' operator)
+    async fn is_value_of_type(&self, value: &crate::FhirPathValue, target_type: &str) -> bool {
+        let source_type = self.get_value_type_name(value);
+
+        // Exact match
+        if source_type == target_type {
+            return true;
+        }
+
+        // Check inheritance relationship
+        self.is_subtype_of(&source_type, target_type).await
+    }
+
+    /// Get the runtime type name of a value
+    fn get_value_type_name(&self, value: &crate::FhirPathValue) -> String {
+        use crate::FhirPathValue;
+        match value {
+            FhirPathValue::String(_) => "string".to_string(),
+            FhirPathValue::Boolean(_) => "boolean".to_string(),
+            FhirPathValue::Integer(_) => "integer".to_string(),
+            FhirPathValue::Decimal(_) => "decimal".to_string(),
+            FhirPathValue::DateTime(_) => "dateTime".to_string(),
+            FhirPathValue::Date(_) => "date".to_string(),
+            FhirPathValue::Time(_) => "time".to_string(),
+            FhirPathValue::JsonValue(json) => {
+                // Try to extract resourceType or use generic Element
+                json.get_property("resourceType")
+                    .and_then(|rt| {
+                        if rt.is_string() {
+                            rt.as_str().map(|s| s.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_else(|| "Element".to_string())
+            }
+            FhirPathValue::Resource(resource) => {
+                resource.resource_type().unwrap_or("Resource").to_string()
+            }
+            FhirPathValue::Collection(_) => "Collection".to_string(),
+            FhirPathValue::TypeInfoObject { name, .. } => name.to_string(),
+            FhirPathValue::Quantity(_) => "Quantity".to_string(),
+            FhirPathValue::Empty => "Empty".to_string(),
+        }
+    }
+
+    /// Attempt downcast validation (helper method)
+    async fn try_downcast_value(
+        &self,
+        value: &crate::FhirPathValue,
+        target_type: &str,
+    ) -> Result<Option<crate::FhirPathValue>, ModelError> {
+        // For downcast, check if the runtime type is compatible
+        let runtime_type = self.get_value_type_name(value);
+
+        if self.is_subtype_of(&runtime_type, target_type).await {
+            Ok(Some(value.clone()))
+        } else {
+            Ok(None) // Downcast failed
+        }
+    }
+
+    /// Attempt primitive type conversion (helper method)
+    async fn try_primitive_conversion(
+        &self,
+        value: &crate::FhirPathValue,
+        target_type: &str,
+    ) -> Result<Option<crate::FhirPathValue>, ModelError> {
+        use crate::FhirPathValue;
+
+        match (value, target_type) {
+            // String conversions
+            (FhirPathValue::String(s), "integer") => {
+                if let Ok(i) = s.parse::<i64>() {
+                    Ok(Some(FhirPathValue::Integer(i)))
+                } else {
+                    Ok(None)
+                }
+            }
+            (FhirPathValue::String(s), "decimal") => {
+                if let Ok(d) = s.parse::<f64>() {
+                    use rust_decimal::Decimal;
+                    if let Ok(decimal) = Decimal::try_from(d) {
+                        Ok(Some(FhirPathValue::Decimal(decimal)))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            (FhirPathValue::String(s), "boolean") => match s.to_lowercase().as_str() {
+                "true" => Ok(Some(FhirPathValue::Boolean(true))),
+                "false" => Ok(Some(FhirPathValue::Boolean(false))),
+                _ => Ok(None),
+            },
+
+            // Numeric conversions
+            (FhirPathValue::Integer(i), "string") => {
+                Ok(Some(FhirPathValue::String(i.to_string().into())))
+            }
+            (FhirPathValue::Integer(i), "decimal") => {
+                use rust_decimal::Decimal;
+                let decimal = Decimal::from(*i);
+                Ok(Some(FhirPathValue::Decimal(decimal)))
+            }
+            (FhirPathValue::Decimal(d), "string") => {
+                Ok(Some(FhirPathValue::String(d.to_string().into())))
+            }
+            (FhirPathValue::Decimal(d), "integer") => {
+                if d.fract() == rust_decimal::Decimal::ZERO {
+                    if let Some(int_val) = d.to_i64() {
+                        Ok(Some(FhirPathValue::Integer(int_val)))
+                    } else {
+                        Ok(None) // Out of range
+                    }
+                } else {
+                    Ok(None) // Cannot convert non-integer decimal to integer
+                }
+            }
+
+            // Boolean conversions
+            (FhirPathValue::Boolean(b), "string") => {
+                Ok(Some(FhirPathValue::String(b.to_string().into())))
+            }
+
+            _ => Ok(None), // No conversion available
+        }
+    }
 }
 
 // Legacy compatibility - map old TypeInfo to new TypeReflectionInfo
@@ -438,8 +655,10 @@ pub struct FhirSchemaConfig {
     pub additional_packages: Vec<PackageSpec>,
     /// Installation options
     pub install_options: Option<octofhir_fhirschema::InstallOptions>,
-    /// Cache configuration
+    /// Multi-tier cache configuration (now default)
     pub cache_config: super::cache::CacheConfig,
+    /// Legacy cache configuration (optional, for backward compatibility)
+    pub legacy_cache_config: Option<super::legacy_cache::CacheConfig>,
 }
 
 impl Default for FhirSchemaConfig {
@@ -451,6 +670,7 @@ impl Default for FhirSchemaConfig {
             additional_packages: vec![],
             install_options: None,
             cache_config: super::cache::CacheConfig::default(),
+            legacy_cache_config: None, // Legacy cache is now opt-in
         }
     }
 }

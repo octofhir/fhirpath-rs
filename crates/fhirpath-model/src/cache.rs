@@ -1,501 +1,737 @@
-// Copyright 2024 OctoFHIR Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Caching infrastructure for model provider
-
+use crate::{
+    legacy_cache::{CacheConfig as LegacyCacheConfig, TypeCache},
+    provider::TypeReflectionInfo,
+};
+use crossbeam::epoch::{self, Atomic, Owned, Shared};
 use dashmap::DashMap;
-use parking_lot::RwLock;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering},
+    },
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+use tokio::time;
 
-/// Statistics about cache usage
-#[derive(Debug, Clone, Default)]
-pub struct CacheStats {
-    /// Total number of cache hits
-    pub hits: u64,
-    /// Total number of cache misses
-    pub misses: u64,
-    /// Number of items evicted
-    pub evictions: u64,
-    /// Number of items currently in cache
-    pub size: u64,
+/// High-performance multi-tier caching system
+#[derive(Debug)]
+pub struct CacheManager {
+    /// L1: Lock-free hot cache for most frequently accessed types
+    hot_cache: Arc<LockFreeCache<String, Arc<TypeReflectionInfo>>>,
+
+    /// L2: Warm cache with medium access frequency
+    warm_cache: Arc<DashMap<String, WarmCacheEntry>>,
+
+    /// L3: Cold storage for less frequent access
+    cold_storage: Arc<TypeCache<TypeReflectionInfo>>,
+
+    /// Access pattern tracker for cache promotion/demotion
+    pub access_tracker: Arc<AccessPatternTracker>,
+
+    /// Cache configuration and thresholds
+    config: CacheConfig,
+
+    /// Performance metrics
+    metrics: Arc<RwLock<CacheMetrics>>,
 }
 
-impl CacheStats {
-    /// Calculate hit ratio
-    pub fn hit_ratio(&self) -> f64 {
-        let total = self.hits + self.misses;
-        if total == 0 {
-            0.0
-        } else {
-            self.hits as f64 / total as f64
-        }
-    }
-
-    /// Reset all statistics
-    pub fn reset(&mut self) {
-        self.hits = 0;
-        self.misses = 0;
-        self.evictions = 0;
-    }
-}
-
-/// Configuration for cache behavior
 #[derive(Debug, Clone)]
 pub struct CacheConfig {
-    /// Maximum number of entries in the cache
-    pub max_size: usize,
-    /// Time-to-live for cache entries
-    pub ttl: Duration,
-    /// Enable cache statistics tracking
-    pub enable_stats: bool,
+    /// Hot cache size (highest frequency items)
+    pub hot_cache_size: usize,
+
+    /// Warm cache size (medium frequency items)
+    pub warm_cache_size: usize,
+
+    /// Cold cache size (low frequency items)
+    pub cold_cache_size: usize,
+
+    /// Promotion threshold (accesses needed to move up tier)
+    pub promotion_threshold: u32,
+
+    /// Demotion threshold (age without access for demotion)
+    pub demotion_threshold: Duration,
+
+    /// Background cleanup interval
+    pub cleanup_interval: Duration,
+
+    /// Enable predictive caching
+    pub enable_predictive: bool,
 }
 
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            max_size: 10_000,
-            ttl: Duration::from_secs(300), // 5 minutes
-            enable_stats: true,
+            hot_cache_size: 100,
+            warm_cache_size: 500,
+            cold_cache_size: 2000,
+            promotion_threshold: 10,
+            demotion_threshold: Duration::from_secs(300), // 5 minutes
+            cleanup_interval: Duration::from_secs(60),    // 1 minute
+            enable_predictive: true,
         }
     }
 }
 
-/// A cached entry with metadata
+#[derive(Debug)]
+struct WarmCacheEntry {
+    value: Arc<TypeReflectionInfo>,
+    access_count: AtomicU32,
+    last_accessed: AtomicU64, // Timestamp
+}
+
 #[derive(Debug, Clone)]
-struct CacheEntry<T> {
-    /// The cached value
-    value: T,
-    /// When this entry was created
-    created_at: Instant,
-    /// When this entry was last accessed
-    last_accessed: Instant,
-    /// Number of times this entry has been accessed
-    access_count: u64,
+pub struct CacheMetrics {
+    /// Hot cache statistics
+    pub hot_stats: TierStats,
+    /// Warm cache statistics  
+    pub warm_stats: TierStats,
+    /// Cold cache statistics
+    pub cold_stats: TierStats,
+    /// Cache promotions (cold->warm->hot)
+    pub promotions: u64,
+    /// Cache demotions (hot->warm->cold)
+    pub demotions: u64,
+    /// Predictive cache hits
+    pub predictive_hits: u64,
+    /// Overall hit ratio
+    pub overall_hit_ratio: f64,
 }
 
-impl<T> CacheEntry<T> {
-    fn new(value: T) -> Self {
-        let now = Instant::now();
+impl Default for CacheMetrics {
+    fn default() -> Self {
         Self {
-            value,
-            created_at: now,
-            last_accessed: now,
-            access_count: 1,
+            hot_stats: TierStats::default(),
+            warm_stats: TierStats::default(),
+            cold_stats: TierStats::default(),
+            promotions: 0,
+            demotions: 0,
+            predictive_hits: 0,
+            overall_hit_ratio: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TierStats {
+    pub hits: u64,
+    pub misses: u64,
+    pub size: u64,
+    pub evictions: u64,
+}
+
+/// Lock-free cache for hot path performance using crossbeam
+#[derive(Debug)]
+pub struct LockFreeCache<K, V>
+where
+    K: Clone + Eq + std::hash::Hash,
+    V: Clone,
+{
+    /// Atomic hash table using epoch-based memory management
+    table: Atomic<HashMap<K, V>>,
+    /// Maximum capacity
+    capacity: usize,
+    /// Current size (atomic)
+    size: AtomicUsize,
+}
+
+impl<K, V> LockFreeCache<K, V>
+where
+    K: Clone + Eq + std::hash::Hash,
+    V: Clone,
+{
+    /// Create new lock-free cache
+    pub fn new(capacity: usize) -> Self {
+        let table = HashMap::with_capacity(capacity);
+        Self {
+            table: Atomic::from(Owned::new(table)),
+            capacity,
+            size: AtomicUsize::new(0),
         }
     }
 
-    fn access(&mut self) -> &T {
-        self.last_accessed = Instant::now();
-        self.access_count += 1;
-        &self.value
-    }
+    /// Get value without any locks
+    #[inline]
+    pub fn get(&self, key: &K) -> Option<V> {
+        let guard = &epoch::pin();
+        let table = self.table.load(Ordering::Acquire, guard);
 
-    fn is_expired(&self, ttl: Duration) -> bool {
-        self.created_at.elapsed() > ttl
-    }
-}
-
-/// Type information cache with TTL and LRU eviction
-pub struct TypeCache<T> {
-    /// The cache storage
-    cache: DashMap<String, CacheEntry<T>>,
-    /// Cache configuration
-    config: CacheConfig,
-    /// Cache statistics
-    stats: Arc<RwLock<CacheStats>>,
-}
-
-impl<T: Clone> TypeCache<T> {
-    /// Create a new type cache with default configuration
-    pub fn new() -> Self {
-        Self::with_config(CacheConfig::default())
-    }
-
-    /// Create a new type cache with custom configuration
-    pub fn with_config(config: CacheConfig) -> Self {
-        Self {
-            cache: DashMap::new(),
-            config,
-            stats: Arc::new(RwLock::new(CacheStats::default())),
+        if table.is_null() {
+            return None;
         }
+
+        unsafe { table.deref().get(key).cloned() }
     }
 
-    /// Get a value from the cache
-    pub fn get(&self, key: &str) -> Option<T> {
-        if let Some(mut entry) = self.cache.get_mut(key) {
-            // Check if entry is expired
-            if entry.is_expired(self.config.ttl) {
-                // Remove expired entry
-                drop(entry);
-                self.cache.remove(key);
-                self.record_miss();
-                return None;
+    /// Insert value with lock-free operation
+    pub fn insert(&self, key: K, value: V) -> Option<V> {
+        let guard = &epoch::pin();
+
+        // For simplicity, we'll use a basic approach that occasionally locks
+        // A full lock-free implementation would be much more complex
+        loop {
+            let current_table = self.table.load(Ordering::Acquire, guard);
+            let mut new_table = if current_table.is_null() {
+                HashMap::with_capacity(self.capacity)
+            } else {
+                unsafe { current_table.deref().clone() }
+            };
+
+            let old_value = new_table.insert(key.clone(), value.clone());
+
+            // Try to swap the new table
+            let new_owned = Owned::new(new_table);
+            match self.table.compare_exchange(
+                current_table,
+                new_owned,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+                guard,
+            ) {
+                Ok(_) => {
+                    if old_value.is_none() {
+                        self.size.fetch_add(1, Ordering::Relaxed);
+                    }
+
+                    // Defer destruction of old table
+                    if !current_table.is_null() {
+                        unsafe {
+                            guard.defer_destroy(current_table);
+                        }
+                    }
+
+                    return old_value;
+                }
+                Err(new_owned_error) => {
+                    // Retry with updated table
+                    drop(new_owned_error.new.into_box());
+                    continue;
+                }
             }
-
-            // Update access time and return value
-            let value = entry.access().clone();
-            self.record_hit();
-            Some(value)
-        } else {
-            self.record_miss();
-            None
         }
     }
 
-    /// Put a value into the cache
-    pub fn put(&self, key: String, value: T) {
-        // Check if we need to evict entries
-        if self.cache.len() >= self.config.max_size {
-            self.evict_lru();
-        }
-
-        self.cache.insert(key, CacheEntry::new(value));
-        self.update_size();
-    }
-
-    /// Remove a value from the cache
-    pub fn remove(&self, key: &str) -> Option<T> {
-        self.cache.remove(key).map(|(_, entry)| {
-            self.update_size();
-            entry.value
-        })
-    }
-
-    /// Clear all entries from the cache
+    /// Clear cache atomically
     pub fn clear(&self) {
-        self.cache.clear();
-        if self.config.enable_stats {
-            let mut stats = self.stats.write();
-            stats.size = 0;
+        let guard = &epoch::pin();
+        let old_table = self.table.swap(Shared::null(), Ordering::AcqRel, guard);
+
+        if !old_table.is_null() {
+            unsafe {
+                guard.defer_destroy(old_table);
+            }
         }
+
+        self.size.store(0, Ordering::Relaxed);
     }
 
-    /// Get cache statistics
-    pub fn stats(&self) -> CacheStats {
-        if self.config.enable_stats {
-            self.stats.read().clone()
-        } else {
-            CacheStats::default()
-        }
+    /// Get current size
+    pub fn len(&self) -> usize {
+        self.size.load(Ordering::Relaxed)
     }
 
-    /// Get the current size of the cache
-    pub fn size(&self) -> usize {
-        self.cache.len()
-    }
-
-    /// Check if the cache is empty
+    /// Check if cache is empty
     pub fn is_empty(&self) -> bool {
-        self.cache.is_empty()
+        self.len() == 0
     }
+}
 
-    /// Get cache configuration
-    pub fn config(&self) -> &CacheConfig {
-        &self.config
-    }
+/// Tracks access patterns for intelligent caching decisions
+#[derive(Debug)]
+pub struct AccessPatternTracker {
+    /// Access frequency tracking
+    access_counts: DashMap<String, AtomicU32>,
 
-    /// Clean up expired entries
-    pub fn cleanup_expired(&self) {
-        let now = Instant::now();
-        let mut expired_keys = Vec::new();
+    /// Recent access history (ring buffer)
+    recent_accesses: Arc<RwLock<Vec<AccessRecord>>>,
 
-        // Find expired entries
-        for entry in self.cache.iter() {
-            if (now - entry.created_at) > self.config.ttl {
-                expired_keys.push(entry.key().clone());
-            }
-        }
+    /// Type relationship predictions
+    relationship_graph: Arc<RwLock<HashMap<String, Vec<String>>>>,
 
-        // Remove expired entries
-        for key in expired_keys {
-            self.cache.remove(&key);
-        }
+    /// Configuration
+    config: PatternConfig,
 
-        self.update_size();
-    }
+    /// Ring buffer position
+    ring_position: AtomicUsize,
+}
 
-    /// Evict the least recently used entry
-    fn evict_lru(&self) {
-        if self.cache.is_empty() {
-            return;
-        }
+#[derive(Debug, Clone)]
+pub struct PatternConfig {
+    /// Maximum size of recent access ring buffer
+    pub ring_buffer_size: usize,
+    /// Time window for relationship detection
+    pub relationship_window: Duration,
+    /// Minimum frequency for hot tier
+    pub hot_frequency_threshold: u32,
+    /// Minimum frequency for warm tier
+    pub warm_frequency_threshold: u32,
+}
 
-        // Find the entry with the oldest last_accessed time
-        let mut oldest_key: Option<String> = None;
-        let mut oldest_time = Instant::now();
-
-        for entry in self.cache.iter() {
-            if entry.last_accessed < oldest_time {
-                oldest_time = entry.last_accessed;
-                oldest_key = Some(entry.key().clone());
-            }
-        }
-
-        // Remove the oldest entry
-        if let Some(key) = oldest_key {
-            self.cache.remove(&key);
-            self.record_eviction();
-        }
-    }
-
-    /// Record a cache hit
-    fn record_hit(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.write();
-            stats.hits += 1;
-        }
-    }
-
-    /// Record a cache miss
-    fn record_miss(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.write();
-            stats.misses += 1;
-        }
-    }
-
-    /// Record a cache eviction
-    fn record_eviction(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.write();
-            stats.evictions += 1;
-        }
-    }
-
-    /// Update cache size in statistics
-    fn update_size(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.write();
-            stats.size = self.cache.len() as u64;
+impl Default for PatternConfig {
+    fn default() -> Self {
+        Self {
+            ring_buffer_size: 1000,
+            relationship_window: Duration::from_secs(10),
+            hot_frequency_threshold: 100,
+            warm_frequency_threshold: 20,
         }
     }
 }
 
-impl<T: Clone> Default for TypeCache<T> {
+#[derive(Debug, Clone)]
+struct AccessRecord {
+    type_name: String,
+    timestamp: Instant,
+}
+
+#[derive(Debug, Clone)]
+pub enum AccessSource {
+    TypeReflection,
+    PropertyLookup,
+    InheritanceCheck,
+    PolymorphicResolution,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CacheTier {
+    Hot,
+    Warm,
+    Cold,
+}
+
+impl Default for AccessPatternTracker {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Element information cache
-pub type ElementCache = TypeCache<super::provider::TypeReflectionInfo>;
+impl AccessPatternTracker {
+    /// Create new access pattern tracker
+    pub fn new() -> Self {
+        Self::with_config(PatternConfig::default())
+    }
 
-/// Type reflection cache  
-pub type TypeReflectionCache = TypeCache<super::provider::TypeReflectionInfo>;
+    /// Create with custom configuration
+    pub fn with_config(config: PatternConfig) -> Self {
+        Self {
+            access_counts: DashMap::new(),
+            recent_accesses: Arc::new(RwLock::new(Vec::with_capacity(config.ring_buffer_size))),
+            relationship_graph: Arc::new(RwLock::new(HashMap::new())),
+            config,
+            ring_position: AtomicUsize::new(0),
+        }
+    }
 
-/// Cache manager that coordinates multiple caches
-pub struct CacheManager {
-    /// Type information cache
-    pub type_cache: Arc<TypeReflectionCache>,
-    /// Element information cache
-    pub element_cache: Arc<ElementCache>,
-    /// Cache configuration
-    config: CacheConfig,
+    /// Record an access and update patterns
+    pub fn record_access(&self, type_name: &str, _source: AccessSource) {
+        // Update frequency counter
+        self.access_counts
+            .entry(type_name.to_string())
+            .or_insert_with(|| AtomicU32::new(0))
+            .fetch_add(1, Ordering::Relaxed);
+
+        // Add to recent history using ring buffer
+        let record = AccessRecord {
+            type_name: type_name.to_string(),
+            timestamp: Instant::now(),
+        };
+
+        {
+            let mut recent = self.recent_accesses.write().unwrap();
+            let pos =
+                self.ring_position.fetch_add(1, Ordering::Relaxed) % self.config.ring_buffer_size;
+
+            if pos < recent.len() {
+                recent[pos] = record;
+            } else {
+                recent.push(record);
+            }
+        }
+
+        // Update relationship predictions
+        self.update_relationship_predictions(type_name);
+    }
+
+    /// Get access frequency for a type
+    pub fn get_access_frequency(&self, type_name: &str) -> u32 {
+        self.access_counts
+            .get(type_name)
+            .map(|counter| counter.load(Ordering::Relaxed))
+            .unwrap_or(0)
+    }
+
+    /// Predict related types that might be accessed
+    pub fn predict_related_types(&self, type_name: &str) -> Vec<String> {
+        let graph = self.relationship_graph.read().unwrap();
+        graph.get(type_name).cloned().unwrap_or_default()
+    }
+
+    /// Determine appropriate cache tier for type
+    pub fn recommend_cache_tier(&self, type_name: &str) -> CacheTier {
+        let frequency = self.get_access_frequency(type_name);
+
+        if frequency >= self.config.hot_frequency_threshold {
+            CacheTier::Hot
+        } else if frequency >= self.config.warm_frequency_threshold {
+            CacheTier::Warm
+        } else {
+            CacheTier::Cold
+        }
+    }
+
+    /// Update relationship graph based on access patterns
+    fn update_relationship_predictions(&self, type_name: &str) {
+        let recent = self.recent_accesses.read().unwrap();
+        let mut relationships = Vec::new();
+
+        // Look for types accessed within time window
+        let cutoff = Instant::now() - self.config.relationship_window;
+        for record in recent.iter().rev() {
+            if record.timestamp < cutoff {
+                break;
+            }
+            if record.type_name != type_name {
+                relationships.push(record.type_name.clone());
+            }
+        }
+
+        if !relationships.is_empty() {
+            relationships.sort();
+            relationships.dedup();
+
+            let mut graph = self.relationship_graph.write().unwrap();
+            graph.insert(type_name.to_string(), relationships);
+        }
+    }
 }
 
 impl CacheManager {
-    /// Create a new cache manager
-    pub fn new() -> Self {
-        let config = CacheConfig::default();
+    /// Create new cache manager
+    pub fn new(config: CacheConfig) -> Self {
         Self {
-            type_cache: Arc::new(TypeReflectionCache::with_config(config.clone())),
-            element_cache: Arc::new(ElementCache::with_config(config.clone())),
+            hot_cache: Arc::new(LockFreeCache::new(config.hot_cache_size)),
+            warm_cache: Arc::new(DashMap::new()),
+            cold_storage: Arc::new(TypeCache::with_config(LegacyCacheConfig {
+                max_size: config.cold_cache_size,
+                ttl: Duration::from_secs(3600), // 1 hour TTL for cold storage
+                enable_stats: true,
+            })),
+            access_tracker: Arc::new(AccessPatternTracker::new()),
             config,
+            metrics: Arc::new(RwLock::new(CacheMetrics::default())),
         }
     }
 
-    /// Create a cache manager with custom configuration
-    pub fn with_config(config: CacheConfig) -> Self {
-        Self {
-            type_cache: Arc::new(TypeReflectionCache::with_config(config.clone())),
-            element_cache: Arc::new(ElementCache::with_config(config.clone())),
-            config,
+    /// Get value with intelligent tier management
+    pub fn get(&self, key: &str) -> Option<Arc<TypeReflectionInfo>> {
+        // Track this access
+        self.access_tracker
+            .record_access(key, AccessSource::TypeReflection);
+
+        // Try hot cache first (lock-free)
+        if let Some(value) = self.hot_cache.get(&key.to_string()) {
+            self.record_hit(CacheTier::Hot);
+            return Some(value);
+        }
+
+        // Try warm cache
+        if let Some(entry) = self.warm_cache.get_mut(key) {
+            entry.access_count.fetch_add(1, Ordering::Relaxed);
+            entry.last_accessed.store(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                Ordering::Relaxed,
+            );
+
+            let value = entry.value.clone();
+            self.record_hit(CacheTier::Warm);
+
+            // Consider promotion to hot cache
+            if entry.access_count.load(Ordering::Relaxed) > self.config.promotion_threshold {
+                self.promote_to_hot(key, &value);
+            }
+
+            return Some(value);
+        }
+
+        // Try cold storage
+        if let Some(value) = self.cold_storage.get(key) {
+            let arc_value = Arc::new(value);
+            self.record_hit(CacheTier::Cold);
+
+            // Consider promotion to warm cache
+            self.promote_to_warm(key, &arc_value);
+
+            return Some(arc_value);
+        }
+
+        // Cache miss - record and potentially trigger predictive loading
+        self.record_miss();
+        if self.config.enable_predictive {
+            self.trigger_predictive_loading(key);
+        }
+
+        None
+    }
+
+    /// Put value with intelligent tier placement
+    pub fn put(&self, key: String, value: Arc<TypeReflectionInfo>) {
+        // Determine appropriate tier based on access patterns
+        let tier = self.access_tracker.recommend_cache_tier(&key);
+
+        match tier {
+            CacheTier::Hot => {
+                self.hot_cache.insert(key, value);
+            }
+            CacheTier::Warm => {
+                self.put_warm(key, value);
+            }
+            CacheTier::Cold => {
+                // Try to unwrap Arc for cold storage
+                match Arc::try_unwrap(value) {
+                    Ok(unwrapped) => {
+                        self.cold_storage.put(key, unwrapped);
+                    }
+                    Err(value_arc) => {
+                        // If we can't unwrap, put in warm cache
+                        self.put_warm(key, value_arc);
+                    }
+                }
+            }
         }
     }
 
-    /// Get combined cache statistics
-    pub fn combined_stats(&self) -> CacheStats {
-        let type_stats = self.type_cache.stats();
-        let element_stats = self.element_cache.stats();
+    /// Put value in warm cache
+    fn put_warm(&self, key: String, value: Arc<TypeReflectionInfo>) {
+        let entry = WarmCacheEntry {
+            value,
+            access_count: AtomicU32::new(1),
+            last_accessed: AtomicU64::new(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            ),
+        };
 
-        CacheStats {
-            hits: type_stats.hits + element_stats.hits,
-            misses: type_stats.misses + element_stats.misses,
-            evictions: type_stats.evictions + element_stats.evictions,
-            size: type_stats.size + element_stats.size,
+        // Evict if necessary
+        if self.warm_cache.len() >= self.config.warm_cache_size {
+            self.evict_warm_lru();
+        }
+
+        self.warm_cache.insert(key, entry);
+    }
+
+    /// Promote value to hot cache
+    fn promote_to_hot(&self, key: &str, value: &Arc<TypeReflectionInfo>) {
+        self.hot_cache.insert(key.to_string(), value.clone());
+
+        // Remove from warm cache
+        self.warm_cache.remove(key);
+
+        // Update metrics
+        if let Ok(mut metrics) = self.metrics.write() {
+            metrics.promotions += 1;
+        }
+    }
+
+    /// Promote value to warm cache
+    fn promote_to_warm(&self, key: &str, value: &Arc<TypeReflectionInfo>) {
+        self.put_warm(key.to_string(), value.clone());
+
+        // Remove from cold storage
+        self.cold_storage.remove(key);
+
+        // Update metrics
+        if let Ok(mut metrics) = self.metrics.write() {
+            metrics.promotions += 1;
+        }
+    }
+
+    /// Trigger predictive loading of related types
+    fn trigger_predictive_loading(&self, accessed_key: &str) {
+        let related_types = self.access_tracker.predict_related_types(accessed_key);
+
+        for related_type in related_types {
+            // Check if already cached
+            if self.get(&related_type).is_none() {
+                // Trigger background loading (implementation depends on integration)
+                self.request_background_load(related_type);
+            }
+        }
+    }
+
+    /// Request background loading of type
+    fn request_background_load(&self, type_name: String) {
+        // This would integrate with the ModelProvider's background loading system
+        // For now, just record the request
+        log::debug!("Requesting background load for type: {type_name}");
+    }
+
+    /// Evict least recently used entry from warm cache
+    fn evict_warm_lru(&self) {
+        let mut oldest_key = None;
+        let mut oldest_time = u64::MAX;
+
+        for entry in self.warm_cache.iter() {
+            let last_accessed = entry.last_accessed.load(Ordering::Relaxed);
+            if last_accessed < oldest_time {
+                oldest_time = last_accessed;
+                oldest_key = Some(entry.key().clone());
+            }
+        }
+
+        if let Some(key) = oldest_key {
+            if let Some((_, entry)) = self.warm_cache.remove(&key) {
+                // Demote to cold storage
+                if let Ok(value) = Arc::try_unwrap(entry.value) {
+                    self.cold_storage.put(key, value);
+                }
+            }
+        }
+    }
+
+    /// Record cache hit for metrics
+    fn record_hit(&self, tier: CacheTier) {
+        if let Ok(mut metrics) = self.metrics.write() {
+            match tier {
+                CacheTier::Hot => metrics.hot_stats.hits += 1,
+                CacheTier::Warm => metrics.warm_stats.hits += 1,
+                CacheTier::Cold => metrics.cold_stats.hits += 1,
+            }
+        }
+    }
+
+    /// Record cache miss for metrics
+    fn record_miss(&self) {
+        if let Ok(mut metrics) = self.metrics.write() {
+            metrics.cold_stats.misses += 1;
+        }
+    }
+
+    /// Get comprehensive cache statistics
+    pub fn get_comprehensive_stats(&self) -> CacheMetrics {
+        let stats_guard = self.metrics.read().unwrap();
+        let mut stats = (*stats_guard).clone();
+
+        // Update current sizes
+        stats.hot_stats.size = self.hot_cache.len() as u64;
+        stats.warm_stats.size = self.warm_cache.len() as u64;
+        stats.cold_stats.size = self.cold_storage.len() as u64;
+
+        // Calculate overall hit ratio
+        let total_hits = stats.hot_stats.hits + stats.warm_stats.hits + stats.cold_stats.hits;
+        let total_misses =
+            stats.hot_stats.misses + stats.warm_stats.misses + stats.cold_stats.misses;
+        let total_requests = total_hits + total_misses;
+
+        if total_requests > 0 {
+            stats.overall_hit_ratio = total_hits as f64 / total_requests as f64;
+        }
+
+        stats
+    }
+
+    /// Background maintenance task
+    pub async fn run_maintenance(&self) {
+        let mut interval = time::interval(self.config.cleanup_interval);
+
+        loop {
+            interval.tick().await;
+
+            // Clean up expired entries
+            self.cleanup_expired();
+
+            // Rebalance tiers based on access patterns
+            self.rebalance_tiers();
+
+            // Update metrics
+            self.update_metrics();
+        }
+    }
+
+    /// Clean up expired entries across all tiers
+    pub fn cleanup_expired(&self) {
+        // Clean cold storage (has TTL)
+        self.cold_storage.cleanup_expired();
+
+        // Clean warm cache based on age and access patterns
+        let cutoff_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            - self.config.demotion_threshold.as_secs();
+
+        let expired_keys: Vec<String> = self
+            .warm_cache
+            .iter()
+            .filter_map(|entry| {
+                if entry.last_accessed.load(Ordering::Relaxed) < cutoff_time {
+                    Some(entry.key().clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for key in expired_keys {
+            if let Some((_, entry)) = self.warm_cache.remove(&key) {
+                // Demote to cold storage
+                if let Ok(value) = Arc::try_unwrap(entry.value) {
+                    self.cold_storage.put(key, value);
+                }
+
+                // Update metrics
+                if let Ok(mut metrics) = self.metrics.write() {
+                    metrics.demotions += 1;
+                }
+            }
+        }
+    }
+
+    /// Rebalance cache tiers based on access patterns
+    fn rebalance_tiers(&self) {
+        // This is a placeholder for more sophisticated rebalancing logic
+        // In a full implementation, this would analyze access patterns and
+        // move entries between tiers as needed
+        log::debug!("Running cache tier rebalancing");
+    }
+
+    /// Update performance metrics
+    fn update_metrics(&self) {
+        // Update size metrics and other computed values
+        if let Ok(mut metrics) = self.metrics.write() {
+            metrics.hot_stats.size = self.hot_cache.len() as u64;
+            metrics.warm_stats.size = self.warm_cache.len() as u64;
+            metrics.cold_stats.size = self.cold_storage.len() as u64;
         }
     }
 
     /// Clear all caches
     pub fn clear_all(&self) {
-        self.type_cache.clear();
-        self.element_cache.clear();
-    }
+        self.hot_cache.clear();
+        self.warm_cache.clear();
+        self.cold_storage.clear();
 
-    /// Clean up expired entries in all caches
-    pub fn cleanup_all_expired(&self) {
-        self.type_cache.cleanup_expired();
-        self.element_cache.cleanup_expired();
-    }
-
-    /// Get cache configuration
-    pub fn config(&self) -> &CacheConfig {
-        &self.config
+        // Reset metrics
+        if let Ok(mut metrics) = self.metrics.write() {
+            *metrics = CacheMetrics::default();
+        }
     }
 }
 
-impl Default for CacheManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::super::provider::TypeReflectionInfo;
-    use super::*;
-
-    #[test]
-    fn test_cache_basic_operations() {
-        let cache = TypeCache::new();
-        let value = "test_value".to_string();
-
-        // Initially empty
-        assert!(cache.get("key1").is_none());
-
-        // Put and get
-        cache.put("key1".to_string(), value.clone());
-        assert_eq!(cache.get("key1"), Some(value));
-
-        // Size should be 1
-        assert_eq!(cache.size(), 1);
-    }
-
-    #[test]
-    fn test_cache_eviction() {
-        let config = CacheConfig {
-            max_size: 2,
-            ttl: Duration::from_secs(60),
-            enable_stats: true,
-        };
-        let cache = TypeCache::with_config(config);
-
-        // Fill cache to capacity
-        cache.put("key1".to_string(), "value1".to_string());
-        cache.put("key2".to_string(), "value2".to_string());
-        assert_eq!(cache.size(), 2);
-
-        // Access key1 to make it more recently used
-        cache.get("key1");
-
-        // Add third item, should evict key2 (LRU)
-        cache.put("key3".to_string(), "value3".to_string());
-        assert_eq!(cache.size(), 2);
-
-        // key1 and key3 should exist, key2 should be evicted
-        assert!(cache.get("key1").is_some());
-        assert!(cache.get("key2").is_none());
-        assert!(cache.get("key3").is_some());
-    }
-
-    #[test]
-    fn test_cache_expiration() {
-        let config = CacheConfig {
-            max_size: 100,
-            ttl: Duration::from_millis(100),
-            enable_stats: true,
-        };
-        let cache = TypeCache::with_config(config);
-
-        cache.put("key1".to_string(), "value1".to_string());
-        assert!(cache.get("key1").is_some());
-
-        // Wait for expiration
-        std::thread::sleep(Duration::from_millis(150));
-
-        // Should be expired now
-        assert!(cache.get("key1").is_none());
-    }
-
-    #[test]
-    fn test_cache_stats() {
-        let cache = TypeCache::new();
-
-        // Initial stats
-        let stats = cache.stats();
-        assert_eq!(stats.hits, 0);
-        assert_eq!(stats.misses, 0);
-
-        // Miss
-        cache.get("nonexistent");
-        let stats = cache.stats();
-        assert_eq!(stats.misses, 1);
-
-        // Put and hit
-        cache.put("key1".to_string(), "value1".to_string());
-        cache.get("key1");
-        let stats = cache.stats();
-        assert_eq!(stats.hits, 1);
-        assert_eq!(stats.size, 1);
-    }
-
-    #[test]
-    fn test_cache_manager() {
-        let manager = CacheManager::new();
-
-        let type_info = TypeReflectionInfo::SimpleType {
-            namespace: "System".to_string(),
-            name: "String".to_string(),
-            base_type: None,
-        };
-
-        // Test type cache
-        manager
-            .type_cache
-            .put("String".to_string(), type_info.clone());
-        assert_eq!(manager.type_cache.get("String"), Some(type_info.clone()));
-
-        // Test element cache
-        manager
-            .element_cache
-            .put("Patient.name".to_string(), type_info.clone());
-        assert_eq!(manager.element_cache.get("Patient.name"), Some(type_info));
-
-        // Test combined stats
-        let stats = manager.combined_stats();
-        assert_eq!(stats.size, 2);
-    }
-
-    #[test]
-    fn test_cache_cleanup() {
-        let config = CacheConfig {
-            max_size: 100,
-            ttl: Duration::from_millis(100),
-            enable_stats: true,
-        };
-        let cache = TypeCache::with_config(config);
-
-        cache.put("key1".to_string(), "value1".to_string());
-        cache.put("key2".to_string(), "value2".to_string());
-        assert_eq!(cache.size(), 2);
-
-        // Wait for expiration
-        std::thread::sleep(Duration::from_millis(150));
-
-        // Cleanup expired entries
-        cache.cleanup_expired();
-        assert_eq!(cache.size(), 0);
+impl Clone for CacheManager {
+    fn clone(&self) -> Self {
+        Self {
+            hot_cache: self.hot_cache.clone(),
+            warm_cache: self.warm_cache.clone(),
+            cold_storage: self.cold_storage.clone(),
+            access_tracker: self.access_tracker.clone(),
+            config: self.config.clone(),
+            metrics: self.metrics.clone(),
+        }
     }
 }

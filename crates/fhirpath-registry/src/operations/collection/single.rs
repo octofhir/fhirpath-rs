@@ -78,7 +78,7 @@ impl FhirPathOperation for SingleFunction {
         context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
         // Can be synchronous - no complex evaluation needed
-        Some(futures::executor::block_on(self.evaluate(args, context)))
+        None
     }
 
     fn supports_sync(&self) -> bool {

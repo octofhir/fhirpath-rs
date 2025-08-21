@@ -187,7 +187,7 @@ async fn handle_evaluate(
             }
         }
 
-        let config = octofhir_fhirpath::model::fhirschema_provider::FhirSchemaConfig {
+        let config = octofhir_fhirpath_model::provider::FhirSchemaConfig {
             fhir_version,
             additional_packages,
             ..Default::default()

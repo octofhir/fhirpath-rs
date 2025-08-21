@@ -14,7 +14,7 @@
 
 //! Profile resolution and constraint handling system
 
-use super::cache::TypeCache;
+use super::legacy_cache::TypeCache;
 use super::provider::*;
 use octofhir_fhirschema::{Element as FhirSchemaElement, FhirSchema};
 use std::collections::HashMap;
@@ -120,9 +120,16 @@ impl ProfileResolver {
 
     /// Create with custom cache configuration
     pub fn with_cache_config(cache_config: super::cache::CacheConfig) -> Self {
+        // Convert new cache config to legacy cache config
+        let legacy_config = super::legacy_cache::CacheConfig {
+            max_size: cache_config.cold_cache_size,
+            ttl: std::time::Duration::from_secs(300), // Default TTL
+            enable_stats: true,
+        };
+
         Self {
-            profile_cache: Arc::new(TypeCache::with_config(cache_config.clone())),
-            constraint_cache: Arc::new(TypeCache::with_config(cache_config)),
+            profile_cache: Arc::new(TypeCache::with_config(legacy_config.clone())),
+            constraint_cache: Arc::new(TypeCache::with_config(legacy_config)),
         }
     }
 
@@ -578,7 +585,12 @@ impl ProfileResolver {
     }
 
     /// Get cache statistics
-    pub fn cache_stats(&self) -> (super::cache::CacheStats, super::cache::CacheStats) {
+    pub fn cache_stats(
+        &self,
+    ) -> (
+        super::legacy_cache::CacheStats,
+        super::legacy_cache::CacheStats,
+    ) {
         (self.profile_cache.stats(), self.constraint_cache.stats())
     }
 }

@@ -240,6 +240,81 @@ impl MockModelProvider {
                 }),
             },
         );
+
+        // Add Observation resource type
+        self.add_type(
+            "Observation".to_string(),
+            TypeReflectionInfo::ClassInfo {
+                namespace: "FHIR".to_string(),
+                name: "Observation".to_string(),
+                base_type: Some("DomainResource".to_string()),
+                elements: vec![],
+            },
+        );
+
+        // Add Quantity type
+        self.add_type(
+            "Quantity".to_string(),
+            TypeReflectionInfo::ClassInfo {
+                namespace: "FHIR".to_string(),
+                name: "Quantity".to_string(),
+                base_type: Some("Element".to_string()),
+                elements: vec![],
+            },
+        );
+
+        // Add Observation properties
+        self.add_property(
+            "Observation".to_string(),
+            "valueQuantity".to_string(),
+            TypeReflectionInfo::ClassInfo {
+                namespace: "FHIR".to_string(),
+                name: "Quantity".to_string(),
+                base_type: Some("Element".to_string()),
+                elements: vec![],
+            },
+        );
+
+        self.add_property(
+            "Observation".to_string(),
+            "valueString".to_string(),
+            TypeReflectionInfo::SimpleType {
+                namespace: "System".to_string(),
+                name: "String".to_string(),
+                base_type: None,
+            },
+        );
+
+        self.add_property(
+            "Observation".to_string(),
+            "valueBoolean".to_string(),
+            TypeReflectionInfo::SimpleType {
+                namespace: "System".to_string(),
+                name: "Boolean".to_string(),
+                base_type: None,
+            },
+        );
+
+        // Add Quantity properties
+        self.add_property(
+            "Quantity".to_string(),
+            "value".to_string(),
+            TypeReflectionInfo::SimpleType {
+                namespace: "System".to_string(),
+                name: "Decimal".to_string(),
+                base_type: None,
+            },
+        );
+
+        self.add_property(
+            "Quantity".to_string(),
+            "unit".to_string(),
+            TypeReflectionInfo::SimpleType {
+                namespace: "System".to_string(),
+                name: "String".to_string(),
+                base_type: None,
+            },
+        );
     }
 }
 
@@ -779,6 +854,114 @@ impl ModelProvider for MockModelProvider {
         }
 
         None
+    }
+
+    async fn is_choice_property(&self, type_name: &str, property: &str) -> bool {
+        // For testing, implement basic FHIR choice types
+        match (type_name, property) {
+            ("Observation", "value") => true,
+            ("Patient", "deceased") => true,
+            _ => false,
+        }
+    }
+
+    async fn get_choice_variants(
+        &self,
+        type_name: &str,
+        property: &str,
+    ) -> Vec<super::choice_type_mapper::ChoiceVariant> {
+        use super::choice_type_mapper::ChoiceVariant;
+
+        match (type_name, property) {
+            ("Observation", "value") => vec![
+                ChoiceVariant {
+                    property_name: "valueQuantity".to_string(),
+                    target_type: "Quantity".to_string(),
+                    type_code: "Quantity".to_string(),
+                    priority: 0,
+                },
+                ChoiceVariant {
+                    property_name: "valueString".to_string(),
+                    target_type: "string".to_string(),
+                    type_code: "string".to_string(),
+                    priority: 1,
+                },
+                ChoiceVariant {
+                    property_name: "valueBoolean".to_string(),
+                    target_type: "boolean".to_string(),
+                    type_code: "boolean".to_string(),
+                    priority: 2,
+                },
+            ],
+            ("Patient", "deceased") => vec![
+                ChoiceVariant {
+                    property_name: "deceasedBoolean".to_string(),
+                    target_type: "boolean".to_string(),
+                    type_code: "boolean".to_string(),
+                    priority: 0,
+                },
+                ChoiceVariant {
+                    property_name: "deceasedDateTime".to_string(),
+                    target_type: "dateTime".to_string(),
+                    type_code: "dateTime".to_string(),
+                    priority: 1,
+                },
+            ],
+            _ => vec![],
+        }
+    }
+
+    async fn resolve_choice_property(
+        &self,
+        type_name: &str,
+        property: &str,
+        data: &crate::FhirPathValue,
+    ) -> Option<String> {
+        let variants = self.get_choice_variants(type_name, property).await;
+        if variants.is_empty() {
+            return None;
+        }
+
+        // Check the data to see which specific property exists
+        match data {
+            crate::FhirPathValue::JsonValue(json_val) => {
+                let sonic_val = json_val.as_sonic_value();
+
+                // Check each variant to see which property exists in the data
+                for variant in &variants {
+                    if sonic_val.get(&variant.property_name).is_some() {
+                        return Some(variant.property_name.clone());
+                    }
+                }
+            }
+            crate::FhirPathValue::Resource(resource) => {
+                // For resources, check if the property exists
+                for variant in &variants {
+                    if resource.get_property(&variant.property_name).is_some() {
+                        return Some(variant.property_name.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
+    }
+
+    async fn get_choice_base_property(
+        &self,
+        type_name: &str,
+        variant_property: &str,
+    ) -> Option<String> {
+        // For testing, implement basic reverse mapping
+        match (type_name, variant_property) {
+            ("Observation", "valueQuantity") => Some("value".to_string()),
+            ("Observation", "valueString") => Some("value".to_string()),
+            ("Observation", "valueBoolean") => Some("value".to_string()),
+            ("Patient", "deceasedBoolean") => Some("deceased".to_string()),
+            ("Patient", "deceasedDateTime") => Some("deceased".to_string()),
+            _ => None,
+        }
     }
 }
 

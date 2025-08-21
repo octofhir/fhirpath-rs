@@ -12,6 +12,7 @@ use octofhir_fhirpath_ast::{
 };
 use octofhir_fhirpath_core::EvaluationResult;
 use octofhir_fhirpath_model::FhirPathValue;
+use std::sync::Arc;
 
 /// Binary operation evaluator methods
 impl crate::FhirPathEngine {
@@ -28,10 +29,75 @@ impl crate::FhirPathEngine {
             .evaluate_node_async(&op_data.left, input.clone(), context, depth + 1)
             .await?;
 
-        // Evaluate right operand
-        let right = self
-            .evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
-            .await?;
+        // Evaluate right operand with special handling for type operators
+        let right = if matches!(op_data.op, BinaryOperator::Is)
+            && Self::is_type_identifier_expression(&op_data.right)
+        {
+            // Convert type identifier to TypeInfoObject for type operators
+            match &op_data.right {
+                ExpressionNode::Identifier(type_name) => {
+                    if self.is_type_identifier(type_name) {
+                        // Create a TypeInfoObject for known type identifiers
+                        let (namespace, name) = if type_name.contains('.') {
+                            let parts: Vec<&str> = type_name.split('.').collect();
+                            (parts[0], parts[1])
+                        } else {
+                            // Handle common FHIRPath types
+                            match type_name.to_lowercase().as_str() {
+                                "boolean" | "integer" | "decimal" | "string" | "date"
+                                | "datetime" | "time" | "quantity" | "collection" => {
+                                    ("System", type_name.as_str())
+                                }
+                                "code" | "uri" | "url" | "canonical" | "oid" | "uuid" | "id"
+                                | "markdown" | "base64binary" | "instant" | "positiveint"
+                                | "unsignedint" | "xhtml" => ("FHIR", type_name.as_str()),
+                                _ => ("System", type_name.as_str()),
+                            }
+                        };
+                        FhirPathValue::TypeInfoObject {
+                            namespace: Arc::from(namespace),
+                            name: Arc::from(name),
+                        }
+                    } else {
+                        // Treat as string literal for backward compatibility
+                        FhirPathValue::String(type_name.clone().into())
+                    }
+                }
+                ExpressionNode::Path { base, path } => {
+                    // Handle qualified type names like FHIR.uuid, System.Boolean
+                    if let ExpressionNode::Identifier(namespace) = base.as_ref() {
+                        if matches!(namespace.as_str(), "FHIR" | "System") {
+                            FhirPathValue::TypeInfoObject {
+                                namespace: Arc::from(namespace.as_str()),
+                                name: Arc::from(path.as_str()),
+                            }
+                        } else {
+                            // Evaluate as normal path expression
+                            self.evaluate_node_async(
+                                &op_data.right,
+                                input.clone(),
+                                context,
+                                depth + 1,
+                            )
+                            .await?
+                        }
+                    } else {
+                        // Evaluate as normal path expression
+                        self.evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
+                            .await?
+                    }
+                }
+                _ => {
+                    // For other type expressions, evaluate normally
+                    self.evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
+                        .await?
+                }
+            }
+        } else {
+            // Standard operand evaluation
+            self.evaluate_node_async(&op_data.right, input.clone(), context, depth + 1)
+                .await?
+        };
 
         // Use evaluators - these return natural types without forced collection wrapping
         let result = match &op_data.op {

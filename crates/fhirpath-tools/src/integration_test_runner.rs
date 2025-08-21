@@ -127,7 +127,9 @@ impl IntegrationTestRunner {
                 let timeout_duration = std::time::Duration::from_secs(60); // 60 seconds timeout
                 match tokio::time::timeout(
                     timeout_duration,
-                    octofhir_fhirpath::model::fhirschema_provider::FhirSchemaModelProvider::r4(),
+                    octofhir_fhirpath::model::fhirschema_provider::FhirSchemaModelProvider::with_config(
+                        octofhir_fhirpath::model::provider::FhirSchemaConfig::default()
+                    ),
                 )
                 .await
                 {

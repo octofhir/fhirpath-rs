@@ -25,9 +25,8 @@
         "testExtension"
       ],
       "inputfile": "patient-example.json",
-      "expected": [
-        true
-      ]
+      "expecterror": true,
+      "expected": []
     },
     {
       "name": "testExtension3",

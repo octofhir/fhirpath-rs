@@ -23,9 +23,11 @@ pub mod collection;
 pub mod comparison;
 pub mod logical;
 pub mod navigation;
+pub mod polymorphic;
 
 pub use arithmetic::ArithmeticEvaluator;
 pub use collection::CollectionEvaluator;
 pub use comparison::ComparisonEvaluator;
 pub use logical::LogicalEvaluator;
 pub use navigation::NavigationEvaluator;
+pub use polymorphic::{NavigationResult, PolymorphicNavigationEngine};

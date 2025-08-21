@@ -99,22 +99,31 @@ impl crate::FhirPathEngine {
             }
         };
 
+        // Check if the variable name is a system variable (protected)
+        if crate::FhirPathEngine::is_system_variable(&var_name) {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!("Cannot override system variable '{var_name}'"),
+            });
+        }
+
+        // Check if variable already exists in current scope (redefinition error)
+        if context.variable_scope.get_variable(&var_name).is_some() {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!("Variable '{var_name}' is already defined in current scope"),
+            });
+        }
+
         // Get variable value (second argument or current context)
-        let var_value = if func_data.args.len() == 2 {
+        let _var_value = if func_data.args.len() == 2 {
             self.evaluate_node_async(&func_data.args[1], input.clone(), context, depth + 1)
                 .await?
         } else {
             input.clone() // Use current context as value
         };
 
-        // Create new context with the defined variable
-        let mut new_context = context.clone();
-        new_context
-            .variable_scope
-            .set_variable(var_name, var_value.clone());
-
-        // Return the defined value
-        Ok(var_value)
+        // The defineVariable function should return the input unchanged
+        // The variable definition itself is handled by the caller that propagates context
+        Ok(input)
     }
 
     /// Evaluate iif (if-then-else) function with lazy evaluation
@@ -198,7 +207,7 @@ impl crate::FhirPathEngine {
         depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
         // Create registry context for lambda function evaluation
-        let registry_context =
+        let _registry_context =
             octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
                 input.clone(),
                 context.root.as_ref().clone(),

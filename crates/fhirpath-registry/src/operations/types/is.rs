@@ -25,7 +25,7 @@ use crate::{
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
-use sonic_rs::JsonValueTrait;
+// Removed JsonValueTrait import - ModelProvider handles all type checking
 
 /// Is operator - checks if value is of a specified type
 #[derive(Debug, Clone)]
@@ -101,19 +101,13 @@ impl IsOperation {
             _ => {}
         }
 
-        // For FHIR types, use ModelProvider to check type compatibility
-        let value_type = Self::extract_fhir_type(value);
-        if let Some(value_type) = value_type {
-            // Use ModelProvider for accurate FHIR type checking
-            let is_compatible = context
-                .model_provider
-                .is_type_compatible(&value_type, &normalized_type)
-                .await;
-            Ok(is_compatible)
-        } else {
-            // Not a FHIR resource/type
-            Ok(false)
-        }
+        // For FHIR types, use ModelProvider's advanced type checking
+        // This now supports inheritance, abstract types, and accurate type analysis
+        let is_value_of_type = context
+            .model_provider
+            .is_value_of_type(value, &normalized_type)
+            .await;
+        Ok(is_value_of_type)
     }
 
     /// Normalize type names to handle various namespace formats per FHIRPath specification
@@ -136,17 +130,7 @@ impl IsOperation {
         }
     }
 
-    fn extract_fhir_type(value: &FhirPathValue) -> Option<String> {
-        match value {
-            FhirPathValue::Resource(resource) => resource.resource_type().map(|s| s.to_string()),
-            FhirPathValue::JsonValue(json) => json
-                .as_inner()
-                .get("resourceType")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            _ => None,
-        }
-    }
+    // extract_fhir_type method removed - ModelProvider.is_value_of_type handles all type extraction
 }
 
 #[async_trait]

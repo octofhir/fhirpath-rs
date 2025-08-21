@@ -58,17 +58,47 @@ impl AsOperation {
             .build()
     }
 
-    /// Check if value is of specified type using the same logic as IsOperation
-    pub async fn check_type_with_provider(
+    /// Normalize type names to handle various namespace formats per FHIRPath specification
+    /// Uses same logic as IsOperation for consistency
+    fn normalize_type_name(type_name: &str) -> String {
+        // Handle backticks first
+        let cleaned = type_name.trim_matches('`');
+
+        // Handle various namespace prefixes per FHIRPath specification
+        if let Some(stripped) = cleaned.strip_prefix("FHIR.") {
+            stripped.to_string()
+        } else if let Some(stripped) = cleaned.strip_prefix("fhir.") {
+            stripped.to_string()
+        } else if let Some(stripped) = cleaned.strip_prefix("System.") {
+            stripped.to_string()
+        } else if let Some(stripped) = cleaned.strip_prefix("system.") {
+            stripped.to_string()
+        } else {
+            cleaned.to_string()
+        }
+    }
+
+    /// Try to cast value to specified type using ModelProvider's advanced casting
+    pub async fn try_cast_to_type(
         value: &FhirPathValue,
         type_name: &str,
         context: &EvaluationContext,
-    ) -> Result<bool> {
-        // Use the same type checking logic as IsOperation
-        crate::operations::types::is::IsOperation::check_type_with_provider(
-            value, type_name, context,
-        )
-        .await
+    ) -> Result<Option<FhirPathValue>> {
+        // Normalize type name first
+        let normalized_type = Self::normalize_type_name(type_name);
+
+        // Use ModelProvider's advanced type casting which supports:
+        // - Inheritance (upcast/downcast)
+        // - Primitive type conversions
+        // - Abstract type handling
+        let cast_result = context
+            .model_provider
+            .try_cast_value(value, &normalized_type)
+            .await
+            .map_err(|e| FhirPathError::TypeError {
+                message: format!("Type casting failed: {e}"),
+            })?;
+        Ok(cast_result)
     }
 }
 
@@ -138,12 +168,10 @@ impl FhirPathOperation for AsOperation {
                     FhirPathValue::Empty
                 } else if c.len() == 1 {
                     let value = c.first().unwrap();
-                    let matches_type =
-                        Self::check_type_with_provider(value, &type_name, context).await?;
-                    if matches_type {
-                        value.clone()
-                    } else {
-                        FhirPathValue::Empty
+                    // Try to cast using ModelProvider's advanced casting
+                    match Self::try_cast_to_type(value, &type_name, context).await? {
+                        Some(cast_value) => cast_value,
+                        None => FhirPathValue::Empty,
                     }
                 } else {
                     // More than one item - return error per FHIRPath spec
@@ -153,12 +181,10 @@ impl FhirPathOperation for AsOperation {
                 }
             }
             single_value => {
-                let matches_type =
-                    Self::check_type_with_provider(single_value, &type_name, context).await?;
-                if matches_type {
-                    single_value.clone()
-                } else {
-                    FhirPathValue::Empty
+                // Try to cast using ModelProvider's advanced casting
+                match Self::try_cast_to_type(single_value, &type_name, context).await? {
+                    Some(cast_value) => cast_value,
+                    None => FhirPathValue::Empty,
                 }
             }
         };

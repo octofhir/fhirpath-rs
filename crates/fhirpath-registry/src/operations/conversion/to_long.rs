@@ -146,7 +146,7 @@ impl FhirPathOperation for ToLongFunction {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
-        Some(futures::executor::block_on(self.evaluate(args, context)))
+        None
     }
 
     fn as_any(&self) -> &dyn Any {

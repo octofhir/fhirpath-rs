@@ -69,7 +69,9 @@ impl crate::FhirPathEngine {
             // Simple cases - direct evaluation
             ExpressionNode::Literal(lit) => self.evaluate_literal(lit),
 
-            ExpressionNode::Identifier(id) => self.evaluate_identifier(id, &input, context),
+            ExpressionNode::Identifier(id) => {
+                return self.evaluate_identifier_async(id, &input, context).await;
+            }
 
             ExpressionNode::Index { base, index } => {
                 self.evaluate_index(base, index, input, context, depth)
@@ -194,6 +196,28 @@ impl crate::FhirPathEngine {
     }
 
     /// Evaluate identifier expressions (property access)
+    /// Async identifier evaluation with polymorphic navigation support
+    pub async fn evaluate_identifier_async(
+        &self,
+        identifier: &str,
+        input: &FhirPathValue,
+        _context: &LocalEvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // If polymorphic navigation is enabled, try it first
+        if let Some(polymorphic_engine) = self.polymorphic_engine() {
+            if let Ok(nav_result) = polymorphic_engine.navigate_path(input, identifier).await {
+                if nav_result.used_choice_resolution || !nav_result.values.is_empty() {
+                    return Ok(FhirPathValue::normalize_collection_result(
+                        nav_result.values,
+                    ));
+                }
+            }
+        }
+
+        // Fall back to standard identifier evaluation
+        self.evaluate_identifier(identifier, input, _context)
+    }
+
     pub fn evaluate_identifier(
         &self,
         identifier: &str,
@@ -253,6 +277,12 @@ impl crate::FhirPathEngine {
                 }
                 Ok(FhirPathValue::Collection(Collection::from(results)))
             }
+            // Handle TypeInfoObject property access for .namespace and .name
+            FhirPathValue::TypeInfoObject { namespace, name } => match identifier {
+                "namespace" => Ok(FhirPathValue::String(namespace.clone())),
+                "name" => Ok(FhirPathValue::String(name.clone())),
+                _ => Ok(FhirPathValue::Empty),
+            },
             _ => Ok(FhirPathValue::Empty), // Non-object types don't have properties
         }
     }
@@ -364,7 +394,8 @@ impl crate::FhirPathEngine {
             .evaluate_node_async(base, input, context, depth + 1)
             .await?;
 
-        self.evaluate_identifier(path, &base_result, context)
+        self.evaluate_identifier_async(path, &base_result, context)
+            .await
     }
 
     /// Evaluate the 'is' binary operator for type checking

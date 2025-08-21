@@ -16,12 +16,17 @@
 //!
 //! This implementation is fully async and uses real FHIRSchema data exclusively.
 
+use super::background_loader::{BackgroundLoadingConfig, BackgroundSchemaLoader};
 use super::cache::{CacheConfig, CacheManager};
+use super::choice_type_mapper::ChoiceVariant;
+use super::legacy_cache::LegacyCacheManager;
+use super::precomputed_registry::PrecomputedTypeRegistry;
+use super::priority_queue::{LoadPriority, LoadRequester};
 use super::provider::*;
 use async_trait::async_trait;
 use octofhir_canonical_manager::FcmConfig;
 use octofhir_fhirschema::{
-    Element as FhirSchemaElement, FhirSchema, FhirSchemaPackageManager, InstallOptions,
+    Element as FhirSchemaElement, FhirSchema, FhirSchemaPackageManager,
     ModelProvider as FhirSchemaModelProviderTrait, PackageSpec,
     package::manager::PackageManagerConfig,
 };
@@ -32,17 +37,32 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::timeout;
 
+/// Helper function to capitalize the first letter of a string
+fn capitalize_first_letter(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
 /// FHIRSchema-based ModelProvider implementation - fully async
 #[derive(Clone)]
 pub struct FhirSchemaModelProvider {
     /// Package manager for schema operations
     package_manager: Arc<FhirSchemaPackageManager>,
-    /// Cache for improved performance
+    /// Multi-tier cache for type reflection (new default)
     cache_manager: Arc<CacheManager>,
+    /// Legacy cache for backward compatibility  
+    legacy_cache: Option<Arc<LegacyCacheManager>>,
     /// Schema cache for fast lookups
     schema_cache: Arc<RwLock<HashMap<String, Arc<FhirSchema>>>>,
     /// FHIR version being used
     fhir_version: FhirVersion,
+    /// Pre-computed type registry for fast type operations
+    precomputed_registry: Option<Arc<PrecomputedTypeRegistry>>,
+    /// Background schema loader for eliminating startup delays
+    background_loader: Option<Arc<BackgroundSchemaLoader>>,
 }
 
 impl FhirSchemaModelProvider {
@@ -98,48 +118,66 @@ impl FhirSchemaModelProvider {
             })
         }
     }
-    /// Create a new FhirSchemaModelProvider with default R4 configuration
+    /// Create a new FhirSchemaModelProvider with default R4 configuration and background loading
+    ///
+    /// This method provides the fastest startup experience by using background loading,
+    /// eliminating the typical 120-180 second startup delay. Essential types are available
+    /// within 10 seconds while other types load in the background.
     pub async fn new() -> Result<Self, ModelError> {
-        Self::with_config(FhirSchemaConfig::default()).await
+        Self::with_background_loading(FhirSchemaConfig::default()).await
     }
 
-    /// Create a new FhirSchemaModelProvider for FHIR R4
+    /// Create a new FhirSchemaModelProvider with synchronous loading (legacy behavior)
+    ///
+    /// This method uses the original synchronous loading approach with precomputed registry.
+    /// Consider using `new()` instead for faster startup times.
+    pub async fn new_with_sync_loading() -> Result<Self, ModelError> {
+        Self::with_precomputed_registry(FhirSchemaConfig::default()).await
+    }
+
+    /// Create a new FhirSchemaModelProvider for FHIR R4 with background loading
     pub async fn r4() -> Result<Self, ModelError> {
-        Self::with_config(FhirSchemaConfig {
+        let mut provider = Self::with_background_loading(FhirSchemaConfig {
             fhir_version: FhirVersion::R4,
             ..Default::default()
         })
-        .await
+        .await?;
+
+        provider.initialize_common_choice_types().await;
+        Ok(provider)
     }
 
-    /// Create a new FhirSchemaModelProvider for FHIR R5
+    /// Create a new FhirSchemaModelProvider for FHIR R5 with background loading
     pub async fn r5() -> Result<Self, ModelError> {
-        Self::with_config(FhirSchemaConfig {
+        Self::with_background_loading(FhirSchemaConfig {
             fhir_version: FhirVersion::R5,
             ..Default::default()
         })
         .await
     }
 
-    /// Create a new FhirSchemaModelProvider for FHIR R4B
+    /// Create a new FhirSchemaModelProvider for FHIR R4B with background loading
     pub async fn r4b() -> Result<Self, ModelError> {
-        Self::with_config(FhirSchemaConfig {
+        Self::with_background_loading(FhirSchemaConfig {
             fhir_version: FhirVersion::R4B,
             ..Default::default()
         })
         .await
     }
 
-    /// Create a new FhirSchemaModelProvider with custom packages
+    /// Create a new FhirSchemaModelProvider with custom packages and background loading
     pub async fn with_packages(packages: Vec<PackageSpec>) -> Result<Self, ModelError> {
-        Self::with_config(FhirSchemaConfig {
+        Self::with_background_loading(FhirSchemaConfig {
             additional_packages: packages,
             ..Default::default()
         })
         .await
     }
 
-    /// Create a new provider with custom configuration
+    /// Create a new provider with custom configuration (without precomputed registry)
+    ///
+    /// **Note**: This method does not use the precomputed registry for performance optimization.
+    /// Consider using `with_precomputed_registry()` instead for better performance.
     pub async fn with_config(config: FhirSchemaConfig) -> Result<Self, ModelError> {
         // Create FCM config
         let fcm_config = FcmConfig::default();
@@ -212,12 +250,211 @@ impl FhirSchemaModelProvider {
             })?;
         }
 
+        // Create the new multi-tier cache manager by default
+        let cache_manager = Arc::new(CacheManager::new(config.cache_config));
+
+        // Start background maintenance task
+        let maintenance_cache = cache_manager.clone();
+        tokio::spawn(async move {
+            maintenance_cache.run_maintenance().await;
+        });
+
+        // Create legacy cache if configured for backward compatibility
+        let legacy_cache = config
+            .legacy_cache_config
+            .map(|legacy_config| Arc::new(LegacyCacheManager::with_config(legacy_config)));
+
         Ok(Self {
             package_manager,
-            cache_manager: Arc::new(CacheManager::with_config(config.cache_config)),
+            cache_manager,
+            legacy_cache,
             schema_cache: Arc::new(RwLock::new(HashMap::new())),
             fhir_version: config.fhir_version,
+            precomputed_registry: None, // Will be populated by with_precomputed_registry
+            background_loader: None,    // Will be populated by with_background_loading
         })
+    }
+
+    /// Create provider with pre-computed registry for enhanced performance
+    pub async fn with_precomputed_registry(config: FhirSchemaConfig) -> Result<Self, ModelError> {
+        // First create the regular provider
+        let mut provider = Self::with_config(config).await?;
+
+        // Build pre-computed registry
+        let registry =
+            PrecomputedTypeRegistry::build_from_schemas(&provider.package_manager).await?;
+
+        // Store the registry
+        provider.precomputed_registry = Some(Arc::new(registry));
+
+        Ok(provider)
+    }
+
+    /// Create provider with custom cache configuration  
+    pub async fn with_cache_config(
+        mut config: FhirSchemaConfig,
+        cache_config: CacheConfig,
+    ) -> Result<Self, ModelError> {
+        config.cache_config = cache_config;
+        Self::with_precomputed_registry(config).await
+    }
+
+    /// Create provider with legacy cache for backward compatibility
+    pub async fn with_legacy_cache(mut config: FhirSchemaConfig) -> Result<Self, ModelError> {
+        // Set up default legacy cache configuration
+        config.legacy_cache_config = Some(super::legacy_cache::CacheConfig::default());
+        Self::with_precomputed_registry(config).await
+    }
+
+    /// Create provider with background loading for fast startup
+    pub async fn with_background_loading(config: FhirSchemaConfig) -> Result<Self, ModelError> {
+        // Create minimal package manager for background loading
+        let package_manager = Self::create_minimal_package_manager(&config).await?;
+
+        // Create multi-tier cache manager
+        let cache_manager = Arc::new(CacheManager::new(config.cache_config.clone()));
+
+        // Create minimal registry with System types only
+        let registry = PrecomputedTypeRegistry::new_with_system_types();
+        let registry = Arc::new(registry);
+
+        // Configure background loading
+        let background_config = BackgroundLoadingConfig {
+            worker_count: 4,
+            essential_types: vec![
+                "Patient".to_string(),
+                "Observation".to_string(),
+                "Practitioner".to_string(),
+                "Organization".to_string(),
+                "Bundle".to_string(),
+            ],
+            common_types: vec![
+                "HumanName".to_string(),
+                "Address".to_string(),
+                "ContactPoint".to_string(),
+                "Identifier".to_string(),
+                "CodeableConcept".to_string(),
+                "Reference".to_string(),
+                "Quantity".to_string(),
+                "Period".to_string(),
+                "Range".to_string(),
+                "Meta".to_string(),
+                "Narrative".to_string(),
+            ],
+            essential_timeout: Duration::from_secs(10),
+            batch_size: 10,
+            enable_predictive_loading: true,
+            retry_config: super::background_loader::RetryConfig::default(),
+            cache_config: config.cache_config,
+        };
+
+        // Start background loader
+        let background_loader = BackgroundSchemaLoader::new(
+            package_manager.clone(),
+            cache_manager.clone(),
+            registry.clone(),
+            background_config,
+        )
+        .await?;
+
+        // Wait for essential types (with reduced timeout)
+        background_loader.wait_for_essential_types().await?;
+
+        // Start background package installation
+        let pm_clone = package_manager.clone();
+        let config_clone = FhirSchemaConfig {
+            fhir_version: config.fhir_version,
+            auto_install_core: config.auto_install_core,
+            additional_packages: config.additional_packages.clone(),
+            core_package_spec: config.core_package_spec.clone(),
+            install_options: config.install_options.clone(),
+            cache_config: CacheConfig::default(), // Not needed for background installation
+            legacy_cache_config: None,
+        };
+        tokio::spawn(async move {
+            if let Err(e) = Self::install_packages_background(&pm_clone, &config_clone).await {
+                tracing::error!("Background package installation failed: {}", e);
+            }
+        });
+
+        Ok(Self {
+            package_manager,
+            cache_manager,
+            legacy_cache: None,
+            schema_cache: Arc::new(RwLock::new(HashMap::new())),
+            fhir_version: config.fhir_version,
+            precomputed_registry: Some(registry),
+            background_loader: Some(Arc::new(background_loader)),
+        })
+    }
+
+    /// Create minimal package manager for background loading
+    async fn create_minimal_package_manager(
+        _config: &FhirSchemaConfig,
+    ) -> Result<Arc<FhirSchemaPackageManager>, ModelError> {
+        // Create with minimal configuration to avoid long initialization
+        let fcm_config = FcmConfig::default();
+        let package_manager_config = PackageManagerConfig::default();
+
+        // Quick initialization without package downloads
+        let package_manager = timeout(
+            Duration::from_secs(30), // Reduced timeout for minimal initialization
+            FhirSchemaPackageManager::new(fcm_config, package_manager_config),
+        )
+        .await
+        .map_err(|_| {
+            ModelError::schema_load_error(
+                "Minimal package manager initialization timed out after 30s".to_string(),
+            )
+        })?
+        .map_err(|e| {
+            ModelError::schema_load_error(format!("Failed to create minimal package manager: {e}"))
+        })?;
+
+        Ok(Arc::new(package_manager))
+    }
+
+    /// Install packages in background
+    async fn install_packages_background(
+        package_manager: &FhirSchemaPackageManager,
+        config: &FhirSchemaConfig,
+    ) -> Result<(), ModelError> {
+        tracing::info!("Starting background package installation");
+
+        if config.auto_install_core {
+            let core_spec =
+                config
+                    .core_package_spec
+                    .clone()
+                    .unwrap_or_else(|| match config.fhir_version {
+                        FhirVersion::R4 => PackageSpec::registry("hl7.fhir.r4.core", "4.0.1"),
+                        FhirVersion::R4B => PackageSpec::registry("hl7.fhir.r4b.core", "4.3.0"),
+                        FhirVersion::R5 => PackageSpec::registry("hl7.fhir.r5.core", "5.0.0"),
+                    });
+
+            package_manager
+                .install_packages(&[core_spec], config.install_options.clone())
+                .await
+                .map_err(|e| {
+                    ModelError::schema_load_error(format!(
+                        "Background core package installation failed: {e}"
+                    ))
+                })?;
+        }
+
+        if !config.additional_packages.is_empty() {
+            package_manager
+                .install_packages(&config.additional_packages, config.install_options.clone())
+                .await
+                .map_err(|e| {
+                    ModelError::schema_load_error(format!(
+                        "Background additional packages installation failed: {e}"
+                    ))
+                })?;
+        }
+
+        tracing::info!("Background package installation completed");
+        Ok(())
     }
 
     /// Install additional packages
@@ -235,8 +472,94 @@ impl FhirSchemaModelProvider {
         // Clear cache to reflect new packages
         self.schema_cache.write().await.clear();
         self.cache_manager.clear_all();
+        if let Some(legacy_cache) = &self.legacy_cache {
+            legacy_cache.clear_all();
+        }
+
+        // Rebuild precomputed registry with new packages if it was present
+        if self.precomputed_registry.is_some() {
+            // Create a new provider instance that we can modify
+            let _new_registry =
+                PrecomputedTypeRegistry::build_from_schemas(&self.package_manager).await?;
+
+            // Since we can't mutate self directly (due to Arc), we need to inform the user
+            // they should recreate the provider if they want to use the new packages with registry
+            log::warn!(
+                "Precomputed registry needs to be rebuilt after installing new packages. Consider recreating the provider with with_precomputed_registry()."
+            );
+        }
 
         Ok(())
+    }
+
+    /// Get background loading status if background loading is enabled
+    pub fn get_background_loading_status(&self) -> Option<super::background_loader::LoadingStatus> {
+        self.background_loader
+            .as_ref()
+            .map(|loader| loader.get_loading_status())
+    }
+
+    /// Get background loading metrics if background loading is enabled
+    pub fn get_background_loading_metrics(
+        &self,
+    ) -> Option<super::loading_metrics::LoadingMetricsSnapshot> {
+        self.background_loader
+            .as_ref()
+            .map(|loader| loader.get_metrics())
+    }
+
+    /// Check if the provider is using background loading
+    pub fn is_background_loading_enabled(&self) -> bool {
+        self.background_loader.is_some()
+    }
+
+    /// Trigger predictive loading for a specific type (if background loading is enabled)
+    pub async fn trigger_predictive_loading(&self, type_name: &str) {
+        if let Some(loader) = &self.background_loader {
+            loader.trigger_predictive_loading(type_name).await;
+        }
+    }
+
+    /// Fast type reflection using precomputed registry
+    fn get_type_reflection_fast(
+        &self,
+        registry: &PrecomputedTypeRegistry,
+        type_name: &str,
+    ) -> Option<TypeReflectionInfo> {
+        // Check System types first
+        if let Some(system_type) = registry.get_system_type(type_name) {
+            return Some(TypeReflectionInfo::SimpleType {
+                namespace: system_type.namespace.clone(),
+                name: system_type.name.clone(),
+                base_type: None,
+            });
+        }
+
+        // Check FHIR types
+        if let Some(fhir_type) = registry.get_fhir_type(type_name) {
+            let elements: Vec<ElementInfo> = fhir_type
+                .properties
+                .values()
+                .map(|prop| ElementInfo {
+                    name: prop.name.clone(),
+                    type_info: prop.type_info.clone(),
+                    min_cardinality: prop.min_cardinality,
+                    max_cardinality: prop.max_cardinality,
+                    is_modifier: false, // Would need to be extracted from schema
+                    is_summary: false,  // Would need to be extracted from schema
+                    documentation: None,
+                })
+                .collect();
+
+            return Some(TypeReflectionInfo::ClassInfo {
+                namespace: fhir_type.namespace.clone(),
+                name: fhir_type.name.clone(),
+                base_type: fhir_type.base_type.clone(),
+                elements,
+            });
+        }
+
+        None
     }
 
     /// Get schema by canonical URL with caching
@@ -428,39 +751,32 @@ impl FhirSchemaModelProvider {
     }
 }
 
-/// Configuration for FhirSchemaModelProvider
-pub struct FhirSchemaConfig {
-    /// Cache configuration
-    pub cache_config: CacheConfig,
-    /// Whether to auto-install FHIR core package
-    pub auto_install_core: bool,
-    /// Core package specification (e.g., "hl7.fhir.r4.core@4.0.1")
-    /// If None, will use default based on fhir_version
-    pub core_package_spec: Option<PackageSpec>,
-    /// Additional packages to install for type checking
-    pub additional_packages: Vec<PackageSpec>,
-    /// Install options for packages
-    pub install_options: Option<InstallOptions>,
-    /// FHIR version to use
-    pub fhir_version: FhirVersion,
-}
-
-impl Default for FhirSchemaConfig {
-    fn default() -> Self {
-        Self {
-            cache_config: CacheConfig::default(),
-            auto_install_core: true,
-            core_package_spec: None, // Will use default based on fhir_version
-            additional_packages: Vec::new(),
-            install_options: None,
-            fhir_version: FhirVersion::R4,
-        }
-    }
-}
-
 #[async_trait]
 impl ModelProvider for FhirSchemaModelProvider {
     async fn get_type_reflection(&self, type_name: &str) -> Option<TypeReflectionInfo> {
+        // If using background loading, use enhanced method
+        if let Some(background_loader) = &self.background_loader {
+            return self
+                .get_type_reflection_with_background(type_name, background_loader)
+                .await;
+        }
+
+        // Try multi-tier cache first
+        if let Some(cached_value) = self.cache_manager.get(type_name) {
+            return Some((*cached_value).clone());
+        }
+
+        // Try precomputed registry for fast lookup
+        if let Some(registry) = &self.precomputed_registry {
+            if let Some(type_info) = self.get_type_reflection_fast(registry, type_name) {
+                // Cache the result in multi-tier cache
+                self.cache_manager
+                    .put(type_name.to_string(), Arc::new(type_info.clone()));
+                return Some(type_info);
+            }
+        }
+
+        // Fallback to schema-based lookup
         let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
         let schema = self.get_schema_cached(&canonical_url).await?;
 
@@ -494,12 +810,18 @@ impl ModelProvider for FhirSchemaModelProvider {
             })
             .collect();
 
-        Some(TypeReflectionInfo::ClassInfo {
+        let type_info = TypeReflectionInfo::ClassInfo {
             namespace: "FHIR".to_string(),
             name: type_name.to_string(),
             base_type: self.get_base_type_from_schema(&schema).await,
             elements,
-        })
+        };
+
+        // Cache the result in multi-tier cache
+        self.cache_manager
+            .put(type_name.to_string(), Arc::new(type_info.clone()));
+
+        Some(type_info)
     }
 
     async fn get_element_reflection(
@@ -507,10 +829,24 @@ impl ModelProvider for FhirSchemaModelProvider {
         type_name: &str,
         element_path: &str,
     ) -> Option<TypeReflectionInfo> {
+        let cache_key = format!("{type_name}.{element_path}");
+
+        // Try multi-tier cache first
+        if let Some(cached_value) = self.cache_manager.get(&cache_key) {
+            return Some((*cached_value).clone());
+        }
+
         let element_info = self
             .get_element_from_schema(type_name, element_path)
             .await?;
-        Some(element_info.type_info)
+
+        let type_info = element_info.type_info;
+
+        // Cache the result in multi-tier cache
+        self.cache_manager
+            .put(cache_key, Arc::new(type_info.clone()));
+
+        Some(type_info)
     }
 
     async fn get_structure_definition(&self, _type_name: &str) -> Option<StructureDefinition> {
@@ -1024,6 +1360,12 @@ impl ModelProvider for FhirSchemaModelProvider {
     }
 
     async fn is_subtype_of(&self, child_type: &str, parent_type: &str) -> bool {
+        // Try precomputed registry first for fast lookup
+        if let Some(registry) = &self.precomputed_registry {
+            return registry.is_subtype_of(child_type, parent_type);
+        }
+
+        // Fallback to schema-based lookup
         if child_type == parent_type {
             return true;
         }
@@ -1096,6 +1438,373 @@ impl ModelProvider for FhirSchemaModelProvider {
             intermediate_types: vec![],
             messages,
         })
+    }
+}
+
+impl FhirSchemaModelProvider {
+    /// Enhanced get_type_reflection with background loading integration
+    async fn get_type_reflection_with_background(
+        &self,
+        type_name: &str,
+        background_loader: &BackgroundSchemaLoader,
+    ) -> Option<TypeReflectionInfo> {
+        // Try cache first
+        if let Some(cached) = self.cache_manager.get(type_name) {
+            // Trigger predictive loading for related types
+            background_loader
+                .trigger_predictive_loading(type_name)
+                .await;
+            return Some((*cached).clone());
+        }
+
+        // Try pre-computed registry
+        if let Some(registry) = &self.precomputed_registry {
+            if let Some(type_info) = self.get_type_reflection_fast(registry, type_name) {
+                self.cache_manager
+                    .put(type_name.to_string(), Arc::new(type_info.clone()));
+                // Trigger predictive loading
+                background_loader
+                    .trigger_predictive_loading(type_name)
+                    .await;
+                return Some(type_info);
+            }
+        }
+
+        // Request background loading
+        background_loader.request_load(
+            type_name.to_string(),
+            LoadPriority::Requested,
+            LoadRequester::UserRequest("get_type_reflection".to_string()),
+        );
+
+        // For immediate requests, wait a short time for background loading
+        let mut attempts = 0;
+        while attempts < 10 {
+            // Max 1 second wait
+            tokio::time::sleep(Duration::from_millis(100)).await;
+
+            if let Some(cached) = self.cache_manager.get(type_name) {
+                return Some((*cached).clone());
+            }
+
+            attempts += 1;
+        }
+
+        // Fallback to synchronous loading if background fails
+        self.load_type_reflection_synchronous(type_name).await
+    }
+
+    /// Fallback synchronous loading method
+    async fn load_type_reflection_synchronous(
+        &self,
+        type_name: &str,
+    ) -> Option<TypeReflectionInfo> {
+        let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
+        let schema = self.get_schema_cached(&canonical_url).await?;
+
+        // Extract elements for this type from the schema
+        let elements: Vec<ElementInfo> = schema
+            .elements
+            .iter()
+            .filter_map(|(path, element)| {
+                if let Some(element_name) = path.strip_prefix(&format!("{type_name}.")) {
+                    // Only include direct children (no nested paths)
+                    if !element_name.contains('.') {
+                        let type_info = self.convert_element_to_type_reflection(element)?;
+                        Some(ElementInfo {
+                            name: element_name.to_string(),
+                            type_info,
+                            min_cardinality: element.min.unwrap_or(0),
+                            max_cardinality: element
+                                .max
+                                .as_ref()
+                                .and_then(|m| if m == "*" { None } else { m.parse().ok() }),
+                            is_modifier: element.is_modifier,
+                            is_summary: element.is_summary,
+                            documentation: element.definition.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let type_info = TypeReflectionInfo::ClassInfo {
+            namespace: "FHIR".to_string(),
+            name: type_name.to_string(),
+            base_type: self.get_base_type_from_schema(&schema).await,
+            elements,
+        };
+
+        // Cache the result
+        self.cache_manager
+            .put(type_name.to_string(), Arc::new(type_info.clone()));
+
+        Some(type_info)
+    }
+
+    #[allow(dead_code)]
+    async fn is_choice_property(&self, type_name: &str, property: &str) -> bool {
+        // Get schema for the type
+        let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
+        let schema = match self.get_schema_cached(&canonical_url).await {
+            Some(schema) => schema,
+            None => return false,
+        };
+
+        // Look for the property in the schema elements
+        for (element_name, element) in &schema.elements {
+            // Check if this is the base property we're looking for
+            if element_name == property {
+                // Check if element has multiple types (choice type indicator)
+                if let Some(element_types) = &element.element_type {
+                    return element_types.len() > 1;
+                }
+            }
+        }
+
+        false
+    }
+
+    #[allow(dead_code)]
+    async fn get_choice_variants(&self, type_name: &str, property: &str) -> Vec<ChoiceVariant> {
+        let mut variants = Vec::new();
+
+        // Get schema for the type
+        let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
+        let schema = match self.get_schema_cached(&canonical_url).await {
+            Some(schema) => schema,
+            None => return variants,
+        };
+
+        // Look for the property in the schema elements
+        for (element_name, element) in &schema.elements {
+            // Check if this is the base property we're looking for
+            if element_name == property {
+                // Extract choice variants from multiple types
+                if let Some(element_types) = &element.element_type {
+                    if element_types.len() > 1 {
+                        for (idx, element_type) in element_types.iter().enumerate() {
+                            let type_code = &element_type.code;
+
+                            // Generate the property name with type suffix
+                            let property_name = if self.is_primitive_type(type_code) {
+                                // For primitives, capitalize first letter
+                                format!("{}{}", property, capitalize_first_letter(type_code))
+                            } else {
+                                // For complex types, use as-is
+                                format!("{property}{type_code}")
+                            };
+
+                            variants.push(ChoiceVariant {
+                                property_name,
+                                target_type: type_code.clone(),
+                                type_code: type_code.clone(),
+                                priority: idx as u32, // Use index as priority
+                            });
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        variants
+    }
+
+    #[allow(dead_code)]
+    async fn resolve_choice_property(
+        &self,
+        type_name: &str,
+        property: &str,
+        data: &crate::FhirPathValue,
+    ) -> Option<String> {
+        // Get all possible choice variants
+        let variants = self.get_choice_variants(type_name, property).await;
+        if variants.is_empty() {
+            return None;
+        }
+
+        // Check the data to see which specific property exists
+        match data {
+            crate::FhirPathValue::JsonValue(json_val) => {
+                let sonic_val = json_val.as_sonic_value();
+
+                // Check each variant to see which property exists in the data
+                for variant in &variants {
+                    if sonic_val.get(&variant.property_name).is_some() {
+                        return Some(variant.property_name.clone());
+                    }
+                }
+            }
+            crate::FhirPathValue::Resource(resource) => {
+                // For resources, check if the property exists
+                for variant in &variants {
+                    if resource.get_property(&variant.property_name).is_some() {
+                        return Some(variant.property_name.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
+    }
+
+    #[allow(dead_code)]
+    async fn get_choice_base_property(
+        &self,
+        type_name: &str,
+        variant_property: &str,
+    ) -> Option<String> {
+        // Get schema for the type
+        let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
+        let schema = match self.get_schema_cached(&canonical_url).await {
+            Some(schema) => schema,
+            None => return None,
+        };
+
+        // Look through all elements to find choice types
+        for (element_name, element) in &schema.elements {
+            // Check if this element has multiple types (choice type)
+            if let Some(element_types) = &element.element_type {
+                if element_types.len() > 1 {
+                    // Check if any of the variants match our variant_property
+                    for element_type in element_types {
+                        let type_code = &element_type.code;
+
+                        // Generate the expected property name
+                        let expected_property = if self.is_primitive_type(type_code) {
+                            format!("{}{}", element_name, capitalize_first_letter(type_code))
+                        } else {
+                            format!("{element_name}{type_code}")
+                        };
+
+                        if expected_property == variant_property {
+                            return Some(element_name.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Initialize common FHIR choice types for immediate use
+    async fn initialize_common_choice_types(&mut self) {
+        // The choice type implementations are already integrated into the ModelProvider methods
+        // This method is a placeholder that ensures the system is ready for choice type operations
+        // The actual choice type resolution is done through the ModelProvider interface methods:
+        // - is_choice_property()
+        // - get_choice_variants()
+        // - resolve_choice_property()
+        // - get_choice_base_property()
+    }
+
+    // === Advanced Type Operations Implementation ===
+
+    /// Enhanced implementation using FHIRSchema for inheritance checking
+    async fn is_subtype_of(&self, derived_type: &str, base_type: &str) -> bool {
+        // Check direct match first
+        if derived_type == base_type {
+            return true;
+        }
+
+        // Get type definition from schema
+        let derived_schema = match self.get_type_schema(derived_type).await {
+            Some(schema) => schema,
+            None => return false,
+        };
+
+        // Check base types in the schema definition
+        if let Some(base_url) = derived_schema
+            .base
+            .as_ref()
+            .or(derived_schema.base_definition.as_ref())
+        {
+            let base_url_str = base_url.as_str();
+            if !base_url_str.is_empty() {
+                // Extract type name from StructureDefinition URL
+                if let Some(base_name) = base_url_str.split('/').next_back() {
+                    if base_name == base_type {
+                        return true;
+                    }
+
+                    // Recursively check if base type is subtype of target
+                    return Box::pin(self.is_subtype_of(base_name, base_type)).await;
+                }
+            }
+        }
+
+        // Check known FHIR hierarchy patterns
+        self.check_fhir_inheritance_patterns(derived_type, base_type)
+    }
+
+    /// Get all supertypes using FHIRSchema inheritance chain
+    #[allow(dead_code)]
+    async fn get_supertypes(&self, type_name: &str) -> Vec<String> {
+        let mut supertypes = Vec::new();
+        let mut current_type = type_name.to_string();
+
+        while let Some(schema) = self.get_type_schema(&current_type).await {
+            if let Some(base_url) = schema.base.as_ref().or(schema.base_definition.as_ref()) {
+                let base_url_str = base_url.as_str();
+                if let Some(base_name) = base_url_str.split('/').next_back() {
+                    supertypes.push(base_name.to_string());
+                    current_type = base_name.to_string();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        supertypes
+    }
+
+    /// Check if type is abstract using FHIRSchema
+    #[allow(dead_code)]
+    async fn is_abstract_type(&self, type_name: &str) -> bool {
+        if let Some(schema) = self.get_type_schema(type_name).await {
+            // Check if marked as abstract in schema
+            if let Some(is_abstract) = schema.abstract_type {
+                return is_abstract;
+            }
+        }
+
+        // Default to false - rely on FHIRSchema data
+        false
+    }
+
+    /// Helper to get type schema
+    async fn get_type_schema(&self, type_name: &str) -> Option<Arc<FhirSchema>> {
+        let canonical_url = format!("http://hl7.org/fhir/StructureDefinition/{type_name}");
+        self.get_schema_cached(&canonical_url).await
+    }
+
+    /// Check FHIR inheritance patterns using FHIRSchema data only
+    fn check_fhir_inheritance_patterns(&self, _derived_type: &str, base_type: &str) -> bool {
+        // Only return true for well-established patterns that are universal
+        // All other checks should go through FHIRSchema
+        match base_type {
+            "Base" => {
+                // Base is the ultimate supertype in FHIR - all types inherit from it
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if type is a resource using FHIRSchema
+    #[allow(dead_code)]
+    async fn is_resource_type_via_schema(&self, type_name: &str) -> bool {
+        // Check if type inherits from Resource
+        self.is_subtype_of(type_name, "Resource").await
     }
 }
 

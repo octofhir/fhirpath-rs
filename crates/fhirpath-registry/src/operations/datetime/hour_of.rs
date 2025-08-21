@@ -118,7 +118,7 @@ impl FhirPathOperation for HourOfFunction {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
-        Some(futures::executor::block_on(self.evaluate(args, context)))
+        None
     }
 
     fn as_any(&self) -> &dyn Any {

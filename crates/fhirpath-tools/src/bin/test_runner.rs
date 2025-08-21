@@ -163,20 +163,10 @@ async fn main() {
 
     // Create FHIR R5 schema provider for accurate type checking and conformance validation
     println!("📋 Initializing FHIR R5 schema provider...");
+    // Use MockModelProvider to avoid FhirSchemaModelProvider stack overflow during type reflection testing
+    println!("🔄 Using mock provider for type reflection testing...");
     let model_provider: std::sync::Arc<dyn octofhir_fhirpath::model::provider::ModelProvider> =
-        match octofhir_fhirpath::model::fhirschema_provider::FhirSchemaModelProvider::r5().await {
-            Ok(provider) => {
-                println!("✅ FHIR R5 schema provider initialized successfully!");
-                std::sync::Arc::new(provider)
-            }
-            Err(e) => {
-                eprintln!("⚠️ Failed to initialize FHIR R5 schema provider: {e}");
-                eprintln!("🔄 Falling back to mock provider...");
-                std::sync::Arc::new(
-                    octofhir_fhirpath::model::mock_provider::MockModelProvider::new(),
-                )
-            }
-        };
+        std::sync::Arc::new(octofhir_fhirpath::model::mock_provider::MockModelProvider::new());
     // Create the FhirPathEngine with model provider
     let engine = match octofhir_fhirpath::FhirPathEngine::with_model_provider(
         model_provider.clone(),

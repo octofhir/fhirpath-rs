@@ -76,7 +76,7 @@
 //! ```
 
 use crate::context::EvaluationContext as LocalEvaluationContext;
-use sonic_rs::JsonValueTrait;
+use crate::evaluators::polymorphic::PolymorphicNavigationEngine;
 
 // Import the new modular components
 use async_trait::async_trait;
@@ -146,6 +146,8 @@ pub struct FhirPathEngine {
     model_provider: Arc<dyn ModelProvider>,
     /// Evaluation configuration
     config: EvaluationConfig,
+    /// Optional polymorphic navigation engine for FHIR choice types
+    polymorphic_engine: Option<Arc<PolymorphicNavigationEngine>>,
 }
 
 /// Configuration options for FHIRPath evaluation.
@@ -305,6 +307,7 @@ impl FhirPathEngine {
             registry,
             model_provider,
             config: EvaluationConfig::default(),
+            polymorphic_engine: None,
         }
     }
 
@@ -340,6 +343,11 @@ impl FhirPathEngine {
     /// Get the model provider reference  
     pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
         &self.model_provider
+    }
+
+    /// Get the polymorphic navigation engine reference (if enabled)
+    pub fn polymorphic_engine(&self) -> Option<&Arc<PolymorphicNavigationEngine>> {
+        self.polymorphic_engine.as_ref()
     }
 
     /// Creates a new engine with custom registries and configuration.
@@ -378,6 +386,81 @@ impl FhirPathEngine {
     /// ```
     pub fn with_config(mut self, config: EvaluationConfig) -> Self {
         self.config = config;
+        self
+    }
+
+    /// Enables polymorphic navigation for FHIR choice types.
+    ///
+    /// This method creates and enables a polymorphic navigation engine that provides
+    /// enhanced support for FHIR choice types (value[x] patterns), allowing expressions
+    /// like `Observation.value.unit` to correctly resolve to `Observation.valueQuantity.unit`
+    /// based on the actual data.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
+    /// use sonic_rs::json;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let engine = FhirPathEngine::with_mock_provider().await?
+    ///     .with_polymorphic_navigation();
+    ///
+    /// let observation = json!({
+    ///     "resourceType": "Observation",
+    ///     "valueQuantity": {
+    ///         "value": 185,
+    ///         "unit": "lbs"
+    ///     }
+    /// });
+    ///
+    /// // Now this works correctly due to polymorphic navigation
+    /// let result = engine.evaluate("Observation.value.unit", observation).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_polymorphic_navigation(mut self) -> Self {
+        use crate::evaluators::polymorphic::PolymorphicNavigationFactory;
+
+        let polymorphic_engine =
+            PolymorphicNavigationFactory::create_r4_navigation_engine(self.model_provider.clone());
+        self.polymorphic_engine = Some(Arc::new(polymorphic_engine));
+        self
+    }
+
+    /// Enables polymorphic navigation with a custom navigation engine.
+    ///
+    /// This method allows you to provide a custom polymorphic navigation engine
+    /// for specialized use cases or custom choice type mappings.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - Custom polymorphic navigation engine
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
+    /// use octofhir_fhirpath_evaluator::evaluators::polymorphic::PolymorphicNavigationFactory;
+    /// use std::sync::Arc;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let engine = FhirPathEngine::with_mock_provider().await?;
+    /// let custom_nav_engine = PolymorphicNavigationFactory::create_r4_navigation_engine(
+    ///     engine.model_provider().clone()
+    /// );
+    ///
+    /// let enhanced_engine = engine.with_custom_polymorphic_navigation(Arc::new(custom_nav_engine));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_custom_polymorphic_navigation(
+        mut self,
+        engine: Arc<PolymorphicNavigationEngine>,
+    ) -> Self {
+        self.polymorphic_engine = Some(engine);
         self
     }
 
@@ -1129,7 +1212,7 @@ impl FhirPathEngine {
     ///   evaluated against the current name element (the input to combine)
 
     /// Check if a variable name is a system variable that cannot be overridden
-    fn is_system_variable(name: &str) -> bool {
+    pub fn is_system_variable(name: &str) -> bool {
         match name {
             // Standard environment variables
             "context" | "resource" | "rootResource" | "sct" | "loinc" | "ucum" => true,
@@ -1257,6 +1340,173 @@ impl FhirPathEngine {
         }
     }
 
+    /// Extract defineVariable calls from an expression tree and return accumulated context
+    fn extract_define_variable_context<'a>(
+        &'a self,
+        expr: &'a ExpressionNode,
+        input: FhirPathValue,
+        context: &'a LocalEvaluationContext,
+        depth: usize,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = EvaluationResult<(LocalEvaluationContext, FhirPathValue)>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            match expr {
+                ExpressionNode::FunctionCall(func_data) if func_data.name == "defineVariable" => {
+                    // This is a defineVariable call - extract the variable definition
+                    if func_data.args.is_empty() {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: "defineVariable() requires at least 1 argument".to_string(),
+                        });
+                    }
+
+                    // Get variable name
+                    let name_value = self
+                        .evaluate_node_async(&func_data.args[0], input.clone(), context, depth + 1)
+                        .await?;
+
+                    let var_name = match name_value {
+                        FhirPathValue::String(name) => name.to_string(),
+                        _ => {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: "defineVariable() first argument must be a string"
+                                    .to_string(),
+                            });
+                        }
+                    };
+
+                    // Check for system variable protection
+                    if Self::is_system_variable(&var_name) {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: format!("Cannot override system variable '{var_name}'"),
+                        });
+                    }
+
+                    // Check for redefinition
+                    if context.variable_scope.get_variable(&var_name).is_some() {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: format!(
+                                "Variable '{var_name}' is already defined in current scope"
+                            ),
+                        });
+                    }
+
+                    // Get variable value
+                    let var_value = if func_data.args.len() == 2 {
+                        self.evaluate_node_async(
+                            &func_data.args[1],
+                            input.clone(),
+                            context,
+                            depth + 1,
+                        )
+                        .await?
+                    } else {
+                        input.clone()
+                    };
+
+                    // Create new context with the variable
+                    let mut new_context = context.clone();
+                    new_context.variable_scope.set_variable(var_name, var_value);
+
+                    Ok((new_context, input))
+                }
+                ExpressionNode::MethodCall(method_data) => {
+                    // Recursively check the base for defineVariable calls
+                    let (base_context, base_result) = self
+                        .extract_define_variable_context(
+                            &method_data.base,
+                            input,
+                            context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // Check if this method call is also a defineVariable
+                    if method_data.method == "defineVariable" {
+                        // This is a chained defineVariable call
+                        if method_data.args.is_empty() {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: "defineVariable() requires at least 1 argument"
+                                    .to_string(),
+                            });
+                        }
+
+                        // Get variable name for the chained call
+                        let name_value = self
+                            .evaluate_node_async(
+                                &method_data.args[0],
+                                base_result.clone(),
+                                &base_context,
+                                depth + 1,
+                            )
+                            .await?;
+
+                        let var_name = match name_value {
+                            FhirPathValue::String(name) => name.to_string(),
+                            _ => {
+                                return Err(EvaluationError::InvalidOperation {
+                                    message: "defineVariable() first argument must be a string"
+                                        .to_string(),
+                                });
+                            }
+                        };
+
+                        // Check for system variable protection
+                        if Self::is_system_variable(&var_name) {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: format!("Cannot override system variable '{var_name}'"),
+                            });
+                        }
+
+                        // Check for redefinition in the accumulated context
+                        if base_context
+                            .variable_scope
+                            .get_variable(&var_name)
+                            .is_some()
+                        {
+                            return Err(EvaluationError::InvalidOperation {
+                                message: format!(
+                                    "Variable '{var_name}' is already defined in current scope"
+                                ),
+                            });
+                        }
+
+                        // Get variable value for the chained call
+                        let var_value = if method_data.args.len() == 2 {
+                            self.evaluate_node_async(
+                                &method_data.args[1],
+                                base_result.clone(),
+                                &base_context,
+                                depth + 1,
+                            )
+                            .await?
+                        } else {
+                            base_result.clone()
+                        };
+
+                        // Create new context with the additional variable
+                        let mut new_context = base_context;
+                        new_context.variable_scope.set_variable(var_name, var_value);
+
+                        Ok((new_context, base_result))
+                    } else {
+                        // Not a defineVariable call, return the base context
+                        Ok((base_context, base_result))
+                    }
+                }
+                _ => {
+                    // Not a defineVariable-related expression
+                    Ok((context.clone(), input))
+                }
+            }
+        })
+    }
+
     /// Evaluate method calls
     pub async fn evaluate_method_call(
         &self,
@@ -1269,54 +1519,82 @@ impl FhirPathEngine {
         // If the base is a defineVariable call, we need to propagate the variable context
         if let ExpressionNode::FunctionCall(func_data) = &method_data.base {
             if func_data.name == "defineVariable" {
-                // First evaluate the defineVariable function to set up the variable
+                // First evaluate the defineVariable function - this will validate and return input unchanged
                 let object = self
                     .evaluate_define_variable_function(func_data, input.clone(), context, depth + 1)
                     .await?;
 
-                // Extract the variable from the defineVariable call for context propagation
+                // Extract the variable name and value for context propagation
                 if !func_data.args.is_empty() {
-                    if let Ok(name_value) = self
+                    let name_value = self
                         .evaluate_node_async(&func_data.args[0], input.clone(), context, depth + 1)
-                        .await
-                    {
-                        if let FhirPathValue::String(var_name) = name_value {
-                            let var_value = if func_data.args.len() == 2 {
-                                self.evaluate_node_async(
-                                    &func_data.args[1],
-                                    input.clone(),
-                                    context,
-                                    depth + 1,
-                                )
-                                .await?
-                            } else {
-                                input.clone()
-                            };
+                        .await?;
 
-                            // Create a new context with the variable defined
-                            let mut new_context = context.clone();
-                            new_context
-                                .variable_scope
-                                .set_variable(var_name.as_ref().to_string(), var_value);
+                    if let FhirPathValue::String(var_name) = name_value {
+                        let var_value = if func_data.args.len() == 2 {
+                            self.evaluate_node_async(
+                                &func_data.args[1],
+                                input.clone(),
+                                context,
+                                depth + 1,
+                            )
+                            .await?
+                        } else {
+                            input.clone()
+                        };
 
-                            // Continue evaluation with the updated context using the method call logic
-                            return self
-                                .evaluate_method_call_with_object(
-                                    &method_data.method,
-                                    &method_data.args,
-                                    object,
-                                    &new_context,
-                                    depth,
-                                    input.clone(),
-                                )
-                                .await;
-                        }
+                        // Create a new context with the variable defined
+                        let mut new_context = context.clone();
+                        new_context
+                            .variable_scope
+                            .set_variable(var_name.as_ref().to_string(), var_value);
+
+                        // Continue evaluation with the updated context using the method call logic
+                        return self
+                            .evaluate_method_call_with_object(
+                                &method_data.method,
+                                &method_data.args,
+                                object,
+                                &new_context,
+                                depth,
+                                input.clone(),
+                            )
+                            .await;
+                    } else {
+                        return Err(EvaluationError::InvalidOperation {
+                            message: "defineVariable() first argument must be a string".to_string(),
+                        });
                     }
                 }
             }
+        } else if let ExpressionNode::MethodCall(base_method) = &method_data.base {
+            // Handle chained defineVariable calls like defineVariable().defineVariable()
+            if base_method.method == "defineVariable" {
+                // Extract all defineVariable calls from the chain
+                let (accumulated_context, base_result) = self
+                    .extract_define_variable_context(
+                        &method_data.base,
+                        input.clone(),
+                        context,
+                        depth + 1,
+                    )
+                    .await?;
+
+                // Continue with the accumulated context
+                return self
+                    .evaluate_method_call_with_object(
+                        &method_data.method,
+                        &method_data.args,
+                        base_result,
+                        &accumulated_context,
+                        depth,
+                        input,
+                    )
+                    .await;
+            }
         }
 
-        // First evaluate the base expression
+        // First evaluate the base expression normally
         let object = self
             .evaluate_node_async(&method_data.base, input.clone(), context, depth + 1)
             .await?;
@@ -1434,22 +1712,89 @@ impl FhirPathEngine {
 
                     // Evaluate method arguments
                     for arg_expr in args.iter() {
-                        // For type checking methods, evaluate type identifiers in original context
-                        // but other arguments with object context
-                        let arg_context = if matches!(method_name, "is" | "as" | "ofType")
+                        // Special handling for type identifiers in type checking methods
+                        if matches!(method_name, "is" | "as" | "ofType")
                             && Self::is_type_identifier_expression(arg_expr)
                         {
-                            // Type identifiers should be evaluated in original context
-                            input.clone()
+                            // Convert type identifier to TypeInfoObject
+                            let type_arg = match arg_expr {
+                                ExpressionNode::Identifier(type_name) => {
+                                    if self.is_type_identifier(type_name) {
+                                        // Create a TypeInfoObject for known type identifiers
+                                        let (namespace, name) = if type_name.contains('.') {
+                                            let parts: Vec<&str> = type_name.split('.').collect();
+                                            (parts[0], parts[1])
+                                        } else {
+                                            // Handle common FHIRPath types
+                                            match type_name.to_lowercase().as_str() {
+                                                "boolean" | "integer" | "decimal" | "string"
+                                                | "date" | "datetime" | "time" | "quantity"
+                                                | "collection" => ("System", type_name.as_str()),
+                                                "code" | "uri" | "url" | "canonical" | "oid"
+                                                | "uuid" | "id" | "markdown" | "base64binary"
+                                                | "instant" | "positiveint" | "unsignedint"
+                                                | "xhtml" => ("FHIR", type_name.as_str()),
+                                                _ => ("System", type_name.as_str()),
+                                            }
+                                        };
+                                        FhirPathValue::TypeInfoObject {
+                                            namespace: Arc::from(namespace),
+                                            name: Arc::from(name),
+                                        }
+                                    } else {
+                                        // Treat as string literal for backward compatibility
+                                        FhirPathValue::String(type_name.clone().into())
+                                    }
+                                }
+                                ExpressionNode::Path { base, path } => {
+                                    // Handle qualified type names like FHIR.uuid, System.Boolean
+                                    if let ExpressionNode::Identifier(namespace) = base.as_ref() {
+                                        if matches!(namespace.as_str(), "FHIR" | "System") {
+                                            FhirPathValue::TypeInfoObject {
+                                                namespace: Arc::from(namespace.as_str()),
+                                                name: Arc::from(path.as_str()),
+                                            }
+                                        } else {
+                                            // Evaluate as normal path expression
+                                            self.evaluate_node_async(
+                                                arg_expr,
+                                                input.clone(),
+                                                context,
+                                                depth + 1,
+                                            )
+                                            .await?
+                                        }
+                                    } else {
+                                        // Evaluate as normal path expression
+                                        self.evaluate_node_async(
+                                            arg_expr,
+                                            input.clone(),
+                                            context,
+                                            depth + 1,
+                                        )
+                                        .await?
+                                    }
+                                }
+                                _ => {
+                                    // For other type expressions, evaluate normally
+                                    self.evaluate_node_async(
+                                        arg_expr,
+                                        input.clone(),
+                                        context,
+                                        depth + 1,
+                                    )
+                                    .await?
+                                }
+                            };
+                            evaluated_args.push(type_arg);
                         } else {
-                            // Most arguments need object as context
-                            object.clone()
-                        };
-
-                        let arg_value = self
-                            .evaluate_node_async(arg_expr, arg_context, context, depth + 1)
-                            .await?;
-                        evaluated_args.push(arg_value);
+                            // Standard argument evaluation
+                            let arg_context = object.clone();
+                            let arg_value = self
+                                .evaluate_node_async(arg_expr, arg_context, context, depth + 1)
+                                .await?;
+                            evaluated_args.push(arg_value);
+                        }
                     }
 
                     // Get method from registry and evaluate

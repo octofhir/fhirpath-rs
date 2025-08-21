@@ -26,6 +26,148 @@ use std::sync::Arc;
 pub struct NavigationEvaluator;
 
 impl NavigationEvaluator {
+    /// Evaluate member access with ModelProvider choice type support
+    pub fn evaluate_member_access_with_model_provider<'a>(
+        target: &'a FhirPathValue,
+        member: &'a str,
+        registry: &'a Arc<FhirPathRegistry>,
+        context: &'a LocalEvaluationContext,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            match target {
+                FhirPathValue::JsonValue(json) => {
+                    // Use ModelProvider for choice type resolution
+                    Self::evaluate_json_member_access_with_model_provider(json, member, context)
+                        .await
+                }
+
+                FhirPathValue::Collection(items) => {
+                    let mut result_items = Vec::new();
+                    for item in items.iter() {
+                        let member_result = Self::evaluate_member_access_with_model_provider(
+                            item, member, registry, context,
+                        )
+                        .await?;
+                        match member_result {
+                            FhirPathValue::Collection(nested_items) => {
+                                result_items.extend(nested_items.iter().cloned());
+                            }
+                            FhirPathValue::Empty => {
+                                // Skip empty results
+                            }
+                            value => {
+                                result_items.push(value);
+                            }
+                        }
+                    }
+
+                    let collection = octofhir_fhirpath_model::Collection::from_vec(result_items);
+                    let flattened = collection.flatten();
+                    Ok(FhirPathValue::normalize_collection_result(
+                        flattened.into_vec(),
+                    ))
+                }
+
+                // Handle TypeInfoObject property access for .namespace and .name
+                FhirPathValue::TypeInfoObject { namespace, name } => match member {
+                    "namespace" => Ok(FhirPathValue::String(namespace.clone())),
+                    "name" => Ok(FhirPathValue::String(name.clone())),
+                    _ => Ok(FhirPathValue::Empty),
+                },
+
+                _ => Ok(FhirPathValue::Empty),
+            }
+        })
+    }
+
+    /// Enhanced JSON member access using ModelProvider choice type resolution
+    async fn evaluate_json_member_access_with_model_provider(
+        json: &JsonValue,
+        member: &str,
+        context: &LocalEvaluationContext,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Direct property access first
+        if let Some(value) = json.get_property(member) {
+            return Ok(Self::convert_json_to_fhirpath_value(value));
+        }
+
+        // Get resource type for choice type resolution
+        let resource_type = json
+            .get_property("resourceType")
+            .and_then(|rt| {
+                if rt.is_string() {
+                    rt.as_str().map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "Element".to_string());
+
+        // Check if this is a choice property using ModelProvider
+        let model_provider = &context.model_provider;
+
+        if model_provider
+            .is_choice_property(&resource_type, member)
+            .await
+        {
+            // Create FhirPathValue from JSON for data checking
+            let json_value = FhirPathValue::JsonValue(json.clone());
+
+            // Try to resolve the specific choice property from the data
+            if let Some(resolved_property) = model_provider
+                .resolve_choice_property(&resource_type, member, &json_value)
+                .await
+            {
+                if let Some(value) = json.get_property(&resolved_property) {
+                    return Ok(Self::convert_json_to_fhirpath_value(value));
+                }
+            }
+
+            // If no specific property found in data, return all possible variants
+            let variants = model_provider
+                .get_choice_variants(&resource_type, member)
+                .await;
+            let mut result_items = Vec::new();
+
+            for variant in variants {
+                if let Some(value) = json.get_property(&variant.property_name) {
+                    result_items.push(Self::convert_json_to_fhirpath_value(value));
+                }
+            }
+
+            // Return collection result (may be empty if no choice variants exist in data)
+            if result_items.is_empty() {
+                return Ok(FhirPathValue::Empty);
+            } else if result_items.len() == 1 {
+                return Ok(result_items.into_iter().next().unwrap());
+            } else {
+                return Ok(FhirPathValue::Collection(
+                    octofhir_fhirpath_model::Collection::from_vec(result_items),
+                ));
+            }
+        }
+
+        // Fallback to standard choice type resolution
+        Self::evaluate_json_member_access(json, member).await
+    }
+
+    /// Get value at a specific path in JSON
+    fn get_value_at_path(json: &JsonValue, path: &str) -> Option<JsonValue> {
+        let parts: Vec<&str> = path.split('.').collect();
+        let mut current = json.clone();
+
+        for part in parts {
+            if let Some(next) = current.get_property(part) {
+                current = next;
+            } else {
+                return None;
+            }
+        }
+
+        Some(current)
+    }
     /// Evaluate member access with polymorphic FHIR support (async with boxing for recursion)
     pub fn evaluate_member_access<'a>(
         target: &'a FhirPathValue,
@@ -38,14 +180,18 @@ impl NavigationEvaluator {
         Box::pin(async move {
             match target {
                 FhirPathValue::JsonValue(json) => {
-                    Self::evaluate_json_member_access(json, member).await
+                    // Use enhanced choice type resolution with ModelProvider
+                    Self::evaluate_json_member_access_with_model_provider(json, member, context)
+                        .await
                 }
 
                 FhirPathValue::Collection(items) => {
                     let mut result_items = Vec::new();
                     for item in items.iter() {
-                        let member_result =
-                            Self::evaluate_member_access(item, member, registry, context).await?;
+                        let member_result = Self::evaluate_member_access_with_model_provider(
+                            item, member, registry, context,
+                        )
+                        .await?;
                         match member_result {
                             FhirPathValue::Collection(nested_items) => {
                                 result_items.extend(nested_items.iter().cloned());
@@ -66,6 +212,13 @@ impl NavigationEvaluator {
                     ))
                 }
 
+                // Handle TypeInfoObject property access for .namespace and .name
+                FhirPathValue::TypeInfoObject { namespace, name } => match member {
+                    "namespace" => Ok(FhirPathValue::String(namespace.clone())),
+                    "name" => Ok(FhirPathValue::String(name.clone())),
+                    _ => Ok(FhirPathValue::Empty),
+                },
+
                 _ => Ok(FhirPathValue::Empty),
             }
         })
@@ -76,13 +229,14 @@ impl NavigationEvaluator {
         json: &JsonValue,
         member: &str,
     ) -> EvaluationResult<FhirPathValue> {
-        // Direct property access
+        // Direct property access first
         if let Some(value) = json.get_property(member) {
             return Ok(Self::convert_json_to_fhirpath_value(value));
         }
 
-        // FHIR choice type polymorphic access
+        // FHIR choice type polymorphic access - fallback pattern matching
         if json.is_object() {
+            // Fallback to pattern-based search for backward compatibility
             if let Some(iter) = json.object_iter() {
                 for (key, value) in iter {
                     if key.starts_with(member) && key.len() > member.len() {

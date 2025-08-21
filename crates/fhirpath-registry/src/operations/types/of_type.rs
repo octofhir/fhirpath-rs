@@ -84,15 +84,16 @@ impl FhirPathOperation for OfTypeFunction {
 
     fn try_evaluate_sync(
         &self,
-        args: &[FhirPathValue],
-        context: &EvaluationContext,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
-        // Can be synchronous for simple type checking
-        Some(futures::executor::block_on(self.evaluate(args, context)))
+        // ofType() requires model provider access which is async
+        // Cannot be evaluated synchronously
+        None
     }
 
     fn supports_sync(&self) -> bool {
-        true
+        false
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -130,105 +131,17 @@ impl OfTypeFunction {
         target_type: &str,
         context: &EvaluationContext,
     ) -> Result<bool> {
-        match item {
-            FhirPathValue::String(_) => Ok(target_type == "string" || target_type == "String"),
-            FhirPathValue::Integer(_) => Ok(target_type == "integer" || target_type == "Integer"),
-            FhirPathValue::Decimal(_) => Ok(target_type == "decimal" || target_type == "Decimal"),
-            FhirPathValue::Boolean(_) => Ok(target_type == "boolean" || target_type == "Boolean"),
-            FhirPathValue::Date(_) => Ok(target_type == "date" || target_type == "Date"),
-            FhirPathValue::DateTime(_) => {
-                Ok(target_type == "dateTime" || target_type == "DateTime")
-            }
-            FhirPathValue::Time(_) => Ok(target_type == "time" || target_type == "Time"),
-            FhirPathValue::Quantity(_) => {
-                Ok(target_type == "Quantity" || target_type == "quantity")
-            }
-            FhirPathValue::JsonValue(json_val) => {
-                // For FHIR resources, check the resourceType property
-                if json_val.is_object() {
-                    if let Some(resource_type_val) = json_val.get_property("resourceType") {
-                        if let Some(resource_type) = resource_type_val.as_str() {
-                            let is_direct_match = resource_type == target_type;
-                            let is_subtype = context
-                                .model_provider
-                                .is_subtype_of(resource_type, target_type)
-                                .await;
-                            Ok(is_direct_match || is_subtype)
-                        } else {
-                            // For FHIR primitive types, check the actual value type
-                            self.check_fhir_primitive_type_sonic(json_val, target_type)
-                        }
-                    } else {
-                        // For FHIR primitive types, check the actual value type
-                        self.check_fhir_primitive_type_sonic(json_val, target_type)
-                    }
-                } else {
-                    // For primitive JSON values, check their type
-                    self.check_fhir_primitive_type_sonic(json_val, target_type)
-                }
-            }
-            FhirPathValue::Collection(_) => {
-                Ok(target_type == "collection" || target_type == "Collection")
-            }
-            FhirPathValue::Resource(resource) => {
-                // Check resource type from the resource itself
-                if let Some(resource_type) = resource.resource_type() {
-                    let is_direct_match = resource_type == target_type;
-                    let is_subtype = context
-                        .model_provider
-                        .is_subtype_of(resource_type, target_type)
-                        .await;
-                    Ok(is_direct_match || is_subtype)
-                } else {
-                    Ok(target_type == "Resource" || target_type == "resource")
-                }
-            }
-            FhirPathValue::TypeInfoObject { .. } => {
-                Ok(target_type == "TypeInfo" || target_type == "typeinfo")
-            }
-            FhirPathValue::Empty => Ok(false), // Empty values don't have a type
-        }
+        // Use ModelProvider's comprehensive type checking which handles:
+        // - Primitive types
+        // - FHIR resources with inheritance
+        // - Collections
+        // - Type normalization
+        let is_of_type = context
+            .model_provider
+            .is_value_of_type(item, target_type)
+            .await;
+        Ok(is_of_type)
     }
 
-    fn check_fhir_primitive_type(
-        &self,
-        json_val: &sonic_rs::Value,
-        target_type: &str,
-    ) -> Result<bool> {
-        use sonic_rs::JsonValueTrait;
-
-        if json_val.as_str().is_some() {
-            Ok(target_type == "string" || target_type == "String")
-        } else if let Some(n) = json_val.as_f64() {
-            if n.fract() == 0.0 {
-                Ok(target_type == "integer" || target_type == "Integer")
-            } else {
-                Ok(target_type == "decimal" || target_type == "Decimal")
-            }
-        } else if json_val.as_bool().is_some() {
-            Ok(target_type == "boolean" || target_type == "Boolean")
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn check_fhir_primitive_type_sonic(
-        &self,
-        json_val: &octofhir_fhirpath_model::JsonValue,
-        target_type: &str,
-    ) -> Result<bool> {
-        if json_val.as_str().is_some() {
-            Ok(target_type == "string" || target_type == "String")
-        } else if json_val.is_number() {
-            if json_val.as_i64().is_some() {
-                Ok(target_type == "integer" || target_type == "Integer")
-            } else {
-                Ok(target_type == "decimal" || target_type == "Decimal")
-            }
-        } else if json_val.as_bool().is_some() {
-            Ok(target_type == "boolean" || target_type == "Boolean")
-        } else {
-            Ok(false)
-        }
-    }
+    // check_fhir_primitive_type method removed - ModelProvider.is_value_of_type handles all type checking
 }

@@ -678,6 +678,114 @@ impl<'input> PrattParser<'input> {
                                     let right =
                                         self.parse_expression_with_precedence(Precedence::Implies)?;
                                     left = ExpressionNode::binary_op(op, left, right);
+                                } else if matches!(current_token, Token::As) {
+                                    // Handle 'as' type cast operator within parentheses
+                                    self.advance()?; // consume 'as'
+
+                                    // Parse type name (same logic as normal 'as' handling)
+                                    let type_name = if let Some(Token::LeftParen) = self.current() {
+                                        // Handle as(Type) form
+                                        self.advance()?; // consume (
+                                        if let Some(token) = self.current() {
+                                            if let Some(first_part) = token.as_identifier() {
+                                                let mut type_name = first_part.to_string();
+                                                self.advance()?;
+
+                                                // Handle qualified names with dots (e.g., System.Boolean)
+                                                while let Some(Token::Dot) = self.current() {
+                                                    self.advance()?; // consume dot
+                                                    if let Some(token) = self.current() {
+                                                        if let Some(next_part) =
+                                                            token.as_identifier()
+                                                        {
+                                                            type_name.push('.');
+                                                            type_name.push_str(next_part);
+                                                            self.advance()?;
+                                                        } else {
+                                                            break;
+                                                        }
+                                                    } else {
+                                                        break;
+                                                    }
+                                                }
+
+                                                self.expect(Token::RightParen)?; // consume )
+                                                type_name
+                                            } else {
+                                                return Err(ParseError::UnexpectedToken {
+                                                    token: format!(
+                                                        "Expected identifier in 'as(Type)', got: {:?}",
+                                                        self.current()
+                                                    ).into(),
+                                                    position: 0,
+                                                });
+                                            }
+                                        } else {
+                                            return Err(ParseError::UnexpectedToken {
+                                                token: format!(
+                                                    "Expected type name in parentheses after 'as' operator, got: {:?}",
+                                                    self.current()
+                                                ).into(),
+                                                position: 0,
+                                            });
+                                        }
+                                    } else if let Some(token) = self.current() {
+                                        if let Some(first_part) = token.as_identifier() {
+                                            // Handle as Type form
+                                            let mut type_name = first_part.to_string();
+                                            self.advance()?;
+
+                                            // Handle qualified names with dots (e.g., System.Boolean)
+                                            while let Some(Token::Dot) = self.current() {
+                                                self.advance()?; // consume dot
+                                                if let Some(token) = self.current() {
+                                                    if let Some(next_part) = token.as_identifier() {
+                                                        type_name.push('.');
+                                                        type_name.push_str(next_part);
+                                                        self.advance()?;
+                                                    } else {
+                                                        return Err(ParseError::UnexpectedToken {
+                                                            token: format!(
+                                                                "Expected identifier after '.' in qualified type name, got: {:?}",
+                                                                self.current()
+                                                            ).into(),
+                                                            position: 0,
+                                                        });
+                                                    }
+                                                } else {
+                                                    return Err(ParseError::UnexpectedToken {
+                                                        token: format!(
+                                                            "Expected identifier after '.' in qualified type name, got: {:?}",
+                                                            self.current()
+                                                        ).into(),
+                                                        position: 0,
+                                                    });
+                                                }
+                                            }
+
+                                            type_name
+                                        } else {
+                                            return Err(ParseError::UnexpectedToken {
+                                                token: format!(
+                                                    "Expected identifier after 'as', got: {:?}",
+                                                    self.current()
+                                                )
+                                                .into(),
+                                                position: 0,
+                                            });
+                                        }
+                                    } else {
+                                        return Err(ParseError::UnexpectedToken {
+                                            token: format!(
+                                                "Expected type name after 'as', got: {:?}",
+                                                self.current()
+                                            )
+                                            .into(),
+                                            position: 0,
+                                        });
+                                    };
+
+                                    left = ExpressionNode::type_cast(left, type_name);
                                 } else {
                                     return Err(ParseError::UnexpectedToken {
                                         token: format!(
