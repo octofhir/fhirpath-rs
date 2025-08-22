@@ -91,8 +91,6 @@ fn test_constructors_documentation_updated() {
         let _provider3 = FhirSchemaModelProvider::r5().await;
         let _provider4 = FhirSchemaModelProvider::r4b().await;
         let _provider5 = FhirSchemaModelProvider::with_packages(vec![]).await;
-        let _provider6 =
-            FhirSchemaModelProvider::with_precomputed_registry(Default::default()).await;
         let _provider7 = FhirSchemaModelProvider::with_config(Default::default()).await;
     });
 
