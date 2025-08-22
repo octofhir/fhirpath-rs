@@ -114,8 +114,8 @@ impl FhirPathOperation for ConvertsToLongFunction {
 
     fn try_evaluate_sync(
         &self,
-        args: &[FhirPathValue],
-        context: &EvaluationContext,
+        _args: &[FhirPathValue],
+        _context: &EvaluationContext,
     ) -> Option<Result<FhirPathValue>> {
         None
     }
