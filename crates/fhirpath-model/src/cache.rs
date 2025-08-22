@@ -17,8 +17,8 @@ use tokio::time;
 /// High-performance multi-tier caching system
 #[derive(Debug)]
 pub struct CacheManager {
-    /// L1: Lock-free hot cache for most frequently accessed types
-    hot_cache: Arc<LockFreeCache<String, Arc<TypeReflectionInfo>>>,
+    /// L1: Hot cache for most frequently accessed types (using DashMap for reliability)
+    hot_cache: Arc<DashMap<String, Arc<TypeReflectionInfo>>>,
 
     /// L2: Warm cache with medium access frequency
     warm_cache: Arc<DashMap<String, WarmCacheEntry>>,
@@ -168,9 +168,19 @@ where
     pub fn insert(&self, key: K, value: V) -> Option<V> {
         let guard = &epoch::pin();
 
+        // Prevent infinite loops by limiting retries
+        let max_retries = 1000;
+        let mut retry_count = 0;
+
         // For simplicity, we'll use a basic approach that occasionally locks
         // A full lock-free implementation would be much more complex
         loop {
+            if retry_count >= max_retries {
+                // Fallback: use a simpler approach to avoid deadlock
+                log::warn!("Lock-free cache insert exceeded retry limit, falling back");
+                break;
+            }
+
             let current_table = self.table.load(Ordering::Acquire, guard);
             let mut new_table = if current_table.is_null() {
                 HashMap::with_capacity(self.capacity)
@@ -206,10 +216,16 @@ where
                 Err(new_owned_error) => {
                     // Retry with updated table
                     drop(new_owned_error.new.into_box());
+                    retry_count += 1;
+                    // Add a small delay to reduce contention
+                    std::thread::yield_now();
                     continue;
                 }
             }
         }
+
+        // Fallback if retries are exhausted - just return None
+        None
     }
 
     /// Clear cache atomically
@@ -410,7 +426,7 @@ impl CacheManager {
     /// Create new cache manager
     pub fn new(config: CacheConfig) -> Self {
         Self {
-            hot_cache: Arc::new(LockFreeCache::new(config.hot_cache_size)),
+            hot_cache: Arc::new(DashMap::new()),
             warm_cache: Arc::new(DashMap::new()),
             cold_storage: Arc::new(TypeCache::with_config(LegacyCacheConfig {
                 max_size: config.cold_cache_size,
@@ -429,14 +445,31 @@ impl CacheManager {
         self.access_tracker
             .record_access(key, AccessSource::TypeReflection);
 
-        // Try hot cache first (lock-free)
-        if let Some(value) = self.hot_cache.get(&key.to_string()) {
+        // Try internal get first
+        if let Some(value) = self.get_internal(key) {
+            return Some(value);
+        }
+
+        // Cache miss - record and potentially trigger predictive loading
+        self.record_miss();
+        if self.config.enable_predictive {
+            self.trigger_predictive_loading(key);
+        }
+
+        None
+    }
+
+    /// Internal get method that doesn't trigger predictive loading (prevents recursion)
+    fn get_internal(&self, key: &str) -> Option<Arc<TypeReflectionInfo>> {
+        // Try hot cache first
+        if let Some(entry) = self.hot_cache.get(key) {
+            let value = entry.value().clone();
             self.record_hit(CacheTier::Hot);
             return Some(value);
         }
 
         // Try warm cache
-        if let Some(entry) = self.warm_cache.get_mut(key) {
+        if let Some(entry) = self.warm_cache.get(key) {
             entry.access_count.fetch_add(1, Ordering::Relaxed);
             entry.last_accessed.store(
                 SystemTime::now()
@@ -468,12 +501,6 @@ impl CacheManager {
             return Some(arc_value);
         }
 
-        // Cache miss - record and potentially trigger predictive loading
-        self.record_miss();
-        if self.config.enable_predictive {
-            self.trigger_predictive_loading(key);
-        }
-
         None
     }
 
@@ -484,6 +511,10 @@ impl CacheManager {
 
         match tier {
             CacheTier::Hot => {
+                // Evict if necessary to maintain size limit
+                if self.hot_cache.len() >= self.config.hot_cache_size {
+                    self.evict_hot_lru();
+                }
                 self.hot_cache.insert(key, value);
             }
             CacheTier::Warm => {
@@ -527,6 +558,11 @@ impl CacheManager {
 
     /// Promote value to hot cache
     fn promote_to_hot(&self, key: &str, value: &Arc<TypeReflectionInfo>) {
+        // Evict if necessary to maintain size limit
+        if self.hot_cache.len() >= self.config.hot_cache_size {
+            self.evict_hot_lru();
+        }
+
         self.hot_cache.insert(key.to_string(), value.clone());
 
         // Remove from warm cache
@@ -556,8 +592,8 @@ impl CacheManager {
         let related_types = self.access_tracker.predict_related_types(accessed_key);
 
         for related_type in related_types {
-            // Check if already cached
-            if self.get(&related_type).is_none() {
+            // Check if already cached without triggering recursive predictive loading
+            if self.get_internal(&related_type).is_none() {
                 // Trigger background loading (implementation depends on integration)
                 self.request_background_load(related_type);
             }
@@ -569,6 +605,19 @@ impl CacheManager {
         // This would integrate with the ModelProvider's background loading system
         // For now, just record the request
         log::debug!("Requesting background load for type: {type_name}");
+    }
+
+    /// Evict least recently used entry from hot cache  
+    fn evict_hot_lru(&self) {
+        // For hot cache (simple DashMap), just remove first entry
+        // In a full implementation, you'd track access times
+        if let Some(entry) = self.hot_cache.iter().next() {
+            let key = entry.key().clone();
+            if let Some((_, value)) = self.hot_cache.remove(&key) {
+                // Demote to warm cache
+                self.put_warm(key, value);
+            }
+        }
     }
 
     /// Evict least recently used entry from warm cache

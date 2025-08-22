@@ -135,11 +135,15 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
 
     // Setup for evaluation benchmarks
     let registry = Arc::new(FhirPathRegistry::default());
+
+    // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
+    println!("Initializing FhirSchemaModelProvider R5...");
     let model_provider = Arc::new(
         FhirSchemaModelProvider::r5()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
-    );
+    ) as Arc<dyn octofhir_fhirpath_model::ModelProvider>;
+
     let engine = FhirPathEngine::new(registry, model_provider);
     let patient_data = get_sample_patient();
     let bundle_data = get_sample_bundle();

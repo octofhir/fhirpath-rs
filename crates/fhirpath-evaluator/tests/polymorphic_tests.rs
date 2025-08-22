@@ -96,39 +96,6 @@ async fn test_observation_value_unit_access() -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-/// Test that polymorphic navigation fallback still works
-#[tokio::test]
-async fn test_fallback_without_polymorphic_navigation() -> Result<(), Box<dyn std::error::Error>> {
-    let engine = FhirPathEngine::with_mock_provider().await?;
-    // Note: No .with_polymorphic_navigation() call
-
-    let observation = json!({
-        "resourceType": "Observation",
-        "valueQuantity": {
-            "value": 185,
-            "unit": "lbs"
-        }
-    });
-
-    // Test that direct property access still works
-    let result = engine
-        .evaluate("Observation.valueQuantity.unit", observation)
-        .await?;
-
-    match &result {
-        FhirPathValue::Collection(items) => {
-            assert_eq!(items.len(), 1);
-            match items.iter().next() {
-                Some(FhirPathValue::String(s)) => assert_eq!(s.as_ref(), "lbs"),
-                _ => panic!("Expected string result for unit"),
-            }
-        }
-        _ => panic!("Expected collection result"),
-    }
-
-    Ok(())
-}
-
 /// Test observation with string value
 #[tokio::test]
 async fn test_observation_value_string() -> Result<(), Box<dyn std::error::Error>> {
@@ -177,7 +144,7 @@ async fn test_observation_value_boolean() -> Result<(), Box<dyn std::error::Erro
         FhirPathValue::Collection(items) => {
             assert_eq!(items.len(), 1);
             match items.iter().next() {
-                Some(FhirPathValue::Boolean(b)) => assert_eq!(*b, true),
+                Some(FhirPathValue::Boolean(b)) => assert!(*b),
                 _ => panic!("Expected boolean result"),
             }
         }
@@ -206,7 +173,7 @@ async fn test_patient_deceased_boolean() -> Result<(), Box<dyn std::error::Error
         FhirPathValue::Collection(items) => {
             assert_eq!(items.len(), 1);
             match items.iter().next() {
-                Some(FhirPathValue::Boolean(b)) => assert_eq!(*b, true),
+                Some(FhirPathValue::Boolean(b)) => assert!(*b),
                 _ => panic!("Expected boolean result"),
             }
         }

@@ -24,7 +24,6 @@
 //! automatically build and use the [`PrecomputedTypeRegistry`] for optimal performance
 //! in type reflection operations like `type()`, `is()`, and `as()` functions.
 
-pub mod background_loader;
 pub mod boxing;
 pub mod cache;
 pub mod choice_type_mapper;
@@ -32,11 +31,9 @@ pub mod error;
 pub mod fhirschema_provider;
 pub mod json_value;
 pub mod legacy_cache;
-pub mod loading_metrics;
 pub mod mock_provider;
 pub mod polymorphic_resolver;
 pub mod precomputed_registry;
-pub mod priority_queue;
 pub mod profile_resolver;
 pub mod provider;
 pub mod quantity;
@@ -50,20 +47,15 @@ pub mod types;
 pub mod value;
 
 // Re-export main types
-pub use background_loader::{
-    BackgroundLoadingConfig, BackgroundSchemaLoader, LoadingStatus, RetryConfig,
-};
 pub use cache::{
     AccessPatternTracker, AccessSource, CacheConfig, CacheManager, CacheMetrics, CacheTier,
     LockFreeCache, TierStats,
 };
 pub use choice_type_mapper::{ChoiceTypeMapper, ChoiceVariant, SharedChoiceTypeMapper};
 pub use fhirschema_provider::FhirSchemaModelProvider;
-pub use loading_metrics::{LoadingMetricsCollector, LoadingMetricsSnapshot};
 pub use polymorphic_resolver::{
     CacheStats, PolymorphicPathResolver, PolymorphicResolverFactory, ResolvedPath,
 };
-pub use priority_queue::{LoadPriority, LoadRequester, PriorityQueue, SchemaLoadRequest};
 // JsonParser functionality is integrated into JsonValue directly
 pub use json_value::JsonValue;
 pub use mock_provider::MockModelProvider;

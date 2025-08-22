@@ -2,7 +2,6 @@ use divan::Bencher;
 use octofhir_fhir_model::reflection::TypeReflectionInfo;
 use octofhir_fhirpath_model::*;
 use std::sync::Arc;
-use std::time::Duration;
 
 fn create_test_type_info(name: &str) -> TypeReflectionInfo {
     TypeReflectionInfo::SimpleType {
@@ -33,11 +32,11 @@ fn bench_cache_get_hot(bencher: Bencher) {
 
     // Pre-populate with data that will be in hot cache
     for i in 0..100 {
-        let type_info = Arc::new(create_test_type_info(&format!("HotType{}", i)));
-        cache.put(format!("HotType{}", i), type_info);
+        let type_info = Arc::new(create_test_type_info(&format!("HotType{i}")));
+        cache.put(format!("HotType{i}"), type_info);
         // Access multiple times to promote to hot cache
         for _ in 0..20 {
-            let _ = cache.get(&format!("HotType{}", i));
+            let _ = cache.get(&format!("HotType{i}"));
         }
     }
 
@@ -56,11 +55,11 @@ fn bench_cache_get_warm(bencher: Bencher) {
 
     // Pre-populate with data that will stay in warm cache
     for i in 0..100 {
-        let type_info = Arc::new(create_test_type_info(&format!("WarmType{}", i)));
-        cache.put(format!("WarmType{}", i), type_info);
+        let type_info = Arc::new(create_test_type_info(&format!("WarmType{i}")));
+        cache.put(format!("WarmType{i}"), type_info);
         // Access a few times to keep in warm
         for _ in 0..5 {
-            let _ = cache.get(&format!("WarmType{}", i));
+            let _ = cache.get(&format!("WarmType{i}"));
         }
     }
 
@@ -76,8 +75,8 @@ fn bench_cache_get_cold(bencher: Bencher) {
 
     // Pre-populate with data that will be in cold storage
     for i in 0..100 {
-        let type_info = Arc::new(create_test_type_info(&format!("ColdType{}", i)));
-        cache.put(format!("ColdType{}", i), type_info);
+        let type_info = Arc::new(create_test_type_info(&format!("ColdType{i}")));
+        cache.put(format!("ColdType{i}"), type_info);
         // Don't access them, so they stay cold
     }
 
@@ -92,7 +91,7 @@ fn bench_lock_free_cache_get(bencher: Bencher) {
 
     // Pre-populate
     for i in 0..100 {
-        cache.insert(format!("Key{}", i), format!("Value{}", i));
+        cache.insert(format!("Key{i}"), format!("Value{i}"));
     }
 
     bencher.bench_local(|| {
@@ -106,7 +105,7 @@ fn bench_lock_free_cache_insert(bencher: Bencher) {
     let mut counter = 0;
 
     bencher.bench_local(|| {
-        cache.insert(format!("Key{}", counter), format!("Value{}", counter));
+        cache.insert(format!("Key{counter}"), format!("Value{counter}"));
         counter += 1;
     });
 }
@@ -146,8 +145,8 @@ fn bench_cache_concurrent_mixed_workload(bencher: Bencher) {
 
     // Pre-populate with some data
     for i in 0..50 {
-        let type_info = Arc::new(create_test_type_info(&format!("Type{}", i)));
-        cache.put(format!("Type{}", i), type_info);
+        let type_info = Arc::new(create_test_type_info(&format!("Type{i}")));
+        cache.put(format!("Type{i}"), type_info);
     }
 
     bencher.with_inputs(|| cache.clone()).bench_refs(|cache| {
@@ -172,9 +171,9 @@ fn bench_cache_stats_collection(bencher: Bencher) {
 
     // Pre-populate with some data and activity
     for i in 0..100 {
-        let type_info = Arc::new(create_test_type_info(&format!("Type{}", i)));
-        cache.put(format!("Type{}", i), type_info);
-        let _ = cache.get(&format!("Type{}", i));
+        let type_info = Arc::new(create_test_type_info(&format!("Type{i}")));
+        cache.put(format!("Type{i}"), type_info);
+        let _ = cache.get(&format!("Type{i}"));
     }
 
     bencher.bench_local(|| {
