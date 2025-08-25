@@ -50,9 +50,8 @@ impl SyncOperation for SimpleMatchesFunction {
         let pattern = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "matches() pattern argument must be a string".to_string()
-                });
+                // Return empty collection for invalid pattern type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 

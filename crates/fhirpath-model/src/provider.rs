@@ -449,16 +449,34 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
             FhirPathValue::Date(_) => "date".to_string(),
             FhirPathValue::Time(_) => "time".to_string(),
             FhirPathValue::JsonValue(json) => {
-                // Try to extract resourceType or use generic Element
-                json.get_property("resourceType")
-                    .and_then(|rt| {
-                        if rt.is_string() {
-                            rt.as_str().map(|s| s.to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or_else(|| "Element".to_string())
+                // First check if it's a FHIR resource with resourceType
+                if let Some(rt) = json.get_property("resourceType") {
+                    if rt.is_string() {
+                        return rt.as_str().map(|s| s.to_string()).unwrap_or_else(|| "Element".to_string());
+                    }
+                }
+                
+                // For primitive values wrapped in JsonValue (from FHIR data), 
+                // return their primitive type name to maintain FHIR context
+                let inner = json.as_inner();
+                if inner.is_boolean() {
+                    "boolean".to_string()
+                } else if inner.is_number() {
+                    if inner.as_i64().is_some() {
+                        "integer".to_string()
+                    } else {
+                        "decimal".to_string()
+                    }
+                } else if inner.is_str() {
+                    "string".to_string()
+                } else if inner.is_array() {
+                    "Collection".to_string()
+                } else if inner.is_object() {
+                    // Object without resourceType - could be a complex FHIR element
+                    "Element".to_string()
+                } else {
+                    "Element".to_string()
+                }
             }
             FhirPathValue::Resource(resource) => {
                 resource.resource_type().unwrap_or("Resource").to_string()

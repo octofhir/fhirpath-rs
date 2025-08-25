@@ -39,16 +39,10 @@ fn convert_to_integer(value: &FhirPathValue) -> Result<FhirPathValue> {
             if d.fract().is_zero() {
                 match d.to_i64() {
                     Some(i) => Ok(FhirPathValue::Integer(i)),
-                    None => Err(FhirPathError::ConversionError {
-                        from: format!("Decimal({})", d),
-                    to: "Integer".to_string(),
-                    }),
+                    None => Ok(FhirPathValue::Empty), // Return empty for out-of-range decimals
                 }
             } else {
-                Err(FhirPathError::ConversionError {
-                    from: format!("Decimal({})", d),
-                    to: "Integer".to_string(),
-                })
+                Ok(FhirPathValue::Empty) // Return empty for non-whole decimals per FHIRPath spec
             }
         },
         
@@ -56,10 +50,7 @@ fn convert_to_integer(value: &FhirPathValue) -> Result<FhirPathValue> {
         FhirPathValue::String(s) => {
             match s.trim().parse::<i64>() {
                 Ok(i) => Ok(FhirPathValue::Integer(i)),
-                Err(_) => Err(FhirPathError::ConversionError {
-                    from: format!("String('{}')", s),
-                    to: "Integer".to_string(),
-                }),
+                Err(_) => Ok(FhirPathValue::Empty), // Return empty collection for invalid conversions per FHIRPath spec
             }
         },
         

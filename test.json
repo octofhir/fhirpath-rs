@@ -1,0 +1,61 @@
+{
+    "resourceType": "Observation",
+    "id": "0ab45b21-051c-5d38-8c4c-e3917220ba16",
+    "meta": {
+        "versionId": "1",
+        "lastUpdated": "2025-07-30T18:03:20.877+00:00",
+        "profile": [
+            "http://fhir.mimic.mit.edu/StructureDefinition/mimic-observation-chartevents"
+        ]
+    },
+    "identifier": [
+        {
+            "system": "http://fhir.mimic.mit.edu/identifier/observation-chartevents",
+            "value": "30932571-2116-03-02 08:00:00-224690-22"
+        }
+    ],
+    "status": "final",
+    "category": [
+        {
+            "coding": [
+                {
+                    "system": "http://fhir.mimic.mit.edu/CodeSystem/observation-category",
+                    "code": "Respiratory"
+                }
+            ]
+        }
+    ],
+    "code": {
+        "coding": [
+            {
+                "system": "http://fhir.mimic.mit.edu/CodeSystem/chartevents-d-items",
+                "code": "224690",
+                "display": "Respiratory Rate (Total)"
+            }
+        ]
+    },
+    "subject": {
+        "reference": "Patient/4f773083-7f4d-5378-b839-c24ca1e15434"
+    },
+    "encounter": {
+        "reference": "Encounter/6b2b66d0-2417-5ce8-b852-581fe9dcb5d2"
+    },
+    "effectiveDateTime": "2116-03-02T08:00:00-05:00",
+    "issued": "2116-03-02T08:24:00-05:00",
+    "valueQuantity": {
+        "value": 22,
+        "unit": "insp/min",
+        "system": "http://fhir.mimic.mit.edu/CodeSystem/units",
+        "code": "insp/min"
+    },
+    "referenceRange": [
+        {
+            "high": {
+                "value": 36,
+                "unit": "insp/min",
+                "system": "http://fhir.mimic.mit.edu/CodeSystem/units",
+                "code": "insp/min"
+            }
+        }
+    ]
+}

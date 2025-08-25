@@ -24,42 +24,6 @@ use std::cmp::Ordering;
 pub struct ComparisonEvaluator;
 
 impl ComparisonEvaluator {
-    /// Helper to handle collection extraction for comparison operations
-    fn extract_operands<'a>(
-        left: &'a FhirPathValue,
-        right: &'a FhirPathValue,
-    ) -> (Option<&'a FhirPathValue>, Option<&'a FhirPathValue>) {
-        let left_val = match left {
-            FhirPathValue::Collection(items) => {
-                if items.len() == 1 {
-                    items.first()
-                } else if items.is_empty() {
-                    None
-                } else {
-                    None // Multi-element collections not supported for comparison
-                }
-            }
-            FhirPathValue::Empty => None,
-            val => Some(val),
-        };
-
-        let right_val = match right {
-            FhirPathValue::Collection(items) => {
-                if items.len() == 1 {
-                    items.first()
-                } else if items.is_empty() {
-                    None
-                } else {
-                    None // Multi-element collections not supported for comparison
-                }
-            }
-            FhirPathValue::Empty => None,
-            val => Some(val),
-        };
-
-        (left_val, right_val)
-    }
-
     /// Evaluate equals operation
     pub async fn evaluate_equals(
         left: &FhirPathValue,

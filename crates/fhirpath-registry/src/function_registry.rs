@@ -5,6 +5,7 @@
 //! optimal performance.
 
 use crate::traits::{SyncOperation, AsyncOperation, EvaluationContext};
+use crate::signature::FunctionSignature;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 use std::collections::HashMap;
@@ -126,6 +127,21 @@ impl FunctionRegistry {
         names
     }
 
+    /// Get function signature by name
+    pub fn get_function_signature(&self, name: &str) -> Option<&FunctionSignature> {
+        // Try sync operations first
+        if let Some(operation) = self.sync_operations.get(name) {
+            return Some(operation.signature());
+        }
+        
+        // Try async operations
+        if let Some(operation) = self.async_operations.get(name) {
+            return Some(operation.signature());
+        }
+        
+        None
+    }
+
     /// Get statistics about the registry
     pub fn stats(&self) -> RegistryStats {
         RegistryStats {
@@ -209,7 +225,7 @@ pub fn create_standard_registry() -> FunctionRegistry {
     registry.register_sync_many(vec![
         Box::new(crate::operations::collection_sync::SimpleCountFunction::default()),
         Box::new(crate::operations::collection_sync::SimpleEmptyFunction::default()),
-        Box::new(crate::operations::collection_sync::SimpleExistsFunction::default()),
+        // Box::new(crate::operations::collection_sync::SimpleExistsFunction::default()), // Disabled: use lambda version
         Box::new(crate::operations::collection_sync::SimpleFirstFunction::default()),
         Box::new(crate::operations::collection_sync::SimpleLastFunction::default()),
         Box::new(crate::operations::collection_sync::SimpleTailFunction::default()),

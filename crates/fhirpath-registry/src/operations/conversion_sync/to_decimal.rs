@@ -44,10 +44,7 @@ fn convert_to_decimal(value: &FhirPathValue) -> Result<FhirPathValue> {
         FhirPathValue::String(s) => {
             match Decimal::from_str(s.trim()) {
                 Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
-                Err(_) => Err(FhirPathError::ConversionError {
-                    from: format!("String('{}')", s),
-                    to: "Decimal".to_string(),
-                }),
+                Err(_) => Ok(FhirPathValue::Empty), // Return empty collection for invalid conversions per FHIRPath spec
             }
         },
         

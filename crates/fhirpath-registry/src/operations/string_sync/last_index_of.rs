@@ -64,27 +64,33 @@ impl SyncOperation for SimpleLastIndexOfFunction {
                 }
             }
             FhirPathValue::Collection(items) => {
-                let mut results = Vec::new();
-                for item in items.iter() {
-                    match item {
+                if items.len() > 1 {
+                    // FHIRPath spec: signal error for multiple items in collection
+                    return Err(FhirPathError::EvaluationError {
+                        message: "lastIndexOf() can only be applied to single values, not collections with multiple items".into(),
+                        expression: None,
+                        location: None,
+                    });
+                } else if items.len() == 1 {
+                    // Single item collection - unwrap and process
+                    match items.iter().next().unwrap() {
                         FhirPathValue::String(s) => {
                             if let Some(byte_index) = s.rfind(substring) {
                                 // Convert byte index to character index for Unicode support
                                 let char_index = s[..byte_index].chars().count();
-                                results.push(FhirPathValue::Integer(char_index as i64));
+                                Ok(FhirPathValue::Integer(char_index as i64))
                             } else {
-                                results.push(FhirPathValue::Integer(-1));
+                                Ok(FhirPathValue::Integer(-1))
                             }
                         }
                         _ => {
-                            // Non-string items in collection are skipped
+                            // Non-string item returns empty
+                            Ok(FhirPathValue::Empty)
                         }
                     }
-                }
-                if results.is_empty() {
-                    Ok(FhirPathValue::Empty)
                 } else {
-                    Ok(FhirPathValue::collection(results))
+                    // Empty collection
+                    Ok(FhirPathValue::Empty)
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

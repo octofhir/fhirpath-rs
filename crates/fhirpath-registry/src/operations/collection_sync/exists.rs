@@ -49,7 +49,7 @@ impl SyncOperation for SimpleExistsFunction {
             FhirPathValue::Collection(collection) => {
                 Ok(FhirPathValue::Boolean(!collection.is_empty()))
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::Boolean(false)),
+            FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Ok(FhirPathValue::Boolean(true)),
         }
     }

@@ -50,31 +50,78 @@ impl SyncOperation for SimplePowerFunction {
             FhirPathValue::Integer(e) => *e as f64,
             FhirPathValue::Decimal(e) => e.to_f64().unwrap_or(0.0),
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "power() exponent argument must be numeric".to_string(),
-                });
+                // Return empty collection for invalid exponent type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 
         match &context.input {
             FhirPathValue::Integer(n) => {
                 let base = *n as f64;
+                
+                // Check for invalid power operations per FHIRPath spec
+                if base < 0.0 && exponent.fract() != 0.0 {
+                    // Negative base with fractional exponent is undefined - return empty
+                    return Ok(FhirPathValue::Empty);
+                }
+                
                 let result = base.powf(exponent);
+                
+                // Check for NaN or infinite results
+                if result.is_nan() || result.is_infinite() {
+                    return Ok(FhirPathValue::Empty);
+                }
+                
                 if result.fract() == 0.0 && result <= i64::MAX as f64 && result >= i64::MIN as f64 {
                     Ok(FhirPathValue::Integer(result as i64))
                 } else {
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(result).unwrap_or_default()))
+                    match rust_decimal::Decimal::try_from(result) {
+                        Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
+                        Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                    }
                 }
             }
             FhirPathValue::Decimal(n) => {
                 let base = n.to_f64().unwrap_or(0.0);
+                
+                // Check for invalid power operations per FHIRPath spec
+                if base < 0.0 && exponent.fract() != 0.0 {
+                    // Negative base with fractional exponent is undefined - return empty
+                    return Ok(FhirPathValue::Empty);
+                }
+                
                 let result = base.powf(exponent);
-                Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(result).unwrap_or_default()))
+                
+                // Check for NaN or infinite results
+                if result.is_nan() || result.is_infinite() {
+                    return Ok(FhirPathValue::Empty);
+                }
+                
+                match rust_decimal::Decimal::try_from(result) {
+                    Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
+                    Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                }
             }
             FhirPathValue::Quantity(q) => {
                 let base = q.value.to_f64().unwrap_or(0.0);
+                
+                // Check for invalid power operations per FHIRPath spec
+                if base < 0.0 && exponent.fract() != 0.0 {
+                    // Negative base with fractional exponent is undefined - return empty
+                    return Ok(FhirPathValue::Empty);
+                }
+                
                 let result = base.powf(exponent);
-                Ok(FhirPathValue::quantity(rust_decimal::Decimal::try_from(result).unwrap_or_default(), q.unit.clone()))
+                
+                // Check for NaN or infinite results
+                if result.is_nan() || result.is_infinite() {
+                    return Ok(FhirPathValue::Empty);
+                }
+                
+                match rust_decimal::Decimal::try_from(result) {
+                    Ok(decimal) => Ok(FhirPathValue::quantity(decimal, q.unit.clone())),
+                    Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
@@ -85,17 +132,11 @@ impl SyncOperation for SimplePowerFunction {
                     let item_context = context.with_input(item.clone());
                     self.execute(args, &item_context)
                 } else {
-                    Err(FhirPathError::TypeError {
-                        message: "power() can only be applied to single numeric values".to_string(),
-                    })
+                    // Multiple items - return empty collection per FHIRPath spec
+                    Ok(FhirPathValue::Empty)
                 }
             }
-            _ => Err(FhirPathError::TypeError {
-                message: format!(
-                    "power() can only be applied to numeric values, got {}",
-                    context.input.type_name()
-                ),
-            }),
+            _ => Ok(FhirPathValue::Empty), // Return empty for invalid input type per FHIRPath spec
         }
     }
 }

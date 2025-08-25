@@ -49,9 +49,8 @@ impl SyncOperation for SimpleReplaceFunction {
         let pattern = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "replace() pattern argument must be a string".to_string()
-                });
+                // Return empty collection for invalid pattern type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 
@@ -59,9 +58,8 @@ impl SyncOperation for SimpleReplaceFunction {
         let substitution = match &args[1] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "replace() substitution argument must be a string".to_string()
-                });
+                // Return empty collection for invalid substitution type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 

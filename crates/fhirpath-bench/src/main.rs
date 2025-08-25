@@ -123,7 +123,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath_evaluator::FhirPathEngine;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
-    use octofhir_fhirpath_registry::FhirPathRegistry;
+    use octofhir_fhirpath_registry::FunctionRegistry;
     use std::sync::Arc;
     use std::time::Instant;
 
@@ -134,7 +134,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let mut results = Vec::new();
 
     // Setup for evaluation benchmarks
-    let registry = Arc::new(FhirPathRegistry::default());
+    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing FhirSchemaModelProvider R5...");

@@ -47,22 +47,32 @@ impl SyncOperation for SimpleSubstringFunction {
 
         // Get start index parameter
         let start = match &args[0] {
-            FhirPathValue::Integer(n) => *n as usize,
+            FhirPathValue::Integer(n) => {
+                if *n < 0 {
+                    // Negative start index returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Empty);
+                }
+                *n as usize
+            },
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "substring() start parameter must be an integer".to_string()
-                });
+                // Return empty collection for invalid start parameter type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 
         // Get optional length parameter
         let length = if args.len() == 2 {
             match &args[1] {
-                FhirPathValue::Integer(n) => Some(*n as usize),
+                FhirPathValue::Integer(n) => {
+                    if *n < 0 {
+                        // Negative length returns empty collection per FHIRPath spec
+                        return Ok(FhirPathValue::Empty);
+                    }
+                    Some(*n as usize)
+                },
                 _ => {
-                    return Err(FhirPathError::TypeError {
-                        message: "substring() length parameter must be an integer".to_string()
-                    });
+                    // Return empty collection for invalid length parameter type per FHIRPath spec
+                    return Ok(FhirPathValue::Empty);
                 }
             }
         } else {
@@ -73,7 +83,8 @@ impl SyncOperation for SimpleSubstringFunction {
             FhirPathValue::String(s) => {
                 let chars: Vec<char> = s.chars().collect();
                 if start >= chars.len() {
-                    return Ok(FhirPathValue::String("".into()));
+                    // Out-of-bounds start index returns empty collection per FHIRPath spec
+                    return Ok(FhirPathValue::Empty);
                 }
                 
                 let end = if let Some(len) = length {
@@ -92,7 +103,8 @@ impl SyncOperation for SimpleSubstringFunction {
                         FhirPathValue::String(s) => {
                             let chars: Vec<char> = s.chars().collect();
                             if start >= chars.len() {
-                                results.push(FhirPathValue::String("".into()));
+                                // Out-of-bounds start index skips this item per FHIRPath spec
+                                continue;
                             } else {
                                 let end = if let Some(len) = length {
                                     std::cmp::min(start + len, chars.len())

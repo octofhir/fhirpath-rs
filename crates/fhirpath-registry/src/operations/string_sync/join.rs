@@ -75,6 +75,16 @@ impl SyncOperation for SimpleJoinFunction {
                 FhirPathValue::Date(d) => Ok(d.to_string()),
                 FhirPathValue::Time(t) => Ok(t.to_string()),
                 FhirPathValue::Empty => Ok("".to_string()),
+                // Handle JsonValue types (FHIR data)
+                FhirPathValue::JsonValue(json) => {
+                    use sonic_rs::JsonValueTrait;
+                    if let Some(str_val) = json.as_inner().as_str() {
+                        Ok(str_val.to_string())
+                    } else {
+                        // For non-string JsonValues, convert to JSON representation
+                        Ok(json.as_inner().to_string())
+                    }
+                }
                 _ => Err(FhirPathError::TypeError {
                     message: format!("join() cannot convert {:?} to string", item)
                 }),

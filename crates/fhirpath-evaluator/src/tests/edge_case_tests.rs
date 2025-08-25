@@ -120,7 +120,7 @@ async fn test_resource_exhaustion_protection() {
         max_collection_size: 1000,
     };
 
-    let registry = Arc::new(create_standard_registry().await.unwrap());
+    let registry = Arc::new(create_standard_registry());
     let model_provider = Arc::new(MockModelProvider::empty());
     let engine = crate::FhirPathEngine::new(registry, model_provider).with_config(config);
 

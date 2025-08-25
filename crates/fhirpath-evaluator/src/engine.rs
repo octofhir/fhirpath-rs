@@ -1112,9 +1112,7 @@ impl FhirPathEngine {
             _ => false, // More sophisticated type checking can be added
         };
 
-        Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-            matches_type,
-        )]))
+        Ok(FhirPathValue::Boolean(matches_type))
     }
 
     /// Evaluate type cast expressions (value as Type)
@@ -1283,9 +1281,7 @@ impl FhirPathEngine {
                 LambdaType::All => {
                     // All: return false if any result is false
                     if !self.is_truthy(&result) {
-                        return Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                            false,
-                        )]));
+                        return Ok(FhirPathValue::Boolean(false));
                     }
                 }
                 LambdaType::Aggregate => {
@@ -1601,18 +1597,26 @@ impl FhirPathEngine {
     ) -> EvaluationResult<FhirPathValue> {
         // Handle built-in methods
         match method_name {
-            "empty" => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                self.is_empty(&object),
-            )])),
-            "exists" => Ok(FhirPathValue::collection(vec![FhirPathValue::Boolean(
-                !self.is_empty(&object),
-            )])),
-            "count" => Ok(FhirPathValue::collection(vec![FhirPathValue::Integer(
-                self.count(&object),
-            )])),
-            "toString" => Ok(FhirPathValue::collection(vec![FhirPathValue::String(
-                self.to_string_value(&object),
-            )])),
+            "empty" => Ok(FhirPathValue::Boolean(self.is_empty(&object))),
+            "exists" => {
+                // If exists has arguments, use lambda version for conditional evaluation
+                if !args.is_empty() {
+                    let func_data = octofhir_fhirpath_ast::FunctionCallData {
+                        name: method_name.to_string(),
+                        args: args.iter().cloned().collect(),
+                    };
+                    self.evaluate_exists_lambda(&func_data, object, context, depth)
+                        .await
+                } else {
+                    // Handle Empty propagation correctly for exists()
+                    match &object {
+                        FhirPathValue::Empty => Ok(FhirPathValue::Empty),
+                        _ => Ok(FhirPathValue::Boolean(!self.is_empty(&object))),
+                    }
+                }
+            }
+            "count" => Ok(FhirPathValue::Integer(self.count(&object))),
+            "toString" => Ok(FhirPathValue::String(self.to_string_value(&object))),
 
             // Delegate to function registry for other methods
             method_name => {
@@ -1826,6 +1830,9 @@ impl FhirPathEngine {
             FhirPathValue::Integer(i) => i.to_string().into(),
             FhirPathValue::Decimal(d) => d.to_string().into(),
             FhirPathValue::Boolean(b) => b.to_string().into(),
+            FhirPathValue::Date(date) => date.to_string().into(),
+            FhirPathValue::DateTime(datetime) => datetime.to_string().into(),
+            FhirPathValue::Time(time) => time.to_string().into(),
             FhirPathValue::Collection(items) => items
                 .iter()
                 .map(|item| self.to_string_value(item).to_string())

@@ -72,6 +72,8 @@ pub enum ValidationErrorType {
     InvalidTypeOperation,
     /// Constraint violation in type or value
     ConstraintViolation,
+    /// Invalid FHIR resource type
+    InvalidResourceType,
 }
 
 /// Source location information for errors

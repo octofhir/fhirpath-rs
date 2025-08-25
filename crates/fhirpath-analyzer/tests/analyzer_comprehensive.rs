@@ -13,7 +13,7 @@ pub struct AnalyzerTestSuite {
 impl AnalyzerTestSuite {
     pub async fn new() -> Self {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry().await.unwrap());
+        let registry = Arc::new(create_standard_registry());
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
         Self { analyzer }

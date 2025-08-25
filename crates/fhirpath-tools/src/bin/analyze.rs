@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create analyzer engine with function registry
     let model_provider = Box::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await?);
+    let function_registry = Arc::new(create_standard_registry());
     let engine =
         FhirPathEngineWithAnalyzer::with_full_analysis(model_provider, function_registry).await?;
 

@@ -45,10 +45,7 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
         FhirPathValue::String(s) => {
             match parse_iso_date_string(s) {
                 Some(date) => Ok(FhirPathValue::Date(date)),
-                None => Err(FhirPathError::ConversionError {
-                    from: format!("String('{}')", s),
-                    to: "Date".to_string(),
-                }),
+                None => Ok(FhirPathValue::Collection(vec![].into())), // Return empty for invalid strings
             }
         },
         
@@ -75,15 +72,12 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
     }
 }
 
-fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
-    // ISO date format: YYYY-MM-DD
+pub fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
+    // Support partial dates: YYYY, YYYY-MM, YYYY-MM-DD
     let s = s.trim();
-    if s.len() != 10 {
-        return None;
-    }
     
     let parts: Vec<&str> = s.split('-').collect();
-    if parts.len() != 3 {
+    if parts.is_empty() || parts[0].is_empty() {
         return None;
     }
     
@@ -93,21 +87,36 @@ fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
         return None;
     }
     
-    // Parse month (2 digits, 01-12)
-    let month = parts[1].parse::<u32>().ok()?;
-    if month < 1 || month > 12 {
-        return None;
+    match parts.len() {
+        1 => {
+            // Year only: YYYY
+            let date = NaiveDate::from_ymd_opt(year, 1, 1)?;
+            Some(PrecisionDate::new(date, TemporalPrecision::Year))
+        }
+        2 => {
+            // Year-Month: YYYY-MM
+            let month = parts[1].parse::<u32>().ok()?;
+            if month < 1 || month > 12 {
+                return None;
+            }
+            let date = NaiveDate::from_ymd_opt(year, month, 1)?;
+            Some(PrecisionDate::new(date, TemporalPrecision::Month))
+        }
+        3 => {
+            // Year-Month-Day: YYYY-MM-DD
+            let month = parts[1].parse::<u32>().ok()?;
+            if month < 1 || month > 12 {
+                return None;
+            }
+            let day = parts[2].parse::<u32>().ok()?;
+            if day < 1 || day > 31 {
+                return None;
+            }
+            let date = NaiveDate::from_ymd_opt(year, month, day)?;
+            Some(PrecisionDate::new(date, TemporalPrecision::Day))
+        }
+        _ => None,
     }
-    
-    // Parse day (2 digits, 01-31)
-    let day = parts[2].parse::<u32>().ok()?;
-    if day < 1 || day > 31 {
-        return None;
-    }
-    
-    // Create the date (this will validate the actual date)
-    NaiveDate::from_ymd_opt(year, month, day)
-        .map(|naive_date| PrecisionDate::new(naive_date, TemporalPrecision::Day))
 }
 
 #[cfg(test)]

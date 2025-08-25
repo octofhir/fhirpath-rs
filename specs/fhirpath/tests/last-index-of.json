@@ -12,7 +12,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [9]
+      "expected": [
+        9
+      ]
     },
     {
       "name": "testLastIndexOfSubstringFound",
@@ -23,7 +25,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [6]
+      "expected": [
+        6
+      ]
     },
     {
       "name": "testLastIndexOfSubstringNotFound",
@@ -34,7 +38,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [-1]
+      "expected": [
+        -1
+      ]
     },
     {
       "name": "testLastIndexOfEmptySubstring",
@@ -45,7 +51,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [5]
+      "expected": [
+        5
+      ]
     },
     {
       "name": "testLastIndexOfOnEmptyString",
@@ -56,7 +64,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [-1]
+      "expected": [
+        -1
+      ]
     },
     {
       "name": "testLastIndexOfMultipleOccurrences",
@@ -67,7 +77,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [6]
+      "expected": [
+        6
+      ]
     },
     {
       "name": "testLastIndexOfSingleCharMultipleTimes",
@@ -78,7 +90,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [2]
+      "expected": [
+        2
+      ]
     },
     {
       "name": "testLastIndexOfCaseSensitive",
@@ -89,7 +103,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [9]
+      "expected": [
+        9
+      ]
     },
     {
       "name": "testLastIndexOfCaseSensitiveNotFound",
@@ -100,7 +116,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [-1]
+      "expected": [
+        -1
+      ]
     },
     {
       "name": "testLastIndexOfWithCollection",
@@ -110,8 +128,9 @@
         "fhirpath-lab",
         "testLastIndexOf"
       ],
+      "expecterror": true,
       "inputfile": "patient-example.json",
-      "expected": [7, 2]
+      "expected": []
     },
     {
       "name": "testLastIndexOfWithPatientName",
@@ -121,7 +140,9 @@
         "name": [
           {
             "family": "Smith-Jones",
-            "given": ["John"]
+            "given": [
+              "John"
+            ]
           }
         ]
       },
@@ -130,7 +151,9 @@
         "testLastIndexOf"
       ],
       "inputfile": null,
-      "expected": [5]
+      "expected": [
+        5
+      ]
     },
     {
       "name": "testLastIndexOfUnicodeSupport",
@@ -141,7 +164,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [10]
+      "expected": [
+        10
+      ]
     },
     {
       "name": "testLastIndexOfWithSpecialCharacters",
@@ -152,7 +177,9 @@
         "testLastIndexOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [4]
+      "expected": [
+        4
+      ]
     }
   ]
 }

@@ -51,8 +51,28 @@ impl SyncOperation for SimpleLengthFunction {
                 Ok(FhirPathValue::Integer(length))
             }
             FhirPathValue::Collection(items) => {
-                // For collections, return collection length
-                Ok(FhirPathValue::Integer(items.len() as i64))
+                // For single-item collections containing strings, return string length
+                if items.len() == 1 {
+                    match items.first().unwrap() {
+                        FhirPathValue::String(s) => {
+                            let length = s.chars().count() as i64;
+                            Ok(FhirPathValue::Integer(length))
+                        }
+                        // For single non-string items, try to convert to string
+                        item => {
+                            if let Some(string_val) = item.to_string_value() {
+                                let length = string_val.chars().count() as i64;
+                                Ok(FhirPathValue::Integer(length))
+                            } else {
+                                // For collections of non-strings, return collection length  
+                                Ok(FhirPathValue::Integer(items.len() as i64))
+                            }
+                        }
+                    }
+                } else {
+                    // For multi-item collections, return collection length
+                    Ok(FhirPathValue::Integer(items.len() as i64))
+                }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => {

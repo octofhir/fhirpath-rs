@@ -139,7 +139,13 @@ impl crate::FhirPathEngine {
             });
         }
 
-        // iif() can work with any input - the key is evaluating the condition properly
+        // iif() requires single value input - multi-item collections should return empty
+        match &input {
+            FhirPathValue::Collection(col) if col.len() > 1 => {
+                return Ok(FhirPathValue::collection(vec![]));
+            }
+            _ => {}
+        }
 
         // Create lambda context preserving existing lambda variables from outer context
         // but set $this to current input
@@ -155,9 +161,12 @@ impl crate::FhirPathEngine {
             )
             .await?;
 
-        // Convert condition to boolean using FHIRPath boolean conversion rules
-        // Non-empty collections, non-zero numbers, non-empty strings are truthy
-        let boolean_result = self.to_boolean_fhirpath(&condition);
+        // For iif(), use FHIRPath boolean conversion but handle edge cases
+        let boolean_result = match &condition {
+            // Non-boolean strings should make iif return empty
+            FhirPathValue::String(_) => None,
+            _ => self.to_boolean_fhirpath(&condition)
+        };
 
         match boolean_result {
             Some(true) => {

@@ -222,9 +222,17 @@ impl FhirPathAnalyzer {
                     }
                 }
                 ExpressionNode::MethodCall(data) => {
-                    // Analyze method call as a function if we have function analyzer
-                    if let Some(func_analyzer) = &self.function_analyzer {
-                        // Convert MethodCall to FunctionCallData for analysis
+                    // Check if it's a lambda function first - these are implemented as plain Rust functions
+                    if self.is_lambda_function(&data.method) {
+                        // Validate lambda function signature and arguments
+                        self.validate_lambda_function_signature(&data.method, &data.args, validation_errors);
+                        
+                        // Additional semantic validation for where() clauses  
+                        if data.method == "where" && data.args.len() == 1 {
+                            self.validate_where_clause_arguments(&data.args, validation_errors).await;
+                        }
+                    } else if let Some(func_analyzer) = &self.function_analyzer {
+                        // Convert MethodCall to FunctionCallData for registry function analysis
                         let function_data = octofhir_fhirpath_ast::FunctionCallData {
                             name: data.method.clone(),
                             args: data.args.clone(),
@@ -674,6 +682,230 @@ impl FhirPathAnalyzer {
             // For more complex expressions, we'd need full type inference
             // For now, default to Any for non-literals
             _ => octofhir_fhirpath_model::types::TypeInfo::Any,
+        }
+    }
+
+    /// Check if a function name corresponds to a lambda function (implemented as plain Rust functions)
+    fn is_lambda_function(&self, function_name: &str) -> bool {
+        matches!(
+            function_name,
+            "where" | "select" | "sort" | "repeat" | "aggregate" | "all" | "exists" | "iif"
+        )
+    }
+
+    /// Validate arguments in where() clause for resource type validation
+    async fn validate_where_clause_arguments(
+        &self,
+        args: &[ExpressionNode],
+        validation_errors: &mut Vec<crate::error::ValidationError>,
+    ) {
+        if args.len() != 1 {
+            return; // where() should have exactly 1 argument, but that's a separate validation
+        }
+
+        // Look for patterns like resourceType='SomeType' in the where condition
+        self.validate_resource_type_comparisons(&args[0], validation_errors)
+            .await;
+    }
+
+    /// Recursively validate resource type comparisons in expressions
+    fn validate_resource_type_comparisons<'a>(
+        &'a self,
+        expr: &'a ExpressionNode,
+        validation_errors: &'a mut Vec<crate::error::ValidationError>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+        match expr {
+            ExpressionNode::BinaryOp(data) => {
+                // Check for resourceType = 'SomeString' patterns
+                if let (ExpressionNode::Identifier(field), ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value))) = (&data.left, &data.right) {
+                    if field == "resourceType" && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal) {
+                        self.validate_resource_type_string(&value, validation_errors).await;
+                    }
+                }
+                // Also check the reverse: 'SomeString' = resourceType
+                if let (ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value)), ExpressionNode::Identifier(field)) = (&data.left, &data.right) {
+                    if field == "resourceType" && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal) {
+                        self.validate_resource_type_string(&value, validation_errors).await;
+                    }
+                }
+                
+                // Recursively check both sides
+                self.validate_resource_type_comparisons(&data.left, validation_errors).await;
+                self.validate_resource_type_comparisons(&data.right, validation_errors).await;
+            }
+            // Handle other expression types that might contain nested comparisons
+            ExpressionNode::UnaryOp { operand, .. } => {
+                self.validate_resource_type_comparisons(operand, validation_errors).await;
+            }
+            ExpressionNode::FunctionCall(data) => {
+                for arg in &data.args {
+                    self.validate_resource_type_comparisons(arg, validation_errors).await;
+                }
+            }
+            ExpressionNode::MethodCall(data) => {
+                self.validate_resource_type_comparisons(&data.base, validation_errors).await;
+                for arg in &data.args {
+                    self.validate_resource_type_comparisons(arg, validation_errors).await;
+                }
+            }
+            _ => {} // Other node types don't need resource type validation
+        }
+        })
+    }
+
+    /// Validate that a resource type string is a valid FHIR resource type
+    async fn validate_resource_type_string(
+        &self,
+        resource_type: &str,
+        validation_errors: &mut Vec<crate::error::ValidationError>,
+    ) {
+        // Check if the resource type exists in the model provider
+        if let None = self.model_provider.get_type_reflection(resource_type).await {
+            // Generate suggestions for similar resource types
+            let suggestions = self.get_resource_type_suggestions(resource_type).await;
+            
+            validation_errors.push(crate::error::ValidationError {
+                message: format!("Unknown FHIR resource type: '{resource_type}'"),
+                error_type: crate::error::ValidationErrorType::InvalidResourceType,
+                location: None,
+                suggestions,
+            });
+        }
+    }
+
+    /// Get suggestions for similar resource types
+    async fn get_resource_type_suggestions(&self, unknown_type: &str) -> Vec<String> {
+        // For now, provide common FHIR resource types as suggestions
+        // In a full implementation, we'd query the model provider for all resource types
+        let common_resources = vec![
+            "Patient", "Observation", "Medication", "MedicationRequest", "Practitioner",
+            "Organization", "Encounter", "Procedure", "DiagnosticReport", "Condition",
+            "Bundle", "AllergyIntolerance", "Immunization", "Specimen", "Location"
+        ];
+
+        // Simple similarity matching
+        common_resources
+            .into_iter()
+            .filter(|resource| {
+                // Check for similarity: starts with same letter, contains substring, or edit distance
+                let resource_lower = resource.to_lowercase();
+                let unknown_lower = unknown_type.to_lowercase();
+                
+                resource_lower.starts_with(&unknown_lower[..1.min(unknown_lower.len())]) ||
+                resource_lower.contains(&unknown_lower) ||
+                unknown_lower.contains(&resource_lower[..3.min(resource_lower.len())])
+            })
+            .take(3)
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    /// Validate lambda function signature and parameter count
+    fn validate_lambda_function_signature(
+        &self,
+        function_name: &str,
+        args: &[ExpressionNode],
+        validation_errors: &mut Vec<crate::error::ValidationError>,
+    ) {
+        let (min_args, max_args, description) = match function_name {
+            "where" => (1, 1, "where(condition: expression) - filters collection based on condition"),
+            "select" => (1, 1, "select(projection: expression) - transforms each item in collection"),
+            "sort" => (0, usize::MAX, "sort() or sort(expression1, expression2, ...) - sorts collection"),
+            "repeat" => (1, 1, "repeat(expression) - repeatedly applies expression until empty result"),
+            "aggregate" => (1, 2, "aggregate(iterator: expression) or aggregate(iterator: expression, init: expression) - accumulates values"),
+            "all" => (1, 1, "all(condition: expression) - returns true if all items match condition"),
+            "exists" => (0, 1, "exists() or exists(condition: expression) - checks if any items exist or match condition"),
+            "iif" => (2, 3, "iif(condition: expression, then: expression) or iif(condition: expression, then: expression, else: expression) - conditional expression"),
+            _ => return, // Not a recognized lambda function
+        };
+
+        let arg_count = args.len();
+        
+        if arg_count < min_args {
+            validation_errors.push(crate::error::ValidationError {
+                message: format!(
+                    "Function '{}()' requires at least {} argument{}, got {}. Usage: {}", 
+                    function_name,
+                    min_args,
+                    if min_args == 1 { "" } else { "s" },
+                    arg_count,
+                    description
+                ),
+                error_type: crate::error::ValidationErrorType::InvalidFunction,
+                location: None,
+                suggestions: vec![format!("Add {} more argument{}", min_args - arg_count, if min_args - arg_count == 1 { "" } else { "s" })],
+            });
+        } else if arg_count > max_args && max_args != usize::MAX {
+            validation_errors.push(crate::error::ValidationError {
+                message: format!(
+                    "Function '{}()' accepts at most {} argument{}, got {}. Usage: {}", 
+                    function_name,
+                    max_args,
+                    if max_args == 1 { "" } else { "s" },
+                    arg_count,
+                    description
+                ),
+                error_type: crate::error::ValidationErrorType::InvalidFunction,
+                location: None,
+                suggestions: vec![format!("Remove {} argument{}", arg_count - max_args, if arg_count - max_args == 1 { "" } else { "s" })],
+            });
+        }
+
+        // Additional parameter type validation for specific functions
+        match function_name {
+            "iif" => self.validate_iif_parameters(args, validation_errors),
+            "aggregate" => self.validate_aggregate_parameters(args, validation_errors),
+            _ => {} // Other functions have flexible parameter types
+        }
+    }
+
+    /// Validate iif() function parameters
+    fn validate_iif_parameters(
+        &self,
+        args: &[ExpressionNode],
+        validation_errors: &mut Vec<crate::error::ValidationError>,
+    ) {
+        if args.len() >= 2 {
+            // The first parameter should be a boolean condition
+            // We can add more sophisticated type checking here in the future
+            if let ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(_)) = &args[0] {
+                validation_errors.push(crate::error::ValidationError {
+                    message: "iif() condition parameter should be a boolean expression, not a string literal".to_string(),
+                    error_type: crate::error::ValidationErrorType::TypeMismatch,
+                    location: None,
+                    suggestions: vec![
+                        "Use a boolean expression like 'field = value' instead of a string literal".to_string(),
+                        "Remove quotes if you meant to reference a field".to_string()
+                    ],
+                });
+            }
+        }
+    }
+
+    /// Validate aggregate() function parameters
+    fn validate_aggregate_parameters(
+        &self,
+        args: &[ExpressionNode],
+        validation_errors: &mut Vec<crate::error::ValidationError>,
+    ) {
+        if args.len() >= 1 {
+            // The first parameter should be an iterator expression
+            // We can add more validation for the iterator expression here
+            match &args[0] {
+                ExpressionNode::Literal(_) => {
+                    validation_errors.push(crate::error::ValidationError {
+                        message: "aggregate() iterator parameter should be an expression that uses $this or $total, not a literal value".to_string(),
+                        error_type: crate::error::ValidationErrorType::InvalidFunction,
+                        location: None,
+                        suggestions: vec![
+                            "Use an expression like '$this + $total' or '$this.value + $total'".to_string(),
+                            "Reference $this (current item) and/or $total (accumulator) in your expression".to_string()
+                        ],
+                    });
+                }
+                _ => {} // Other expressions are potentially valid
+            }
         }
     }
 }

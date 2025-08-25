@@ -45,13 +45,24 @@ impl SyncOperation for SimpleStartsWithFunction {
             });
         }
 
-        // Get prefix parameter
+        // Get prefix parameter - try to convert to string if not already one
         let prefix = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
+            FhirPathValue::Integer(i) => {
+                // Convert integer to string for comparison
+                let temp_string = i.to_string();
+                return match &context.input {
+                    FhirPathValue::String(s) => {
+                        let result = s.starts_with(&temp_string);
+                        Ok(FhirPathValue::Boolean(result))
+                    }
+                    FhirPathValue::Empty => Ok(FhirPathValue::Empty),
+                    _ => Ok(FhirPathValue::Empty) // Return empty for invalid input type per FHIRPath spec
+                };
+            },
             _ => {
-                return Err(FhirPathError::TypeError {
-                    message: "startsWith() argument must be a string".to_string()
-                });
+                // Return empty collection for invalid prefix type per FHIRPath spec
+                return Ok(FhirPathValue::Empty);
             }
         };
 
@@ -61,9 +72,7 @@ impl SyncOperation for SimpleStartsWithFunction {
                 Ok(FhirPathValue::Boolean(result))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
-            _ => Err(FhirPathError::TypeError {
-                message: "startsWith() can only be called on string values".to_string()
-            })
+            _ => Ok(FhirPathValue::Empty) // Return empty for invalid input type per FHIRPath spec
         }
     }
 }

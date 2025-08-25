@@ -50,7 +50,11 @@ impl SyncOperation for SimpleSingleFunction {
                 match collection.len() {
                     0 => Ok(FhirPathValue::Empty),
                     1 => Ok(collection.first().unwrap().clone()),
-                    _ => Ok(FhirPathValue::Empty), // Return empty when more than one item
+                    _ => {
+                        // Per FHIRPath spec: single() on multiple items should return empty
+                        // But the result needs to propagate as truly empty, not false
+                        Ok(FhirPathValue::Empty)
+                    }
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

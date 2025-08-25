@@ -238,7 +238,15 @@ impl crate::FhirPathEngine {
                 // Access property from JSON object
                 if let Some(prop_value) = json_val.get_property(identifier) {
                     // Convert JsonValue property to proper FhirPathValue type
-                    Ok(FhirPathValue::from(prop_value.as_inner().clone()))
+                    // For FHIR primitives, preserve context by creating a JsonValue wrapper for scalar types
+                    let inner = prop_value.as_inner();
+                    if inner.is_boolean() || inner.is_number() || (inner.is_str() && !inner.as_str().unwrap_or("").starts_with('@')) {
+                        // Primitive FHIR types - preserve context with JsonValue wrapper
+                        Ok(FhirPathValue::JsonValue(prop_value))
+                    } else {
+                        // Arrays and complex objects - convert normally to enable proper collection flattening
+                        Ok(FhirPathValue::from(prop_value.as_inner().clone()))
+                    }
                 } else {
                     Ok(FhirPathValue::Empty)
                 }
