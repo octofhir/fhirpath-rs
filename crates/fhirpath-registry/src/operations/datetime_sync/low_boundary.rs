@@ -1,7 +1,7 @@
 //! LowBoundary function implementation - sync version
 
 use crate::traits::{SyncOperation, EvaluationContext, validation};
-use crate::signature::{FunctionSignature, ValueType, ParameterType};
+use crate::signature::{FunctionSignature, ValueType};
 use chrono::{DateTime, NaiveDate, TimeZone, Datelike, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{FhirPathValue, temporal::{PrecisionDateTime, TemporalPrecision}};

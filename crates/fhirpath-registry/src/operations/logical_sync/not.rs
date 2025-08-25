@@ -18,7 +18,7 @@ impl NotOperation {
         match value {
             FhirPathValue::Empty => Ok(None),
             FhirPathValue::Boolean(b) => Ok(Some(*b)),
-            FhirPathValue::Integer(i) => Ok(Some(*i != 0)), // 0 = false, non-zero = true
+            FhirPathValue::Integer(_) => Ok(Some(true)), // All integers are truthy in FHIRPath
             FhirPathValue::Decimal(d) => Ok(Some(!d.is_zero())), // 0.0 = false, non-zero = true
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
@@ -65,7 +65,7 @@ impl SyncOperation for NotOperation {
         let result = match value {
             Some(true) => Some(false),
             Some(false) => Some(true),
-            None => Some(true), // NOT of empty is true per FHIRPath specification
+            None => None, // NOT of empty is empty
         };
 
         match result {

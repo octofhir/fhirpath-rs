@@ -401,14 +401,7 @@ impl crate::FhirPathEngine {
             });
         }
 
-        // According to FHIRPath spec, iif() only works on single values, not collections
-        // If input is a collection with multiple items, return empty collection
-        match &input {
-            FhirPathValue::Collection(col) if col.len() > 1 => {
-                return Ok(FhirPathValue::collection(vec![]));
-            }
-            _ => {}
-        }
+        // iif() can work with any input - the key is evaluating the condition properly
 
         // CRITICAL: Do NOT create a new lambda context - use the existing one
         // This preserves $index, $this, and other lambda variables from select() or other outer lambdas
@@ -509,6 +502,93 @@ impl crate::FhirPathEngine {
                     .await?;
 
                 Ok(FhirPathValue::Boolean(self.is_truthy(&condition_result)))
+            }
+        }
+    }
+
+    /// Evaluate exists lambda function
+    pub async fn evaluate_exists_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // exists() can have 0 or 1 argument
+        if func_data.args.len() > 1 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "exists() requires 0 or 1 arguments, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        match &input {
+            FhirPathValue::Collection(items) => {
+                if items.is_empty() {
+                    return Ok(FhirPathValue::Boolean(false));
+                }
+
+                // If no condition argument, just check if collection is non-empty
+                if func_data.args.is_empty() {
+                    return Ok(FhirPathValue::Boolean(true));
+                }
+
+                // With condition argument, check if any item matches the condition
+                let condition_expr = &func_data.args[0];
+
+                for (index, item) in items.iter().enumerate() {
+                    let lambda_context = context.with_lambda_context(
+                        item.clone(),
+                        index,
+                        FhirPathValue::Empty,
+                    );
+
+                    let condition_result = self
+                        .evaluate_node_async(
+                            condition_expr,
+                            item.clone(),
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // Check if condition is truthy
+                    if let Some(true) = self.to_boolean_fhirpath(&condition_result) {
+                        return Ok(FhirPathValue::Boolean(true));
+                    }
+                }
+
+                // No items matched the condition
+                Ok(FhirPathValue::Boolean(false))
+            }
+            FhirPathValue::Empty => Ok(FhirPathValue::Boolean(false)),
+            _ => {
+                // Single item - check if condition matches (if provided)
+                if func_data.args.is_empty() {
+                    Ok(FhirPathValue::Boolean(true))
+                } else {
+                    let condition_expr = &func_data.args[0];
+                    let lambda_context = context.with_lambda_context(
+                        input.clone(),
+                        0,
+                        FhirPathValue::Empty,
+                    );
+
+                    let condition_result = self
+                        .evaluate_node_async(
+                            condition_expr,
+                            input,
+                            &lambda_context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    // Check if condition is truthy
+                    let is_truthy = self.to_boolean_fhirpath(&condition_result).unwrap_or(false);
+                    Ok(FhirPathValue::Boolean(is_truthy))
+                }
             }
         }
     }

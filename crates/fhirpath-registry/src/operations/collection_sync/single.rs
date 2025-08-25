@@ -50,11 +50,7 @@ impl SyncOperation for SimpleSingleFunction {
                 match collection.len() {
                     0 => Ok(FhirPathValue::Empty),
                     1 => Ok(collection.first().unwrap().clone()),
-                    _ => Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "single() called on collection with more than one item".to_string(),
-                    })
+                    _ => Ok(FhirPathValue::Empty), // Return empty when more than one item
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

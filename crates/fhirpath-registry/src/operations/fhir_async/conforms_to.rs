@@ -63,6 +63,14 @@ impl AsyncOperation for ConformsToFunction {
             }
         };
 
+        // Profile URL validation - if it doesn't look like a valid StructureDefinition URL, return empty
+        // Valid profile URLs should contain "StructureDefinition" or be well-formed FHIR URLs
+        if !profile_url.contains("StructureDefinition") && 
+           !profile_url.starts_with("http://hl7.org/fhir/") &&
+           !profile_url.starts_with("https://hl7.org/fhir/") {
+            return Ok(FhirPathValue::Empty);
+        }
+
         // Use ModelProvider to validate resource against profile
         let conforms = context
             .model_provider

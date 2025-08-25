@@ -14,7 +14,7 @@ impl crate::FhirPathEngine {
     pub async fn is_lambda_function(&self, name: &str) -> bool {
         // Lambda functions are those that take expression arguments and need special evaluation
         // These are the actual lambda functions that exist in FHIRPath
-        matches!(name, "where" | "select" | "all" | "sort" | "repeat" | "aggregate" | "iif")
+        matches!(name, "where" | "select" | "all" | "sort" | "repeat" | "aggregate" | "iif" | "exists")
     }
 
     /// Evaluate standard functions by delegating to the registry
@@ -139,14 +139,7 @@ impl crate::FhirPathEngine {
             });
         }
 
-        // According to FHIRPath spec, iif() only works on single values, not collections
-        // If input is a collection with multiple items, return empty collection
-        match &input {
-            FhirPathValue::Collection(col) if col.len() > 1 => {
-                return Ok(FhirPathValue::collection(vec![]));
-            }
-            _ => {}
-        }
+        // iif() can work with any input - the key is evaluating the condition properly
 
         // Create lambda context preserving existing lambda variables from outer context
         // but set $this to current input
@@ -238,6 +231,10 @@ impl crate::FhirPathEngine {
             }
             "iif" => {
                 self.evaluate_iif_lambda(func_data, input, context, depth)
+                    .await
+            }
+            "exists" => {
+                self.evaluate_exists_lambda(func_data, input, context, depth)
                     .await
             }
             _ => Err(EvaluationError::InvalidOperation {

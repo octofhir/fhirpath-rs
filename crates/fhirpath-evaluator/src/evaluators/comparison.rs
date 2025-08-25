@@ -481,6 +481,83 @@ impl ComparisonEvaluator {
                 }
             }
 
+            // JsonValue comparisons - handle Sonic JSON values natively for equivalence
+            (FhirPathValue::JsonValue(a), FhirPathValue::JsonValue(b)) => {
+                Some(a.as_inner() == b.as_inner())
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::String(string_val)) => {
+                // Compare JsonValue with String - case insensitive for equivalence
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Some(json_str.to_lowercase() == string_val.to_lowercase())
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false) // JsonValue is not a string, can't equal a string
+                }
+            }
+            (FhirPathValue::String(string_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare String with JsonValue - case insensitive for equivalence
+                if json_val.is_string() {
+                    if let Some(json_str) = json_val.as_str() {
+                        Some(string_val.to_lowercase() == json_str.to_lowercase())
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false) // JsonValue is not a string, can't equal a string
+                }
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::Boolean(bool_val)) => {
+                // Compare JsonValue with Boolean for equivalence
+                if json_val.is_boolean() {
+                    if let Some(json_bool) = json_val.as_bool() {
+                        Some(json_bool == *bool_val)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::Boolean(bool_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare Boolean with JsonValue for equivalence
+                if json_val.is_boolean() {
+                    if let Some(json_bool) = json_val.as_bool() {
+                        Some(*bool_val == json_bool)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::JsonValue(json_val), FhirPathValue::Integer(int_val)) => {
+                // Compare JsonValue with Integer for equivalence
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        Some(json_int == *int_val)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+            (FhirPathValue::Integer(int_val), FhirPathValue::JsonValue(json_val)) => {
+                // Compare Integer with JsonValue for equivalence
+                if json_val.is_number() {
+                    if let Some(json_int) = json_val.as_i64() {
+                        Some(*int_val == json_int)
+                    } else {
+                        Some(false)
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+
             // Different types are not equivalent
             _ => Some(false),
         }
