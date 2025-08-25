@@ -18,7 +18,7 @@ use crate::context::EvaluationContext as LocalEvaluationContext;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 use octofhir_fhirpath_model::{FhirPathValue, JsonValue};
 use octofhir_fhirpath_registry::{
-    FhirPathRegistry, operations::EvaluationContext as RegistryEvaluationContext,
+    FunctionRegistry, traits::EvaluationContext as RegistryEvaluationContext,
 };
 use std::sync::Arc;
 
@@ -30,7 +30,7 @@ impl NavigationEvaluator {
     pub fn evaluate_member_access_with_model_provider<'a>(
         target: &'a FhirPathValue,
         member: &'a str,
-        registry: &'a Arc<FhirPathRegistry>,
+        registry: &'a Arc<FunctionRegistry>,
         context: &'a LocalEvaluationContext,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + Send + 'a>,
@@ -74,6 +74,19 @@ impl NavigationEvaluator {
                 FhirPathValue::TypeInfoObject { namespace, name } => match member {
                     "namespace" => Ok(FhirPathValue::String(namespace.clone())),
                     "name" => Ok(FhirPathValue::String(name.clone())),
+                    _ => Ok(FhirPathValue::Empty),
+                },
+
+                // Handle Quantity property access
+                FhirPathValue::Quantity(quantity) => match member {
+                    "value" => Ok(FhirPathValue::Decimal(quantity.value)),
+                    "unit" => {
+                        if let Some(ref unit) = quantity.unit {
+                            Ok(FhirPathValue::String(unit.clone().into()))
+                        } else {
+                            Ok(FhirPathValue::Empty)
+                        }
+                    },
                     _ => Ok(FhirPathValue::Empty),
                 },
 
@@ -172,7 +185,7 @@ impl NavigationEvaluator {
     pub fn evaluate_member_access<'a>(
         target: &'a FhirPathValue,
         member: &'a str,
-        registry: &'a Arc<FhirPathRegistry>,
+        registry: &'a Arc<FunctionRegistry>,
         context: &'a LocalEvaluationContext,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + Send + 'a>,
@@ -216,6 +229,19 @@ impl NavigationEvaluator {
                 FhirPathValue::TypeInfoObject { namespace, name } => match member {
                     "namespace" => Ok(FhirPathValue::String(namespace.clone())),
                     "name" => Ok(FhirPathValue::String(name.clone())),
+                    _ => Ok(FhirPathValue::Empty),
+                },
+
+                // Handle Quantity property access
+                FhirPathValue::Quantity(quantity) => match member {
+                    "value" => Ok(FhirPathValue::Decimal(quantity.value)),
+                    "unit" => {
+                        if let Some(ref unit) = quantity.unit {
+                            Ok(FhirPathValue::String(unit.clone().into()))
+                        } else {
+                            Ok(FhirPathValue::Empty)
+                        }
+                    },
                     _ => Ok(FhirPathValue::Empty),
                 },
 
@@ -337,13 +363,13 @@ impl NavigationEvaluator {
 
     /// Evaluate children operation (get immediate child elements)
     pub async fn evaluate_children(
-        target: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
+        _target: &FhirPathValue,
+        registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation("children").await {
-            operation
-                .evaluate(&[target.clone()], context)
+        if registry.has_function("children") {
+            registry
+                .evaluate("children", &[], context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("Children operation error: {e}"),
@@ -357,13 +383,13 @@ impl NavigationEvaluator {
 
     /// Evaluate descendants operation (get all descendant elements)
     pub async fn evaluate_descendants(
-        target: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
+        _target: &FhirPathValue,
+        registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation("descendants").await {
-            operation
-                .evaluate(&[target.clone()], context)
+        if registry.has_function("descendants") {
+            registry
+                .evaluate("descendants", &[], context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("Descendants operation error: {e}"),
@@ -377,14 +403,14 @@ impl NavigationEvaluator {
 
     /// Evaluate ofType operation for type filtering
     pub async fn evaluate_of_type(
-        target: &FhirPathValue,
+        _target: &FhirPathValue,
         type_name: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
+        registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation("ofType").await {
-            operation
-                .evaluate(&[target.clone(), type_name.clone()], context)
+        if registry.has_function("ofType") {
+            registry
+                .evaluate("ofType", &[type_name.clone()], context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("OfType operation error: {e}"),
@@ -398,14 +424,14 @@ impl NavigationEvaluator {
 
     /// Evaluate is operation for type checking
     pub async fn evaluate_is(
-        target: &FhirPathValue,
+        _target: &FhirPathValue,
         type_name: &FhirPathValue,
-        registry: &Arc<FhirPathRegistry>,
+        registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if let Some(operation) = registry.get_operation("is").await {
-            operation
-                .evaluate(&[target.clone(), type_name.clone()], context)
+        if registry.has_function("is") {
+            registry
+                .evaluate("is", &[type_name.clone()], context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("Is operation error: {e}"),

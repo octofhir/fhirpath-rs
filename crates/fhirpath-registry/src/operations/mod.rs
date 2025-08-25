@@ -12,134 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Core FHIRPath operations for the unified registry
+//! Simplified FHIRPath operations
 //!
-//! This module contains high-performance implementations of all standard FHIRPath
-//! operations organized by category. Each operation supports both sync and async
-//! evaluation paths for optimal performance.
+//! This module contains clean implementations of FHIRPath operations split into 
+//! sync and async categories based on their actual needs.
 
-use crate::FhirPathRegistry;
-use octofhir_fhirpath_model::{FhirPathValue, provider::ModelProvider};
-use rustc_hash::FxHashMap;
-use std::sync::Arc;
+// New simplified sync operations (80% of operations)
+pub mod cda_sync;           // CDA document operations
+pub mod collection_sync;    // Collection operations (count, first, etc.)
+pub mod conversion_sync;    // Type conversion operations (toString, toInteger, etc.)
+pub mod datetime_sync;      // DateTime extraction operations (dayOf, hourOf, etc.)
+pub mod fhir_sync;         // FHIR data traversal operations (children, descendants)
+pub mod logical_sync;      // Logical operations (not)
+pub mod math_sync;         // Mathematical operations (abs, sqrt, etc.)
+pub mod string_sync;       // String operations (length, contains, etc.)
+pub mod utility_sync;      // Utility operations (encode, decode, etc.)
 
-/// Evaluation context for operations that includes variables and model provider
-#[derive(Clone)]
-pub struct EvaluationContext {
-    /// Current input value being evaluated
-    pub input: FhirPathValue,
+// New simplified async operations (20% of operations)
+pub mod datetime_async;    // System datetime operations (now, today)
+pub mod fhir_async;       // FHIR operations requiring ModelProvider (resolve, conforms_to)
+pub mod types_async;      // Type operations requiring ModelProvider (as, is, type)
 
-    /// Root input value (for %context and $resource variables)
-    pub root: FhirPathValue,
-
-    /// Environment variables for the evaluation
-    pub variables: FxHashMap<String, FhirPathValue>,
-
-    /// Registry for functions and operators
-    pub registry: Arc<FhirPathRegistry>,
-
-    /// Model provider for type checking and validation (required)
-    pub model_provider: Arc<dyn ModelProvider>,
-}
-
-impl EvaluationContext {
-    /// Create a new evaluation context (ModelProvider and registry required)
-    pub fn new(
-        input: FhirPathValue,
-        registry: Arc<FhirPathRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
-    ) -> Self {
-        Self {
-            root: input.clone(),
-            input,
-            variables: FxHashMap::default(),
-            registry,
-            model_provider,
-        }
-    }
-
-    /// Create a new evaluation context with initial variables
-    pub fn with_variables(
-        input: FhirPathValue,
-        registry: Arc<FhirPathRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
-        variables: FxHashMap<String, FhirPathValue>,
-    ) -> Self {
-        Self {
-            root: input.clone(),
-            input,
-            variables,
-            registry,
-            model_provider,
-        }
-    }
-
-    /// Create a child context with new input value
-    pub fn with_input(&self, input: FhirPathValue) -> Self {
-        Self {
-            root: self.root.clone(),
-            input,
-            variables: self.variables.clone(),
-            registry: self.registry.clone(),
-            model_provider: self.model_provider.clone(),
-        }
-    }
-
-    /// Create a new evaluation context preserving root from another context
-    pub fn with_preserved_root(
-        input: FhirPathValue,
-        original_root: FhirPathValue,
-        registry: Arc<FhirPathRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
-    ) -> Self {
-        Self {
-            root: original_root,
-            input,
-            variables: FxHashMap::default(),
-            registry,
-            model_provider,
-        }
-    }
-
-    /// Create a new context with different focus/input value (alias for with_input)
-    pub fn with_focus(&self, input: FhirPathValue) -> Self {
-        self.with_input(input)
-    }
-
-    /// Get a variable value by name
-    pub fn get_variable(&self, name: &str) -> Option<&FhirPathValue> {
-        self.variables.get(name)
-    }
-
-    /// Set a variable value
-    pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
-        self.variables.insert(name, value);
-    }
-}
-
-pub mod cda;
-pub mod collection;
-pub mod comparison;
-pub mod conversion;
-pub mod datetime;
-pub mod fhir;
-pub mod logical;
-pub mod math;
-pub mod string;
-pub mod types;
-pub mod utility;
-
-// Re-export for convenience
-pub use cda::{CdaOperations, HasTemplateIdOfFunction};
-pub use collection::CollectionOperations;
-
-pub use conversion::ConversionOperations;
-pub use string::StringOperations;
-
-pub use comparison::ComparisonOperations;
-pub use datetime::DateTimeOperations;
-pub use fhir::FhirOperations;
-pub use logical::LogicalOperations;
-pub use math::MathOperations;
-pub use types::TypeOperations;
-pub use utility::UtilityOperations;
+// Re-exports for convenience
+pub use cda_sync::*;
+pub use collection_sync::*;
+pub use conversion_sync::*;
+pub use datetime_sync::*;
+pub use datetime_async::*;
+pub use fhir_sync::*;
+pub use fhir_async::*;
+pub use logical_sync::*;
+pub use math_sync::*;
+pub use string_sync::*;
+pub use types_async::*;
+pub use utility_sync::*;

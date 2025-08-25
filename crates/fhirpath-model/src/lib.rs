@@ -29,6 +29,8 @@ pub mod cache;
 pub mod choice_type_mapper;
 pub mod error;
 pub mod fhirschema_provider;
+#[cfg(test)]
+pub mod fhirschema_provider_test;
 pub mod json_value;
 pub mod legacy_cache;
 pub mod mock_provider;

@@ -36,7 +36,7 @@ pub use octofhir_fhirpath_model::{
     FhirPathValue, JsonValue, SmartCollection, SmartCollectionBuilder,
 };
 pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
-pub use octofhir_fhirpath_registry::{FhirPathRegistry, create_standard_registry};
+pub use octofhir_fhirpath_registry::{FunctionRegistry, create_standard_registry};
 
 // Re-export from workspace crates
 pub use octofhir_fhirpath_ast::{
@@ -129,7 +129,7 @@ impl FhirPathEngineWithAnalyzer {
     /// Create engine with analyzer and function registry
     pub async fn with_full_analysis(
         model_provider: Box<dyn ModelProvider>,
-        function_registry: std::sync::Arc<FhirPathRegistry>,
+        function_registry: std::sync::Arc<FunctionRegistry>,
     ) -> octofhir_fhirpath_core::EvaluationResult<Self> {
         let arc_provider: std::sync::Arc<dyn ModelProvider> = std::sync::Arc::from(model_provider);
         let analyzer =

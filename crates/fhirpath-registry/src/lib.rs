@@ -12,63 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Unified FHIRPath Registry
+//! Simplified FHIRPath Registry
 //!
-//! This crate provides a high-performance, async-first unified registry for all
-//! FHIRPath functions and operators. The registry combines previously separate
-//! function and operator registries into a single, optimized system.
+//! This crate provides a clean, simplified registry system that splits operations into
+//! sync/async based on their actual needs, not artificial complexity.
+//!
+//! # Usage
+//!
+//! ```rust
+//! use octofhir_fhirpath_registry::{
+//!     traits::{SyncOperation, AsyncOperation, EvaluationContext},
+//!     signature::{FunctionSignature, ValueType, ParameterType},
+//!     FunctionRegistry,
+//! };
+//! ```
 
-// Core unified system - V2 Architecture
-pub use fhirpath_registry::{DispatchKey, FhirPathRegistry};
-pub use lambda::{
-    ExpressionEvaluator, LambdaContextBuilder, LambdaFunction, LambdaOperationWrapper, LambdaUtils,
-};
-pub use metadata::{
-    Associativity, FhirPathType, FunctionMetadata, MetadataBuilder, OperationMetadata,
-    OperationSpecificMetadata, OperationType, OperatorMetadata, PerformanceMetadata,
-    TypeConstraint,
-};
-pub use operation::{
-    CollectionOperation, CompilableOperation, CompiledOperation, FhirPathOperation,
-    OperationComplexity, OperationSignature, ScalarOperation,
-};
-
-// Core system modules
-pub mod async_cache;
-pub mod fhirpath_registry;
-mod lambda;
-pub mod metadata;
-pub mod operation;
+// Simplified system modules
+pub mod macros;
+pub mod registry;
+pub mod signature;
+pub mod traits;
+pub mod function_registry;
 
 // Operation implementations
 pub mod operations;
 
-// Legacy compatibility modules (kept for compatibility - will be removed in future versions)
-pub mod registry_config;
-pub mod signature;
-
 // Test modules
 #[cfg(test)]
-mod operation_tests;
+mod integration_test;
+#[cfg(test)]
+mod function_registry_test;
 
-// Main unified registry exports
-pub use async_cache::{AsyncLruCache, CacheBuilder, CacheMetrics};
-
-// Legacy exports (kept for compatibility - will be removed)
-pub use signature::{FunctionSignature, ParameterInfo};
+// Main function registry exports
+pub use function_registry::FunctionRegistry;
 
 // Re-exports from workspace crates
 pub use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
 pub use octofhir_fhirpath_core::{FhirPathError, Result};
 pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
 
-/// Create a standard registry with all built-in operations
+/// Create a standard unified registry with all built-in operations
 ///
-/// This creates the new unified FhirPathRegistry with all standard operations.
+/// This creates the unified registry with optimized sync/async dispatch.
+/// This is the recommended way to create a registry for projects.
 ///
 /// # Returns
 ///
-/// A fully configured `FhirPathRegistry` with all standard FHIRPath operations registered.
+/// A fully configured `FunctionRegistry` with all standard FHIRPath operations registered.
 ///
 /// # Examples
 ///
@@ -77,27 +67,15 @@ pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let registry = create_standard_registry().await?;
-///     // Use registry for FHIRPath evaluation
+///     let registry = create_standard_registry();
+///     
+///     // Evaluate expressions with smart dispatch
+///     // let context = EvaluationContext { input: my_data, model_provider, variables };
+///     // let result = registry.evaluate("count", &[], &context).await?;
+///     
 ///     Ok(())
 /// }
 /// ```
-pub async fn create_standard_registry()
--> std::result::Result<FhirPathRegistry, Box<dyn std::error::Error>> {
-    let registry = FhirPathRegistry::new();
-
-    use operations::*;
-
-    CollectionOperations::register_all(&registry).await?;
-    StringOperations::register_all(&registry).await?;
-    DateTimeOperations::register_all(&registry).await?;
-    FhirOperations::register_all(&registry).await?;
-    UtilityOperations::register_all(&registry).await?;
-    ConversionOperations::register_all(&registry).await?;
-    MathOperations::register_all(&registry).await?;
-    TypeOperations::register_all(&registry).await?;
-    CdaOperations::register_all(&registry).await?;
-    LogicalOperations::register_all(&registry).await?;
-
-    Ok(registry)
+pub fn create_standard_registry() -> FunctionRegistry {
+    crate::function_registry::create_standard_registry()
 }

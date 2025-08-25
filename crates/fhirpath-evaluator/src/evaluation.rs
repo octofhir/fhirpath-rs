@@ -9,7 +9,6 @@ use crate::parsing::{parse_fhirpath_date, parse_fhirpath_datetime, parse_fhirpat
 use octofhir_fhirpath_ast::{ExpressionNode, LiteralValue};
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
-use octofhir_fhirpath_registry::operations::EvaluationContext as RegistryEvaluationContext;
 use sonic_rs::JsonValueTrait;
 use std::str::FromStr;
 
@@ -283,6 +282,18 @@ impl crate::FhirPathEngine {
                 "name" => Ok(FhirPathValue::String(name.clone())),
                 _ => Ok(FhirPathValue::Empty),
             },
+            // Handle Quantity property access
+            FhirPathValue::Quantity(quantity) => match identifier {
+                "value" => Ok(FhirPathValue::Decimal(quantity.value)),
+                "unit" => {
+                    if let Some(ref unit) = quantity.unit {
+                        Ok(FhirPathValue::String(unit.clone().into()))
+                    } else {
+                        Ok(FhirPathValue::Empty)
+                    }
+                },
+                _ => Ok(FhirPathValue::Empty),
+            },
             _ => Ok(FhirPathValue::Empty), // Non-object types don't have properties
         }
     }
@@ -303,6 +314,7 @@ impl crate::FhirPathEngine {
                 "rootResource" => Ok(context.root.as_ref().clone()),
                 "sct" => Ok(FhirPathValue::String("http://snomed.info/sct".into())),
                 "loinc" => Ok(FhirPathValue::String("http://loinc.org".into())),
+                "ucum" => Ok(FhirPathValue::String("http://unitsofmeasure.org".into())),
                 // Special lambda/iteration variables - use focus as fallback
                 "this" => {
                     // $this refers to the current focus item being processed
@@ -403,20 +415,21 @@ impl crate::FhirPathEngine {
         &self,
         left: &FhirPathValue,
         right: &FhirPathValue,
+        context: &LocalEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
         // Get the Is operation from the registry and delegate to it
-        if let Some(is_operation) = self.registry().get_operation("is").await {
-            let registry_context = RegistryEvaluationContext {
+        if self.registry().has_function("is") {
+            let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
                 input: left.clone(),
-                root: left.clone(),
+                root: context.root.clone(),
                 variables: Default::default(),
-                registry: self.registry().clone(),
                 model_provider: self.model_provider().clone(),
             };
 
-            // Call the Is operation with both values as arguments (binary-style)
-            let result = is_operation
-                .evaluate(&[left.clone(), right.clone()], &registry_context)
+            // Call the Is operation with only the type identifier as argument (function-style)
+            // The value to check is already in the registry_context.input
+            let result = self.registry()
+                .evaluate("is", &[right.clone()], &registry_context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("is operator error: {e}"),

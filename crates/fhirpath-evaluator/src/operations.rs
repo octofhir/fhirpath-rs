@@ -154,7 +154,7 @@ impl crate::FhirPathEngine {
             BinaryOperator::Union => CollectionEvaluator::evaluate_union(&left, &right).await?,
 
             // Type checking operations
-            BinaryOperator::Is => self.evaluate_is_operator(&left, &right).await?,
+            BinaryOperator::Is => self.evaluate_is_operator(&left, &right, context).await?,
         };
 
         // Return raw result - collection wrapping handled by main evaluate functions

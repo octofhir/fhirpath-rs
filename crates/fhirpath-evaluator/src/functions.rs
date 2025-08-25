@@ -12,7 +12,9 @@ use octofhir_fhirpath_model::FhirPathValue;
 impl crate::FhirPathEngine {
     /// Check if a function name refers to a lambda function
     pub async fn is_lambda_function(&self, name: &str) -> bool {
-        self.registry().is_lambda_function(name).await
+        // Lambda functions are those that take expression arguments and need special evaluation
+        // These are the actual lambda functions that exist in FHIRPath
+        matches!(name, "where" | "select" | "all" | "sort" | "repeat" | "aggregate" | "iif")
     }
 
     /// Evaluate standard functions by delegating to the registry
@@ -30,14 +32,7 @@ impl crate::FhirPathEngine {
                 .await;
         }
 
-        // Special handling for iif function - it needs lazy evaluation
-        if func_data.name == "iif" {
-            return self
-                .evaluate_iif_function(func_data, input, context, depth)
-                .await;
-        }
-
-        // For other standard functions, evaluate all arguments first
+        // For standard functions, evaluate all arguments first
         let mut evaluated_args = Vec::new();
         for arg in &func_data.args {
             let arg_result = self
@@ -47,18 +42,17 @@ impl crate::FhirPathEngine {
         }
 
         // Create registry context for function evaluation
-        let registry_context =
-            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                input.clone(),
-                context.root.as_ref().clone(),
-                self.registry().clone(),
-                self.model_provider().clone(),
-            );
+        let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
+            input: input.clone(),
+            root: context.root.clone(),
+            variables: context.variable_scope.variables.as_ref().clone(),
+            model_provider: self.model_provider().clone(),
+        };
 
         // Delegate to registry
-        if let Some(operation) = self.registry().get_operation(&func_data.name).await {
-            operation
-                .evaluate(&evaluated_args, &registry_context)
+        if self.registry().has_function(&func_data.name) {
+            self.registry()
+                .evaluate(&func_data.name, &evaluated_args, &registry_context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {
                     message: format!("Function '{}' evaluation failed: {}", func_data.name, e),
@@ -123,6 +117,7 @@ impl crate::FhirPathEngine {
 
         // The defineVariable function should return the input unchanged
         // The variable definition itself is handled by the caller that propagates context
+        // TODO: Implement proper variable storage in evaluation context (complex architectural change needed)
         Ok(input)
     }
 
@@ -207,13 +202,12 @@ impl crate::FhirPathEngine {
         depth: usize,
     ) -> EvaluationResult<FhirPathValue> {
         // Create registry context for lambda function evaluation
-        let _registry_context =
-            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                input.clone(),
-                context.root.as_ref().clone(),
-                self.registry().clone(),
-                self.model_provider().clone(),
-            );
+        let _registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
+            input: input.clone(),
+            root: context.root.clone(),
+            variables: context.variable_scope.variables.as_ref().clone(),
+            model_provider: self.model_provider().clone(),
+        };
 
         // For now, delegate lambda functions to the engine's lambda module
         // This is a temporary solution until the registry API is aligned
@@ -243,7 +237,7 @@ impl crate::FhirPathEngine {
                     .await
             }
             "iif" => {
-                self.evaluate_iif_function(func_data, input, context, depth)
+                self.evaluate_iif_lambda(func_data, input, context, depth)
                     .await
             }
             _ => Err(EvaluationError::InvalidOperation {

@@ -112,7 +112,7 @@ impl crate::FhirPathEngine {
                             result_items.extend(sub_items.into_iter());
                         }
                         FhirPathValue::Empty => {
-                            // Skip empty results
+                            // Skip empty results - this is correct FHIRPath behavior for select()
                         }
                         other => result_items.push(other),
                     }
@@ -381,6 +381,72 @@ impl crate::FhirPathEngine {
         }
 
         Ok(accumulator)
+    }
+
+    /// Evaluate iif (if-then-else) lambda function
+    pub async fn evaluate_iif_lambda(
+        &self,
+        func_data: &FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Validate arguments: iif(condition, then_expr) or iif(condition, then_expr, else_expr)
+        if func_data.args.len() < 2 || func_data.args.len() > 3 {
+            return Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "iif() requires 2 or 3 arguments, got {}",
+                    func_data.args.len()
+                ),
+            });
+        }
+
+        // According to FHIRPath spec, iif() only works on single values, not collections
+        // If input is a collection with multiple items, return empty collection
+        match &input {
+            FhirPathValue::Collection(col) if col.len() > 1 => {
+                return Ok(FhirPathValue::collection(vec![]));
+            }
+            _ => {}
+        }
+
+        // CRITICAL: Do NOT create a new lambda context - use the existing one
+        // This preserves $index, $this, and other lambda variables from select() or other outer lambdas
+        
+        // Evaluate condition using the SAME input and context as the lambda function
+        let condition = self
+            .evaluate_node_async(
+                &func_data.args[0],
+                input.clone(),
+                context,  // Use existing context directly
+                depth + 1,
+            )
+            .await?;
+
+        // Convert condition to boolean using FHIRPath boolean conversion rules
+        let boolean_result = self.to_boolean_fhirpath(&condition);
+
+        match boolean_result {
+            Some(true) => {
+                // Evaluate then expression
+                self.evaluate_node_async(&func_data.args[1], input, context, depth + 1)
+                    .await
+            }
+            Some(false) => {
+                if func_data.args.len() == 3 {
+                    // Evaluate else expression
+                    self.evaluate_node_async(&func_data.args[2], input, context, depth + 1)
+                        .await
+                } else {
+                    // No else expression provided
+                    Ok(FhirPathValue::collection(vec![]))
+                }
+            }
+            None => {
+                // Invalid condition (shouldn't happen with FHIRPath conversion) - return empty
+                Ok(FhirPathValue::collection(vec![]))
+            }
+        }
     }
 
     /// Evaluate all lambda function

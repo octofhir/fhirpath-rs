@@ -18,7 +18,6 @@ use octofhir_fhirpath_model::JsonValue;
 use octofhir_fhirpath_model::{
     FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
 };
-use octofhir_fhirpath_registry::FhirPathRegistry;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -304,7 +303,7 @@ pub struct EvaluationContext {
     pub variable_scope: VariableScope,
 
     /// Unified registry for evaluating all operations (functions and operators)
-    pub registry: Arc<FhirPathRegistry>,
+    pub registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
 
     /// Async ModelProvider for type checking and validation (required)
     pub model_provider: Arc<dyn ModelProvider>,
@@ -317,7 +316,7 @@ impl EvaluationContext {
     /// Create a new evaluation context (ModelProvider required)
     pub fn new(
         input: FhirPathValue,
-        registry: Arc<FhirPathRegistry>,
+        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
@@ -333,7 +332,7 @@ impl EvaluationContext {
     /// Create a new evaluation context with initial variables
     pub fn with_variables(
         input: FhirPathValue,
-        registry: Arc<FhirPathRegistry>,
+        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         initial_variables: FxHashMap<String, FhirPathValue>,
     ) -> Self {
@@ -878,7 +877,7 @@ impl ContextPool {
     /// Create a new context pool with the given maximum size
     pub fn new(
         max_size: usize,
-        registry: Arc<FhirPathRegistry>,
+        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         let template = EvaluationContext::new(FhirPathValue::Empty, registry, model_provider);
@@ -892,7 +891,7 @@ impl ContextPool {
 
     /// Create a new context pool with default size (32 contexts)
     pub fn with_defaults(
-        registry: Arc<FhirPathRegistry>,
+        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self::new(32, registry, model_provider)
@@ -1015,13 +1014,13 @@ pub struct StackContext<'a> {
     /// Simple variable storage for basic variables (limited capacity)
     pub variables: FxHashMap<&'static str, &'a FhirPathValue>,
     /// Unified registry reference (shared)
-    pub registry: &'a FhirPathRegistry,
+    pub registry: &'a octofhir_fhirpath_registry::FunctionRegistry,
 }
 
 #[allow(dead_code)]
 impl<'a> StackContext<'a> {
     /// Create a new stack-allocated context
-    pub fn new(input: &'a FhirPathValue, registry: &'a FhirPathRegistry) -> Self {
+    pub fn new(input: &'a FhirPathValue, registry: &'a octofhir_fhirpath_registry::FunctionRegistry) -> Self {
         Self {
             root: input,
             input,
@@ -1056,7 +1055,7 @@ impl<'a> StackContext<'a> {
         let mock_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let mut context = EvaluationContext::new(
             self.input.clone(),
-            Arc::new(FhirPathRegistry::new()), // Use new unified registry
+            Arc::new(octofhir_fhirpath_registry::create_standard_registry()), // Use new unified registry
             mock_provider,
         );
         context.root = Arc::new(self.root.clone()); // Convert to Arc
@@ -1085,7 +1084,7 @@ impl<'a> ContextStorage<'a> {
     /// Create a stack context if input is borrowable, otherwise heap
     pub fn new_optimal(
         input: &'a FhirPathValue,
-        registry: &'a FhirPathRegistry,
+        registry: &'a octofhir_fhirpath_registry::FunctionRegistry,
         prefer_stack: bool,
     ) -> Self {
         if prefer_stack {
@@ -1096,7 +1095,7 @@ impl<'a> ContextStorage<'a> {
             let provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
             Self::Heap(EvaluationContext::new(
                 input.clone(),
-                Arc::new(FhirPathRegistry::new()),
+                Arc::new(octofhir_fhirpath_registry::create_standard_registry()),
                 provider,
             ))
         }
@@ -1157,7 +1156,7 @@ impl ContextFactory {
     /// Create a context using the optimal allocation strategy based on expression complexity
     pub fn create_for_expression<'a>(
         input: &'a FhirPathValue,
-        registry: &'a FhirPathRegistry,
+        registry: &'a octofhir_fhirpath_registry::FunctionRegistry,
         is_simple: bool,
     ) -> ContextStorage<'a> {
         ContextStorage::new_optimal(input, registry, is_simple)
@@ -1215,7 +1214,7 @@ mod tests {
 
     #[test]
     fn test_context_pool_acquire_and_return() {
-        let registry = Arc::new(FhirPathRegistry::new());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let pool = ContextPool::new(2, registry, model_provider);
 
@@ -1250,7 +1249,7 @@ mod tests {
 
     #[test]
     fn test_context_pool_max_size() {
-        let registry = Arc::new(FhirPathRegistry::new());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let pool = ContextPool::new(1, registry, model_provider); // Max size 1
 
@@ -1270,7 +1269,7 @@ mod tests {
 
     #[test]
     fn test_pooled_context_deref() {
-        let registry = Arc::new(FhirPathRegistry::new());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let pool = ContextPool::with_defaults(registry, model_provider);
 
@@ -1288,7 +1287,7 @@ mod tests {
 
     #[test]
     fn test_context_pool_child_contexts() {
-        let registry = Arc::new(FhirPathRegistry::new());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let pool = ContextPool::with_defaults(registry, model_provider);
 
@@ -1310,7 +1309,7 @@ mod tests {
 
     #[test]
     fn test_stack_context() {
-        let registry = FhirPathRegistry::new();
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
 
         let input = FhirPathValue::Integer(42);
         let mut stack_ctx = StackContext::new(&input, &registry);
@@ -1335,7 +1334,7 @@ mod tests {
 
     #[test]
     fn test_stack_to_heap_conversion() {
-        let registry = FhirPathRegistry::new();
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
 
         let input = FhirPathValue::Integer(42);
         let var_value = FhirPathValue::String("test".to_string().into());
@@ -1352,7 +1351,7 @@ mod tests {
 
     #[test]
     fn test_context_storage() {
-        let registry = FhirPathRegistry::new();
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
         let input = FhirPathValue::Integer(42);
 
         // Test stack storage creation
@@ -1404,7 +1403,7 @@ mod tests {
 
     #[test]
     fn test_context_factory_creation() {
-        let registry = FhirPathRegistry::new();
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
         let input = FhirPathValue::Integer(42);
 
         // Simple expression should create stack context
@@ -1562,7 +1561,7 @@ mod tests {
 
     #[test]
     fn test_evaluation_context_inherited_scope() {
-        let registry = Arc::new(FhirPathRegistry::new());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
         let model_provider = Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
         let mut parent_ctx =
             EvaluationContext::new(FhirPathValue::Integer(42), registry, model_provider);

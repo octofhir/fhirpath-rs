@@ -3,7 +3,7 @@
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_model::provider::ModelProvider;
 use octofhir_fhirpath_parser::parse;
-use octofhir_fhirpath_registry::FhirPathRegistry;
+use octofhir_fhirpath_registry::FunctionRegistry;
 use std::sync::Arc;
 
 use crate::{
@@ -47,7 +47,7 @@ impl FhirPathAnalyzer {
     /// Create analyzer with function registry
     pub fn with_function_registry(
         model_provider: Arc<dyn ModelProvider>,
-        function_registry: Arc<FhirPathRegistry>,
+        function_registry: Arc<FunctionRegistry>,
     ) -> Self {
         let function_analyzer = Some(FunctionAnalyzer::new(function_registry));
 

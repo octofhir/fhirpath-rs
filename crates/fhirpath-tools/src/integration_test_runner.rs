@@ -6,7 +6,7 @@
 use octofhir_fhirpath::ast::ExpressionNode;
 use octofhir_fhirpath::model::FhirPathValue;
 use octofhir_fhirpath::model::ModelProvider;
-use octofhir_fhirpath::{FhirPathEngine, FhirPathRegistry, create_standard_registry, parse};
+use octofhir_fhirpath::{FhirPathEngine, create_standard_registry, parse};
 use serde::{Deserialize, Serialize};
 use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
 use std::collections::HashMap;
@@ -100,7 +100,7 @@ impl TestStats {
 /// Integration test runner that uses the complete FHIRPath stack
 pub struct IntegrationTestRunner {
     engine: FhirPathEngine,
-    registry: Arc<FhirPathRegistry>,
+    registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
     model_provider: Arc<dyn ModelProvider>,
     input_cache: HashMap<String, Value>,
     base_path: PathBuf,
@@ -160,11 +160,7 @@ impl IntegrationTestRunner {
             }
         };
 
-        let registry = Arc::new(
-            create_standard_registry()
-                .await
-                .expect("Failed to create registries"),
-        );
+        let registry = Arc::new(create_standard_registry());
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone());
 
         Self {

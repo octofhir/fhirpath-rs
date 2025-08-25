@@ -80,8 +80,14 @@ impl crate::FhirPathEngine {
             FhirPathValue::Collection(c) => {
                 if c.is_empty() {
                     Some(false)
+                } else if c.len() == 1 {
+                    // Single item collection - use the item's boolean value if it's a boolean
+                    match c.iter().next().unwrap() {
+                        FhirPathValue::Boolean(b) => Some(*b),
+                        _ => Some(true), // Non-boolean single items are truthy
+                    }
                 } else {
-                    Some(true) // Non-empty collections are truthy in FHIRPath
+                    Some(true) // Multi-item collections are truthy in FHIRPath
                 }
             }
             FhirPathValue::Integer(i) => Some(*i != 0),

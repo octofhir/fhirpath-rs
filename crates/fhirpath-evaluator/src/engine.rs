@@ -79,14 +79,10 @@ use crate::context::EvaluationContext as LocalEvaluationContext;
 use crate::evaluators::polymorphic::PolymorphicNavigationEngine;
 
 // Import the new modular components
-use async_trait::async_trait;
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
-use octofhir_fhirpath_registry::{
-    ExpressionEvaluator, FhirPathRegistry,
-    operations::EvaluationContext as RegistryEvaluationContext,
-};
+use octofhir_fhirpath_registry::traits::EvaluationContext as RegistryEvaluationContext;
 use std::sync::Arc;
 
 /// Unified FHIRPath evaluation engine.
@@ -141,7 +137,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct FhirPathEngine {
     /// Unified registry containing all operations (functions and operators)
-    registry: Arc<FhirPathRegistry>,
+    registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
     /// Model provider (Send + Sync)
     model_provider: Arc<dyn ModelProvider>,
     /// Evaluation configuration
@@ -289,20 +285,20 @@ impl FhirPathEngine {
     ///
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_registry::FhirPathRegistry;
+    /// use octofhir_fhirpath_registry::FunctionRegistry;
     /// use octofhir_fhirpath_model::MockModelProvider;
     /// use std::sync::Arc;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let registry = Arc::new(FhirPathRegistry::new());
+    /// let registry = Arc::new(FunctionRegistry::new());
     /// let model_provider = Arc::new(MockModelProvider::new());
     ///
     /// let engine = FhirPathEngine::new(registry, model_provider);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(registry: Arc<FhirPathRegistry>, model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>, model_provider: Arc<dyn ModelProvider>) -> Self {
         Self {
             registry,
             model_provider,
@@ -336,7 +332,7 @@ impl FhirPathEngine {
     }
 
     /// Get the registry reference
-    pub fn registry(&self) -> &Arc<FhirPathRegistry> {
+    pub fn registry(&self) -> &Arc<octofhir_fhirpath_registry::FunctionRegistry> {
         &self.registry
     }
 
@@ -485,11 +481,7 @@ impl FhirPathEngine {
     pub async fn with_mock_provider() -> EvaluationResult<Self> {
         use octofhir_fhirpath_model::MockModelProvider;
 
-        let registry = octofhir_fhirpath_registry::create_standard_registry()
-            .await
-            .map_err(|e| EvaluationError::InvalidOperation {
-                message: format!("Failed to create registry: {e}"),
-            })?;
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
 
         let model_provider = Arc::new(MockModelProvider::new());
         Ok(Self::new(Arc::new(registry), model_provider))
@@ -521,11 +513,7 @@ impl FhirPathEngine {
     pub async fn with_model_provider(
         model_provider: Arc<dyn ModelProvider>,
     ) -> EvaluationResult<Self> {
-        let registry = octofhir_fhirpath_registry::create_standard_registry()
-            .await
-            .map_err(|e| EvaluationError::InvalidOperation {
-                message: format!("Failed to create registry: {e}"),
-            })?;
+        let registry = octofhir_fhirpath_registry::create_standard_registry();
         Ok(Self::new(Arc::new(registry), model_provider))
     }
 
@@ -1143,20 +1131,12 @@ impl FhirPathEngine {
             .evaluate_node_async(expression, input, context, depth + 1)
             .await?;
 
-        // Get the as operator from the registry
-        let as_operation = self
-            .registry
-            .get_operation("as")
-            .await
-            .ok_or_else(|| EvaluationError::from_function_error("Unknown operation: as"))?;
-
         // Create evaluation context for the operation
         let eval_context = RegistryEvaluationContext {
             input: expr_result,
-            root: context.root.as_ref().clone(),
+            root: context.root.clone(),
             variables: context.variable_scope.variables.as_ref().clone(),
             model_provider: self.model_provider().clone(),
-            registry: self.registry().clone(),
         };
 
         // Call the as operator with the type name as argument
@@ -1188,8 +1168,8 @@ impl FhirPathEngine {
         };
         let args = vec![type_arg];
 
-        as_operation
-            .evaluate(&args, &eval_context)
+        self.registry
+            .evaluate("as", &args, &eval_context)
             .await
             .map_err(|e| EvaluationError::InvalidOperation {
                 message: format!("Method error in as: {e}"),
@@ -1676,23 +1656,19 @@ impl FhirPathEngine {
                         }
                         _ => {
                             // Fallback to registry for other lambda functions not yet moved to engine
-                            if let Some(operation) =
-                                self.registry().get_operation(method_name).await
-                            {
+                            if self.registry().has_function(method_name) {
                                 // Create registry context with the object as input for the lambda and variables from engine context
                                 let all_variables = context.variable_scope.collect_all_variables();
-                                let registry_context = octofhir_fhirpath_registry::operations::EvaluationContext::with_variables(
-                                    object,
-                                    self.registry().clone(),
-                                    self.model_provider().clone(),
-                                    all_variables,
-                                );
+                                let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
+                                    input: object,
+                                    root: context.root.clone(),
+                                    variables: all_variables,
+                                    model_provider: self.model_provider().clone(),
+                                };
 
                                 // Use generic lambda function evaluation for remaining functions
-                                // Note: We can't downcast to dyn LambdaFunction due to size constraints
-                                // For now, use the operation directly if it implements lambda evaluation
-                                operation
-                                    .evaluate(&[], &registry_context)
+                                self.registry()
+                                    .evaluate(method_name, &[], &registry_context)
                                     .await
                                     .map_err(|e| EvaluationError::InvalidOperation {
                                         message: format!(
@@ -1798,18 +1774,17 @@ impl FhirPathEngine {
                     }
 
                     // Get method from registry and evaluate
-                    if let Some(operation) = self.registry().get_operation(method_name).await {
-                        // Create registry context with the object as input (context) for the method - PRESERVE ORIGINAL ROOT
-                        let registry_context =
-                            octofhir_fhirpath_registry::operations::EvaluationContext::with_preserved_root(
-                                object,
-                                context.root.as_ref().clone(), // ✅ PRESERVE ORIGINAL ROOT
-                                self.registry().clone(),
-                                self.model_provider().clone(),
-                            );
+                    if self.registry().has_function(method_name) {
+                        // Create registry context with the object as input (context) for the method
+                        let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
+                            input: object,
+                            root: context.root.clone(),
+                            variables: context.variable_scope.collect_all_variables(),
+                            model_provider: self.model_provider().clone(),
+                        };
 
-                        operation
-                            .evaluate(&evaluated_args, &registry_context)
+                        self.registry()
+                            .evaluate(method_name, &evaluated_args, &registry_context)
                             .await
                             .map_err(|e| EvaluationError::InvalidOperation {
                                 message: format!("Method error in {method_name}: {e}"),
@@ -1899,106 +1874,3 @@ pub enum LambdaType {
 unsafe impl Send for FhirPathEngine {}
 unsafe impl Sync for FhirPathEngine {}
 
-/// Implementation of ExpressionEvaluator for lambda functions
-#[async_trait]
-impl ExpressionEvaluator for FhirPathEngine {
-    async fn evaluate_expression(
-        &self,
-        expression: &ExpressionNode,
-        context: &RegistryEvaluationContext,
-    ) -> octofhir_fhirpath_core::Result<FhirPathValue> {
-        // Convert registry context to local context for evaluation
-        let mut local_context = LocalEvaluationContext::new(
-            context.input.clone(),
-            self.registry().clone(),
-            self.model_provider().clone(),
-        );
-
-        // Copy variables from registry context to local context
-        // Extract lambda variables and regular variables
-        let mut lambda_this = None;
-        let mut lambda_index = None;
-        let mut lambda_total = None;
-
-        for (name, value) in &context.variables {
-            match name.as_str() {
-                "$this" => lambda_this = Some(value.clone()),
-                "$index" => lambda_index = Some(value.clone()),
-                "$total" => lambda_total = Some(value.clone()),
-                _ => {
-                    // Regular variables
-                    local_context.set_variable(name.clone(), value.clone());
-                }
-            }
-        }
-
-        // Create lambda context if any lambda variables were found
-        let final_context =
-            if lambda_this.is_some() || lambda_index.is_some() || lambda_total.is_some() {
-                let this_value = lambda_this.unwrap_or(context.input.clone());
-                let index_value = if let Some(FhirPathValue::Integer(idx)) = lambda_index {
-                    idx as usize
-                } else {
-                    0
-                };
-                let total_value = lambda_total.unwrap_or(FhirPathValue::Empty);
-
-                local_context.with_lambda_implicits(this_value, index_value, total_value)
-            } else {
-                local_context
-            };
-
-        self.evaluate_node_async(expression, context.input.clone(), &final_context, 0)
-            .await
-            .map_err(|e| match e {
-                EvaluationError::InvalidOperation { message } => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
-                        message,
-                        expression: None,
-                        location: None,
-                    }
-                }
-                EvaluationError::TypeError { expected, actual } => {
-                    octofhir_fhirpath_core::FhirPathError::TypeError {
-                        message: format!("Type mismatch: expected {expected}, got {actual}"),
-                    }
-                }
-                EvaluationError::RuntimeError { message } => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
-                        message,
-                        expression: None,
-                        location: None,
-                    }
-                }
-                EvaluationError::Function(message) => {
-                    octofhir_fhirpath_core::FhirPathError::FunctionError {
-                        function_name: "unknown".to_string(),
-                        message,
-                        arguments: None,
-                    }
-                }
-                EvaluationError::Operator(message) => {
-                    octofhir_fhirpath_core::FhirPathError::EvaluationError {
-                        message,
-                        expression: None,
-                        location: None,
-                    }
-                }
-                _ => octofhir_fhirpath_core::FhirPathError::EvaluationError {
-                    message: e.to_string(),
-                    expression: None,
-                    location: None,
-                },
-            })
-    }
-
-    fn try_evaluate_expression_sync(
-        &self,
-        _expression: &ExpressionNode,
-        _context: &RegistryEvaluationContext,
-    ) -> Option<octofhir_fhirpath_core::Result<FhirPathValue>> {
-        // For now, we don't support synchronous expression evaluation
-        // This could be implemented for specific expression types that don't need async
-        None
-    }
-}

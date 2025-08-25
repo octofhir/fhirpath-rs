@@ -1,220 +1,281 @@
-// Copyright 2024 OctoFHIR Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//! Simplified Function Signature System
+//!
+//! This module provides a minimal function signature system that replaces the
+//! over-engineered metadata system. It contains only essential information
+//! needed for function registration and validation.
+//!
+//! # Design Philosophy
+//! 
+//! - **Minimal**: Only name, parameters, return type, and variadic flag
+//! - **No performance metrics**: Remove unused performance estimation data
+//! - **No LSP features**: Remove Language Server Protocol support complexity
+//! - **No builder patterns**: Simple struct initialization
+//! - **Essential only**: Focus on what's actually needed for operation
 
-//! Function and operator signatures for type checking
-
-use octofhir_fhirpath_model::types::TypeInfo;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
-/// Function signature for overload resolution and type checking
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Simplified function signature containing only essential information
+///
+/// This replaces the complex OperationMetadata system with just the basics
+/// needed for function registration, validation, and documentation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
-    /// Function name
-    pub name: String,
-    /// Parameter types
-    pub parameters: Vec<ParameterInfo>,
-    /// Return type
-    pub return_type: TypeInfo,
-    /// Minimum number of arguments
-    pub min_arity: usize,
-    /// Maximum number of arguments (None for variadic)
-    pub max_arity: Option<usize>,
-}
+    /// Function name (e.g., "length", "count", "resolve")
+    pub name: &'static str,
 
-/// Parameter information for functions
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ParameterInfo {
-    /// Parameter name
-    pub name: String,
-    /// Parameter type
-    pub param_type: TypeInfo,
-    /// Whether this parameter is optional
-    pub optional: bool,
-}
+    /// Parameter types in order
+    pub parameters: Vec<ParameterType>,
 
-/// Operator signature for type checking
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct OperatorSignature {
-    /// Operator symbol
-    pub symbol: String,
-    /// Left operand type
-    pub left_type: TypeInfo,
-    /// Right operand type (None for unary operators)
-    pub right_type: Option<TypeInfo>,
-    /// Result type
-    pub result_type: TypeInfo,
+    /// Return type of the function
+    pub return_type: ValueType,
+
+    /// Whether this function accepts variable arguments
+    pub variadic: bool,
 }
 
 impl FunctionSignature {
     /// Create a new function signature
     pub fn new(
-        name: impl Into<String>,
-        parameters: Vec<ParameterInfo>,
-        return_type: TypeInfo,
+        name: &'static str,
+        parameters: Vec<ParameterType>,
+        return_type: ValueType,
+        variadic: bool,
     ) -> Self {
-        let required_params = parameters.iter().filter(|p| !p.optional).count();
-        let max_arity = if parameters.is_empty() {
-            Some(0)
+        Self {
+            name,
+            parameters,
+            return_type,
+            variadic,
+        }
+    }
+
+    /// Create a function signature for a no-argument function
+    pub fn no_args(name: &'static str, return_type: ValueType) -> Self {
+        Self {
+            name,
+            parameters: vec![],
+            return_type,
+            variadic: false,
+        }
+    }
+
+    /// Create a function signature for a single-argument function
+    pub fn single_arg(name: &'static str, param_type: ParameterType, return_type: ValueType) -> Self {
+        Self {
+            name,
+            parameters: vec![param_type],
+            return_type,
+            variadic: false,
+        }
+    }
+
+    /// Create a function signature for a variadic function
+    pub fn variadic(name: &'static str, min_params: Vec<ParameterType>, return_type: ValueType) -> Self {
+        Self {
+            name,
+            parameters: min_params,
+            return_type,
+            variadic: true,
+        }
+    }
+
+    /// Get the minimum number of required arguments
+    pub fn min_args(&self) -> usize {
+        self.parameters.len()
+    }
+
+    /// Get the maximum number of arguments (None if variadic)
+    pub fn max_args(&self) -> Option<usize> {
+        if self.variadic {
+            None
         } else {
-            Some(parameters.len())
-        };
-
-        Self {
-            name: name.into(),
-            parameters,
-            return_type,
-            min_arity: required_params,
-            max_arity,
+            Some(self.parameters.len())
         }
     }
 
-    /// Create a variadic function signature
-    pub fn variadic(
-        name: impl Into<String>,
-        parameters: Vec<ParameterInfo>,
-        return_type: TypeInfo,
-    ) -> Self {
-        let required_params = parameters.iter().filter(|p| !p.optional).count();
-
-        Self {
-            name: name.into(),
-            parameters,
-            return_type,
-            min_arity: required_params,
-            max_arity: None,
-        }
-    }
-
-    /// Check if this signature matches the given argument types
-    pub fn matches(&self, arg_types: &[TypeInfo]) -> bool {
-        if arg_types.len() < self.min_arity {
+    /// Check if the given argument count is valid for this signature
+    pub fn is_valid_arg_count(&self, arg_count: usize) -> bool {
+        if arg_count < self.min_args() {
             return false;
         }
-
-        if let Some(max) = self.max_arity {
-            if arg_types.len() > max {
-                return false;
-            }
-        }
-
-        // Check parameter types
-        for (i, arg_type) in arg_types.iter().enumerate() {
-            if let Some(param) = self.parameters.get(i) {
-                if param.param_type != TypeInfo::Any && arg_type != &param.param_type {
-                    return false;
-                }
-            } else if self.max_arity.is_some() {
-                // Too many arguments for non-variadic function
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
-impl ParameterInfo {
-    /// Create a required parameter
-    pub fn required(name: impl Into<String>, param_type: TypeInfo) -> Self {
-        Self {
-            name: name.into(),
-            param_type,
-            optional: false,
-        }
-    }
-
-    /// Create an optional parameter
-    pub fn optional(name: impl Into<String>, param_type: TypeInfo) -> Self {
-        Self {
-            name: name.into(),
-            param_type,
-            optional: true,
+        
+        if let Some(max) = self.max_args() {
+            arg_count <= max
+        } else {
+            true // Variadic functions accept any number >= min
         }
     }
 }
 
-impl OperatorSignature {
-    /// Create a binary operator signature
-    pub fn binary(
-        symbol: impl Into<String>,
-        left_type: TypeInfo,
-        right_type: TypeInfo,
-        result_type: TypeInfo,
-    ) -> Self {
-        Self {
-            symbol: symbol.into(),
-            left_type,
-            right_type: Some(right_type),
-            result_type,
-        }
-    }
+/// Parameter type specification
+///
+/// Simplified from the complex TypeConstraint system to just the essential types
+/// needed for FHIRPath operations.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ParameterType {
+    /// String parameter
+    String,
 
-    /// Create a unary operator signature
-    pub fn unary(symbol: impl Into<String>, operand_type: TypeInfo, result_type: TypeInfo) -> Self {
-        Self {
-            symbol: symbol.into(),
-            left_type: operand_type,
-            right_type: None,
-            result_type,
-        }
-    }
+    /// Integer parameter
+    Integer,
 
-    /// Check if this signature matches the given operand types
-    pub fn matches(&self, left_type: &TypeInfo, right_type: Option<&TypeInfo>) -> bool {
-        if self.left_type != TypeInfo::Any && &self.left_type != left_type {
-            return false;
-        }
+    /// Decimal parameter
+    Decimal,
 
-        match (&self.right_type, right_type) {
-            (Some(expected), Some(actual)) => *expected == TypeInfo::Any || expected == actual,
-            (None, None) => true, // Unary operator
-            _ => false,           // Mismatch between binary/unary
-        }
-    }
+    /// Boolean parameter
+    Boolean,
+
+    /// Date parameter
+    Date,
+
+    /// DateTime parameter
+    DateTime,
+
+    /// Time parameter
+    Time,
+
+    /// Quantity parameter (value + unit)
+    Quantity,
+
+    /// Any type parameter (no type checking)
+    Any,
+
+    /// Collection of any type
+    Collection,
+
+    /// Numeric parameter (Integer or Decimal)
+    Numeric,
+
+    /// FHIR Resource parameter
+    Resource,
+
+    /// Lambda expression parameter (for functions like where, select)
+    Lambda,
 }
 
-impl fmt::Display for FunctionSignature {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}(", self.name)?;
-        for (i, param) in self.parameters.iter().enumerate() {
-            if i > 0 {
-                write!(f, ", ")?;
-            }
-            write!(f, "{}: {}", param.name, param.param_type)?;
-            if param.optional {
-                write!(f, "?")?;
-            }
-        }
-        write!(f, ") -> {}", self.return_type)
-    }
+/// Return value type specification
+///
+/// Simplified from the complex return type system to just the essential types.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ValueType {
+    /// String return value
+    String,
+
+    /// Integer return value
+    Integer,
+
+    /// Decimal return value
+    Decimal,
+
+    /// Boolean return value
+    Boolean,
+
+    /// Date return value
+    Date,
+
+    /// DateTime return value
+    DateTime,
+
+    /// Time return value
+    Time,
+
+    /// Quantity return value
+    Quantity,
+
+    /// Any type return value
+    Any,
+
+    /// Collection return value
+    Collection,
+
+    /// FHIR Resource return value
+    Resource,
+
+    /// Empty return value (for operations that may return nothing)
+    Empty,
 }
 
-impl fmt::Display for OperatorSignature {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.right_type {
-            Some(right) => write!(
-                f,
-                "{} {} {} -> {}",
-                self.left_type, self.symbol, right, self.result_type
-            ),
-            None => write!(
-                f,
-                "{} {} -> {}",
-                self.symbol, self.left_type, self.result_type
-            ),
-        }
+/// Convenience macros for creating common function signatures
+#[macro_export]
+macro_rules! signature {
+    // No arguments: signature!(name, return_type)
+    ($name:expr, $return_type:expr) => {
+        FunctionSignature::no_args($name, $return_type)
+    };
+    
+    // Single argument: signature!(name, param_type => return_type)
+    ($name:expr, $param_type:expr => $return_type:expr) => {
+        FunctionSignature::single_arg($name, $param_type, $return_type)
+    };
+    
+    // Multiple arguments: signature!(name, [param1, param2, ...] => return_type)
+    ($name:expr, [$($param_type:expr),*] => $return_type:expr) => {
+        FunctionSignature::new($name, vec![$($param_type),*], $return_type, false)
+    };
+    
+    // Variadic: signature!(name, [param1, param2, ...] => return_type, variadic)
+    ($name:expr, [$($param_type:expr),*] => $return_type:expr, variadic) => {
+        FunctionSignature::new($name, vec![$($param_type),*], $return_type, true)
+    };
+}
+
+/// Common function signatures for frequently used patterns
+pub mod common {
+    use super::*;
+
+    /// String manipulation functions (no args, string input → string output)
+    pub fn string_manipulation(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::String)
+    }
+
+    /// String analysis functions (no args, string input → integer output)
+    pub fn string_analysis(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::Integer)
+    }
+
+    /// String search functions (string arg, string input → integer output)
+    pub fn string_search(name: &'static str) -> FunctionSignature {
+        FunctionSignature::single_arg(name, ParameterType::String, ValueType::Integer)
+    }
+
+    /// Math functions (no args, numeric input → numeric output)
+    pub fn math_function(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::Any) // Can return Integer or Decimal
+    }
+
+    /// Collection functions (no args, collection input → integer output)
+    pub fn collection_count(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::Integer)
+    }
+
+    /// Collection functions (no args, collection input → any output)
+    pub fn collection_extraction(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::Any)
+    }
+
+    /// Type checking functions (string arg, any input → boolean output)
+    pub fn type_checking(name: &'static str) -> FunctionSignature {
+        FunctionSignature::single_arg(name, ParameterType::String, ValueType::Boolean)
+    }
+
+    /// DateTime extraction functions (no args, datetime input → integer output)
+    pub fn datetime_extraction(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::Integer)
+    }
+
+    /// System functions (no args, no input → datetime output)
+    pub fn system_datetime(name: &'static str) -> FunctionSignature {
+        FunctionSignature::no_args(name, ValueType::DateTime)
+    }
+
+    /// Conversion functions (no args, any input → specific type output)
+    pub fn conversion_function(name: &'static str, return_type: ValueType) -> FunctionSignature {
+        FunctionSignature::no_args(name, return_type)
+    }
+
+    /// Binary operations (one arg, any input → boolean output)
+    pub fn binary_operation(name: &'static str) -> FunctionSignature {
+        FunctionSignature::single_arg(name, ParameterType::Any, ValueType::Boolean)
     }
 }
 
@@ -223,29 +284,141 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_function_signature_matching() {
+    fn test_function_signature_creation() {
         let sig = FunctionSignature::new(
-            "test",
-            vec![
-                ParameterInfo::required("x", TypeInfo::Integer),
-                ParameterInfo::optional("y", TypeInfo::String),
-            ],
-            TypeInfo::Boolean,
+            "testFunc",
+            vec![ParameterType::String, ParameterType::Integer],
+            ValueType::Boolean,
+            false,
         );
 
-        assert!(sig.matches(&[TypeInfo::Integer]));
-        assert!(sig.matches(&[TypeInfo::Integer, TypeInfo::String]));
-        assert!(!sig.matches(&[])); // Too few arguments
-        assert!(!sig.matches(&[TypeInfo::String])); // Wrong type
+        assert_eq!(sig.name, "testFunc");
+        assert_eq!(sig.parameters.len(), 2);
+        assert_eq!(sig.return_type, ValueType::Boolean);
+        assert!(!sig.variadic);
     }
 
     #[test]
-    fn test_operator_signature_matching() {
-        let sig =
-            OperatorSignature::binary("+", TypeInfo::Integer, TypeInfo::Integer, TypeInfo::Integer);
+    fn test_convenience_constructors() {
+        let no_args = FunctionSignature::no_args("length", ValueType::Integer);
+        assert_eq!(no_args.parameters.len(), 0);
+        assert_eq!(no_args.return_type, ValueType::Integer);
 
-        assert!(sig.matches(&TypeInfo::Integer, Some(&TypeInfo::Integer)));
-        assert!(!sig.matches(&TypeInfo::String, Some(&TypeInfo::Integer)));
-        assert!(!sig.matches(&TypeInfo::Integer, None)); // Unary when binary expected
+        let single_arg = FunctionSignature::single_arg("contains", ParameterType::String, ValueType::Boolean);
+        assert_eq!(single_arg.parameters.len(), 1);
+        assert_eq!(single_arg.parameters[0], ParameterType::String);
+
+        let variadic = FunctionSignature::variadic("join", vec![ParameterType::String], ValueType::String);
+        assert!(variadic.variadic);
+        assert_eq!(variadic.min_args(), 1);
+        assert_eq!(variadic.max_args(), None);
+    }
+
+    #[test]
+    fn test_argument_count_validation() {
+        let fixed_args = FunctionSignature::new("test", vec![ParameterType::String], ValueType::Any, false);
+        assert!(!fixed_args.is_valid_arg_count(0)); // Too few
+        assert!(fixed_args.is_valid_arg_count(1));  // Exactly right
+        assert!(!fixed_args.is_valid_arg_count(2)); // Too many
+
+        let variadic = FunctionSignature::variadic("test", vec![ParameterType::String], ValueType::Any);
+        assert!(!variadic.is_valid_arg_count(0)); // Too few (below minimum)
+        assert!(variadic.is_valid_arg_count(1));  // Minimum
+        assert!(variadic.is_valid_arg_count(5));  // More than minimum (OK for variadic)
+    }
+
+    #[test]
+    fn test_signature_macro() {
+        // Test no-args signature
+        let no_args = signature!("length", ValueType::Integer);
+        assert_eq!(no_args.name, "length");
+        assert_eq!(no_args.parameters.len(), 0);
+
+        // Test single-arg signature  
+        let single_arg = signature!("contains", ParameterType::String => ValueType::Boolean);
+        assert_eq!(single_arg.name, "contains");
+        assert_eq!(single_arg.parameters.len(), 1);
+
+        // Test multi-arg signature
+        let multi_arg = signature!("substring", [ParameterType::Integer, ParameterType::Integer] => ValueType::String);
+        assert_eq!(multi_arg.name, "substring");
+        assert_eq!(multi_arg.parameters.len(), 2);
+
+        // Test variadic signature
+        let variadic = signature!("join", [ParameterType::String] => ValueType::String, variadic);
+        assert_eq!(variadic.name, "join");
+        assert!(variadic.variadic);
+    }
+
+    #[test]
+    fn test_common_signatures() {
+        let string_manip = common::string_manipulation("upper");
+        assert_eq!(string_manip.return_type, ValueType::String);
+        assert_eq!(string_manip.parameters.len(), 0);
+
+        let string_analysis = common::string_analysis("length");
+        assert_eq!(string_analysis.return_type, ValueType::Integer);
+
+        let type_check = common::type_checking("is");
+        assert_eq!(type_check.parameters.len(), 1);
+        assert_eq!(type_check.parameters[0], ParameterType::String);
+        assert_eq!(type_check.return_type, ValueType::Boolean);
+    }
+
+    #[test]
+    fn test_parameter_types() {
+        // Test all parameter types exist and are distinct
+        let types = vec![
+            ParameterType::String,
+            ParameterType::Integer,
+            ParameterType::Decimal,
+            ParameterType::Boolean,
+            ParameterType::Date,
+            ParameterType::DateTime,
+            ParameterType::Time,
+            ParameterType::Quantity,
+            ParameterType::Any,
+            ParameterType::Collection,
+            ParameterType::Numeric,
+            ParameterType::Resource,
+            ParameterType::Lambda,
+        ];
+        
+        // Ensure all types are unique (no duplicates in enum)
+        for (i, type1) in types.iter().enumerate() {
+            for (j, type2) in types.iter().enumerate() {
+                if i != j {
+                    assert_ne!(type1, type2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_value_types() {
+        // Test all return value types exist and are distinct
+        let types = vec![
+            ValueType::String,
+            ValueType::Integer,
+            ValueType::Decimal,
+            ValueType::Boolean,
+            ValueType::Date,
+            ValueType::DateTime,
+            ValueType::Time,
+            ValueType::Quantity,
+            ValueType::Any,
+            ValueType::Collection,
+            ValueType::Resource,
+            ValueType::Empty,
+        ];
+        
+        // Ensure all types are unique (no duplicates in enum)
+        for (i, type1) in types.iter().enumerate() {
+            for (j, type2) in types.iter().enumerate() {
+                if i != j {
+                    assert_ne!(type1, type2);
+                }
+            }
+        }
     }
 }
