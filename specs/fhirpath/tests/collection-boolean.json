@@ -12,7 +12,7 @@
         "testCollectionBoolean"
       ],
       "inputfile": "patient-example.json",
-      "expected": [true]
+      "expected": []
     },
     {
       "name": "testCollectionBoolean2",
