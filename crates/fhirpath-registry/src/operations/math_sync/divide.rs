@@ -62,11 +62,7 @@ impl SyncOperation for SimpleDivideFunction {
         };
 
         if is_zero {
-            return Err(FhirPathError::EvaluationError {
-                expression: None,
-                location: None,
-                message: "Division by zero is not allowed".to_string(),
-            });
+            return Err(FhirPathError::evaluation_error("Division by zero is not allowed"));
         }
 
         match (left, right) {

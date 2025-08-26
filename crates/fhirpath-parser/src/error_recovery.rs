@@ -21,7 +21,7 @@
 use super::tokenizer::{Token, Tokenizer};
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_diagnostics::{
-    Diagnostic, DiagnosticCode, EnhancedDiagnostic, Severity, SourceLocation,
+    Diagnostic, DiagnosticCode, Severity, SourceLocation,
 };
 
 /// Result of parsing with error recovery
@@ -30,7 +30,7 @@ pub struct RecoveryResult {
     /// The parsed AST (may be partial)
     pub ast: Option<ExpressionNode>,
     /// All diagnostics collected during parsing
-    pub diagnostics: Vec<EnhancedDiagnostic>,
+    pub diagnostics: Vec<Diagnostic>,
     /// Whether parsing was able to recover and continue
     pub recovered: bool,
     /// Percentage of input successfully parsed (0.0 to 1.0)
@@ -72,8 +72,8 @@ pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> Re
         },
         Err(error) => {
             let diagnostic = Diagnostic::new(
-                Severity::Error,
                 DiagnosticCode::UnexpectedToken,
+                Severity::Error,
                 format!("Parse error: {error:?}"),
                 SourceLocation {
                     span: octofhir_fhirpath_diagnostics::Span::new(
@@ -84,8 +84,7 @@ pub async fn parse_with_recovery(input: &str, _strategy: RecoveryStrategy) -> Re
                     file_path: None,
                 },
             );
-            let enhanced = EnhancedDiagnostic::from_diagnostic(diagnostic);
-            diagnostics.push(enhanced);
+            diagnostics.push(diagnostic);
 
             RecoveryResult {
                 ast: None,

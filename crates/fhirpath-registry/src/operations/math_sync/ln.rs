@@ -54,11 +54,7 @@ impl SyncOperation for SimpleLnFunction {
         match &context.input {
             FhirPathValue::Integer(n) => {
                 if *n <= 0 {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "ln() can only be applied to positive numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
                 } else {
                     let result = (*n as f64).ln();
                     Ok(FhirPathValue::Decimal(
@@ -68,11 +64,7 @@ impl SyncOperation for SimpleLnFunction {
             }
             FhirPathValue::Decimal(n) => {
                 if *n <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "ln() can only be applied to positive numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
                 } else {
                     let result = n.to_f64().unwrap_or(0.0).ln();
                     Ok(FhirPathValue::Decimal(
@@ -82,11 +74,7 @@ impl SyncOperation for SimpleLnFunction {
             }
             FhirPathValue::Quantity(q) => {
                 if q.value <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "ln() can only be applied to positive numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
                 } else {
                     let result = q.value.to_f64().unwrap_or(0.0).ln();
                     Ok(FhirPathValue::quantity(

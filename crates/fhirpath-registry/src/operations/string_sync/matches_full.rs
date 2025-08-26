@@ -80,11 +80,7 @@ impl SyncOperation for SimpleMatchesFullFunction {
                 };
 
                 let regex =
-                    Regex::new(&anchored_pattern).map_err(|e| FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: format!("Invalid regex pattern '{pattern}': {e}"),
-                    })?;
+                    Regex::new(&anchored_pattern).map_err(|e| FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}")))?;
 
                 let matches = regex.is_match(s.as_ref());
                 Ok(FhirPathValue::Boolean(matches))

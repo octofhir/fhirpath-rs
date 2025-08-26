@@ -20,15 +20,13 @@
 pub mod builder;
 pub mod diagnostic;
 pub mod diagnostic_reporter;
-pub mod enhanced_diagnostic;
 pub mod formatter;
 pub mod location;
 pub mod lsp;
 
-// Re-export main types
+// Re-export main types (using streamlined modules)
 pub use builder::DiagnosticBuilder;
 pub use diagnostic::{Diagnostic, DiagnosticCode, Severity, Severity as DiagnosticSeverity};
 pub use diagnostic_reporter::DiagnosticReporter;
-pub use enhanced_diagnostic::EnhancedDiagnostic;
 pub use formatter::DiagnosticFormatter;
 pub use location::{Position, SourceLocation, Span};

@@ -172,14 +172,15 @@ impl DiagnosticBuilder {
 
     /// Build the diagnostic
     pub fn build(self) -> Diagnostic {
-        Diagnostic {
-            severity: self.severity,
-            code: self.code,
-            message: self.message,
-            location: self.location.unwrap_or_default(),
-            suggestions: self.suggestions,
-            related: self.related,
-        }
+        let mut diagnostic = Diagnostic::new(
+            self.code,
+            self.severity,
+            self.message,
+            self.location.unwrap_or_default(),
+        );
+        diagnostic.suggestions = self.suggestions;
+        diagnostic.related = self.related;
+        diagnostic
     }
 }
 

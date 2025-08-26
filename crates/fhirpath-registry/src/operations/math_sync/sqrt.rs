@@ -54,11 +54,7 @@ impl SyncOperation for SimpleSqrtFunction {
         match &context.input {
             FhirPathValue::Integer(n) => {
                 if *n < 0 {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "sqrt() cannot be applied to negative numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("sqrt() cannot be applied to negative numbers"))
                 } else {
                     let result = (*n as f64).sqrt();
                     Ok(FhirPathValue::Decimal(
@@ -68,11 +64,7 @@ impl SyncOperation for SimpleSqrtFunction {
             }
             FhirPathValue::Decimal(n) => {
                 if *n < rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "sqrt() cannot be applied to negative numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("sqrt() cannot be applied to negative numbers"))
                 } else {
                     let result = n.to_f64().unwrap_or(0.0).sqrt();
                     Ok(FhirPathValue::Decimal(
@@ -82,11 +74,7 @@ impl SyncOperation for SimpleSqrtFunction {
             }
             FhirPathValue::Quantity(q) => {
                 if q.value < rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::EvaluationError {
-                        expression: None,
-                        location: None,
-                        message: "sqrt() cannot be applied to negative numbers".to_string(),
-                    })
+                    Err(FhirPathError::evaluation_error("sqrt() cannot be applied to negative numbers"))
                 } else {
                     let result = q.value.to_f64().unwrap_or(0.0).sqrt();
                     Ok(FhirPathValue::quantity(

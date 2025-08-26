@@ -61,11 +61,7 @@ impl SyncOperation for SimpleModuloFunction {
         };
 
         if is_zero {
-            return Err(FhirPathError::EvaluationError {
-                expression: None,
-                location: None,
-                message: "Modulo by zero is not allowed".to_string(),
-            });
+            return Err(FhirPathError::evaluation_error("Modulo by zero is not allowed"));
         }
 
         match (left, right) {

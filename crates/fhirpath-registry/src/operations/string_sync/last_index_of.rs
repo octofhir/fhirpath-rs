@@ -71,11 +71,7 @@ impl SyncOperation for SimpleLastIndexOfFunction {
             FhirPathValue::Collection(items) => {
                 if items.len() > 1 {
                     // FHIRPath spec: signal error for multiple items in collection
-                    Err(FhirPathError::EvaluationError {
-                        message: "lastIndexOf() can only be applied to single values, not collections with multiple items".into(),
-                        expression: None,
-                        location: None,
-                    })
+                    Err(FhirPathError::evaluation_error("lastIndexOf() can only be applied to single values, not collections with multiple items"))
                 } else if items.len() == 1 {
                     // Single item collection - unwrap and process
                     match items.iter().next().unwrap() {

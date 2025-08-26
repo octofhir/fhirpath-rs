@@ -129,6 +129,8 @@ pub struct Diagnostic {
     pub message: String,
     /// Source location
     pub location: SourceLocation,
+    /// Simple contextual help message
+    pub help: Option<String>,
     /// Suggestions for fixing the issue
     pub suggestions: Vec<Suggestion>,
     /// Related information
@@ -138,18 +140,48 @@ pub struct Diagnostic {
 impl Diagnostic {
     /// Create a new diagnostic
     pub fn new(
-        severity: Severity,
         code: DiagnosticCode,
+        severity: Severity,
         message: String,
         location: SourceLocation,
     ) -> Self {
+        let help = Self::generate_help(&code);
         Self {
             severity,
             code,
             message,
             location,
+            help,
             suggestions: Vec::new(),
             related: Vec::new(),
+        }
+    }
+
+    /// Generate simple contextual help based on diagnostic code
+    fn generate_help(code: &DiagnosticCode) -> Option<String> {
+        match code {
+            DiagnosticCode::UnknownFunction => {
+                Some("Check function name spelling and available functions".to_string())
+            }
+            DiagnosticCode::ExpectedToken(_) => {
+                Some("Check expression syntax for missing or incorrect tokens".to_string())
+            }
+            DiagnosticCode::TypeMismatch { .. } => {
+                Some("Ensure arguments match expected types for the operation".to_string())
+            }
+            DiagnosticCode::InvalidArity => {
+                Some("Check function documentation for correct number of arguments".to_string())
+            }
+            DiagnosticCode::UndefinedVariable => {
+                Some("Define the variable or check variable name spelling".to_string())
+            }
+            DiagnosticCode::UnexpectedToken => {
+                Some("Review expression syntax for unexpected characters or operators".to_string())
+            }
+            DiagnosticCode::DivisionByZero => {
+                Some("Ensure divisor is not zero before performing division".to_string())
+            }
+            _ => None,
         }
     }
 
@@ -214,6 +246,20 @@ impl fmt::Display for Severity {
     }
 }
 
+impl fmt::Display for Diagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}] {}: {}", 
+               match self.severity {
+                   Severity::Error => "ERROR",
+                   Severity::Warning => "WARN",
+                   Severity::Info => "INFO",
+                   Severity::Hint => "HINT",
+               },
+               self.code,
+               self.message)
+    }
+}
+
 impl fmt::Display for DiagnosticCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -258,8 +304,8 @@ mod tests {
         };
 
         let diagnostic = Diagnostic::new(
-            Severity::Error,
             DiagnosticCode::UnknownFunction,
+            Severity::Error,
             "Unknown function 'foo'".to_string(),
             location,
         );

@@ -188,6 +188,17 @@ impl SourceLocation {
         }
     }
 
+    /// Create a new source location from line and column (convenience method)
+    pub fn from_line_column(line: usize, column: usize, _offset: usize) -> Self {
+        let position = Position::new(line, column);
+        let span = Span::new(position, Position::new(line, column + 1));
+        Self {
+            span,
+            source_text: None,
+            file_path: None,
+        }
+    }
+
     /// Create with source text
     pub fn with_source(span: Span, source_text: String) -> Self {
         Self {

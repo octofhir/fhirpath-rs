@@ -85,11 +85,7 @@ impl SimpleReplaceMatchesFunction {
         }
 
         // Compile regex
-        let regex = Regex::new(&pattern).map_err(|e| FhirPathError::EvaluationError {
-            expression: None,
-            location: None,
-            message: format!("Invalid regex pattern '{pattern}': {e}"),
-        })?;
+        let regex = Regex::new(&pattern).map_err(|e| FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}")))?;
 
         // Perform regex replacement with capture group support
         let result = regex.replace_all(&input_str, &substitution);

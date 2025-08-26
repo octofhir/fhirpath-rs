@@ -54,11 +54,7 @@ impl SyncOperation for EncodeFunction {
             "hex" => hex_encode(&input_string),
             "urlbase64" => urlbase64_encode(&input_string),
             _ => {
-                return Err(FhirPathError::EvaluationError {
-                    message: format!("Unsupported encoding: {encoding_type}"),
-                    expression: None,
-                    location: None,
-                });
+                return Err(FhirPathError::evaluation_error(format!("Unsupported encoding: {encoding_type}")));
             }
         };
 

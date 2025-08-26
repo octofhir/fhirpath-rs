@@ -59,13 +59,9 @@ fn escape_with_format(input: &str, format: &str) -> Result<String> {
     match format {
         "html" => Ok(escape_html(input)),
         "json" => Ok(escape_json(input)),
-        _ => Err(FhirPathError::EvaluationError {
-            message: format!(
+        _ => Err(FhirPathError::evaluation_error(format!(
                 "Unsupported escape format: '{format}'. Supported formats are 'html' and 'json'"
-            ),
-            expression: None,
-            location: None,
-        }),
+            ))),
     }
 }
 

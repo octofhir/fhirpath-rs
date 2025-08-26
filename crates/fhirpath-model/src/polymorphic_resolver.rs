@@ -164,9 +164,7 @@ impl PolymorphicPathResolver {
             path_cache: Arc::new(DashMap::new()),
             choice_pattern_regex: Some(
                 Regex::new(r"^([a-z][a-zA-Z]*?)([A-Z][a-zA-Z]*)$").map_err(|e| {
-                    FhirPathError::InvalidExpression {
-                        message: e.to_string(),
-                    }
+                    FhirPathError::invalid_expression(e.to_string())
                 })?,
             ),
             cache_stats: CacheStats::default(),
@@ -188,9 +186,7 @@ impl PolymorphicPathResolver {
         let types = schema
             .get("types")
             .and_then(|t| t.as_object())
-            .ok_or_else(|| FhirPathError::InvalidExpression {
-                message: "Schema missing types".to_string(),
-            })?;
+            .ok_or_else(|| FhirPathError::invalid_expression("Schema missing types"))?;
 
         for (type_name, type_def) in types {
             if self.is_resource_or_element_type(type_def) {
@@ -238,9 +234,7 @@ impl PolymorphicPathResolver {
         let properties = type_def
             .get("properties")
             .and_then(|p| p.as_object())
-            .ok_or_else(|| FhirPathError::InvalidExpression {
-                message: "Type missing properties".to_string(),
-            })?;
+            .ok_or_else(|| FhirPathError::invalid_expression("Type missing properties"))?;
 
         // Group properties by potential base names
         let mut property_groups: HashMap<String, Vec<(String, &Value)>> = HashMap::new();

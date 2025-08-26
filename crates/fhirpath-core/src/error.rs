@@ -62,7 +62,7 @@ pub enum FhirPathError {
         message: String,
     },
 
-    /// Runtime evaluation errors
+    /// Runtime evaluation errors (includes invalid expressions and general evaluation issues)
     #[error("Evaluation error: {message}{}{}", 
         expression.as_ref().map(|e| format!(" in expression: {e}")).unwrap_or_default(),
         location.as_ref().map(|l| format!(" at line {}, column {}", l.line, l.column)).unwrap_or_default()
@@ -74,9 +74,11 @@ pub enum FhirPathError {
         expression: Option<String>,
         /// Source location where error occurred
         location: Option<SourceLocation>,
+        /// Optional context about the type of evaluation error
+        error_type: Option<String>,
     },
 
-    /// Function call errors
+    /// Function call errors (includes invalid arguments and arity issues)
     #[error("Function '{function_name}' error: {message}{}", arguments.as_ref().map(|args| format!(" with arguments: {}", args.join(", "))).unwrap_or_default())]
     FunctionError {
         /// Name of the function that caused the error
@@ -85,20 +87,17 @@ pub enum FhirPathError {
         message: String,
         /// Arguments passed to the function
         arguments: Option<Vec<String>>,
+        /// Expected argument count information (for arity errors)
+        expected_args: Option<String>,
     },
 
-    /// Invalid expression structure
-    #[error("Invalid expression: {message}")]
-    InvalidExpression {
-        /// Human-readable invalid expression error message
-        message: String,
-    },
-
-    /// Division by zero or other arithmetic errors
-    #[error("Arithmetic error: {message}")]
+    /// Arithmetic errors (includes division by zero, overflow, and other math errors)
+    #[error("Arithmetic error: {message}{}", operation.as_ref().map(|op| format!(" in {op}")).unwrap_or_default())]
     ArithmeticError {
         /// Human-readable arithmetic error message
         message: String,
+        /// The specific arithmetic operation that failed
+        operation: Option<String>,
     },
 
     /// Index out of bounds
@@ -200,13 +199,6 @@ pub enum FhirPathError {
         current_mb: usize,
     },
 
-    /// Invalid function arguments
-    #[error("Invalid arguments: {message}")]
-    InvalidArguments {
-        /// Human-readable error message
-        message: String,
-    },
-
     /// Unknown operator
     #[error("Unknown operator: '{operator}'")]
     UnknownOperator {
@@ -234,34 +226,10 @@ pub enum FhirPathError {
         right_unit: String,
     },
 
-    /// Division by zero
-    #[error("Division by zero")]
-    DivisionByZero,
-
-    /// Arithmetic overflow
-    #[error("Arithmetic overflow in {operation}")]
-    ArithmeticOverflow {
-        /// The operation that caused the overflow
-        operation: String,
-    },
-
     /// Invalid type specifier
     #[error("Invalid type specifier")]
     InvalidTypeSpecifier,
 
-    /// Invalid function arity
-    #[error("Function '{name}' expects {min_arity}{} arguments, got {actual}",
-            max_arity.map(|m| format!("-{m}")).unwrap_or_else(|| String::from(" or more")))]
-    InvalidArity {
-        /// Name of the function with invalid arity
-        name: String,
-        /// Minimum number of arguments required
-        min_arity: usize,
-        /// Maximum number of arguments allowed (None for unlimited)
-        max_arity: Option<usize>,
-        /// Actual number of arguments provided
-        actual: usize,
-    },
 }
 
 impl FhirPathError {
@@ -286,6 +254,7 @@ impl FhirPathError {
             message: message.into(),
             expression: None,
             location: None,
+            error_type: None,
         }
     }
 
@@ -299,6 +268,7 @@ impl FhirPathError {
             message: message.into(),
             expression,
             location,
+            error_type: None,
         }
     }
 
@@ -308,6 +278,7 @@ impl FhirPathError {
             function_name: function_name.into(),
             message: message.into(),
             arguments: None,
+            expected_args: None,
         }
     }
 
@@ -321,13 +292,17 @@ impl FhirPathError {
             function_name: function_name.into(),
             message: message.into(),
             arguments,
+            expected_args: None,
         }
     }
 
-    /// Create an invalid expression error
+    /// Create an invalid expression error (now maps to evaluation error)
     pub fn invalid_expression(message: impl Into<String>) -> Self {
-        Self::InvalidExpression {
-            message: message.into(),
+        Self::EvaluationError {
+            message: format!("Invalid expression: {}", message.into()),
+            expression: None,
+            location: None,
+            error_type: Some("invalid_expression".to_string()),
         }
     }
 
@@ -335,6 +310,7 @@ impl FhirPathError {
     pub fn arithmetic_error(message: impl Into<String>) -> Self {
         Self::ArithmeticError {
             message: message.into(),
+            operation: None,
         }
     }
 
@@ -406,15 +382,20 @@ impl FhirPathError {
         }
     }
 
-    /// Create a division by zero error
+    /// Create a division by zero error (now maps to arithmetic error)
     pub fn division_by_zero() -> Self {
-        Self::DivisionByZero
+        Self::ArithmeticError {
+            message: "Division by zero".to_string(),
+            operation: Some("division".to_string()),
+        }
     }
 
-    /// Create an arithmetic overflow error
+    /// Create an arithmetic overflow error (now maps to arithmetic error)
     pub fn arithmetic_overflow(operation: impl Into<String>) -> Self {
-        Self::ArithmeticOverflow {
-            operation: operation.into(),
+        let op = operation.into();
+        Self::ArithmeticError {
+            message: format!("Arithmetic overflow in {}", op),
+            operation: Some(op),
         }
     }
 
@@ -423,18 +404,24 @@ impl FhirPathError {
         Self::InvalidTypeSpecifier
     }
 
-    /// Create an invalid arity error
+    /// Create an invalid arity error (now maps to function error)
     pub fn invalid_arity(
         name: impl Into<String>,
         min_arity: usize,
         max_arity: Option<usize>,
         actual: usize,
     ) -> Self {
-        Self::InvalidArity {
-            name: name.into(),
-            min_arity,
-            max_arity,
-            actual,
+        let function_name = name.into();
+        let expected_desc = match max_arity {
+            Some(max) if min_arity == max => format!("{}", min_arity),
+            Some(max) => format!("{}-{}", min_arity, max),
+            None => format!("{} or more", min_arity),
+        };
+        Self::FunctionError {
+            function_name: function_name.clone(),
+            message: format!("Function '{}' expects {} arguments, got {}", function_name, expected_desc, actual),
+            arguments: None,
+            expected_args: Some(expected_desc),
         }
     }
 
@@ -546,7 +533,7 @@ impl FhirPathError {
             Self::TypeError { message } => {
                 *message = format!("{message} (context: {context})");
             }
-            Self::ArithmeticError { message } => {
+            Self::ArithmeticError { message, .. } => {
                 *message = format!("{message} (context: {context})");
             }
             _ => {}
@@ -583,6 +570,29 @@ impl FhirPathError {
             *loc = Some(location);
         }
         self
+    }
+
+    /// Create an invalid arguments error (now maps to function error)
+    pub fn invalid_arguments(message: impl Into<String>) -> Self {
+        Self::FunctionError {
+            function_name: "unknown".to_string(),
+            message: format!("Invalid arguments: {}", message.into()),
+            arguments: None,
+            expected_args: None,
+        }
+    }
+
+    /// Create an invalid arguments error with function context
+    pub fn invalid_arguments_for_function(
+        function_name: impl Into<String>, 
+        message: impl Into<String>
+    ) -> Self {
+        Self::FunctionError {
+            function_name: function_name.into(),
+            message: format!("Invalid arguments: {}", message.into()),
+            arguments: None,
+            expected_args: None,
+        }
     }
 }
 
@@ -862,11 +872,13 @@ mod tests {
         if let FhirPathError::EvaluationError {
             expression,
             location: loc,
+            error_type,
             ..
         } = eval_err
         {
             assert_eq!(expression, Some("Patient.name".to_string()));
             assert_eq!(loc, Some(location));
+            assert_eq!(error_type, None); // No specific error type for basic evaluation error
         } else {
             panic!("Expected EvaluationError");
         }
@@ -874,12 +886,12 @@ mod tests {
 
     #[test]
     fn test_legacy_error_constructors_still_work() {
-        // Ensure backward compatibility
+        // Ensure backward compatibility - consolidated error types now map to new variants
         let division_by_zero = FhirPathError::division_by_zero();
-        assert!(matches!(division_by_zero, FhirPathError::DivisionByZero));
+        assert!(matches!(division_by_zero, FhirPathError::ArithmeticError { .. }));
 
         let overflow = FhirPathError::arithmetic_overflow("multiplication");
-        assert!(matches!(overflow, FhirPathError::ArithmeticOverflow { .. }));
+        assert!(matches!(overflow, FhirPathError::ArithmeticError { .. }));
 
         let unknown_func = FhirPathError::unknown_function("unknownFunction");
         assert!(matches!(
@@ -892,5 +904,32 @@ mod tests {
             invalid_args,
             FhirPathError::InvalidArgumentCount { .. }
         ));
+    }
+
+    #[test]
+    fn test_consolidated_error_constructors() {
+        // Test new consolidated error constructors
+        let invalid_expr = FhirPathError::invalid_expression("malformed syntax");
+        if let FhirPathError::EvaluationError { message, error_type, .. } = invalid_expr {
+            assert!(message.contains("Invalid expression"));
+            assert_eq!(error_type, Some("invalid_expression".to_string()));
+        } else {
+            panic!("Expected EvaluationError");
+        }
+
+        let invalid_args = FhirPathError::invalid_arguments("wrong type");
+        if let FhirPathError::FunctionError { message, .. } = invalid_args {
+            assert!(message.contains("Invalid arguments"));
+        } else {
+            panic!("Expected FunctionError");
+        }
+
+        let invalid_arity = FhirPathError::invalid_arity("count", 0, Some(1), 2);
+        if let FhirPathError::FunctionError { function_name, expected_args, .. } = invalid_arity {
+            assert_eq!(function_name, "count");
+            assert_eq!(expected_args, Some("0-1".to_string()));
+        } else {
+            panic!("Expected FunctionError");
+        }
     }
 }

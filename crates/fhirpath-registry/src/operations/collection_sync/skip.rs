@@ -60,11 +60,7 @@ impl SyncOperation for SimpleSkipFunction {
         };
 
         if count < 0 {
-            return Err(FhirPathError::EvaluationError {
-                expression: None,
-                location: None,
-                message: "skip() count cannot be negative".to_string(),
-            });
+            return Err(FhirPathError::evaluation_error("skip() count cannot be negative"));
         }
 
         match &context.input {

@@ -59,13 +59,9 @@ fn unescape_with_format(input: &str, format: &str) -> Result<String> {
     match format {
         "html" => Ok(unescape_html(input)),
         "json" => unescape_json(input),
-        _ => Err(FhirPathError::EvaluationError {
-            message: format!(
+        _ => Err(FhirPathError::evaluation_error(format!(
                 "Unsupported unescape format: '{format}'. Supported formats are 'html' and 'json'"
-            ),
-            expression: None,
-            location: None,
-        }),
+            ))),
     }
 }
 
@@ -99,11 +95,7 @@ fn unescape_json(input: &str) -> Result<String> {
                         match chars.next() {
                             Some(c) if c.is_ascii_hexdigit() => unicode_chars.push(c),
                             _ => {
-                                return Err(FhirPathError::EvaluationError {
-                                    message: "Invalid Unicode escape sequence in JSON".into(),
-                                    expression: None,
-                                    location: None,
-                                });
+                                return Err(FhirPathError::evaluation_error("Invalid Unicode escape sequence in JSON"));
                             }
                         }
                     }
@@ -111,33 +103,17 @@ fn unescape_json(input: &str) -> Result<String> {
                         if let Some(unicode_char) = char::from_u32(code_point) {
                             result.push(unicode_char);
                         } else {
-                            return Err(FhirPathError::EvaluationError {
-                                message: "Invalid Unicode code point".into(),
-                                expression: None,
-                                location: None,
-                            });
+                            return Err(FhirPathError::evaluation_error("Invalid Unicode code point"));
                         }
                     } else {
-                        return Err(FhirPathError::EvaluationError {
-                            message: "Invalid Unicode escape sequence".into(),
-                            expression: None,
-                            location: None,
-                        });
+                        return Err(FhirPathError::evaluation_error("Invalid Unicode escape sequence"));
                     }
                 }
                 Some(other) => {
-                    return Err(FhirPathError::EvaluationError {
-                        message: format!("Invalid JSON escape sequence: \\{other}"),
-                        expression: None,
-                        location: None,
-                    });
+                    return Err(FhirPathError::evaluation_error(format!("Invalid JSON escape sequence: \\{other}")));
                 }
                 None => {
-                    return Err(FhirPathError::EvaluationError {
-                        message: "Incomplete escape sequence at end of string".into(),
-                        expression: None,
-                        location: None,
-                    });
+                    return Err(FhirPathError::evaluation_error("Incomplete escape sequence at end of string"));
                 }
             }
         } else {
