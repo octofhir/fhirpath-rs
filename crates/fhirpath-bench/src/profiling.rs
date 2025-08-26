@@ -98,7 +98,7 @@ impl ProfileRunner {
         println!("Profiling evaluation...");
         let guard = pprof::ProfilerGuard::new(100)?;
 
-        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
+        let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
         let model_provider = Arc::new(
             FhirSchemaModelProvider::r5()
                 .await

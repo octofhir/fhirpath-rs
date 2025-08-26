@@ -26,6 +26,7 @@
 pub mod function_registry;
 pub mod macros;
 pub mod registry;
+pub mod registry_core;
 pub mod signature;
 pub mod traits;
 // Operation implementations
@@ -41,7 +42,7 @@ pub use octofhir_fhirpath_core::{FhirPathError, Result};
 pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
 /// Create a standard unified registry with all built-in operations
 ///
-/// This creates the unified registry with optimized sync/async dispatch.
+/// This creates the unified registry with optimized sync/async dispatch and pre-warmed cache.
 /// This is the recommended way to create a registry for projects.
 /// # Returns
 /// A fully configured `FunctionRegistry` with all standard FHIRPath operations registered.
@@ -50,7 +51,7 @@ pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
 /// use octofhir_fhirpath_registry::create_standard_registry;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let registry = create_standard_registry();
+///     let registry = create_standard_registry().await;
 ///     
 ///     // Evaluate expressions with smart dispatch
 ///     // let context = EvaluationContext { input: my_data, model_provider, variables };
@@ -58,6 +59,6 @@ pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
 ///     Ok(())
 /// }
 /// ```
-pub fn create_standard_registry() -> FunctionRegistry {
-    crate::function_registry::create_standard_registry()
+pub async fn create_standard_registry() -> FunctionRegistry {
+    crate::function_registry::create_standard_registry().await
 }

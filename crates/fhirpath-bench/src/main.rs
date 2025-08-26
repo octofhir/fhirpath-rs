@@ -134,7 +134,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let mut results = Vec::new();
 
     // Setup for evaluation benchmarks
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
+    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing FhirSchemaModelProvider R5...");

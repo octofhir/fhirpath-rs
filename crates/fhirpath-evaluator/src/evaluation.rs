@@ -429,7 +429,7 @@ impl crate::FhirPathEngine {
         context: &LocalEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
         // Get the Is operation from the registry and delegate to it
-        if self.registry().has_function("is") {
+        if self.registry().has_function("is").await {
             let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
                 input: left.clone(),
                 root: context.root.clone(),

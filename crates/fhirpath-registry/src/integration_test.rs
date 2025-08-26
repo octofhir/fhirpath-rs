@@ -18,7 +18,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unified_registry_comprehensive() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         // Test sync string operations
         let context = create_test_context(FhirPathValue::String("hello world".into()));
@@ -32,7 +32,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_math_operations() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         // Test math operations
         let context = create_test_context(FhirPathValue::Integer(-42));
@@ -48,7 +48,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_collection_operations() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         // Test collection operations
         let collection =
@@ -68,7 +68,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_datetime_operations() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         let context = create_test_context(FhirPathValue::Empty);
 
@@ -82,43 +82,43 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_first_async_fallback() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         let context = create_test_context(FhirPathValue::String("test".into()));
 
         // Test that sync operations can be evaluated synchronously
-        let sync_result = registry.try_evaluate_sync("length", &[], &context);
+        let sync_result = registry.try_evaluate_sync("length", &[], &context).await;
         assert!(sync_result.is_some());
         assert_eq!(sync_result.unwrap().unwrap(), FhirPathValue::Integer(4));
 
         // Test that async operations return None for sync evaluation
-        let async_result = registry.try_evaluate_sync("now", &[], &context);
+        let async_result = registry.try_evaluate_sync("now", &[], &context).await;
         assert!(async_result.is_none());
     }
 
     #[tokio::test]
     async fn test_registry_metadata() {
-        let registry = create_standard_registry();
+        let registry = create_standard_registry().await;
 
         // Test registry queries
-        assert!(registry.has_function("length"));
-        assert!(registry.has_function("count"));
-        assert!(registry.has_function("abs"));
-        assert!(registry.has_function("now"));
-        assert!(!registry.has_function("unknownFunction"));
+        assert!(registry.has_function("length").await);
+        assert!(registry.has_function("count").await);
+        assert!(registry.has_function("abs").await);
+        assert!(registry.has_function("now").await);
+        assert!(!registry.has_function("unknownFunction").await);
 
         // Test sync support queries
-        assert!(registry.supports_sync("length"));
-        assert!(registry.supports_sync("count"));
-        assert!(registry.supports_sync("abs"));
-        assert!(!registry.supports_sync("now")); // async operation
+        assert!(registry.supports_sync("length").await);
+        assert!(registry.supports_sync("count").await);
+        assert!(registry.supports_sync("abs").await);
+        assert!(!registry.supports_sync("now").await); // async operation
 
         // Test function enumeration
-        let names = registry.function_names();
+        let names = registry.function_names().await;
         assert!(names.len() > 50); // We should have many operations registered
 
         // Test stats
-        let stats = registry.stats();
+        let stats = registry.stats().await;
         assert!(stats.sync_operations > 0);
         assert!(stats.async_operations > 0);
         assert_eq!(

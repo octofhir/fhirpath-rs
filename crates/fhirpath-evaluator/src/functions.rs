@@ -53,7 +53,7 @@ impl crate::FhirPathEngine {
         };
 
         // Delegate to registry
-        if self.registry().has_function(&func_data.name) {
+        if self.registry().has_function(&func_data.name).await {
             self.registry()
                 .evaluate(&func_data.name, &evaluated_args, &registry_context)
                 .await

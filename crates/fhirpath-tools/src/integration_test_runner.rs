@@ -160,7 +160,7 @@ impl IntegrationTestRunner {
             }
         };
 
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone());
 
         Self {

@@ -352,7 +352,7 @@ impl NavigationEvaluator {
         registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if registry.has_function("children") {
+        if registry.has_function("children").await {
             registry
                 .evaluate("children", &[], context)
                 .await
@@ -372,7 +372,7 @@ impl NavigationEvaluator {
         registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if registry.has_function("descendants") {
+        if registry.has_function("descendants").await {
             registry
                 .evaluate("descendants", &[], context)
                 .await
@@ -393,7 +393,7 @@ impl NavigationEvaluator {
         registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if registry.has_function("ofType") {
+        if registry.has_function("ofType").await {
             registry
                 .evaluate("ofType", &[type_name.clone()], context)
                 .await
@@ -414,7 +414,7 @@ impl NavigationEvaluator {
         registry: &Arc<FunctionRegistry>,
         context: &RegistryEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        if registry.has_function("is") {
+        if registry.has_function("is").await {
             registry
                 .evaluate("is", &[type_name.clone()], context)
                 .await

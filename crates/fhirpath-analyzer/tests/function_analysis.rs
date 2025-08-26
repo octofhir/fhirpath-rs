@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[tokio::test]
 async fn test_function_signature_validation() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry());
+    let registry = Arc::new(create_standard_registry().await);
 
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
@@ -29,7 +29,7 @@ async fn test_function_signature_validation() -> Result<(), Box<dyn std::error::
 #[tokio::test]
 async fn test_unknown_function() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry());
+    let registry = Arc::new(create_standard_registry().await);
 
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
@@ -61,7 +61,7 @@ async fn test_unknown_function() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn test_function_with_parameters() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry());
+    let registry = Arc::new(create_standard_registry().await);
 
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
@@ -107,7 +107,7 @@ async fn test_analyzer_without_function_registry() -> Result<(), Box<dyn std::er
 #[tokio::test]
 async fn test_nested_function_calls() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry());
+    let registry = Arc::new(create_standard_registry().await);
 
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
@@ -142,7 +142,7 @@ async fn test_nested_function_calls() -> Result<(), Box<dyn std::error::Error>> 
 #[tokio::test]
 async fn test_function_validation_errors() -> Result<(), Box<dyn std::error::Error>> {
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry());
+    let registry = Arc::new(create_standard_registry().await);
 
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 

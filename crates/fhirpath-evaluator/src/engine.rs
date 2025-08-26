@@ -484,7 +484,7 @@ impl FhirPathEngine {
     pub async fn with_mock_provider() -> EvaluationResult<Self> {
         use octofhir_fhirpath_model::MockModelProvider;
 
-        let registry = octofhir_fhirpath_registry::create_standard_registry();
+        let registry = octofhir_fhirpath_registry::create_standard_registry().await;
 
         let model_provider = Arc::new(MockModelProvider::new());
         Ok(Self::new(Arc::new(registry), model_provider))
@@ -516,7 +516,7 @@ impl FhirPathEngine {
     pub async fn with_model_provider(
         model_provider: Arc<dyn ModelProvider>,
     ) -> EvaluationResult<Self> {
-        let registry = octofhir_fhirpath_registry::create_standard_registry();
+        let registry = octofhir_fhirpath_registry::create_standard_registry().await;
         Ok(Self::new(Arc::new(registry), model_provider))
     }
 
@@ -1663,7 +1663,7 @@ impl FhirPathEngine {
                         }
                         _ => {
                             // Fallback to registry for other lambda functions not yet moved to engine
-                            if self.registry().has_function(method_name) {
+                            if self.registry().has_function(method_name).await {
                                 // Create registry context with the object as input for the lambda and variables from engine context
                                 let all_variables = context.variable_scope.collect_all_variables();
                                 let registry_context =
@@ -1782,7 +1782,7 @@ impl FhirPathEngine {
                     }
 
                     // Get method from registry and evaluate
-                    if self.registry().has_function(method_name) {
+                    if self.registry().has_function(method_name).await {
                         // Create registry context with the object as input (context) for the method
                         let registry_context =
                             octofhir_fhirpath_registry::traits::EvaluationContext {

@@ -6,61 +6,128 @@
 //!
 //! # Design Philosophy
 //!
-//! - **Simple HashMap storage**: No complex caching or optimization
+//! - **Shared core implementation**: Eliminates code duplication via RegistryCore
 //! - **Separate sync/async registries**: Clear separation of operation types
 //! - **Fast dispatch**: Sync-first lookup for performance
 //! - **Easy registration**: Simple function calls, no builders
 //! - **Thread-safe**: Uses Arc and RwLock for concurrent access
 
+use crate::registry_core::{RegistryCore, OperationLookupResult, RegistryOperation};
 use crate::traits::{AsyncOperation, EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+
+/// Wrapper for sync operations to implement RegistryOperation
+pub struct SyncOperationWrapper {
+    inner: Box<dyn SyncOperation>,
+}
+
+impl std::fmt::Debug for SyncOperationWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SyncOperationWrapper")
+            .field("operation", &self.inner.name())
+            .finish()
+    }
+}
+
+impl SyncOperationWrapper {
+    pub fn new(operation: Box<dyn SyncOperation>) -> Box<Self> {
+        Box::new(Self { inner: operation })
+    }
+}
+
+impl RegistryOperation for SyncOperationWrapper {
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+    
+    fn signature(&self) -> &crate::signature::FunctionSignature {
+        self.inner.signature()
+    }
+}
+
+impl SyncOperationWrapper {
+    /// Execute the wrapped sync operation
+    pub fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+        self.inner.execute(args, context)
+    }
+}
+
+/// Wrapper for async operations to implement RegistryOperation  
+pub struct AsyncOperationWrapper {
+    inner: Box<dyn AsyncOperation>,
+}
+
+impl std::fmt::Debug for AsyncOperationWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncOperationWrapper")
+            .field("operation", &self.inner.name())
+            .finish()
+    }
+}
+
+impl AsyncOperationWrapper {
+    pub fn new(operation: Box<dyn AsyncOperation>) -> Box<Self> {
+        Box::new(Self { inner: operation })
+    }
+}
+
+impl RegistryOperation for AsyncOperationWrapper {
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+    
+    fn signature(&self) -> &crate::signature::FunctionSignature {
+        self.inner.signature()
+    }
+}
+
+impl AsyncOperationWrapper {
+    /// Execute the wrapped async operation
+    pub async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+        self.inner.execute(args, context).await
+    }
+}
 
 /// Registry for synchronous operations
 ///
-/// Stores sync operations in a simple HashMap for O(1) lookup.
+/// Uses RegistryCore for shared functionality with optimized sync execution.
 /// Thread-safe using RwLock for concurrent read access.
 pub struct SyncRegistry {
-    operations: RwLock<HashMap<String, Box<dyn SyncOperation>>>,
+    core: RegistryCore<SyncOperationWrapper>,
 }
 
 impl SyncRegistry {
     /// Create a new empty sync registry
     pub fn new() -> Self {
         Self {
-            operations: RwLock::new(HashMap::new()),
+            core: RegistryCore::new(),
         }
     }
 
     /// Register a sync operation
     pub async fn register(&self, operation: Box<dyn SyncOperation>) {
-        let name = operation.name().to_string();
-        let mut ops = self.operations.write().await;
-        ops.insert(name, operation);
+        let wrapped = SyncOperationWrapper::new(operation);
+        self.core.register(wrapped).await;
     }
 
     /// Register multiple sync operations at once
     pub async fn register_many(&self, operations: Vec<Box<dyn SyncOperation>>) {
-        let mut ops = self.operations.write().await;
-        for operation in operations {
-            let name = operation.name().to_string();
-            ops.insert(name, operation);
-        }
+        let wrapped: Vec<_> = operations.into_iter()
+            .map(|op| SyncOperationWrapper::new(op))
+            .collect();
+        self.core.register_many(wrapped).await;
     }
 
     /// Check if an operation is registered
     pub async fn contains(&self, name: &str) -> bool {
-        let ops = self.operations.read().await;
-        ops.contains_key(name)
+        self.core.contains(name).await
     }
 
     /// Get operation names (for debugging/introspection)
     pub async fn get_operation_names(&self) -> Vec<String> {
-        let ops = self.operations.read().await;
-        ops.keys().cloned().collect()
+        self.core.get_operation_names().await
     }
 
     /// Execute a sync operation
@@ -70,25 +137,26 @@ impl SyncRegistry {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        let ops = self.operations.read().await;
-
-        if let Some(operation) = ops.get(name) {
-            // Validate arguments before execution
-            operation.validate_args(args)?;
-
-            // Execute synchronously (no await needed)
-            operation.execute(args, context)
-        } else {
-            Err(FhirPathError::UnknownFunction {
-                function_name: name.to_string(),
-            })
+        match self.core.lookup_and_validate(name, args).await? {
+            OperationLookupResult::Found => {
+                // Execute the operation through the core
+                self.core.with_operation(name, |operation| {
+                    // Execute synchronously (no await needed)
+                    operation.execute(args, context)
+                }).await
+                .unwrap() // Safe because we just validated the operation exists
+            }
+            OperationLookupResult::NotFound => {
+                Err(FhirPathError::UnknownFunction {
+                    function_name: name.to_string(),
+                })
+            }
         }
     }
 
     /// Get the signature of an operation (for validation/documentation)
     pub async fn get_signature(&self, name: &str) -> Option<crate::signature::FunctionSignature> {
-        let ops = self.operations.read().await;
-        ops.get(name).map(|op| op.signature().clone())
+        self.core.get_signature(name).await
     }
 }
 
@@ -100,46 +168,42 @@ impl Default for SyncRegistry {
 
 /// Registry for asynchronous operations
 ///
-/// Stores async operations in a simple HashMap for O(1) lookup.
+/// Uses RegistryCore for shared functionality with async execution.
 /// Thread-safe using RwLock for concurrent read access.
 pub struct AsyncRegistry {
-    operations: RwLock<HashMap<String, Box<dyn AsyncOperation>>>,
+    core: RegistryCore<AsyncOperationWrapper>,
 }
 
 impl AsyncRegistry {
     /// Create a new empty async registry
     pub fn new() -> Self {
         Self {
-            operations: RwLock::new(HashMap::new()),
+            core: RegistryCore::new(),
         }
     }
 
     /// Register an async operation
     pub async fn register(&self, operation: Box<dyn AsyncOperation>) {
-        let name = operation.name().to_string();
-        let mut ops = self.operations.write().await;
-        ops.insert(name, operation);
+        let wrapped = AsyncOperationWrapper::new(operation);
+        self.core.register(wrapped).await;
     }
 
     /// Register multiple async operations at once
     pub async fn register_many(&self, operations: Vec<Box<dyn AsyncOperation>>) {
-        let mut ops = self.operations.write().await;
-        for operation in operations {
-            let name = operation.name().to_string();
-            ops.insert(name, operation);
-        }
+        let wrapped: Vec<_> = operations.into_iter()
+            .map(|op| AsyncOperationWrapper::new(op))
+            .collect();
+        self.core.register_many(wrapped).await;
     }
 
     /// Check if an operation is registered
     pub async fn contains(&self, name: &str) -> bool {
-        let ops = self.operations.read().await;
-        ops.contains_key(name)
+        self.core.contains(name).await
     }
 
     /// Get operation names (for debugging/introspection)
     pub async fn get_operation_names(&self) -> Vec<String> {
-        let ops = self.operations.read().await;
-        ops.keys().cloned().collect()
+        self.core.get_operation_names().await
     }
 
     /// Execute an async operation
@@ -149,25 +213,34 @@ impl AsyncRegistry {
         args: &[FhirPathValue],
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
-        let ops = self.operations.read().await;
-
-        if let Some(operation) = ops.get(name) {
-            // Validate arguments before execution
-            operation.validate_args(args)?;
-
-            // Execute asynchronously
-            operation.execute(args, context).await
-        } else {
-            Err(FhirPathError::UnknownFunction {
-                function_name: name.to_string(),
-            })
+        match self.core.lookup_and_validate(name, args).await? {
+            OperationLookupResult::Found => {
+                // For async operations, we need to access the operation directly
+                // since we can't return a future from a closure
+                let ops = self.core.operations();
+                let ops_guard = ops.read().await;
+                
+                if let Some(wrapper) = ops_guard.get(name) {
+                    // Execute asynchronously through the wrapper
+                    wrapper.execute(args, context).await
+                } else {
+                    // This shouldn't happen since lookup_and_validate succeeded
+                    Err(FhirPathError::UnknownFunction {
+                        function_name: name.to_string(),
+                    })
+                }
+            }
+            OperationLookupResult::NotFound => {
+                Err(FhirPathError::UnknownFunction {
+                    function_name: name.to_string(),
+                })
+            }
         }
     }
 
     /// Get the signature of an operation (for validation/documentation)
     pub async fn get_signature(&self, name: &str) -> Option<crate::signature::FunctionSignature> {
-        let ops = self.operations.read().await;
-        ops.get(name).map(|op| op.signature().clone())
+        self.core.get_signature(name).await
     }
 }
 

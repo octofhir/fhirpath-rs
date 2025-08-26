@@ -31,11 +31,11 @@ impl FunctionAnalyzer {
         let mut validation_errors = vec![];
 
         // Check if function exists in registry and get its signature
-        if let Some(registry_signature) = self.registry.get_function_signature(name) {
+        if let Some(registry_signature) = self.registry.get_function_signature(name).await {
             // Validate argument count
             self.validate_argument_count(
                 name,
-                registry_signature,
+                &registry_signature,
                 args.len(),
                 &mut validation_errors,
             );
@@ -43,7 +43,7 @@ impl FunctionAnalyzer {
             // Validate argument types
             self.validate_argument_types(
                 name,
-                registry_signature,
+                &registry_signature,
                 args,
                 arg_types,
                 &mut validation_errors,
@@ -90,7 +90,7 @@ impl FunctionAnalyzer {
                 message: format!("Function '{name}' not found in registry"),
                 error_type: ValidationErrorType::InvalidFunction,
                 location: None,
-                suggestions: self.get_function_suggestions(name),
+                suggestions: self.get_function_suggestions(name).await,
             });
 
             // Create a fallback signature
@@ -116,7 +116,7 @@ impl FunctionAnalyzer {
     }
 
     /// Get function suggestions for unknown functions
-    fn get_function_suggestions(&self, unknown_function: &str) -> Vec<String> {
+    async fn get_function_suggestions(&self, unknown_function: &str) -> Vec<String> {
         let mut all_suggestions = Vec::new();
 
         // First, check lambda functions (these are more commonly used as methods)
@@ -141,7 +141,7 @@ impl FunctionAnalyzer {
 
         // Then check registry functions if we don't have enough suggestions
         if all_suggestions.len() < 3 {
-            let available_functions = self.registry.function_names();
+            let available_functions = self.registry.function_names().await;
             let registry_suggestions: Vec<String> = available_functions
                 .into_iter()
                 .filter(|func| self.is_similar_function_name(unknown_function, func))
@@ -237,13 +237,13 @@ impl FunctionAnalyzer {
     }
 
     /// Get available functions from registry for validation
-    pub fn get_available_functions(&self) -> Vec<String> {
-        self.registry.function_names()
+    pub async fn get_available_functions(&self) -> Vec<String> {
+        self.registry.function_names().await
     }
 
     /// Check if function supports sync evaluation
-    pub fn supports_sync(&self, name: &str) -> bool {
-        self.registry.supports_sync(name)
+    pub async fn supports_sync(&self, name: &str) -> bool {
+        self.registry.supports_sync(name).await
     }
 
     /// Validate argument count against signature
@@ -515,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn test_function_analyzer_basic() {
         let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let analyzer = FunctionAnalyzer::new(registry);
 
         // Test existing function
@@ -530,7 +530,7 @@ mod tests {
     #[tokio::test]
     async fn test_function_analyzer_unknown_function() {
         let model_provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let analyzer = FunctionAnalyzer::new(registry);
 
         // Test unknown function

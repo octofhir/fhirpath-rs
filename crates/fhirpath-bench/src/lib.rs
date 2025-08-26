@@ -186,8 +186,8 @@ pub fn bench_parse_complex(bencher: Bencher, expression: &str) {
 /// Benchmark evaluation of FHIRPath expressions
 #[divan::bench(args = BenchmarkExpressions::default().simple)]
 pub fn bench_evaluate_simple(bencher: Bencher, expression: &str) {
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
     let rt = tokio::runtime::Runtime::new().unwrap();
+    let registry = Arc::new(rt.block_on(octofhir_fhirpath_registry::create_standard_registry()));
     let model_provider = Arc::new(rt.block_on(async {
         FhirSchemaModelProvider::r5()
             .await
@@ -206,8 +206,8 @@ pub fn bench_evaluate_simple(bencher: Bencher, expression: &str) {
 
 #[divan::bench(args = BenchmarkExpressions::default().medium)]
 pub fn bench_evaluate_medium(bencher: Bencher, expression: &str) {
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
     let rt = tokio::runtime::Runtime::new().unwrap();
+    let registry = Arc::new(rt.block_on(octofhir_fhirpath_registry::create_standard_registry()));
     let model_provider = Arc::new(rt.block_on(async {
         FhirSchemaModelProvider::r5()
             .await
@@ -226,8 +226,8 @@ pub fn bench_evaluate_medium(bencher: Bencher, expression: &str) {
 
 #[divan::bench(args = BenchmarkExpressions::default().complex)]
 pub fn bench_evaluate_complex(bencher: Bencher, expression: &str) {
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
     let rt = tokio::runtime::Runtime::new().unwrap();
+    let registry = Arc::new(rt.block_on(octofhir_fhirpath_registry::create_standard_registry()));
     let model_provider = Arc::new(rt.block_on(async {
         FhirSchemaModelProvider::r5()
             .await

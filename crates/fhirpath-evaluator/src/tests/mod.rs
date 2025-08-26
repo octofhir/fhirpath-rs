@@ -30,7 +30,7 @@ impl TestUtils {
             max_collection_size: 100000,
         };
 
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let model_provider = Arc::new(MockModelProvider::empty());
 
         Ok(FhirPathEngine::new(registry, model_provider).with_config(config))
