@@ -102,12 +102,14 @@ pub struct BindingInfo {
 }
 
 impl ProfileResolver {
-    /// Convert serde_json::Value to sonic_rs::Value using string conversion
+    /// Convert serde_json::Value to sonic_rs::Value using optimized string conversion
     fn convert_json_value(value: &serde_json::Value) -> sonic_rs::Value {
-        // Since serde_json is not in dependencies but is used by octofhir-fhirschema,
-        // we need to serialize to string and then parse with sonic_rs
-        let json_str = value.to_string();
-        sonic_rs::from_str(&json_str).unwrap_or(sonic_rs::Value::new_null())
+        // Convert between JSON libraries - external dependency (octofhir-fhirschema) uses serde_json
+        // We standardize on sonic_rs internally for better performance
+        match serde_json::to_string(value) {
+            Ok(json_str) => sonic_rs::from_str(&json_str).unwrap_or(sonic_rs::Value::new_null()),
+            Err(_) => sonic_rs::Value::new_null(),
+        }
     }
     /// Create a new profile resolver
     pub fn new() -> Self {

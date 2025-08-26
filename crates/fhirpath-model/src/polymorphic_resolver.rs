@@ -932,33 +932,8 @@ pub struct CacheStats {
     pub patterns_discovered: u64,
 }
 
-/// Polymorphic resolver factory for easy creation
-pub struct PolymorphicResolverFactory;
-
-impl PolymorphicResolverFactory {
-    /// Create a new resolver that dynamically discovers choice types from FHIRSchema
-    pub fn create_dynamic_resolver(
-        model_provider: Arc<dyn ModelProvider>,
-    ) -> PolymorphicPathResolver {
-        PolymorphicPathResolver::new(model_provider)
-    }
-
-    /// Create resolver with FHIRSchema discovery
-    pub async fn create_with_schema(
-        model_provider: Arc<dyn ModelProvider>,
-        schema: &Value,
-        choice_mapper: Option<Arc<ChoiceTypeMapper>>,
-    ) -> Result<PolymorphicPathResolver, FhirPathError> {
-        PolymorphicPathResolver::new_with_schema_discovery(model_provider, schema, choice_mapper)
-            .await
-    }
-
-    /// Create resolver with default FHIR R4 patterns only
-    pub fn create_default(model_provider: Arc<dyn ModelProvider>) -> PolymorphicPathResolver {
-        let mapper = Arc::new(ChoiceTypeMapper::new_fhir_r4());
-        PolymorphicPathResolver::new_with_mapper(model_provider, mapper)
-    }
-}
+// Re-export factory utilities from the dedicated module
+pub use crate::polymorphic_factory::PolymorphicResolverFactory;
 
 #[cfg(test)]
 mod tests {

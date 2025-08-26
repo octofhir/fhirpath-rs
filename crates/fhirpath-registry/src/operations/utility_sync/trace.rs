@@ -38,9 +38,9 @@ impl SyncOperation for TraceFunction {
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
         let label = if args.is_empty() {
-            "trace".to_string()
+            "trace"
         } else {
-            args[0].as_string().unwrap_or("trace").to_string()
+            args[0].as_string().unwrap_or("trace")
         };
 
         // Output trace information (configurable via environment)

@@ -217,7 +217,7 @@ async fn handle_evaluate(
         }
     };
     // Create registries for the SendSafe engine using standard registries
-    let registry = octofhir_fhirpath_registry::create_standard_registry();
+    let registry = octofhir_fhirpath_registry::create_standard_registry().await;
 
     // Use the unified FhirPathEngine as default (thread-safe by design)
     let engine =

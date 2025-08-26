@@ -15,7 +15,6 @@
 //! Test coverage generation and reporting
 
 use anyhow::Result;
-// use serde_json::Value; // Currently unused
 use std::collections::HashMap;
 
 /// Test coverage generator
