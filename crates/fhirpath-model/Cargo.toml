@@ -52,9 +52,7 @@ sonic-rs = { workspace = true }
 # For compatibility with octofhir-fhirschema (temporary until schema uses sonic-rs)
 serde_json = "1.0"
 
-# Lock-free data structures for enhanced caching
-crossbeam = "0.8"
-crossbeam-epoch = "0.9"
+# Simple LRU cache (already in workspace dependencies)
 
 # Background loading dependencies
 priority-queue = "2.0"

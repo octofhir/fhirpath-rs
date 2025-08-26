@@ -14,19 +14,18 @@
 
 //! Profile resolution and constraint handling system
 
-use super::legacy_cache::TypeCache;
+use super::cache::Cache;
 use super::provider::*;
 use octofhir_fhirschema::{Element as FhirSchemaElement, FhirSchema};
 use std::collections::HashMap;
-use std::sync::Arc;
 use url::Url;
 
 /// Profile resolver for FHIR profiles and constraints
 pub struct ProfileResolver {
     /// Cache for resolved profiles
-    profile_cache: Arc<TypeCache<ResolvedProfile>>,
+    profile_cache: Cache<String, ResolvedProfile>,
     /// Cache for constraint information
-    constraint_cache: Arc<TypeCache<Vec<ConstraintInfo>>>,
+    constraint_cache: Cache<String, Vec<ConstraintInfo>>,
 }
 
 /// A resolved profile with merged constraints and elements
@@ -113,23 +112,19 @@ impl ProfileResolver {
     /// Create a new profile resolver
     pub fn new() -> Self {
         Self {
-            profile_cache: Arc::new(TypeCache::new()),
-            constraint_cache: Arc::new(TypeCache::new()),
+            profile_cache: Cache::new(1000), // Default capacity for profiles
+            constraint_cache: Cache::new(2000), // Default capacity for constraints
         }
     }
 
     /// Create with custom cache configuration
     pub fn with_cache_config(cache_config: super::cache::CacheConfig) -> Self {
-        // Convert new cache config to legacy cache config
-        let legacy_config = super::legacy_cache::CacheConfig {
-            max_size: cache_config.cold_cache_size,
-            ttl: std::time::Duration::from_secs(300), // Default TTL
-            enable_stats: true,
-        };
+        let profile_capacity = cache_config.capacity.max(100);
+        let constraint_capacity = (cache_config.capacity * 2).max(200);
 
         Self {
-            profile_cache: Arc::new(TypeCache::with_config(legacy_config.clone())),
-            constraint_cache: Arc::new(TypeCache::with_config(legacy_config)),
+            profile_cache: Cache::new(profile_capacity),
+            constraint_cache: Cache::new(constraint_capacity),
         }
     }
 
@@ -219,7 +214,7 @@ impl ProfileResolver {
         };
 
         // Cache the result
-        self.profile_cache.put(cache_key, resolved.clone());
+        self.profile_cache.insert(cache_key, resolved.clone());
 
         Ok(resolved)
     }
@@ -251,7 +246,7 @@ impl ProfileResolver {
         }
 
         // Cache the result
-        self.constraint_cache.put(cache_key, constraints.clone());
+        self.constraint_cache.insert(cache_key, constraints.clone());
 
         constraints
     }
@@ -588,10 +583,15 @@ impl ProfileResolver {
     pub fn cache_stats(
         &self,
     ) -> (
-        super::legacy_cache::CacheStats,
-        super::legacy_cache::CacheStats,
+        super::cache::CacheStats,
+        super::cache::CacheStats,
     ) {
         (self.profile_cache.stats(), self.constraint_cache.stats())
+    }
+
+    /// Get cache sizes
+    pub fn cache_sizes(&self) -> (usize, usize) {
+        (self.profile_cache.len(), self.constraint_cache.len())
     }
 }
 
@@ -608,9 +608,9 @@ mod tests {
     #[test]
     fn test_profile_resolver_creation() {
         let resolver = ProfileResolver::new();
-        let (profile_stats, constraint_stats) = resolver.cache_stats();
-        assert_eq!(profile_stats.size, 0);
-        assert_eq!(constraint_stats.size, 0);
+        let (profile_size, constraint_size) = resolver.cache_sizes();
+        assert_eq!(profile_size, 0);
+        assert_eq!(constraint_size, 0);
     }
 
     #[test]
@@ -668,8 +668,8 @@ mod tests {
 
         // Test cache clearing
         resolver.clear_cache();
-        let (profile_stats, constraint_stats) = resolver.cache_stats();
-        assert_eq!(profile_stats.size, 0);
-        assert_eq!(constraint_stats.size, 0);
+        let (profile_size, constraint_size) = resolver.cache_sizes();
+        assert_eq!(profile_size, 0);
+        assert_eq!(constraint_size, 0);
     }
 }

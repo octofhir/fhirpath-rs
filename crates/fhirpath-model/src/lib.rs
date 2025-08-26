@@ -49,14 +49,11 @@ pub mod types;
 pub mod value;
 
 // Re-export main types
-pub use cache::{
-    AccessPatternTracker, AccessSource, CacheConfig, CacheManager, CacheMetrics, CacheTier,
-    LockFreeCache, TierStats,
-};
+pub use cache::{Cache, CacheConfig, CacheStats};
 pub use choice_type_mapper::{ChoiceTypeMapper, ChoiceVariant, SharedChoiceTypeMapper};
 pub use fhirschema_provider::FhirSchemaModelProvider;
 pub use polymorphic_resolver::{
-    CacheStats, PolymorphicPathResolver, PolymorphicResolverFactory, ResolvedPath,
+    PolymorphicPathResolver, PolymorphicResolverFactory, ResolvedPath,
 };
 // JsonParser functionality is integrated into JsonValue directly
 pub use json_value::JsonValue;
