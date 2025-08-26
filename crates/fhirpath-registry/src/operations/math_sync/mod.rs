@@ -14,10 +14,10 @@ pub mod truncate;
 
 // Arithmetic operations
 pub mod add;
-pub mod subtract;
-pub mod multiply;
 pub mod divide;
 pub mod modulo;
+pub mod multiply;
+pub mod subtract;
 
 pub use abs::SimpleAbsFunction;
 pub use ceiling::SimpleCeilingFunction;
@@ -33,25 +33,20 @@ pub use truncate::SimpleTruncateFunction;
 
 // Arithmetic operations
 pub use add::SimpleAddFunction;
-pub use subtract::SimpleSubtractFunction;
-pub use multiply::SimpleMultiplyFunction;
 pub use divide::SimpleDivideFunction;
 pub use modulo::SimpleModuloFunction;
+pub use multiply::SimpleMultiplyFunction;
+pub use subtract::SimpleSubtractFunction;
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
-    use super::*;
-    use crate::signature::ValueType;
-    use crate::traits::{EvaluationContext, SyncOperation};
+
+    use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::FhirPathValue;
-    use std::str::FromStr;
 
     fn create_test_context(input: FhirPathValue) -> EvaluationContext {
-        EvaluationContext {
-            input,
-            model_provider: std::sync::Arc::new(octofhir_fhirpath_model::MockModelProvider::new()),
-            variables: rustc_hash::FxHashMap::default(),
-        }
+        let model_provider = std::sync::Arc::new(octofhir_fhirpath_model::MockModelProvider::new());
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -66,9 +61,14 @@ mod tests {
         assert_eq!(result, FhirPathValue::Integer(5));
 
         // Test with negative decimal
-        let context = create_test_context(FhirPathValue::Decimal(rust_decimal::Decimal::from_str("-3.14").unwrap()));
+        let context = create_test_context(FhirPathValue::Decimal(
+            rust_decimal::Decimal::from_str("-3.14").unwrap(),
+        ));
         let result = func.execute(&[], &context).unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.14").unwrap()));
+        assert_eq!(
+            result,
+            FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.14").unwrap())
+        );
     }
 
     #[test]
@@ -79,7 +79,10 @@ mod tests {
         // Test with positive integer
         let context = create_test_context(FhirPathValue::Integer(9));
         let result = func.execute(&[], &context).unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.0").unwrap()));
+        assert_eq!(
+            result,
+            FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.0").unwrap())
+        );
 
         // Test with negative number should error
         let context = create_test_context(FhirPathValue::Integer(-4));
@@ -93,7 +96,9 @@ mod tests {
         assert_eq!(func.name(), "ceiling");
 
         // Test with decimal
-        let context = create_test_context(FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.2").unwrap()));
+        let context = create_test_context(FhirPathValue::Decimal(
+            rust_decimal::Decimal::from_str("3.2").unwrap(),
+        ));
         let result = func.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Integer(4));
 
@@ -109,7 +114,9 @@ mod tests {
         assert_eq!(func.name(), "floor");
 
         // Test with decimal
-        let context = create_test_context(FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.8").unwrap()));
+        let context = create_test_context(FhirPathValue::Decimal(
+            rust_decimal::Decimal::from_str("3.8").unwrap(),
+        ));
         let result = func.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Integer(3));
     }
@@ -120,13 +127,22 @@ mod tests {
         assert_eq!(func.name(), "round");
 
         // Test with decimal, no precision
-        let context = create_test_context(FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.7").unwrap()));
+        let context = create_test_context(FhirPathValue::Decimal(
+            rust_decimal::Decimal::from_str("3.7").unwrap(),
+        ));
         let result = func.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Integer(4));
 
         // Test with precision
-        let context = create_test_context(FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.14159").unwrap()));
-        let result = func.execute(&[FhirPathValue::Integer(2)], &context).unwrap();
-        assert_eq!(result, FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.14").unwrap()));
+        let context = create_test_context(FhirPathValue::Decimal(
+            rust_decimal::Decimal::from_str("3.14159").unwrap(),
+        ));
+        let result = func
+            .execute(&[FhirPathValue::Integer(2)], &context)
+            .unwrap();
+        assert_eq!(
+            result,
+            FhirPathValue::Decimal(rust_decimal::Decimal::from_str("3.14").unwrap())
+        );
     }
 }

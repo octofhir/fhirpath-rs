@@ -14,33 +14,33 @@
 
 //! Simplified FHIRPath operations
 //!
-//! This module contains clean implementations of FHIRPath operations split into 
+//! This module contains clean implementations of FHIRPath operations split into
 //! sync and async categories based on their actual needs.
 
 // New simplified sync operations (80% of operations)
-pub mod cda_sync;           // CDA document operations
-pub mod collection_sync;    // Collection operations (count, first, etc.)
-pub mod conversion_sync;    // Type conversion operations (toString, toInteger, etc.)
-pub mod datetime_sync;      // DateTime extraction operations (dayOf, hourOf, etc.)
-pub mod fhir_sync;         // FHIR data traversal operations (children, descendants)
-pub mod logical_sync;      // Logical operations (not)
-pub mod math_sync;         // Mathematical operations (abs, sqrt, etc.)
-pub mod string_sync;       // String operations (length, contains, etc.)
-pub mod utility_sync;      // Utility operations (encode, decode, etc.)
+pub mod cda_sync; // CDA document operations
+pub mod collection_sync; // Collection operations (count, first, etc.)
+pub mod conversion_sync; // Type conversion operations (toString, toInteger, etc.)
+pub mod datetime_sync; // DateTime extraction operations (dayOf, hourOf, etc.)
+pub mod fhir_sync; // FHIR data traversal operations (children, descendants)
+pub mod logical_sync; // Logical operations (not)
+pub mod math_sync; // Mathematical operations (abs, sqrt, etc.)
+pub mod string_sync; // String operations (length, contains, etc.)
+pub mod utility_sync; // Utility operations (encode, decode, etc.)
 
 // New simplified async operations (20% of operations)
-pub mod datetime_async;    // System datetime operations (now, today)
-pub mod fhir_async;       // FHIR operations requiring ModelProvider (resolve, conforms_to)
-pub mod types_async;      // Type operations requiring ModelProvider (as, is, type)
+pub mod datetime_async; // System datetime operations (now, today)
+pub mod fhir_async; // FHIR operations requiring ModelProvider (resolve, conforms_to)
+pub mod types_async; // Type operations requiring ModelProvider (as, is, type)
 
 // Re-exports for convenience
 pub use cda_sync::*;
 pub use collection_sync::*;
 pub use conversion_sync::*;
-pub use datetime_sync::*;
 pub use datetime_async::*;
-pub use fhir_sync::*;
+pub use datetime_sync::*;
 pub use fhir_async::*;
+pub use fhir_sync::*;
 pub use logical_sync::*;
 pub use math_sync::*;
 pub use string_sync::*;

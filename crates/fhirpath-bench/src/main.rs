@@ -123,7 +123,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath_evaluator::FhirPathEngine;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
-    use octofhir_fhirpath_registry::FunctionRegistry;
+
     use std::sync::Arc;
     use std::time::Instant;
 

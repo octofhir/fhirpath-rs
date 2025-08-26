@@ -212,7 +212,7 @@ impl Collection {
     }
 
     /// Create a collection from an iterator (more efficient than collect + from_vec)
-    pub fn from_iter<I: IntoIterator<Item = FhirPathValue>>(iter: I) -> Self {
+    pub fn from_iterator<I: IntoIterator<Item = FhirPathValue>>(iter: I) -> Self {
         Self(iter.into_iter().collect::<Vec<_>>().into())
     }
 
@@ -1282,7 +1282,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// Get a reference to the inner value
-    pub fn as_ref(&self) -> &FhirPathValue {
+    pub fn get_value(&self) -> &FhirPathValue {
         &self.value
     }
 

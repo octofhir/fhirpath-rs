@@ -3,7 +3,6 @@ use anyhow::Result;
 use octofhir_fhirpath_evaluator::FhirPathEngine;
 use octofhir_fhirpath_model::FhirSchemaModelProvider;
 use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
-use octofhir_fhirpath_registry::FunctionRegistry;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;

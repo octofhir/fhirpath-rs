@@ -1,7 +1,7 @@
 //! Resolve function implementation - async version (simplified)
 
-use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
+use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
@@ -49,18 +49,21 @@ impl AsyncOperation for ResolveFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "resolve",
                 parameters: vec![],
                 return_type: ValueType::Any,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_no_args(args, "resolve")?;
 
         // resolve() is async-only - requires ModelProvider

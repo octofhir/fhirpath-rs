@@ -159,18 +159,6 @@ pub fn parse_fhirpath_time(time_str: &str) -> Result<PrecisionTime, String> {
     Ok(PrecisionTime::new(time, precision))
 }
 
-/// Parse time with timezone information
-pub fn parse_fhirpath_time_with_tz(
-    time_str: &str,
-) -> Result<(chrono::NaiveTime, chrono::FixedOffset), String> {
-    let (time_part, tz_part) = split_time_timezone(time_str);
-
-    let time = parse_time_components(time_part)?;
-    let offset = parse_timezone_offset(tz_part)?;
-
-    Ok((time, offset))
-}
-
 /// Split time string into time and timezone parts
 pub fn split_time_timezone(time_str: &str) -> (&str, Option<&str>) {
     if let Some(pos) = time_str.find('Z') {

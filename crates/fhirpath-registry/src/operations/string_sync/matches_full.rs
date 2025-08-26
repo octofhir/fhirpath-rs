@@ -27,16 +27,21 @@ impl SyncOperation for SimpleMatchesFullFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "matchesFull",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "matchesFull",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -51,7 +56,7 @@ impl SyncOperation for SimpleMatchesFullFunction {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 return Err(FhirPathError::TypeError {
-                    message: "matchesFull() pattern argument must be a string".to_string()
+                    message: "matchesFull() pattern argument must be a string".to_string(),
                 });
             }
         };
@@ -67,26 +72,27 @@ impl SyncOperation for SimpleMatchesFullFunction {
                 let anchored_pattern = if pattern.starts_with('^') && pattern.ends_with('$') {
                     pattern.to_string()
                 } else if pattern.starts_with('^') {
-                    format!("{}$", pattern)
+                    format!("{pattern}$")
                 } else if pattern.ends_with('$') {
-                    format!("^{}", pattern)
+                    format!("^{pattern}")
                 } else {
-                    format!("^{}$", pattern)
+                    format!("^{pattern}$")
                 };
 
-                let regex = Regex::new(&anchored_pattern).map_err(|e| FhirPathError::EvaluationError {
-                    expression: None,
-                    location: None,
-                    message: format!("Invalid regex pattern '{}': {}", pattern, e),
-                })?;
+                let regex =
+                    Regex::new(&anchored_pattern).map_err(|e| FhirPathError::EvaluationError {
+                        expression: None,
+                        location: None,
+                        message: format!("Invalid regex pattern '{pattern}': {e}"),
+                    })?;
 
                 let matches = regex.is_match(s.as_ref());
                 Ok(FhirPathValue::Boolean(matches))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::TypeError {
-                message: "matchesFull() can only be called on string values".to_string()
-            })
+                message: "matchesFull() can only be called on string values".to_string(),
+            }),
         }
     }
 }

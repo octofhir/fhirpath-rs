@@ -1,7 +1,7 @@
 //! Children function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
 
@@ -75,18 +75,21 @@ impl SyncOperation for ChildrenFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "children",
                 parameters: vec![],
                 return_type: ValueType::Collection,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_no_args(args, "children")?;
 
         // For children(), we operate on the focus (current context)

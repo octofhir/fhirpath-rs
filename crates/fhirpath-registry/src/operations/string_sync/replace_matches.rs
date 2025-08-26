@@ -113,16 +113,21 @@ impl SyncOperation for SimpleReplaceMatchesFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "replaceMatches",
-            parameters: vec![ParameterType::String, ParameterType::String],
-            return_type: ValueType::String,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "replaceMatches",
+                parameters: vec![ParameterType::String, ParameterType::String],
+                return_type: ValueType::String,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 2 {
             return Err(FhirPathError::InvalidArgumentCount {

@@ -27,16 +27,21 @@ impl SyncOperation for SimpleRoundFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "round",
-            parameters: vec![ParameterType::Integer], // Optional precision parameter
-            return_type: ValueType::Any,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "round",
+                parameters: vec![ParameterType::Integer], // Optional precision parameter
+                return_type: ValueType::Any,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments - round can take 0 or 1 argument
         if args.len() > 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -75,7 +80,9 @@ impl SyncOperation for SimpleRoundFunction {
                 } else {
                     let multiplier = 10_f64.powi(precision as i32);
                     let result = (value * multiplier).round() / multiplier;
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Quantity(q) => {
@@ -86,7 +93,10 @@ impl SyncOperation for SimpleRoundFunction {
                     let multiplier = 10_f64.powi(precision as i32);
                     (value * multiplier).round() / multiplier
                 };
-                Ok(FhirPathValue::quantity(rust_decimal::Decimal::try_from(result).unwrap_or_default(), q.unit.clone()))
+                Ok(FhirPathValue::quantity(
+                    rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    q.unit.clone(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {

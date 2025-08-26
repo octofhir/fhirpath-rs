@@ -26,16 +26,21 @@ impl SyncOperation for SimpleToCharsFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "toChars",
-            parameters: vec![],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "toChars",
+                parameters: vec![],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -47,7 +52,8 @@ impl SyncOperation for SimpleToCharsFunction {
 
         match &context.input {
             FhirPathValue::String(s) => {
-                let chars: Vec<FhirPathValue> = s.chars()
+                let chars: Vec<FhirPathValue> = s
+                    .chars()
                     .map(|c| FhirPathValue::String(c.to_string().into()))
                     .collect();
                 Ok(FhirPathValue::Collection(chars.into()))
@@ -56,13 +62,14 @@ impl SyncOperation for SimpleToCharsFunction {
             _ => {
                 // Try to convert to string first
                 if let Some(string_val) = context.input.to_string_value() {
-                    let chars: Vec<FhirPathValue> = string_val.chars()
+                    let chars: Vec<FhirPathValue> = string_val
+                        .chars()
                         .map(|c| FhirPathValue::String(c.to_string().into()))
                         .collect();
                     Ok(FhirPathValue::Collection(chars.into()))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "toChars() can only be called on string values".to_string()
+                        message: "toChars() can only be called on string values".to_string(),
                     })
                 }
             }

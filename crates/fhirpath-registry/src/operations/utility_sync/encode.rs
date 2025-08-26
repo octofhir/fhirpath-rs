@@ -1,7 +1,7 @@
 //! Encode function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
@@ -21,18 +21,21 @@ impl SyncOperation for EncodeFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "encode",
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: "encode".to_string(),
@@ -50,11 +53,13 @@ impl SyncOperation for EncodeFunction {
             "html" => html_encode(&input_string),
             "hex" => hex_encode(&input_string),
             "urlbase64" => urlbase64_encode(&input_string),
-            _ => return Err(FhirPathError::EvaluationError {
-                message: format!("Unsupported encoding: {}", encoding_type).into(),
-                expression: None,
-                location: None,
-            }),
+            _ => {
+                return Err(FhirPathError::EvaluationError {
+                    message: format!("Unsupported encoding: {encoding_type}"),
+                    expression: None,
+                    location: None,
+                });
+            }
         };
 
         Ok(FhirPathValue::String(encoded.into()))
@@ -73,7 +78,7 @@ fn base64_encode(input: &str) -> String {
 }
 
 fn url_encode(input: &str) -> String {
-    use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+    use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
     utf8_percent_encode(input, NON_ALPHANUMERIC).to_string()
 }
 
@@ -87,8 +92,9 @@ fn html_encode(input: &str) -> String {
 }
 
 fn hex_encode(input: &str) -> String {
-    input.bytes()
-        .map(|b| format!("{:02x}", b))
+    input
+        .bytes()
+        .map(|b| format!("{b:02x}"))
         .collect::<String>()
 }
 

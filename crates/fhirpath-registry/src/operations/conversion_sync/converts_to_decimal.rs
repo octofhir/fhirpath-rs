@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToDecimalFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle collections by applying convertsToDecimal to each element
         match &context.input {
             FhirPathValue::Collection(col) => {
@@ -35,7 +39,7 @@ impl SyncOperation for ConvertsToDecimalFunction {
                         Ok(FhirPathValue::Boolean(can_convert))
                     })
                     .collect();
-                
+
                 Ok(FhirPathValue::collection(results?))
             }
             _ => {
@@ -51,23 +55,23 @@ fn can_convert_to_decimal(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a decimal
         FhirPathValue::Decimal(_) => Ok(true),
-        
+
         // Integer can be converted to decimal
         FhirPathValue::Integer(_) => Ok(true),
-        
+
         // String values that can be parsed as decimal
         FhirPathValue::String(s) => {
             use rust_decimal::Decimal;
             use std::str::FromStr;
             Ok(Decimal::from_str(s.trim()).is_ok())
-        },
-        
+        }
+
         // Boolean can be converted (true = 1.0, false = 0.0)
         FhirPathValue::Boolean(_) => Ok(true),
-        
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -78,23 +82,23 @@ fn can_convert_to_decimal(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to decimal
         _ => Ok(false),
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

@@ -115,14 +115,14 @@ fn test_primitive_type_kind() {
     let quantity_kind = PrimitiveTypeKind::Quantity;
 
     // Test Debug trait
-    format!("{boolean_kind:?}");
-    format!("{integer_kind:?}");
-    format!("{string_kind:?}");
-    format!("{decimal_kind:?}");
-    format!("{date_kind:?}");
-    format!("{datetime_kind:?}");
-    format!("{time_kind:?}");
-    format!("{quantity_kind:?}");
+    let _ = format!("{boolean_kind:?}");
+    let _ = format!("{integer_kind:?}");
+    let _ = format!("{string_kind:?}");
+    let _ = format!("{decimal_kind:?}");
+    let _ = format!("{date_kind:?}");
+    let _ = format!("{datetime_kind:?}");
+    let _ = format!("{time_kind:?}");
+    let _ = format!("{quantity_kind:?}");
 
     // Test Clone trait
     let _cloned_boolean = boolean_kind;

@@ -1,5 +1,5 @@
 //! DateTime operations - sync implementations
-//! 
+//!
 //! These operations handle date/time data extraction and manipulation.
 //! They are pure data processing operations that don't require system calls.
 
@@ -22,13 +22,13 @@ pub mod time_of_day;
 
 // Re-exports
 pub use day_of::DayOfFunction;
+pub use high_boundary::HighBoundaryFunction;
 pub use hour_of::HourOfFunction;
+pub use low_boundary::LowBoundaryFunction;
 pub use millisecond_of::MillisecondOfFunction;
 pub use minute_of::MinuteOfFunction;
 pub use month_of::MonthOfFunction;
 pub use second_of::SecondOfFunction;
+pub use time_of_day::TimeOfDayFunction;
 pub use timezone_offset_of::TimezoneOffsetOfFunction;
 pub use year_of::YearOfFunction;
-pub use high_boundary::HighBoundaryFunction;
-pub use low_boundary::LowBoundaryFunction;
-pub use time_of_day::TimeOfDayFunction;

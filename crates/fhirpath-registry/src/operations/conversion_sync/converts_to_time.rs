@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToTimeFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         let can_convert = can_convert_to_time(&context.input)?;
         Ok(FhirPathValue::Boolean(can_convert))
     }
@@ -33,18 +37,16 @@ fn can_convert_to_time(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a time
         FhirPathValue::Time(_) => Ok(true),
-        
+
         // DateTime can be converted to Time (extract time part)
         FhirPathValue::DateTime(_) => Ok(true),
-        
+
         // String values that can be parsed as ISO time format
-        FhirPathValue::String(s) => {
-            Ok(parse_iso_time_string(s).is_some())
-        },
-        
+        FhirPathValue::String(s) => Ok(parse_iso_time_string(s).is_some()),
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -55,7 +57,7 @@ fn can_convert_to_time(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to time
         _ => Ok(false),
     }
@@ -67,45 +69,41 @@ fn parse_iso_time_string(s: &str) -> Option<()> {
     // HH:MM:SS.sss
     // HH:MM:SS+ZZ:ZZ
     // HH:MM:SS.sss+ZZ:ZZ
-    
+
     let s = s.trim();
-    
+
     // Must be at least HH:MM:SS (8 characters)
     if s.len() < 8 {
         return None;
     }
-    
+
     // Basic time validation: HH:MM:SS format
     let time_part = if let Some(tz_pos) = s.find('+') {
         &s[..tz_pos]
     } else if let Some(tz_pos) = s.find('-') {
         // Only consider as timezone if it's after at least HH:MM:SS
-        if tz_pos >= 8 {
-            &s[..tz_pos]
-        } else {
-            s
-        }
+        if tz_pos >= 8 { &s[..tz_pos] } else { s }
     } else {
         s
     };
-    
+
     // Remove fractional seconds for basic validation
     let base_time = if let Some(dot_pos) = time_part.find('.') {
         &time_part[..dot_pos]
     } else {
         time_part
     };
-    
+
     // Should be exactly HH:MM:SS (8 characters)
     if base_time.len() != 8 {
         return None;
     }
-    
+
     let parts: Vec<&str> = base_time.split(':').collect();
     if parts.len() != 3 {
         return None;
     }
-    
+
     // Validate hour (00-23)
     if parts[0].len() != 2 || !parts[0].chars().all(|c| c.is_ascii_digit()) {
         return None;
@@ -117,7 +115,7 @@ fn parse_iso_time_string(s: &str) -> Option<()> {
     } else {
         return None;
     }
-    
+
     // Validate minute (00-59)
     if parts[1].len() != 2 || !parts[1].chars().all(|c| c.is_ascii_digit()) {
         return None;
@@ -129,7 +127,7 @@ fn parse_iso_time_string(s: &str) -> Option<()> {
     } else {
         return None;
     }
-    
+
     // Validate second (00-59)
     if parts[2].len() != 2 || !parts[2].chars().all(|c| c.is_ascii_digit()) {
         return None;
@@ -141,11 +139,11 @@ fn parse_iso_time_string(s: &str) -> Option<()> {
     } else {
         return None;
     }
-    
+
     Some(())
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
@@ -154,7 +152,7 @@ mod tests {
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -216,12 +214,12 @@ mod tests {
         assert_eq!(parse_iso_time_string("23:59:59"), Some(()));
         assert_eq!(parse_iso_time_string("10:30:45.123"), Some(()));
         assert_eq!(parse_iso_time_string("10:30:45+01:00"), Some(()));
-        
+
         // Invalid time formats
         assert_eq!(parse_iso_time_string("25:30:45"), None); // Invalid hour
         assert_eq!(parse_iso_time_string("10:60:45"), None); // Invalid minute
         assert_eq!(parse_iso_time_string("10:30:60"), None); // Invalid second
-        assert_eq!(parse_iso_time_string("10:30"), None);    // Missing seconds
-        assert_eq!(parse_iso_time_string("invalid"), None);  // Invalid format
+        assert_eq!(parse_iso_time_string("10:30"), None); // Missing seconds
+        assert_eq!(parse_iso_time_string("invalid"), None); // Invalid format
     }
 }

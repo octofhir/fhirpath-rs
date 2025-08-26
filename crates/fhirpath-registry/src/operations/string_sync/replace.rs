@@ -26,16 +26,21 @@ impl SyncOperation for SimpleReplaceFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "replace",
-            parameters: vec![ParameterType::String, ParameterType::String],
-            return_type: ValueType::String,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "replace",
+                parameters: vec![ParameterType::String, ParameterType::String],
+                return_type: ValueType::String,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 2 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -71,7 +76,8 @@ impl SyncOperation for SimpleReplaceFunction {
                     if chars.is_empty() {
                         substitution.to_string()
                     } else {
-                        let mut result = String::with_capacity(s.len() + substitution.len() * (chars.len() + 1));
+                        let mut result =
+                            String::with_capacity(s.len() + substitution.len() * (chars.len() + 1));
                         result.push_str(substitution);
                         for ch in chars {
                             result.push(ch);
@@ -92,7 +98,7 @@ impl SyncOperation for SimpleReplaceFunction {
                     Ok(FhirPathValue::String(result.into()))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "replace() can only be called on string values".to_string()
+                        message: "replace() can only be called on string values".to_string(),
                     })
                 }
             }

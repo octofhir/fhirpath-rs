@@ -26,16 +26,21 @@ impl SyncOperation for SimpleSplitFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "split",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "split",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -50,7 +55,7 @@ impl SyncOperation for SimpleSplitFunction {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 return Err(FhirPathError::TypeError {
-                    message: "split() separator argument must be a string".to_string()
+                    message: "split() separator argument must be a string".to_string(),
                 });
             }
         };
@@ -75,18 +80,20 @@ impl SyncOperation for SimpleSplitFunction {
                 // Try to convert to string first
                 if let Some(string_val) = context.input.to_string_value() {
                     let parts: Vec<FhirPathValue> = if separator.is_empty() {
-                        string_val.chars()
+                        string_val
+                            .chars()
                             .map(|c| FhirPathValue::String(c.to_string().into()))
                             .collect()
                     } else {
-                        string_val.split(separator)
+                        string_val
+                            .split(separator)
                             .map(|s| FhirPathValue::String(s.to_string().into()))
                             .collect()
                     };
                     Ok(FhirPathValue::Collection(parts.into()))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "split() can only be called on string values".to_string()
+                        message: "split() can only be called on string values".to_string(),
                     })
                 }
             }

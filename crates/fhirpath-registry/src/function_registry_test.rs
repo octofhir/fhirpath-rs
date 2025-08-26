@@ -13,11 +13,12 @@ async fn test_unified_registry_sync_dispatch() {
     let registry = create_standard_registry();
     
     // Test sync string operations
-    let context = EvaluationContext {
-        input: FhirPathValue::String("hello".into()),
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let input = FhirPathValue::String("hello".into());
+    let context = EvaluationContext::new(
+        input.clone(),
+        Arc::new(input),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test length() - sync string operation
     let result = registry.evaluate("length", &[], &context).await.unwrap();
@@ -41,11 +42,11 @@ async fn test_unified_registry_collection_operations() {
         ])
     );
     
-    let context = EvaluationContext {
-        input: collection,
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let context = EvaluationContext::new(
+        collection.clone(),
+        Arc::new(collection),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test count() - sync collection operation
     let result = registry.evaluate("count", &[], &context).await.unwrap();
@@ -61,11 +62,12 @@ async fn test_unified_registry_math_operations() {
     let registry = create_standard_registry();
     
     // Test sync math operations
-    let context = EvaluationContext {
-        input: FhirPathValue::Integer(-42),
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let input = FhirPathValue::Integer(-42);
+    let context = EvaluationContext::new(
+        input.clone(),
+        Arc::new(input),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test abs() - sync math operation
     let result = registry.evaluate("abs", &[], &context).await.unwrap();
@@ -76,11 +78,12 @@ async fn test_unified_registry_math_operations() {
 async fn test_unified_registry_async_operations() {
     let registry = create_standard_registry();
     
-    let context = EvaluationContext {
-        input: FhirPathValue::Empty,
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let input = FhirPathValue::Empty;
+    let context = EvaluationContext::new(
+        input.clone(),
+        Arc::new(input),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test now() - async datetime operation
     let result = registry.evaluate("now", &[], &context).await.unwrap();
@@ -97,11 +100,12 @@ async fn test_unified_registry_async_operations() {
 async fn test_unified_registry_unknown_function() {
     let registry = create_standard_registry();
     
-    let context = EvaluationContext {
-        input: FhirPathValue::Empty,
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let input = FhirPathValue::Empty;
+    let context = EvaluationContext::new(
+        input.clone(),
+        Arc::new(input),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test unknown function
     let result = registry.evaluate("unknownFunction", &[], &context).await;
@@ -116,11 +120,12 @@ async fn test_unified_registry_unknown_function() {
 async fn test_unified_registry_try_sync_only() {
     let registry = create_standard_registry();
     
-    let context = EvaluationContext {
-        input: FhirPathValue::String("test".into()),
-        model_provider: Arc::new(MockModelProvider::new()),
-        variables: Default::default(),
-    };
+    let input = FhirPathValue::String("test".into());
+    let context = EvaluationContext::new(
+        input.clone(),
+        Arc::new(input),
+        Arc::new(MockModelProvider::new())
+    );
     
     // Test sync-only evaluation for sync operations
     let result = registry.try_evaluate_sync("length", &[], &context).unwrap().unwrap();

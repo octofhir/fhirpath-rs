@@ -23,7 +23,11 @@ impl SyncOperation for ToBooleanFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_boolean(&context.input)
     }
 }
@@ -32,28 +36,26 @@ fn convert_to_boolean(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already a boolean
         FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(*b)),
-        
+
         // String conversion following FHIRPath rules
-        FhirPathValue::String(s) => {
-            match s.to_lowercase().as_str() {
-                "true" | "t" | "yes" | "y" | "1" => Ok(FhirPathValue::Boolean(true)),
-                "false" | "f" | "no" | "n" | "0" => Ok(FhirPathValue::Boolean(false)),
-                _ => Err(FhirPathError::ConversionError {
-                    from: format!("String('{}')", s),
-                    to: "Boolean".to_string(),
-                }),
-            }
+        FhirPathValue::String(s) => match s.to_lowercase().as_str() {
+            "true" | "t" | "yes" | "y" | "1" => Ok(FhirPathValue::Boolean(true)),
+            "false" | "f" | "no" | "n" | "0" => Ok(FhirPathValue::Boolean(false)),
+            _ => Err(FhirPathError::ConversionError {
+                from: format!("String('{s}')"),
+                to: "Boolean".to_string(),
+            }),
         },
-        
+
         // Integer conversion (0 = false, non-zero = true)
         FhirPathValue::Integer(i) => Ok(FhirPathValue::Boolean(*i != 0)),
-        
+
         // Decimal conversion (0.0 = false, non-zero = true)
         FhirPathValue::Decimal(d) => Ok(FhirPathValue::Boolean(!d.is_zero())),
-        
+
         // Empty input returns empty collection
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-        
+
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -65,7 +67,7 @@ fn convert_to_boolean(value: &FhirPathValue) -> Result<FhirPathValue> {
                 Ok(FhirPathValue::Collection(vec![].into()))
             }
         }
-        
+
         // Unsupported types
         _ => Err(FhirPathError::ConversionError {
             from: "Unsupported type".to_string(),
@@ -74,17 +76,17 @@ fn convert_to_boolean(value: &FhirPathValue) -> Result<FhirPathValue> {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

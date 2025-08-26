@@ -5,7 +5,7 @@
 //! based on their actual needs, not artificial complexity.
 //!
 //! # Design Philosophy
-//! 
+//!
 //! - **Sync operations** (80%): String manipulation, math, collections, type conversion
 //! - **Async operations** (20%): ModelProvider access, system calls, lambda evaluation
 //! - **Minimal metadata**: Only function signature, no performance metrics or LSP features
@@ -74,11 +74,13 @@ impl EvaluationContext {
 ///
 /// # Example
 /// ```rust
-/// use fhirpath_registry::traits::SyncOperation;
-/// use fhirpath_registry::signature::{FunctionSignature, ValueType};
-/// 
+/// use octofhir_fhirpath_registry::traits::{SyncOperation, EvaluationContext};
+/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType};
+/// use octofhir_fhirpath_model::FhirPathValue;
+/// use octofhir_fhirpath_core::{Result, FhirPathError};
+///
 /// pub struct LengthFunction;
-/// 
+///
 /// impl SyncOperation for LengthFunction {
 ///     fn name(&self) -> &'static str {
 ///         "length"
@@ -97,7 +99,7 @@ impl EvaluationContext {
 ///     fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
 ///         // Direct synchronous implementation
 ///         let input_string = context.input.as_string()
-///             .ok_or_else(|| FhirPathError::TypeError("length() can only be called on strings".into()))?;
+///             .ok_or_else(|| FhirPathError::type_error("length() can only be called on strings"))?;
 ///         Ok(FhirPathValue::Integer(input_string.len() as i64))
 ///     }
 /// }
@@ -122,7 +124,8 @@ pub trait SyncOperation: Send + Sync {
     ///
     /// # Errors
     /// Returns FhirPathError for invalid arguments, type mismatches, or evaluation errors
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue>;
+    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext)
+    -> Result<FhirPathValue>;
 
     /// Validate arguments before execution (optional override)
     ///
@@ -131,7 +134,7 @@ pub trait SyncOperation: Send + Sync {
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
         let signature = self.signature();
         let expected_count = signature.parameters.len();
-        
+
         if signature.variadic {
             if args.len() < expected_count {
                 return Err(FhirPathError::InvalidArgumentCount {
@@ -147,7 +150,7 @@ pub trait SyncOperation: Send + Sync {
                 actual: args.len(),
             });
         }
-        
+
         Ok(())
     }
 }
@@ -162,11 +165,19 @@ pub trait SyncOperation: Send + Sync {
 ///
 /// # Example
 /// ```rust
-/// use fhirpath_registry::traits::AsyncOperation;
+/// use octofhir_fhirpath_registry::traits::{AsyncOperation, EvaluationContext};
+/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType};
+/// use octofhir_fhirpath_model::FhirPathValue;
+/// use octofhir_fhirpath_core::{Result, FhirPathError};
 /// use async_trait::async_trait;
-/// 
+///
+/// fn extract_reference(value: &FhirPathValue) -> Result<String> {
+///     // Mock implementation
+///     Ok("Patient/123".to_string())
+/// }
+///
 /// pub struct ResolveFunction;
-/// 
+///
 /// #[async_trait]
 /// impl AsyncOperation for ResolveFunction {
 ///     fn name(&self) -> &'static str {
@@ -186,8 +197,8 @@ pub trait SyncOperation: Send + Sync {
 ///     async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
 ///         // Async implementation with ModelProvider access
 ///         let reference = extract_reference(&context.input)?;
-///         let resolved = context.model_provider.resolve_reference(&reference).await?;
-///         Ok(resolved)
+///         // Note: resolve_reference requires ResolutionContext parameter
+///         Ok(FhirPathValue::String(format!("Resolved: {}", reference).into()))
 ///     }
 /// }
 /// ```
@@ -212,7 +223,11 @@ pub trait AsyncOperation: Send + Sync {
     ///
     /// # Errors
     /// Returns FhirPathError for invalid arguments, type mismatches, or evaluation errors
-    async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue>;
+    async fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue>;
 
     /// Validate arguments before execution (optional override)
     ///
@@ -221,7 +236,7 @@ pub trait AsyncOperation: Send + Sync {
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
         let signature = self.signature();
         let expected_count = signature.parameters.len();
-        
+
         if signature.variadic {
             if args.len() < expected_count {
                 return Err(FhirPathError::InvalidArgumentCount {
@@ -237,7 +252,7 @@ pub trait AsyncOperation: Send + Sync {
                 actual: args.len(),
             });
         }
-        
+
         Ok(())
     }
 }
@@ -268,7 +283,10 @@ pub mod validation {
     }
 
     /// Validate that exactly one string argument was provided
-    pub fn validate_single_string_arg(args: &[FhirPathValue], function_name: &str) -> Result<String> {
+    pub fn validate_single_string_arg(
+        args: &[FhirPathValue],
+        function_name: &str,
+    ) -> Result<String> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: function_name.to_string(),
@@ -276,20 +294,26 @@ pub mod validation {
                 actual: args.len(),
             });
         }
-        
-        args[0].as_string()
+
+        args[0]
+            .as_string()
             .map(|s| s.to_string())
             .ok_or_else(|| FhirPathError::TypeError {
-                message: format!("{}() argument must be a string", function_name)
+                message: format!("{function_name}() argument must be a string"),
             })
     }
 
     /// Validate that the context input is a string
-    pub fn validate_string_input(context: &EvaluationContext, function_name: &str) -> Result<String> {
-        context.input.as_string()
+    pub fn validate_string_input(
+        context: &EvaluationContext,
+        function_name: &str,
+    ) -> Result<String> {
+        context
+            .input
+            .as_string()
             .map(|s| s.to_string())
             .ok_or_else(|| FhirPathError::TypeError {
-                message: format!("{}() can only be called on string values", function_name)
+                message: format!("{function_name}() can only be called on string values"),
             })
     }
 
@@ -298,7 +322,7 @@ pub mod validation {
         match &context.input {
             FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(()),
             _ => Err(FhirPathError::TypeError {
-                message: format!("{}() can only be called on numeric values", function_name)
+                message: format!("{function_name}() can only be called on numeric values"),
             }),
         }
     }
@@ -325,7 +349,12 @@ pub mod validation {
     }
 
     /// Extract string argument at specific index
-    pub fn extract_string_arg(args: &[FhirPathValue], index: usize, function_name: &str, param_name: &str) -> Result<String> {
+    pub fn extract_string_arg(
+        args: &[FhirPathValue],
+        index: usize,
+        function_name: &str,
+        param_name: &str,
+    ) -> Result<String> {
         if index >= args.len() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: function_name.to_string(),
@@ -333,16 +362,22 @@ pub mod validation {
                 actual: args.len(),
             });
         }
-        
-        args[index].as_string()
+
+        args[index]
+            .as_string()
             .map(|s| s.to_string())
             .ok_or_else(|| FhirPathError::TypeError {
-                message: format!("{}() {} parameter must be a string", function_name, param_name)
+                message: format!("{function_name}() {param_name} parameter must be a string"),
             })
     }
 
     /// Extract integer argument at specific index
-    pub fn extract_integer_arg(args: &[FhirPathValue], index: usize, function_name: &str, param_name: &str) -> Result<i64> {
+    pub fn extract_integer_arg(
+        args: &[FhirPathValue],
+        index: usize,
+        function_name: &str,
+        param_name: &str,
+    ) -> Result<i64> {
         if index >= args.len() {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: function_name.to_string(),
@@ -350,10 +385,11 @@ pub mod validation {
                 actual: args.len(),
             });
         }
-        
-        args[index].as_integer()
+
+        args[index]
+            .as_integer()
             .ok_or_else(|| FhirPathError::TypeError {
-                message: format!("{}() {} parameter must be an integer", function_name, param_name)
+                message: format!("{function_name}() {param_name} parameter must be an integer"),
             })
     }
 }
@@ -379,22 +415,26 @@ mod tests {
                 return_type: ValueType::String,
                 variadic: false,
             });
-            &*SIGNATURE
+            &SIGNATURE
         }
 
-        fn execute(&self, args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+        fn execute(
+            &self,
+            args: &[FhirPathValue],
+            _context: &EvaluationContext,
+        ) -> Result<FhirPathValue> {
             if let Some(arg) = args.first() {
                 if let Some(s) = arg.as_string() {
-                    return Ok(FhirPathValue::String(format!("processed: {}", s).into()));
+                    return Ok(FhirPathValue::String(format!("processed: {s}").into()));
                 }
             }
             Err(FhirPathError::TypeError {
-                message: "Expected string argument".to_string()
+                message: "Expected string argument".to_string(),
             })
         }
     }
 
-    // Test async operation implementation  
+    // Test async operation implementation
     struct TestAsyncOperation;
 
     #[async_trait]
@@ -413,7 +453,11 @@ mod tests {
             &SIGNATURE
         }
 
-        async fn execute(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+        async fn execute(
+            &self,
+            _args: &[FhirPathValue],
+            _context: &EvaluationContext,
+        ) -> Result<FhirPathValue> {
             // Simulate async work
             tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
             Ok(FhirPathValue::String("async result".into()))
@@ -429,7 +473,11 @@ mod tests {
 
         let args = vec![FhirPathValue::String("test".into())];
         let model_provider = std::sync::Arc::new(MockModelProvider::new());
-        let context = EvaluationContext::new(FhirPathValue::Empty, model_provider);
+        let context = EvaluationContext::new(
+            FhirPathValue::Empty,
+            std::sync::Arc::new(FhirPathValue::Empty),
+            model_provider,
+        );
 
         let result = op.execute(&args, &context).unwrap();
         assert_eq!(result, FhirPathValue::String("processed: test".into()));
@@ -444,7 +492,11 @@ mod tests {
 
         let args = vec![];
         let model_provider = std::sync::Arc::new(MockModelProvider::new());
-        let context = EvaluationContext::new(FhirPathValue::Empty, model_provider);
+        let context = EvaluationContext::new(
+            FhirPathValue::Empty,
+            std::sync::Arc::new(FhirPathValue::Empty),
+            model_provider,
+        );
 
         let result = op.execute(&args, &context).await.unwrap();
         assert_eq!(result, FhirPathValue::String("async result".into()));
@@ -453,7 +505,7 @@ mod tests {
     #[test]
     fn test_argument_validation() {
         let op = TestSyncOperation;
-        
+
         // Valid arguments
         let valid_args = vec![FhirPathValue::String("test".into())];
         assert!(op.validate_args(&valid_args).is_ok());
@@ -464,7 +516,7 @@ mod tests {
 
         let too_many_args = vec![
             FhirPathValue::String("test1".into()),
-            FhirPathValue::String("test2".into())
+            FhirPathValue::String("test2".into()),
         ];
         assert!(op.validate_args(&too_many_args).is_err());
     }
@@ -473,11 +525,16 @@ mod tests {
     fn test_validation_helpers() {
         // Test no args validation
         assert!(validation::validate_no_args(&[], "test").is_ok());
-        assert!(validation::validate_no_args(&[FhirPathValue::String("arg".into())], "test").is_err());
+        assert!(
+            validation::validate_no_args(&[FhirPathValue::String("arg".into())], "test").is_err()
+        );
 
         // Test single string arg validation
         let string_arg = vec![FhirPathValue::String("test".into())];
-        assert_eq!(validation::validate_single_string_arg(&string_arg, "test").unwrap(), "test");
+        assert_eq!(
+            validation::validate_single_string_arg(&string_arg, "test").unwrap(),
+            "test"
+        );
 
         let non_string_arg = vec![FhirPathValue::Integer(42)];
         assert!(validation::validate_single_string_arg(&non_string_arg, "test").is_err());

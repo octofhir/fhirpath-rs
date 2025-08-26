@@ -25,7 +25,11 @@ impl SyncOperation for ToDecimalFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_decimal(&context.input)
     }
 }
@@ -34,23 +38,21 @@ fn convert_to_decimal(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already a decimal
         FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(*d)),
-        
+
         // Integer can be converted to decimal
-        FhirPathValue::Integer(i) => {
-            Ok(FhirPathValue::Decimal(Decimal::new(*i, 0)))
-        },
-        
+        FhirPathValue::Integer(i) => Ok(FhirPathValue::Decimal(Decimal::new(*i, 0))),
+
         // String conversion with proper decimal parsing
         FhirPathValue::String(s) => {
             match Decimal::from_str(s.trim()) {
                 Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
                 Err(_) => Ok(FhirPathValue::Empty), // Return empty collection for invalid conversions per FHIRPath spec
             }
-        },
-        
+        }
+
         // Empty input returns empty collection
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-        
+
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -61,8 +63,8 @@ fn convert_to_decimal(value: &FhirPathValue) -> Result<FhirPathValue> {
                 // Multiple items - return empty collection per FHIRPath spec
                 Ok(FhirPathValue::Collection(vec![].into()))
             }
-        },
-        
+        }
+
         // Unsupported types
         _ => Err(FhirPathError::ConversionError {
             from: "Unsupported type".to_string(),

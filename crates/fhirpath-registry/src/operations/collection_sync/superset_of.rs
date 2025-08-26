@@ -27,16 +27,21 @@ impl SyncOperation for SimpleSupersetOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "supersetOf",
-            parameters: vec![ParameterType::Collection],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "supersetOf",
+                parameters: vec![ParameterType::Collection],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -61,13 +66,11 @@ impl SyncOperation for SimpleSupersetOfFunction {
         };
 
         // Create set of left items for fast lookup
-        let left_set: HashSet<String> = left_items.iter()
-            .map(|item| format!("{:?}", item))
-            .collect();
+        let left_set: HashSet<String> = left_items.iter().map(|item| format!("{item:?}")).collect();
 
         // Check if all right items exist in left set
         for item in right_items {
-            let key = format!("{:?}", item);
+            let key = format!("{item:?}");
             if !left_set.contains(&key) {
                 return Ok(FhirPathValue::Boolean(false));
             }

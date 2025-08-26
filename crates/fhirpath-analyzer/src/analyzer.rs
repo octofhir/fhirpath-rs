@@ -225,11 +225,16 @@ impl FhirPathAnalyzer {
                     // Check if it's a lambda function first - these are implemented as plain Rust functions
                     if self.is_lambda_function(&data.method) {
                         // Validate lambda function signature and arguments
-                        self.validate_lambda_function_signature(&data.method, &data.args, validation_errors);
-                        
-                        // Additional semantic validation for where() clauses  
+                        self.validate_lambda_function_signature(
+                            &data.method,
+                            &data.args,
+                            validation_errors,
+                        );
+
+                        // Additional semantic validation for where() clauses
                         if data.method == "where" && data.args.len() == 1 {
-                            self.validate_where_clause_arguments(&data.args, validation_errors).await;
+                            self.validate_where_clause_arguments(&data.args, validation_errors)
+                                .await;
                         }
                     } else if let Some(func_analyzer) = &self.function_analyzer {
                         // Convert MethodCall to FunctionCallData for registry function analysis
@@ -715,42 +720,62 @@ impl FhirPathAnalyzer {
         validation_errors: &'a mut Vec<crate::error::ValidationError>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-        match expr {
-            ExpressionNode::BinaryOp(data) => {
-                // Check for resourceType = 'SomeString' patterns
-                if let (ExpressionNode::Identifier(field), ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value))) = (&data.left, &data.right) {
-                    if field == "resourceType" && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal) {
-                        self.validate_resource_type_string(&value, validation_errors).await;
+            match expr {
+                ExpressionNode::BinaryOp(data) => {
+                    // Check for resourceType = 'SomeString' patterns
+                    if let (
+                        ExpressionNode::Identifier(field),
+                        ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value)),
+                    ) = (&data.left, &data.right)
+                    {
+                        if field == "resourceType"
+                            && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal)
+                        {
+                            self.validate_resource_type_string(value, validation_errors)
+                                .await;
+                        }
+                    }
+                    // Also check the reverse: 'SomeString' = resourceType
+                    if let (
+                        ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value)),
+                        ExpressionNode::Identifier(field),
+                    ) = (&data.left, &data.right)
+                    {
+                        if field == "resourceType"
+                            && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal)
+                        {
+                            self.validate_resource_type_string(value, validation_errors)
+                                .await;
+                        }
+                    }
+
+                    // Recursively check both sides
+                    self.validate_resource_type_comparisons(&data.left, validation_errors)
+                        .await;
+                    self.validate_resource_type_comparisons(&data.right, validation_errors)
+                        .await;
+                }
+                // Handle other expression types that might contain nested comparisons
+                ExpressionNode::UnaryOp { operand, .. } => {
+                    self.validate_resource_type_comparisons(operand, validation_errors)
+                        .await;
+                }
+                ExpressionNode::FunctionCall(data) => {
+                    for arg in &data.args {
+                        self.validate_resource_type_comparisons(arg, validation_errors)
+                            .await;
                     }
                 }
-                // Also check the reverse: 'SomeString' = resourceType
-                if let (ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(value)), ExpressionNode::Identifier(field)) = (&data.left, &data.right) {
-                    if field == "resourceType" && matches!(data.op, octofhir_fhirpath_ast::BinaryOperator::Equal) {
-                        self.validate_resource_type_string(&value, validation_errors).await;
+                ExpressionNode::MethodCall(data) => {
+                    self.validate_resource_type_comparisons(&data.base, validation_errors)
+                        .await;
+                    for arg in &data.args {
+                        self.validate_resource_type_comparisons(arg, validation_errors)
+                            .await;
                     }
                 }
-                
-                // Recursively check both sides
-                self.validate_resource_type_comparisons(&data.left, validation_errors).await;
-                self.validate_resource_type_comparisons(&data.right, validation_errors).await;
+                _ => {} // Other node types don't need resource type validation
             }
-            // Handle other expression types that might contain nested comparisons
-            ExpressionNode::UnaryOp { operand, .. } => {
-                self.validate_resource_type_comparisons(operand, validation_errors).await;
-            }
-            ExpressionNode::FunctionCall(data) => {
-                for arg in &data.args {
-                    self.validate_resource_type_comparisons(arg, validation_errors).await;
-                }
-            }
-            ExpressionNode::MethodCall(data) => {
-                self.validate_resource_type_comparisons(&data.base, validation_errors).await;
-                for arg in &data.args {
-                    self.validate_resource_type_comparisons(arg, validation_errors).await;
-                }
-            }
-            _ => {} // Other node types don't need resource type validation
-        }
         })
     }
 
@@ -764,7 +789,7 @@ impl FhirPathAnalyzer {
         if let None = self.model_provider.get_type_reflection(resource_type).await {
             // Generate suggestions for similar resource types
             let suggestions = self.get_resource_type_suggestions(resource_type).await;
-            
+
             validation_errors.push(crate::error::ValidationError {
                 message: format!("Unknown FHIR resource type: '{resource_type}'"),
                 error_type: crate::error::ValidationErrorType::InvalidResourceType,
@@ -779,9 +804,21 @@ impl FhirPathAnalyzer {
         // For now, provide common FHIR resource types as suggestions
         // In a full implementation, we'd query the model provider for all resource types
         let common_resources = vec![
-            "Patient", "Observation", "Medication", "MedicationRequest", "Practitioner",
-            "Organization", "Encounter", "Procedure", "DiagnosticReport", "Condition",
-            "Bundle", "AllergyIntolerance", "Immunization", "Specimen", "Location"
+            "Patient",
+            "Observation",
+            "Medication",
+            "MedicationRequest",
+            "Practitioner",
+            "Organization",
+            "Encounter",
+            "Procedure",
+            "DiagnosticReport",
+            "Condition",
+            "Bundle",
+            "AllergyIntolerance",
+            "Immunization",
+            "Specimen",
+            "Location",
         ];
 
         // Simple similarity matching
@@ -791,10 +828,10 @@ impl FhirPathAnalyzer {
                 // Check for similarity: starts with same letter, contains substring, or edit distance
                 let resource_lower = resource.to_lowercase();
                 let unknown_lower = unknown_type.to_lowercase();
-                
-                resource_lower.starts_with(&unknown_lower[..1.min(unknown_lower.len())]) ||
-                resource_lower.contains(&unknown_lower) ||
-                unknown_lower.contains(&resource_lower[..3.min(resource_lower.len())])
+
+                resource_lower.starts_with(&unknown_lower[..1.min(unknown_lower.len())])
+                    || resource_lower.contains(&unknown_lower)
+                    || unknown_lower.contains(&resource_lower[..3.min(resource_lower.len())])
             })
             .take(3)
             .map(|s| s.to_string())
@@ -809,23 +846,55 @@ impl FhirPathAnalyzer {
         validation_errors: &mut Vec<crate::error::ValidationError>,
     ) {
         let (min_args, max_args, description) = match function_name {
-            "where" => (1, 1, "where(condition: expression) - filters collection based on condition"),
-            "select" => (1, 1, "select(projection: expression) - transforms each item in collection"),
-            "sort" => (0, usize::MAX, "sort() or sort(expression1, expression2, ...) - sorts collection"),
-            "repeat" => (1, 1, "repeat(expression) - repeatedly applies expression until empty result"),
-            "aggregate" => (1, 2, "aggregate(iterator: expression) or aggregate(iterator: expression, init: expression) - accumulates values"),
-            "all" => (1, 1, "all(condition: expression) - returns true if all items match condition"),
-            "exists" => (0, 1, "exists() or exists(condition: expression) - checks if any items exist or match condition"),
-            "iif" => (2, 3, "iif(condition: expression, then: expression) or iif(condition: expression, then: expression, else: expression) - conditional expression"),
+            "where" => (
+                1,
+                1,
+                "where(condition: expression) - filters collection based on condition",
+            ),
+            "select" => (
+                1,
+                1,
+                "select(projection: expression) - transforms each item in collection",
+            ),
+            "sort" => (
+                0,
+                usize::MAX,
+                "sort() or sort(expression1, expression2, ...) - sorts collection",
+            ),
+            "repeat" => (
+                1,
+                1,
+                "repeat(expression) - repeatedly applies expression until empty result",
+            ),
+            "aggregate" => (
+                1,
+                2,
+                "aggregate(iterator: expression) or aggregate(iterator: expression, init: expression) - accumulates values",
+            ),
+            "all" => (
+                1,
+                1,
+                "all(condition: expression) - returns true if all items match condition",
+            ),
+            "exists" => (
+                0,
+                1,
+                "exists() or exists(condition: expression) - checks if any items exist or match condition",
+            ),
+            "iif" => (
+                2,
+                3,
+                "iif(condition: expression, then: expression) or iif(condition: expression, then: expression, else: expression) - conditional expression",
+            ),
             _ => return, // Not a recognized lambda function
         };
 
         let arg_count = args.len();
-        
+
         if arg_count < min_args {
             validation_errors.push(crate::error::ValidationError {
                 message: format!(
-                    "Function '{}()' requires at least {} argument{}, got {}. Usage: {}", 
+                    "Function '{}()' requires at least {} argument{}, got {}. Usage: {}",
                     function_name,
                     min_args,
                     if min_args == 1 { "" } else { "s" },
@@ -834,12 +903,16 @@ impl FhirPathAnalyzer {
                 ),
                 error_type: crate::error::ValidationErrorType::InvalidFunction,
                 location: None,
-                suggestions: vec![format!("Add {} more argument{}", min_args - arg_count, if min_args - arg_count == 1 { "" } else { "s" })],
+                suggestions: vec![format!(
+                    "Add {} more argument{}",
+                    min_args - arg_count,
+                    if min_args - arg_count == 1 { "" } else { "s" }
+                )],
             });
         } else if arg_count > max_args && max_args != usize::MAX {
             validation_errors.push(crate::error::ValidationError {
                 message: format!(
-                    "Function '{}()' accepts at most {} argument{}, got {}. Usage: {}", 
+                    "Function '{}()' accepts at most {} argument{}, got {}. Usage: {}",
                     function_name,
                     max_args,
                     if max_args == 1 { "" } else { "s" },
@@ -848,7 +921,11 @@ impl FhirPathAnalyzer {
                 ),
                 error_type: crate::error::ValidationErrorType::InvalidFunction,
                 location: None,
-                suggestions: vec![format!("Remove {} argument{}", arg_count - max_args, if arg_count - max_args == 1 { "" } else { "s" })],
+                suggestions: vec![format!(
+                    "Remove {} argument{}",
+                    arg_count - max_args,
+                    if arg_count - max_args == 1 { "" } else { "s" }
+                )],
             });
         }
 
@@ -869,7 +946,9 @@ impl FhirPathAnalyzer {
         if args.len() >= 2 {
             // The first parameter should be a boolean condition
             // We can add more sophisticated type checking here in the future
-            if let ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(_)) = &args[0] {
+            if let ExpressionNode::Literal(octofhir_fhirpath_ast::LiteralValue::String(_)) =
+                &args[0]
+            {
                 validation_errors.push(crate::error::ValidationError {
                     message: "iif() condition parameter should be a boolean expression, not a string literal".to_string(),
                     error_type: crate::error::ValidationErrorType::TypeMismatch,
@@ -889,7 +968,7 @@ impl FhirPathAnalyzer {
         args: &[ExpressionNode],
         validation_errors: &mut Vec<crate::error::ValidationError>,
     ) {
-        if args.len() >= 1 {
+        if !args.is_empty() {
             // The first parameter should be an iterator expression
             // We can add more validation for the iterator expression here
             match &args[0] {

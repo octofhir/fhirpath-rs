@@ -2,7 +2,6 @@ use divan::Bencher;
 use octofhir_fhirpath_evaluator::FhirPathEngine;
 use octofhir_fhirpath_model::FhirSchemaModelProvider;
 use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
-use octofhir_fhirpath_registry::FunctionRegistry;
 use sonic_rs::Value;
 use std::sync::Arc;
 

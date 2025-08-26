@@ -1,7 +1,7 @@
 //! SecondOf function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -22,18 +22,21 @@ impl SyncOperation for SecondOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "secondOf",
                 parameters: vec![],
                 return_type: ValueType::Integer,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_no_args(args, "secondOf")?;
 
         let second = match &context.input {
@@ -50,16 +53,21 @@ impl SyncOperation for SecondOfFunction {
                         FhirPathValue::Time(time) => {
                             results.push(FhirPathValue::Integer(time.time.second() as i64));
                         }
-                        _ => return Err(FhirPathError::TypeError {
-                            message: "secondOf() can only be called on DateTime or Time values".to_string()
-                        }),
+                        _ => {
+                            return Err(FhirPathError::TypeError {
+                                message: "secondOf() can only be called on DateTime or Time values"
+                                    .to_string(),
+                            });
+                        }
                     }
                 }
                 return Ok(FhirPathValue::collection(results));
             }
-            _ => return Err(FhirPathError::TypeError {
-                message: "secondOf() can only be called on DateTime or Time values".to_string()
-            }),
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: "secondOf() can only be called on DateTime or Time values".to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::Integer(second))

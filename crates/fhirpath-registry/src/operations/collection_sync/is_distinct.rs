@@ -27,16 +27,21 @@ impl SyncOperation for SimpleIsDistinctFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "isDistinct",
-            parameters: vec![],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "isDistinct",
+                parameters: vec![],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -51,7 +56,7 @@ impl SyncOperation for SimpleIsDistinctFunction {
                 let mut seen = HashSet::new();
 
                 for item in collection.iter() {
-                    let key = format!("{:?}", item);
+                    let key = format!("{item:?}");
                     if seen.contains(&key) {
                         return Ok(FhirPathValue::Boolean(false));
                     }

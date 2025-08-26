@@ -24,7 +24,11 @@ impl SyncOperation for ToLongFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_long(&context.input)
     }
 }
@@ -33,55 +37,53 @@ fn convert_to_long(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already an integer (which is i64 in our implementation)
         FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
-        
+
         // Decimal can be converted if it's a whole number within i64 range
         FhirPathValue::Decimal(d) => {
             if d.fract().is_zero() {
                 match d.to_i64() {
                     Some(i) => {
                         // Ensure it's within i64 range
-                        if i >= i64::MIN && i <= i64::MAX {
+                        if (i64::MIN..=i64::MAX).contains(&i) {
                             Ok(FhirPathValue::Integer(i))
                         } else {
                             Err(FhirPathError::ConversionError {
-                                from: format!("Decimal value {} is out of Long range", d),
+                                from: format!("Decimal value {d} is out of Long range"),
                                 to: "Long".to_string(),
                             })
                         }
                     }
                     None => Err(FhirPathError::ConversionError {
-                        from: format!("Cannot convert decimal {} to Long", d),
+                        from: format!("Cannot convert decimal {d} to Long"),
                         to: "Long".to_string(),
                     }),
                 }
             } else {
                 Err(FhirPathError::ConversionError {
-                    from: format!("Cannot convert decimal {} to Long (has fractional part)", d),
+                    from: format!("Cannot convert decimal {d} to Long (has fractional part)"),
                     to: "Long".to_string(),
                 })
             }
-        },
-        
+        }
+
         // String conversion with proper long parsing
-        FhirPathValue::String(s) => {
-            match s.trim().parse::<i64>() {
-                Ok(i) => Ok(FhirPathValue::Integer(i)),
-                Err(_) => Err(FhirPathError::ConversionError {
-                    from: format!("Cannot convert string '{}' to Long", s),
-                    to: "Long".to_string(),
-                }),
-            }
+        FhirPathValue::String(s) => match s.trim().parse::<i64>() {
+            Ok(i) => Ok(FhirPathValue::Integer(i)),
+            Err(_) => Err(FhirPathError::ConversionError {
+                from: format!("Cannot convert string '{s}' to Long"),
+                to: "Long".to_string(),
+            }),
         },
-        
+
         // Boolean conversion (true = 1, false = 0)
         FhirPathValue::Boolean(b) => {
             let i = if *b { 1i64 } else { 0i64 };
             Ok(FhirPathValue::Integer(i))
-        },
-        
+        }
+
         // Empty input returns empty collection
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-        
+
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -93,7 +95,7 @@ fn convert_to_long(value: &FhirPathValue) -> Result<FhirPathValue> {
                 Ok(FhirPathValue::Collection(vec![].into()))
             }
         }
-        
+
         // Unsupported types
         _ => Err(FhirPathError::ConversionError {
             from: format!("Cannot convert {} to Long", value.type_name()),
@@ -102,17 +104,17 @@ fn convert_to_long(value: &FhirPathValue) -> Result<FhirPathValue> {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

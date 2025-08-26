@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToBooleanFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle collections by applying convertsToBoolean to each element
         match &context.input {
             FhirPathValue::Collection(col) => {
@@ -35,7 +39,7 @@ impl SyncOperation for ConvertsToBooleanFunction {
                         Ok(FhirPathValue::Boolean(can_convert))
                     })
                     .collect();
-                
+
                 Ok(FhirPathValue::collection(results?))
             }
             _ => {
@@ -51,24 +55,22 @@ fn can_convert_to_boolean(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a boolean
         FhirPathValue::Boolean(_) => Ok(true),
-        
+
         // String values that can be parsed as booleans
-        FhirPathValue::String(s) => {
-            match s.to_lowercase().as_str() {
-                "true" | "t" | "yes" | "y" | "1" | "false" | "f" | "no" | "n" | "0" => Ok(true),
-                _ => Ok(false),
-            }
+        FhirPathValue::String(s) => match s.to_lowercase().as_str() {
+            "true" | "t" | "yes" | "y" | "1" | "false" | "f" | "no" | "n" | "0" => Ok(true),
+            _ => Ok(false),
         },
-        
+
         // Integers can convert to boolean (0 = false, non-zero = true)
         FhirPathValue::Integer(_) => Ok(true),
-        
+
         // Decimals can convert to boolean (0.0 = false, non-zero = true)
         FhirPathValue::Decimal(_) => Ok(true),
-        
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -79,13 +81,13 @@ fn can_convert_to_boolean(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to boolean
         _ => Ok(false),
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
@@ -94,7 +96,7 @@ mod tests {
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

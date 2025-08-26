@@ -26,16 +26,21 @@ impl SyncOperation for SimpleIndexOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "indexOf",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Integer,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "indexOf",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Integer,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: "indexOf".to_string(),

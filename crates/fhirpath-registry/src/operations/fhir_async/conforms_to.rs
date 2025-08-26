@@ -1,7 +1,7 @@
 //! ConformsTo function implementation - async version (simplified)
 
-use crate::traits::{AsyncOperation, EvaluationContext};
 use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -23,18 +23,21 @@ impl AsyncOperation for ConformsToFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "conformsTo",
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::Boolean,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: "conformsTo".to_string(),
@@ -65,9 +68,10 @@ impl AsyncOperation for ConformsToFunction {
 
         // Profile URL validation - if it doesn't look like a valid StructureDefinition URL, return empty
         // Valid profile URLs should contain "StructureDefinition" or be well-formed FHIR URLs
-        if !profile_url.contains("StructureDefinition") && 
-           !profile_url.starts_with("http://hl7.org/fhir/") &&
-           !profile_url.starts_with("https://hl7.org/fhir/") {
+        if !profile_url.contains("StructureDefinition")
+            && !profile_url.starts_with("http://hl7.org/fhir/")
+            && !profile_url.starts_with("https://hl7.org/fhir/")
+        {
             return Ok(FhirPathValue::Empty);
         }
 

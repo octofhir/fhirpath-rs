@@ -2,7 +2,6 @@
 
 pub mod compatibility_tests; // Compatibility with existing API
 pub mod edge_case_tests; // Edge cases and error handling
-pub mod integration_tests; // Real FHIR resource tests
 pub mod stress_tests; // Memory and load tests
 pub mod validation_pipeline; // Automated validation
 
@@ -208,59 +207,10 @@ pub fn as_single_boolean(value: &FhirPathValue) -> Option<bool> {
     }
 }
 
-/// Get decimal value (single or first from collection)
-pub fn as_single_decimal(value: &FhirPathValue) -> Option<rust_decimal::Decimal> {
-    match value {
-        FhirPathValue::Decimal(d) => Some(*d),
-        FhirPathValue::Collection(items) => items.first().and_then(|v| v.as_decimal().copied()),
-        _ => None,
-    }
-}
-
 /// Get collection reference
 pub fn as_collection(value: &FhirPathValue) -> Option<&octofhir_fhirpath_model::Collection> {
     match value {
         FhirPathValue::Collection(c) => Some(c),
-        _ => None,
-    }
-}
-
-/// Get collection as vector of strings
-pub fn as_collection_strings(value: &FhirPathValue) -> Option<Vec<String>> {
-    match value {
-        FhirPathValue::Collection(items) => Some(
-            items
-                .iter()
-                .filter_map(|v| match v {
-                    FhirPathValue::String(s) => Some(s.to_string()),
-                    FhirPathValue::Date(d) => Some(d.to_string()),
-                    FhirPathValue::DateTime(dt) => Some(dt.to_string()),
-                    FhirPathValue::Time(t) => Some(t.to_string()),
-                    FhirPathValue::Integer(i) => Some(i.to_string()),
-                    FhirPathValue::Decimal(d) => Some(d.to_string()),
-                    FhirPathValue::Boolean(b) => Some(b.to_string()),
-                    _ => None,
-                })
-                .collect(),
-        ),
-        FhirPathValue::String(s) => Some(vec![s.to_string()]),
-        FhirPathValue::Date(d) => Some(vec![d.to_string()]),
-        FhirPathValue::DateTime(dt) => Some(vec![dt.to_string()]),
-        FhirPathValue::Time(t) => Some(vec![t.to_string()]),
-        FhirPathValue::Integer(i) => Some(vec![i.to_string()]),
-        FhirPathValue::Decimal(d) => Some(vec![d.to_string()]),
-        FhirPathValue::Boolean(b) => Some(vec![b.to_string()]),
-        _ => None,
-    }
-}
-
-/// Get collection as vector of integers
-pub fn as_collection_integers(value: &FhirPathValue) -> Option<Vec<i64>> {
-    match value {
-        FhirPathValue::Collection(items) => {
-            Some(items.iter().filter_map(|v| v.as_integer()).collect())
-        }
-        FhirPathValue::Integer(i) => Some(vec![*i]),
         _ => None,
     }
 }
@@ -282,13 +232,6 @@ pub fn values_equal(actual: &FhirPathValue, expected: &FhirPathValue) -> bool {
         }
         (FhirPathValue::Empty, FhirPathValue::Empty) => true,
         _ => false,
-    }
-}
-
-/// Assert that two values are equal with helpful error message
-pub fn assert_values_equal(actual: &FhirPathValue, expected: &FhirPathValue, context: &str) {
-    if !values_equal(actual, expected) {
-        panic!("Values not equal in {context}: expected {expected:?}, got {actual:?}");
     }
 }
 

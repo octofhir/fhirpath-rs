@@ -858,11 +858,10 @@ impl ModelProvider for MockModelProvider {
 
     async fn is_choice_property(&self, type_name: &str, property: &str) -> bool {
         // For testing, implement basic FHIR choice types
-        match (type_name, property) {
-            ("Observation", "value") => true,
-            ("Patient", "deceased") => true,
-            _ => false,
-        }
+        matches!(
+            (type_name, property),
+            ("Observation", "value") | ("Patient", "deceased")
+        )
     }
 
     async fn get_choice_variants(

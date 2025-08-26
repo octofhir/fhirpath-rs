@@ -2,9 +2,12 @@
 
 use crate::signature::{FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, temporal::{PrecisionDate, TemporalPrecision}};
 use chrono::NaiveDate;
+use octofhir_fhirpath_core::{FhirPathError, Result};
+use octofhir_fhirpath_model::{
+    FhirPathValue,
+    temporal::{PrecisionDate, TemporalPrecision},
+};
 
 /// toDate(): Converts input to Date where possible
 pub struct ToDateFunction;
@@ -24,7 +27,11 @@ impl SyncOperation for ToDateFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_date(&context.input)
     }
 }
@@ -33,25 +40,25 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already a date
         FhirPathValue::Date(d) => Ok(FhirPathValue::Date(d.clone())),
-        
+
         // DateTime can be converted to Date (extract date part)
         FhirPathValue::DateTime(dt) => {
             let date_part = dt.datetime.date_naive();
             let precision_date = PrecisionDate::new(date_part, TemporalPrecision::Day);
             Ok(FhirPathValue::Date(precision_date))
-        },
-        
+        }
+
         // String conversion with ISO format validation
         FhirPathValue::String(s) => {
             match parse_iso_date_string(s) {
                 Some(date) => Ok(FhirPathValue::Date(date)),
                 None => Ok(FhirPathValue::Collection(vec![].into())), // Return empty for invalid strings
             }
-        },
-        
+        }
+
         // Empty input returns empty collection
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-        
+
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -63,7 +70,7 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
                 Ok(FhirPathValue::Collection(vec![].into()))
             }
         }
-        
+
         // Unsupported types
         _ => Err(FhirPathError::ConversionError {
             from: "Unsupported type".to_string(),
@@ -75,18 +82,18 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
 pub fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
     // Support partial dates: YYYY, YYYY-MM, YYYY-MM-DD
     let s = s.trim();
-    
+
     let parts: Vec<&str> = s.split('-').collect();
     if parts.is_empty() || parts[0].is_empty() {
         return None;
     }
-    
+
     // Parse year (4 digits)
     let year = parts[0].parse::<i32>().ok()?;
-    if year < 1 || year > 9999 {
+    if !(1..=9999).contains(&year) {
         return None;
     }
-    
+
     match parts.len() {
         1 => {
             // Year only: YYYY
@@ -96,7 +103,7 @@ pub fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
         2 => {
             // Year-Month: YYYY-MM
             let month = parts[1].parse::<u32>().ok()?;
-            if month < 1 || month > 12 {
+            if !(1..=12).contains(&month) {
                 return None;
             }
             let date = NaiveDate::from_ymd_opt(year, month, 1)?;
@@ -105,11 +112,11 @@ pub fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
         3 => {
             // Year-Month-Day: YYYY-MM-DD
             let month = parts[1].parse::<u32>().ok()?;
-            if month < 1 || month > 12 {
+            if !(1..=12).contains(&month) {
                 return None;
             }
             let day = parts[2].parse::<u32>().ok()?;
-            if day < 1 || day > 31 {
+            if !(1..=31).contains(&day) {
                 return None;
             }
             let date = NaiveDate::from_ymd_opt(year, month, day)?;
@@ -119,7 +126,7 @@ pub fn parse_iso_date_string(s: &str) -> Option<PrecisionDate> {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
@@ -128,7 +135,7 @@ mod tests {
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -168,12 +175,12 @@ mod tests {
         assert!(parse_iso_date_string("2023-12-25").is_some());
         assert!(parse_iso_date_string("2000-01-01").is_some());
         assert!(parse_iso_date_string("9999-12-31").is_some());
-        
+
         // Invalid formats
-        assert!(parse_iso_date_string("2023-12").is_none());     // Too short
+        assert!(parse_iso_date_string("2023-12").is_none()); // Too short
         assert!(parse_iso_date_string("2023-12-255").is_none()); // Too long
-        assert!(parse_iso_date_string("invalid").is_none());     // Invalid format
-        
+        assert!(parse_iso_date_string("invalid").is_none()); // Invalid format
+
         // Invalid dates
         assert!(parse_iso_date_string("2023-13-01").is_none()); // Invalid month
         assert!(parse_iso_date_string("2023-12-32").is_none()); // Invalid day

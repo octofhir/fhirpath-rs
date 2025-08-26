@@ -19,13 +19,15 @@
 use super::mock_provider::MockModelProvider;
 use super::provider::*;
 use async_trait::async_trait;
+use octofhir_canonical_manager::FcmConfig;
+use octofhir_fhirschema::converter::ConverterConfig;
+use octofhir_fhirschema::package::{
+    DependencyStrategy, ModelProvider as SchemaModelProvider, RegistryConfig, ValidationLevel,
+};
+use octofhir_fhirschema::storage::StorageConfig;
+use octofhir_fhirschema::{FhirSchema, FhirSchemaPackageManager, PackageManagerConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
-use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig, FhirSchema};
-use octofhir_fhirschema::package::{RegistryConfig, DependencyStrategy, ValidationLevel, ModelProvider as SchemaModelProvider};
-use octofhir_fhirschema::storage::StorageConfig;
-use octofhir_fhirschema::converter::ConverterConfig;
-use octofhir_canonical_manager::FcmConfig;
 
 /// FHIRSchema-based ModelProvider implementation
 #[derive(Clone)]
@@ -143,7 +145,7 @@ impl FhirSchemaModelProvider {
                 Ok(())
             }
             Err(e) => {
-                log::warn!("Failed to initialize schema manager: {}", e);
+                log::warn!("Failed to initialize schema manager: {e}");
                 // Fall back to hardcoded approach
                 Ok(())
             }
@@ -160,7 +162,8 @@ impl FhirSchemaModelProvider {
         patient_fields.insert("birthDate".to_string(), "date".to_string());
         patient_fields.insert("active".to_string(), "boolean".to_string());
         patient_fields.insert("language".to_string(), "code".to_string());
-        self.field_type_mappings.insert("Patient".to_string(), patient_fields);
+        self.field_type_mappings
+            .insert("Patient".to_string(), patient_fields);
 
         // Observation resource field mappings
         let mut observation_fields = HashMap::new();
@@ -168,23 +171,28 @@ impl FhirSchemaModelProvider {
         observation_fields.insert("status".to_string(), "code".to_string());
         observation_fields.insert("effectiveDateTime".to_string(), "dateTime".to_string());
         observation_fields.insert("issued".to_string(), "instant".to_string());
-        self.field_type_mappings.insert("Observation".to_string(), observation_fields);
+        self.field_type_mappings
+            .insert("Observation".to_string(), observation_fields);
 
         // Add common primitive types across all resources with precise FHIR field mappings
         for resource_type in ["Patient", "Observation", "Condition", "Procedure"] {
-            let resource_fields = self.field_type_mappings.entry(resource_type.to_string()).or_default();
+            let resource_fields = self
+                .field_type_mappings
+                .entry(resource_type.to_string())
+                .or_default();
             resource_fields.insert("id".to_string(), "id".to_string());
             resource_fields.insert("meta".to_string(), "Meta".to_string());
             resource_fields.insert("implicitRules".to_string(), "uri".to_string());
             resource_fields.insert("language".to_string(), "code".to_string());
         }
-        
+
         // Add specific field type context for better precision
         // This helps 'is' operator understand field semantics
         let mut patient_contexts = HashMap::new();
         patient_contexts.insert("gender".to_string(), "code".to_string()); // gender is specifically a code
-        patient_contexts.insert("id".to_string(), "id".to_string());       // id is specifically an id 
-        self.field_type_mappings.insert("Patient".to_string(), patient_contexts);
+        patient_contexts.insert("id".to_string(), "id".to_string()); // id is specifically an id 
+        self.field_type_mappings
+            .insert("Patient".to_string(), patient_contexts);
     }
 
     /// Get the FHIR field type for a specific resource and field path
@@ -199,11 +207,18 @@ impl FhirSchemaModelProvider {
     async fn is_schema_choice_property(&self, resource_type: &str, property: &str) -> bool {
         if let Some(manager) = &self.schema_manager {
             // Get the base schema for the resource type
-            if let Some(schema) = manager.get_schema(&format!("http://hl7.org/fhir/StructureDefinition/{}", resource_type)).await {
-                return self.has_choice_variants_in_schema(&schema, resource_type, property).await;
+            if let Some(schema) = manager
+                .get_schema(&format!(
+                    "http://hl7.org/fhir/StructureDefinition/{resource_type}"
+                ))
+                .await
+            {
+                return self
+                    .has_choice_variants_in_schema(&schema, resource_type, property)
+                    .await;
             }
         }
-        
+
         // Fallback to hardcoded approach if schema not available
         self.is_hardcoded_choice_property(resource_type, property)
     }
@@ -214,7 +229,7 @@ impl FhirSchemaModelProvider {
             // Observation choice properties
             ("Observation", "value") => true,
             ("Observation", "effective") => true,
-            // Patient choice properties  
+            // Patient choice properties
             ("Patient", "deceased") => true,
             ("Patient", "multipleBirth") => true,
             // Add more choice properties as needed
@@ -223,38 +238,52 @@ impl FhirSchemaModelProvider {
     }
 
     /// Get choice variants from schema or fallback to hardcoded
-    async fn get_schema_choice_variants(&self, resource_type: &str, property: &str) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
+    async fn get_schema_choice_variants(
+        &self,
+        resource_type: &str,
+        property: &str,
+    ) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
         if let Some(manager) = &self.schema_manager {
-            if let Some(schema) = manager.get_schema(&format!("http://hl7.org/fhir/StructureDefinition/{}", resource_type)).await {
-                if let Some(variants) = self.extract_choice_variants_from_schema(&schema, resource_type, property).await {
+            if let Some(schema) = manager
+                .get_schema(&format!(
+                    "http://hl7.org/fhir/StructureDefinition/{resource_type}"
+                ))
+                .await
+            {
+                if let Some(variants) = self
+                    .extract_choice_variants_from_schema(&schema, resource_type, property)
+                    .await
+                {
                     return variants;
                 }
             }
         }
-        
+
         // Fallback to hardcoded variants
         self.get_hardcoded_choice_variants(resource_type, property)
     }
 
     /// Extract choice variants from FhirSchema
     async fn extract_choice_variants_from_schema(
-        &self, 
-        schema: &FhirSchema, 
-        resource_type: &str, 
-        base_property: &str
+        &self,
+        schema: &FhirSchema,
+        resource_type: &str,
+        base_property: &str,
     ) -> Option<Vec<crate::choice_type_mapper::ChoiceVariant>> {
         use crate::choice_type_mapper::ChoiceVariant;
-        
+
         let mut variants = Vec::new();
         let mut priority = 0;
-        
+
         // Look for elements that start with the base property and have a type suffix
         // For example, for "value", look for "valueQuantity", "valueString", etc.
         for (path, element) in &schema.elements {
             // Check if this element is a choice variant for our property
-            if let Some(property_name) = self.extract_choice_property_name(path, resource_type, base_property) {
+            if let Some(property_name) =
+                self.extract_choice_property_name(path, resource_type, base_property)
+            {
                 if let Some(element_types) = &element.element_type {
-                    for element_type in element_types {
+                    if let Some(element_type) = element_types.iter().next() {
                         variants.push(ChoiceVariant {
                             property_name: property_name.clone(),
                             target_type: element_type.code.clone(),
@@ -262,12 +291,11 @@ impl FhirSchemaModelProvider {
                             priority,
                         });
                         priority += 1;
-                        break; // Only take the first type for each element
                     }
                 }
             }
         }
-        
+
         if variants.is_empty() {
             None
         } else {
@@ -276,52 +304,89 @@ impl FhirSchemaModelProvider {
     }
 
     /// Extract choice property name from element path if it matches the pattern
-    fn extract_choice_property_name(&self, element_path: &str, resource_type: &str, base_property: &str) -> Option<String> {
+    fn extract_choice_property_name(
+        &self,
+        element_path: &str,
+        resource_type: &str,
+        base_property: &str,
+    ) -> Option<String> {
         // Pattern: ResourceType.basePropertySuffix -> basePropertySuffix
-        let expected_prefix = format!("{}.{}", resource_type, base_property);
-        
-        if element_path.starts_with(&expected_prefix) && element_path.len() > expected_prefix.len() {
+        let expected_prefix = format!("{resource_type}.{base_property}");
+
+        if element_path.starts_with(&expected_prefix) && element_path.len() > expected_prefix.len()
+        {
             // Check if what follows looks like a type suffix (starts with uppercase)
             let remainder = &element_path[expected_prefix.len()..];
-            if remainder.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            if remainder
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
+            {
                 return Some(element_path[resource_type.len() + 1..].to_string());
             }
         }
-        
+
         None
     }
 
     /// Check if schema has choice variants for a property
-    async fn has_choice_variants_in_schema(&self, schema: &FhirSchema, resource_type: &str, property: &str) -> bool {
-        self.extract_choice_variants_from_schema(schema, resource_type, property).await.is_some()
+    async fn has_choice_variants_in_schema(
+        &self,
+        schema: &FhirSchema,
+        resource_type: &str,
+        property: &str,
+    ) -> bool {
+        self.extract_choice_variants_from_schema(schema, resource_type, property)
+            .await
+            .is_some()
     }
 
     /// Find the base choice property for a concrete property using schema
-    async fn find_choice_base_in_schema(&self, schema: &FhirSchema, resource_type: &str, concrete_property: &str) -> Option<String> {
-        let expected_element_path = format!("{}.{}", resource_type, concrete_property);
-        
+    async fn find_choice_base_in_schema(
+        &self,
+        schema: &FhirSchema,
+        resource_type: &str,
+        concrete_property: &str,
+    ) -> Option<String> {
+        let expected_element_path = format!("{resource_type}.{concrete_property}");
+
         // Check if this concrete property exists in the schema
         if schema.elements.contains_key(&expected_element_path) {
             // Try to find the base property by checking common choice patterns
-            let choice_bases = ["value", "effective", "deceased", "multipleBirth", "onset", "dose"];
-            
+            let choice_bases = [
+                "value",
+                "effective",
+                "deceased",
+                "multipleBirth",
+                "onset",
+                "dose",
+            ];
+
             for base in choice_bases {
                 if concrete_property.starts_with(base) && concrete_property.len() > base.len() {
                     // Check if there are other choice variants for this base
-                    if self.has_choice_variants_in_schema(schema, resource_type, base).await {
+                    if self
+                        .has_choice_variants_in_schema(schema, resource_type, base)
+                        .await
+                    {
                         return Some(base.to_string());
                     }
                 }
             }
         }
-        
+
         None
     }
 
     /// Fallback hardcoded choice variants
-    fn get_hardcoded_choice_variants(&self, resource_type: &str, property: &str) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
+    fn get_hardcoded_choice_variants(
+        &self,
+        resource_type: &str,
+        property: &str,
+    ) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
         use crate::choice_type_mapper::ChoiceVariant;
-        
+
         match (resource_type, property) {
             ("Observation", "value") => vec![
                 ChoiceVariant {
@@ -362,9 +427,16 @@ impl FhirSchemaModelProvider {
     }
 
     /// Resolve which specific choice property exists in the data using schema-based approach
-    async fn resolve_choice_from_data_async(&self, resource_type: &str, choice_property: &str, data: &crate::FhirPathValue) -> Option<String> {
-        let variants = self.get_schema_choice_variants(resource_type, choice_property).await;
-        
+    async fn resolve_choice_from_data_async(
+        &self,
+        resource_type: &str,
+        choice_property: &str,
+        data: &crate::FhirPathValue,
+    ) -> Option<String> {
+        let variants = self
+            .get_schema_choice_variants(resource_type, choice_property)
+            .await;
+
         // Check if this is JSON data
         if let crate::FhirPathValue::JsonValue(json) = data {
             // Look for any variant that exists in the JSON
@@ -374,11 +446,10 @@ impl FhirSchemaModelProvider {
                 }
             }
         }
-        
+
         None
     }
 
-    
     /// Enhanced method to determine if a value from a specific field context matches a type
     /// This considers both the value content and the FHIR field definition
     pub async fn is_field_value_of_type(
@@ -400,7 +471,7 @@ impl FhirSchemaModelProvider {
                 }
             }
         }
-        
+
         // Fall back to the general is_value_of_type method
         self.is_value_of_type(value, target_type).await
     }
@@ -542,66 +613,71 @@ impl ModelProvider for FhirSchemaModelProvider {
         // Based on FHIRPath specification, type checking should be precise
         // For now, we'll use a very conservative approach: only consider string as specific FHIR types
         // when there's clear evidence, not just pattern matching
-        
+
         // CRITICAL: The FHIRPath specification is unclear about when strings should be considered
         // as FHIR primitive types. Our current approach may be too permissive.
         // Let's make it much more restrictive to match test expectations.
-        
+
         match (value, target_type) {
             // System types - always match
             (crate::FhirPathValue::String(_), "string") => true,
             (crate::FhirPathValue::Integer(_), "integer") => true,
             (crate::FhirPathValue::Boolean(_), "boolean") => true,
             (crate::FhirPathValue::Decimal(_), "decimal") => true,
-            
+
             // ENHANCED FHIR type matching with pattern analysis
             // This is a compromise approach: analyze the string content and context
             (crate::FhirPathValue::String(s), "code") => {
                 // FHIR codes are short, contain no whitespace, and use common patterns
                 let s = s.trim();
-                if s.is_empty() || s.len() > 50 { return false; }
-                
+                if s.is_empty() || s.len() > 50 {
+                    return false;
+                }
+
                 // Common FHIR code patterns (gender, status, etc.)
-                let is_typical_code = matches!(s, 
+
+                (matches!(
+                    s,
                     "male" | "female" | "other" | "unknown" | // gender codes
                     "active" | "inactive" | "suspended" | // status codes  
                     "final" | "preliminary" | "cancelled" | "amended" | // observation status
                     "official" | "usual" | "temp" | "nickname" | "anonymous" | "maiden" // name use
                 ) || (
                     // Or looks like a code (no spaces, reasonable length, alphanumeric with dashes)
-                    !s.contains(char::is_whitespace) && 
-                    s.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') &&
-                    s.len() <= 32
-                );
-                
-                is_typical_code
+                    !s.contains(char::is_whitespace)
+                        && s.chars()
+                            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+                        && s.len() <= 32
+                ))
             }
-            
+
             (crate::FhirPathValue::String(s), "id") => {
                 // FHIR IDs have specific patterns - more restrictive than codes
                 let s = s.trim();
-                if s.is_empty() || s.len() > 64 { return false; }
-                
+                if s.is_empty() || s.len() > 64 {
+                    return false;
+                }
+
                 // IDs typically contain numbers, UUIDs, or specific patterns
-                let looks_like_id = 
-                    s.chars().any(|c| c.is_ascii_digit()) || // contains numbers
+                let looks_like_id = s.chars().any(|c| c.is_ascii_digit()) || // contains numbers
                     s.contains('-') && s.len() >= 8 ||        // could be UUID-like
                     s.starts_with("id-") ||                   // explicit id prefix
-                    s.parse::<i32>().is_ok();                 // purely numeric
-                
+                    s.parse::<i32>().is_ok(); // purely numeric
+
                 // Exclude obvious non-IDs
-                let is_not_word = !matches!(s.to_lowercase().as_str(), 
+                let is_not_word = !matches!(
+                    s.to_lowercase().as_str(),
                     "male" | "female" | "active" | "final" | "official" | "usual"
                 );
-                
+
                 looks_like_id && is_not_word
             }
-            
+
             (crate::FhirPathValue::String(s), "uri") => {
                 // URIs have clear patterns
                 s.contains("://") || s.starts_with("urn:") || s.starts_with("http")
             }
-            
+
             // Be conservative about other FHIR types
             _ => false,
         }
@@ -616,7 +692,11 @@ impl ModelProvider for FhirSchemaModelProvider {
         self.is_schema_choice_property(type_code, property).await
     }
 
-    async fn get_choice_variants(&self, type_code: &str, property: &str) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
+    async fn get_choice_variants(
+        &self,
+        type_code: &str,
+        property: &str,
+    ) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
         self.get_schema_choice_variants(type_code, property).await
     }
 
@@ -626,23 +706,43 @@ impl ModelProvider for FhirSchemaModelProvider {
         property: &str,
         data: &crate::FhirPathValue,
     ) -> Option<String> {
-        self.resolve_choice_from_data_async(type_code, property, data).await
+        self.resolve_choice_from_data_async(type_code, property, data)
+            .await
     }
 
-    async fn get_choice_base_property(&self, type_code: &str, concrete_property: &str) -> Option<String> {
+    async fn get_choice_base_property(
+        &self,
+        type_code: &str,
+        concrete_property: &str,
+    ) -> Option<String> {
         // Schema-based reverse lookup: given valueQuantity, return "value"
         if let Some(manager) = &self.schema_manager {
-            if let Some(schema) = manager.get_schema(&format!("http://hl7.org/fhir/StructureDefinition/{}", type_code)).await {
-                return self.find_choice_base_in_schema(&schema, type_code, concrete_property).await;
+            if let Some(schema) = manager
+                .get_schema(&format!(
+                    "http://hl7.org/fhir/StructureDefinition/{type_code}"
+                ))
+                .await
+            {
+                return self
+                    .find_choice_base_in_schema(&schema, type_code, concrete_property)
+                    .await;
             }
         }
-        
+
         // Fallback to hardcoded reverse lookup
         match (type_code, concrete_property) {
-            ("Observation", prop) if prop.starts_with("value") && prop != "value" => Some("value".to_string()),
-            ("Observation", prop) if prop.starts_with("effective") && prop != "effective" => Some("effective".to_string()),
-            ("Patient", prop) if prop.starts_with("deceased") && prop != "deceased" => Some("deceased".to_string()),
-            ("Patient", prop) if prop.starts_with("multipleBirth") && prop != "multipleBirth" => Some("multipleBirth".to_string()),
+            ("Observation", prop) if prop.starts_with("value") && prop != "value" => {
+                Some("value".to_string())
+            }
+            ("Observation", prop) if prop.starts_with("effective") && prop != "effective" => {
+                Some("effective".to_string())
+            }
+            ("Patient", prop) if prop.starts_with("deceased") && prop != "deceased" => {
+                Some("deceased".to_string())
+            }
+            ("Patient", prop) if prop.starts_with("multipleBirth") && prop != "multipleBirth" => {
+                Some("multipleBirth".to_string())
+            }
             _ => None,
         }
     }

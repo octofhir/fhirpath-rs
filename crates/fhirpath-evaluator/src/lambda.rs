@@ -411,13 +411,13 @@ impl crate::FhirPathEngine {
 
         // CRITICAL: Do NOT create a new lambda context - use the existing one
         // This preserves $index, $this, and other lambda variables from select() or other outer lambdas
-        
+
         // Evaluate condition using the SAME input and context as the lambda function
         let condition = self
             .evaluate_node_async(
                 &func_data.args[0],
                 input.clone(),
-                context,  // Use existing context directly
+                context, // Use existing context directly
                 depth + 1,
             )
             .await?;
@@ -426,7 +426,7 @@ impl crate::FhirPathEngine {
         let boolean_result = match &condition {
             // Non-boolean strings should make iif return empty
             FhirPathValue::String(_) => None,
-            _ => self.to_boolean_fhirpath(&condition)
+            _ => self.to_boolean_fhirpath(&condition),
         };
 
         match boolean_result {
@@ -549,11 +549,8 @@ impl crate::FhirPathEngine {
                 let condition_expr = &func_data.args[0];
 
                 for (index, item) in items.iter().enumerate() {
-                    let lambda_context = context.with_lambda_context(
-                        item.clone(),
-                        index,
-                        FhirPathValue::Empty,
-                    );
+                    let lambda_context =
+                        context.with_lambda_context(item.clone(), index, FhirPathValue::Empty);
 
                     let condition_result = self
                         .evaluate_node_async(
@@ -563,7 +560,6 @@ impl crate::FhirPathEngine {
                             depth + 1,
                         )
                         .await?;
-
 
                     // Check if condition is truthy
                     if let Some(true) = self.to_boolean_fhirpath(&condition_result) {
@@ -581,19 +577,11 @@ impl crate::FhirPathEngine {
                     Ok(FhirPathValue::Boolean(true))
                 } else {
                     let condition_expr = &func_data.args[0];
-                    let lambda_context = context.with_lambda_context(
-                        input.clone(),
-                        0,
-                        FhirPathValue::Empty,
-                    );
+                    let lambda_context =
+                        context.with_lambda_context(input.clone(), 0, FhirPathValue::Empty);
 
                     let condition_result = self
-                        .evaluate_node_async(
-                            condition_expr,
-                            input,
-                            &lambda_context,
-                            depth + 1,
-                        )
+                        .evaluate_node_async(condition_expr, input, &lambda_context, depth + 1)
                         .await?;
 
                     // Check if condition is truthy

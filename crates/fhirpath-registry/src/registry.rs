@@ -5,7 +5,7 @@
 //! registries for fast lookups without unnecessary complexity.
 //!
 //! # Design Philosophy
-//! 
+//!
 //! - **Simple HashMap storage**: No complex caching or optimization
 //! - **Separate sync/async registries**: Clear separation of operation types
 //! - **Fast dispatch**: Sync-first lookup for performance
@@ -71,16 +71,16 @@ impl SyncRegistry {
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
         let ops = self.operations.read().await;
-        
+
         if let Some(operation) = ops.get(name) {
             // Validate arguments before execution
             operation.validate_args(args)?;
-            
+
             // Execute synchronously (no await needed)
             operation.execute(args, context)
         } else {
-            Err(FhirPathError::UnknownFunction { 
-                function_name: name.to_string() 
+            Err(FhirPathError::UnknownFunction {
+                function_name: name.to_string(),
             })
         }
     }
@@ -150,16 +150,16 @@ impl AsyncRegistry {
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
         let ops = self.operations.read().await;
-        
+
         if let Some(operation) = ops.get(name) {
             // Validate arguments before execution
             operation.validate_args(args)?;
-            
+
             // Execute asynchronously
             operation.execute(args, context).await
         } else {
-            Err(FhirPathError::UnknownFunction { 
-                function_name: name.to_string() 
+            Err(FhirPathError::UnknownFunction {
+                function_name: name.to_string(),
             })
         }
     }
@@ -197,7 +197,10 @@ impl FunctionRegistry {
     }
 
     /// Create a unified registry from existing sync and async registries
-    pub fn from_registries(sync_registry: Arc<SyncRegistry>, async_registry: Arc<AsyncRegistry>) -> Self {
+    pub fn from_registries(
+        sync_registry: Arc<SyncRegistry>,
+        async_registry: Arc<AsyncRegistry>,
+    ) -> Self {
         Self {
             sync_registry,
             async_registry,
@@ -247,8 +250,8 @@ impl FunctionRegistry {
         }
 
         // Operation not found in either registry
-        Err(FhirPathError::UnknownFunction { 
-            function_name: name.to_string() 
+        Err(FhirPathError::UnknownFunction {
+            function_name: name.to_string(),
         })
     }
 
@@ -335,7 +338,10 @@ impl std::fmt::Display for RegistryStats {
         write!(
             f,
             "Registry Stats: {} sync, {} async, {} total ({:.1}% sync)",
-            self.sync_operations, self.async_operations, self.total_operations, self.sync_percentage
+            self.sync_operations,
+            self.async_operations,
+            self.total_operations,
+            self.sync_percentage
         )
     }
 }
@@ -370,10 +376,10 @@ impl RegistryBuilder {
     /// Build the unified registry
     pub async fn build(self) -> FunctionRegistry {
         let registry = FunctionRegistry::new();
-        
+
         registry.register_sync_many(self.sync_operations).await;
         registry.register_async_many(self.async_operations).await;
-        
+
         registry
     }
 }
@@ -394,7 +400,9 @@ mod tests {
     // Test sync operation
     struct TestSyncOp;
     impl SyncOperation for TestSyncOp {
-        fn name(&self) -> &'static str { "testSync" }
+        fn name(&self) -> &'static str {
+            "testSync"
+        }
         fn signature(&self) -> &FunctionSignature {
             static SIGNATURE: FunctionSignature = FunctionSignature {
                 name: "testSync",
@@ -404,7 +412,11 @@ mod tests {
             };
             &SIGNATURE
         }
-        fn execute(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+        fn execute(
+            &self,
+            _args: &[FhirPathValue],
+            _context: &EvaluationContext,
+        ) -> Result<FhirPathValue> {
             Ok(FhirPathValue::String("sync result".into()))
         }
     }
@@ -413,7 +425,9 @@ mod tests {
     struct TestAsyncOp;
     #[async_trait]
     impl AsyncOperation for TestAsyncOp {
-        fn name(&self) -> &'static str { "testAsync" }
+        fn name(&self) -> &'static str {
+            "testAsync"
+        }
         fn signature(&self) -> &FunctionSignature {
             static SIGNATURE: FunctionSignature = FunctionSignature {
                 name: "testAsync",
@@ -423,7 +437,11 @@ mod tests {
             };
             &SIGNATURE
         }
-        async fn execute(&self, _args: &[FhirPathValue], _context: &EvaluationContext) -> Result<FhirPathValue> {
+        async fn execute(
+            &self,
+            _args: &[FhirPathValue],
+            _context: &EvaluationContext,
+        ) -> Result<FhirPathValue> {
             Ok(FhirPathValue::String("async result".into()))
         }
     }
@@ -431,19 +449,19 @@ mod tests {
     #[tokio::test]
     async fn test_sync_registry() {
         let registry = SyncRegistry::new();
-        
+
         // Register operation
         registry.register(Box::new(TestSyncOp)).await;
-        
+
         // Check registration
         assert!(registry.contains("testSync").await);
         assert!(!registry.contains("nonexistent").await);
-        
+
         // Execute operation
         let context = create_test_context();
         let result = registry.execute("testSync", &[], &context).await.unwrap();
         assert_eq!(result, FhirPathValue::String("sync result".into()));
-        
+
         // Test unknown operation
         let error = registry.execute("unknown", &[], &context).await;
         assert!(error.is_err());
@@ -452,14 +470,14 @@ mod tests {
     #[tokio::test]
     async fn test_async_registry() {
         let registry = AsyncRegistry::new();
-        
+
         // Register operation
         registry.register(Box::new(TestAsyncOp)).await;
-        
+
         // Check registration
         assert!(registry.contains("testAsync").await);
         assert!(!registry.contains("nonexistent").await);
-        
+
         // Execute operation
         let context = create_test_context();
         let result = registry.execute("testAsync", &[], &context).await.unwrap();
@@ -469,26 +487,26 @@ mod tests {
     #[tokio::test]
     async fn test_unified_registry() {
         let registry = FunctionRegistry::new();
-        
+
         // Register both types
         registry.register_sync(Box::new(TestSyncOp)).await;
         registry.register_async(Box::new(TestAsyncOp)).await;
-        
+
         // Test operations
         let context = create_test_context();
-        
+
         let sync_result = registry.execute("testSync", &[], &context).await.unwrap();
         assert_eq!(sync_result, FhirPathValue::String("sync result".into()));
-        
+
         let async_result = registry.execute("testAsync", &[], &context).await.unwrap();
         assert_eq!(async_result, FhirPathValue::String("async result".into()));
-        
+
         // Test type checking
         assert!(registry.is_sync("testSync").await);
         assert!(!registry.is_sync("testAsync").await);
         assert!(!registry.is_async("testSync").await);
         assert!(registry.is_async("testAsync").await);
-        
+
         // Test stats
         let stats = registry.get_stats().await;
         assert_eq!(stats.sync_operations, 1);
@@ -504,22 +522,24 @@ mod tests {
             .with_async(Box::new(TestAsyncOp))
             .build()
             .await;
-        
+
         let context = create_test_context();
-        
+
         // Both operations should be registered
         let sync_result = registry.execute("testSync", &[], &context).await.unwrap();
         assert_eq!(sync_result, FhirPathValue::String("sync result".into()));
-        
+
         let async_result = registry.execute("testAsync", &[], &context).await.unwrap();
         assert_eq!(async_result, FhirPathValue::String("async result".into()));
     }
 
     fn create_test_context() -> EvaluationContext {
         use octofhir_fhirpath_model::MockModelProvider;
+        let model_provider = std::sync::Arc::new(MockModelProvider::new());
         EvaluationContext::new(
             FhirPathValue::Empty,
-            std::sync::Arc::new(MockModelProvider::new()),
+            std::sync::Arc::new(FhirPathValue::Empty),
+            model_provider,
         )
     }
 }

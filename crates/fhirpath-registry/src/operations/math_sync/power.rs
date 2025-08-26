@@ -27,16 +27,21 @@ impl SyncOperation for SimplePowerFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "power",
-            parameters: vec![ParameterType::Numeric], // Exponent parameter
-            return_type: ValueType::Any,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "power",
+                parameters: vec![ParameterType::Numeric], // Exponent parameter
+                return_type: ValueType::Any,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -58,69 +63,69 @@ impl SyncOperation for SimplePowerFunction {
         match &context.input {
             FhirPathValue::Integer(n) => {
                 let base = *n as f64;
-                
+
                 // Check for invalid power operations per FHIRPath spec
                 if base < 0.0 && exponent.fract() != 0.0 {
                     // Negative base with fractional exponent is undefined - return empty
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 let result = base.powf(exponent);
-                
+
                 // Check for NaN or infinite results
                 if result.is_nan() || result.is_infinite() {
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 if result.fract() == 0.0 && result <= i64::MAX as f64 && result >= i64::MIN as f64 {
                     Ok(FhirPathValue::Integer(result as i64))
                 } else {
                     match rust_decimal::Decimal::try_from(result) {
                         Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
-                        Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                        Err(_) => Ok(FhirPathValue::Empty), // Return empty for conversion errors
                     }
                 }
             }
             FhirPathValue::Decimal(n) => {
                 let base = n.to_f64().unwrap_or(0.0);
-                
+
                 // Check for invalid power operations per FHIRPath spec
                 if base < 0.0 && exponent.fract() != 0.0 {
                     // Negative base with fractional exponent is undefined - return empty
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 let result = base.powf(exponent);
-                
+
                 // Check for NaN or infinite results
                 if result.is_nan() || result.is_infinite() {
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 match rust_decimal::Decimal::try_from(result) {
                     Ok(decimal) => Ok(FhirPathValue::Decimal(decimal)),
-                    Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                    Err(_) => Ok(FhirPathValue::Empty), // Return empty for conversion errors
                 }
             }
             FhirPathValue::Quantity(q) => {
                 let base = q.value.to_f64().unwrap_or(0.0);
-                
+
                 // Check for invalid power operations per FHIRPath spec
                 if base < 0.0 && exponent.fract() != 0.0 {
                     // Negative base with fractional exponent is undefined - return empty
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 let result = base.powf(exponent);
-                
+
                 // Check for NaN or infinite results
                 if result.is_nan() || result.is_infinite() {
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 match rust_decimal::Decimal::try_from(result) {
                     Ok(decimal) => Ok(FhirPathValue::quantity(decimal, q.unit.clone())),
-                    Err(_) => Ok(FhirPathValue::Empty) // Return empty for conversion errors
+                    Err(_) => Ok(FhirPathValue::Empty), // Return empty for conversion errors
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

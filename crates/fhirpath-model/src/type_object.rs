@@ -356,11 +356,10 @@ impl ValueTypeAnalyzer {
         }
 
         // Hardcoded inheritance rules for common FHIR types
-        match (actual_namespace, actual_base, target_namespace, target_name) {
-            ("FHIR", "DomainResource", "FHIR", "Resource") => true,
-            ("FHIR", "Element", "FHIR", "Base") => true,
-            _ => false,
-        }
+        matches!(
+            (actual_namespace, actual_base, target_namespace, target_name),
+            ("FHIR", "DomainResource", "FHIR", "Resource") | ("FHIR", "Element", "FHIR", "Base")
+        )
     }
 }
 

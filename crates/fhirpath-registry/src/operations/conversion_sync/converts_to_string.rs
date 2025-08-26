@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToStringFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         let can_convert = can_convert_to_string(&context.input)?;
         Ok(FhirPathValue::Boolean(can_convert))
     }
@@ -33,7 +37,7 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a string
         FhirPathValue::String(_) => Ok(true),
-        
+
         // Primitives that have string representation
         FhirPathValue::Boolean(_)
         | FhirPathValue::Integer(_)
@@ -42,7 +46,7 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
         | FhirPathValue::DateTime(_)
         | FhirPathValue::Time(_)
         | FhirPathValue::Quantity(_) => Ok(true),
-        
+
         // JSON simple types convertible by to_string_value()
         FhirPathValue::JsonValue(json) => {
             let inner = json.as_inner();
@@ -52,10 +56,10 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
                 || inner.as_f64().is_some()
                 || inner.is_null())
         }
-        
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -66,24 +70,23 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other complex types cannot convert
         _ => Ok(false),
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
-    use octofhir_fhirpath_model::{MockModelProvider, Quantity, JsonValue};
-    use rust_decimal::Decimal;
+    use octofhir_fhirpath_model::MockModelProvider;
+
     use std::sync::Arc;
-    use sonic_rs::json;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

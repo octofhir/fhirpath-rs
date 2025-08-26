@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create analyzer with function registry
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry().await?);
+    let registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
     // Valid function calls

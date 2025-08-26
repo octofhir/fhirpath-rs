@@ -1,7 +1,7 @@
 //! Escape function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
-use crate::signature::{FunctionSignature, ValueType, ParameterType};
+use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
@@ -21,24 +21,27 @@ impl SyncOperation for EscapeFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "escape",
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_arg_count(args.len(), 1, "escape")?;
-        
+
         let input_string = validation::validate_string_input(context, "escape")?;
-        
+
         let format = validation::extract_string_arg(args, 0, "escape", "format")?;
-        
+
         match escape_with_format(&input_string, &format) {
             Ok(escaped) => Ok(FhirPathValue::String(escaped.into())),
             Err(e) => Err(e),
@@ -57,7 +60,9 @@ fn escape_with_format(input: &str, format: &str) -> Result<String> {
         "html" => Ok(escape_html(input)),
         "json" => Ok(escape_json(input)),
         _ => Err(FhirPathError::EvaluationError {
-            message: format!("Unsupported escape format: '{}'. Supported formats are 'html' and 'json'", format).into(),
+            message: format!(
+                "Unsupported escape format: '{format}'. Supported formats are 'html' and 'json'"
+            ),
             expression: None,
             location: None,
         }),

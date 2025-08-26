@@ -26,16 +26,21 @@ impl SyncOperation for SimpleAnyFalseFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "anyFalse",
-            parameters: vec![],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "anyFalse",
+                parameters: vec![],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -58,7 +63,8 @@ impl SyncOperation for SimpleAnyFalseFunction {
                         FhirPathValue::Empty => continue, // Empty values are ignored
                         _ => {
                             return Err(FhirPathError::TypeError {
-                                message: "anyFalse() can only be applied to boolean collections".to_string(),
+                                message: "anyFalse() can only be applied to boolean collections"
+                                    .to_string(),
                             });
                         }
                     }
@@ -68,11 +74,9 @@ impl SyncOperation for SimpleAnyFalseFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Boolean(false)),
             FhirPathValue::Boolean(b) => Ok(FhirPathValue::Boolean(!b)),
-            _ => {
-                Err(FhirPathError::TypeError {
-                    message: "anyFalse() can only be applied to boolean values".to_string(),
-                })
-            }
+            _ => Err(FhirPathError::TypeError {
+                message: "anyFalse() can only be applied to boolean values".to_string(),
+            }),
         }
     }
 }

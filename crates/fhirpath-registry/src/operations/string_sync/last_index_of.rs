@@ -26,16 +26,21 @@ impl SyncOperation for SimpleLastIndexOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "lastIndexOf",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Integer,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "lastIndexOf",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Integer,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: "lastIndexOf".to_string(),
@@ -66,11 +71,11 @@ impl SyncOperation for SimpleLastIndexOfFunction {
             FhirPathValue::Collection(items) => {
                 if items.len() > 1 {
                     // FHIRPath spec: signal error for multiple items in collection
-                    return Err(FhirPathError::EvaluationError {
+                    Err(FhirPathError::EvaluationError {
                         message: "lastIndexOf() can only be applied to single values, not collections with multiple items".into(),
                         expression: None,
                         location: None,
-                    });
+                    })
                 } else if items.len() == 1 {
                     // Single item collection - unwrap and process
                     match items.iter().next().unwrap() {

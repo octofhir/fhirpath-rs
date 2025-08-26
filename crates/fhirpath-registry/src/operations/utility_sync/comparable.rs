@@ -1,7 +1,7 @@
 //! Comparable function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext};
 use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
@@ -55,7 +55,9 @@ impl ComparableFunction {
     fn get_unit_dimension(unit: &str) -> String {
         match unit {
             // Length units
-            "m" | "cm" | "mm" | "km" | "[in_i]" | "[ft_i]" | "[yd_i]" | "[mi_i]" => "length".to_string(),
+            "m" | "cm" | "mm" | "km" | "[in_i]" | "[ft_i]" | "[yd_i]" | "[mi_i]" => {
+                "length".to_string()
+            }
             // Mass units
             "kg" | "g" | "mg" | "[lb_av]" | "[oz_av]" => "mass".to_string(),
             // Time units
@@ -78,18 +80,21 @@ impl SyncOperation for ComparableFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "comparable",
                 parameters: vec![ParameterType::Any],
                 return_type: ValueType::Boolean,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
                 function_name: "comparable".to_string(),

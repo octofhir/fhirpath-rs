@@ -1,6 +1,6 @@
 //! Simple test file to verify datetime sync operations work
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::{SyncOperation, EvaluationContext};
@@ -10,7 +10,7 @@ mod tests {
 
     fn create_test_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

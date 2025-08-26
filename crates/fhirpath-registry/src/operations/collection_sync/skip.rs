@@ -26,16 +26,21 @@ impl SyncOperation for SimpleSkipFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "skip",
-            parameters: vec![ParameterType::Integer],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "skip",
+                parameters: vec![ParameterType::Integer],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -67,27 +72,28 @@ impl SyncOperation for SimpleSkipFunction {
                 let skip_count = count as usize;
                 if skip_count >= collection.len() {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![])
+                        octofhir_fhirpath_model::Collection::from(vec![]),
                     ))
                 } else {
-                    let remaining: Vec<FhirPathValue> = collection.iter().skip(skip_count).cloned().collect();
+                    let remaining: Vec<FhirPathValue> =
+                        collection.iter().skip(skip_count).cloned().collect();
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(remaining)
+                        octofhir_fhirpath_model::Collection::from(remaining),
                     ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![])
+                octofhir_fhirpath_model::Collection::from(vec![]),
             )),
             _ => {
                 // Single item
                 if count == 0 {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()])
+                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
                     ))
                 } else {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![])
+                        octofhir_fhirpath_model::Collection::from(vec![]),
                     ))
                 }
             }

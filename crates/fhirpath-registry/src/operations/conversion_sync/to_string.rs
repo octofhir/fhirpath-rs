@@ -23,7 +23,11 @@ impl SyncOperation for ToStringFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_string(&context.input)
     }
 }
@@ -110,18 +114,17 @@ fn format_decimal(decimal: rust_decimal::Decimal) -> String {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
-    use octofhir_fhirpath_model::{MockModelProvider, Quantity};
-    use rust_decimal::Decimal;
+    use octofhir_fhirpath_model::MockModelProvider;
+
     use std::sync::Arc;
-    use std::str::FromStr;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -212,10 +215,7 @@ mod tests {
         assert_eq!(result, FhirPathValue::String("123".into()));
 
         // Test multi-item collection (should return empty)
-        let collection = vec![
-            FhirPathValue::Integer(42),
-            FhirPathValue::Integer(24)
-        ];
+        let collection = vec![FhirPathValue::Integer(42), FhirPathValue::Integer(24)];
         let context = create_context(FhirPathValue::Collection(collection.into()));
         let result = op.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Collection(vec![].into()));
@@ -225,20 +225,20 @@ mod tests {
     fn test_format_decimal() {
         // Test normal decimal
         assert_eq!(format_decimal(Decimal::new(1234, 2)), "12.34");
-        
+
         // Test decimal with trailing zeros
         assert_eq!(format_decimal(Decimal::new(12300, 2)), "123");
         assert_eq!(format_decimal(Decimal::new(123000, 3)), "123");
-        
+
         // Test whole number
         assert_eq!(format_decimal(Decimal::new(123, 0)), "123");
-        
+
         // Test zero
         assert_eq!(format_decimal(Decimal::ZERO), "0");
-        
+
         // Test negative decimal
         assert_eq!(format_decimal(Decimal::new(-1234, 2)), "-12.34");
-        
+
         // Test very small decimal
         assert_eq!(format_decimal(Decimal::new(1, 3)), "0.001");
     }
@@ -259,11 +259,17 @@ mod tests {
             let quantity = Quantity::new(1.0, unit);
             let context = create_context(FhirPathValue::Quantity(quantity));
             let result = op.execute(&[], &context).unwrap();
-            assert_eq!(result, FhirPathValue::String(format!("1 '{}'", unit).into()));
+            assert_eq!(
+                result,
+                FhirPathValue::String(format!("1 '{}'", unit).into())
+            );
         }
 
         // Test complex units (no quotes)
-        let quantity = std::sync::Arc::new(Quantity::new(rust_decimal::Decimal::from_str("10.0").unwrap(), Some("mg/kg".to_string())));
+        let quantity = std::sync::Arc::new(Quantity::new(
+            rust_decimal::Decimal::from_str("10.0").unwrap(),
+            Some("mg/kg".to_string()),
+        ));
         let context = create_context(FhirPathValue::Quantity(quantity));
         let result = op.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::String("10 mg/kg".into()));

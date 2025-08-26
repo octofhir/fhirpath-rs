@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToDateTimeFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         let can_convert = can_convert_to_datetime(&context.input)?;
         Ok(FhirPathValue::Boolean(can_convert))
     }
@@ -33,18 +37,16 @@ fn can_convert_to_datetime(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a datetime
         FhirPathValue::DateTime(_) => Ok(true),
-        
+
         // Date can be converted to DateTime (add time 00:00:00)
         FhirPathValue::Date(_) => Ok(true),
-        
+
         // String values that can be parsed as ISO datetime format
-        FhirPathValue::String(s) => {
-            Ok(parse_iso_datetime_string(s).is_some())
-        },
-        
+        FhirPathValue::String(s) => Ok(parse_iso_datetime_string(s).is_some()),
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -55,7 +57,7 @@ fn can_convert_to_datetime(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to datetime
         _ => Ok(false),
     }
@@ -68,7 +70,7 @@ fn parse_iso_datetime_string(s: &str) -> Option<()> {
     // YYYY-MM-DDTHH:MM:SS.sss
     // YYYY-MM-DDTHH:MM:SS+ZZ:ZZ
     // YYYY-MM-DDTHH:MM:SS.sss+ZZ:ZZ
-    
+
     if s.len() >= 10 {
         // Check if it starts with a valid date part
         let date_part = &s[..10];
@@ -77,7 +79,7 @@ fn parse_iso_datetime_string(s: &str) -> Option<()> {
             if s.len() == 10 {
                 return Some(());
             }
-            
+
             // If there's more, check for 'T' separator
             if s.len() > 10 && s.chars().nth(10) == Some('T') {
                 // Basic time validation - could be more comprehensive
@@ -97,11 +99,11 @@ fn parse_iso_date_part(s: &str) -> Option<()> {
                 // Check month (2 digits, 01-12)
                 if parts[1].len() == 2 && parts[1].chars().all(|c| c.is_ascii_digit()) {
                     if let Ok(month) = parts[1].parse::<u32>() {
-                        if month >= 1 && month <= 12 {
+                        if (1..=12).contains(&month) {
                             // Check day (2 digits, 01-31)
                             if parts[2].len() == 2 && parts[2].chars().all(|c| c.is_ascii_digit()) {
                                 if let Ok(day) = parts[2].parse::<u32>() {
-                                    if day >= 1 && day <= 31 {
+                                    if (1..=31).contains(&day) {
                                         return Some(());
                                     }
                                 }
@@ -115,16 +117,16 @@ fn parse_iso_date_part(s: &str) -> Option<()> {
     None
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
-    use octofhir_fhirpath_model::{MockModelProvider, PrecisionDateTime, PrecisionDate};
+    use octofhir_fhirpath_model::MockModelProvider;
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

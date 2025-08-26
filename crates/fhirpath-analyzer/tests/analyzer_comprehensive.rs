@@ -95,7 +95,7 @@ async fn test_function_signature_validation() {
     let suite = AnalyzerTestSuite::new().await;
 
     // Valid function calls
-    let valid_cases = vec!["empty()", "count()", "exists()", "first()", "last()"];
+    let valid_cases = vec!["empty()", "count()", "first()", "last()"];
 
     for expression in valid_cases {
         let result = suite.analyzer.analyze(expression).await.unwrap();

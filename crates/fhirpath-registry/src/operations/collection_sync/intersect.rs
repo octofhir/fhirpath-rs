@@ -27,16 +27,21 @@ impl SyncOperation for SimpleIntersectFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "intersect",
-            parameters: vec![ParameterType::Collection],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "intersect",
+                parameters: vec![ParameterType::Collection],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -61,16 +66,15 @@ impl SyncOperation for SimpleIntersectFunction {
         };
 
         // Create set of right items for fast lookup
-        let right_set: HashSet<String> = right_items.iter()
-            .map(|item| format!("{:?}", item))
-            .collect();
+        let right_set: HashSet<String> =
+            right_items.iter().map(|item| format!("{item:?}")).collect();
 
         // Find intersection
         let mut result = Vec::new();
         let mut seen = HashSet::new();
 
         for item in left_items {
-            let key = format!("{:?}", item);
+            let key = format!("{item:?}");
             if right_set.contains(&key) && !seen.contains(&key) {
                 seen.insert(key);
                 result.push(item);
@@ -78,7 +82,7 @@ impl SyncOperation for SimpleIntersectFunction {
         }
 
         Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(result)
+            octofhir_fhirpath_model::Collection::from(result),
         ))
     }
 }

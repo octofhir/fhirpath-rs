@@ -27,16 +27,21 @@ impl SyncOperation for SimpleDistinctFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "distinct",
-            parameters: vec![],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "distinct",
+                parameters: vec![],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -53,7 +58,7 @@ impl SyncOperation for SimpleDistinctFunction {
 
                 for item in collection.iter() {
                     // Use string representation for hash comparison
-                    let key = format!("{:?}", item);
+                    let key = format!("{item:?}");
                     if !seen.contains(&key) {
                         seen.insert(key);
                         unique_items.push(item.clone());
@@ -61,16 +66,16 @@ impl SyncOperation for SimpleDistinctFunction {
                 }
 
                 Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(unique_items)
+                    octofhir_fhirpath_model::Collection::from(unique_items),
                 ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![])
+                octofhir_fhirpath_model::Collection::from(vec![]),
             )),
             _ => {
                 // Single item is always distinct
                 Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![context.input.clone()])
+                    octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
                 ))
             }
         }

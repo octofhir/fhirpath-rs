@@ -35,7 +35,11 @@ impl SyncOperation for SimpleLengthFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -64,7 +68,7 @@ impl SyncOperation for SimpleLengthFunction {
                                 let length = string_val.chars().count() as i64;
                                 Ok(FhirPathValue::Integer(length))
                             } else {
-                                // For collections of non-strings, return collection length  
+                                // For collections of non-strings, return collection length
                                 Ok(FhirPathValue::Integer(items.len() as i64))
                             }
                         }
@@ -82,7 +86,8 @@ impl SyncOperation for SimpleLengthFunction {
                     Ok(FhirPathValue::Integer(length))
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "length() can only be called on string values or collections".to_string()
+                        message: "length() can only be called on string values or collections"
+                            .to_string(),
                     })
                 }
             }

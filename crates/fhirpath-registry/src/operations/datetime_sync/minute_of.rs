@@ -1,7 +1,7 @@
 //! MinuteOf function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -22,18 +22,21 @@ impl SyncOperation for MinuteOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "minuteOf",
                 parameters: vec![],
                 return_type: ValueType::Integer,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_no_args(args, "minuteOf")?;
 
         let minute = match &context.input {
@@ -50,16 +53,21 @@ impl SyncOperation for MinuteOfFunction {
                         FhirPathValue::Time(time) => {
                             results.push(FhirPathValue::Integer(time.time.minute() as i64));
                         }
-                        _ => return Err(FhirPathError::TypeError {
-                            message: "minuteOf() can only be called on DateTime or Time values".to_string()
-                        }),
+                        _ => {
+                            return Err(FhirPathError::TypeError {
+                                message: "minuteOf() can only be called on DateTime or Time values"
+                                    .to_string(),
+                            });
+                        }
                     }
                 }
                 return Ok(FhirPathValue::collection(results));
             }
-            _ => return Err(FhirPathError::TypeError {
-                message: "minuteOf() can only be called on DateTime or Time values".to_string()
-            }),
+            _ => {
+                return Err(FhirPathError::TypeError {
+                    message: "minuteOf() can only be called on DateTime or Time values".to_string(),
+                });
+            }
         };
 
         Ok(FhirPathValue::Integer(minute))

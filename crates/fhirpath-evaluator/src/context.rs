@@ -1020,7 +1020,10 @@ pub struct StackContext<'a> {
 #[allow(dead_code)]
 impl<'a> StackContext<'a> {
     /// Create a new stack-allocated context
-    pub fn new(input: &'a FhirPathValue, registry: &'a octofhir_fhirpath_registry::FunctionRegistry) -> Self {
+    pub fn new(
+        input: &'a FhirPathValue,
+        registry: &'a octofhir_fhirpath_registry::FunctionRegistry,
+    ) -> Self {
         Self {
             root: input,
             input,

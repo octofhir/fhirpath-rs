@@ -240,7 +240,10 @@ impl crate::FhirPathEngine {
                     // Convert JsonValue property to proper FhirPathValue type
                     // For FHIR primitives, preserve context by creating a JsonValue wrapper for scalar types
                     let inner = prop_value.as_inner();
-                    if inner.is_boolean() || inner.is_number() || (inner.is_str() && !inner.as_str().unwrap_or("").starts_with('@')) {
+                    if inner.is_boolean()
+                        || inner.is_number()
+                        || (inner.is_str() && !inner.as_str().unwrap_or("").starts_with('@'))
+                    {
                         // Primitive FHIR types - preserve context with JsonValue wrapper
                         Ok(FhirPathValue::JsonValue(prop_value))
                     } else {
@@ -299,7 +302,7 @@ impl crate::FhirPathEngine {
                     } else {
                         Ok(FhirPathValue::Empty)
                     }
-                },
+                }
                 _ => Ok(FhirPathValue::Empty),
             },
             _ => Ok(FhirPathValue::Empty), // Non-object types don't have properties
@@ -436,7 +439,8 @@ impl crate::FhirPathEngine {
 
             // Call the Is operation with only the type identifier as argument (function-style)
             // The value to check is already in the registry_context.input
-            let result = self.registry()
+            let result = self
+                .registry()
                 .evaluate("is", &[right.clone()], &registry_context)
                 .await
                 .map_err(|e| EvaluationError::InvalidOperation {

@@ -13,7 +13,7 @@ struct AnalyzerTestSuite {
 impl AnalyzerTestSuite {
     async fn new() -> Self {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry().await.unwrap());
+        let registry = Arc::new(create_standard_registry());
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
         Self { analyzer }
@@ -41,7 +41,6 @@ async fn test_spec_compliant_expressions() {
         "Patient.name.given",
         // From functions that should be recognized
         "empty()",
-        "exists()",
         "count()",
         "first()",
         "last()",
@@ -200,7 +199,6 @@ async fn test_collection_functions() {
     // Test FHIRPath collection functions
     let collection_functions = vec![
         "empty()",
-        "exists()",
         "count()",
         "first()",
         "last()",

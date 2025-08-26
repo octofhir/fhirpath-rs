@@ -15,29 +15,29 @@ impl SimplePrecisionFunction {
     }
 
     fn count_decimal_places(&self, value: f64) -> i64 {
-        let value_str = format!("{:.15}", value);
-        
+        let value_str = format!("{value:.15}");
+
         if !value_str.contains('.') {
             return 0;
         }
-        
+
         let parts: Vec<&str> = value_str.split('.').collect();
         if parts.len() != 2 {
             return 0;
         }
-        
+
         let decimal_part = parts[1].trim_end_matches('0');
         decimal_part.len() as i64
     }
 
     fn temporal_precision_value(&self, precision: TemporalPrecision) -> i64 {
         match precision {
-            TemporalPrecision::Year => 4,        // YYYY
-            TemporalPrecision::Month => 6,       // YYYY-MM
-            TemporalPrecision::Day => 8,         // YYYY-MM-DD
-            TemporalPrecision::Hour => 11,       // YYYY-MM-DDTHH  
-            TemporalPrecision::Minute => 14,     // YYYY-MM-DDTHH:MM
-            TemporalPrecision::Second => 17,     // YYYY-MM-DDTHH:MM:SS
+            TemporalPrecision::Year => 4,         // YYYY
+            TemporalPrecision::Month => 6,        // YYYY-MM
+            TemporalPrecision::Day => 8,          // YYYY-MM-DD
+            TemporalPrecision::Hour => 11,        // YYYY-MM-DDTHH
+            TemporalPrecision::Minute => 14,      // YYYY-MM-DDTHH:MM
+            TemporalPrecision::Second => 17,      // YYYY-MM-DDTHH:MM:SS
             TemporalPrecision::Millisecond => 21, // YYYY-MM-DDTHH:MM:SS.SSS
         }
     }
@@ -55,16 +55,21 @@ impl SyncOperation for SimplePrecisionFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "precision",
-            parameters: vec![],
-            return_type: ValueType::Integer,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "precision",
+                parameters: vec![],
+                return_type: ValueType::Integer,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {

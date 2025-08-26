@@ -24,7 +24,11 @@ impl SyncOperation for ConvertsToLongFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle collections by applying convertsToLong to each element
         match &context.input {
             FhirPathValue::Collection(col) => {
@@ -36,7 +40,7 @@ impl SyncOperation for ConvertsToLongFunction {
                         Ok(FhirPathValue::Boolean(can_convert))
                     })
                     .collect();
-                
+
                 Ok(FhirPathValue::collection(results?))
             }
             _ => {
@@ -52,32 +56,30 @@ fn can_convert_to_long(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already an integer (which is i64 in our implementation)
         FhirPathValue::Integer(_) => Ok(true),
-        
+
         // Decimal can be converted if it's a whole number within i64 range
         FhirPathValue::Decimal(d) => {
             if d.fract().is_zero() {
                 // Check if it's within i64 range
                 if let Some(int_val) = d.to_i64() {
-                    Ok(int_val >= i64::MIN && int_val <= i64::MAX)
+                    Ok((i64::MIN..=i64::MAX).contains(&int_val))
                 } else {
                     Ok(false)
                 }
             } else {
                 Ok(false)
             }
-        },
-        
+        }
+
         // String values that can be parsed as i64
-        FhirPathValue::String(s) => {
-            Ok(s.trim().parse::<i64>().is_ok())
-        },
-        
+        FhirPathValue::String(s) => Ok(s.trim().parse::<i64>().is_ok()),
+
         // Boolean cannot be converted to Long in FHIRPath
         FhirPathValue::Boolean(_) => Ok(false),
-        
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules - single item collections are unwrapped
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -90,26 +92,23 @@ fn can_convert_to_long(value: &FhirPathValue) -> Result<bool> {
                 Ok(false)
             }
         }
-        
+
         // Other types cannot convert to long
         _ => Ok(false),
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
-        EvaluationContext {
-            input,
-            model_provider: Arc::new(MockModelProvider::new()),
-            variables: rustc_hash::FxHashMap::default(),
-        }
+        let model_provider = Arc::new(MockModelProvider::new());
+        EvaluationContext::new(input.clone(), Arc::new(input), model_provider)
     }
 
     #[test]

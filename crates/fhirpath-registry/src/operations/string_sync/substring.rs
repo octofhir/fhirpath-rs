@@ -26,16 +26,21 @@ impl SyncOperation for SimpleSubstringFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "substring",
-            parameters: vec![ParameterType::Integer, ParameterType::Integer],
-            return_type: ValueType::String,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "substring",
+                parameters: vec![ParameterType::Integer, ParameterType::Integer],
+                return_type: ValueType::String,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments - requires 1 or 2 parameters (start, optional length)
         if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -53,7 +58,7 @@ impl SyncOperation for SimpleSubstringFunction {
                     return Ok(FhirPathValue::Empty);
                 }
                 *n as usize
-            },
+            }
             _ => {
                 // Return empty collection for invalid start parameter type per FHIRPath spec
                 return Ok(FhirPathValue::Empty);
@@ -69,7 +74,7 @@ impl SyncOperation for SimpleSubstringFunction {
                         return Ok(FhirPathValue::Empty);
                     }
                     Some(*n as usize)
-                },
+                }
                 _ => {
                     // Return empty collection for invalid length parameter type per FHIRPath spec
                     return Ok(FhirPathValue::Empty);
@@ -86,13 +91,13 @@ impl SyncOperation for SimpleSubstringFunction {
                     // Out-of-bounds start index returns empty collection per FHIRPath spec
                     return Ok(FhirPathValue::Empty);
                 }
-                
+
                 let end = if let Some(len) = length {
                     std::cmp::min(start + len, chars.len())
                 } else {
                     chars.len()
                 };
-                
+
                 let result: String = chars[start..end].iter().collect();
                 Ok(FhirPathValue::String(result.into()))
             }
@@ -111,7 +116,7 @@ impl SyncOperation for SimpleSubstringFunction {
                                 } else {
                                     chars.len()
                                 };
-                                
+
                                 let result: String = chars[start..end].iter().collect();
                                 results.push(FhirPathValue::String(result.into()));
                             }

@@ -26,16 +26,21 @@ impl SyncOperation for SimpleEndsWithFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "endsWith",
-            parameters: vec![ParameterType::Any], // Accept any type that can be converted to string
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "endsWith",
+                parameters: vec![ParameterType::Any], // Accept any type that can be converted to string
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -50,29 +55,43 @@ impl SyncOperation for SimpleEndsWithFunction {
             FhirPathValue::String(s) => s.to_string(),
             FhirPathValue::Integer(i) => i.to_string(),
             FhirPathValue::Decimal(d) => d.to_string(),
-            FhirPathValue::Boolean(b) => if *b { "true".to_string() } else { "false".to_string() },
+            FhirPathValue::Boolean(b) => {
+                if *b {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            }
             FhirPathValue::Collection(col) if col.len() == 1 => {
                 // Single-item collection - try to convert the item
                 match col.first() {
                     Some(FhirPathValue::String(s)) => s.to_string(),
                     Some(FhirPathValue::Integer(i)) => i.to_string(),
                     Some(FhirPathValue::Decimal(d)) => d.to_string(),
-                    Some(FhirPathValue::Boolean(b)) => if *b { "true".to_string() } else { "false".to_string() },
+                    Some(FhirPathValue::Boolean(b)) => {
+                        if *b {
+                            "true".to_string()
+                        } else {
+                            "false".to_string()
+                        }
+                    }
                     Some(_) => {
                         return Err(FhirPathError::TypeError {
-                            message: "endsWith() argument must be convertible to string".to_string()
+                            message: "endsWith() argument must be convertible to string"
+                                .to_string(),
                         });
                     }
                     None => {
                         return Err(FhirPathError::TypeError {
-                            message: "endsWith() argument must be convertible to string".to_string()
+                            message: "endsWith() argument must be convertible to string"
+                                .to_string(),
                         });
                     }
                 }
             }
             _ => {
                 return Err(FhirPathError::TypeError {
-                    message: "endsWith() argument must be convertible to string".to_string()
+                    message: "endsWith() argument must be convertible to string".to_string(),
                 });
             }
         };
@@ -84,8 +103,8 @@ impl SyncOperation for SimpleEndsWithFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::TypeError {
-                message: "endsWith() can only be called on string values".to_string()
-            })
+                message: "endsWith() can only be called on string values".to_string(),
+            }),
         }
     }
 }

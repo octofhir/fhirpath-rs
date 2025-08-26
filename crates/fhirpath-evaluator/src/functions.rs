@@ -14,7 +14,10 @@ impl crate::FhirPathEngine {
     pub async fn is_lambda_function(&self, name: &str) -> bool {
         // Lambda functions are those that take expression arguments and need special evaluation
         // These are the actual lambda functions that exist in FHIRPath
-        matches!(name, "where" | "select" | "all" | "sort" | "repeat" | "aggregate" | "iif" | "exists")
+        matches!(
+            name,
+            "where" | "select" | "all" | "sort" | "repeat" | "aggregate" | "iif" | "exists"
+        )
     }
 
     /// Evaluate standard functions by delegating to the registry
@@ -165,7 +168,7 @@ impl crate::FhirPathEngine {
         let boolean_result = match &condition {
             // Non-boolean strings should make iif return empty
             FhirPathValue::String(_) => None,
-            _ => self.to_boolean_fhirpath(&condition)
+            _ => self.to_boolean_fhirpath(&condition),
         };
 
         match boolean_result {

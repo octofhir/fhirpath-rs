@@ -1,7 +1,7 @@
 //! Trace function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext};
-use crate::signature::{FunctionSignature, ValueType, ParameterType};
+use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
 
@@ -32,7 +32,11 @@ impl SyncOperation for TraceFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         let label = if args.is_empty() {
             "trace".to_string()
         } else {
@@ -46,11 +50,14 @@ impl SyncOperation for TraceFunction {
                 eprintln!("TRACE [{}]: {:?}", label, context.input);
             } else {
                 // Extended trace with additional arguments
-                let additional_values: Vec<String> = args[1..].iter()
-                    .map(|arg| format!("{:?}", arg))
-                    .collect();
-                eprintln!("TRACE [{}]: {:?} | Additional: [{}]", 
-                    label, context.input, additional_values.join(", "));
+                let additional_values: Vec<String> =
+                    args[1..].iter().map(|arg| format!("{arg:?}")).collect();
+                eprintln!(
+                    "TRACE [{}]: {:?} | Additional: [{}]",
+                    label,
+                    context.input,
+                    additional_values.join(", ")
+                );
             }
         }
 

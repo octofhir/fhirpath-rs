@@ -2,9 +2,9 @@
 
 use crate::signature::{FunctionSignature, ParameterType, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext};
+use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use async_trait::async_trait;
 use sonic_rs::JsonValueTrait;
 
 /// OfType function - filters collection to items of specific type
@@ -20,7 +20,7 @@ impl OfTypeFunction {
     fn matches_type(&self, value: &FhirPathValue, type_name: &str) -> bool {
         let actual_type = match value {
             FhirPathValue::String(_) => "System.String",
-            FhirPathValue::Integer(_) => "System.Integer", 
+            FhirPathValue::Integer(_) => "System.Integer",
             FhirPathValue::Decimal(_) => "System.Decimal",
             FhirPathValue::Boolean(_) => "System.Boolean",
             FhirPathValue::DateTime(_) => "System.DateTime",
@@ -29,9 +29,9 @@ impl OfTypeFunction {
             FhirPathValue::Quantity(_) => "System.Quantity",
             FhirPathValue::JsonValue(json_val) => {
                 // Try to match FHIR resource type
-                if let Some(resource_type) = json_val.as_inner().get(&"resourceType") {
+                if let Some(resource_type) = json_val.as_inner().get("resourceType") {
                     if let Some(type_str) = resource_type.as_str() {
-                        let fhir_type = format!("FHIR.{}", type_str);
+                        let fhir_type = format!("FHIR.{type_str}");
                         return type_name == fhir_type || type_name == type_str;
                     }
                 }
@@ -39,16 +39,16 @@ impl OfTypeFunction {
             }
             FhirPathValue::Resource(resource) => {
                 if let Some(resource_type) = resource.resource_type() {
-                    let fhir_type = format!("FHIR.{}", resource_type);
+                    let fhir_type = format!("FHIR.{resource_type}");
                     return type_name == fhir_type || type_name == resource_type;
                 }
                 "System.Object"
             }
             FhirPathValue::TypeInfoObject { namespace, name } => {
-                let full_type = format!("{}.{}", namespace, name);
-                return type_name == full_type || 
-                       type_name.eq_ignore_ascii_case(&full_type) ||
-                       type_name.eq_ignore_ascii_case(name);
+                let full_type = format!("{namespace}.{name}");
+                return type_name == full_type
+                    || type_name.eq_ignore_ascii_case(&full_type)
+                    || type_name.eq_ignore_ascii_case(name);
             }
             FhirPathValue::Collection(_) => "System.Collection",
             FhirPathValue::Empty => return false, // Empty never matches any type
@@ -70,16 +70,21 @@ impl AsyncOperation for OfTypeFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "ofType",
-            parameters: vec![ParameterType::Any], // Type identifier or string
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "ofType",
+                parameters: vec![ParameterType::Any], // Type identifier or string
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    async fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // ofType() takes exactly one argument - the type name
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -99,7 +104,7 @@ impl AsyncOperation for OfTypeFunction {
                     name.as_ref()
                 } else {
                     // Create full type name for non-FHIR types
-                    let full_type_name = format!("{}.{}", namespace, name);
+                    let full_type_name = format!("{namespace}.{name}");
                     return match &context.input {
                         FhirPathValue::Collection(col) => {
                             let mut filtered_items = Vec::new();
@@ -127,7 +132,7 @@ impl AsyncOperation for OfTypeFunction {
                         if namespace.as_ref() == "FHIR" {
                             name.as_ref()
                         } else {
-                            let full_type_name = format!("{}.{}", namespace, name);
+                            let full_type_name = format!("{namespace}.{name}");
                             return match &context.input {
                                 FhirPathValue::Collection(input_col) => {
                                     let mut filtered_items = Vec::new();
@@ -149,15 +154,18 @@ impl AsyncOperation for OfTypeFunction {
                         }
                     } else {
                         return Err(FhirPathError::TypeError {
-                            message: format!("ofType() type argument must be a type identifier or string, got {}", 
-                                col.get(0).map(|v| v.type_name()).unwrap_or("None")),
+                            message: format!(
+                                "ofType() type argument must be a type identifier or string, got {}",
+                                col.get(0).map(|v| v.type_name()).unwrap_or("None")
+                            ),
                         });
                     }
                 } else if col.is_empty() {
                     return Ok(FhirPathValue::Collection(vec![].into()));
                 } else {
                     return Err(FhirPathError::TypeError {
-                        message: "ofType() type argument must be a single type identifier".to_string(),
+                        message: "ofType() type argument must be a single type identifier"
+                            .to_string(),
                     });
                 }
             }
@@ -166,7 +174,10 @@ impl AsyncOperation for OfTypeFunction {
             // For other types, provide a helpful error message
             other => {
                 return Err(FhirPathError::TypeError {
-                    message: format!("ofType() type argument must be a type identifier or string, got {}", other.type_name()),
+                    message: format!(
+                        "ofType() type argument must be a type identifier or string, got {}",
+                        other.type_name()
+                    ),
                 });
             }
         };
@@ -174,32 +185,32 @@ impl AsyncOperation for OfTypeFunction {
         match &context.input {
             FhirPathValue::Collection(col) => {
                 let mut filtered_items = Vec::new();
-                
+
                 for item in col.iter() {
                     if self.matches_type(item, type_name) {
                         filtered_items.push(item.clone());
                     }
                 }
-                
+
                 Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(filtered_items)
+                    octofhir_fhirpath_model::Collection::from(filtered_items),
                 ))
             }
             FhirPathValue::Empty => {
                 // Empty input returns empty collection
                 Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![])
+                    octofhir_fhirpath_model::Collection::from(vec![]),
                 ))
             }
             _ => {
                 // Single item - return it if it matches the type, otherwise empty
                 if self.matches_type(&context.input, type_name) {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()])
+                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
                     ))
                 } else {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![])
+                        octofhir_fhirpath_model::Collection::from(vec![]),
                     ))
                 }
             }

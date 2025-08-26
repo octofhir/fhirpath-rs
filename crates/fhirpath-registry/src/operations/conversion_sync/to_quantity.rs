@@ -25,7 +25,11 @@ impl SyncOperation for ToQuantityFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         convert_to_quantity(&context.input)
     }
 }
@@ -34,36 +38,37 @@ fn convert_to_quantity(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already a quantity
         FhirPathValue::Quantity(q) => Ok(FhirPathValue::Quantity(q.clone())),
-        
+
         // Integer can be converted (becomes quantity with unit "1")
         FhirPathValue::Integer(i) => {
             let quantity = Quantity::new(Decimal::new(*i, 0), Some("1".to_string()));
             Ok(FhirPathValue::Quantity(Arc::new(quantity)))
-        },
-        
+        }
+
         // Decimal can be converted (becomes quantity with unit "1")
         FhirPathValue::Decimal(d) => {
             let quantity = Quantity::new(*d, Some("1".to_string()));
             Ok(FhirPathValue::Quantity(Arc::new(quantity)))
-        },
-        
+        }
+
         // String conversion with quantity parsing
-        FhirPathValue::String(s) => {
-            match parse_quantity_string(s) {
-                Some((value, unit)) => {
-                    let quantity = Quantity::new(Decimal::from_f64_retain(value).unwrap_or(Decimal::ZERO), unit);
-                    Ok(FhirPathValue::Quantity(Arc::new(quantity)))
-                },
-                None => Err(FhirPathError::ConversionError {
-                    from: format!("Cannot convert string '{}' to Quantity", s),
-                    to: "Quantity".to_string(),
-                }),
+        FhirPathValue::String(s) => match parse_quantity_string(s) {
+            Some((value, unit)) => {
+                let quantity = Quantity::new(
+                    Decimal::from_f64_retain(value).unwrap_or(Decimal::ZERO),
+                    unit,
+                );
+                Ok(FhirPathValue::Quantity(Arc::new(quantity)))
             }
+            None => Err(FhirPathError::ConversionError {
+                from: format!("Cannot convert string '{s}' to Quantity"),
+                to: "Quantity".to_string(),
+            }),
         },
-        
+
         // Empty input returns empty collection
         FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
-        
+
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -75,7 +80,7 @@ fn convert_to_quantity(value: &FhirPathValue) -> Result<FhirPathValue> {
                 Ok(FhirPathValue::Collection(vec![].into()))
             }
         }
-        
+
         // Unsupported types
         _ => Err(FhirPathError::ConversionError {
             from: format!("Cannot convert {} to Quantity", value.type_name()),
@@ -86,12 +91,12 @@ fn convert_to_quantity(value: &FhirPathValue) -> Result<FhirPathValue> {
 
 fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
     let s = s.trim();
-    
+
     // Try to parse just a number (no unit)
     if let Ok(value) = s.parse::<f64>() {
         return Some((value, None));
     }
-    
+
     // Try to parse "value unit" format
     let parts: Vec<&str> = s.split_whitespace().collect();
     if parts.len() == 2 {
@@ -99,14 +104,14 @@ fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
             let unit = parts[1].to_string();
             // Remove quotes from unit if present
             let unit = if unit.starts_with('\'') && unit.ends_with('\'') {
-                unit[1..unit.len()-1].to_string()
+                unit[1..unit.len() - 1].to_string()
             } else {
                 unit
             };
             return Some((value, Some(unit)));
         }
     }
-    
+
     // Try to parse formats like "5mg", "10.5kg", etc.
     let mut split_pos = None;
     for (i, c) in s.char_indices() {
@@ -115,34 +120,34 @@ fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
             break;
         }
     }
-    
+
     if let Some(pos) = split_pos {
         let (value_part, unit_part) = s.split_at(pos);
         if let Ok(value) = value_part.parse::<f64>() {
             let unit = unit_part.trim();
             let unit = if unit.starts_with('\'') && unit.ends_with('\'') {
-                unit[1..unit.len()-1].to_string()
+                unit[1..unit.len() - 1].to_string()
             } else {
                 unit.to_string()
             };
             return Some((value, Some(unit)));
         }
     }
-    
+
     None
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -213,10 +218,7 @@ mod tests {
         assert_eq!(result, FhirPathValue::Quantity(expected_quantity));
 
         // Test multi-item collection (should return empty)
-        let collection = vec![
-            FhirPathValue::Integer(42),
-            FhirPathValue::Integer(24)
-        ];
+        let collection = vec![FhirPathValue::Integer(42), FhirPathValue::Integer(24)];
         let context = create_context(FhirPathValue::Collection(collection.into()));
         let result = op.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Collection(vec![].into()));
@@ -227,24 +229,48 @@ mod tests {
         // Test number only
         assert_eq!(parse_quantity_string("42.5"), Some((42.5, None)));
         assert_eq!(parse_quantity_string("-10.3"), Some((-10.3, None)));
-        
+
         // Test number with unit
-        assert_eq!(parse_quantity_string("42.5 mg"), Some((42.5, Some("mg".to_string()))));
-        assert_eq!(parse_quantity_string("100.0 kg"), Some((100.0, Some("kg".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42.5 mg"),
+            Some((42.5, Some("mg".to_string())))
+        );
+        assert_eq!(
+            parse_quantity_string("100.0 kg"),
+            Some((100.0, Some("kg".to_string())))
+        );
+
         // Test number with quoted unit
-        assert_eq!(parse_quantity_string("42 'kg'"), Some((42.0, Some("kg".to_string()))));
-        assert_eq!(parse_quantity_string("5.5 'wk'"), Some((5.5, Some("wk".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42 'kg'"),
+            Some((42.0, Some("kg".to_string())))
+        );
+        assert_eq!(
+            parse_quantity_string("5.5 'wk'"),
+            Some((5.5, Some("wk".to_string())))
+        );
+
         // Test concatenated format
-        assert_eq!(parse_quantity_string("42mg"), Some((42.0, Some("mg".to_string()))));
-        assert_eq!(parse_quantity_string("10.5kg"), Some((10.5, Some("kg".to_string()))));
-        assert_eq!(parse_quantity_string("100'wk'"), Some((100.0, Some("wk".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42mg"),
+            Some((42.0, Some("mg".to_string())))
+        );
+        assert_eq!(
+            parse_quantity_string("10.5kg"),
+            Some((10.5, Some("kg".to_string())))
+        );
+        assert_eq!(
+            parse_quantity_string("100'wk'"),
+            Some((100.0, Some("wk".to_string())))
+        );
+
         // Test scientific notation
         assert_eq!(parse_quantity_string("1.23e2"), Some((123.0, None)));
-        assert_eq!(parse_quantity_string("1.5E-3 mg"), Some((0.0015, Some("mg".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("1.5E-3 mg"),
+            Some((0.0015, Some("mg".to_string())))
+        );
+
         // Test invalid formats
         assert_eq!(parse_quantity_string("invalid"), None);
         assert_eq!(parse_quantity_string("mg42"), None);

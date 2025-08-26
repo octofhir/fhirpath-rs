@@ -52,14 +52,30 @@ impl SyncConversionOperations {
     /// Register all sync conversion operations with the registry
     pub async fn register_all(registry: &FunctionRegistry) {
         // Type checking operations (converts_to_*)
-        registry.register_sync(Box::new(ConvertsToBooleanFunction)).await;
-        registry.register_sync(Box::new(ConvertsToDateFunction)).await;
-        registry.register_sync(Box::new(ConvertsToDateTimeFunction)).await;
-        registry.register_sync(Box::new(ConvertsToDecimalFunction)).await;
-        registry.register_sync(Box::new(ConvertsToIntegerFunction)).await;
-        registry.register_sync(Box::new(ConvertsToLongFunction)).await;
-        registry.register_sync(Box::new(ConvertsToStringFunction)).await;
-        registry.register_sync(Box::new(ConvertsToTimeFunction)).await;
+        registry
+            .register_sync(Box::new(ConvertsToBooleanFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToDateFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToDateTimeFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToDecimalFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToIntegerFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToLongFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToStringFunction))
+            .await;
+        registry
+            .register_sync(Box::new(ConvertsToTimeFunction))
+            .await;
 
         // Type conversion operations (to_*)
         registry.register_sync(Box::new(ToBooleanFunction)).await;
@@ -73,16 +89,16 @@ impl SyncConversionOperations {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
-    use super::*;
-    use crate::traits::{SyncOperation, EvaluationContext};
-    use octofhir_fhirpath_model::{MockModelProvider, FhirPathValue};
+
+    use crate::traits::EvaluationContext;
+    use octofhir_fhirpath_model::{FhirPathValue, MockModelProvider};
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -124,7 +140,6 @@ mod tests {
             Box::new(ConvertsToQuantityFunction),
             Box::new(ConvertsToStringFunction),
             Box::new(ConvertsToTimeFunction),
-            
             // Type conversion operations
             Box::new(ToBooleanFunction),
             Box::new(ToDateFunction),
@@ -139,12 +154,30 @@ mod tests {
 
         for op in operations {
             let signature = op.signature();
-            assert!(!signature.name.is_empty(), "Operation {} has empty name", op.name());
-            assert_eq!(signature.name, op.name(), "Signature name doesn't match operation name for {}", op.name());
-            
+            assert!(
+                !signature.name.is_empty(),
+                "Operation {} has empty name",
+                op.name()
+            );
+            assert_eq!(
+                signature.name,
+                op.name(),
+                "Signature name doesn't match operation name for {}",
+                op.name()
+            );
+
             // All conversion operations should have no parameters
-            assert_eq!(signature.parameters.len(), 0, "Conversion operation {} should have no parameters", op.name());
-            assert!(!signature.variadic, "Conversion operation {} should not be variadic", op.name());
+            assert_eq!(
+                signature.parameters.len(),
+                0,
+                "Conversion operation {} should have no parameters",
+                op.name()
+            );
+            assert!(
+                !signature.variadic,
+                "Conversion operation {} should not be variadic",
+                op.name()
+            );
         }
     }
 

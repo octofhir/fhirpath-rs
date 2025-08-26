@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToIntegerFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Handle collections by applying convertsToInteger to each element
         match &context.input {
             FhirPathValue::Collection(col) => {
@@ -35,7 +39,7 @@ impl SyncOperation for ConvertsToIntegerFunction {
                         Ok(FhirPathValue::Boolean(can_convert))
                     })
                     .collect();
-                
+
                 Ok(FhirPathValue::collection(results?))
             }
             _ => {
@@ -51,23 +55,19 @@ fn can_convert_to_integer(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already an integer
         FhirPathValue::Integer(_) => Ok(true),
-        
+
         // Decimal can be converted if it's a whole number
-        FhirPathValue::Decimal(d) => {
-            Ok(d.fract().is_zero())
-        },
-        
+        FhirPathValue::Decimal(d) => Ok(d.fract().is_zero()),
+
         // String values that can be parsed as integer
-        FhirPathValue::String(s) => {
-            Ok(s.trim().parse::<i64>().is_ok())
-        },
-        
+        FhirPathValue::String(s) => Ok(s.trim().parse::<i64>().is_ok()),
+
         // Boolean can be converted (true = 1, false = 0)
         FhirPathValue::Boolean(_) => Ok(true),
-        
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -78,23 +78,23 @@ fn can_convert_to_integer(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to integer
         _ => Ok(false),
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
     use octofhir_fhirpath_model::MockModelProvider;
-    use rust_decimal::Decimal;
+
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]

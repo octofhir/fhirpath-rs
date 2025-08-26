@@ -13,7 +13,7 @@ impl SimpleExcludeFunction {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// Check if two FhirPathValues are equivalent for exclude operation
     fn values_equivalent(&self, left: &FhirPathValue, right: &FhirPathValue) -> bool {
         use FhirPathValue::*;
@@ -35,7 +35,7 @@ impl SimpleExcludeFunction {
                 }
             }
             // For different types or complex types, use debug comparison as fallback
-            _ => format!("{:?}", left) == format!("{:?}", right),
+            _ => format!("{left:?}") == format!("{right:?}"),
         }
     }
 }
@@ -52,16 +52,21 @@ impl SyncOperation for SimpleExcludeFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "exclude",
-            parameters: vec![ParameterType::Collection],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "exclude",
+                parameters: vec![ParameterType::Collection],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -85,17 +90,18 @@ impl SyncOperation for SimpleExcludeFunction {
             _ => vec![args[0].clone()],
         };
 
-        // Exclude items that exist in right collection using proper equivalence 
-        let result: Vec<FhirPathValue> = left_items.into_iter()
+        // Exclude items that exist in right collection using proper equivalence
+        let result: Vec<FhirPathValue> = left_items
+            .into_iter()
             .filter(|left_item| {
-                !right_items.iter().any(|right_item| {
-                    self.values_equivalent(left_item, right_item)
-                })
+                !right_items
+                    .iter()
+                    .any(|right_item| self.values_equivalent(left_item, right_item))
             })
             .collect();
 
         Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(result)
+            octofhir_fhirpath_model::Collection::from(result),
         ))
     }
 }

@@ -1,7 +1,7 @@
 //! HasValue function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
 use sonic_rs::JsonValueTrait;
@@ -46,18 +46,21 @@ impl SyncOperation for HasValueFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "hasValue",
                 parameters: vec![],
                 return_type: ValueType::Boolean,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_no_args(args, "hasValue")?;
 
         let input = &context.input;

@@ -26,16 +26,21 @@ impl SyncOperation for SimpleCombineFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "combine",
-            parameters: vec![ParameterType::Collection],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "combine",
+                parameters: vec![ParameterType::Collection],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -64,7 +69,7 @@ impl SyncOperation for SimpleCombineFunction {
         result.extend(right_items);
 
         Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(result)
+            octofhir_fhirpath_model::Collection::from(result),
         ))
     }
 }

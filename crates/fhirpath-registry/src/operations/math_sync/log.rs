@@ -27,16 +27,21 @@ impl SyncOperation for SimpleLogFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "log",
-            parameters: vec![ParameterType::Numeric], // Base parameter
-            return_type: ValueType::Any,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "log",
+                parameters: vec![ParameterType::Numeric], // Base parameter
+                return_type: ValueType::Any,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -74,7 +79,9 @@ impl SyncOperation for SimpleLogFunction {
                     })
                 } else {
                     let result = (*n as f64).log(base);
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Decimal(n) => {
@@ -86,7 +93,9 @@ impl SyncOperation for SimpleLogFunction {
                     })
                 } else {
                     let result = n.to_f64().unwrap_or(0.0).log(base);
-                    Ok(FhirPathValue::Decimal(rust_decimal::Decimal::try_from(result).unwrap_or_default()))
+                    Ok(FhirPathValue::Decimal(
+                        rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    ))
                 }
             }
             FhirPathValue::Quantity(q) => {
@@ -98,7 +107,10 @@ impl SyncOperation for SimpleLogFunction {
                     })
                 } else {
                     let result = q.value.to_f64().unwrap_or(0.0).log(base);
-                    Ok(FhirPathValue::quantity(rust_decimal::Decimal::try_from(result).unwrap_or_default(), q.unit.clone()))
+                    Ok(FhirPathValue::quantity(
+                        rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                        q.unit.clone(),
+                    ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

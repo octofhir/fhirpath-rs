@@ -39,7 +39,7 @@
 //!
 //! # tokio_test::block_on(async {
 //! let provider = Arc::new(MockModelProvider::new());
-//! let registry = Arc::new(create_standard_registry().await?);
+//! let registry = Arc::new(create_standard_registry());
 //! let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 //!
 //! // Function signature validation
@@ -78,7 +78,7 @@
 //! # use std::sync::Arc;
 //! # tokio_test::block_on(async {
 //! # let provider = Arc::new(MockModelProvider::new());
-//! # let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await?);
+//! # let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
 //! # let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 //! let result = analyzer.analyze("unknownFunction()").await?;
 //!

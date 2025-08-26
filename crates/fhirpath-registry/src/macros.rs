@@ -7,16 +7,14 @@
 /// Macro to implement a synchronous operation with minimal boilerplate
 ///
 /// # Usage
-/// ```rust
-/// use fhirpath_registry::{impl_sync_op, signature::{ValueType, ParameterType}};
-/// 
+/// ```rust,ignore
+/// use octofhir_fhirpath_registry::{impl_sync_op, signature::{ValueType, ParameterType}};
+///
 /// pub struct LengthFunction;
-/// 
+///
 /// impl_sync_op!(LengthFunction, "length", [] => ValueType::Integer, {
-///     // Implementation goes here
-///     let input_string = context.input.as_string()
-///         .ok_or_else(|| FhirPathError::TypeError("length() can only be called on strings".into()))?;
-///     Ok(FhirPathValue::Integer(input_string.len() as i64))
+///     // Implementation goes here - context is available in this scope
+///     unimplemented!("Example usage")
 /// });
 /// ```
 #[macro_export]
@@ -42,7 +40,7 @@ macro_rules! impl_sync_op {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
                 use $crate::traits::validation::*;
-                
+
                 validate_no_args(args, $op_name)?;
                 $implementation
             }
@@ -69,7 +67,7 @@ macro_rules! impl_sync_op {
             fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 if args.len() != 1 {
                     return Err(FhirPathError::InvalidArgumentCount {
                         function_name: $op_name.to_string(),
@@ -102,7 +100,7 @@ macro_rules! impl_sync_op {
             fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 let expected_count = SIGNATURE.parameters.len();
                 if args.len() != expected_count {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -136,7 +134,7 @@ macro_rules! impl_sync_op {
             fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 let min_args = SIGNATURE.parameters.len();
                 if args.len() < min_args {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -154,16 +152,14 @@ macro_rules! impl_sync_op {
 /// Macro to implement an asynchronous operation with minimal boilerplate
 ///
 /// # Usage
-/// ```rust
-/// use fhirpath_registry::{impl_async_op, signature::{ValueType, ParameterType}};
-/// 
+/// ```rust,ignore
+/// use octofhir_fhirpath_registry::{impl_async_op, signature::{ValueType, ParameterType}};
+///
 /// pub struct ResolveFunction;
-/// 
+///
 /// impl_async_op!(ResolveFunction, "resolve", [] => ValueType::Any, {
-///     // Async implementation goes here
-///     let reference = extract_reference(&context.input)?;
-///     let resolved = context.model_provider.resolve_reference(&reference).await?;
-///     Ok(resolved)
+///     // Async implementation - context is available in this scope
+///     unimplemented!("Example usage")
 /// });
 /// ```
 #[macro_export]
@@ -190,7 +186,7 @@ macro_rules! impl_async_op {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
                 use $crate::traits::validation::*;
-                
+
                 validate_no_args(args, $op_name)?;
                 $implementation
             }
@@ -218,7 +214,7 @@ macro_rules! impl_async_op {
             async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 if args.len() != 1 {
                     return Err(FhirPathError::InvalidArgumentCount {
                         function_name: $op_name.to_string(),
@@ -252,7 +248,7 @@ macro_rules! impl_async_op {
             async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 let expected_count = SIGNATURE.parameters.len();
                 if args.len() != expected_count {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -287,7 +283,7 @@ macro_rules! impl_async_op {
             async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
                 use octofhir_fhirpath_model::FhirPathValue;
-                
+
                 let min_args = SIGNATURE.parameters.len();
                 if args.len() < min_args {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -305,7 +301,7 @@ macro_rules! impl_async_op {
 /// Macro to create a default constructor for an operation
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
 /// pub struct LengthFunction;
 /// impl_default_constructor!(LengthFunction);
 /// ```
@@ -329,7 +325,8 @@ macro_rules! impl_default_constructor {
 /// Macro to register operations in a registry
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
+/// # use octofhir_fhirpath_registry::register_sync_ops;
 /// register_sync_ops!(registry, [
 ///     LengthFunction::new(),
 ///     UpperFunction::new(),
@@ -351,7 +348,8 @@ macro_rules! register_sync_ops {
 /// Macro to register async operations in a registry
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
+/// # use octofhir_fhirpath_registry::register_async_ops;
 /// register_async_ops!(registry, [
 ///     ResolveFunction::new(),
 ///     NowFunction::new(),
@@ -373,16 +371,17 @@ macro_rules! register_async_ops {
 /// Macro to create common string manipulation operations
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
+/// # use octofhir_fhirpath_registry::string_manipulation_op;
 /// string_manipulation_op!(UpperFunction, "upper", |s: &str| s.to_uppercase());
 /// ```
 #[macro_export]
 macro_rules! string_manipulation_op {
     ($struct_name:ident, $op_name:literal, |$input:ident: &str| $transform:expr) => {
         pub struct $struct_name;
-        
+
         impl_default_constructor!($struct_name);
-        
+
         impl_sync_op!($struct_name, $op_name, [] => $crate::signature::ValueType::String, {
             use $crate::traits::validation::*;
             let $input = validate_string_input(context, $op_name)?;
@@ -395,16 +394,17 @@ macro_rules! string_manipulation_op {
 /// Macro to create common collection operations  
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
+/// # use octofhir_fhirpath_registry::collection_count_op;
 /// collection_count_op!(CountFunction, "count");
 /// ```
 #[macro_export]
 macro_rules! collection_count_op {
     ($struct_name:ident, $op_name:literal) => {
         pub struct $struct_name;
-        
+
         impl_default_constructor!($struct_name);
-        
+
         impl_sync_op!($struct_name, $op_name, [] => $crate::signature::ValueType::Integer, {
             use $crate::traits::validation::*;
             let items = get_collection_items(&context.input);
@@ -416,20 +416,21 @@ macro_rules! collection_count_op {
 /// Macro to create common math operations
 ///
 /// # Usage  
-/// ```rust
+/// ```rust,ignore
+/// # use octofhir_fhirpath_registry::math_unary_op;
 /// math_unary_op!(AbsFunction, "abs", |n: f64| n.abs());
 /// ```
 #[macro_export]
 macro_rules! math_unary_op {
     ($struct_name:ident, $op_name:literal, |$input:ident: f64| $operation:expr) => {
         pub struct $struct_name;
-        
+
         impl_default_constructor!($struct_name);
-        
+
         impl_sync_op!($struct_name, $op_name, [] => $crate::signature::ValueType::Any, {
             use $crate::traits::validation::*;
             validate_numeric_input(context, $op_name)?;
-            
+
             match &context.input {
                 FhirPathValue::Integer(n) => {
                     let $input = *n as f64;

@@ -100,7 +100,7 @@ async fn test_memory_usage() {
 async fn test_analyzer_with_function_registry() {
     // Test analyzer with function registry doesn't break basic functionality
     let provider = Arc::new(MockModelProvider::new());
-    let registry = Arc::new(create_standard_registry().await.unwrap());
+    let registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 
     let expressions = vec![

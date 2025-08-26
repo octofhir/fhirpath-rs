@@ -1,10 +1,10 @@
 //! HasTemplateIdOf function implementation for CDA/FHIR templates - sync version for FunctionRegistry
 
 use crate::signature::{FunctionSignature, ParameterType, ValueType};
-use crate::traits::{SyncOperation, EvaluationContext};
+use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::{JsonValueTrait, JsonContainerTrait};
+use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 
 /// HasTemplateIdOf function: checks if a resource has a specific template ID/profile
 #[derive(Debug, Default, Clone)]
@@ -20,11 +20,11 @@ impl HasTemplateIdOfFunction {
         match value {
             FhirPathValue::JsonValue(json_val) => {
                 // Check for template ID in various CDA/FHIR locations
-                if let Some(template_ids) = json_val.as_inner().get(&"templateId") {
+                if let Some(template_ids) = json_val.as_inner().get("templateId") {
                     self.check_template_ids(template_ids, template_id)
-                } else if let Some(meta) = json_val.as_inner().get(&"meta") {
+                } else if let Some(meta) = json_val.as_inner().get("meta") {
                     // Check FHIR meta.profile
-                    if let Some(profiles) = meta.get(&"profile") {
+                    if let Some(profiles) = meta.get("profile") {
                         self.check_profiles(profiles, template_id)
                     } else {
                         false
@@ -37,10 +37,10 @@ impl HasTemplateIdOfFunction {
             FhirPathValue::Resource(resource) => {
                 // For resource objects, check similar patterns
                 let json_val = resource.as_json();
-                if let Some(template_ids) = json_val.get(&"templateId") {
+                if let Some(template_ids) = json_val.get("templateId") {
                     self.check_template_ids(template_ids, template_id)
-                } else if let Some(meta) = json_val.get(&"meta") {
-                    if let Some(profiles) = meta.get(&"profile") {
+                } else if let Some(meta) = json_val.get("meta") {
+                    if let Some(profiles) = meta.get("profile") {
                         self.check_profiles(profiles, template_id)
                     } else {
                         false
@@ -52,7 +52,8 @@ impl HasTemplateIdOfFunction {
             }
             FhirPathValue::Collection(col) => {
                 // Check any item in the collection
-                col.iter().any(|item| self.has_template_id(item, template_id))
+                col.iter()
+                    .any(|item| self.has_template_id(item, template_id))
             }
             _ => false,
         }
@@ -62,7 +63,8 @@ impl HasTemplateIdOfFunction {
     fn check_template_ids(&self, template_ids: &sonic_rs::Value, target_id: &str) -> bool {
         if template_ids.is_array() {
             if let Some(arr) = template_ids.as_array() {
-                arr.iter().any(|template| self.check_single_template(template, target_id))
+                arr.iter()
+                    .any(|template| self.check_single_template(template, target_id))
             } else {
                 false
             }
@@ -73,12 +75,12 @@ impl HasTemplateIdOfFunction {
 
     /// Check a single template ID object
     fn check_single_template(&self, template: &sonic_rs::Value, target_id: &str) -> bool {
-        if let Some(root) = template.get(&"root") {
+        if let Some(root) = template.get("root") {
             if let Some(root_str) = root.as_str() {
                 return root_str == target_id;
             }
         }
-        if let Some(extension) = template.get(&"extension") {
+        if let Some(extension) = template.get("extension") {
             if let Some(ext_str) = extension.as_str() {
                 return ext_str == target_id;
             }
@@ -104,19 +106,18 @@ impl HasTemplateIdOfFunction {
             } else {
                 false
             }
+        } else if let Some(profile_str) = profiles.as_str() {
+            profile_str == target_id
         } else {
-            if let Some(profile_str) = profiles.as_str() {
-                profile_str == target_id
-            } else {
-                false
-            }
+            false
         }
     }
 
     /// Check for implicit template matching based on document structure
     fn check_implicit_template(&self, json_val: &sonic_rs::Value, target_id: &str) -> bool {
         // Check if this is a ContinuityofCareDocumentCCD based on resourceType and content
-        if target_id == "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD" {
+        if target_id == "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD"
+        {
             // Check for ClinicalDocument resourceType
             if let Some(resource_type) = json_val.get("resourceType") {
                 if let Some(rt_str) = resource_type.as_str() {
@@ -164,16 +165,21 @@ impl SyncOperation for HasTemplateIdOfFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "hasTemplateIdOf",
-            parameters: vec![ParameterType::String], // Template ID to check
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "hasTemplateIdOf",
+                parameters: vec![ParameterType::String], // Template ID to check
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // hasTemplateIdOf() takes exactly one argument - the template ID
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -197,19 +203,15 @@ impl SyncOperation for HasTemplateIdOfFunction {
     }
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use octofhir_fhirpath_model::MockModelProvider;
-    use sonic_rs::json;
     use std::sync::Arc;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
-        EvaluationContext {
-            input,
-            model_provider: Arc::new(MockModelProvider::new()),
-            variables: rustc_hash::FxHashMap::default(),
-        }
+        let model_provider = Arc::new(MockModelProvider::new());
+        EvaluationContext::new(input.clone(), Arc::new(input), model_provider)
     }
 
     #[test]
@@ -226,7 +228,9 @@ mod tests {
         });
 
         let context = create_context(FhirPathValue::JsonValue(cda_doc.into()));
-        let args = vec![FhirPathValue::String("2.16.840.1.113883.10.20.22.1.1".into())];
+        let args = vec![FhirPathValue::String(
+            "2.16.840.1.113883.10.20.22.1.1".into(),
+        )];
         let result = op.execute(&args, &context).unwrap();
         assert_eq!(result, FhirPathValue::Boolean(true));
 
@@ -239,7 +243,9 @@ mod tests {
         });
 
         let context = create_context(FhirPathValue::JsonValue(fhir_resource.clone().into()));
-        let args = vec![FhirPathValue::String("http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient".into())];
+        let args = vec![FhirPathValue::String(
+            "http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient".into(),
+        )];
         let result = op.execute(&args, &context).unwrap();
         assert_eq!(result, FhirPathValue::Boolean(true));
 

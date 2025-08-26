@@ -298,7 +298,10 @@ impl FhirPathEngine {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>, model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(
+        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Self {
         Self {
             registry,
             model_provider,
@@ -1663,12 +1666,13 @@ impl FhirPathEngine {
                             if self.registry().has_function(method_name) {
                                 // Create registry context with the object as input for the lambda and variables from engine context
                                 let all_variables = context.variable_scope.collect_all_variables();
-                                let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
-                                    input: object,
-                                    root: context.root.clone(),
-                                    variables: all_variables,
-                                    model_provider: self.model_provider().clone(),
-                                };
+                                let registry_context =
+                                    octofhir_fhirpath_registry::traits::EvaluationContext {
+                                        input: object,
+                                        root: context.root.clone(),
+                                        variables: all_variables,
+                                        model_provider: self.model_provider().clone(),
+                                    };
 
                                 // Use generic lambda function evaluation for remaining functions
                                 self.registry()
@@ -1780,12 +1784,13 @@ impl FhirPathEngine {
                     // Get method from registry and evaluate
                     if self.registry().has_function(method_name) {
                         // Create registry context with the object as input (context) for the method
-                        let registry_context = octofhir_fhirpath_registry::traits::EvaluationContext {
-                            input: object,
-                            root: context.root.clone(),
-                            variables: context.variable_scope.collect_all_variables(),
-                            model_provider: self.model_provider().clone(),
-                        };
+                        let registry_context =
+                            octofhir_fhirpath_registry::traits::EvaluationContext {
+                                input: object,
+                                root: context.root.clone(),
+                                variables: context.variable_scope.collect_all_variables(),
+                                model_provider: self.model_provider().clone(),
+                            };
 
                         self.registry()
                             .evaluate(method_name, &evaluated_args, &registry_context)
@@ -1880,4 +1885,3 @@ pub enum LambdaType {
 // Thread safety by design - all fields are Send + Sync
 unsafe impl Send for FhirPathEngine {}
 unsafe impl Sync for FhirPathEngine {}
-

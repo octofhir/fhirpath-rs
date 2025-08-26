@@ -1,10 +1,13 @@
 //! LowBoundary function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
 use crate::signature::{FunctionSignature, ValueType};
-use chrono::{DateTime, NaiveDate, TimeZone, Datelike, Timelike};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, temporal::{PrecisionDateTime, TemporalPrecision}};
+use octofhir_fhirpath_model::{
+    FhirPathValue,
+    temporal::{PrecisionDateTime, TemporalPrecision},
+};
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 /// LowBoundary function - gets low precision boundary of date/time values
@@ -19,7 +22,10 @@ impl LowBoundaryFunction {
     fn get_low_boundary(date: &NaiveDate) -> DateTime<chrono::FixedOffset> {
         // Low boundary of date is start of day (00:00:00.000)
         let start_of_day = date.and_hms_milli_opt(0, 0, 0, 0).unwrap();
-        chrono::FixedOffset::east_opt(0).unwrap().from_local_datetime(&start_of_day).unwrap()
+        chrono::FixedOffset::east_opt(0)
+            .unwrap()
+            .from_local_datetime(&start_of_day)
+            .unwrap()
     }
 
     fn get_datetime_low_boundary(datetime: &PrecisionDateTime) -> PrecisionDateTime {
@@ -28,49 +34,83 @@ impl LowBoundaryFunction {
             TemporalPrecision::Year => {
                 // Start of year: January 1, 00:00:00.000
                 let year = datetime.datetime.year();
-                let start_of_year = NaiveDate::from_ymd_opt(year, 1, 1).unwrap()
-                    .and_hms_milli_opt(0, 0, 0, 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_year).unwrap();
+                let start_of_year = NaiveDate::from_ymd_opt(year, 1, 1)
+                    .unwrap()
+                    .and_hms_milli_opt(0, 0, 0, 0)
+                    .unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_year)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Month => {
                 // Start of month
                 let year = datetime.datetime.year();
                 let month = datetime.datetime.month();
-                let start_of_month = NaiveDate::from_ymd_opt(year, month, 1).unwrap()
-                    .and_hms_milli_opt(0, 0, 0, 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_month).unwrap();
+                let start_of_month = NaiveDate::from_ymd_opt(year, month, 1)
+                    .unwrap()
+                    .and_hms_milli_opt(0, 0, 0, 0)
+                    .unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_month)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Day => {
                 // Start of day
                 let date = datetime.datetime.date_naive();
                 let start_of_day = date.and_hms_milli_opt(0, 0, 0, 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_day).unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_day)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Hour => {
                 // Start of hour
                 let dt = datetime.datetime;
-                let start_of_hour = dt.date_naive()
-                    .and_hms_milli_opt(dt.hour(), 0, 0, 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_hour).unwrap();
+                let start_of_hour = dt
+                    .date_naive()
+                    .and_hms_milli_opt(dt.hour(), 0, 0, 0)
+                    .unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_hour)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Minute => {
                 // Start of minute
                 let dt = datetime.datetime;
-                let start_of_minute = dt.date_naive()
-                    .and_hms_milli_opt(dt.hour(), dt.minute(), 0, 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_minute).unwrap();
+                let start_of_minute = dt
+                    .date_naive()
+                    .and_hms_milli_opt(dt.hour(), dt.minute(), 0, 0)
+                    .unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_minute)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Second => {
                 // Start of second
                 let dt = datetime.datetime;
-                let start_of_second = dt.date_naive()
-                    .and_hms_milli_opt(dt.hour(), dt.minute(), dt.second(), 0).unwrap();
-                let fixed_dt = datetime.datetime.timezone().from_local_datetime(&start_of_second).unwrap();
+                let start_of_second = dt
+                    .date_naive()
+                    .and_hms_milli_opt(dt.hour(), dt.minute(), dt.second(), 0)
+                    .unwrap();
+                let fixed_dt = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&start_of_second)
+                    .unwrap();
                 PrecisionDateTime::new(fixed_dt, TemporalPrecision::Millisecond)
             }
             TemporalPrecision::Millisecond => {
@@ -85,20 +125,20 @@ impl LowBoundaryFunction {
         // The input value represents a range based on its implicit precision
         // For 1.587 (3 decimal places), it represents the range [1.5865, 1.5875)
         // lowBoundary(precision) returns the low boundary of that range at the specified precision
-        
+
         if precision > 28 {
             // Return empty for very high precision (per test expectations)
             return Ok(FhirPathValue::Empty);
         }
-        
+
         // Determine the implicit precision of the input value
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         let implicit_precision = if let Some(dot_pos) = value_str.find('.') {
             value_str.len() - dot_pos - 1
         } else {
             0
         };
-        
+
         if precision == 0 {
             // For integer precision, low boundary is floor of (value - 0.5)
             let low_boundary = (value - 0.5).floor() as i64;
@@ -107,25 +147,30 @@ impl LowBoundaryFunction {
             // Calculate the uncertainty based on the implicit precision
             let implicit_scale = 10_f64.powi(implicit_precision as i32);
             let implicit_half_unit = 0.5 / implicit_scale;
-            
+
             // The low boundary is the input value minus the implicit uncertainty
             let low_boundary = value - implicit_half_unit;
-            
+
             // Format to the requested precision
             let target_scale = 10_f64.powi(precision as i32);
             let rounded_boundary = (low_boundary * target_scale).round() / target_scale;
-            
-            Ok(FhirPathValue::Decimal(Decimal::try_from(rounded_boundary).map_err(|_| {
-                FhirPathError::EvaluationError {
-                    message: "Unable to convert low boundary to decimal".into(),
-                    expression: None,
-                    location: None,
-                }
-            })?))
+
+            Ok(FhirPathValue::Decimal(
+                Decimal::try_from(rounded_boundary).map_err(|_| {
+                    FhirPathError::EvaluationError {
+                        message: "Unable to convert low boundary to decimal".into(),
+                        expression: None,
+                        location: None,
+                    }
+                })?,
+            ))
         }
     }
 
-    fn get_numeric_low_boundary_decimal(decimal: &Decimal, precision: usize) -> Result<FhirPathValue> {
+    fn get_numeric_low_boundary_decimal(
+        decimal: &Decimal,
+        precision: usize,
+    ) -> Result<FhirPathValue> {
         // For FHIRPath boundary functions using Decimal which preserves precision
         if precision > 28 {
             // Return empty for very high precision (per test expectations)
@@ -192,7 +237,11 @@ impl SyncOperation for LowBoundaryFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Precision parameter is optional
         if args.len() > 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -201,11 +250,16 @@ impl SyncOperation for LowBoundaryFunction {
                 actual: args.len(),
             });
         }
-        
+
         let precision = if args.is_empty() {
             None
         } else {
-            Some(validation::extract_integer_arg(args, 0, "lowBoundary", "precision")?)
+            Some(validation::extract_integer_arg(
+                args,
+                0,
+                "lowBoundary",
+                "precision",
+            )?)
         };
 
         let boundary = match &context.input {
@@ -334,7 +388,7 @@ impl SyncOperation for LowBoundaryFunction {
                         let low_boundary = Self::get_low_boundary(&naive_date);
                         FhirPathValue::DateTime(PrecisionDateTime::new(low_boundary, TemporalPrecision::Millisecond))
                     } else if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(str_val) {
-                        let precision_datetime = PrecisionDateTime::new(datetime.into(), TemporalPrecision::Millisecond);
+                        let precision_datetime = PrecisionDateTime::new(datetime, TemporalPrecision::Millisecond);
                         let low_boundary = Self::get_datetime_low_boundary(&precision_datetime);
                         FhirPathValue::DateTime(low_boundary)
                     } else if str_val.len() == 4 && str_val.parse::<i32>().is_ok() {
@@ -345,7 +399,7 @@ impl SyncOperation for LowBoundaryFunction {
                         FhirPathValue::DateTime(PrecisionDateTime::new(low_boundary, TemporalPrecision::Millisecond))
                     } else {
                         return Err(FhirPathError::TypeError {
-                            message: format!("lowBoundary() cannot parse '{}' as a date/datetime/time", str_val)
+                            message: format!("lowBoundary() cannot parse '{str_val}' as a date/datetime/time")
                         });
                     }
                 } else {

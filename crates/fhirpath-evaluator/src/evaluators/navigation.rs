@@ -86,7 +86,7 @@ impl NavigationEvaluator {
                         } else {
                             Ok(FhirPathValue::Empty)
                         }
-                    },
+                    }
                     _ => Ok(FhirPathValue::Empty),
                 },
 
@@ -166,21 +166,6 @@ impl NavigationEvaluator {
         Self::evaluate_json_member_access(json, member).await
     }
 
-    /// Get value at a specific path in JSON
-    fn get_value_at_path(json: &JsonValue, path: &str) -> Option<JsonValue> {
-        let parts: Vec<&str> = path.split('.').collect();
-        let mut current = json.clone();
-
-        for part in parts {
-            if let Some(next) = current.get_property(part) {
-                current = next;
-            } else {
-                return None;
-            }
-        }
-
-        Some(current)
-    }
     /// Evaluate member access with polymorphic FHIR support (async with boxing for recursion)
     pub fn evaluate_member_access<'a>(
         target: &'a FhirPathValue,
@@ -241,7 +226,7 @@ impl NavigationEvaluator {
                         } else {
                             Ok(FhirPathValue::Empty)
                         }
-                    },
+                    }
                     _ => Ok(FhirPathValue::Empty),
                 },
 

@@ -1,7 +1,7 @@
 //! Unescape function implementation - sync version
 
-use crate::traits::{SyncOperation, EvaluationContext, validation};
-use crate::signature::{FunctionSignature, ValueType, ParameterType};
+use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
 
@@ -21,24 +21,27 @@ impl SyncOperation for UnescapeFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| {
-            FunctionSignature {
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
                 name: "unescape",
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
-            }
-        });
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         validation::validate_arg_count(args.len(), 1, "unescape")?;
-        
+
         let input_string = validation::validate_string_input(context, "unescape")?;
-        
+
         let format = validation::extract_string_arg(args, 0, "unescape", "format")?;
-        
+
         match unescape_with_format(&input_string, &format) {
             Ok(unescaped) => Ok(FhirPathValue::String(unescaped.into())),
             Err(e) => Err(e),
@@ -57,7 +60,9 @@ fn unescape_with_format(input: &str, format: &str) -> Result<String> {
         "html" => Ok(unescape_html(input)),
         "json" => unescape_json(input),
         _ => Err(FhirPathError::EvaluationError {
-            message: format!("Unsupported unescape format: '{}'. Supported formats are 'html' and 'json'", format).into(),
+            message: format!(
+                "Unsupported unescape format: '{format}'. Supported formats are 'html' and 'json'"
+            ),
             expression: None,
             location: None,
         }),
@@ -76,7 +81,7 @@ fn unescape_html(input: &str) -> String {
 fn unescape_json(input: &str) -> Result<String> {
     let mut result = String::new();
     let mut chars = input.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '\\' {
             match chars.next() {
@@ -93,11 +98,13 @@ fn unescape_json(input: &str) -> Result<String> {
                     for _ in 0..4 {
                         match chars.next() {
                             Some(c) if c.is_ascii_hexdigit() => unicode_chars.push(c),
-                            _ => return Err(FhirPathError::EvaluationError {
-                                message: "Invalid Unicode escape sequence in JSON".into(),
-                                expression: None,
-                                location: None,
-                            }),
+                            _ => {
+                                return Err(FhirPathError::EvaluationError {
+                                    message: "Invalid Unicode escape sequence in JSON".into(),
+                                    expression: None,
+                                    location: None,
+                                });
+                            }
                         }
                     }
                     if let Ok(code_point) = u32::from_str_radix(&unicode_chars, 16) {
@@ -118,21 +125,25 @@ fn unescape_json(input: &str) -> Result<String> {
                         });
                     }
                 }
-                Some(other) => return Err(FhirPathError::EvaluationError {
-                    message: format!("Invalid JSON escape sequence: \\{}", other).into(),
-                    expression: None,
-                    location: None,
-                }),
-                None => return Err(FhirPathError::EvaluationError {
-                    message: "Incomplete escape sequence at end of string".into(),
-                    expression: None,
-                    location: None,
-                }),
+                Some(other) => {
+                    return Err(FhirPathError::EvaluationError {
+                        message: format!("Invalid JSON escape sequence: \\{other}"),
+                        expression: None,
+                        location: None,
+                    });
+                }
+                None => {
+                    return Err(FhirPathError::EvaluationError {
+                        message: "Incomplete escape sequence at end of string".into(),
+                        expression: None,
+                        location: None,
+                    });
+                }
             }
         } else {
             result.push(ch);
         }
     }
-    
+
     Ok(result)
 }

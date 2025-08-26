@@ -35,7 +35,11 @@ impl SyncOperation for SimpleUpperFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate no arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -52,8 +56,8 @@ impl SyncOperation for SimpleUpperFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::TypeError {
-                message: "upper() can only be called on string values".to_string()
-            })
+                message: "upper() can only be called on string values".to_string(),
+            }),
         }
     }
 }

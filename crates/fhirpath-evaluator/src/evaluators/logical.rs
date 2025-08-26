@@ -154,7 +154,7 @@ impl LogicalEvaluator {
         // - true implies true = true
         // - true implies false = false
         // - empty implies true = true
-        // - empty implies false = empty  
+        // - empty implies false = empty
         // - empty implies empty = empty
         // - true implies empty = empty
         match (
@@ -163,8 +163,8 @@ impl LogicalEvaluator {
         ) {
             (Some(false), _) => Ok(FhirPathValue::Boolean(true)), // false implies anything = true
             (None, Some(true)) => Ok(FhirPathValue::Boolean(true)), // empty implies true = true
-            (None, Some(false)) => Ok(FhirPathValue::Empty), // empty implies false = empty
-            (None, None) => Ok(FhirPathValue::Empty), // empty implies empty = empty
+            (None, Some(false)) => Ok(FhirPathValue::Empty),      // empty implies false = empty
+            (None, None) => Ok(FhirPathValue::Empty),             // empty implies empty = empty
             (Some(true), Some(true)) => Ok(FhirPathValue::Boolean(true)),
             (Some(true), Some(false)) => Ok(FhirPathValue::Boolean(false)),
             (Some(true), None) => Ok(FhirPathValue::Empty), // true implies empty = empty

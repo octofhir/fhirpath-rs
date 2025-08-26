@@ -26,16 +26,21 @@ impl SyncOperation for SimpleAllFalseFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "allFalse",
-            parameters: vec![],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "allFalse",
+                parameters: vec![],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -58,7 +63,7 @@ impl SyncOperation for SimpleAllFalseFunction {
                         FhirPathValue::Boolean(false) => {
                             has_boolean_values = true;
                             continue;
-                        },
+                        }
                         FhirPathValue::Empty => continue, // Empty values are ignored
                         _ => {
                             // Non-boolean values are ignored per FHIRPath specification
@@ -66,7 +71,7 @@ impl SyncOperation for SimpleAllFalseFunction {
                         }
                     }
                 }
-                
+
                 // If no boolean values were found, return empty
                 if !has_boolean_values {
                     Ok(FhirPathValue::Empty)

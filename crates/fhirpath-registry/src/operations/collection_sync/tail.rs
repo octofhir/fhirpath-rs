@@ -26,16 +26,21 @@ impl SyncOperation for SimpleTailFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "tail",
-            parameters: vec![],
-            return_type: ValueType::Collection,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "tail",
+                parameters: vec![],
+                return_type: ValueType::Collection,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -49,22 +54,22 @@ impl SyncOperation for SimpleTailFunction {
             FhirPathValue::Collection(collection) => {
                 if collection.len() <= 1 {
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![])
+                        octofhir_fhirpath_model::Collection::from(vec![]),
                     ))
                 } else {
                     let tail: Vec<FhirPathValue> = collection.iter().skip(1).cloned().collect();
                     Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(tail)
+                        octofhir_fhirpath_model::Collection::from(tail),
                     ))
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![])
+                octofhir_fhirpath_model::Collection::from(vec![]),
             )),
             _ => {
                 // Single item - tail is empty
                 Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![])
+                    octofhir_fhirpath_model::Collection::from(vec![]),
                 ))
             }
         }

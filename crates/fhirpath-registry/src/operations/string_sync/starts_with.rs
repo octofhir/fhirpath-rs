@@ -26,16 +26,21 @@ impl SyncOperation for SimpleStartsWithFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "startsWith",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "startsWith",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -57,9 +62,9 @@ impl SyncOperation for SimpleStartsWithFunction {
                         Ok(FhirPathValue::Boolean(result))
                     }
                     FhirPathValue::Empty => Ok(FhirPathValue::Empty),
-                    _ => Ok(FhirPathValue::Empty) // Return empty for invalid input type per FHIRPath spec
+                    _ => Ok(FhirPathValue::Empty), // Return empty for invalid input type per FHIRPath spec
                 };
-            },
+            }
             _ => {
                 // Return empty collection for invalid prefix type per FHIRPath spec
                 return Ok(FhirPathValue::Empty);
@@ -72,7 +77,7 @@ impl SyncOperation for SimpleStartsWithFunction {
                 Ok(FhirPathValue::Boolean(result))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
-            _ => Ok(FhirPathValue::Empty) // Return empty for invalid input type per FHIRPath spec
+            _ => Ok(FhirPathValue::Empty), // Return empty for invalid input type per FHIRPath spec
         }
     }
 }

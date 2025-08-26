@@ -54,7 +54,7 @@ impl<'input> TokenStream<'input> {
     }
 
     /// Consume and return the current token
-    pub fn next(&mut self) -> Option<Spanned<Token<'input>>> {
+    pub fn next_token(&mut self) -> Option<Spanned<Token<'input>>> {
         if self.position < self.tokens.len() {
             let token = self.tokens[self.position].clone();
             self.position += 1;
@@ -86,7 +86,7 @@ impl<'input> TokenStream<'input> {
     {
         if let Some(token) = self.peek() {
             if predicate(&token.value) {
-                return self.next();
+                return self.next_token();
             }
         }
         None
@@ -96,7 +96,7 @@ impl<'input> TokenStream<'input> {
     pub fn expect(&mut self, expected: Token<'input>) -> Result<Spanned<Token<'input>>, String> {
         if let Some(token) = self.peek() {
             if Self::tokens_match(&token.value, &expected) {
-                Ok(self.next().unwrap())
+                Ok(self.next_token().unwrap())
             } else {
                 Err(format!("Expected {:?}, found {:?}", expected, token.value))
             }

@@ -27,16 +27,21 @@ impl SyncOperation for SimpleMatchesFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "matches",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::Boolean,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "matches",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::Boolean,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -66,14 +71,15 @@ impl SyncOperation for SimpleMatchesFunction {
             pattern.to_string()
         } else {
             // Add single-line flag to enable . to match newlines
-            format!("(?s){}", pattern)
+            format!("(?s){pattern}")
         };
 
-        let regex = Regex::new(&pattern_with_flags).map_err(|e| FhirPathError::EvaluationError {
-            expression: None,
-            location: None,
-            message: format!("Invalid regex pattern '{}': {}", pattern, e),
-        })?;
+        let regex =
+            Regex::new(&pattern_with_flags).map_err(|e| FhirPathError::EvaluationError {
+                expression: None,
+                location: None,
+                message: format!("Invalid regex pattern '{pattern}': {e}"),
+            })?;
 
         match &context.input {
             FhirPathValue::String(s) => {
@@ -82,8 +88,8 @@ impl SyncOperation for SimpleMatchesFunction {
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::TypeError {
-                message: "matches() can only be called on string values".to_string()
-            })
+                message: "matches() can only be called on string values".to_string(),
+            }),
         }
     }
 }

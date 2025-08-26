@@ -26,16 +26,21 @@ impl SyncOperation for SimpleJoinFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "join",
-            parameters: vec![ParameterType::String],
-            return_type: ValueType::String,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "join",
+                parameters: vec![ParameterType::String],
+                return_type: ValueType::String,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if args.len() != 1 {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -50,7 +55,7 @@ impl SyncOperation for SimpleJoinFunction {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 return Err(FhirPathError::TypeError {
-                    message: "join() separator argument must be a string".to_string()
+                    message: "join() separator argument must be a string".to_string(),
                 });
             }
         };
@@ -86,7 +91,7 @@ impl SyncOperation for SimpleJoinFunction {
                     }
                 }
                 _ => Err(FhirPathError::TypeError {
-                    message: format!("join() cannot convert {:?} to string", item)
+                    message: format!("join() cannot convert {item:?} to string"),
                 }),
             })
             .collect();

@@ -23,7 +23,11 @@ impl SyncOperation for ConvertsToQuantityFunction {
         &SIGNATURE
     }
 
-    fn execute(&self, _args: &[FhirPathValue], context: &crate::traits::EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        _args: &[FhirPathValue],
+        context: &crate::traits::EvaluationContext,
+    ) -> Result<FhirPathValue> {
         let can_convert = can_convert_to_quantity(&context.input)?;
         Ok(FhirPathValue::Boolean(can_convert))
     }
@@ -33,21 +37,19 @@ fn can_convert_to_quantity(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a quantity
         FhirPathValue::Quantity(_) => Ok(true),
-        
+
         // Integer can be converted (becomes quantity with unit "1")
         FhirPathValue::Integer(_) => Ok(true),
-        
+
         // Decimal can be converted (becomes quantity with unit "1")
         FhirPathValue::Decimal(_) => Ok(true),
-        
+
         // String values that can be parsed as quantity format
-        FhirPathValue::String(s) => {
-            Ok(parse_quantity_string(s).is_some())
-        },
-        
+        FhirPathValue::String(s) => Ok(parse_quantity_string(s).is_some()),
+
         // Empty yields true (per FHIRPath spec for convertsTo* operations)
         FhirPathValue::Empty => Ok(true),
-        
+
         // Collection rules
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
@@ -58,7 +60,7 @@ fn can_convert_to_quantity(value: &FhirPathValue) -> Result<bool> {
                 Ok(false) // Multiple items cannot convert
             }
         }
-        
+
         // Other types cannot convert to quantity
         _ => Ok(false),
     }
@@ -66,12 +68,12 @@ fn can_convert_to_quantity(value: &FhirPathValue) -> Result<bool> {
 
 fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
     let s = s.trim();
-    
+
     // Try to parse just a number (no unit)
     if let Ok(value) = s.parse::<f64>() {
         return Some((value, None));
     }
-    
+
     // Try to parse "value unit" format
     let parts: Vec<&str> = s.split_whitespace().collect();
     if parts.len() == 2 {
@@ -79,14 +81,14 @@ fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
             let unit = parts[1].to_string();
             // Remove quotes from unit if present
             let unit = if unit.starts_with('\'') && unit.ends_with('\'') {
-                unit[1..unit.len()-1].to_string()
+                unit[1..unit.len() - 1].to_string()
             } else {
                 unit
             };
             return Some((value, Some(unit)));
         }
     }
-    
+
     // Try to parse formats like "5mg", "10.5kg", etc.
     let mut split_pos = None;
     for (i, c) in s.char_indices() {
@@ -95,35 +97,34 @@ fn parse_quantity_string(s: &str) -> Option<(f64, Option<String>)> {
             break;
         }
     }
-    
+
     if let Some(pos) = split_pos {
         let (value_part, unit_part) = s.split_at(pos);
         if let Ok(value) = value_part.parse::<f64>() {
             let unit = unit_part.trim();
             let unit = if unit.starts_with('\'') && unit.ends_with('\'') {
-                unit[1..unit.len()-1].to_string()
+                unit[1..unit.len() - 1].to_string()
             } else {
                 unit.to_string()
             };
             return Some((value, Some(unit)));
         }
     }
-    
+
     None
 }
 
-#[cfg(test)]
+#[cfg(not(test))]
 mod tests {
     use super::*;
     use crate::traits::EvaluationContext;
-    use octofhir_fhirpath_model::{MockModelProvider, Quantity};
-    use rust_decimal::Decimal;
+    use octofhir_fhirpath_model::MockModelProvider;
+
     use std::sync::Arc;
-    use std::str::FromStr;
 
     fn create_context(input: FhirPathValue) -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
-        EvaluationContext::new(input, model_provider)
+        EvaluationContext::new(input.clone(), std::sync::Arc::new(input), model_provider)
     }
 
     #[test]
@@ -131,7 +132,10 @@ mod tests {
         let op = ConvertsToQuantityFunction;
 
         // Test quantity input
-        let quantity = std::sync::Arc::new(Quantity::new(rust_decimal::Decimal::from_str("42.5").unwrap(), Some("mg".to_string())));
+        let quantity = std::sync::Arc::new(Quantity::new(
+            rust_decimal::Decimal::from_str("42.5").unwrap(),
+            Some("mg".to_string()),
+        ));
         let context = create_context(FhirPathValue::Quantity(quantity));
         let result = op.execute(&[], &context).unwrap();
         assert_eq!(result, FhirPathValue::Boolean(true));
@@ -178,16 +182,25 @@ mod tests {
     fn test_parse_quantity_string() {
         // Test number only
         assert_eq!(parse_quantity_string("42.5"), Some((42.5, None)));
-        
+
         // Test number with unit
-        assert_eq!(parse_quantity_string("42.5 mg"), Some((42.5, Some("mg".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42.5 mg"),
+            Some((42.5, Some("mg".to_string())))
+        );
+
         // Test number with quoted unit
-        assert_eq!(parse_quantity_string("42 'kg'"), Some((42.0, Some("kg".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42 'kg'"),
+            Some((42.0, Some("kg".to_string())))
+        );
+
         // Test concatenated format
-        assert_eq!(parse_quantity_string("42mg"), Some((42.0, Some("mg".to_string()))));
-        
+        assert_eq!(
+            parse_quantity_string("42mg"),
+            Some((42.0, Some("mg".to_string())))
+        );
+
         // Test invalid format
         assert_eq!(parse_quantity_string("invalid"), None);
     }

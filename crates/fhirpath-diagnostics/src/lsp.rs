@@ -84,6 +84,7 @@ pub fn to_lsp_code_actions(
         .iter()
         .filter_map(|suggestion| {
             suggestion.replacement.as_ref().map(|replacement| {
+                #[allow(clippy::mutable_key_type)]
                 let mut changes = std::collections::HashMap::new();
                 changes.insert(
                     uri.clone(),

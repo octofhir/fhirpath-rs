@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[tokio::test]
 async fn test_children_function_analysis() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Test children() function
@@ -34,7 +34,7 @@ async fn test_children_function_analysis() {
 #[tokio::test]
 async fn test_children_with_invalid_parameters() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Test children() with invalid parameters
@@ -53,7 +53,7 @@ async fn test_children_with_invalid_parameters() {
 #[tokio::test]
 async fn test_children_with_type_filter() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Test children().ofType(HumanName) - would need mock setup
@@ -75,7 +75,7 @@ async fn test_children_with_type_filter() {
 #[tokio::test]
 async fn test_union_type_suggestions() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Test invalid type filter
@@ -99,7 +99,7 @@ async fn test_union_type_suggestions() {
 #[tokio::test]
 async fn test_children_function_basic_functionality() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Basic children() analysis
@@ -130,7 +130,7 @@ async fn test_children_function_basic_functionality() {
 #[tokio::test]
 async fn test_children_union_type_creation() {
     let provider = Arc::new(MockModelProvider::new());
-    let function_registry = Arc::new(create_standard_registry().await.unwrap());
+    let function_registry = Arc::new(create_standard_registry());
     let analyzer = FhirPathAnalyzer::with_function_registry(provider, function_registry);
 
     // Test union type creation

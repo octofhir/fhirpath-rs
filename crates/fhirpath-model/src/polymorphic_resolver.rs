@@ -738,8 +738,8 @@ impl PolymorphicPathResolver {
                         false
                     };
 
-                    let value = if exists && json_data.is_some() {
-                        self.extract_value_at_path(&concrete_path, json_data.unwrap())
+                    let value = if let Some(data) = json_data.filter(|_| exists) {
+                        self.extract_value_at_path(&concrete_path, data)
                     } else {
                         None
                     };
@@ -771,8 +771,8 @@ impl PolymorphicPathResolver {
                         false
                     };
 
-                    let value = if exists && json_data.is_some() {
-                        self.extract_value_at_path(&concrete_path, json_data.unwrap())
+                    let value = if let Some(data) = json_data.filter(|_| exists) {
+                        self.extract_value_at_path(&concrete_path, data)
                     } else {
                         None
                     };
@@ -798,8 +798,8 @@ impl PolymorphicPathResolver {
                 false
             };
 
-            let value = if exists && json_data.is_some() {
-                self.extract_value_at_path(path, json_data.unwrap())
+            let value = if let Some(data) = json_data.filter(|_| exists) {
+                self.extract_value_at_path(path, data)
             } else {
                 None
             };

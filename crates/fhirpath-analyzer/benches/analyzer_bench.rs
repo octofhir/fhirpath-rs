@@ -88,7 +88,7 @@ pub fn bench_analyze_with_registry(bencher: Bencher, expression: &str) {
     // Setup analyzer with function registry (expensive setup)
     let (analyzer, _registry) = rt.block_on(async {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry().await.unwrap());
+        let registry = Arc::new(create_standard_registry());
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry.clone());
         (analyzer, registry)
     });
@@ -106,7 +106,7 @@ pub fn bench_children_function_analysis(bencher: Bencher) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (analyzer, _registry) = rt.block_on(async {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry().await.unwrap());
+        let registry = Arc::new(create_standard_registry());
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry.clone());
         (analyzer, registry)
     });

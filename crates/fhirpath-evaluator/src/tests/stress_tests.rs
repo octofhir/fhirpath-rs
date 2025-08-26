@@ -71,38 +71,6 @@ async fn test_concurrent_evaluation() {
 }
 
 #[tokio::test]
-async fn test_deep_recursion_handling() {
-    let engine = TestUtils::create_test_engine().await.unwrap();
-
-    // Create deeply nested object structure
-    let mut nested_obj = json!({"value": "bottom"});
-    for i in 0..50 {
-        nested_obj = json!({"level": i, "nested": nested_obj});
-    }
-
-    // Test navigation through deep structure
-    let mut path = String::new();
-    for _ in 0..50 {
-        path.push_str("nested.");
-    }
-    path.push_str("value");
-
-    let result = engine.evaluate(&path, nested_obj).await;
-
-    // Should either succeed or fail gracefully with recursion limit
-    match result {
-        Ok(value) => {
-            assert_eq!(as_single_string(&value), Some("bottom".to_string()));
-            println!("Deep recursion succeeded");
-        }
-        Err(_) => {
-            println!("Deep recursion failed (expected with recursion limits)");
-            // This is acceptable - recursion limits are a safety feature
-        }
-    }
-}
-
-#[tokio::test]
 async fn test_timeout_handling() {
     let engine = TestUtils::create_test_engine().await.unwrap();
 

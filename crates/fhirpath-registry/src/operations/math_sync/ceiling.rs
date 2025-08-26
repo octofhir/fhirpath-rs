@@ -27,16 +27,21 @@ impl SyncOperation for SimpleCeilingFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "ceiling",
-            parameters: vec![],
-            return_type: ValueType::Integer,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "ceiling",
+                parameters: vec![],
+                return_type: ValueType::Integer,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -54,7 +59,10 @@ impl SyncOperation for SimpleCeilingFunction {
             }
             FhirPathValue::Quantity(q) => {
                 let result = q.value.ceil().to_i64().unwrap_or(0);
-                Ok(FhirPathValue::quantity(rust_decimal::Decimal::try_from(result).unwrap_or_default(), q.unit.clone()))
+                Ok(FhirPathValue::quantity(
+                    rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    q.unit.clone(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
@@ -66,7 +74,8 @@ impl SyncOperation for SimpleCeilingFunction {
                     self.execute(args, &item_context)
                 } else {
                     Err(FhirPathError::TypeError {
-                        message: "ceiling() can only be applied to single numeric values".to_string(),
+                        message: "ceiling() can only be applied to single numeric values"
+                            .to_string(),
                     })
                 }
             }

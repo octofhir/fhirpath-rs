@@ -452,11 +452,14 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
                 // First check if it's a FHIR resource with resourceType
                 if let Some(rt) = json.get_property("resourceType") {
                     if rt.is_string() {
-                        return rt.as_str().map(|s| s.to_string()).unwrap_or_else(|| "Element".to_string());
+                        return rt
+                            .as_str()
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| "Element".to_string());
                     }
                 }
-                
-                // For primitive values wrapped in JsonValue (from FHIR data), 
+
+                // For primitive values wrapped in JsonValue (from FHIR data),
                 // return their primitive type name to maintain FHIR context
                 let inner = json.as_inner();
                 if inner.is_boolean() {

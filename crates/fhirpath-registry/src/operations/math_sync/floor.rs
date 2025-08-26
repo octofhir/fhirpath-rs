@@ -27,16 +27,21 @@ impl SyncOperation for SimpleFloorFunction {
     }
 
     fn signature(&self) -> &FunctionSignature {
-        static SIGNATURE: std::sync::LazyLock<FunctionSignature> = std::sync::LazyLock::new(|| FunctionSignature {
-            name: "floor",
-            parameters: vec![],
-            return_type: ValueType::Integer,
-            variadic: false,
-        });
+        static SIGNATURE: std::sync::LazyLock<FunctionSignature> =
+            std::sync::LazyLock::new(|| FunctionSignature {
+                name: "floor",
+                parameters: vec![],
+                return_type: ValueType::Integer,
+                variadic: false,
+            });
         &SIGNATURE
     }
 
-    fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         // Validate arguments
         if !args.is_empty() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -54,7 +59,10 @@ impl SyncOperation for SimpleFloorFunction {
             }
             FhirPathValue::Quantity(q) => {
                 let result = q.value.to_f64().unwrap_or(0.0).floor();
-                Ok(FhirPathValue::quantity(rust_decimal::Decimal::try_from(result).unwrap_or_default(), q.unit.clone()))
+                Ok(FhirPathValue::quantity(
+                    rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    q.unit.clone(),
+                ))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {
