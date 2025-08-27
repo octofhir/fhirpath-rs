@@ -167,7 +167,7 @@ cli-validate EXPRESSION:
 
 # Analyze FHIRPath expression
 cli-analyze EXPRESSION *ARGS:
-    cargo run --package octofhir-fhirpath-tools --bin analyze -- "{{EXPRESSION}}" {{ARGS}}
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath analyze "{{EXPRESSION}}" {{ARGS}}
 
 # Validate FHIRPath expression  
 cli-analyze-validate EXPRESSION:

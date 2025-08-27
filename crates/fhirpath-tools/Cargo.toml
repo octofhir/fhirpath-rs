@@ -19,10 +19,6 @@ path = "src/bin/test_coverage.rs"
 name = "test-runner"
 path = "src/bin/test_runner.rs"
 
-[[bin]]
-name = "analyze"
-path = "src/bin/analyze.rs"
-
 [dependencies]
 # Main crate for testing
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
