@@ -41,7 +41,7 @@ octofhir-canonical-manager = { version = "0.1.5" }
 url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.4"
-regex = "1.11.1"
+regex = "1.11.2"
 rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
 rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
