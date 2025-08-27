@@ -1,7 +1,5 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use fhirpath_bench::profiling::ProfileRunner;
-use fhirpath_bench::{BenchmarkExpressions, generate_benchmark_summary};
 use std::fs;
 use std::path::PathBuf;
 
@@ -53,6 +51,138 @@ enum Commands {
     List,
 }
 
+/// Benchmark expressions categorized by complexity
+#[derive(Debug, Clone)]
+pub struct BenchmarkExpressions {
+    pub simple: Vec<&'static str>,
+    pub medium: Vec<&'static str>,
+    pub complex: Vec<&'static str>,
+}
+
+impl Default for BenchmarkExpressions {
+    fn default() -> Self {
+        Self {
+            simple: vec![
+                "Patient.active",
+                "Patient.name.family",
+                "Patient.birthDate",
+                "Patient.gender",
+                "true",
+                "false",
+                "1 + 2",
+                "Patient.name.count()",
+            ],
+            medium: vec![
+                "Patient.name.where(use = 'official').family",
+                "Patient.telecom.where(system = 'phone').value",
+                "Patient.extension.where(url = 'http://example.org').value",
+                "Patient.contact.name.family",
+                "Patient.birthDate > @1980-01-01",
+                "Patient.name.family.substring(0, 3)",
+                "Patient.telecom.exists(system = 'email')",
+                "Patient.identifier.where(system = 'http://example.org/mrn').value",
+            ],
+            complex: vec![
+                // From resolve.json test cases
+                "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().count()",
+                "Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().first()",
+                // Additional complex expressions
+                "Bundle.entry.resource.where(resourceType='Patient').name.where(use='official').family.first()",
+                "Bundle.entry.resource.where(resourceType='Observation').value.as(Quantity).value > 100",
+                "Bundle.entry.resource.descendants().where($this is Reference).reference",
+                "Bundle.entry.resource.where(resourceType='Patient').telecom.where(system='phone' and use='mobile').value",
+                "Bundle.entry.resource.where(resourceType='Patient' and telecom.exists() and telecom.system = 'phone' and telecom.user = 'mobile').value",
+            ],
+        }
+    }
+}
+
+/// Sample FHIR data for benchmarking
+pub fn get_sample_patient() -> sonic_rs::Value {
+    sonic_rs::json!({
+        "resourceType": "Patient",
+        "id": "example",
+        "active": true,
+        "name": [
+            {
+                "use": "official",
+                "family": "Doe",
+                "given": ["John", "James"]
+            },
+            {
+                "use": "usual",
+                "family": "Doe",
+                "given": ["Johnny"]
+            }
+        ],
+        "telecom": [
+            {
+                "system": "phone",
+                "value": "+1-555-555-5555",
+                "use": "home"
+            },
+            {
+                "system": "email",
+                "value": "john.doe@example.com",
+                "use": "work"
+            }
+        ],
+        "gender": "male",
+        "birthDate": "1974-12-25",
+        "address": [
+            {
+                "use": "home",
+                "line": ["123 Main St"],
+                "city": "Anytown",
+                "state": "NY",
+                "postalCode": "12345",
+                "country": "US"
+            }
+        ]
+    })
+}
+
+pub fn get_sample_bundle() -> sonic_rs::Value {
+    // Load bundle-medium.json from the specs directory
+    let bundle_path = "specs/fhirpath/tests/input/bundle-medium.json";
+
+    match std::fs::read_to_string(bundle_path) {
+        Ok(content) => {
+            sonic_rs::from_str(&content).unwrap_or_else(|e| {
+                eprintln!("Failed to parse bundle-medium.json: {e}");
+                // Fallback to a minimal bundle structure
+                sonic_rs::json!({
+                    "resourceType": "Bundle",
+                    "id": "fallback-bundle",
+                    "type": "collection",
+                    "entry": [
+                        {
+                            "resource": get_sample_patient()
+                        }
+                    ]
+                })
+            })
+        }
+        Err(e) => {
+            eprintln!("Failed to read bundle-medium.json: {e}");
+            eprintln!(
+                "Using fallback bundle. Make sure to run benchmarks from the workspace root."
+            );
+            // Fallback to a minimal bundle structure
+            sonic_rs::json!({
+                "resourceType": "Bundle",
+                "id": "fallback-bundle",
+                "type": "collection",
+                "entry": [
+                    {
+                        "resource": get_sample_patient()
+                    }
+                ]
+            })
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -71,8 +201,7 @@ async fn main() -> Result<()> {
             println!("Iterations: {iterations}");
             println!("Using {} data", if bundle { "bundle" } else { "patient" });
 
-            let profiler = ProfileRunner::new(output, iterations, bundle);
-            profiler.profile_expression(&expression).await?;
+            profile_expression(&expression, output, iterations, bundle).await?;
         }
         Commands::Benchmark { output, run } => {
             if run {
@@ -90,6 +219,80 @@ async fn main() -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+async fn profile_expression(
+    expression: &str,
+    output_dir: PathBuf,
+    iterations: usize,
+    use_bundle: bool,
+) -> Result<()> {
+    use octofhir_fhirpath_evaluator::FhirPathEngine;
+    use octofhir_fhirpath_model::FhirSchemaModelProvider;
+    use std::sync::Arc;
+    
+    // Create output directory if it doesn't exist
+    std::fs::create_dir_all(&output_dir)?;
+    
+    println!("Setting up profiling environment...");
+    
+    // Initialize engine
+    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
+    let model_provider = Arc::new(
+        FhirSchemaModelProvider::r5()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
+    ) as Arc<dyn octofhir_fhirpath_model::ModelProvider>;
+    let engine = FhirPathEngine::new(registry, model_provider);
+    
+    // Get test data
+    let data = if use_bundle {
+        get_sample_bundle()
+    } else {
+        get_sample_patient()
+    };
+    
+    println!("Running {} iterations...", iterations);
+    
+    // Simple profiling - just measure time for now
+    let start = std::time::Instant::now();
+    for i in 0..iterations {
+        if i % 100 == 0 && i > 0 {
+            println!("Completed {} iterations", i);
+        }
+        let _ = engine.evaluate(expression, data.clone()).await;
+    }
+    let duration = start.elapsed();
+    
+    let avg_time_ms = duration.as_millis() as f64 / iterations as f64;
+    let ops_per_sec = iterations as f64 / duration.as_secs_f64();
+    
+    println!("Profiling completed!");
+    println!("Total time: {:.2}s", duration.as_secs_f64());
+    println!("Average time per iteration: {:.2}ms", avg_time_ms);
+    println!("Operations per second: {}", format_ops_per_sec(ops_per_sec));
+    
+    // Write results to file
+    let results_file = output_dir.join("profile_results.txt");
+    let results_content = format!(
+        "Expression: {}\n\
+         Iterations: {}\n\
+         Data type: {}\n\
+         Total time: {:.2}s\n\
+         Average time per iteration: {:.2}ms\n\
+         Operations per second: {}\n",
+        expression,
+        iterations,
+        if use_bundle { "Bundle" } else { "Patient" },
+        duration.as_secs_f64(),
+        avg_time_ms,
+        format_ops_per_sec(ops_per_sec)
+    );
+    
+    fs::write(&results_file, results_content)?;
+    println!("Results written to: {}", results_file.display());
+    
     Ok(())
 }
 
@@ -119,7 +322,6 @@ fn list_expressions() {
 }
 
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
-    use fhirpath_bench::{BenchmarkExpressions, get_sample_bundle, get_sample_patient};
     use octofhir_fhirpath_evaluator::FhirPathEngine;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
@@ -369,5 +571,46 @@ fhirpath-bench benchmark --run --output benchmark.md
             .collect::<Vec<_>>()
             .join("\n"),
         benchmark_output,
+    )
+}
+
+/// Generate benchmark results summary
+pub fn generate_benchmark_summary() -> String {
+    format!(
+        r#"# FHIRPath-rs Benchmark Results
+
+Generated on: {}
+
+## Overview
+
+This benchmark suite measures the performance of FHIRPath-rs library across three main operations:
+- **Tokenization**: Converting FHIRPath expressions into tokens
+- **Parsing**: Building AST from tokens
+- **Evaluation**: Executing expressions against FHIR data
+
+## Expression Categories
+
+### Simple Expressions
+Basic field access and simple operations:
+- {}
+
+### Medium Expressions  
+Filtered queries and basic functions:
+- {}
+
+### Complex Expressions
+Bundle operations and resolve() calls:
+- {}
+
+## Benchmark Results
+
+Run `cargo bench --package fhirpath-bench` to generate detailed results.
+
+Use `fhirpath-bench profile <expression>` to generate flamegraphs for specific expressions.
+"#,
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"),
+        BenchmarkExpressions::default().simple.join("\n- "),
+        BenchmarkExpressions::default().medium.join("\n- "),
+        BenchmarkExpressions::default().complex.join("\n- "),
     )
 }

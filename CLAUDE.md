@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a FHIRPath implementation in Rust organized as a **workspace with 11 specialized crates**:
+This is a FHIRPath implementation in Rust organized as a **workspace with 9 specialized crates**:
 
 ### Workspace Structure
-- **octofhir-fhirpath**: Main library crate that re-exports and integrates all components
+- **octofhir-fhirpath**: Main library crate that re-exports and integrates all components. Contains development-only binaries for benchmarking and testing (excluded from publishing)
 - **fhirpath-core**: Core types, errors, and evaluation results  
 - **fhirpath-ast**: Abstract Syntax Tree definitions, operators, and visitor patterns
 - **fhirpath-diagnostics**: Error reporting, diagnostic formatting, and LSP integration
@@ -15,11 +15,13 @@ This is a FHIRPath implementation in Rust organized as a **workspace with 11 spe
 - **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
 - **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
 - **fhirpath-registry**: Function and operator registry with built-in implementations
-- **fhirpath-tools**: CLI tools, test runners, and coverage analysis
-- **fhirpath-bench**: Performance benchmarking and profiling tools
+- **fhirpath-analyzer**: Code analysis and validation tools for FHIRPath expressions
 
-### Migration Status
-The codebase has been migrated from a monolithic structure to this modular workspace. Legacy code exists in `src_backup_old/` for reference but the active implementation is in the `crates/` workspace structure.
+### Development Binaries (Not Published)
+The main crate includes development-only binaries accessible via the `dev-tools` feature:
+- **fhirpath-bench**: Performance benchmarking and profiling tool
+- **test-coverage**: Test coverage analysis and report generation
+- **test-runner**: Individual test file runner for debugging
 
 ### Key Architecture Components
 
@@ -85,9 +87,6 @@ just check
 
 # Quality assurance (format + lint + test)
 just qa
-
-# All benchmarks now unified in single suite
-# (legacy commands removed - use 'just bench')
 
 # Clean build artifacts
 just clean
@@ -231,7 +230,7 @@ just coverage
 
 ## Guidelines
 
-Apply the following guidelines when developing fhirpath-core:
+Apply the following guidelines when developing fhirpath-rs:
 - [Rust Performance Book](https://nnethercote.github.io/perf-book/)
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - [Rust Coding Guidelines](https://rust-lang.github.io/rust-clippy/master/index.html)
@@ -290,7 +289,6 @@ Apply the following guidelines when developing fhirpath-core:
 - Uses nom library version 8 for parsing
 - For UCUM units: use https://github.com/octofhir/ucum-rs or local path `./…/ucum-rs`
 
-
 ## Development Process
 
 ### Architecture Decision Records (ADRs)
@@ -304,7 +302,6 @@ For every ADR implementation split record into phases/tasks and store in `tasks/
 
 ### Debug Workflow  
 For debugging cases create a simple test inside the test directory and delete it after resolving the issue.
-
 
 ## Test Coverage
 
@@ -440,7 +437,6 @@ This implementation is optimized for high-performance with:
 - **Multi-tier Caching**: Hot cache (lock-free, <100ns), Warm cache (<1μs), Cold storage (<10μs)
 - **Intelligent Caching**: Access pattern tracking with predictive cache warming
 - **Memory Efficiency**: Reduced memory usage through Arc-based root resource sharing and smart cache tiers
-- **Bytecode VM**: High-performance virtual machine with optimization passes
 - **Benchmarks**: Comprehensive suite testing all components and cache performance
 - **Test Coverage**: Significantly improved specification compliance (37 test suites at 100% pass rate)
 - **Code Quality**: Zero compiler warnings with clean, maintainable codebase
@@ -466,3 +462,12 @@ Planned major features documented in ADRs and tasks:
 - Maintain async-first architecture throughout the codebase
 - Follow the three-stage pipeline: Tokenizer → Parser → Evaluator
 - Prioritize performance with arena-based memory management and caching
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+      
+      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.

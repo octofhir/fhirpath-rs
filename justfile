@@ -20,48 +20,48 @@ test-coverage:
     @echo "🔍 Running comprehensive test coverage analysis..."
     @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
     @echo "⚠️  If this hangs, try running 'just test-coverage-mock' for MockModelProvider version"
-    timeout 60 cargo run --package octofhir-fhirpath-tools --bin test-coverage || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
+    timeout 60 cargo run --package octofhir-fhirpath --bin test-coverage --features dev-tools || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
 
 # Run test coverage with MockModelProvider (faster, no network required)
 test-coverage-mock:
     @echo "🔍 Running comprehensive test coverage analysis with MockModelProvider..."
     @echo "⚠️  Note: This uses MockModelProvider instead of real FhirSchemaModelProvider"
-    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package octofhir-fhirpath-tools --bin test-coverage
+    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package octofhir-fhirpath --bin test-coverage --features dev-tools
 
 test-official:
     cargo test --workspace run_official_tests -- --ignored --nocapture
 
-# Benchmark commands - New divan-based benchmarks
+# Benchmark commands - Use main crate binaries
 bench:
-    @echo "🚀 FHIRPath Performance Benchmarks (divan)"
-    @echo "=========================================="
+    @echo "🚀 FHIRPath Performance Benchmarks"
+    @echo "=================================="
     @echo "📊 Running comprehensive benchmark suite..."
     @echo "This tests tokenizer, parser, and evaluator across complexity levels"
-    cargo bench --package fhirpath-bench
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools benchmark --run
     @echo "✅ Benchmark complete! Results show ops/sec for each operation."
 
 bench-simple:
     @echo "🟢 Running Simple Expression Benchmarks"
-    cargo bench --package fhirpath-bench -- "simple"
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools profile "Patient.active"
 
 bench-medium:
     @echo "🟡 Running Medium Expression Benchmarks"
-    cargo bench --package fhirpath-bench -- "medium"
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools profile "Patient.name.where(use = 'official').family"
 
 bench-complex:
     @echo "🔴 Running Complex Expression Benchmarks"
-    cargo bench --package fhirpath-bench -- "complex"
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools profile "Bundle.entry.resource.count()" --bundle
 
 bench-report:
     @echo "📄 Generating Benchmark Report"
     @echo "=============================="
-    cargo run --package fhirpath-bench --bin fhirpath-bench benchmark --run --output benchmark.md
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools benchmark --run --output benchmark.md
     @echo "✅ Benchmark report generated: benchmark.md"
 
 bench-list:
     @echo "📋 Available Benchmark Expressions"
     @echo "=================================="
-    cargo run --package fhirpath-bench --bin fhirpath-bench list
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools list
 
 
 bench-full: bench bench-report
@@ -89,8 +89,8 @@ docs: doc
 profile EXPRESSION *ARGS:
     @echo "🔍 Profiling Expression: {{EXPRESSION}}"
     @echo "======================================="
-    cargo run --package fhirpath-bench --bin fhirpath-bench profile "{{EXPRESSION}}" {{ARGS}}
-    @echo "✅ Profiling complete! Check ./profile_output/ for flamegraphs"
+    cargo run --package octofhir-fhirpath --bin fhirpath-bench --features dev-tools profile "{{EXPRESSION}}" {{ARGS}}
+    @echo "✅ Profiling complete! Check ./profile_output/ for results"
 
 profile-patient EXPRESSION:
     @echo "🏥 Profiling with Patient Data: {{EXPRESSION}}"
@@ -148,7 +148,7 @@ clean:
 
 # Run specific test case
 test-case CASE:
-    cargo run --package octofhir-fhirpath-tools --bin test-runner specs/fhirpath/tests/{{CASE}}.json
+    cargo run --package octofhir-fhirpath --bin test-runner --features dev-tools specs/fhirpath/tests/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":

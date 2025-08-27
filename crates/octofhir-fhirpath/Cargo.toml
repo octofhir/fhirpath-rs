@@ -12,7 +12,11 @@ readme = "../../README.md"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
 categories = ["parser-implementations", "data-structures", "science"]
 include = [
-    "src/**/*",
+    "src/lib.rs",
+    "src/bin/octofhir_fhirpath.rs",
+    "src/pipeline/**/*",
+    "src/utils.rs",
+    "src/value_ext.rs",
     "../../specs/**/*",
     "../../tests/**/*",
     "../../benches/**/*",
@@ -20,6 +24,11 @@ include = [
     "../../README.md",
     "../../LICENSE*",
     "../../CHANGELOG.md",
+]
+exclude = [
+    "src/bin/fhirpath-bench.rs",
+    "src/bin/test-coverage.rs",
+    "src/bin/test-runner.rs",
 ]
 
 [lib]
@@ -29,6 +38,19 @@ path = "src/lib.rs"
 [[bin]]
 name = "octofhir-fhirpath"
 path = "src/bin/octofhir_fhirpath.rs"
+
+# Development-only binaries (not published)
+[[bin]]
+name = "fhirpath-bench"
+path = "src/bin/fhirpath-bench.rs"
+
+[[bin]]
+name = "test-coverage"
+path = "src/bin/test-coverage.rs"
+
+[[bin]]
+name = "test-runner"
+path = "src/bin/test-runner.rs"
 
 [[example]]
 name = "analyzer_usage"
@@ -90,6 +112,10 @@ reqwest = { workspace = true }
 clap = { workspace = true }
 human-panic = { workspace = true }
 
+# Development binary dependencies (for bench and tools)
+env_logger = "0.11"
+comfy-table = { version = "7.0", optional = true }
+
 # Optional diagnostic dependencies
 colored = { workspace = true, optional = true }
 
@@ -106,3 +132,5 @@ diagnostics = ["colored", "octofhir-fhirpath-diagnostics/terminal"]
 serde = []
 terminal = ["colored", "octofhir-fhirpath-diagnostics/terminal"]
 profiling = []
+# Development-only features for binaries (not exposed in published API)
+dev-tools = ["comfy-table"]

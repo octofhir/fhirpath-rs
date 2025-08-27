@@ -14,7 +14,7 @@
 
 //! Test runner binary for running individual FHIRPath test files
 //!
-//! Usage: cargo run --bin test_runner <test_file.json>
+//! Usage: cargo run --bin test-runner <test_file.json>
 
 use octofhir_fhirpath::FhirPathValue;
 use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
