@@ -1,6 +1,6 @@
 //! Simplified first function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -32,6 +32,8 @@ impl SyncOperation for SimpleFirstFunction {
                 parameters: vec![],
                 return_type: ValueType::Any,
                 variadic: false,
+                category: FunctionCategory::Collection,
+                cardinality_requirement: CardinalityRequirement::RequiresCollection,
             });
         &SIGNATURE
     }

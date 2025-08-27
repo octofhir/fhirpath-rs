@@ -1,6 +1,8 @@
 //! Simplified replaceMatches function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -85,7 +87,9 @@ impl SimpleReplaceMatchesFunction {
         }
 
         // Compile regex
-        let regex = Regex::new(&pattern).map_err(|e| FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}")))?;
+        let regex = Regex::new(&pattern).map_err(|e| {
+            FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}"))
+        })?;
 
         // Perform regex replacement with capture group support
         let result = regex.replace_all(&input_str, &substitution);
@@ -115,6 +119,8 @@ impl SyncOperation for SimpleReplaceMatchesFunction {
                 parameters: vec![ParameterType::String, ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::RequiresScalar,
             });
         &SIGNATURE
     }

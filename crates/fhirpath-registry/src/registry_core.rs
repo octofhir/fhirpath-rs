@@ -25,14 +25,14 @@ use tokio::sync::RwLock;
 pub trait RegistryOperation: Send + Sync + Debug {
     /// Get the operation name for registry lookup
     fn name(&self) -> &'static str;
-    
+
     /// Get the operation signature for validation/documentation
     fn signature(&self) -> &FunctionSignature;
-    
+
     /// Validate arguments against the operation signature
     fn validate_args(&self, args: &[FhirPathValue]) -> Result<()> {
         let signature = self.signature();
-        
+
         // Check argument count for non-variadic functions
         if !signature.variadic && args.len() != signature.parameters.len() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -41,7 +41,7 @@ pub trait RegistryOperation: Send + Sync + Debug {
                 actual: args.len(),
             });
         }
-        
+
         // For variadic functions, ensure we have at least the minimum required args
         if signature.variadic && args.len() < signature.parameters.len() {
             return Err(FhirPathError::InvalidArgumentCount {
@@ -50,7 +50,7 @@ pub trait RegistryOperation: Send + Sync + Debug {
                 actual: args.len(),
             });
         }
-        
+
         // Type validation would go here if needed
         // For now, we trust the operation implementations to handle type validation
         Ok(())
@@ -130,11 +130,11 @@ impl<T: RegistryOperation + ?Sized> RegistryCore<T> {
     pub async fn get_stats(&self) -> RegistryStats {
         let ops = self.operations.read().await;
         let count = ops.len();
-        
+
         RegistryStats {
             operation_count: count,
-            memory_usage_estimate: count * std::mem::size_of::<String>() + 
-                                 count * std::mem::size_of::<Box<T>>(),
+            memory_usage_estimate: count * std::mem::size_of::<String>()
+                + count * std::mem::size_of::<Box<T>>(),
         }
     }
 
@@ -152,7 +152,7 @@ impl<T: RegistryOperation + ?Sized> RegistryCore<T> {
         if let Some(operation) = ops.get(name) {
             // Validate arguments before returning
             operation.validate_args(args)?;
-            
+
             Ok(OperationLookupResult::Found)
         } else {
             Ok(OperationLookupResult::NotFound)
@@ -224,8 +224,7 @@ impl std::fmt::Display for RegistryStats {
         write!(
             f,
             "Registry: {} operations, ~{} bytes",
-            self.operation_count,
-            self.memory_usage_estimate
+            self.operation_count, self.memory_usage_estimate
         )
     }
 }
@@ -277,7 +276,7 @@ impl<T: RegistryOperation> Default for BatchRegistrar<T> {
 mod tests {
     use super::*;
     use crate::signature::{FunctionSignature, ValueType};
-    use std::sync::Arc;
+    
 
     // Test operation for registry core testing
     #[derive(Debug)]
@@ -304,6 +303,8 @@ mod tests {
                 parameters: vec![],
                 return_type: ValueType::String,
                 variadic: false,
+                category: crate::signature::FunctionCategory::Universal,
+                cardinality_requirement: crate::signature::CardinalityRequirement::AcceptsBoth,
             },
         })
     }
@@ -377,7 +378,7 @@ mod tests {
     #[tokio::test]
     async fn test_operation_lookup_and_validate() {
         let core: RegistryCore<TestOperation> = RegistryCore::new();
-        
+
         let op = create_test_operation("test");
         core.register(op).await;
 
@@ -393,7 +394,7 @@ mod tests {
     #[tokio::test]
     async fn test_with_operation() {
         let core: RegistryCore<TestOperation> = RegistryCore::new();
-        
+
         let op = create_test_operation("test");
         core.register(op).await;
 
@@ -408,7 +409,7 @@ mod tests {
     #[tokio::test]
     async fn test_registry_stats() {
         let core: RegistryCore<TestOperation> = RegistryCore::new();
-        
+
         let stats = core.get_stats().await;
         assert_eq!(stats.operation_count, 0);
 

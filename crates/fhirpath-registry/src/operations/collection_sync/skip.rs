@@ -1,6 +1,8 @@
 //! Simplified skip function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -32,6 +34,8 @@ impl SyncOperation for SimpleSkipFunction {
                 parameters: vec![ParameterType::Integer],
                 return_type: ValueType::Collection,
                 variadic: false,
+                category: FunctionCategory::Collection,
+                cardinality_requirement: CardinalityRequirement::RequiresCollection,
             });
         &SIGNATURE
     }
@@ -60,7 +64,9 @@ impl SyncOperation for SimpleSkipFunction {
         };
 
         if count < 0 {
-            return Err(FhirPathError::evaluation_error("skip() count cannot be negative"));
+            return Err(FhirPathError::evaluation_error(
+                "skip() count cannot be negative",
+            ));
         }
 
         match &context.input {

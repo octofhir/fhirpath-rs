@@ -1,6 +1,6 @@
 //! LowBoundary function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -156,7 +156,9 @@ impl LowBoundaryFunction {
             let rounded_boundary = (low_boundary * target_scale).round() / target_scale;
 
             Ok(FhirPathValue::Decimal(
-                Decimal::try_from(rounded_boundary).map_err(|_| FhirPathError::evaluation_error("Unable to convert low boundary to decimal"))?,
+                Decimal::try_from(rounded_boundary).map_err(|_| {
+                    FhirPathError::evaluation_error("Unable to convert low boundary to decimal")
+                })?,
             ))
         }
     }
@@ -202,7 +204,9 @@ impl LowBoundaryFunction {
             };
 
             Ok(FhirPathValue::Decimal(
-                Decimal::try_from(rounded_boundary).map_err(|_| FhirPathError::evaluation_error("Unable to convert low boundary to decimal"))?,
+                Decimal::try_from(rounded_boundary).map_err(|_| {
+                    FhirPathError::evaluation_error("Unable to convert low boundary to decimal")
+                })?,
             ))
         }
     }
@@ -220,6 +224,8 @@ impl SyncOperation for LowBoundaryFunction {
                 parameters: vec![], // No required parameters, precision is optional
                 return_type: ValueType::Any,
                 variadic: true, // Allow 0 or 1 arguments
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             }
         });
         &SIGNATURE

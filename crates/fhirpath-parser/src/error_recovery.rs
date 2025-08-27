@@ -20,9 +20,7 @@
 
 use super::tokenizer::{Token, Tokenizer};
 use octofhir_fhirpath_ast::ExpressionNode;
-use octofhir_fhirpath_diagnostics::{
-    Diagnostic, DiagnosticCode, Severity, SourceLocation,
-};
+use octofhir_fhirpath_diagnostics::{Diagnostic, DiagnosticCode, Severity, SourceLocation};
 
 /// Result of parsing with error recovery
 #[derive(Debug, Clone)]

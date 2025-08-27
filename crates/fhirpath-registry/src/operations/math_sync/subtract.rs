@@ -1,6 +1,8 @@
 //! Simplified subtract function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -32,6 +34,8 @@ impl SyncOperation for SimpleSubtractFunction {
                 parameters: vec![ParameterType::Numeric],
                 return_type: ValueType::Any,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

@@ -1,6 +1,8 @@
 //! HasTemplateIdOf function implementation for CDA/FHIR templates - sync version for FunctionRegistry
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -171,6 +173,8 @@ impl SyncOperation for HasTemplateIdOfFunction {
                 parameters: vec![ParameterType::String], // Template ID to check
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Navigation,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

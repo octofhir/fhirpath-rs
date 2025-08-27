@@ -55,7 +55,7 @@ impl FunctionAnalyzer {
                 parameters: registry_signature
                     .parameters
                     .iter()
-                    .map(|p| {
+                    .map(|_p| {
                         crate::types::ParameterInfo {
                             name: "param".to_string(), // Registry doesn't have param names
                             type_constraint: crate::types::TypeConstraint::Any, // Simplified for now
@@ -244,6 +244,19 @@ impl FunctionAnalyzer {
     /// Check if function supports sync evaluation
     pub async fn supports_sync(&self, name: &str) -> bool {
         self.registry.supports_sync(name).await
+    }
+
+    /// Get function signature directly from registry (exposes cardinality and category metadata)
+    pub async fn get_registry_signature(
+        &self,
+        name: &str,
+    ) -> Option<octofhir_fhirpath_registry::signature::FunctionSignature> {
+        self.registry.get_function_signature(name).await
+    }
+
+    /// Check if function exists in registry
+    pub async fn has_function(&self, name: &str) -> bool {
+        self.registry.has_function(name).await
     }
 
     /// Validate argument count against signature

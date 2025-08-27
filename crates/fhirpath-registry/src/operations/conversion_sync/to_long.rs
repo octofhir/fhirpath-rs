@@ -1,6 +1,6 @@
 //! toLong() sync implementation
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -20,6 +20,8 @@ impl SyncOperation for ToLongFunction {
             parameters: vec![],
             return_type: ValueType::Integer, // Long maps to Integer in our type system
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

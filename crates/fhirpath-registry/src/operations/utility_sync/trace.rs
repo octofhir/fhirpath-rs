@@ -1,6 +1,8 @@
 //! Trace function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
@@ -27,6 +29,8 @@ impl SyncOperation for TraceFunction {
                 parameters: vec![ParameterType::Any], // Optional label parameter
                 return_type: ValueType::Any,
                 variadic: true, // Can take any number of arguments
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             }
         });
         &SIGNATURE

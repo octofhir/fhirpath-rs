@@ -14,8 +14,8 @@
 
 //! Value type analysis utilities for FHIRPath type reflection
 
-use crate::{FhirPathValue, JsonValue};
 use crate::type_object::{FhirPathTypeObject, TypeObjectMetadata};
+use crate::{FhirPathValue, JsonValue};
 use sonic_rs::JsonValueTrait;
 
 /// Utility for analyzing FHIRPath value types

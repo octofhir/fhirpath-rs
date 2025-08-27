@@ -229,7 +229,6 @@ pub enum FhirPathError {
     /// Invalid type specifier
     #[error("Invalid type specifier")]
     InvalidTypeSpecifier,
-
 }
 
 impl FhirPathError {
@@ -419,7 +418,10 @@ impl FhirPathError {
         };
         Self::FunctionError {
             function_name: function_name.clone(),
-            message: format!("Function '{}' expects {} arguments, got {}", function_name, expected_desc, actual),
+            message: format!(
+                "Function '{}' expects {} arguments, got {}",
+                function_name, expected_desc, actual
+            ),
             arguments: None,
             expected_args: Some(expected_desc),
         }
@@ -584,8 +586,8 @@ impl FhirPathError {
 
     /// Create an invalid arguments error with function context
     pub fn invalid_arguments_for_function(
-        function_name: impl Into<String>, 
-        message: impl Into<String>
+        function_name: impl Into<String>,
+        message: impl Into<String>,
     ) -> Self {
         Self::FunctionError {
             function_name: function_name.into(),
@@ -888,7 +890,10 @@ mod tests {
     fn test_legacy_error_constructors_still_work() {
         // Ensure backward compatibility - consolidated error types now map to new variants
         let division_by_zero = FhirPathError::division_by_zero();
-        assert!(matches!(division_by_zero, FhirPathError::ArithmeticError { .. }));
+        assert!(matches!(
+            division_by_zero,
+            FhirPathError::ArithmeticError { .. }
+        ));
 
         let overflow = FhirPathError::arithmetic_overflow("multiplication");
         assert!(matches!(overflow, FhirPathError::ArithmeticError { .. }));
@@ -910,7 +915,12 @@ mod tests {
     fn test_consolidated_error_constructors() {
         // Test new consolidated error constructors
         let invalid_expr = FhirPathError::invalid_expression("malformed syntax");
-        if let FhirPathError::EvaluationError { message, error_type, .. } = invalid_expr {
+        if let FhirPathError::EvaluationError {
+            message,
+            error_type,
+            ..
+        } = invalid_expr
+        {
             assert!(message.contains("Invalid expression"));
             assert_eq!(error_type, Some("invalid_expression".to_string()));
         } else {
@@ -925,7 +935,12 @@ mod tests {
         }
 
         let invalid_arity = FhirPathError::invalid_arity("count", 0, Some(1), 2);
-        if let FhirPathError::FunctionError { function_name, expected_args, .. } = invalid_arity {
+        if let FhirPathError::FunctionError {
+            function_name,
+            expected_args,
+            ..
+        } = invalid_arity
+        {
             assert_eq!(function_name, "count");
             assert_eq!(expected_args, Some("0-1".to_string()));
         } else {

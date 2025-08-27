@@ -39,7 +39,7 @@
 //!
 //! # tokio_test::block_on(async {
 //! let provider = Arc::new(MockModelProvider::new());
-//! let registry = Arc::new(create_standard_registry());
+//! let registry = Arc::new(create_standard_registry().await);
 //! let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 //!
 //! // Function signature validation
@@ -78,7 +78,7 @@
 //! # use std::sync::Arc;
 //! # tokio_test::block_on(async {
 //! # let provider = Arc::new(MockModelProvider::new());
-//! # let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry());
+//! # let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
 //! # let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
 //! let result = analyzer.analyze("unknownFunction()").await?;
 //!
@@ -117,6 +117,7 @@ pub mod cache;
 pub mod children_analyzer;
 pub mod config;
 pub mod error;
+pub mod field_validator;
 pub mod function_analyzer;
 pub mod model_provider_ext;
 pub mod types;
@@ -127,6 +128,7 @@ pub use cache::{AnalysisCache, ExpressionAnalysisMap};
 pub use children_analyzer::ChildrenFunctionAnalyzer;
 pub use config::AnalyzerConfig;
 pub use error::{AnalysisError, ValidationError, ValidationErrorType};
+pub use field_validator::FieldValidator;
 pub use function_analyzer::FunctionAnalyzer;
 pub use model_provider_ext::ModelProviderChildrenExt;
 pub use types::{AnalysisContext, AnalysisResult, AnalysisSettings, SemanticInfo};

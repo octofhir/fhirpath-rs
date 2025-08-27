@@ -163,9 +163,8 @@ impl PolymorphicPathResolver {
             schema_patterns: HashMap::new(),
             path_cache: Arc::new(DashMap::new()),
             choice_pattern_regex: Some(
-                Regex::new(r"^([a-z][a-zA-Z]*?)([A-Z][a-zA-Z]*)$").map_err(|e| {
-                    FhirPathError::invalid_expression(e.to_string())
-                })?,
+                Regex::new(r"^([a-z][a-zA-Z]*?)([A-Z][a-zA-Z]*)$")
+                    .map_err(|e| FhirPathError::invalid_expression(e.to_string()))?,
             ),
             cache_stats: CacheStats::default(),
         };

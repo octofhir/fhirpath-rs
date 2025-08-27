@@ -1,6 +1,6 @@
 //! Children function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
@@ -81,6 +81,8 @@ impl SyncOperation for ChildrenFunction {
                 parameters: vec![],
                 return_type: ValueType::Collection,
                 variadic: false,
+                category: FunctionCategory::Navigation,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

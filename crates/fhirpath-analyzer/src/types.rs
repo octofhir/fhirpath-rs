@@ -171,6 +171,8 @@ pub struct AnalysisSettings {
     pub enable_function_validation: bool,
     /// Enable union type analysis
     pub enable_union_analysis: bool,
+    /// Enable field existence validation
+    pub enable_field_validation: bool,
     /// Maximum analysis depth to prevent infinite recursion
     pub max_analysis_depth: u32,
 }
@@ -181,6 +183,7 @@ impl Default for AnalysisSettings {
             enable_type_inference: true,
             enable_function_validation: true,
             enable_union_analysis: true,
+            enable_field_validation: true,
             max_analysis_depth: 100,
         }
     }

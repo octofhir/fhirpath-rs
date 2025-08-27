@@ -74,6 +74,10 @@ pub enum ValidationErrorType {
     ConstraintViolation,
     /// Invalid FHIR resource type
     InvalidResourceType,
+    /// Invalid field access on a resource type
+    InvalidField,
+    /// Deprecated field usage
+    DeprecatedField,
 }
 
 /// Source location information for errors

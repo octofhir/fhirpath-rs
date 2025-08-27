@@ -1,6 +1,8 @@
 //! Simplified ends_with function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -32,6 +34,8 @@ impl SyncOperation for SimpleEndsWithFunction {
                 parameters: vec![ParameterType::Any], // Accept any type that can be converted to string
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::RequiresScalar,
             });
         &SIGNATURE
     }

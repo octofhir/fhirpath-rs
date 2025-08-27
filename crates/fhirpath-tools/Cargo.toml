@@ -27,6 +27,8 @@ path = "src/bin/analyze.rs"
 # Main crate for testing
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
+octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-analyzer = { path = "../fhirpath-analyzer" }
 
 # Core dependencies
 serde = { workspace = true }

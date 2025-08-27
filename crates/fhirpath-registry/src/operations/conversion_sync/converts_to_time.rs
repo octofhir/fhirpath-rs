@@ -1,6 +1,6 @@
 //! convertsToTime() sync implementation
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
@@ -19,6 +19,8 @@ impl SyncOperation for ConvertsToTimeFunction {
             parameters: vec![],
             return_type: ValueType::Boolean,
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

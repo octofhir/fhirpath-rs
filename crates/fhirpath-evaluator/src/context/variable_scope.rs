@@ -66,29 +66,29 @@ use super::lambda_metadata::LambdaMetadata;
 #[derive(Clone, Debug)]
 pub struct VariableScope {
     /// Variables defined in this scope (Copy-on-Write for efficient inheritance)
-    /// 
+    ///
     /// Uses `Cow<'static, FxHashMap<...>>` for zero-copy inheritance from parent
     /// scopes until first modification. The 'static lifetime constraint comes from
     /// COW requirements but is managed safely through the owned flag.
     pub variables: Cow<'static, FxHashMap<String, FhirPathValue>>,
 
     /// Parent scope (for nested scoping)
-    /// 
+    ///
     /// Uses Arc for efficient sharing of parent scopes across multiple children.
     /// Variable resolution walks up this chain when variables are not found locally.
     pub parent: Option<Arc<VariableScope>>,
 
     /// Lambda-specific metadata for implicit variables
-    /// 
+    ///
     /// When `Some`, this scope is a lambda context and provides access to implicit
     /// variables like `$this`, `$index`, and `$total` within lambda expressions.
     pub lambda_metadata: Option<LambdaMetadata>,
 
     /// Whether this scope owns its variables (true if variables were modified)
-    /// 
+    ///
     /// - `false`: Variables are borrowed from parent (no modifications yet)
     /// - `true`: Variables are owned and can be modified directly
-    /// 
+    ///
     /// This flag is critical for COW optimization and determines whether
     /// variable modifications will trigger cloning.
     owned: bool,
@@ -102,7 +102,7 @@ impl Default for VariableScope {
 
 impl VariableScope {
     /// Create a new root scope
-    /// 
+    ///
     /// Root scopes always own their variables and have no parent scope.
     /// This is the starting point for variable scope chains.
     pub fn new() -> Self {
@@ -115,20 +115,20 @@ impl VariableScope {
     }
 
     /// Create a child scope inheriting from parent (zero-copy initially)
-    /// 
+    ///
     /// This method implements the core COW optimization. Child scopes initially
     /// borrow variables from their parent, avoiding expensive copying until
     /// the first modification occurs.
-    /// 
+    ///
     /// # COW Optimization Details
-    /// 
+    ///
     /// - If parent variables are borrowed (`Cow::Borrowed`), child borrows the same reference
     /// - If parent variables are owned (`Cow::Owned`), child creates empty owned map with parent reference
     /// - No variable copying occurs until `set_variable` is called
-    /// 
+    ///
     /// # Arguments
     /// * `parent` - Parent scope to inherit variables from
-    /// 
+    ///
     /// # Performance
     /// O(1) operation - no variable copying occurs during construction
     pub fn child(parent: VariableScope) -> Self {
@@ -153,13 +153,13 @@ impl VariableScope {
     }
 
     /// Create a child scope from a shared parent (more efficient)
-    /// 
+    ///
     /// This method is more efficient than `child()` when the parent is already
     /// wrapped in an Arc, avoiding the need to create a new Arc.
-    /// 
+    ///
     /// # Arguments
     /// * `parent` - Arc-wrapped parent scope
-    /// 
+    ///
     /// # Performance
     /// O(1) operation with minimal Arc reference counting overhead
     pub fn child_from_shared(parent: Arc<VariableScope>) -> Self {
@@ -172,23 +172,23 @@ impl VariableScope {
     }
 
     /// Create a lambda scope with implicit variables
-    /// 
+    ///
     /// Lambda scopes are special contexts created for lambda expressions (like `where`, `select`).
     /// They automatically provide implicit variables (`$this`, `$index`, `$total`) and inherit
     /// critical environment variables from their parent scope.
-    /// 
+    ///
     /// # Environment Variable Inheritance
-    /// 
+    ///
     /// Lambda scopes copy these critical environment variables from parent:
     /// - `context` - Original context node (%context)
-    /// - `resource` - Containing resource (%resource) 
+    /// - `resource` - Containing resource (%resource)
     /// - `rootResource` - Root container resource (%rootResource)
     /// - `sct` - SNOMED CT URL (%sct)
     /// - `loinc` - LOINC URL (%loinc)
     /// - `ucum` - UCUM URL (%ucum)
-    /// 
+    ///
     /// This ensures lambda expressions maintain access to the broader evaluation context.
-    /// 
+    ///
     /// # Arguments
     /// * `parent` - Optional parent scope to inherit environment variables from
     /// * `current_item` - Current item being processed (becomes `$this`)
@@ -232,19 +232,19 @@ impl VariableScope {
     }
 
     /// Create a lambda scope with custom parameter mappings
-    /// 
+    ///
     /// This method creates a lambda scope with explicit parameter mappings in addition
     /// to the standard implicit variables. Useful for complex lambda expressions that
     /// need custom variable bindings.
-    /// 
+    ///
     /// # Parameter Override Behavior
-    /// 
+    ///
     /// Parameter mappings can override inherited environment variables if they use
     /// the same name. The resolution order is:
     /// 1. Explicit parameter mappings (highest priority)
     /// 2. Inherited environment variables
     /// 3. Parent scope variables (through normal resolution)
-    /// 
+    ///
     /// # Arguments
     /// * `parent` - Optional parent scope for environment variable inheritance
     /// * `param_mappings` - Vector of (name, value) pairs for explicit parameters
@@ -293,35 +293,35 @@ impl VariableScope {
     }
 
     /// Set a variable in the current scope (triggers copy-on-write)
-    /// 
+    ///
     /// This method implements COW semantics and system variable protection.
     /// System variables (those managed by the FHIRPath runtime) cannot be
     /// overridden to maintain specification compliance.
-    /// 
+    ///
     /// # COW Behavior
-    /// 
+    ///
     /// If this scope does not own its variables (`owned = false`):
     /// 1. All current variables are copied to a new owned HashMap
     /// 2. The scope is marked as `owned = true`
     /// 3. The new variable is inserted into the owned HashMap
-    /// 
+    ///
     /// If this scope already owns its variables (`owned = true`):
     /// 1. The variable is inserted directly (O(1) operation)
-    /// 
+    ///
     /// # System Variable Protection
-    /// 
+    ///
     /// Variables starting with certain prefixes or having special names are
     /// protected from user modification:
     /// - Environment variables: `context`, `resource`, `rootResource`, `sct`, `loinc`, `ucum`
     /// - Lambda variables: `$this`, `$index`, `$total`
     /// - Value set variables: `vs-*` patterns
-    /// 
+    ///
     /// Attempts to override system variables are silently ignored per FHIRPath spec.
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name (without $ or % prefixes for system variables)
     /// * `value` - Value to assign to the variable
-    /// 
+    ///
     /// # Performance
     /// - O(1) if scope already owns variables
     /// - O(n) for COW trigger (n = number of variables being inherited)
@@ -337,15 +337,15 @@ impl VariableScope {
     }
 
     /// Internal method to set variables without system variable protection
-    /// 
+    ///
     /// Used during context initialization to set standard environment variables.
     /// This bypasses the system variable protection to allow the runtime to
     /// establish the initial variable environment.
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name
     /// * `value` - Variable value
-    /// 
+    ///
     /// # Safety
     /// This method should only be used during context initialization. Using it
     /// inappropriately could allow user code to override system variables.
@@ -354,17 +354,17 @@ impl VariableScope {
     }
 
     /// Internal method that actually sets the variable
-    /// 
+    ///
     /// This method implements the core COW logic without any protection checks.
     /// It handles the transition from borrowed to owned variables when needed.
-    /// 
+    ///
     /// # COW Implementation Details
-    /// 
+    ///
     /// 1. Check if variables are currently owned
     /// 2. If not owned, create new owned HashMap and copy existing variables
     /// 3. Mark scope as owned
     /// 4. Insert the new variable into owned HashMap
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name
     /// * `value` - Variable value
@@ -387,21 +387,21 @@ impl VariableScope {
     }
 
     /// Check if a variable name is a system variable that cannot be overridden
-    /// 
+    ///
     /// This method identifies variables that are managed by the FHIRPath runtime
     /// and should not be overridden by user code. This maintains specification
     /// compliance and prevents users from breaking the evaluation context.
-    /// 
+    ///
     /// # System Variable Categories
-    /// 
+    ///
     /// - **Environment variables**: `context`, `resource`, `rootResource`, `sct`, `loinc`, `ucum`
     /// - **Lambda variables**: `$this`, `$index`, `$total` (managed by lambda metadata)
     /// - **Value set variables**: Variables matching `vs-*` patterns
     /// - **User $ variables**: Non-lambda $ variables are allowed
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name to check (without prefixes)
-    /// 
+    ///
     /// # Returns
     /// * `true` - If the variable is a protected system variable
     /// * `false` - If the variable can be set by user code
@@ -423,24 +423,24 @@ impl VariableScope {
     }
 
     /// Get a variable from this scope or parent scopes
-    /// 
+    ///
     /// This method implements the complete variable resolution algorithm for FHIRPath.
     /// Variables are resolved in a specific order to ensure correct scoping behavior.
-    /// 
+    ///
     /// # Resolution Order
-    /// 
+    ///
     /// 1. **Local variables**: Check variables defined directly in this scope
     /// 2. **Lambda metadata**: Check implicit lambda variables (`$this`, `$index`, `$total`)
     /// 3. **Parent scopes**: Recursively search up the parent scope chain
     /// 4. **Environment variables**: System variables are typically in parent scopes
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name to resolve
-    /// 
+    ///
     /// # Returns
     /// * `Some(&FhirPathValue)` - If variable is found in resolution order
     /// * `None` - If variable is not found in any scope
-    /// 
+    ///
     /// # Performance
     /// - O(1) for local variables and lambda metadata
     /// - O(depth) for parent chain traversal, where depth is the scope nesting level
@@ -467,13 +467,13 @@ impl VariableScope {
     }
 
     /// Check if this scope contains a variable locally (not in parent)
-    /// 
+    ///
     /// This method only checks the current scope's variables and lambda metadata,
     /// it does not traverse parent scopes. Useful for debugging and introspection.
-    /// 
+    ///
     /// # Arguments
     /// * `name` - Variable name to check
-    /// 
+    ///
     /// # Returns
     /// * `true` - If variable exists locally in this scope
     /// * `false` - If variable is not in this scope (may exist in parents)
@@ -492,10 +492,10 @@ impl VariableScope {
     }
 
     /// Get the number of local variables in this scope
-    /// 
+    ///
     /// Returns the count of variables stored directly in this scope.
     /// Does not include lambda metadata variables or parent scope variables.
-    /// 
+    ///
     /// # Returns
     /// Number of variables stored in this scope's HashMap
     pub fn local_count(&self) -> usize {
@@ -503,11 +503,11 @@ impl VariableScope {
     }
 
     /// Check if this scope is efficiently borrowing (COW not triggered)
-    /// 
+    ///
     /// Returns true if this scope is still in the efficient COW state where
     /// variables are borrowed from parent without copying. Once variables
     /// are modified, this returns false.
-    /// 
+    ///
     /// # Returns  
     /// * `true` - If scope is borrowing variables (COW not triggered)
     /// * `false` - If scope owns its variables (COW triggered or root scope)
@@ -516,16 +516,16 @@ impl VariableScope {
     }
 
     /// Create an optimized scope for simple expressions (pre-allocated capacity)
-    /// 
+    ///
     /// This method creates a root scope with pre-allocated HashMap capacity
     /// for better performance when the expected number of variables is known.
-    /// 
+    ///
     /// # Arguments
     /// * `capacity` - Expected number of variables to pre-allocate
-    /// 
+    ///
     /// # Returns
     /// New root scope with pre-allocated variable storage
-    /// 
+    ///
     /// # Performance
     /// Reduces HashMap reallocations when setting multiple variables
     pub fn with_capacity(capacity: usize) -> Self {
@@ -541,13 +541,13 @@ impl VariableScope {
     }
 
     /// Create a scope from an existing variables map
-    /// 
+    ///
     /// This method creates a new root scope containing the provided variables.
     /// Useful for creating independent scopes from collected variable data.
-    /// 
+    ///
     /// # Arguments
     /// * `variables` - HashMap of variables to include in the scope
-    /// 
+    ///
     /// # Returns
     /// New root scope containing the provided variables
     pub fn from_variables_map(variables: FxHashMap<String, FhirPathValue>) -> Self {
@@ -560,10 +560,10 @@ impl VariableScope {
     }
 
     /// Get debug information about this scope's COW state
-    /// 
+    ///
     /// Returns a string describing the current state for debugging purposes.
     /// Useful for understanding COW behavior and performance characteristics.
-    /// 
+    ///
     /// # Returns
     /// Debug string describing scope state
     pub fn debug_cow_state(&self) -> String {
@@ -576,10 +576,10 @@ impl VariableScope {
     }
 
     /// Create a debug representation of the variable resolution chain
-    /// 
+    ///
     /// Returns a string showing the scope chain for debugging variable resolution issues.
     /// Shows local variables, lambda metadata, and parent chain structure.
-    /// 
+    ///
     /// # Returns
     /// Multi-line debug string showing scope chain
     pub fn debug_variable_chain(&self) -> String {
@@ -591,16 +591,28 @@ impl VariableScope {
     /// Recursive helper for debug_variable_chain
     fn debug_variable_chain_recursive(&self, result: &mut String, depth: usize) {
         let indent = "  ".repeat(depth);
-        
+
         result.push_str(&format!("{}Scope[{}]:\n", indent, depth));
-        result.push_str(&format!("{}  COW State: {}\n", indent, self.debug_cow_state()));
-        result.push_str(&format!("{}  Local vars: {:?}\n", indent, self.variables.keys().collect::<Vec<_>>()));
-        
+        result.push_str(&format!(
+            "{}  COW State: {}\n",
+            indent,
+            self.debug_cow_state()
+        ));
+        result.push_str(&format!(
+            "{}  Local vars: {:?}\n",
+            indent,
+            self.variables.keys().collect::<Vec<_>>()
+        ));
+
         if let Some(ref lambda_meta) = self.lambda_metadata {
             result.push_str(&format!("{}  Lambda vars: $this, $index, $total\n", indent));
-            result.push_str(&format!("{}    $index = {}\n", indent, lambda_meta.current_index_as_i64()));
+            result.push_str(&format!(
+                "{}    $index = {}\n",
+                indent,
+                lambda_meta.current_index_as_i64()
+            ));
         }
-        
+
         if let Some(ref parent) = self.parent {
             result.push_str(&format!("{}  Parent:\n", indent));
             parent.debug_variable_chain_recursive(result, depth + 1);
@@ -627,10 +639,10 @@ mod tests {
     fn test_child_scope_cow_optimization() {
         let mut parent = VariableScope::new();
         parent.set_variable("test".to_string(), FhirPathValue::String("value".into()));
-        
+
         let child = VariableScope::child(parent);
         assert!(!child.owned); // Child should not own variables initially
-        
+
         // Child should be able to access parent variable
         assert_eq!(
             child.get_variable("test"),
@@ -641,15 +653,21 @@ mod tests {
     #[test]
     fn test_cow_trigger_on_set_variable() {
         let mut parent = VariableScope::new();
-        parent.set_variable("parent_var".to_string(), FhirPathValue::String("parent_value".into()));
-        
+        parent.set_variable(
+            "parent_var".to_string(),
+            FhirPathValue::String("parent_value".into()),
+        );
+
         let mut child = VariableScope::child(parent);
         assert!(!child.owned); // Initially not owned
-        
+
         // Setting a variable should trigger COW
-        child.set_variable("child_var".to_string(), FhirPathValue::String("child_value".into()));
+        child.set_variable(
+            "child_var".to_string(),
+            FhirPathValue::String("child_value".into()),
+        );
         assert!(child.owned); // Should now be owned
-        
+
         // Both variables should be accessible
         assert_eq!(
             child.get_variable("parent_var"),
@@ -665,32 +683,45 @@ mod tests {
     fn test_lambda_scope_creation() {
         let current_item = FhirPathValue::String("test_item".into());
         let total = FhirPathValue::Integer(10);
-        
-        let lambda_scope = VariableScope::lambda_scope(None, current_item.clone(), 5, total.clone());
-        
+
+        let lambda_scope =
+            VariableScope::lambda_scope(None, current_item.clone(), 5, total.clone());
+
         assert!(lambda_scope.owned);
         assert!(lambda_scope.lambda_metadata.is_some());
-        
+
         // Check lambda variables
         assert_eq!(lambda_scope.get_variable("$this"), Some(&current_item));
-        assert_eq!(lambda_scope.get_variable("$index"), Some(&FhirPathValue::Integer(5)));
+        assert_eq!(
+            lambda_scope.get_variable("$index"),
+            Some(&FhirPathValue::Integer(5))
+        );
         assert_eq!(lambda_scope.get_variable("$total"), Some(&total));
     }
 
     #[test]
     fn test_system_variable_protection() {
         let mut scope = VariableScope::new();
-        
+
         // System variables should be ignored
-        scope.set_variable("context".to_string(), FhirPathValue::String("should_be_ignored".into()));
-        scope.set_variable("$this".to_string(), FhirPathValue::String("should_be_ignored".into()));
-        
+        scope.set_variable(
+            "context".to_string(),
+            FhirPathValue::String("should_be_ignored".into()),
+        );
+        scope.set_variable(
+            "$this".to_string(),
+            FhirPathValue::String("should_be_ignored".into()),
+        );
+
         // These should not be set
         assert!(scope.get_variable("context").is_none());
         assert!(scope.get_variable("$this").is_none());
-        
+
         // Non-system variables should work
-        scope.set_variable("my_var".to_string(), FhirPathValue::String("allowed".into()));
+        scope.set_variable(
+            "my_var".to_string(),
+            FhirPathValue::String("allowed".into()),
+        );
         assert_eq!(
             scope.get_variable("my_var"),
             Some(&FhirPathValue::String("allowed".into()))
@@ -700,9 +731,15 @@ mod tests {
     #[test]
     fn test_environment_variable_inheritance_in_lambda() {
         let mut parent = VariableScope::new();
-        parent.set_system_variable("context".to_string(), FhirPathValue::String("parent_context".into()));
-        parent.set_system_variable("resource".to_string(), FhirPathValue::String("parent_resource".into()));
-        
+        parent.set_system_variable(
+            "context".to_string(),
+            FhirPathValue::String("parent_context".into()),
+        );
+        parent.set_system_variable(
+            "resource".to_string(),
+            FhirPathValue::String("parent_resource".into()),
+        );
+
         let parent_arc = Arc::new(parent);
         let lambda_scope = VariableScope::lambda_scope(
             Some(parent_arc),
@@ -710,7 +747,7 @@ mod tests {
             0,
             FhirPathValue::Integer(1),
         );
-        
+
         // Lambda scope should inherit environment variables
         assert_eq!(
             lambda_scope.get_variable("context"),
@@ -725,8 +762,11 @@ mod tests {
     #[test]
     fn test_variable_resolution_order() {
         let mut parent = VariableScope::new();
-        parent.set_system_variable("test_var".to_string(), FhirPathValue::String("parent_value".into()));
-        
+        parent.set_system_variable(
+            "test_var".to_string(),
+            FhirPathValue::String("parent_value".into()),
+        );
+
         let parent_arc = Arc::new(parent);
         let mut lambda_scope = VariableScope::lambda_scope(
             Some(parent_arc),
@@ -734,16 +774,19 @@ mod tests {
             0,
             FhirPathValue::Integer(1),
         );
-        
+
         // Set local variable with same name
-        lambda_scope.set_variable("test_var".to_string(), FhirPathValue::String("local_value".into()));
-        
+        lambda_scope.set_variable(
+            "test_var".to_string(),
+            FhirPathValue::String("local_value".into()),
+        );
+
         // Local variable should take precedence
         assert_eq!(
             lambda_scope.get_variable("test_var"),
             Some(&FhirPathValue::String("local_value".into()))
         );
-        
+
         // Lambda variables should work
         assert_eq!(
             lambda_scope.get_variable("$this"),
@@ -756,7 +799,7 @@ mod tests {
         let scope = VariableScope::new();
         let debug_state = scope.debug_cow_state();
         assert!(debug_state.contains("Owns"));
-        
+
         let debug_chain = scope.debug_variable_chain();
         assert!(debug_chain.contains("Scope[0]"));
         assert!(debug_chain.contains("No parent"));

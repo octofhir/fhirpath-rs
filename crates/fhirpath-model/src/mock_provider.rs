@@ -79,7 +79,6 @@ impl MockModelProvider {
             .or_default()
             .insert(property_name, property_type);
     }
-
 }
 
 // Implement the async ModelProvider trait

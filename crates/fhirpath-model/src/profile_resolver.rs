@@ -114,7 +114,7 @@ impl ProfileResolver {
     /// Create a new profile resolver
     pub fn new() -> Self {
         Self {
-            profile_cache: Cache::new(1000), // Default capacity for profiles
+            profile_cache: Cache::new(1000),    // Default capacity for profiles
             constraint_cache: Cache::new(2000), // Default capacity for constraints
         }
     }
@@ -582,12 +582,7 @@ impl ProfileResolver {
     }
 
     /// Get cache statistics
-    pub fn cache_stats(
-        &self,
-    ) -> (
-        super::cache::CacheStats,
-        super::cache::CacheStats,
-    ) {
+    pub fn cache_stats(&self) -> (super::cache::CacheStats, super::cache::CacheStats) {
         (self.profile_cache.stats(), self.constraint_cache.stats())
     }
 

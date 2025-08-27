@@ -1,6 +1,8 @@
 //! Comparable function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -86,6 +88,8 @@ impl SyncOperation for ComparableFunction {
                 parameters: vec![ParameterType::Any],
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

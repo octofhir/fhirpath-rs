@@ -1,6 +1,6 @@
 //! Type function - async implementation for FunctionRegistry
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -109,6 +109,8 @@ impl AsyncOperation for TypeFunction {
                 parameters: vec![], // No parameters - works on current context
                 return_type: ValueType::Collection,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

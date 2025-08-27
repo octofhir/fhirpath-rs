@@ -181,6 +181,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "async-recursion"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2298,6 +2309,7 @@ dependencies = [
 name = "octofhir-fhirpath-analyzer"
 version = "0.4.17"
 dependencies = [
+ "async-recursion",
  "async-trait",
  "dashmap",
  "divan",
@@ -2308,6 +2320,7 @@ dependencies = [
  "octofhir-fhirpath-model",
  "octofhir-fhirpath-parser",
  "octofhir-fhirpath-registry",
+ "octofhir-fhirschema",
  "sonic-rs",
  "thiserror 2.0.16",
  "tokio",
@@ -2491,6 +2504,8 @@ dependencies = [
  "comfy-table",
  "glob",
  "octofhir-fhirpath",
+ "octofhir-fhirpath-analyzer",
+ "octofhir-fhirpath-model",
  "octofhir-fhirpath-registry",
  "pretty_assertions",
  "regex",
@@ -2503,9 +2518,9 @@ dependencies = [
 
 [[package]]
 name = "octofhir-fhirschema"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ef9b1c3726681a1d8edc08bf9777ecf55f1d7774ef77ec5dcc23c93b06c1a7e"
+checksum = "b6f79628302f6f700ca9ded5135003eda8b75aadb88f42af2c2fbbe62a440dca"
 dependencies = [
  "async-trait",
  "bincode",

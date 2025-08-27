@@ -14,6 +14,34 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Function category for cardinality validation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum FunctionCategory {
+    /// Functions that primarily work on collections (where, select, count, etc.)
+    Collection,
+    /// Functions that work better on scalar/single values (toString, matches, etc.)
+    Scalar,
+    /// Functions that can work on both collections and scalars
+    Universal,
+    /// Aggregation functions that reduce collections to single values
+    Aggregation,
+    /// Navigation functions that traverse FHIR structures
+    Navigation,
+}
+
+/// Cardinality requirement for function inputs
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CardinalityRequirement {
+    /// Function requires a collection input
+    RequiresCollection,
+    /// Function requires a scalar input
+    RequiresScalar,
+    /// Function accepts both collection and scalar inputs
+    AcceptsBoth,
+    /// Function creates a collection from scalar input
+    CreatesCollection,
+}
+
 /// Simplified function signature containing only essential information
 ///
 /// This replaces the complex OperationMetadata system with just the basics
@@ -31,6 +59,12 @@ pub struct FunctionSignature {
 
     /// Whether this function accepts variable arguments
     pub variadic: bool,
+
+    /// Function category for cardinality validation
+    pub category: FunctionCategory,
+
+    /// Cardinality requirement for the primary input
+    pub cardinality_requirement: CardinalityRequirement,
 }
 
 impl FunctionSignature {
@@ -40,26 +74,49 @@ impl FunctionSignature {
         parameters: Vec<ParameterType>,
         return_type: ValueType,
         variadic: bool,
+        category: FunctionCategory,
+        cardinality_requirement: CardinalityRequirement,
     ) -> Self {
         Self {
             name,
             parameters,
             return_type,
             variadic,
+            category,
+            cardinality_requirement,
         }
     }
 
-    /// Create a function signature for a no-argument function
+    /// Create a function signature for a no-argument function with defaults
     pub fn no_args(name: &'static str, return_type: ValueType) -> Self {
         Self {
             name,
             parameters: vec![],
             return_type,
             variadic: false,
+            category: FunctionCategory::Universal, // Default to universal
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth, // Default to accepting both
         }
     }
 
-    /// Create a function signature for a single-argument function
+    /// Create a function signature for a no-argument function with explicit cardinality
+    pub fn no_args_with_cardinality(
+        name: &'static str,
+        return_type: ValueType,
+        category: FunctionCategory,
+        cardinality_requirement: CardinalityRequirement,
+    ) -> Self {
+        Self {
+            name,
+            parameters: vec![],
+            return_type,
+            variadic: false,
+            category,
+            cardinality_requirement,
+        }
+    }
+
+    /// Create a function signature for a single-argument function with defaults
     pub fn single_arg(
         name: &'static str,
         param_type: ParameterType,
@@ -70,10 +127,30 @@ impl FunctionSignature {
             parameters: vec![param_type],
             return_type,
             variadic: false,
+            category: FunctionCategory::Universal, // Default to universal
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth, // Default to accepting both
         }
     }
 
-    /// Create a function signature for a variadic function
+    /// Create a function signature for a single-argument function with explicit cardinality
+    pub fn single_arg_with_cardinality(
+        name: &'static str,
+        param_type: ParameterType,
+        return_type: ValueType,
+        category: FunctionCategory,
+        cardinality_requirement: CardinalityRequirement,
+    ) -> Self {
+        Self {
+            name,
+            parameters: vec![param_type],
+            return_type,
+            variadic: false,
+            category,
+            cardinality_requirement,
+        }
+    }
+
+    /// Create a function signature for a variadic function with defaults
     pub fn variadic(
         name: &'static str,
         min_params: Vec<ParameterType>,
@@ -84,6 +161,26 @@ impl FunctionSignature {
             parameters: min_params,
             return_type,
             variadic: true,
+            category: FunctionCategory::Universal, // Default to universal
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth, // Default to accepting both
+        }
+    }
+
+    /// Create a function signature for a variadic function with explicit cardinality
+    pub fn variadic_with_cardinality(
+        name: &'static str,
+        min_params: Vec<ParameterType>,
+        return_type: ValueType,
+        category: FunctionCategory,
+        cardinality_requirement: CardinalityRequirement,
+    ) -> Self {
+        Self {
+            name,
+            parameters: min_params,
+            return_type,
+            variadic: true,
+            category,
+            cardinality_requirement,
         }
     }
 
@@ -112,6 +209,59 @@ impl FunctionSignature {
         } else {
             true // Variadic functions accept any number >= min
         }
+    }
+
+    // Convenience constructors for common function types with sensible defaults
+
+    /// Create a collection function signature (requires collection input)
+    pub fn collection_function(
+        name: &'static str,
+        parameters: Vec<ParameterType>,
+        return_type: ValueType,
+        variadic: bool,
+    ) -> Self {
+        Self::new(
+            name,
+            parameters,
+            return_type,
+            variadic,
+            FunctionCategory::Collection,
+            CardinalityRequirement::RequiresCollection,
+        )
+    }
+
+    /// Create a scalar function signature (prefers scalar input)
+    pub fn scalar_function(
+        name: &'static str,
+        parameters: Vec<ParameterType>,
+        return_type: ValueType,
+        variadic: bool,
+    ) -> Self {
+        Self::new(
+            name,
+            parameters,
+            return_type,
+            variadic,
+            FunctionCategory::Scalar,
+            CardinalityRequirement::RequiresScalar,
+        )
+    }
+
+    /// Create a universal function signature (accepts both)
+    pub fn universal_function(
+        name: &'static str,
+        parameters: Vec<ParameterType>,
+        return_type: ValueType,
+        variadic: bool,
+    ) -> Self {
+        Self::new(
+            name,
+            parameters,
+            return_type,
+            variadic,
+            FunctionCategory::Universal,
+            CardinalityRequirement::AcceptsBoth,
+        )
     }
 }
 
@@ -218,12 +368,14 @@ macro_rules! signature {
 
     // Multiple arguments: signature!(name, [param1, param2, ...] => return_type)
     ($name:expr, [$($param_type:expr),*] => $return_type:expr) => {
-        FunctionSignature::new($name, vec![$($param_type),*], $return_type, false)
+        FunctionSignature::new($name, vec![$($param_type),*], $return_type, false,
+                               FunctionCategory::Universal, CardinalityRequirement::AcceptsBoth)
     };
 
     // Variadic: signature!(name, [param1, param2, ...] => return_type, variadic)
     ($name:expr, [$($param_type:expr),*] => $return_type:expr, variadic) => {
-        FunctionSignature::new($name, vec![$($param_type),*], $return_type, true)
+        FunctionSignature::new($name, vec![$($param_type),*], $return_type, true,
+                               FunctionCategory::Universal, CardinalityRequirement::AcceptsBoth)
     };
 }
 
@@ -298,6 +450,8 @@ mod tests {
             vec![ParameterType::String, ParameterType::Integer],
             ValueType::Boolean,
             false,
+            FunctionCategory::Universal,
+            CardinalityRequirement::AcceptsBoth,
         );
 
         assert_eq!(sig.name, "testFunc");
@@ -326,8 +480,14 @@ mod tests {
 
     #[test]
     fn test_argument_count_validation() {
-        let fixed_args =
-            FunctionSignature::new("test", vec![ParameterType::String], ValueType::Any, false);
+        let fixed_args = FunctionSignature::new(
+            "test",
+            vec![ParameterType::String],
+            ValueType::Any,
+            false,
+            FunctionCategory::Universal,
+            CardinalityRequirement::AcceptsBoth,
+        );
         assert!(!fixed_args.is_valid_arg_count(0)); // Too few
         assert!(fixed_args.is_valid_arg_count(1)); // Exactly right
         assert!(!fixed_args.is_valid_arg_count(2)); // Too many

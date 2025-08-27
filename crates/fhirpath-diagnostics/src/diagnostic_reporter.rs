@@ -3,9 +3,7 @@
 //! This streamlined version removes over-engineered analysis features while maintaining
 //! essential diagnostic collection and reporting capabilities.
 
-use super::{
-    diagnostic::{Diagnostic, Severity},
-};
+use super::diagnostic::{Diagnostic, Severity};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -62,7 +60,7 @@ impl DiagnosticReporter {
     /// Generate a complete diagnostic report
     pub fn generate_report(&self) -> DiagnosticReport {
         let summary = self.generate_summary();
-        
+
         DiagnosticReport {
             diagnostics: self.diagnostics.clone(),
             summary,
@@ -72,9 +70,9 @@ impl DiagnosticReporter {
     /// Generate summary statistics
     fn generate_summary(&self) -> DiagnosticSummary {
         let mut summary = DiagnosticSummary::default();
-        
+
         summary.total_count = self.diagnostics.len();
-        
+
         for diagnostic in &self.diagnostics {
             match diagnostic.severity {
                 Severity::Error => {
@@ -101,7 +99,7 @@ impl DiagnosticReporter {
                 }
             }
         }
-        
+
         summary
     }
 
@@ -124,14 +122,14 @@ impl DiagnosticReporter {
     /// Get diagnostics grouped by severity
     pub fn group_by_severity(&self) -> BTreeMap<Severity, Vec<&Diagnostic>> {
         let mut grouped = BTreeMap::new();
-        
+
         for diagnostic in &self.diagnostics {
             grouped
                 .entry(diagnostic.severity)
                 .or_insert_with(Vec::new)
                 .push(diagnostic);
         }
-        
+
         grouped
     }
 
@@ -186,16 +184,16 @@ mod tests {
     #[test]
     fn test_diagnostic_reporter_basic() {
         let mut reporter = DiagnosticReporter::new();
-        
+
         let diagnostic = Diagnostic::new(
             DiagnosticCode::UnknownFunction,
             Severity::Error,
             "count is not defined".to_string(),
             SourceLocation::from_line_column(1, 10, 9),
         );
-        
+
         reporter.add_diagnostic(diagnostic);
-        
+
         assert_eq!(reporter.len(), 1);
         assert!(reporter.has_errors());
         assert_eq!(reporter.errors().len(), 1);
@@ -205,7 +203,7 @@ mod tests {
     #[test]
     fn test_summary_generation() {
         let mut reporter = DiagnosticReporter::new();
-        
+
         // Add error
         let error_diagnostic = Diagnostic::new(
             DiagnosticCode::UnknownFunction,
@@ -214,7 +212,7 @@ mod tests {
             SourceLocation::from_line_column(1, 1, 0),
         );
         reporter.add_diagnostic(error_diagnostic);
-        
+
         // Add warning
         let warning_diagnostic = Diagnostic::new(
             DiagnosticCode::UnexpectedToken,
@@ -223,9 +221,9 @@ mod tests {
             SourceLocation::from_line_column(2, 1, 10),
         );
         reporter.add_diagnostic(warning_diagnostic);
-        
+
         let report = reporter.generate_report();
-        
+
         assert_eq!(report.summary.total_count, 2);
         assert_eq!(report.summary.error_count, 1);
         assert_eq!(report.summary.warning_count, 1);
@@ -235,7 +233,7 @@ mod tests {
     #[test]
     fn test_grouping_by_severity() {
         let mut reporter = DiagnosticReporter::new();
-        
+
         // Add diagnostics of different severities
         for severity in &[Severity::Error, Severity::Warning, Severity::Error] {
             let diagnostic = Diagnostic::new(
@@ -246,9 +244,9 @@ mod tests {
             );
             reporter.add_diagnostic(diagnostic);
         }
-        
+
         let grouped = reporter.group_by_severity();
-        
+
         assert_eq!(grouped.get(&Severity::Error).unwrap().len(), 2);
         assert_eq!(grouped.get(&Severity::Warning).unwrap().len(), 1);
         assert!(grouped.get(&Severity::Info).is_none());

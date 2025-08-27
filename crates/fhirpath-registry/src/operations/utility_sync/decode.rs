@@ -1,6 +1,8 @@
 //! Decode function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -27,6 +29,8 @@ impl SyncOperation for DecodeFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -54,7 +58,9 @@ impl SyncOperation for DecodeFunction {
             "hex" => hex_decode(&input_string)?,
             "urlbase64" => urlbase64_decode(&input_string)?,
             _ => {
-                return Err(FhirPathError::evaluation_error(format!("Unsupported encoding: {encoding_type}")));
+                return Err(FhirPathError::evaluation_error(format!(
+                    "Unsupported encoding: {encoding_type}"
+                )));
             }
         };
 
@@ -70,11 +76,11 @@ impl Default for DecodeFunction {
 
 fn base64_decode(input: &str) -> Result<String> {
     use base64::{Engine, engine::general_purpose};
-    let bytes =
-        general_purpose::STANDARD
-            .decode(input)
-            .map_err(|_| FhirPathError::evaluation_error("Invalid base64 encoding"))?;
-    String::from_utf8(bytes).map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded base64"))
+    let bytes = general_purpose::STANDARD
+        .decode(input)
+        .map_err(|_| FhirPathError::evaluation_error("Invalid base64 encoding"))?;
+    String::from_utf8(bytes)
+        .map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded base64"))
 }
 
 fn url_decode(input: &str) -> Result<String> {
@@ -97,25 +103,33 @@ fn html_decode(input: &str) -> String {
 fn hex_decode(input: &str) -> Result<String> {
     // Hex string should have even length
     if input.len() % 2 != 0 {
-        return Err(FhirPathError::evaluation_error("Invalid hex encoding: odd length"));
+        return Err(FhirPathError::evaluation_error(
+            "Invalid hex encoding: odd length",
+        ));
     }
 
     let mut bytes = Vec::new();
     for chunk in input.as_bytes().chunks(2) {
-        let hex_str = std::str::from_utf8(chunk).map_err(|_| FhirPathError::evaluation_error("Invalid hex encoding: non-UTF8 characters"))?;
-        let byte_val =
-            u8::from_str_radix(hex_str, 16).map_err(|_| FhirPathError::evaluation_error(format!("Invalid hex encoding: invalid hex digits '{hex_str}'")))?;
+        let hex_str = std::str::from_utf8(chunk).map_err(|_| {
+            FhirPathError::evaluation_error("Invalid hex encoding: non-UTF8 characters")
+        })?;
+        let byte_val = u8::from_str_radix(hex_str, 16).map_err(|_| {
+            FhirPathError::evaluation_error(format!(
+                "Invalid hex encoding: invalid hex digits '{hex_str}'"
+            ))
+        })?;
         bytes.push(byte_val);
     }
 
-    String::from_utf8(bytes).map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded hex"))
+    String::from_utf8(bytes)
+        .map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded hex"))
 }
 
 fn urlbase64_decode(input: &str) -> Result<String> {
     use base64::{Engine, engine::general_purpose};
-    let bytes =
-        general_purpose::URL_SAFE
-            .decode(input)
-            .map_err(|_| FhirPathError::evaluation_error("Invalid urlbase64 encoding"))?;
-    String::from_utf8(bytes).map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded urlbase64"))
+    let bytes = general_purpose::URL_SAFE
+        .decode(input)
+        .map_err(|_| FhirPathError::evaluation_error("Invalid urlbase64 encoding"))?;
+    String::from_utf8(bytes)
+        .map_err(|_| FhirPathError::evaluation_error("Invalid UTF-8 in decoded urlbase64"))
 }

@@ -1,6 +1,6 @@
 //! toTime() sync implementation
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use chrono::NaiveTime;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -23,6 +23,8 @@ impl SyncOperation for ToTimeFunction {
             parameters: vec![],
             return_type: ValueType::Time,
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

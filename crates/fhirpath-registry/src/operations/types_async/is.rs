@@ -1,6 +1,8 @@
 //! Is operation - async implementation for FunctionRegistry
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -116,6 +118,8 @@ impl AsyncOperation for IsOperation {
                 parameters: vec![ParameterType::Any], // Type identifier or string
                 return_type: ValueType::Collection,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

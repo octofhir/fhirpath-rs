@@ -1,6 +1,8 @@
 //! Simplified supersetOf function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -33,6 +35,8 @@ impl SyncOperation for SimpleSupersetOfFunction {
                 parameters: vec![ParameterType::Collection],
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Collection,
+                cardinality_requirement: CardinalityRequirement::RequiresCollection,
             });
         &SIGNATURE
     }

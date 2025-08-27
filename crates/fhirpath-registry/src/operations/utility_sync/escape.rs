@@ -1,6 +1,8 @@
 //! Escape function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -27,6 +29,8 @@ impl SyncOperation for EscapeFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -60,8 +64,8 @@ fn escape_with_format(input: &str, format: &str) -> Result<String> {
         "html" => Ok(escape_html(input)),
         "json" => Ok(escape_json(input)),
         _ => Err(FhirPathError::evaluation_error(format!(
-                "Unsupported escape format: '{format}'. Supported formats are 'html' and 'json'"
-            ))),
+            "Unsupported escape format: '{format}'. Supported formats are 'html' and 'json'"
+        ))),
     }
 }
 

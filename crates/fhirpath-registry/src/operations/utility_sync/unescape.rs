@@ -1,6 +1,8 @@
 //! Unescape function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -27,6 +29,8 @@ impl SyncOperation for UnescapeFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -60,8 +64,8 @@ fn unescape_with_format(input: &str, format: &str) -> Result<String> {
         "html" => Ok(unescape_html(input)),
         "json" => unescape_json(input),
         _ => Err(FhirPathError::evaluation_error(format!(
-                "Unsupported unescape format: '{format}'. Supported formats are 'html' and 'json'"
-            ))),
+            "Unsupported unescape format: '{format}'. Supported formats are 'html' and 'json'"
+        ))),
     }
 }
 
@@ -95,7 +99,9 @@ fn unescape_json(input: &str) -> Result<String> {
                         match chars.next() {
                             Some(c) if c.is_ascii_hexdigit() => unicode_chars.push(c),
                             _ => {
-                                return Err(FhirPathError::evaluation_error("Invalid Unicode escape sequence in JSON"));
+                                return Err(FhirPathError::evaluation_error(
+                                    "Invalid Unicode escape sequence in JSON",
+                                ));
                             }
                         }
                     }
@@ -103,17 +109,25 @@ fn unescape_json(input: &str) -> Result<String> {
                         if let Some(unicode_char) = char::from_u32(code_point) {
                             result.push(unicode_char);
                         } else {
-                            return Err(FhirPathError::evaluation_error("Invalid Unicode code point"));
+                            return Err(FhirPathError::evaluation_error(
+                                "Invalid Unicode code point",
+                            ));
                         }
                     } else {
-                        return Err(FhirPathError::evaluation_error("Invalid Unicode escape sequence"));
+                        return Err(FhirPathError::evaluation_error(
+                            "Invalid Unicode escape sequence",
+                        ));
                     }
                 }
                 Some(other) => {
-                    return Err(FhirPathError::evaluation_error(format!("Invalid JSON escape sequence: \\{other}")));
+                    return Err(FhirPathError::evaluation_error(format!(
+                        "Invalid JSON escape sequence: \\{other}"
+                    )));
                 }
                 None => {
-                    return Err(FhirPathError::evaluation_error("Incomplete escape sequence at end of string"));
+                    return Err(FhirPathError::evaluation_error(
+                        "Incomplete escape sequence at end of string",
+                    ));
                 }
             }
         } else {

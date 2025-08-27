@@ -1,7 +1,7 @@
 //! toDateTime() sync implementation
 
 use super::to_date::parse_iso_date_string;
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use chrono::{FixedOffset, TimeZone};
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -24,6 +24,8 @@ impl SyncOperation for ToDateTimeFunction {
             parameters: vec![],
             return_type: ValueType::DateTime,
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

@@ -88,7 +88,7 @@ pub fn bench_analyze_with_registry(bencher: Bencher, expression: &str) {
     // Setup analyzer with function registry (expensive setup)
     let (analyzer, _registry) = rt.block_on(async {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry.clone());
         (analyzer, registry)
     });
@@ -106,7 +106,7 @@ pub fn bench_children_function_analysis(bencher: Bencher) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (analyzer, _registry) = rt.block_on(async {
         let provider = Arc::new(MockModelProvider::new());
-        let registry = Arc::new(create_standard_registry());
+        let registry = Arc::new(create_standard_registry().await);
         let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry.clone());
         (analyzer, registry)
     });
@@ -149,6 +149,7 @@ pub fn bench_analyze_minimal_config(bencher: Bencher) {
             enable_type_inference: false,
             enable_function_validation: false,
             enable_union_analysis: false,
+            enable_field_validation: false,
             max_analysis_depth: 10,
         },
         cache_size: 100,
@@ -173,6 +174,7 @@ pub fn bench_analyze_full_config(bencher: Bencher) {
             enable_type_inference: true,
             enable_function_validation: true,
             enable_union_analysis: true,
+            enable_field_validation: true,
             max_analysis_depth: 100,
         },
         cache_size: 1000,

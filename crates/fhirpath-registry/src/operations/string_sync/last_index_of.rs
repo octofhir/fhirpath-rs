@@ -1,6 +1,8 @@
 //! Simplified lastIndexOf function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -32,6 +34,8 @@ impl SyncOperation for SimpleLastIndexOfFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::Integer,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::RequiresScalar,
             });
         &SIGNATURE
     }
@@ -71,7 +75,9 @@ impl SyncOperation for SimpleLastIndexOfFunction {
             FhirPathValue::Collection(items) => {
                 if items.len() > 1 {
                     // FHIRPath spec: signal error for multiple items in collection
-                    Err(FhirPathError::evaluation_error("lastIndexOf() can only be applied to single values, not collections with multiple items"))
+                    Err(FhirPathError::evaluation_error(
+                        "lastIndexOf() can only be applied to single values, not collections with multiple items",
+                    ))
                 } else if items.len() == 1 {
                     // Single item collection - unwrap and process
                     match items.iter().next().unwrap() {

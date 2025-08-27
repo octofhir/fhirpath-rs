@@ -248,15 +248,18 @@ impl fmt::Display for Severity {
 
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}] {}: {}", 
-               match self.severity {
-                   Severity::Error => "ERROR",
-                   Severity::Warning => "WARN",
-                   Severity::Info => "INFO",
-                   Severity::Hint => "HINT",
-               },
-               self.code,
-               self.message)
+        write!(
+            f,
+            "[{}] {}: {}",
+            match self.severity {
+                Severity::Error => "ERROR",
+                Severity::Warning => "WARN",
+                Severity::Info => "INFO",
+                Severity::Hint => "HINT",
+            },
+            self.code,
+            self.message
+        )
     }
 }
 

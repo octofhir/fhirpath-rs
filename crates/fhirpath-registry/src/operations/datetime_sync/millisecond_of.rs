@@ -1,6 +1,6 @@
 //! MillisecondOf function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -28,6 +28,8 @@ impl SyncOperation for MillisecondOfFunction {
                 parameters: vec![],
                 return_type: ValueType::Integer,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

@@ -1,6 +1,8 @@
 //! Simplified matches function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -33,6 +35,8 @@ impl SyncOperation for SimpleMatchesFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::RequiresScalar,
             });
         &SIGNATURE
     }
@@ -74,8 +78,9 @@ impl SyncOperation for SimpleMatchesFunction {
             format!("(?s){pattern}")
         };
 
-        let regex =
-            Regex::new(&pattern_with_flags).map_err(|e| FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}")))?;
+        let regex = Regex::new(&pattern_with_flags).map_err(|e| {
+            FhirPathError::evaluation_error(format!("Invalid regex pattern '{pattern}': {e}"))
+        })?;
 
         match &context.input {
             FhirPathValue::String(s) => {

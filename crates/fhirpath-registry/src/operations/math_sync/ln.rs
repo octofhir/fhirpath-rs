@@ -1,6 +1,6 @@
 //! Simplified ln function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -33,6 +33,8 @@ impl SyncOperation for SimpleLnFunction {
                 parameters: vec![],
                 return_type: ValueType::Any,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -54,7 +56,9 @@ impl SyncOperation for SimpleLnFunction {
         match &context.input {
             FhirPathValue::Integer(n) => {
                 if *n <= 0 {
-                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "ln() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = (*n as f64).ln();
                     Ok(FhirPathValue::Decimal(
@@ -64,7 +68,9 @@ impl SyncOperation for SimpleLnFunction {
             }
             FhirPathValue::Decimal(n) => {
                 if *n <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "ln() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = n.to_f64().unwrap_or(0.0).ln();
                     Ok(FhirPathValue::Decimal(
@@ -74,7 +80,9 @@ impl SyncOperation for SimpleLnFunction {
             }
             FhirPathValue::Quantity(q) => {
                 if q.value <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::evaluation_error("ln() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "ln() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = q.value.to_f64().unwrap_or(0.0).ln();
                     Ok(FhirPathValue::quantity(

@@ -1,6 +1,6 @@
 //! HighBoundary function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -185,7 +185,9 @@ impl HighBoundaryFunction {
             };
 
             Ok(FhirPathValue::Decimal(
-                Decimal::try_from(rounded_boundary).map_err(|_| FhirPathError::evaluation_error("Unable to convert high boundary to decimal"))?,
+                Decimal::try_from(rounded_boundary).map_err(|_| {
+                    FhirPathError::evaluation_error("Unable to convert high boundary to decimal")
+                })?,
             ))
         }
     }
@@ -240,7 +242,9 @@ impl HighBoundaryFunction {
             };
 
             Ok(FhirPathValue::Decimal(
-                Decimal::try_from(rounded_boundary).map_err(|_| FhirPathError::evaluation_error("Unable to convert high boundary to decimal"))?,
+                Decimal::try_from(rounded_boundary).map_err(|_| {
+                    FhirPathError::evaluation_error("Unable to convert high boundary to decimal")
+                })?,
             ))
         }
     }
@@ -258,6 +262,8 @@ impl SyncOperation for HighBoundaryFunction {
                 parameters: vec![], // No required parameters, precision is optional
                 return_type: ValueType::Any,
                 variadic: true, // Allow 0 or 1 arguments
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             }
         });
         &SIGNATURE
@@ -292,19 +298,27 @@ impl SyncOperation for HighBoundaryFunction {
             FhirPathValue::Integer(n) => {
                 if let Some(prec) = precision {
                     if prec < 0 {
-                        return Err(FhirPathError::evaluation_error("highBoundary() precision must be >= 0"));
+                        return Err(FhirPathError::evaluation_error(
+                            "highBoundary() precision must be >= 0",
+                        ));
                     }
                     Self::get_numeric_high_boundary_f64(*n as f64, prec as usize)?
                 } else {
                     // For integers without precision, return integer + 0.5 as decimal
                     let high_boundary = *n as f64 + 0.5;
-                    FhirPathValue::Decimal(Decimal::try_from(high_boundary).map_err(|_| FhirPathError::evaluation_error("Unable to convert high boundary to decimal"))?)
+                    FhirPathValue::Decimal(Decimal::try_from(high_boundary).map_err(|_| {
+                        FhirPathError::evaluation_error(
+                            "Unable to convert high boundary to decimal",
+                        )
+                    })?)
                 }
             }
             FhirPathValue::Decimal(d) => {
                 if let Some(prec) = precision {
                     if prec < 0 {
-                        return Err(FhirPathError::evaluation_error("highBoundary() precision must be >= 0"));
+                        return Err(FhirPathError::evaluation_error(
+                            "highBoundary() precision must be >= 0",
+                        ));
                     }
                     Self::get_numeric_high_boundary_decimal(d, prec as usize)?
                 } else {
@@ -354,7 +368,9 @@ impl SyncOperation for HighBoundaryFunction {
                 // For Quantity, apply highBoundary to the numeric value and preserve unit
                 if let Some(prec) = precision {
                     if prec < 0 {
-                        return Err(FhirPathError::evaluation_error("highBoundary() precision must be >= 0"));
+                        return Err(FhirPathError::evaluation_error(
+                            "highBoundary() precision must be >= 0",
+                        ));
                     }
                     let boundary_value =
                         Self::get_numeric_high_boundary_decimal(&quantity.value, prec as usize)?;
@@ -452,7 +468,9 @@ impl SyncOperation for HighBoundaryFunction {
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(items) => {
                 if items.len() != 1 {
-                    return Err(FhirPathError::evaluation_error("highBoundary() can only be called on single-item collections"));
+                    return Err(FhirPathError::evaluation_error(
+                        "highBoundary() can only be called on single-item collections",
+                    ));
                 }
                 let item = items.first().unwrap();
                 let context_with_item = EvaluationContext {

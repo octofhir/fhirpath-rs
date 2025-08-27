@@ -5,7 +5,7 @@
 //! optimal performance. Uses the new RegistryCore-based architecture for better performance
 //! and caching.
 
-use crate::registry::{SyncRegistry, AsyncRegistry};
+use crate::registry::{AsyncRegistry, SyncRegistry};
 use crate::signature::FunctionSignature;
 use crate::traits::{AsyncOperation, EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -59,7 +59,7 @@ impl FunctionRegistry {
     pub async fn register_sync(&self, operation: Box<dyn SyncOperation>) {
         let name = operation.name().to_string();
         self.sync_registry.register(operation).await;
-        
+
         // Update cache
         let mut cache = self.function_cache.write().await;
         cache.insert(name, FunctionType::Sync);
@@ -69,7 +69,7 @@ impl FunctionRegistry {
     pub async fn register_async(&self, operation: Box<dyn AsyncOperation>) {
         let name = operation.name().to_string();
         self.async_registry.register(operation).await;
-        
+
         // Update cache
         let mut cache = self.function_cache.write().await;
         cache.insert(name, FunctionType::Async);
@@ -83,7 +83,7 @@ impl FunctionRegistry {
             cache.insert(name, FunctionType::Sync);
         }
         drop(cache); // Release lock early
-        
+
         self.sync_registry.register_many(operations).await;
     }
 
@@ -95,7 +95,7 @@ impl FunctionRegistry {
             cache.insert(name, FunctionType::Async);
         }
         drop(cache); // Release lock early
-        
+
         self.async_registry.register_many(operations).await;
     }
 
@@ -159,7 +159,9 @@ impl FunctionRegistry {
             let cache = self.function_cache.read().await;
             if let Some(function_type) = cache.get(name) {
                 return match function_type {
-                    FunctionType::Sync => Some(self.sync_registry.execute(name, args, context).await),
+                    FunctionType::Sync => {
+                        Some(self.sync_registry.execute(name, args, context).await)
+                    }
                     FunctionType::Async => None,
                 };
             }
@@ -232,7 +234,7 @@ impl FunctionRegistry {
         let sync_names = self.sync_registry.get_operation_names().await;
         let async_names = self.async_registry.get_operation_names().await;
         let cache = self.function_cache.read().await;
-        
+
         RegistryStats {
             sync_operations: sync_names.len(),
             async_operations: async_names.len(),
@@ -253,12 +255,12 @@ impl FunctionRegistry {
     }
 
     /// Warm the cache by pre-loading function types
-    /// 
+    ///
     /// This method populates the cache with all available functions for optimal performance
     pub async fn warm_cache(&self) {
         let sync_names = self.sync_registry.get_operation_names().await;
         let async_names = self.async_registry.get_operation_names().await;
-        
+
         let mut cache = self.function_cache.write().await;
         for name in sync_names {
             cache.insert(name, FunctionType::Sync);
@@ -315,158 +317,182 @@ pub async fn create_standard_registry() -> FunctionRegistry {
     let registry = FunctionRegistry::new();
 
     // Register sync string operations using batch registration
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::string_sync::SimpleLengthFunction),
-        Box::new(crate::operations::string_sync::SimpleUpperFunction),
-        Box::new(crate::operations::string_sync::SimpleLowerFunction),
-        Box::new(crate::operations::string_sync::SimpleContainsFunction),
-        Box::new(crate::operations::string_sync::SimpleStartsWithFunction),
-        Box::new(crate::operations::string_sync::SimpleEndsWithFunction),
-        Box::new(crate::operations::string_sync::SimpleIndexOfFunction),
-        Box::new(crate::operations::string_sync::SimpleLastIndexOfFunction),
-        Box::new(crate::operations::string_sync::SimpleSubstringFunction),
-        Box::new(crate::operations::string_sync::SimpleReplaceFunction),
-        Box::new(crate::operations::string_sync::SimpleSplitFunction),
-        Box::new(crate::operations::string_sync::SimpleJoinFunction),
-        Box::new(crate::operations::string_sync::SimpleTrimFunction),
-        Box::new(crate::operations::string_sync::SimpleToCharsFunction),
-        Box::new(crate::operations::string_sync::SimpleMatchesFunction),
-        Box::new(crate::operations::string_sync::SimpleMatchesFullFunction),
-        Box::new(crate::operations::string_sync::SimpleReplaceMatchesFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::string_sync::SimpleLengthFunction),
+            Box::new(crate::operations::string_sync::SimpleUpperFunction),
+            Box::new(crate::operations::string_sync::SimpleLowerFunction),
+            Box::new(crate::operations::string_sync::SimpleContainsFunction),
+            Box::new(crate::operations::string_sync::SimpleStartsWithFunction),
+            Box::new(crate::operations::string_sync::SimpleEndsWithFunction),
+            Box::new(crate::operations::string_sync::SimpleIndexOfFunction),
+            Box::new(crate::operations::string_sync::SimpleLastIndexOfFunction),
+            Box::new(crate::operations::string_sync::SimpleSubstringFunction),
+            Box::new(crate::operations::string_sync::SimpleReplaceFunction),
+            Box::new(crate::operations::string_sync::SimpleSplitFunction),
+            Box::new(crate::operations::string_sync::SimpleJoinFunction),
+            Box::new(crate::operations::string_sync::SimpleTrimFunction),
+            Box::new(crate::operations::string_sync::SimpleToCharsFunction),
+            Box::new(crate::operations::string_sync::SimpleMatchesFunction),
+            Box::new(crate::operations::string_sync::SimpleMatchesFullFunction),
+            Box::new(crate::operations::string_sync::SimpleReplaceMatchesFunction),
+        ])
+        .await;
 
     // Register sync math operations using batch registration
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::math_sync::SimpleAbsFunction),
-        Box::new(crate::operations::math_sync::SimpleCeilingFunction),
-        Box::new(crate::operations::math_sync::SimpleFloorFunction),
-        Box::new(crate::operations::math_sync::SimpleRoundFunction),
-        Box::new(crate::operations::math_sync::SimpleTruncateFunction),
-        Box::new(crate::operations::math_sync::SimpleSqrtFunction),
-        Box::new(crate::operations::math_sync::SimplePowerFunction),
-        Box::new(crate::operations::math_sync::SimpleLnFunction),
-        Box::new(crate::operations::math_sync::SimpleLogFunction),
-        Box::new(crate::operations::math_sync::SimpleExpFunction),
-        Box::new(crate::operations::math_sync::SimplePrecisionFunction),
-        Box::new(crate::operations::math_sync::SimpleAddFunction),
-        Box::new(crate::operations::math_sync::SimpleSubtractFunction),
-        Box::new(crate::operations::math_sync::SimpleMultiplyFunction),
-        Box::new(crate::operations::math_sync::SimpleDivideFunction),
-        Box::new(crate::operations::math_sync::SimpleModuloFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::math_sync::SimpleAbsFunction),
+            Box::new(crate::operations::math_sync::SimpleCeilingFunction),
+            Box::new(crate::operations::math_sync::SimpleFloorFunction),
+            Box::new(crate::operations::math_sync::SimpleRoundFunction),
+            Box::new(crate::operations::math_sync::SimpleTruncateFunction),
+            Box::new(crate::operations::math_sync::SimpleSqrtFunction),
+            Box::new(crate::operations::math_sync::SimplePowerFunction),
+            Box::new(crate::operations::math_sync::SimpleLnFunction),
+            Box::new(crate::operations::math_sync::SimpleLogFunction),
+            Box::new(crate::operations::math_sync::SimpleExpFunction),
+            Box::new(crate::operations::math_sync::SimplePrecisionFunction),
+            Box::new(crate::operations::math_sync::SimpleAddFunction),
+            Box::new(crate::operations::math_sync::SimpleSubtractFunction),
+            Box::new(crate::operations::math_sync::SimpleMultiplyFunction),
+            Box::new(crate::operations::math_sync::SimpleDivideFunction),
+            Box::new(crate::operations::math_sync::SimpleModuloFunction),
+        ])
+        .await;
 
     // Register sync collection operations using batch registration
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::collection_sync::SimpleCountFunction),
-        Box::new(crate::operations::collection_sync::SimpleEmptyFunction),
-        // Box::new(crate::operations::collection_sync::SimpleExistsFunction::default()), // Disabled: use lambda version
-        Box::new(crate::operations::collection_sync::SimpleFirstFunction),
-        Box::new(crate::operations::collection_sync::SimpleLastFunction),
-        Box::new(crate::operations::collection_sync::SimpleTailFunction),
-        Box::new(crate::operations::collection_sync::SimpleSkipFunction),
-        Box::new(crate::operations::collection_sync::SimpleTakeFunction),
-        Box::new(crate::operations::collection_sync::SimpleSingleFunction),
-        Box::new(crate::operations::collection_sync::SimpleDistinctFunction),
-        Box::new(crate::operations::collection_sync::SimpleIsDistinctFunction),
-        Box::new(crate::operations::collection_sync::SimpleUnionFunction),
-        Box::new(crate::operations::collection_sync::SimpleIntersectFunction),
-        Box::new(crate::operations::collection_sync::SimpleExcludeFunction),
-        Box::new(crate::operations::collection_sync::SimpleSubsetOfFunction),
-        Box::new(crate::operations::collection_sync::SimpleSupersetOfFunction),
-        Box::new(crate::operations::collection_sync::SimpleAllTrueFunction),
-        Box::new(crate::operations::collection_sync::SimpleAnyTrueFunction),
-        Box::new(crate::operations::collection_sync::SimpleAllFalseFunction),
-        Box::new(crate::operations::collection_sync::SimpleAnyFalseFunction),
-        Box::new(crate::operations::collection_sync::SimpleCombineFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::collection_sync::SimpleCountFunction),
+            Box::new(crate::operations::collection_sync::SimpleEmptyFunction),
+            // Box::new(crate::operations::collection_sync::SimpleExistsFunction::default()), // Disabled: use lambda version
+            Box::new(crate::operations::collection_sync::SimpleFirstFunction),
+            Box::new(crate::operations::collection_sync::SimpleLastFunction),
+            Box::new(crate::operations::collection_sync::SimpleTailFunction),
+            Box::new(crate::operations::collection_sync::SimpleSkipFunction),
+            Box::new(crate::operations::collection_sync::SimpleTakeFunction),
+            Box::new(crate::operations::collection_sync::SimpleSingleFunction),
+            Box::new(crate::operations::collection_sync::SimpleDistinctFunction),
+            Box::new(crate::operations::collection_sync::SimpleIsDistinctFunction),
+            Box::new(crate::operations::collection_sync::SimpleUnionFunction),
+            Box::new(crate::operations::collection_sync::SimpleIntersectFunction),
+            Box::new(crate::operations::collection_sync::SimpleExcludeFunction),
+            Box::new(crate::operations::collection_sync::SimpleSubsetOfFunction),
+            Box::new(crate::operations::collection_sync::SimpleSupersetOfFunction),
+            Box::new(crate::operations::collection_sync::SimpleAllTrueFunction),
+            Box::new(crate::operations::collection_sync::SimpleAnyTrueFunction),
+            Box::new(crate::operations::collection_sync::SimpleAllFalseFunction),
+            Box::new(crate::operations::collection_sync::SimpleAnyFalseFunction),
+            Box::new(crate::operations::collection_sync::SimpleCombineFunction),
+        ])
+        .await;
 
     // Register sync datetime extraction operations (from Task 24)
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::datetime_sync::DayOfFunction),
-        Box::new(crate::operations::datetime_sync::HourOfFunction),
-        Box::new(crate::operations::datetime_sync::MinuteOfFunction),
-        Box::new(crate::operations::datetime_sync::SecondOfFunction),
-        Box::new(crate::operations::datetime_sync::MillisecondOfFunction),
-        Box::new(crate::operations::datetime_sync::MonthOfFunction),
-        Box::new(crate::operations::datetime_sync::YearOfFunction),
-        Box::new(crate::operations::datetime_sync::TimezoneOffsetOfFunction),
-        Box::new(crate::operations::datetime_sync::TimeOfDayFunction),
-        Box::new(crate::operations::datetime_sync::HighBoundaryFunction),
-        Box::new(crate::operations::datetime_sync::LowBoundaryFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::datetime_sync::DayOfFunction),
+            Box::new(crate::operations::datetime_sync::HourOfFunction),
+            Box::new(crate::operations::datetime_sync::MinuteOfFunction),
+            Box::new(crate::operations::datetime_sync::SecondOfFunction),
+            Box::new(crate::operations::datetime_sync::MillisecondOfFunction),
+            Box::new(crate::operations::datetime_sync::MonthOfFunction),
+            Box::new(crate::operations::datetime_sync::YearOfFunction),
+            Box::new(crate::operations::datetime_sync::TimezoneOffsetOfFunction),
+            Box::new(crate::operations::datetime_sync::TimeOfDayFunction),
+            Box::new(crate::operations::datetime_sync::HighBoundaryFunction),
+            Box::new(crate::operations::datetime_sync::LowBoundaryFunction),
+        ])
+        .await;
 
     // Register sync FHIR data traversal operations (from Task 16)
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::fhir_sync::ChildrenFunction),
-        Box::new(crate::operations::fhir_sync::DescendantsFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::fhir_sync::ChildrenFunction),
+            Box::new(crate::operations::fhir_sync::DescendantsFunction),
+        ])
+        .await;
 
     // Register sync utility operations (from Task 23)
-    registry.register_sync_many(vec![
-        Box::new(crate::operations::utility_sync::HasValueFunction),
-        Box::new(crate::operations::utility_sync::ComparableFunction),
-        Box::new(crate::operations::utility_sync::EncodeFunction),
-        Box::new(crate::operations::utility_sync::DecodeFunction),
-        Box::new(crate::operations::utility_sync::EscapeFunction),
-        Box::new(crate::operations::utility_sync::UnescapeFunction),
-        Box::new(crate::operations::utility_sync::TraceFunction),
-        Box::new(crate::operations::utility_sync::DefineVariableFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            Box::new(crate::operations::utility_sync::HasValueFunction),
+            Box::new(crate::operations::utility_sync::ComparableFunction),
+            Box::new(crate::operations::utility_sync::EncodeFunction),
+            Box::new(crate::operations::utility_sync::DecodeFunction),
+            Box::new(crate::operations::utility_sync::EscapeFunction),
+            Box::new(crate::operations::utility_sync::UnescapeFunction),
+            Box::new(crate::operations::utility_sync::TraceFunction),
+            Box::new(crate::operations::utility_sync::DefineVariableFunction),
+        ])
+        .await;
 
     // Register sync logical operations (from Task 23)
-    registry.register_sync_many(vec![Box::new(
-        crate::operations::logical_sync::NotOperation,
-    )]).await;
+    registry
+        .register_sync_many(vec![Box::new(
+            crate::operations::logical_sync::NotOperation,
+        )])
+        .await;
 
     // Register async datetime system call operations (from Task 24) using batch registration
-    registry.register_async_many(vec![
-        Box::new(crate::operations::datetime_async::NowFunction),
-        Box::new(crate::operations::datetime_async::TodayFunction),
-    ]).await;
+    registry
+        .register_async_many(vec![
+            Box::new(crate::operations::datetime_async::NowFunction),
+            Box::new(crate::operations::datetime_async::TodayFunction),
+        ])
+        .await;
 
     // Register async FHIR ModelProvider operations (from Task 16) using batch registration
-    registry.register_async_many(vec![
-        Box::new(crate::operations::fhir_async::ResolveFunction),
-        Box::new(crate::operations::fhir_async::ConformsToFunction),
-        Box::new(crate::operations::fhir_async::ExtensionFunction),
-    ]).await;
+    registry
+        .register_async_many(vec![
+            Box::new(crate::operations::fhir_async::ResolveFunction),
+            Box::new(crate::operations::fhir_async::ConformsToFunction),
+            Box::new(crate::operations::fhir_async::ExtensionFunction),
+        ])
+        .await;
 
     // Register async type operations using batch registration
-    registry.register_async_many(vec![
-        Box::new(crate::operations::types_async::TypeFunction),
-        Box::new(crate::operations::types_async::IsOperation),
-        Box::new(crate::operations::types_async::OfTypeFunction),
-        Box::new(crate::operations::types_async::AsOperation),
-    ]).await;
+    registry
+        .register_async_many(vec![
+            Box::new(crate::operations::types_async::TypeFunction),
+            Box::new(crate::operations::types_async::IsOperation),
+            Box::new(crate::operations::types_async::OfTypeFunction),
+            Box::new(crate::operations::types_async::AsOperation),
+        ])
+        .await;
 
     // Register sync CDA operations
-    registry.register_sync_many(vec![Box::new(
-        crate::operations::cda_sync::HasTemplateIdOfFunction,
-    )]).await;
+    registry
+        .register_sync_many(vec![Box::new(
+            crate::operations::cda_sync::HasTemplateIdOfFunction,
+        )])
+        .await;
 
     // Register sync conversion operations using batch registration
-    registry.register_sync_many(vec![
-        // Type checking operations (converts_to_*)
-        Box::new(crate::operations::conversion_sync::ConvertsToBooleanFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToDateFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToDateTimeFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToDecimalFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToIntegerFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToLongFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToQuantityFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToStringFunction),
-        Box::new(crate::operations::conversion_sync::ConvertsToTimeFunction),
-        // Type conversion operations (to_*)
-        Box::new(crate::operations::conversion_sync::ToBooleanFunction),
-        Box::new(crate::operations::conversion_sync::ToDateFunction),
-        Box::new(crate::operations::conversion_sync::ToDateTimeFunction),
-        Box::new(crate::operations::conversion_sync::ToDecimalFunction),
-        Box::new(crate::operations::conversion_sync::ToIntegerFunction),
-        Box::new(crate::operations::conversion_sync::ToLongFunction),
-        Box::new(crate::operations::conversion_sync::ToQuantityFunction),
-        Box::new(crate::operations::conversion_sync::ToStringFunction),
-        Box::new(crate::operations::conversion_sync::ToTimeFunction),
-    ]).await;
+    registry
+        .register_sync_many(vec![
+            // Type checking operations (converts_to_*)
+            Box::new(crate::operations::conversion_sync::ConvertsToBooleanFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToDateFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToDateTimeFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToDecimalFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToIntegerFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToLongFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToQuantityFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToStringFunction),
+            Box::new(crate::operations::conversion_sync::ConvertsToTimeFunction),
+            // Type conversion operations (to_*)
+            Box::new(crate::operations::conversion_sync::ToBooleanFunction),
+            Box::new(crate::operations::conversion_sync::ToDateFunction),
+            Box::new(crate::operations::conversion_sync::ToDateTimeFunction),
+            Box::new(crate::operations::conversion_sync::ToDecimalFunction),
+            Box::new(crate::operations::conversion_sync::ToIntegerFunction),
+            Box::new(crate::operations::conversion_sync::ToLongFunction),
+            Box::new(crate::operations::conversion_sync::ToQuantityFunction),
+            Box::new(crate::operations::conversion_sync::ToStringFunction),
+            Box::new(crate::operations::conversion_sync::ToTimeFunction),
+        ])
+        .await;
 
     // Warm the cache for optimal performance
     registry.warm_cache().await;

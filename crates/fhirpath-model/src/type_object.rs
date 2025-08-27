@@ -18,7 +18,7 @@
 //! enabling proper `type().namespace` and `type().name` functionality.
 
 use crate::{FhirPathValue, JsonValue};
-use sonic_rs::{JsonValueTrait, json};
+use sonic_rs::json;
 use std::sync::Arc;
 
 /// FHIRPath type object with namespace and name properties
@@ -148,10 +148,10 @@ impl FhirPathTypeObject {
 // Re-export ValueTypeAnalyzer from the dedicated module
 pub use crate::type_analyzer::ValueTypeAnalyzer;
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sonic_rs::JsonValueTrait;
 
     #[test]
     fn test_system_type_object() {

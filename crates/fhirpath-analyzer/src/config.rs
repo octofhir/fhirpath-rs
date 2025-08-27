@@ -54,6 +54,7 @@ impl AnalyzerConfig {
                 enable_type_inference: true,
                 enable_function_validation: true,
                 enable_union_analysis: true,
+                enable_field_validation: true,
                 max_analysis_depth: 200,
             },
             cache_size: 50000,
@@ -68,6 +69,7 @@ impl AnalyzerConfig {
                 enable_type_inference: true,
                 enable_function_validation: false,
                 enable_union_analysis: false,
+                enable_field_validation: true, // Always enabled for field validation
                 max_analysis_depth: 50,
             },
             cache_size: 1000,

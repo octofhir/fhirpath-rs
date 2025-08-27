@@ -1,6 +1,6 @@
 //! TimeOfDay function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{FhirPathValue, PrecisionTime, TemporalPrecision};
@@ -27,6 +27,8 @@ impl SyncOperation for TimeOfDayFunction {
                 parameters: vec![],
                 return_type: ValueType::Time,
                 variadic: false,
+                category: FunctionCategory::Scalar,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

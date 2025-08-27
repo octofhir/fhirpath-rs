@@ -1,6 +1,8 @@
 //! Encode function implementation - sync version
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -27,6 +29,8 @@ impl SyncOperation for EncodeFunction {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -54,7 +58,9 @@ impl SyncOperation for EncodeFunction {
             "hex" => hex_encode(&input_string),
             "urlbase64" => urlbase64_encode(&input_string),
             _ => {
-                return Err(FhirPathError::evaluation_error(format!("Unsupported encoding: {encoding_type}")));
+                return Err(FhirPathError::evaluation_error(format!(
+                    "Unsupported encoding: {encoding_type}"
+                )));
             }
         };
 

@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             enable_type_inference: true,
             enable_function_validation: true,
             enable_union_analysis: false, // Disable for performance
+            enable_field_validation: true,
             max_analysis_depth: 50,
         },
         cache_size: 5000,

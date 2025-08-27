@@ -1,6 +1,6 @@
 //! toDate() sync implementation
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use chrono::NaiveDate;
 use octofhir_fhirpath_core::{FhirPathError, Result};
@@ -23,6 +23,8 @@ impl SyncOperation for ToDateFunction {
             parameters: vec![],
             return_type: ValueType::Date,
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

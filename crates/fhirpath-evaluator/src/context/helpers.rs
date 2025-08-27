@@ -42,22 +42,22 @@ use super::{EvaluationContext, VariableScope};
 ///
 /// # Usage Examples
 ///
-/// ```rust
-/// use fhirpath_evaluator::context::LambdaContextBuilder;
-/// use fhirpath_model::FhirPathValue;
+/// ```rust,ignore
+/// use octofhir_fhirpath_evaluator::context::LambdaContextBuilder;
+/// use octofhir_fhirpath_model::FhirPathValue;
 ///
-/// // Simple lambda context for iteration
-/// let lambda_ctx = LambdaContextBuilder::new(&base_context)
-///     .with_current_item(item.clone())
-///     .with_index(5)
-///     .with_total(FhirPathValue::Integer(10))
-///     .build();
+/// // Simple lambda context for iteration (example - variables would need to be defined)
+/// // let lambda_ctx = LambdaContextBuilder::new(&base_context)
+/// //     .with_current_item(item.clone())
+/// //     .with_index(5)
+/// //     .with_total(FhirPathValue::Integer(10))
+/// //     .build();
 ///
-/// // Lambda context with explicit parameters
-/// let lambda_ctx = LambdaContextBuilder::new(&base_context)
-///     .with_current_item(item.clone())
-///     .with_parameter("customVar".to_string(), FhirPathValue::String("value".into()))
-///     .build();
+/// // Lambda context with explicit parameters (example - variables would need to be defined)
+/// // let lambda_ctx = LambdaContextBuilder::new(&base_context)
+/// //     .with_current_item(item.clone())
+/// //     .with_parameter("customVar".to_string(), FhirPathValue::String("value".into()))
+/// //     .build();
 /// ```
 pub struct LambdaContextBuilder {
     /// Base context to inherit from (provides registry, model provider, etc.)
@@ -357,18 +357,15 @@ impl ContextFactory {
         };
 
         // Set up standard environment variables
-        context.variable_scope.set_system_variable(
-            "context".to_string(),
-            context.input.clone(),
-        );
-        context.variable_scope.set_system_variable(
-            "resource".to_string(),
-            containing_resource,
-        );
-        context.variable_scope.set_system_variable(
-            "rootResource".to_string(),
-            root_resource,
-        );
+        context
+            .variable_scope
+            .set_system_variable("context".to_string(), context.input.clone());
+        context
+            .variable_scope
+            .set_system_variable("resource".to_string(), containing_resource);
+        context
+            .variable_scope
+            .set_system_variable("rootResource".to_string(), root_resource);
 
         // Set up standard URL constants
         context.variable_scope.set_system_variable(
@@ -407,9 +404,9 @@ impl ContextFactory {
         EvaluationContext {
             input: new_input,
             root: parent.root.clone(), // Shared Arc
-            variable_scope: VariableScope::child_from_shared(
-                Arc::new(parent.variable_scope.clone())
-            ),
+            variable_scope: VariableScope::child_from_shared(Arc::new(
+                parent.variable_scope.clone(),
+            )),
             registry: parent.registry.clone(), // Shared Arc
             model_provider: parent.model_provider.clone(), // Shared Arc
             type_annotations: parent.type_annotations.clone(), // Shared Arc
@@ -486,7 +483,11 @@ impl VariableScope {
         let local_vars = self.variables.len();
         let mut total_vars = local_vars;
         let mut depth = 1;
-        let mut efficient_scopes = if self.is_efficiently_borrowing() { 1 } else { 0 };
+        let mut efficient_scopes = if self.is_efficiently_borrowing() {
+            1
+        } else {
+            0
+        };
 
         // Count parent scope info
         let mut current_parent = &self.parent;
@@ -517,7 +518,7 @@ mod tests {
     fn create_test_context() -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());
         let registry = Arc::new(octofhir_fhirpath_registry::FunctionRegistry::new());
-        
+
         EvaluationContext::new(
             FhirPathValue::String("test_input".into()),
             registry,
@@ -529,28 +530,40 @@ mod tests {
     fn test_lambda_context_builder_simple() {
         let base_context = create_test_context();
         let item = FhirPathValue::String("lambda_item".into());
-        
+
         let lambda_context = LambdaContextBuilder::new(&base_context)
             .with_current_item(item.clone())
             .with_index(5)
             .with_total(FhirPathValue::Integer(10))
             .build();
-        
+
         assert_eq!(lambda_context.input, item);
-        assert_eq!(lambda_context.variable_scope.get_variable("$this"), Some(&item));
-        assert_eq!(lambda_context.variable_scope.get_variable("$index"), Some(&FhirPathValue::Integer(5)));
-        assert_eq!(lambda_context.variable_scope.get_variable("$total"), Some(&FhirPathValue::Integer(10)));
+        assert_eq!(
+            lambda_context.variable_scope.get_variable("$this"),
+            Some(&item)
+        );
+        assert_eq!(
+            lambda_context.variable_scope.get_variable("$index"),
+            Some(&FhirPathValue::Integer(5))
+        );
+        assert_eq!(
+            lambda_context.variable_scope.get_variable("$total"),
+            Some(&FhirPathValue::Integer(10))
+        );
     }
 
     #[test]
     fn test_lambda_context_builder_with_parameters() {
         let base_context = create_test_context();
-        
+
         let lambda_context = LambdaContextBuilder::new(&base_context)
             .with_current_item(FhirPathValue::String("item".into()))
-            .with_parameter("customVar".to_string(), FhirPathValue::String("custom_value".into()))
+            .with_parameter(
+                "customVar".to_string(),
+                FhirPathValue::String("custom_value".into()),
+            )
             .build();
-        
+
         assert_eq!(
             lambda_context.variable_scope.get_variable("customVar"),
             Some(&FhirPathValue::String("custom_value".into()))
@@ -561,14 +574,14 @@ mod tests {
     fn test_context_factory_with_capacity() {
         let model_provider = Arc::new(MockModelProvider::new());
         let registry = Arc::new(octofhir_fhirpath_registry::FunctionRegistry::new());
-        
+
         let context = ContextFactory::with_capacity(
             FhirPathValue::String("test".into()),
             registry,
             model_provider,
             10,
         );
-        
+
         // Context should be created successfully
         assert_eq!(context.input, FhirPathValue::String("test".into()));
     }
@@ -577,7 +590,7 @@ mod tests {
     fn test_context_factory_with_environment() {
         let model_provider = Arc::new(MockModelProvider::new());
         let registry = Arc::new(octofhir_fhirpath_registry::FunctionRegistry::new());
-        
+
         let context = ContextFactory::with_environment(
             FhirPathValue::String("test".into()),
             registry,
@@ -585,7 +598,7 @@ mod tests {
             None,
             None,
         );
-        
+
         // Check environment variables are set
         assert_eq!(
             context.variable_scope.get_variable("context"),
@@ -606,7 +619,7 @@ mod tests {
             efficient_scopes: 2,
             is_cow_optimized: true,
         };
-        
+
         assert!((info.cow_efficiency_percent() - 66.66666666666667).abs() < 0.0001);
         assert!(info.summary().contains("COW efficiency: 66.7%"));
     }
@@ -614,35 +627,68 @@ mod tests {
     #[test]
     fn test_variable_scope_flattening() {
         let mut parent = VariableScope::new();
-        parent.set_variable("parent_var".to_string(), FhirPathValue::String("parent_value".into()));
-        
+        parent.set_variable(
+            "parent_var".to_string(),
+            FhirPathValue::String("parent_value".into()),
+        );
+
         let mut child = VariableScope::child(parent);
-        child.set_variable("child_var".to_string(), FhirPathValue::String("child_value".into()));
-        
+        child.set_variable(
+            "child_var".to_string(),
+            FhirPathValue::String("child_value".into()),
+        );
+
         let flattened = child.flatten();
-        
+
         // Flattened scope should have all variables but no parent
         assert!(flattened.parent.is_none());
-        assert_eq!(flattened.get_variable("parent_var"), Some(&FhirPathValue::String("parent_value".into())));
-        assert_eq!(flattened.get_variable("child_var"), Some(&FhirPathValue::String("child_value".into())));
+        assert_eq!(
+            flattened.get_variable("parent_var"),
+            Some(&FhirPathValue::String("parent_value".into()))
+        );
+        assert_eq!(
+            flattened.get_variable("child_var"),
+            Some(&FhirPathValue::String("child_value".into()))
+        );
     }
 
     #[test]
     fn test_collect_all_variables() {
         let mut parent = VariableScope::new();
-        parent.set_variable("shared_var".to_string(), FhirPathValue::String("parent_value".into()));
-        parent.set_variable("parent_only".to_string(), FhirPathValue::String("parent".into()));
-        
+        parent.set_variable(
+            "shared_var".to_string(),
+            FhirPathValue::String("parent_value".into()),
+        );
+        parent.set_variable(
+            "parent_only".to_string(),
+            FhirPathValue::String("parent".into()),
+        );
+
         let mut child = VariableScope::child(parent);
-        child.set_variable("shared_var".to_string(), FhirPathValue::String("child_value".into()));
-        child.set_variable("child_only".to_string(), FhirPathValue::String("child".into()));
-        
+        child.set_variable(
+            "shared_var".to_string(),
+            FhirPathValue::String("child_value".into()),
+        );
+        child.set_variable(
+            "child_only".to_string(),
+            FhirPathValue::String("child".into()),
+        );
+
         let all_vars = child.collect_all_variables();
-        
+
         // Child should override parent for shared_var
-        assert_eq!(all_vars.get("shared_var"), Some(&FhirPathValue::String("child_value".into())));
-        assert_eq!(all_vars.get("parent_only"), Some(&FhirPathValue::String("parent".into())));
-        assert_eq!(all_vars.get("child_only"), Some(&FhirPathValue::String("child".into())));
+        assert_eq!(
+            all_vars.get("shared_var"),
+            Some(&FhirPathValue::String("child_value".into()))
+        );
+        assert_eq!(
+            all_vars.get("parent_only"),
+            Some(&FhirPathValue::String("parent".into()))
+        );
+        assert_eq!(
+            all_vars.get("child_only"),
+            Some(&FhirPathValue::String("child".into()))
+        );
         assert_eq!(all_vars.len(), 3);
     }
 }

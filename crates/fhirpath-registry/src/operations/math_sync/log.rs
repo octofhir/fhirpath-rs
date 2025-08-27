@@ -1,6 +1,8 @@
 //! Simplified log function implementation for FHIRPath
 
-use crate::signature::{FunctionSignature, ParameterType, ValueType};
+use crate::signature::{
+    CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
+};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -33,6 +35,8 @@ impl SyncOperation for SimpleLogFunction {
                 parameters: vec![ParameterType::Numeric], // Base parameter
                 return_type: ValueType::Any,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }
@@ -62,13 +66,17 @@ impl SyncOperation for SimpleLogFunction {
         };
 
         if base <= 0.0 || base == 1.0 {
-            return Err(FhirPathError::evaluation_error("log() base must be positive and not equal to 1"));
+            return Err(FhirPathError::evaluation_error(
+                "log() base must be positive and not equal to 1",
+            ));
         }
 
         match &context.input {
             FhirPathValue::Integer(n) => {
                 if *n <= 0 {
-                    Err(FhirPathError::evaluation_error("log() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "log() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = (*n as f64).log(base);
                     Ok(FhirPathValue::Decimal(
@@ -78,7 +86,9 @@ impl SyncOperation for SimpleLogFunction {
             }
             FhirPathValue::Decimal(n) => {
                 if *n <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::evaluation_error("log() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "log() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = n.to_f64().unwrap_or(0.0).log(base);
                     Ok(FhirPathValue::Decimal(
@@ -88,7 +98,9 @@ impl SyncOperation for SimpleLogFunction {
             }
             FhirPathValue::Quantity(q) => {
                 if q.value <= rust_decimal::Decimal::ZERO {
-                    Err(FhirPathError::evaluation_error("log() can only be applied to positive numbers"))
+                    Err(FhirPathError::evaluation_error(
+                        "log() can only be applied to positive numbers",
+                    ))
                 } else {
                     let result = q.value.to_f64().unwrap_or(0.0).log(base);
                     Ok(FhirPathValue::quantity(

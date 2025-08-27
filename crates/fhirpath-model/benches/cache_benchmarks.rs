@@ -72,7 +72,7 @@ fn bench_cache_lru_eviction(bencher: Bencher) {
 #[divan::bench]
 fn bench_cache_concurrent_access(bencher: Bencher) {
     let cache = Cache::new(1000);
-    
+
     // Pre-populate
     for i in 0..100 {
         let type_info = Arc::new(create_test_type_info(&format!("Type{i}")));

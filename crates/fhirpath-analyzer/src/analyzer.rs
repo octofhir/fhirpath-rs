@@ -11,6 +11,7 @@ use crate::{
     children_analyzer::ChildrenFunctionAnalyzer,
     config::AnalyzerConfig,
     error::AnalysisError,
+    field_validator::FieldValidator,
     function_analyzer::FunctionAnalyzer,
     types::{AnalysisContext, AnalysisResult, Cardinality, ConfidenceLevel, SemanticInfo},
 };
@@ -21,26 +22,31 @@ pub struct FhirPathAnalyzer {
     cache: Arc<AnalysisCache>,
     config: AnalyzerConfig,
     function_analyzer: Option<FunctionAnalyzer>,
+    field_validator: FieldValidator,
 }
 
 impl FhirPathAnalyzer {
     /// Create new analyzer with ModelProvider
     pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+        let field_validator = FieldValidator::new(model_provider.clone());
         Self {
             model_provider,
             cache: Arc::new(AnalysisCache::new()),
             config: AnalyzerConfig::default(),
             function_analyzer: None,
+            field_validator,
         }
     }
 
     /// Create analyzer with custom configuration
     pub fn with_config(model_provider: Arc<dyn ModelProvider>, config: AnalyzerConfig) -> Self {
+        let field_validator = FieldValidator::new(model_provider.clone());
         Self {
             model_provider,
             cache: Arc::new(AnalysisCache::with_capacity(config.cache_size)),
             config,
             function_analyzer: None,
+            field_validator,
         }
     }
 
@@ -50,12 +56,14 @@ impl FhirPathAnalyzer {
         function_registry: Arc<FunctionRegistry>,
     ) -> Self {
         let function_analyzer = Some(FunctionAnalyzer::new(function_registry));
+        let field_validator = FieldValidator::new(model_provider.clone());
 
         Self {
             model_provider,
             cache: Arc::new(AnalysisCache::new()),
             config: AnalyzerConfig::default(),
             function_analyzer,
+            field_validator,
         }
     }
 
@@ -114,6 +122,15 @@ impl FhirPathAnalyzer {
         // Analyze the AST tree
         self.analyze_node_recursive(ast, context, &mut analysis_map, &mut validation_errors)
             .await?;
+
+        // Perform field validation to check if all field navigation uses existing fields
+        if self.config.settings.enable_field_validation {
+            let mut field_validation_errors = self
+                .field_validator
+                .validate_field_navigation(ast, context)
+                .await;
+            validation_errors.append(&mut field_validation_errors);
+        }
 
         // Convert analysis map to result
         let type_annotations = analysis_map
@@ -194,6 +211,7 @@ impl FhirPathAnalyzer {
                             .analyze_function_call_with_node(
                                 data,
                                 &func_node,
+                                context,
                                 analysis_map,
                                 func_analyzer,
                             )
@@ -247,6 +265,7 @@ impl FhirPathAnalyzer {
                             .analyze_function_call_with_node(
                                 &function_data,
                                 node,
+                                context,
                                 analysis_map,
                                 func_analyzer,
                             )
@@ -425,41 +444,129 @@ impl FhirPathAnalyzer {
                     _ => unreachable!(),
                 };
 
-                // Provide basic type inference for common functions even without function analyzer
-                let basic_type = match function_name.as_str() {
-                    "count" => Some(("Integer", "Integer")),
-                    "empty" | "exists" => Some(("Boolean", "Boolean")),
-                    "first" | "last" | "single" => Some(("Any", "Any")), // Return type depends on input
-                    "children" => Some(("Collection", "Any")), // Collection of child elements
-                    "substring" | "upper" | "lower" => Some(("String", "String")),
-                    "length" => Some(("Integer", "Integer")),
-                    _ => None,
-                };
+                // Always use function analyzer registry - leverage all cardinality and category metadata
+                if let Some(func_analyzer) = &self.function_analyzer {
+                    // Get the full registry signature with cardinality and category metadata
+                    if let Some(registry_signature) =
+                        func_analyzer.get_registry_signature(function_name).await
+                    {
+                        // Use registry signature's cardinality and category information
+                        let cardinality = match registry_signature.cardinality_requirement {
+                            octofhir_fhirpath_registry::signature::CardinalityRequirement::RequiresCollection => Cardinality::OneToMany,
+                            octofhir_fhirpath_registry::signature::CardinalityRequirement::RequiresScalar => Cardinality::OneToOne,
+                            octofhir_fhirpath_registry::signature::CardinalityRequirement::CreatesCollection => Cardinality::ZeroToMany,
+                            octofhir_fhirpath_registry::signature::CardinalityRequirement::AcceptsBoth => match registry_signature.return_type {
+                                octofhir_fhirpath_registry::signature::ValueType::Collection => Cardinality::ZeroToMany,
+                                octofhir_fhirpath_registry::signature::ValueType::Empty => Cardinality::ZeroToOne,
+                                _ => match registry_signature.category {
+                                    octofhir_fhirpath_registry::signature::FunctionCategory::Collection => Cardinality::ZeroToMany,
+                                    octofhir_fhirpath_registry::signature::FunctionCategory::Aggregation => Cardinality::OneToOne,
+                                    _ => Cardinality::OneToOne,
+                                },
+                            },
+                        };
 
-                if let Some((fhir_path_type, model_type)) = basic_type {
-                    Some(SemanticInfo {
-                        fhir_path_type: Some(fhir_path_type.to_string()),
-                        model_type: Some(model_type.to_string()),
-                        cardinality: match function_name.as_str() {
-                            "count" | "length" => Cardinality::OneToOne,
-                            "empty" | "exists" => Cardinality::OneToOne,
-                            "children" => Cardinality::ZeroToMany,
-                            _ => Cardinality::ZeroToOne,
-                        },
-                        confidence: ConfidenceLevel::Medium,
-                        scope_info: None,
-                        function_info: None,
-                    })
+                        // Map return type with full fidelity
+                        let fhir_path_type = match registry_signature.return_type {
+                            octofhir_fhirpath_registry::signature::ValueType::String => "String",
+                            octofhir_fhirpath_registry::signature::ValueType::Integer => "Integer",
+                            octofhir_fhirpath_registry::signature::ValueType::Boolean => "Boolean",
+                            octofhir_fhirpath_registry::signature::ValueType::Decimal => "Decimal",
+                            octofhir_fhirpath_registry::signature::ValueType::Date => "Date",
+                            octofhir_fhirpath_registry::signature::ValueType::DateTime => {
+                                "DateTime"
+                            }
+                            octofhir_fhirpath_registry::signature::ValueType::Time => "Time",
+                            octofhir_fhirpath_registry::signature::ValueType::Quantity => {
+                                "Quantity"
+                            }
+                            octofhir_fhirpath_registry::signature::ValueType::Collection => {
+                                "Collection"
+                            }
+                            octofhir_fhirpath_registry::signature::ValueType::Resource => {
+                                "Resource"
+                            }
+                            octofhir_fhirpath_registry::signature::ValueType::Empty => "Empty",
+                            octofhir_fhirpath_registry::signature::ValueType::Any => "Any",
+                        };
+
+                        // Generate rich function info with category and cardinality details
+                        let category_str = match registry_signature.category {
+                            octofhir_fhirpath_registry::signature::FunctionCategory::Collection => "collection",
+                            octofhir_fhirpath_registry::signature::FunctionCategory::Scalar => "scalar",
+                            octofhir_fhirpath_registry::signature::FunctionCategory::Universal => "universal",
+                            octofhir_fhirpath_registry::signature::FunctionCategory::Aggregation => "aggregation",
+                            octofhir_fhirpath_registry::signature::FunctionCategory::Navigation => "navigation",
+                        };
+
+                        let variadic_str = if registry_signature.variadic {
+                            ", variadic"
+                        } else {
+                            ""
+                        };
+
+                        // Create FunctionSignature for function_info
+                        let function_signature = crate::types::FunctionSignature {
+                            name: function_name.to_string(),
+                            parameters: registry_signature.parameters.iter().map(|_p| {
+                                crate::types::ParameterInfo {
+                                    name: "param".to_string(),
+                                    type_constraint: crate::types::TypeConstraint::Any,
+                                    cardinality: Cardinality::ZeroToOne,
+                                    is_optional: false,
+                                }
+                            }).collect(),
+                            return_type: match registry_signature.return_type {
+                                octofhir_fhirpath_registry::signature::ValueType::String => octofhir_fhirpath_model::types::TypeInfo::String,
+                                octofhir_fhirpath_registry::signature::ValueType::Integer => octofhir_fhirpath_model::types::TypeInfo::Integer,
+                                octofhir_fhirpath_registry::signature::ValueType::Boolean => octofhir_fhirpath_model::types::TypeInfo::Boolean,
+                                octofhir_fhirpath_registry::signature::ValueType::Decimal => octofhir_fhirpath_model::types::TypeInfo::Decimal,
+                                octofhir_fhirpath_registry::signature::ValueType::Date => octofhir_fhirpath_model::types::TypeInfo::Date,
+                                octofhir_fhirpath_registry::signature::ValueType::DateTime => octofhir_fhirpath_model::types::TypeInfo::DateTime,
+                                octofhir_fhirpath_registry::signature::ValueType::Time => octofhir_fhirpath_model::types::TypeInfo::Time,
+                                octofhir_fhirpath_registry::signature::ValueType::Quantity => octofhir_fhirpath_model::types::TypeInfo::Quantity,
+                                _ => octofhir_fhirpath_model::types::TypeInfo::Any,
+                            },
+                            is_aggregate: matches!(registry_signature.category, octofhir_fhirpath_registry::signature::FunctionCategory::Aggregation),
+                            description: format!("{}({} params{}) -> {} [{}]",
+                                function_name,
+                                registry_signature.parameters.len(),
+                                variadic_str,
+                                fhir_path_type,
+                                category_str
+                            ),
+                        };
+
+                        Some(SemanticInfo {
+                            fhir_path_type: Some(fhir_path_type.to_string()),
+                            model_type: Some(fhir_path_type.to_string()),
+                            cardinality,
+                            confidence: ConfidenceLevel::High, // High confidence from registry
+                            scope_info: None,
+                            function_info: Some(function_signature),
+                        })
+                    } else {
+                        // Function not in registry - still analyzed
+                        let fallback_signature = crate::types::FunctionSignature {
+                            name: function_name.to_string(),
+                            parameters: vec![],
+                            return_type: octofhir_fhirpath_model::types::TypeInfo::Any,
+                            is_aggregate: false,
+                            description: format!("{}(not in registry)", function_name),
+                        };
+
+                        Some(SemanticInfo {
+                            fhir_path_type: Some("Any".to_string()),
+                            model_type: None,
+                            cardinality: Cardinality::ZeroToMany,
+                            confidence: ConfidenceLevel::Low,
+                            scope_info: None,
+                            function_info: Some(fallback_signature),
+                        })
+                    }
                 } else {
-                    // Unknown function
-                    Some(SemanticInfo {
-                        fhir_path_type: Some("Any".to_string()),
-                        model_type: None,
-                        cardinality: Cardinality::ZeroToMany, // Most permissive
-                        confidence: ConfidenceLevel::Low,
-                        scope_info: None,
-                        function_info: None,
-                    })
+                    // Function analyzer is required - should not happen in production
+                    None
                 }
             }
             _ => None, // Advanced types handled in later tasks
@@ -503,15 +610,17 @@ impl FhirPathAnalyzer {
         &self,
         function_data: &octofhir_fhirpath_ast::FunctionCallData,
         original_node: &ExpressionNode,
+        context: &AnalysisContext,
         analysis_map: &mut ExpressionAnalysisMap,
         func_analyzer: &FunctionAnalyzer,
     ) -> Result<Vec<crate::error::ValidationError>, AnalysisError> {
-        // Special handling for children() function
+        // Use registry-based analysis first, special handling for children() if needed
         if function_data.name == "children" {
             return self
                 .analyze_children_function_call_with_errors(
                     function_data,
                     original_node,
+                    context,
                     analysis_map,
                 )
                 .await;
@@ -542,6 +651,7 @@ impl FhirPathAnalyzer {
     async fn analyze_function_call(
         &self,
         function_data: &octofhir_fhirpath_ast::FunctionCallData,
+        context: &AnalysisContext,
         analysis_map: &mut ExpressionAnalysisMap,
         func_analyzer: &FunctionAnalyzer,
     ) -> Result<(), AnalysisError> {
@@ -550,7 +660,7 @@ impl FhirPathAnalyzer {
             // Create a function call node for backwards compatibility
             let node = ExpressionNode::FunctionCall(Box::new(function_data.clone()));
             return self
-                .analyze_children_function_call(function_data, &node, analysis_map)
+                .analyze_children_function_call(function_data, &node, context, analysis_map)
                 .await;
         }
 
@@ -578,11 +688,12 @@ impl FhirPathAnalyzer {
         &self,
         function_data: &octofhir_fhirpath_ast::FunctionCallData,
         original_node: &ExpressionNode,
+        context: &AnalysisContext,
         analysis_map: &mut ExpressionAnalysisMap,
     ) -> Result<Vec<crate::error::ValidationError>, AnalysisError> {
         // For children() function, we need to determine the base type
-        // This is a simplified implementation - in practice we'd need to track the evaluation context
-        let base_type = "Patient"; // Default for now - would need proper context tracking
+        // Try to infer from context or use a fallback
+        let base_type = context.root_type.as_deref().unwrap_or("Resource");
 
         // Create a children analyzer with the model provider
         // Note: We need to cast our model provider to support children extension
@@ -624,11 +735,12 @@ impl FhirPathAnalyzer {
         &self,
         function_data: &octofhir_fhirpath_ast::FunctionCallData,
         original_node: &ExpressionNode,
+        context: &AnalysisContext,
         analysis_map: &mut ExpressionAnalysisMap,
     ) -> Result<(), AnalysisError> {
         // For children() function, we need to determine the base type
-        // This is a simplified implementation - in practice we'd need to track the evaluation context
-        let base_type = "Patient"; // Default for now - would need proper context tracking
+        // Try to infer from context or use a fallback
+        let base_type = context.root_type.as_deref().unwrap_or("Resource");
 
         // Create a children analyzer with the model provider
         // Note: We need to cast our model provider to support children extension
@@ -691,7 +803,9 @@ impl FhirPathAnalyzer {
     }
 
     /// Check if a function name corresponds to a lambda function (implemented as plain Rust functions)
+    /// For performance, we check lambda functions first since registry lookups are async and this is called from sync context
     fn is_lambda_function(&self, function_name: &str) -> bool {
+        // Known lambda functions that are implemented as plain Rust functions, not in registry
         matches!(
             function_name,
             "where" | "select" | "sort" | "repeat" | "aggregate" | "all" | "exists" | "iif"
@@ -801,41 +915,31 @@ impl FhirPathAnalyzer {
 
     /// Get suggestions for similar resource types
     async fn get_resource_type_suggestions(&self, unknown_type: &str) -> Vec<String> {
-        // For now, provide common FHIR resource types as suggestions
-        // In a full implementation, we'd query the model provider for all resource types
-        let common_resources = vec![
-            "Patient",
-            "Observation",
-            "Medication",
-            "MedicationRequest",
-            "Practitioner",
-            "Organization",
-            "Encounter",
-            "Procedure",
-            "DiagnosticReport",
-            "Condition",
-            "Bundle",
-            "AllergyIntolerance",
-            "Immunization",
-            "Specimen",
-            "Location",
-        ];
+        // Use the field validator to get available resource types from schema
+        let schema_validator = self.field_validator.get_schema_field_validator();
+        let resource_types = match schema_validator.get_available_resource_types().await {
+            Ok(types) => types,
+            Err(_) => return Vec::new(),
+        };
 
-        // Simple similarity matching
-        common_resources
-            .into_iter()
-            .filter(|resource| {
-                // Check for similarity: starts with same letter, contains substring, or edit distance
-                let resource_lower = resource.to_lowercase();
-                let unknown_lower = unknown_type.to_lowercase();
-
-                resource_lower.starts_with(&unknown_lower[..1.min(unknown_lower.len())])
-                    || resource_lower.contains(&unknown_lower)
-                    || unknown_lower.contains(&resource_lower[..3.min(resource_lower.len())])
-            })
-            .take(3)
-            .map(|s| s.to_string())
-            .collect()
+        // Generate suggestions based on similarity to unknown_type
+        match schema_validator
+            .generate_resource_type_suggestions(unknown_type)
+            .await
+        {
+            Ok(suggestions) => suggestions,
+            Err(_) => {
+                // Fallback to basic matching if schema suggestions fail
+                resource_types
+                    .into_iter()
+                    .filter(|t| {
+                        t.to_lowercase().contains(&unknown_type.to_lowercase())
+                            || unknown_type.to_lowercase().contains(&t.to_lowercase())
+                    })
+                    .take(5)
+                    .collect()
+            }
+        }
     }
 
     /// Validate lambda function signature and parameter count

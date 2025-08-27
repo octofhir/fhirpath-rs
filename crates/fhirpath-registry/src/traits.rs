@@ -414,6 +414,8 @@ mod tests {
                 parameters: vec![ParameterType::String],
                 return_type: ValueType::String,
                 variadic: false,
+                category: crate::signature::FunctionCategory::Universal,
+                cardinality_requirement: crate::signature::CardinalityRequirement::AcceptsBoth,
             });
             &SIGNATURE
         }
@@ -449,6 +451,8 @@ mod tests {
                 parameters: vec![],
                 return_type: ValueType::String,
                 variadic: false,
+                category: crate::signature::FunctionCategory::Universal,
+                cardinality_requirement: crate::signature::CardinalityRequirement::AcceptsBoth,
             };
             &SIGNATURE
         }

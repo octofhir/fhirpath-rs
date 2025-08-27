@@ -1,6 +1,6 @@
 //! toQuantity() sync implementation
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::{FhirPathValue, Quantity};
@@ -21,6 +21,8 @@ impl SyncOperation for ToQuantityFunction {
             parameters: vec![],
             return_type: ValueType::Quantity,
             variadic: false,
+            category: FunctionCategory::Scalar,
+            cardinality_requirement: CardinalityRequirement::AcceptsBoth,
         };
         &SIGNATURE
     }

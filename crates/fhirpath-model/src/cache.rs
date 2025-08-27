@@ -20,8 +20,8 @@
 
 use lru::LruCache;
 use std::hash::Hash;
-use std::sync::{Arc, RwLock};
 use std::num::NonZeroUsize;
+use std::sync::{Arc, RwLock};
 
 /// Simplified cache configuration
 #[derive(Debug, Clone)]
@@ -110,10 +110,9 @@ where
     /// Panics if capacity is 0
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "Cache capacity must be greater than 0");
-        
-        let cache_capacity = NonZeroUsize::new(capacity)
-            .expect("Capacity must be non-zero");
-            
+
+        let cache_capacity = NonZeroUsize::new(capacity).expect("Capacity must be non-zero");
+
         Self {
             cache: Arc::new(RwLock::new(LruCache::new(cache_capacity))),
             stats: Arc::new(RwLock::new(CacheStats::default())),
@@ -127,7 +126,7 @@ where
     pub fn get(&self, key: &K) -> Option<V> {
         let mut cache = self.cache.write().unwrap();
         let mut stats = self.stats.write().unwrap();
-        
+
         match cache.get(key) {
             Some(value) => {
                 stats.hits += 1;
@@ -240,14 +239,14 @@ mod tests {
     #[test]
     fn test_cache_basic_operations() {
         let cache = Cache::new(3);
-        
+
         // Test insertion and retrieval
         assert_eq!(cache.insert("key1".to_string(), "value1".to_string()), None);
         assert_eq!(cache.get(&"key1".to_string()), Some("value1".to_string()));
-        
+
         // Test cache miss
         assert_eq!(cache.get(&"nonexistent".to_string()), None);
-        
+
         // Test contains
         assert!(cache.contains(&"key1".to_string()));
         assert!(!cache.contains(&"nonexistent".to_string()));
@@ -256,17 +255,17 @@ mod tests {
     #[test]
     fn test_cache_lru_eviction() {
         let cache = Cache::new(2);
-        
+
         // Fill cache to capacity
         cache.insert("key1".to_string(), "value1".to_string());
         cache.insert("key2".to_string(), "value2".to_string());
-        
+
         // Access key1 to make it recently used
         cache.get(&"key1".to_string());
-        
+
         // Insert key3, should evict key2 (least recently used)
         cache.insert("key3".to_string(), "value3".to_string());
-        
+
         assert!(cache.contains(&"key1".to_string()));
         assert!(!cache.contains(&"key2".to_string()));
         assert!(cache.contains(&"key3".to_string()));
@@ -275,13 +274,13 @@ mod tests {
     #[test]
     fn test_cache_statistics() {
         let cache = Cache::new(10);
-        
+
         // Generate some hits and misses
         cache.insert("key1".to_string(), "value1".to_string());
         cache.get(&"key1".to_string()); // hit
         cache.get(&"key1".to_string()); // hit
         cache.get(&"nonexistent".to_string()); // miss
-        
+
         let stats = cache.stats();
         assert_eq!(stats.hits, 2);
         assert_eq!(stats.misses, 1);
@@ -291,15 +290,15 @@ mod tests {
     #[test]
     fn test_cache_clear() {
         let cache = Cache::new(10);
-        
+
         cache.insert("key1".to_string(), "value1".to_string());
         cache.get(&"key1".to_string()); // Generate some stats
-        
+
         assert_eq!(cache.len(), 1);
         assert!(cache.stats().hits > 0);
-        
+
         cache.clear();
-        
+
         assert_eq!(cache.len(), 0);
         assert!(cache.is_empty());
         assert_eq!(cache.stats().hits, 0);
@@ -309,14 +308,14 @@ mod tests {
     #[test]
     fn test_cache_remove() {
         let cache = Cache::new(10);
-        
+
         cache.insert("key1".to_string(), "value1".to_string());
         assert!(cache.contains(&"key1".to_string()));
-        
+
         let removed = cache.remove(&"key1".to_string());
         assert_eq!(removed, Some("value1".to_string()));
         assert!(!cache.contains(&"key1".to_string()));
-        
+
         // Test removing non-existent key
         let removed = cache.remove(&"nonexistent".to_string());
         assert_eq!(removed, None);
@@ -332,12 +331,12 @@ mod tests {
     fn test_cache_clone() {
         let cache1 = Cache::new(10);
         cache1.insert("key1".to_string(), "value1".to_string());
-        
+
         let cache2 = cache1.clone();
-        
+
         // Both caches should see the same data
         assert_eq!(cache2.get(&"key1".to_string()), Some("value1".to_string()));
-        
+
         // Inserting in one affects the other (shared state)
         cache2.insert("key2".to_string(), "value2".to_string());
         assert_eq!(cache1.get(&"key2".to_string()), Some("value2".to_string()));
@@ -349,7 +348,7 @@ mod tests {
         cache.insert("test".to_string(), "value".to_string());
         cache.get(&"test".to_string()); // Generate hit
         cache.get(&"missing".to_string()); // Generate miss
-        
+
         let debug_str = format!("{:?}", cache);
         assert!(debug_str.contains("Cache"));
         assert!(debug_str.contains("capacity"));

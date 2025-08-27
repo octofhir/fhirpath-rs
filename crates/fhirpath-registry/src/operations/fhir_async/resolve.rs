@@ -1,6 +1,6 @@
 //! Resolve function implementation - async version (simplified)
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::Result;
@@ -55,6 +55,8 @@ impl AsyncOperation for ResolveFunction {
                 parameters: vec![],
                 return_type: ValueType::Any,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

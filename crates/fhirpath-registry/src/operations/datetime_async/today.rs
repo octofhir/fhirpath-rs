@@ -1,6 +1,6 @@
 //! Today function implementation - async version (system calls)
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use chrono::Utc;
@@ -30,6 +30,8 @@ impl AsyncOperation for TodayFunction {
                 parameters: vec![],
                 return_type: ValueType::Date,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

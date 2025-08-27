@@ -12,7 +12,7 @@
 //! - **Easy registration**: Simple function calls, no builders
 //! - **Thread-safe**: Uses Arc and RwLock for concurrent access
 
-use crate::registry_core::{RegistryCore, OperationLookupResult, RegistryOperation};
+use crate::registry_core::{OperationLookupResult, RegistryCore, RegistryOperation};
 use crate::traits::{AsyncOperation, EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
@@ -41,7 +41,7 @@ impl RegistryOperation for SyncOperationWrapper {
     fn name(&self) -> &'static str {
         self.inner.name()
     }
-    
+
     fn signature(&self) -> &crate::signature::FunctionSignature {
         self.inner.signature()
     }
@@ -49,7 +49,11 @@ impl RegistryOperation for SyncOperationWrapper {
 
 impl SyncOperationWrapper {
     /// Execute the wrapped sync operation
-    pub fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    pub fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         self.inner.execute(args, context)
     }
 }
@@ -77,7 +81,7 @@ impl RegistryOperation for AsyncOperationWrapper {
     fn name(&self) -> &'static str {
         self.inner.name()
     }
-    
+
     fn signature(&self) -> &crate::signature::FunctionSignature {
         self.inner.signature()
     }
@@ -85,7 +89,11 @@ impl RegistryOperation for AsyncOperationWrapper {
 
 impl AsyncOperationWrapper {
     /// Execute the wrapped async operation
-    pub async fn execute(&self, args: &[FhirPathValue], context: &EvaluationContext) -> Result<FhirPathValue> {
+    pub async fn execute(
+        &self,
+        args: &[FhirPathValue],
+        context: &EvaluationContext,
+    ) -> Result<FhirPathValue> {
         self.inner.execute(args, context).await
     }
 }
@@ -114,7 +122,8 @@ impl SyncRegistry {
 
     /// Register multiple sync operations at once
     pub async fn register_many(&self, operations: Vec<Box<dyn SyncOperation>>) {
-        let wrapped: Vec<_> = operations.into_iter()
+        let wrapped: Vec<_> = operations
+            .into_iter()
             .map(|op| SyncOperationWrapper::new(op))
             .collect();
         self.core.register_many(wrapped).await;
@@ -140,17 +149,17 @@ impl SyncRegistry {
         match self.core.lookup_and_validate(name, args).await? {
             OperationLookupResult::Found => {
                 // Execute the operation through the core
-                self.core.with_operation(name, |operation| {
-                    // Execute synchronously (no await needed)
-                    operation.execute(args, context)
-                }).await
-                .unwrap() // Safe because we just validated the operation exists
+                self.core
+                    .with_operation(name, |operation| {
+                        // Execute synchronously (no await needed)
+                        operation.execute(args, context)
+                    })
+                    .await
+                    .unwrap() // Safe because we just validated the operation exists
             }
-            OperationLookupResult::NotFound => {
-                Err(FhirPathError::UnknownFunction {
-                    function_name: name.to_string(),
-                })
-            }
+            OperationLookupResult::NotFound => Err(FhirPathError::UnknownFunction {
+                function_name: name.to_string(),
+            }),
         }
     }
 
@@ -190,7 +199,8 @@ impl AsyncRegistry {
 
     /// Register multiple async operations at once
     pub async fn register_many(&self, operations: Vec<Box<dyn AsyncOperation>>) {
-        let wrapped: Vec<_> = operations.into_iter()
+        let wrapped: Vec<_> = operations
+            .into_iter()
             .map(|op| AsyncOperationWrapper::new(op))
             .collect();
         self.core.register_many(wrapped).await;
@@ -219,7 +229,7 @@ impl AsyncRegistry {
                 // since we can't return a future from a closure
                 let ops = self.core.operations();
                 let ops_guard = ops.read().await;
-                
+
                 if let Some(wrapper) = ops_guard.get(name) {
                     // Execute asynchronously through the wrapper
                     wrapper.execute(args, context).await
@@ -230,11 +240,9 @@ impl AsyncRegistry {
                     })
                 }
             }
-            OperationLookupResult::NotFound => {
-                Err(FhirPathError::UnknownFunction {
-                    function_name: name.to_string(),
-                })
-            }
+            OperationLookupResult::NotFound => Err(FhirPathError::UnknownFunction {
+                function_name: name.to_string(),
+            }),
         }
     }
 
@@ -482,6 +490,8 @@ mod tests {
                 parameters: vec![],
                 return_type: ValueType::String,
                 variadic: false,
+                category: crate::signature::FunctionCategory::Universal,
+                cardinality_requirement: crate::signature::CardinalityRequirement::AcceptsBoth,
             };
             &SIGNATURE
         }
@@ -507,6 +517,8 @@ mod tests {
                 parameters: vec![],
                 return_type: ValueType::String,
                 variadic: false,
+                category: crate::signature::FunctionCategory::Universal,
+                cardinality_requirement: crate::signature::CardinalityRequirement::AcceptsBoth,
             };
             &SIGNATURE
         }

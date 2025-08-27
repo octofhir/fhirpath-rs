@@ -1,6 +1,6 @@
 //! HasValue function implementation - sync version
 
-use crate::signature::{FunctionSignature, ValueType};
+use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
@@ -52,6 +52,8 @@ impl SyncOperation for HasValueFunction {
                 parameters: vec![],
                 return_type: ValueType::Boolean,
                 variadic: false,
+                category: FunctionCategory::Universal,
+                cardinality_requirement: CardinalityRequirement::AcceptsBoth,
             });
         &SIGNATURE
     }

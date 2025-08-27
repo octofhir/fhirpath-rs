@@ -21,7 +21,7 @@
 //! # Architecture Overview
 //!
 //! The context system is built around several key components:
-//! 
+//!
 //! - **EvaluationContext**: Main context structure holding input, variables, registry, and model provider
 //! - **VariableScope**: COW-optimized variable scoping with parent chain traversal
 //! - **LambdaMetadata**: Support for implicit lambda variables (`$this`, `$index`, `$total`)
@@ -52,12 +52,12 @@
 
 // Core modules
 pub mod evaluation_context;
-pub mod variable_scope;
-pub mod lambda_metadata;
 pub mod helpers;
+pub mod lambda_metadata;
+pub mod variable_scope;
 
 // Re-export main types for convenient access
 pub use evaluation_context::EvaluationContext;
-pub use variable_scope::VariableScope;
-pub use lambda_metadata::LambdaMetadata;
 pub use helpers::LambdaContextBuilder;
+pub use lambda_metadata::LambdaMetadata;
+pub use variable_scope::VariableScope;
