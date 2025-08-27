@@ -347,12 +347,7 @@ fn handle_validate(expression: &str, quiet: bool) {
     }
 }
 
-async fn handle_analyze(
-    expression: &str,
-    validate_only: bool,
-    no_inference: bool,
-    quiet: bool,
-) {
+async fn handle_analyze(expression: &str, validate_only: bool, no_inference: bool, quiet: bool) {
     use octofhir_fhirpath::FhirPathEngineWithAnalyzer;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use octofhir_fhirpath_registry::create_standard_registry;
@@ -383,13 +378,16 @@ async fn handle_analyze(
         };
 
     let function_registry = Arc::new(create_standard_registry().await);
-    let engine = match FhirPathEngineWithAnalyzer::with_full_analysis(model_provider, function_registry).await {
-        Ok(engine) => engine,
-        Err(e) => {
-            eprintln!("❌ Failed to create analyzer engine: {}", e);
-            process::exit(1);
-        }
-    };
+    let engine =
+        match FhirPathEngineWithAnalyzer::with_full_analysis(model_provider, function_registry)
+            .await
+        {
+            Ok(engine) => engine,
+            Err(e) => {
+                eprintln!("❌ Failed to create analyzer engine: {}", e);
+                process::exit(1);
+            }
+        };
 
     if validate_only {
         // Validation only

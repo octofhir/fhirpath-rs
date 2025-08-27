@@ -158,9 +158,11 @@ async fn test_children_function_analysis() {
     );
 
     // Check if there are validation errors that might prevent union type creation
-    let has_validation_errors = result.function_calls.iter()
+    let has_validation_errors = result
+        .function_calls
+        .iter()
         .any(|f| !f.validation_errors.is_empty());
-    
+
     if has_validation_errors {
         // If there are validation errors (e.g., schema not found), skip the union type check
         // This can happen when the model provider doesn't have complete schema information
@@ -172,7 +174,7 @@ async fn test_children_function_analysis() {
         }
         return;
     }
-    
+
     // Should have union type information
     assert!(
         !result.union_types.is_empty(),

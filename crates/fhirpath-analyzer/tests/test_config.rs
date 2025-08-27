@@ -48,17 +48,22 @@ async fn test_analyzer_configuration() {
     let analyzer = FhirPathAnalyzer::with_config(provider, config_no_functions);
     let result = analyzer.analyze("count()").await.unwrap();
 
-    // Debug: Print what we got  
-    println!("Function validation disabled - Type annotations: {:#?}", result.type_annotations);
+    // Debug: Print what we got
+    println!(
+        "Function validation disabled - Type annotations: {:#?}",
+        result.type_annotations
+    );
     println!("Function calls: {:#?}", result.function_calls);
-    
+
     // With function validation disabled, we might not get type annotations for functions
     // This is expected behavior since the analyzer would not process function types
     if result.type_annotations.is_empty() {
-        println!("No type annotations found - this is expected when function validation is disabled");
+        println!(
+            "No type annotations found - this is expected when function validation is disabled"
+        );
         return; // Skip assertion
     }
-    
+
     // Should have analysis results (if function validation was enabled)
     assert!(
         !result.type_annotations.is_empty(),

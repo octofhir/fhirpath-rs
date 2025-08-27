@@ -276,7 +276,6 @@ impl<T: RegistryOperation> Default for BatchRegistrar<T> {
 mod tests {
     use super::*;
     use crate::signature::{FunctionSignature, ValueType};
-    
 
     // Test operation for registry core testing
     #[derive(Debug)]

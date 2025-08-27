@@ -514,7 +514,6 @@ mod integration_test_runner {
             Ok(stats)
         }
     }
-
 }
 
 use integration_test_runner::{IntegrationTestRunner, TestStats};

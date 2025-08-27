@@ -231,12 +231,12 @@ async fn profile_expression(
     use octofhir_fhirpath_evaluator::FhirPathEngine;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use std::sync::Arc;
-    
+
     // Create output directory if it doesn't exist
     std::fs::create_dir_all(&output_dir)?;
-    
+
     println!("Setting up profiling environment...");
-    
+
     // Initialize engine
     let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
     let model_provider = Arc::new(
@@ -245,16 +245,16 @@ async fn profile_expression(
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
     ) as Arc<dyn octofhir_fhirpath_model::ModelProvider>;
     let engine = FhirPathEngine::new(registry, model_provider);
-    
+
     // Get test data
     let data = if use_bundle {
         get_sample_bundle()
     } else {
         get_sample_patient()
     };
-    
+
     println!("Running {} iterations...", iterations);
-    
+
     // Simple profiling - just measure time for now
     let start = std::time::Instant::now();
     for i in 0..iterations {
@@ -264,15 +264,15 @@ async fn profile_expression(
         let _ = engine.evaluate(expression, data.clone()).await;
     }
     let duration = start.elapsed();
-    
+
     let avg_time_ms = duration.as_millis() as f64 / iterations as f64;
     let ops_per_sec = iterations as f64 / duration.as_secs_f64();
-    
+
     println!("Profiling completed!");
     println!("Total time: {:.2}s", duration.as_secs_f64());
     println!("Average time per iteration: {:.2}ms", avg_time_ms);
     println!("Operations per second: {}", format_ops_per_sec(ops_per_sec));
-    
+
     // Write results to file
     let results_file = output_dir.join("profile_results.txt");
     let results_content = format!(
@@ -289,10 +289,10 @@ async fn profile_expression(
         avg_time_ms,
         format_ops_per_sec(ops_per_sec)
     );
-    
+
     fs::write(&results_file, results_content)?;
     println!("Results written to: {}", results_file.display());
-    
+
     Ok(())
 }
 
