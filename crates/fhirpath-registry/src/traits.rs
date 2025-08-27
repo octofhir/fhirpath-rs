@@ -75,7 +75,7 @@ impl EvaluationContext {
 /// # Example
 /// ```rust
 /// use octofhir_fhirpath_registry::traits::{SyncOperation, EvaluationContext};
-/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType};
+/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType, FunctionCategory, CardinalityRequirement};
 /// use octofhir_fhirpath_model::FhirPathValue;
 /// use octofhir_fhirpath_core::{Result, FhirPathError};
 ///
@@ -92,6 +92,8 @@ impl EvaluationContext {
 ///             parameters: vec![],
 ///             return_type: ValueType::Integer,
 ///             variadic: false,
+///             category: FunctionCategory::Scalar,
+///             cardinality_requirement: CardinalityRequirement::RequiresScalar,
 ///         };
 ///         &SIGNATURE
 ///     }
@@ -166,7 +168,7 @@ pub trait SyncOperation: Send + Sync {
 /// # Example
 /// ```rust
 /// use octofhir_fhirpath_registry::traits::{AsyncOperation, EvaluationContext};
-/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType};
+/// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType, FunctionCategory, CardinalityRequirement};
 /// use octofhir_fhirpath_model::FhirPathValue;
 /// use octofhir_fhirpath_core::{Result, FhirPathError};
 /// use async_trait::async_trait;
@@ -190,6 +192,8 @@ pub trait SyncOperation: Send + Sync {
 ///             parameters: vec![],
 ///             return_type: ValueType::Any,
 ///             variadic: false,
+///             category: FunctionCategory::Navigation,
+///             cardinality_requirement: CardinalityRequirement::AcceptsBoth,
 ///         };
 ///         &SIGNATURE
 ///     }

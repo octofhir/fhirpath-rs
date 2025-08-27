@@ -42,22 +42,26 @@ use super::{EvaluationContext, VariableScope};
 ///
 /// # Usage Examples
 ///
-/// ```rust,ignore
-/// use octofhir_fhirpath_evaluator::context::LambdaContextBuilder;
+/// ```rust,no_run
+/// use octofhir_fhirpath_evaluator::{LambdaContextBuilder, EvaluationContext};
 /// use octofhir_fhirpath_model::FhirPathValue;
+/// 
+/// // Assume we have a base context from somewhere (e.g., from FhirPathEngine)
+/// # let base_context: EvaluationContext = unimplemented!();
+/// let item = FhirPathValue::String("test".into());
+/// 
+/// // Simple lambda context for iteration
+/// let lambda_ctx = LambdaContextBuilder::new(&base_context)
+///     .with_current_item(item.clone())
+///     .with_index(5)
+///     .with_total(FhirPathValue::Integer(10))
+///     .build();
 ///
-/// // Simple lambda context for iteration (example - variables would need to be defined)
-/// // let lambda_ctx = LambdaContextBuilder::new(&base_context)
-/// //     .with_current_item(item.clone())
-/// //     .with_index(5)
-/// //     .with_total(FhirPathValue::Integer(10))
-/// //     .build();
-///
-/// // Lambda context with explicit parameters (example - variables would need to be defined)
-/// // let lambda_ctx = LambdaContextBuilder::new(&base_context)
-/// //     .with_current_item(item.clone())
-/// //     .with_parameter("customVar".to_string(), FhirPathValue::String("value".into()))
-/// //     .build();
+/// // Lambda context with explicit parameters
+/// let lambda_ctx = LambdaContextBuilder::new(&base_context)
+///     .with_current_item(item.clone())
+///     .with_parameter("customVar".to_string(), FhirPathValue::String("value".into()))
+///     .build();
 /// ```
 pub struct LambdaContextBuilder {
     /// Base context to inherit from (provides registry, model provider, etc.)
