@@ -45,11 +45,11 @@ use super::{EvaluationContext, VariableScope};
 /// ```rust,no_run
 /// use octofhir_fhirpath_evaluator::{LambdaContextBuilder, EvaluationContext};
 /// use octofhir_fhirpath_model::FhirPathValue;
-/// 
+///
 /// // Assume we have a base context from somewhere (e.g., from FhirPathEngine)
 /// # let base_context: EvaluationContext = unimplemented!();
 /// let item = FhirPathValue::String("test".into());
-/// 
+///
 /// // Simple lambda context for iteration
 /// let lambda_ctx = LambdaContextBuilder::new(&base_context)
 ///     .with_current_item(item.clone())
