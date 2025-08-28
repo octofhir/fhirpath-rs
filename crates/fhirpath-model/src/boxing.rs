@@ -18,7 +18,7 @@
 //! and type information throughout FHIRPath evaluation.
 
 use crate::FhirPathValue;
-use sonic_rs::{JsonContainerTrait, Value};
+use serde_json::Value;
 
 /// Type information for boxed values
 #[derive(Debug, Clone, PartialEq)]
@@ -227,7 +227,6 @@ impl Boxing {
 
     /// Convert JSON value to FhirPathValue
     fn json_to_fhirpath_value(value: &Value) -> FhirPathValue {
-        use sonic_rs::JsonValueTrait;
 
         if value.is_null() {
             FhirPathValue::Empty
@@ -254,7 +253,6 @@ impl Boxing {
 
     /// Infer FHIR type from JSON value
     fn infer_fhir_type_from_value(value: &Value) -> (String, Option<String>) {
-        use sonic_rs::JsonValueTrait;
 
         if value.as_bool().is_some() {
             ("boolean".to_string(), None)
@@ -298,7 +296,6 @@ impl Boxing {
 
     /// Parse primitive extensions from JSON
     fn parse_primitive_extensions(extensions_json: Option<Value>) -> Option<PrimitiveElement> {
-        use sonic_rs::JsonValueTrait;
 
         if let Some(json_value) = extensions_json {
             if json_value.is_object() {
@@ -347,7 +344,7 @@ impl Boxing {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sonic_rs::json;
+    use serde_json::json;
 
     #[test]
     fn test_boxed_value_creation() {

@@ -7,7 +7,6 @@ use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 
 /// Extension function - finds extensions by URL
 #[derive(Debug, Default, Clone)]
@@ -19,7 +18,7 @@ impl ExtensionFunction {
     }
 
     /// Find extensions in JSON, checking both direct extensions and underscore elements
-    fn find_extensions_in_json(&self, json: &sonic_rs::Value, url: &str) -> Result<FhirPathValue> {
+    fn find_extensions_in_json(&self, json: &serde_json::Value, url: &str) -> Result<FhirPathValue> {
         let mut matching_extensions = Vec::new();
 
         // First, check for direct extension array
@@ -27,7 +26,7 @@ impl ExtensionFunction {
             if let Some(ext_array) = extensions.as_array() {
                 for ext in ext_array {
                     if let Some(ext_obj) = ext.as_object() {
-                        if let Some(ext_url) = ext_obj.get(&"url") {
+                        if let Some(ext_url) = ext_obj.get("url") {
                             if let Some(url_str) = ext_url.as_str() {
                                 if url_str == url {
                                     matching_extensions.push(FhirPathValue::from(ext.clone()));
@@ -48,7 +47,7 @@ impl ExtensionFunction {
                         if let Some(ext_array) = underscore_extensions.as_array() {
                             for ext in ext_array {
                                 if let Some(ext_obj) = ext.as_object() {
-                                    if let Some(ext_url) = ext_obj.get(&"url") {
+                                    if let Some(ext_url) = ext_obj.get("url") {
                                         if let Some(url_str) = ext_url.as_str() {
                                             if url_str == url {
                                                 matching_extensions

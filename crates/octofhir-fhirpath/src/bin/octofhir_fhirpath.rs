@@ -16,80 +16,17 @@
 //!
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use octofhir_fhirpath::cli::{Cli, Commands};
+use octofhir_fhirpath::cli::output::{FormatterFactory, EvaluationOutput, ParseOutput, AnalysisOutput, OutputMetadata};
 use octofhir_fhirpath::model::provider::PackageSpec;
 use octofhir_fhirpath::parse;
-use sonic_rs::{Value as JsonValue, from_str as parse_json};
+use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
 use std::sync::Arc;
+use std::time::Instant;
 
-#[derive(Parser)]
-#[command(name = "octofhir-fhirpath")]
-#[command(about = "Simple FHIRPath CLI for evaluating expressions against FHIR resources")]
-#[command(version)]
-#[command(author = "OctoFHIR Team <funyloony@gmail.com>")]
-struct Cli {
-    /// FHIR version to use (r4, r4b, r5)
-    #[arg(long, value_name = "VERSION", default_value = "r4")]
-    fhir_version: String,
-    /// Additional FHIR packages to load (format: package@version)
-    #[arg(long = "package", value_name = "PACKAGE")]
-    packages: Vec<String>,
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Evaluate FHIRPath expression against a FHIR resource
-    Evaluate {
-        /// FHIRPath expression to evaluate
-        expression: String,
-        /// JSON file containing FHIR resource, or JSON string directly (reads from stdin if not provided)
-        #[arg(short, long)]
-        input: Option<String>,
-        /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
-        variables: Vec<String>,
-        /// Pretty-print JSON output
-        #[arg(short, long)]
-        pretty: bool,
-        /// Suppress informational messages
-        #[arg(short, long)]
-        quiet: bool,
-    },
-    /// Parse and validate FHIRPath expression syntax
-    Parse {
-        /// FHIRPath expression to parse
-        expression: String,
-        /// Suppress informational messages
-        #[arg(short, long)]
-        quiet: bool,
-    },
-    /// Validate FHIRPath expression syntax (alias for parse)
-    Validate {
-        /// FHIRPath expression to validate
-        expression: String,
-        /// Suppress informational messages
-        #[arg(short, long)]
-        quiet: bool,
-    },
-    /// Analyze FHIRPath expressions with comprehensive FHIR field validation
-    Analyze {
-        /// FHIRPath expression to analyze
-        expression: String,
-        /// Only validate, don't analyze types
-        #[arg(long)]
-        validate_only: bool,
-        /// Disable type inference
-        #[arg(long)]
-        no_inference: bool,
-        /// Suppress informational messages
-        #[arg(short, long)]
-        quiet: bool,
-    },
-}
 
 #[tokio::main]
 async fn main() {
@@ -97,6 +34,10 @@ async fn main() {
     human_panic::setup_panic!();
 
     let cli = Cli::parse();
+    
+    // Create formatter factory
+    let formatter_factory = FormatterFactory::new(cli.no_color);
+    let formatter = formatter_factory.create_formatter(cli.output_format.clone());
 
     match cli.command {
         Commands::Evaluate {
@@ -104,23 +45,30 @@ async fn main() {
             ref input,
             ref variables,
             pretty,
-            quiet,
         } => {
-            handle_evaluate(expression, input.as_deref(), variables, pretty, quiet, &cli).await;
+            handle_evaluate(expression, input.as_deref(), variables, pretty, &cli, &*formatter).await;
         }
-        Commands::Parse { expression, quiet } => {
-            handle_parse(&expression, quiet);
+        Commands::Parse { ref expression } => {
+            handle_parse(expression, &cli, &*formatter);
         }
-        Commands::Validate { expression, quiet } => {
-            handle_validate(&expression, quiet);
+        Commands::Validate { ref expression } => {
+            handle_validate(expression, &cli, &*formatter);
         }
         Commands::Analyze {
             ref expression,
+            ref variables,
             validate_only,
             no_inference,
-            quiet,
         } => {
-            handle_analyze(expression, validate_only, no_inference, quiet).await;
+            handle_analyze(expression, variables, validate_only, no_inference, &cli, &*formatter).await;
+        }
+        Commands::Repl {
+            ref input,
+            ref variables,
+            ref history_file,
+            history_size,
+        } => {
+            handle_repl(input.as_deref(), variables, history_file.as_deref(), history_size, &cli).await;
         }
     }
 }
@@ -129,10 +77,12 @@ async fn handle_evaluate(
     expression: &str,
     input: Option<&str>,
     variables: &[String],
-    pretty: bool,
-    quiet: bool,
+    _pretty: bool,
     cli: &Cli,
+    formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
 ) {
+    let start_time = Instant::now();
+    
     // Get resource data
     let resource_data = if let Some(input_str) = input {
         // Check if input is a file path or JSON string
@@ -144,14 +94,16 @@ async fn handle_evaluate(
             match fs::read_to_string(input_str) {
                 Ok(content) => content,
                 Err(e) => {
-                    eprintln!("Error reading file '{input_str}': {e}");
+                    if !cli.quiet {
+                        eprintln!("Error reading file '{input_str}': {e}");
+                    }
                     process::exit(1);
                 }
             }
         }
     } else {
         // No input provided - read from stdin
-        if !quiet {
+        if !cli.quiet {
             eprintln!("Reading FHIR resource from stdin...");
         }
 
@@ -160,7 +112,9 @@ async fn handle_evaluate(
         match io::stdin().read_to_string(&mut stdin_content) {
             Ok(_) => stdin_content,
             Err(e) => {
-                eprintln!("Error reading from stdin: {e}");
+                if !cli.quiet {
+                    eprintln!("Error reading from stdin: {e}");
+                }
                 process::exit(1);
             }
         }
@@ -217,7 +171,7 @@ async fn handle_evaluate(
 
         match FhirSchemaModelProvider::with_config(config).await {
             Ok(provider) => {
-                if !quiet {
+                if !cli.quiet {
                     eprintln!(
                         "✅ Initialized FHIR {} schema provider",
                         match fhir_version {
@@ -230,7 +184,7 @@ async fn handle_evaluate(
                 std::sync::Arc::new(provider)
             }
             Err(e) => {
-                if !quiet {
+                if !cli.quiet {
                     eprintln!("⚠️ Failed to initialize FHIR schema provider: {e}");
                     eprintln!("🔄 Falling back to mock provider...");
                 }
@@ -258,7 +212,7 @@ async fn handle_evaluate(
                 }
             };
             initial_variables.insert(name.to_string(), value);
-            if !quiet {
+            if !cli.quiet {
                 eprintln!("Variable set: {name} = {value_str}");
             }
         } else {
@@ -279,90 +233,149 @@ async fn handle_evaluate(
             .await
     };
 
-    match result {
-        Ok(result) => {
-            if !quiet {
-                eprintln!("Expression: {expression}");
-                eprintln!("Result:");
+    let execution_time = start_time.elapsed();
+    
+    let output = match result {
+        Ok(result_value) => EvaluationOutput {
+            success: true,
+            result: Some(result_value),
+            error: None,
+            expression: expression.to_string(),
+            execution_time,
+            metadata: OutputMetadata {
+                cache_hits: 0, // TODO: Track cache hits from engine
+                ast_nodes: 0, // TODO: Track AST nodes
+                memory_used: 0, // TODO: Track memory usage
+            },
+        },
+        Err(e) => EvaluationOutput {
+            success: false,
+            result: None,
+            error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
+            expression: expression.to_string(),
+            execution_time,
+            metadata: OutputMetadata::default(),
+        },
+    };
+
+    match formatter.format_evaluation(&output) {
+        Ok(formatted) => {
+            println!("{}", formatted);
+            if !output.success {
+                process::exit(1);
             }
-
-            let output = if pretty {
-                match sonic_rs::to_string_pretty(&result) {
-                    Ok(json) => json,
-                    Err(_) => format!("{result:?}"),
-                }
-            } else {
-                match sonic_rs::to_string(&result) {
-                    Ok(json) => json,
-                    Err(_) => format!("{result:?}"),
-                }
-            };
-
-            println!("{output}");
         }
         Err(e) => {
-            eprintln!("Error evaluating expression: {e}");
+            eprintln!("Error formatting output: {}", e);
             process::exit(1);
         }
     }
 }
 
-fn handle_parse(expression: &str, quiet: bool) {
-    match parse(expression) {
-        Ok(ast) => {
-            if !quiet {
-                println!("✓ Expression parsed successfully");
-                println!("Expression: {expression}");
-                println!("AST: {ast:?}");
-            } else {
-                println!("OK");
+fn handle_parse(
+    expression: &str,
+    cli: &Cli,
+    formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
+) {
+    let output = match parse(expression) {
+        Ok(ast) => ParseOutput {
+            success: true,
+            ast: Some(ast),
+            error: None,
+            expression: expression.to_string(),
+            metadata: OutputMetadata {
+                cache_hits: 0,
+                ast_nodes: 1, // TODO: Count AST nodes properly
+                memory_used: 0,
+            },
+        },
+        Err(e) => ParseOutput {
+            success: false,
+            ast: None,
+            error: Some(e.into()),
+            expression: expression.to_string(),
+            metadata: OutputMetadata::default(),
+        },
+    };
+
+    match formatter.format_parse(&output) {
+        Ok(formatted) => {
+            println!("{}", formatted);
+            if !output.success {
+                process::exit(1);
             }
         }
         Err(e) => {
-            eprintln!("✗ Parse error: {e}");
+            eprintln!("Error formatting output: {}", e);
             process::exit(1);
         }
     }
 }
 
-fn handle_validate(expression: &str, quiet: bool) {
-    match parse(expression) {
-        Ok(_) => {
-            if !quiet {
-                println!("✓ Expression is valid");
-                println!("Expression: {expression}");
-            } else {
-                println!("VALID");
+fn handle_validate(
+    expression: &str,
+    cli: &Cli,
+    formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
+) {
+    // Validate is basically the same as parse but focuses on success/failure
+    let output = match parse(expression) {
+        Ok(ast) => ParseOutput {
+            success: true,
+            ast: Some(ast),
+            error: None,
+            expression: expression.to_string(),
+            metadata: OutputMetadata {
+                cache_hits: 0,
+                ast_nodes: 1,
+                memory_used: 0,
+            },
+        },
+        Err(e) => ParseOutput {
+            success: false,
+            ast: None,
+            error: Some(e.into()),
+            expression: expression.to_string(),
+            metadata: OutputMetadata::default(),
+        },
+    };
+
+    match formatter.format_parse(&output) {
+        Ok(formatted) => {
+            println!("{}", formatted);
+            if !output.success {
+                process::exit(1);
             }
         }
         Err(e) => {
-            if !quiet {
-                eprintln!("✗ Invalid expression: {e}");
-                eprintln!("Expression: {expression}");
-            } else {
-                eprintln!("INVALID");
-            }
+            eprintln!("Error formatting output: {}", e);
             process::exit(1);
         }
     }
 }
 
-async fn handle_analyze(expression: &str, validate_only: bool, no_inference: bool, quiet: bool) {
+async fn handle_analyze(
+    expression: &str,
+    variables: &[String],
+    validate_only: bool,
+    _no_inference: bool,
+    cli: &Cli,
+    formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
+) {
     use octofhir_fhirpath::FhirPathEngineWithAnalyzer;
     use octofhir_fhirpath_model::FhirSchemaModelProvider;
     use octofhir_fhirpath_registry::create_standard_registry;
     use std::sync::Arc;
 
     // Always use FhirSchemaModelProvider for comprehensive field validation
-    if !quiet {
-        println!("🔧 Initializing FhirSchemaModelProvider for comprehensive field validation...");
+    if !cli.quiet {
+        eprintln!("🔧 Initializing FhirSchemaModelProvider for comprehensive field validation...");
     }
 
     let model_provider: Box<dyn octofhir_fhirpath_model::provider::ModelProvider> =
         match FhirSchemaModelProvider::new().await {
             Ok(provider) => {
-                if !quiet {
-                    println!("✅ FhirSchemaModelProvider initialized successfully");
+                if !cli.quiet {
+                    eprintln!("✅ FhirSchemaModelProvider initialized successfully");
                 }
                 Box::new(provider)
             }
@@ -389,115 +402,187 @@ async fn handle_analyze(expression: &str, validate_only: bool, no_inference: boo
             }
         };
 
-    if validate_only {
+    let output = if validate_only {
         // Validation only
-        let errors = match engine.validate_expression(expression).await {
-            Ok(errors) => errors,
-            Err(e) => {
-                eprintln!("❌ Error during validation: {}", e);
-                process::exit(1);
-            }
-        };
-
-        if errors.is_empty() {
-            if !quiet {
-                println!("✅ Expression is valid");
-            } else {
-                println!("VALID");
-            }
-        } else {
-            if !quiet {
-                println!("❌ Validation errors:");
-                for error in errors {
-                    println!("  - {} (type: {:?})", error.message, error.error_type);
-                    if !error.suggestions.is_empty() {
-                        println!("    Suggestions: {}", error.suggestions.join(", "));
-                    }
-                }
-            } else {
-                println!("INVALID");
-            }
-            process::exit(1);
+        match engine.validate_expression(expression).await {
+            Ok(validation_errors) => AnalysisOutput {
+                success: validation_errors.is_empty(),
+                analysis: None,
+                validation_errors,
+                error: None,
+                expression: expression.to_string(),
+                metadata: OutputMetadata::default(),
+            },
+            Err(e) => AnalysisOutput {
+                success: false,
+                analysis: None,
+                validation_errors: vec![],
+                error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
+                expression: expression.to_string(),
+                metadata: OutputMetadata::default(),
+            },
         }
     } else {
         // Full analysis
-        let analysis = match engine.analyze_expression(expression).await {
-            Ok(Some(analysis)) => analysis,
-            Ok(None) => {
-                if !quiet {
-                    println!("⚠️  No analyzer available");
-                } else {
-                    println!("NO_ANALYZER");
-                }
-                process::exit(1);
-            }
-            Err(e) => {
-                eprintln!("❌ Error during analysis: {}", e);
-                process::exit(1);
-            }
-        };
-
-        if !quiet {
-            println!("📊 Analysis Results for: {expression}");
-            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        match engine.analyze_expression(expression).await {
+            Ok(Some(analysis)) => AnalysisOutput {
+                success: analysis.validation_errors.is_empty(),
+                analysis: Some(analysis),
+                validation_errors: vec![], // Validation errors are in analysis.validation_errors
+                error: None,
+                expression: expression.to_string(),
+                metadata: OutputMetadata::default(),
+            },
+            Ok(None) => AnalysisOutput {
+                success: false,
+                analysis: None,
+                validation_errors: vec![],
+                error: Some(Box::<dyn std::error::Error>::from("No analyzer available".to_string()).into()),
+                expression: expression.to_string(),
+                metadata: OutputMetadata::default(),
+            },
+            Err(e) => AnalysisOutput {
+                success: false,
+                analysis: None,
+                validation_errors: vec![],
+                error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
+                expression: expression.to_string(),
+                metadata: OutputMetadata::default(),
+            },
         }
+    };
 
-        if !analysis.validation_errors.is_empty() {
-            if !quiet {
-                println!("\n❌ Validation Errors:");
-                for error in analysis.validation_errors {
-                    let icon = match error.error_type {
-                        octofhir_fhirpath_analyzer::ValidationErrorType::InvalidField => "🔍",
-                        octofhir_fhirpath_analyzer::ValidationErrorType::DeprecatedField => "⚠️",
-                        octofhir_fhirpath_analyzer::ValidationErrorType::InvalidResourceType => {
-                            "🏥"
-                        }
-                        octofhir_fhirpath_analyzer::ValidationErrorType::InvalidFunction => "🔧",
-                        _ => "❗",
-                    };
-                    println!("  {} {}", icon, error.message);
-                    if !error.suggestions.is_empty() {
-                        println!("    💡 Suggestions: {}", error.suggestions.join(", "));
-                    }
-                }
+    match formatter.format_analysis(&output) {
+        Ok(formatted) => {
+            println!("{}", formatted);
+            if !output.success {
+                process::exit(1);
             }
+        }
+        Err(e) => {
+            eprintln!("Error formatting output: {}", e);
             process::exit(1);
         }
+    }
+}
 
-        if !no_inference && !analysis.type_annotations.is_empty() && !quiet {
-            println!("\n🔍 Type Annotations:");
-            for (node_id, semantic_info) in analysis.type_annotations {
-                println!("  Node {node_id}: ");
-                if let Some(fhir_type) = semantic_info.fhir_path_type {
-                    println!("    FHIRPath Type: {fhir_type}");
-                }
-                if let Some(model_type) = semantic_info.model_type {
-                    println!("    FHIR Model Type: {model_type}");
-                }
-                println!("    Cardinality: {:?}", semantic_info.cardinality);
-                println!("    Confidence: {:?}", semantic_info.confidence);
+async fn handle_repl(
+    input: Option<&str>,
+    variables: &[String],
+    history_file: Option<&str>,
+    history_size: usize,
+    cli: &Cli,
+) {
+    use octofhir_fhirpath::cli::repl::{start_repl, ReplConfig};
+    use octofhir_fhirpath::model::{
+        fhirschema_provider::FhirSchemaModelProvider, 
+        provider::{FhirVersion, ModelProvider},
+    };
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    // Parse initial variables
+    let initial_variables: Vec<(String, String)> = variables
+        .iter()
+        .filter_map(|var| {
+            if let Some(eq_pos) = var.find('=') {
+                let name = var[..eq_pos].to_string();
+                let value = var[eq_pos + 1..].to_string();
+                Some((name, value))
+            } else {
+                eprintln!("Warning: Invalid variable format '{}', expected 'name=value'", var);
+                None
             }
-        }
+        })
+        .collect();
 
-        if !analysis.function_calls.is_empty() && !quiet {
-            println!("\n🔧 Function Calls:");
-            for func_analysis in analysis.function_calls {
-                println!(
-                    "  - {} ({})",
-                    func_analysis.function_name, func_analysis.signature.description
-                );
-                if !func_analysis.validation_errors.is_empty() {
-                    for error in func_analysis.validation_errors {
-                        println!("    ⚠️  {}", error.message);
+    // Load initial resource if provided
+    let initial_resource = if let Some(input_path) = input {
+        match fs::read_to_string(input_path) {
+            Ok(content) => {
+                match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(json) => Some(json),
+                    Err(e) => {
+                        eprintln!("Error parsing initial resource '{}': {}", input_path, e);
+                        process::exit(1);
                     }
                 }
             }
+            Err(e) => {
+                eprintln!("Error reading initial resource '{}': {}", input_path, e);
+                process::exit(1);
+            }
         }
+    } else {
+        None
+    };
 
-        if !quiet {
-            println!("\n✅ Analysis complete");
-        } else {
-            println!("OK");
+    // Create model provider with specified FHIR version
+    let fhir_version = match cli.fhir_version.to_lowercase().as_str() {
+        "r4" => FhirVersion::R4,
+        "r4b" => FhirVersion::R4B,
+        "r5" => FhirVersion::R5,
+        _ => {
+            eprintln!(
+                "⚠️ Invalid FHIR version '{}', defaulting to R4",
+                cli.fhir_version
+            );
+            FhirVersion::R4
         }
+    };
+
+    let model_provider = match fhir_version {
+        FhirVersion::R4 => {
+            match FhirSchemaModelProvider::r4().await {
+                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+                Err(e) => {
+                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
+                    process::exit(1);
+                }
+            }
+        }
+        FhirVersion::R4B => {
+            match FhirSchemaModelProvider::r4b().await {
+                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+                Err(e) => {
+                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
+                    process::exit(1);
+                }
+            }
+        }
+        FhirVersion::R5 => {
+            match FhirSchemaModelProvider::r5().await {
+                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+                Err(e) => {
+                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
+                    process::exit(1);
+                }
+            }
+        }
+    };
+
+    // Create REPL configuration
+    let mut repl_config = ReplConfig {
+        color_output: !cli.no_color,
+        show_types: cli.verbose,
+        history_size,
+        ..Default::default()
+    };
+
+    // Set history file
+    if let Some(history_path) = history_file {
+        repl_config.history_file = Some(PathBuf::from(history_path));
+    } else {
+        // Use default history file location
+        if let Some(home_dir) = dirs::home_dir() {
+            repl_config.history_file = Some(home_dir.join(".fhirpath_history"));
+        }
+    }
+
+    // Start REPL
+    if let Err(e) = start_repl(model_provider, repl_config, initial_resource, initial_variables).await {
+        eprintln!("REPL error: {}", e);
+        process::exit(1);
     }
 }

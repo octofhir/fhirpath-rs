@@ -16,7 +16,7 @@
 
 use super::json_value::JsonValue as FhirJsonValue;
 use serde::{Deserialize, Serialize};
-use sonic_rs::{JsonContainerTrait, JsonValueTrait};
+use serde_json;
 
 /// Represents a FHIR resource or complex object using sonic-rs exclusively
 #[derive(Debug, Clone, PartialEq)]
@@ -28,8 +28,8 @@ pub struct FhirResource {
 }
 
 impl FhirResource {
-    /// Create a new FHIR resource from sonic_rs::Value directly
-    pub fn from_json(data: sonic_rs::Value) -> Self {
+    /// Create a new FHIR resource from serde_json::Value directly
+    pub fn from_json(data: serde_json::Value) -> Self {
         let json_value = FhirJsonValue::new(data);
 
         let resource_type = json_value
@@ -55,19 +55,19 @@ impl FhirResource {
     }
 
     /// Create from sonic-rs value directly
-    pub fn from_sonic_value(value: sonic_rs::Value) -> Self {
+    pub fn from_sonic_value(value: serde_json::Value) -> Self {
         let json_value = FhirJsonValue::new(value);
         Self::from_json_value(json_value)
     }
 
-    /// Get the JSON representation as sonic_rs::Value
-    pub fn to_json(&self) -> sonic_rs::Value {
-        self.data.as_sonic_value().clone()
+    /// Get the JSON representation as serde_json::Value
+    pub fn to_json(&self) -> serde_json::Value {
+        self.data.as_value().clone()
     }
 
-    /// Get a reference to the JSON data as sonic_rs::Value
-    pub fn as_json(&self) -> sonic_rs::Value {
-        self.data.as_sonic_value().clone()
+    /// Get a reference to the JSON data as serde_json::Value
+    pub fn as_json(&self) -> serde_json::Value {
+        self.data.as_value().clone()
     }
 
     /// Get the JsonValue for efficient sharing
@@ -76,8 +76,8 @@ impl FhirResource {
     }
 
     /// Get the sonic-rs value directly
-    pub fn as_sonic_value(&self) -> &sonic_rs::Value {
-        self.data.as_sonic_value()
+    pub fn as_sonic_value(&self) -> &serde_json::Value {
+        self.data.as_value()
     }
 
     /// Get the resource type if available
@@ -92,9 +92,9 @@ impl FhirResource {
         }
 
         // Look through all properties for value[x] patterns
-        if self.data.as_sonic_value().is_object() {
+        if self.data.as_value().is_object() {
             // Use sonic-rs API to iterate through object keys
-            let sonic_value = self.data.as_sonic_value();
+            let sonic_value = self.data.as_value();
             if let Some(obj) = sonic_value.as_object() {
                 for (key, _) in obj.iter() {
                     if key.starts_with("value") && key.len() > 5 {
@@ -107,7 +107,7 @@ impl FhirResource {
     }
 
     /// Get property value and the actual property name used (for polymorphic properties)
-    pub fn get_property_with_name(&self, path: &str) -> Option<(sonic_rs::Value, String)> {
+    pub fn get_property_with_name(&self, path: &str) -> Option<(serde_json::Value, String)> {
         if !self.data.is_object() {
             return None;
         }
@@ -118,8 +118,8 @@ impl FhirResource {
         }
 
         // Handle FHIR polymorphic properties (e.g., value -> valueString, valueInteger, etc.)
-        if path == "value" && self.data.as_sonic_value().is_object() {
-            let sonic_value = self.data.as_sonic_value();
+        if path == "value" && self.data.as_value().is_object() {
+            let sonic_value = self.data.as_value();
             if let Some(obj) = sonic_value.as_object() {
                 for (key, _) in obj.iter() {
                     if key.starts_with("value") && key.len() > 5 {
@@ -141,7 +141,7 @@ impl FhirResource {
     }
 
     /// Get a property value by path using sonic-rs
-    pub fn get_property(&self, path: &str) -> Option<sonic_rs::Value> {
+    pub fn get_property(&self, path: &str) -> Option<serde_json::Value> {
         if !self.data.is_object() {
             return None;
         }
@@ -152,8 +152,8 @@ impl FhirResource {
         }
 
         // FHIR choice type polymorphic access
-        if self.data.as_sonic_value().is_object() {
-            let sonic_value = self.data.as_sonic_value();
+        if self.data.as_value().is_object() {
+            let sonic_value = self.data.as_value();
             if let Some(obj) = sonic_value.as_object() {
                 let mut valid_matches = Vec::new();
                 for (key, _) in obj.iter() {
@@ -185,11 +185,11 @@ impl FhirResource {
     }
 
     /// Get a property value by path, supporting nested navigation
-    pub fn get_property_deep(&self, path: &str) -> Option<sonic_rs::Value> {
+    pub fn get_property_deep(&self, path: &str) -> Option<serde_json::Value> {
         // Handle dot notation for nested property access
         if path.contains('.') {
             let parts: Vec<&str> = path.split('.').collect();
-            let mut current = self.data.as_sonic_value().clone();
+            let mut current = self.data.as_value().clone();
 
             for part in parts {
                 if current.is_object() {
@@ -215,9 +215,9 @@ impl FhirResource {
     }
 
     /// Get all properties as a vector of (key, value) pairs
-    pub fn properties(&self) -> Vec<(String, sonic_rs::Value)> {
-        if self.data.as_sonic_value().is_object() {
-            let sonic_value = self.data.as_sonic_value();
+    pub fn properties(&self) -> Vec<(String, serde_json::Value)> {
+        if self.data.as_value().is_object() {
+            let sonic_value = self.data.as_value();
             if let Some(obj) = sonic_value.as_object() {
                 obj.iter()
                     .map(|(k, v)| (k.to_string(), v.clone()))
@@ -232,19 +232,19 @@ impl FhirResource {
 
     /// Check if this is a primitive extension
     pub fn is_primitive_extension(&self, property: &str) -> bool {
-        if self.data.as_sonic_value().is_object() {
+        if self.data.as_value().is_object() {
             let key = format!("_{property}");
-            self.data.as_sonic_value().get(&key).is_some()
+            self.data.as_value().get(&key).is_some()
         } else {
             false
         }
     }
 
     /// Get the primitive extension for a property
-    pub fn get_primitive_extension(&self, property: &str) -> Option<sonic_rs::Value> {
-        if self.data.as_sonic_value().is_object() {
+    pub fn get_primitive_extension(&self, property: &str) -> Option<serde_json::Value> {
+        if self.data.as_value().is_object() {
             let key = format!("_{property}");
-            self.data.as_sonic_value().get(&key).cloned()
+            self.data.as_value().get(&key).cloned()
         } else {
             None
         }
@@ -258,7 +258,7 @@ impl Serialize for FhirResource {
         S: serde::Serializer,
     {
         // Serialize the sonic-rs value using sonic-rs's serde implementation
-        self.data.as_sonic_value().serialize(serializer)
+        self.data.as_value().serialize(serializer)
     }
 }
 
@@ -268,7 +268,7 @@ impl<'de> Deserialize<'de> for FhirResource {
     where
         D: serde::Deserializer<'de>,
     {
-        let value = sonic_rs::Value::deserialize(deserializer)?;
+        let value = serde_json::Value::deserialize(deserializer)?;
         Ok(FhirResource::from_sonic_value(value))
     }
 }
@@ -278,8 +278,8 @@ impl From<FhirJsonValue> for FhirResource {
         Self::from_json_value(data)
     }
 }
-impl From<sonic_rs::Value> for FhirResource {
-    fn from(data: sonic_rs::Value) -> Self {
+impl From<serde_json::Value> for FhirResource {
+    fn from(data: serde_json::Value) -> Self {
         Self::from_sonic_value(data)
     }
 }
@@ -287,7 +287,7 @@ impl From<sonic_rs::Value> for FhirResource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sonic_rs::json;
+    use serde_json::json;
 
     #[test]
     fn test_resource_creation() {

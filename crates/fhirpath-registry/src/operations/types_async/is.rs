@@ -7,7 +7,6 @@ use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::JsonValueTrait;
 
 /// Is operation - checks if value is of specific type
 #[derive(Debug, Default, Clone)]

@@ -1,0 +1,554 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Auto-completion support for the REPL
+
+use std::sync::Arc;
+use rustyline::completion::{Completer, Pair};
+use rustyline::{Context, Result as RlResult};
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::validate::Validator;
+use rustyline::Helper;
+
+use crate::model::provider::ModelProvider;
+use crate::registry::FunctionRegistry;
+
+/// FHIRPath completer for rustyline
+pub struct FhirPathCompleter {
+    commands: Vec<String>,
+    cached_functions: std::sync::RwLock<Option<Vec<String>>>,
+}
+
+impl FhirPathCompleter {
+    /// Create a new completer
+    pub fn new(_model_provider: Arc<dyn ModelProvider>) -> Self {
+        Self::with_registry(_model_provider, None)
+    }
+
+    /// Create a new completer with function registry
+    pub fn with_registry(_model_provider: Arc<dyn ModelProvider>, _registry: Option<Arc<FunctionRegistry>>) -> Self {
+
+        let commands = vec![
+            ":load".to_string(),
+            ":set".to_string(),
+            ":unset".to_string(),
+            ":vars".to_string(),
+            ":resource".to_string(),
+            ":type".to_string(),
+            ":explain".to_string(),
+            ":help".to_string(),
+            ":history".to_string(),
+            ":quit".to_string(),
+            ":exit".to_string(),
+        ];
+
+        Self {
+            commands,
+            cached_functions: std::sync::RwLock::new(None),
+        }
+    }
+
+    /// Get completions for function names with enhanced descriptions
+    fn complete_function(&self, word: &str, _context: &str) -> Vec<Pair> {
+        let mut candidates = Vec::new();
+        
+        // Get function names from cache or fallback to common functions
+        let function_names = self.get_cached_function_names();
+        
+        // Create enhanced completions with descriptions
+        for name in function_names {
+            if name.starts_with(word) {
+                let description = self.get_function_description(&name);
+                let display = if description.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{name} - {description}")
+                };
+                
+                candidates.push(Pair {
+                    display,
+                    replacement: name,
+                });
+            }
+        }
+        
+        // Sort by relevance: exact matches first, then by length, then alphabetically
+        candidates.sort_by(|a, b| {
+            let a_name = &a.replacement;
+            let b_name = &b.replacement;
+            
+            // Exact match comes first
+            if a_name == word && b_name != word {
+                return std::cmp::Ordering::Less;
+            }
+            if b_name == word && a_name != word {
+                return std::cmp::Ordering::Greater;
+            }
+            
+            // Shorter names come first (more likely to be what user wants)
+            let len_cmp = a_name.len().cmp(&b_name.len());
+            if len_cmp != std::cmp::Ordering::Equal {
+                return len_cmp;
+            }
+            
+            // Alphabetical order
+            a_name.cmp(b_name)
+        });
+        
+        candidates
+    }
+    
+    /// Get description for a function/operation
+    fn get_function_description(&self, name: &str) -> String {
+        match name {
+            // Core collection operations
+            "first" => "Returns first item in collection".to_string(),
+            "last" => "Returns last item in collection".to_string(),
+            "count" => "Returns number of items".to_string(),
+            "length" => "Returns string length or collection size".to_string(),
+            "empty" => "True if collection is empty".to_string(),
+            "exists" => "True if collection is not empty".to_string(),
+            "single" => "Returns single item (error if not exactly one)".to_string(),
+            "distinct" => "Returns unique items".to_string(),
+            
+            // Lambda operations (evaluator-handled)
+            "where" => "Filters collection by condition".to_string(),
+            "select" => "Transforms each item using expression".to_string(),
+            "all" => "True if all items satisfy condition".to_string(),
+            "any" => "True if any item satisfies condition".to_string(),
+            "repeat" => "Repeatedly applies expression".to_string(),
+            "aggregate" => "Aggregates collection into single value".to_string(),
+            "iif" => "Conditional expression (if-then-else)".to_string(),
+            
+            // String operations
+            "substring" => "Extracts substring".to_string(),
+            "contains" => "True if string contains substring".to_string(),
+            "startsWith" => "True if string starts with prefix".to_string(),
+            "endsWith" => "True if string ends with suffix".to_string(),
+            "upper" => "Converts to uppercase".to_string(),
+            "lower" => "Converts to lowercase".to_string(),
+            "replace" => "Replaces substring with new value".to_string(),
+            
+            // Type operations
+            "ofType" => "Filters by specific type".to_string(),
+            "as" => "Casts to specific type".to_string(),
+            "is" => "Checks if value is of type".to_string(),
+            "toString" => "Converts to string".to_string(),
+            "toInteger" => "Converts to integer".to_string(),
+            
+            // Collection operations
+            "union" => "Combines collections, removes duplicates".to_string(),
+            "intersect" => "Items that exist in both collections".to_string(),
+            "exclude" => "Items in first but not second collection".to_string(),
+            "skip" => "Skips first N items".to_string(),
+            "take" => "Takes first N items".to_string(),
+            
+            // DateTime operations
+            "today" => "Current date".to_string(),
+            "now" => "Current date and time".to_string(),
+            
+            // Common FHIR properties
+            "id" => "Resource identifier".to_string(),
+            "meta" => "Resource metadata".to_string(),
+            "resourceType" => "Type of FHIR resource".to_string(),
+            "identifier" => "Business identifier".to_string(),
+            "active" => "Whether record is active".to_string(),
+            "name" => "Human name".to_string(),
+            "telecom" => "Contact details".to_string(),
+            "gender" => "Administrative gender".to_string(),
+            "birthDate" => "Date of birth".to_string(),
+            "address" => "Address information".to_string(),
+            "status" => "Status of the resource".to_string(),
+            "subject" => "Subject of the resource".to_string(),
+            "code" => "Code/classification".to_string(),
+            "value" => "Value of the element".to_string(),
+            "text" => "Human readable text".to_string(),
+            "extension" => "Additional content defined by implementations".to_string(),
+            
+            _ => String::new(), // No description available
+        }
+    }
+    
+    /// Get cached function names or return common FHIR properties as fallback
+    fn get_cached_function_names(&self) -> Vec<String> {
+        // Try to read from cache first
+        let mut function_names = if let Ok(cache) = self.cached_functions.read() {
+            if let Some(ref names) = *cache {
+                names.clone()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        
+        // Always add lambda functions since they're not in the registry
+        function_names.extend(self.get_lambda_functions());
+        
+        // If no cache, add fallback common FHIR properties and basic functions
+        if function_names.is_empty() {
+            function_names.extend(vec![
+                // Common FHIR properties for property navigation
+                "id".to_string(), "meta".to_string(), "text".to_string(), 
+                "identifier".to_string(), "active".to_string(), "name".to_string(),
+                "telecom".to_string(), "gender".to_string(), "birthDate".to_string(),
+                "address".to_string(), "resourceType".to_string(),
+                
+                // Basic functions that are commonly used
+                "first".to_string(), "last".to_string(), "count".to_string(),
+                "exists".to_string(), "empty".to_string(), "single".to_string(),
+            ]);
+        }
+        
+        // Remove duplicates and sort
+        function_names.sort();
+        function_names.dedup();
+        function_names
+    }
+    
+    /// Get lambda functions that are handled directly by the evaluator
+    fn get_lambda_functions(&self) -> Vec<String> {
+        vec![
+            // Collection lambda functions
+            "where".to_string(),
+            "select".to_string(),
+            "all".to_string(),
+            "any".to_string(),
+            "repeat".to_string(),
+            
+            // Aggregate lambda functions  
+            "aggregate".to_string(),
+            
+            // Conditional lambda functions
+            "iif".to_string(),
+        ]
+    }
+    
+    /// Cache function names from registry (to be called when needed)
+    pub fn cache_function_names(&self, function_names: Vec<String>) {
+        if let Ok(mut cache) = self.cached_functions.write() {
+            *cache = Some(function_names);
+        }
+    }
+    
+    /// Complete FHIR properties with descriptions
+    fn complete_properties(&self, word: &str, _context: &str) -> Vec<Pair> {
+        let mut candidates = Vec::new();
+        
+        // Common FHIR properties with descriptions
+        let properties = [
+            ("id", "Resource identifier"),
+            ("meta", "Resource metadata"),
+            ("text", "Human readable text"),
+            ("contained", "Contained resources"),
+            ("extension", "Additional content"),
+            ("modifierExtension", "Extensions that cannot be ignored"),
+            ("identifier", "Business identifier"),
+            ("active", "Whether record is active"),
+            ("name", "Human name"),
+            ("telecom", "Contact details"),
+            ("gender", "Administrative gender"),
+            ("birthDate", "Date of birth"),
+            ("address", "Address information"),
+            ("maritalStatus", "Marital status"),
+            ("photo", "Image of the person"),
+            ("contact", "Contact party"),
+            ("communication", "Language preferences"),
+            ("generalPractitioner", "Primary care provider"),
+            ("managingOrganization", "Organization responsible"),
+            ("resourceType", "Type of FHIR resource"),
+            ("status", "Status of the resource"),
+            ("category", "Classification"),
+            ("code", "Code/classification"),
+            ("subject", "Subject of the resource"),
+            ("encounter", "Healthcare event"),
+            ("effectiveDateTime", "When performed"),
+            ("valueQuantity", "Quantity value"),
+            ("valueCodeableConcept", "Coded value"),
+            ("valueString", "String value"),
+            ("component", "Component results"),
+            ("system", "Identity of the terminology system"),
+            ("value", "Contact point details"),
+            ("use", "Purpose of contact point"),
+            ("given", "Given names"),
+            ("family", "Family name"),
+            ("prefix", "Name prefix"),
+            ("suffix", "Name suffix"),
+            ("period", "Time period when active"),
+            ("line", "Street address line"),
+            ("city", "City name"),
+            ("state", "State/Province"),
+            ("postalCode", "Postal code"),
+            ("country", "Country"),
+        ];
+        
+        for (prop, desc) in properties {
+            if prop.starts_with(word) {
+                candidates.push(Pair {
+                    display: format!("{prop} - {desc}"),
+                    replacement: prop.to_string(),
+                });
+            }
+        }
+        
+        candidates
+    }
+    
+    /// Get context-aware suggestions based on what the user is typing
+    fn get_context_suggestions(&self, word: &str, context: &str) -> Vec<Pair> {
+        let mut candidates = Vec::new();
+        
+        // Suggest common patterns based on context
+        if context.ends_with(".where(") && word.is_empty() {
+            let suggestions = [
+                ("system = 'email'", "Filter by email system"),
+                ("use = 'official'", "Filter by official use"),
+                ("active = true", "Filter for active items"),
+                ("exists()", "Filter for non-empty items"),
+            ];
+            
+            for (suggestion, desc) in suggestions {
+                candidates.push(Pair {
+                    display: format!("{suggestion} - {desc}"),
+                    replacement: suggestion.to_string(),
+                });
+            }
+        }
+        
+        // Suggest operations after dot only when user starts typing
+        if context.ends_with('.') && !word.is_empty() {
+            let common_ops = [
+                ("first()", "Get first item"),
+                ("last()", "Get last item"),
+                ("count()", "Count items"),
+                ("exists()", "Check if not empty"),
+                ("where(...)", "Filter by condition"),
+                ("select(...)", "Transform items"),
+                ("empty()", "Check if empty"),
+            ];
+            
+            for (op, desc) in common_ops {
+                if op.starts_with(word) {
+                    candidates.push(Pair {
+                        display: format!("{op} - {desc}"),
+                        replacement: op.to_string(),
+                    });
+                }
+            }
+        }
+        
+        // Suggest comparison operators
+        if context.contains("where(") && (word.is_empty() || word.ends_with(' ')) {
+            let operators = [
+                ("=", "Equal to"),
+                ("!=", "Not equal to"),
+                (">=", "Greater than or equal"),
+                ("<=", "Less than or equal"),
+                (">", "Greater than"),
+                ("<", "Less than"),
+                ("and", "Logical AND"),
+                ("or", "Logical OR"),
+                ("contains", "String contains"),
+                ("startsWith", "String starts with"),
+            ];
+            
+            for (op, desc) in operators {
+                if op.starts_with(word.trim()) {
+                    candidates.push(Pair {
+                        display: format!("{op} - {desc}"),
+                        replacement: op.to_string(),
+                    });
+                }
+            }
+        }
+        
+        candidates
+    }
+
+}
+
+impl Completer for FhirPathCompleter {
+    type Candidate = Pair;
+
+    fn complete(&self, line: &str, pos: usize, _ctx: &Context) -> RlResult<(usize, Vec<Pair>)> {
+        let line = &line[..pos];
+        
+        // Find the word being completed
+        let (start, word) = if let Some(last_space) = line.rfind(' ') {
+            (last_space + 1, &line[last_space + 1..])
+        } else {
+            (0, line)
+        };
+
+        let mut candidates = Vec::new();
+
+        // Complete commands (starting with :)
+        if word.starts_with(':') {
+            if word == ":" {
+                // User typed just ':' - show all commands, start replacement after the colon
+                let colon_start = start + 1; // Position after the ':'
+                candidates.extend(self.commands.iter().map(|cmd| Pair {
+                    display: cmd.clone(),
+                    replacement: cmd[1..].to_string(), // Remove the ':' from replacement since it's already typed
+                }).collect::<Vec<_>>());
+                return Ok((colon_start, candidates));
+            } else {
+                // User typed partial command like ':l' or ':load' - replace from after the colon
+                let colon_start = start + 1; // Position after the ':'
+                candidates.extend(self.commands.iter()
+                    .filter(|cmd| cmd.starts_with(word))
+                    .map(|cmd| Pair {
+                        display: cmd.clone(),
+                        replacement: cmd[1..].to_string(), // Always remove the ':' prefix
+                    })
+                    .collect::<Vec<_>>());
+                return Ok((colon_start, candidates));
+            }
+        } else if word.is_empty() && line.trim_end().ends_with(':') {
+            // Handle edge case where word parsing might miss the colon
+            candidates.extend(self.commands.iter().map(|cmd| Pair {
+                display: cmd.clone(),
+                replacement: cmd[1..].to_string(),
+            }).collect::<Vec<_>>());
+            return Ok((pos, candidates)); // Start after the current position
+        } else {
+            // Complete function names with enhanced descriptions
+            candidates.extend(self.complete_function(word, line));
+            
+            // Add property completions with descriptions based on context
+            if !word.is_empty() {
+                candidates.extend(self.complete_properties(word, line));
+            }
+            
+            // Add context-aware suggestions only when user is actively typing
+            if line.contains('.') && !word.is_empty() {
+                candidates.extend(self.get_context_suggestions(word, line));
+            }
+        }
+
+        Ok((start, candidates))
+    }
+}
+
+impl Hinter for FhirPathCompleter {
+    type Hint = String;
+
+    fn hint(&self, line: &str, pos: usize, _ctx: &Context) -> Option<Self::Hint> {
+        if line.len() < pos {
+            return None;
+        }
+
+        let line = &line[..pos];
+        
+        // Enhanced command hints
+        if line == ":" {
+            return Some("load <file> | set <name> <value> | vars | help | quit | type | explain".to_string());
+        }
+        
+        // Partial command hints with examples
+        match line {
+            ":l" | ":lo" | ":loa" => Some("oad patient.json".to_string()),
+            ":s" | ":se" => Some("et myVar 'value'".to_string()),
+            ":h" | ":he" | ":hel" => Some("elp [operation]".to_string()),
+            ":t" | ":ty" | ":typ" => Some("ype Patient.name".to_string()),
+            ":e" | ":ex" | ":exp" | ":expl" | ":expla" | ":explai" => Some("xplain Patient.telecom.where(system='email')".to_string()),
+            ":q" | ":qu" | ":qui" => Some("uit".to_string()),
+            ":r" | ":re" | ":res" | ":reso" | ":resou" | ":resour" | ":resourc" => Some("esource".to_string()),
+            ":v" | ":va" | ":var" => Some("ars".to_string()),
+            ":u" | ":un" | ":uns" | ":unse" => Some("nset varName".to_string()),
+            _ => {
+                self.get_expression_hint(line)
+            }
+        }
+    }
+}
+
+impl FhirPathCompleter {
+    /// Get intelligent hints for FHIRPath expressions
+    fn get_expression_hint(&self, line: &str) -> Option<String> {
+        // Hint for dot operations
+        if line.ends_with(".") {
+            return Some("first() | count() | where(condition) | select(expression) | exists()".to_string());
+        }
+        
+        // Hint for where clauses
+        if line.ends_with(".where(") {
+            return Some("system = 'email' | use = 'official' | active = true)".to_string());
+        }
+        
+        // Hint for select clauses  
+        if line.ends_with(".select(") {
+            return Some("given.first() | value | id)".to_string());
+        }
+        
+        // Hint for string operations
+        if line.contains("'") && !line.ends_with("'") {
+            return Some("' (close string)".to_string());
+        }
+        
+        // Hint for comparison operators
+        if line.contains(" ") && !line.contains("=") && !line.contains(">") && !line.contains("<") {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            if !words.is_empty() && !words.last().unwrap().starts_with(':') {
+                return Some("= | != | > | < | >= | <= | contains".to_string());
+            }
+        }
+        
+        // Only suggest resource types when user starts typing something that looks like a resource
+        if !line.is_empty() && line.len() > 2 && !line.contains('.') && !line.starts_with(':') {
+            let common_resources = ["Patient", "Bundle", "Observation", "Condition", "Organization"];
+            for resource in common_resources {
+                if resource.to_lowercase().starts_with(&line.to_lowercase()) {
+                    return Some(format!(".name | .id | .<property> (for {resource} resource)"));
+                }
+            }
+        }
+        
+        // Hint for resource properties
+        if line == "Patient" {
+            return Some(".name | .telecom | .identifier | .active | .gender".to_string());
+        }
+        
+        if line == "Bundle" {
+            return Some(".entry | .total | .type | .timestamp".to_string());
+        }
+        
+        if line == "Observation" {
+            return Some(".code | .value | .status | .subject | .effectiveDateTime".to_string());
+        }
+        
+        // No specific hint
+        None
+    }
+}
+
+impl Highlighter for FhirPathCompleter {
+    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> std::borrow::Cow<'l, str> {
+        // Basic syntax highlighting could be added here
+        std::borrow::Cow::Borrowed(line)
+    }
+
+    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
+        false
+    }
+}
+
+impl Validator for FhirPathCompleter {
+    fn validate(&self, _ctx: &mut rustyline::validate::ValidationContext) -> RlResult<rustyline::validate::ValidationResult> {
+        Ok(rustyline::validate::ValidationResult::Valid(None))
+    }
+}
+
+impl Helper for FhirPathCompleter {}

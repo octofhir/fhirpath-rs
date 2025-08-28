@@ -6,7 +6,6 @@ use crate::signature::{
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::JsonValueTrait;
 
 /// Simplified exclude function: excludes items from the first collection that are in the second
 pub struct SimpleExcludeFunction;

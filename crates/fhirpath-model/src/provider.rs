@@ -33,7 +33,6 @@ use crate::choice_type_mapper::ChoiceVariant;
 // Define our own async-first ModelProvider trait
 use async_trait::async_trait;
 use rust_decimal::prelude::ToPrimitive;
-use sonic_rs::JsonValueTrait;
 
 // Re-export type reflection system
 pub use octofhir_fhir_model::reflection::{
@@ -470,7 +469,7 @@ pub trait ModelProvider: Send + Sync + std::fmt::Debug {
                     } else {
                         "decimal".to_string()
                     }
-                } else if inner.is_str() {
+                } else if inner.is_string() {
                     "string".to_string()
                 } else if inner.is_array() {
                     "Collection".to_string()

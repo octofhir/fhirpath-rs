@@ -4,7 +4,7 @@ mod tests {
     use crate::fhirschema_provider::FhirSchemaModelProvider;
     use crate::json_value::JsonValue;
     use crate::provider::ModelProvider;
-    use sonic_rs::json;
+    use serde_json::json;
 
     #[tokio::test]
     async fn test_schema_based_choice_property_detection() {

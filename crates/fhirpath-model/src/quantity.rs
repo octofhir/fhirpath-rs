@@ -370,19 +370,20 @@ impl Quantity {
     }
 
     /// Convert to JSON representation
-    pub fn to_json(&self) -> sonic_rs::Value {
-        let mut obj = sonic_rs::object! {};
-
+    pub fn to_json(&self) -> serde_json::Value {
         // Convert decimal to JSON value - use string representation for precision
-        let value_json = sonic_rs::Value::from(self.value.to_string().as_str());
-
-        obj.insert("value", value_json);
-
+        let value_str = self.value.to_string();
+        
         if let Some(unit) = &self.unit {
-            obj.insert("unit", sonic_rs::Value::from(unit.as_str()));
+            serde_json::json!({
+                "value": value_str,
+                "unit": unit.as_str()
+            })
+        } else {
+            serde_json::json!({
+                "value": value_str
+            })
         }
-
-        obj.into()
     }
 }
 

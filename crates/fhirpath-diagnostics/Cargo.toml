@@ -14,7 +14,6 @@ categories = ["parser-implementations", "development-tools"]
 # Core dependencies
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 serde = { workspace = true }
-sonic-rs = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 

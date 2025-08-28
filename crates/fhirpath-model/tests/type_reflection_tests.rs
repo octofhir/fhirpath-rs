@@ -15,7 +15,7 @@
 //! Comprehensive tests for the FHIRPath type reflection system
 
 use octofhir_fhirpath_model::{FhirPathTypeObject, FhirPathValue, JsonValue, ValueTypeAnalyzer};
-use sonic_rs::{JsonValueTrait, json};
+use serde_json::{ json};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -225,7 +225,7 @@ async fn test_type_object_to_fhir_path_value() {
 
     match value {
         FhirPathValue::JsonValue(json) => {
-            let sonic_val = json.as_sonic_value();
+            let sonic_val = json.as_value();
             assert_eq!(
                 sonic_val.get("namespace").and_then(|v| v.as_str()),
                 Some("System")

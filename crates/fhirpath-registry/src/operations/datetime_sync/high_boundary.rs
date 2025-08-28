@@ -417,7 +417,6 @@ impl SyncOperation for HighBoundaryFunction {
             }
             // Handle JsonValue types (FHIR data) that might contain date/datetime strings
             FhirPathValue::JsonValue(json) => {
-                use sonic_rs::JsonValueTrait;
                 if let Some(str_val) = json.as_inner().as_str() {
                     // Try to parse as date/datetime/time using standard parsing
                     if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(str_val, "%Y-%m-%d") {

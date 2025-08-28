@@ -20,7 +20,7 @@ use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use octofhir_ucum::{self, OwnedUnitExpr};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
+use serde_json::Value;
 use std::sync::Arc;
 
 /// Core value type for FHIRPath expressions
@@ -87,7 +87,7 @@ impl FhirResource {
     pub fn new(data: Value) -> Self {
         let resource_type = data
             .as_object()
-            .and_then(|obj| obj.get(&"resourceType"))
+            .and_then(|obj| obj.get("resourceType"))
             .and_then(|rt| rt.as_str())
             .map(|s| s.to_string());
 
@@ -111,7 +111,7 @@ impl FhirResource {
     pub fn get_property(&self, path: &str) -> Option<&Value> {
         // Handle simple property access on JSON objects
         if let Some(obj) = self.data.as_object() {
-            obj.get(&path)
+            obj.get(path)
         } else {
             None
         }
@@ -126,7 +126,7 @@ impl FhirResource {
 
             for part in parts {
                 if let Some(obj) = current.as_object() {
-                    current = obj.get(&part)?;
+                    current = obj.get(part)?;
                 } else if current.as_array().is_some() {
                     // For arrays, collect results from each element
                     // This is handled by the caller in evaluate_path_navigation
@@ -465,7 +465,7 @@ impl FhirPathValue {
     }
 }
 
-/// Convert from sonic_rs::Value to FhirPathValue
+/// Convert from serde_json::Value to FhirPathValue
 impl From<Value> for FhirPathValue {
     fn from(value: Value) -> Self {
         if let Some(b) = value.as_bool() {
@@ -493,14 +493,14 @@ impl From<Value> for FhirPathValue {
             Self::Collection(items)
         } else if let Some(obj) = value.as_object() {
             // Check if this looks like a Quantity
-            if obj.contains_key(&"value")
-                && (obj.contains_key(&"unit") || obj.contains_key(&"code"))
+            if obj.contains_key("value")
+                && (obj.contains_key("unit") || obj.contains_key("code"))
             {
-                if let Some(value_json) = obj.get(&"value") {
+                if let Some(value_json) = obj.get("value") {
                     if let Some(value_num) = value_json.as_f64() {
                         let unit = obj
-                            .get(&"unit")
-                            .or_else(|| obj.get(&"code"))
+                            .get("unit")
+                            .or_else(|| obj.get("code"))
                             .and_then(|u| u.as_str())
                             .map(|s| s.to_string());
 
@@ -516,7 +516,7 @@ impl From<Value> for FhirPathValue {
             }
 
             // Check if this is a FHIR resource (has resourceType)
-            if obj.contains_key(&"resourceType") {
+            if obj.contains_key("resourceType") {
                 Self::Resource(FhirResource::new(value))
             } else {
                 // For other objects, wrap as Resource but without resourceType
@@ -559,47 +559,47 @@ impl std::fmt::Display for FhirPathValue {
     }
 }
 
-/// Convert from FhirPathValue to sonic_rs::Value
+/// Convert from FhirPathValue to serde_json::Value
 impl From<FhirPathValue> for Value {
     fn from(fhir_value: FhirPathValue) -> Self {
         match fhir_value {
-            FhirPathValue::Boolean(b) => sonic_rs::json!(b),
-            FhirPathValue::Integer(i) => sonic_rs::json!(i),
+            FhirPathValue::Boolean(b) => serde_json::json!(b),
+            FhirPathValue::Integer(i) => serde_json::json!(i),
             FhirPathValue::Decimal(d) => {
                 // Try to convert decimal to f64, fallback to string
                 if let Ok(f) = TryInto::<f64>::try_into(d) {
-                    sonic_rs::json!(f)
+                    serde_json::json!(f)
                 } else {
-                    sonic_rs::json!(d.to_string())
+                    serde_json::json!(d.to_string())
                 }
             }
-            FhirPathValue::String(s) => sonic_rs::json!(s),
-            FhirPathValue::Date(d) => sonic_rs::json!(d.format("%Y-%m-%d").to_string()),
-            FhirPathValue::DateTime(dt) => sonic_rs::json!(dt.to_rfc3339()),
-            FhirPathValue::Time(t) => sonic_rs::json!(t.format("%H:%M:%S").to_string()),
+            FhirPathValue::String(s) => serde_json::json!(s),
+            FhirPathValue::Date(d) => serde_json::json!(d.format("%Y-%m-%d").to_string()),
+            FhirPathValue::DateTime(dt) => serde_json::json!(dt.to_rfc3339()),
+            FhirPathValue::Time(t) => serde_json::json!(t.format("%H:%M:%S").to_string()),
             FhirPathValue::Quantity { value, unit, .. } => {
                 let value_json = if let Ok(f) = TryInto::<f64>::try_into(value) {
-                    sonic_rs::json!(f)
+                    serde_json::json!(f)
                 } else {
-                    sonic_rs::json!(value.to_string())
+                    serde_json::json!(value.to_string())
                 };
                 if let Some(unit) = unit {
-                    sonic_rs::json!({
+                    serde_json::json!({
                         "value": value_json,
                         "unit": unit
                     })
                 } else {
-                    sonic_rs::json!({
+                    serde_json::json!({
                         "value": value_json
                     })
                 }
             }
             FhirPathValue::Collection(items) => {
                 let json_items: Vec<Value> = items.into_iter().map(Value::from).collect();
-                sonic_rs::json!(json_items)
+                serde_json::json!(json_items)
             }
             FhirPathValue::Resource(resource) => resource.data,
-            FhirPathValue::Empty => sonic_rs::json!(null),
+            FhirPathValue::Empty => serde_json::json!(null),
         }
     }
 }
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_json_conversion() {
-        let json_val = sonic_rs::json!({"name": "test", "value": 42});
+        let json_val = serde_json::json!({"name": "test", "value": 42});
         let fhir_val = FhirPathValue::from(json_val.clone());
 
         match fhir_val {

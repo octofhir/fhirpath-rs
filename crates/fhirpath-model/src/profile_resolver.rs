@@ -57,9 +57,9 @@ pub struct ResolvedElement {
     /// Profile-specific constraints
     pub constraints: Vec<ConstraintInfo>,
     /// Fixed value that this element must have
-    pub fixed_value: Option<sonic_rs::Value>,
+    pub fixed_value: Option<serde_json::Value>,
     /// Pattern value that this element should match
-    pub pattern_value: Option<sonic_rs::Value>,
+    pub pattern_value: Option<serde_json::Value>,
     /// Binding information
     pub binding: Option<BindingInfo>,
     /// Whether this element is modified by the profile
@@ -102,13 +102,12 @@ pub struct BindingInfo {
 }
 
 impl ProfileResolver {
-    /// Convert serde_json::Value to sonic_rs::Value using optimized string conversion
-    fn convert_json_value(value: &serde_json::Value) -> sonic_rs::Value {
+    /// Convert serde_json::Value to serde_json::Value using optimized string conversion
+    fn convert_json_value(value: &serde_json::Value) -> serde_json::Value {
         // Convert between JSON libraries - external dependency (octofhir-fhirschema) uses serde_json
-        // We standardize on sonic_rs internally for better performance
         match serde_json::to_string(value) {
-            Ok(json_str) => sonic_rs::from_str(&json_str).unwrap_or(sonic_rs::Value::new_null()),
-            Err(_) => sonic_rs::Value::new_null(),
+            Ok(json_str) => serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null),
+            Err(_) => serde_json::Value::Null,
         }
     }
     /// Create a new profile resolver

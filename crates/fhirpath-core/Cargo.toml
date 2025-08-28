@@ -13,7 +13,6 @@ categories = ["parser-implementations", "data-structures"]
 [dependencies]
 # Core dependencies
 serde = { workspace = true }
-sonic-rs = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 smallvec = { workspace = true }

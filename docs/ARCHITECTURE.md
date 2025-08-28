@@ -136,61 +136,62 @@ Input Expression → [Tokenizer] → Tokens → [Parser] → AST → [Evaluator]
   - Lambda optimization with early exit
 - **Performance**: 4K+ operations/second
 
-## JSON Processing with sonic_rs
+## JSON Processing with serde_json
 
-### Why sonic_rs Over serde_json
+### Why serde_json for JSON Processing
 
-octofhir-fhirpath uses **sonic_rs** instead of the more common serde_json for all JSON processing. This architectural decision brings significant performance and feature benefits:
+octofhir-fhirpath uses **serde_json** for all JSON processing. This architectural decision ensures compatibility and reliability:
 
 #### Performance Advantages
-- **Faster Parsing**: sonic_rs is built on SIMD-optimized JSON parsing, providing significantly faster JSON parsing than serde_json
-- **Lower Memory Usage**: More efficient memory allocation patterns during JSON parsing and manipulation
-- **Zero-Copy Operations**: Better support for zero-copy JSON operations where possible
-- **Optimized for Large Documents**: Particularly beneficial for large FHIR Bundle documents common in healthcare
+- **Mature Ecosystem**: serde_json is the de facto standard for JSON processing in Rust with extensive ecosystem support
+- **Reliability**: Battle-tested in production environments with excellent stability
+- **Compatibility**: Seamless integration with the broader Rust ecosystem and third-party libraries
+- **Healthcare Compatibility**: Well-suited for FHIR Bundle documents with proven performance characteristics
 
 #### Healthcare-Specific Benefits
-- **Large Bundle Handling**: Healthcare applications often process large Bundle resources with hundreds of entries. sonic_rs excels at this scale
-- **High Throughput**: Production healthcare systems require processing thousands of FHIR resources per second. sonic_rs's performance characteristics align with these requirements
-- **Memory Efficiency**: Healthcare applications often run in memory-constrained environments. sonic_rs's efficient memory usage is crucial
+- **Large Bundle Handling**: Healthcare applications often process large Bundle resources with hundreds of entries. serde_json handles this scale effectively
+- **High Throughput**: Production healthcare systems require processing thousands of FHIR resources per second. serde_json's performance characteristics meet these requirements
+- **Memory Efficiency**: Healthcare applications often run in memory-constrained environments. serde_json provides efficient memory usage
 
 #### Technical Implementation
 ```rust
-use sonic_rs::{json, Value as SonicValue};
+use serde_json::{json, Value};
 
-// All JSON processing uses sonic_rs
+// All JSON processing uses serde_json
 let fhir_resource = json!({
     "resourceType": "Patient", 
     "name": [{"given": ["Alice"]}]
 });
 
 // Consistent type usage throughout the codebase
-fn process_fhir_data(value: SonicValue) -> Result<FhirPathValue> {
-    // Processing logic using sonic_rs types
+fn process_fhir_data(value: Value) -> Result<FhirPathValue> {
+    // Processing logic using serde_json types
 }
 ```
 
 #### Migration Strategy
-The codebase has been systematically migrated from serde_json to sonic_rs:
+The codebase uses serde_json consistently:
 
-1. **Core Types**: All internal JSON handling uses `sonic_rs::Value`
-2. **API Consistency**: Public APIs accept sonic_rs types for optimal performance  
-3. **Backward Compatibility**: Conversion utilities available for mixed environments
-4. **Performance Testing**: Benchmarks demonstrate measurable improvements in JSON-heavy operations
+1. **Core Types**: All internal JSON handling uses `serde_json::Value`
+2. **API Consistency**: Public APIs accept serde_json types for broad compatibility  
+3. **Ecosystem Compatibility**: Seamless integration with the Rust JSON ecosystem
+4. **Reliability Testing**: Comprehensive testing ensures robust JSON processing
 
-#### Conversion Between Libraries
-When integration with existing serde_json code is required:
+#### JSON Processing Patterns
+Consistent JSON processing throughout the codebase:
 
 ```rust
-// Convert from serde_json to sonic_rs
-let serde_value: serde_json::Value = serde_json::json!({"key": "value"});
-let sonic_value: sonic_rs::Value = sonic_rs::from_str(&serde_json::to_string(&serde_value)?)?;
+// Standard JSON processing with serde_json
+let json_value: serde_json::Value = serde_json::json!({"key": "value"});
 
-// Convert from sonic_rs to serde_json (if needed)  
-let sonic_value = sonic_rs::json!({"key": "value"});
-let serde_value: serde_json::Value = serde_json::from_str(&sonic_rs::to_string(&sonic_value)?)?;
+// Parsing JSON strings
+let parsed: serde_json::Value = serde_json::from_str(&json_string)?;
+
+// Serializing to JSON strings
+let json_string = serde_json::to_string(&json_value)?;
 ```
 
-This strategic choice of sonic_rs reflects the library's commitment to high-performance healthcare data processing while maintaining developer-friendly APIs.
+This strategic choice of serde_json reflects the library's commitment to reliable healthcare data processing while maintaining broad ecosystem compatibility.
 
 ## Memory Management
 

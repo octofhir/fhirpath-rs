@@ -31,7 +31,7 @@ async-trait = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }
-sonic-rs = { workspace = true }
+serde_json = { workspace = true }
 
 # Legacy compatibility only - removed
 

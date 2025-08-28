@@ -36,6 +36,29 @@ All development tasks use the `justfile` system. Essential commands:
 - `just cli-validate "expression"` - Validate syntax only
 - `just cli-analyze "expression"` - Analyze expression with optimization suggestions
 
+### Interactive REPL
+- `just repl` - Start interactive FHIRPath REPL for rapid prototyping and debugging
+- `just repl file.json` - Start REPL with initial resource loaded from file
+- `just repl --fhir-version r5` - Start REPL with specific FHIR version (r4, r4b, r5)
+
+#### Enhanced Output Formats
+The CLI supports multiple output formats for better integration and user experience:
+
+- `just cli-pretty "expression" [file.json]` - Colorized, emoji-rich output with execution metrics
+- `just cli-json "expression" [file.json]` - Structured JSON output for machine parsing
+- `just cli-table "expression" [file.json]` - Formatted table output for complex results
+
+You can also use the main CLI directly with `--output-format`:
+- `--output-format raw` - Default plain text output
+- `--output-format pretty` - Colorized output with emojis and performance info  
+- `--output-format json` - Structured JSON with metadata
+- `--output-format table` - Formatted table for result collections
+
+Global flags:
+- `--no-color` - Disable colored output (also via `FHIRPATH_NO_COLOR` env var)
+- `--quiet` - Suppress informational messages
+- `--verbose` - Enable additional details
+
 ### Documentation
 - `just doc` - Generate API documentation
 - `just docs` - Generate all documentation including benchmarks
@@ -68,6 +91,66 @@ crates/
 
 ### JSON Processing
 **Important**: This codebase uses `serde_json::Value` for all JSON processing. Maintain consistency by always using `serde_json` throughout the codebase. Do not introduce other JSON libraries unless there is a compelling performance or compatibility reason.
+
+## Interactive REPL
+
+The FHIRPath REPL provides an interactive environment for rapid prototyping and debugging of FHIRPath expressions. It includes the following features:
+
+### REPL Commands
+- `<expression>` - Evaluate any FHIRPath expression
+- `:load <file>` - Load FHIR resource from file
+- `:set <name> <value>` - Set variable value 
+- `:unset <name>` - Remove variable
+- `:vars` - List all variables and context
+- `:resource` - Show current resource information
+- `:type <expression>` - Show type information (planned)
+- `:explain <expression>` - Show evaluation steps (planned)
+- `:help [function]` - Show help for commands or functions
+- `:history` - Show command history
+- `:quit` - Exit REPL
+
+### Features
+- **Interactive line editing** with history and arrow key navigation
+- **Auto-completion** for function names and properties
+- **Colored output** for better readability
+- **Variable management** for complex expression building
+- **Resource loading** from JSON files
+- **Command history** with persistent storage
+- **Help system** with function documentation
+- **Error handling** with clear, actionable messages
+
+### Usage Examples
+```bash
+# Start REPL
+just repl
+
+# Start REPL with initial resource
+just repl examples/patient.json
+
+# Start REPL with specific FHIR version
+just repl --fhir-version r5
+
+# Example REPL session
+fhirpath> :load examples/patient.json
+Loaded Patient resource (id: example-1)
+
+fhirpath> Patient.name.given.first()
+"John"
+
+fhirpath> :set myVar "test"
+Variable 'myVar' set
+
+fhirpath> :vars
+%context = Patient resource
+myVar = "test"
+
+fhirpath> :help first
+first() - Returns the first item in a collection
+Usage: collection.first()
+Returns: single item or empty if collection is empty
+
+fhirpath> :quit
+```
 
 ## Development Patterns
 
@@ -136,12 +219,13 @@ Current status: **90.9%** (1003/1104 tests passing)
 ### CLI Usage
 - `FHIRPATH_MODEL` - Default model provider (mock, r4, r5)
 - `FHIRPATH_TIMEOUT` - Default timeout in seconds
-- `NO_COLOR` - Disable colored output
+- `FHIRPATH_OUTPUT_FORMAT` - Default output format (raw, pretty, json, table)
+- `FHIRPATH_NO_COLOR` - Disable colored output (same as NO_COLOR)
 
 ## Key Files and Directories
 
 - `justfile` - All development commands
-- `Cargo.toml` - Workspace configuration with sonic_rs, tokio, and healthcare-specific dependencies
+- `Cargo.toml` - Workspace configuration with serde_json, tokio, and healthcare-specific dependencies
 - `specs/fhirpath/tests/` - Official FHIRPath test suite (1104 tests)
 - `TEST_COVERAGE.md` - Auto-generated compliance report
 - `benchmark.md` - Performance benchmark results

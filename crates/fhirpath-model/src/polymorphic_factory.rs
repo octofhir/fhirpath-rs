@@ -14,7 +14,7 @@
 
 //! Factory utilities for creating PolymorphicPathResolver instances
 
-use sonic_rs::Value;
+use serde_json::Value;
 use std::sync::Arc;
 
 use crate::polymorphic_resolver::PolymorphicPathResolver;

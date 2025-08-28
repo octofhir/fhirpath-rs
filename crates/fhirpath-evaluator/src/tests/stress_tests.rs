@@ -15,7 +15,7 @@
 //! Stress and load testing for the unified FHIRPath engine
 
 use super::{TestUtils, as_single_boolean, as_single_integer, as_single_string};
-use sonic_rs::json;
+use serde_json::json;
 use std::sync::Arc;
 use tokio::task;
 

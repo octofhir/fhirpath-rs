@@ -52,7 +52,6 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
         // JSON simple types convertible by to_string_value()
         FhirPathValue::JsonValue(json) => {
             let inner = json.as_inner();
-            use sonic_rs::JsonValueTrait;
             Ok(inner.as_str().is_some()
                 || inner.as_bool().is_some()
                 || inner.as_f64().is_some()

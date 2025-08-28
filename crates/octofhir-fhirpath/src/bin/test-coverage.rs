@@ -30,7 +30,7 @@ mod integration_test_runner {
     use octofhir_fhirpath::model::ModelProvider;
     use octofhir_fhirpath::{FhirPathEngine, create_standard_registry, parse};
     use serde::{Deserialize, Serialize};
-    use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
+    use serde_json::Value;
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -68,7 +68,7 @@ mod integration_test_runner {
         D: serde::Deserializer<'de>,
     {
         let opt = Option::<Value>::deserialize(deserializer)?;
-        Ok(opt.or(Some(Value::new_null())))
+        Ok(opt.or(Some(Value::Null)))
     }
 
     /// A test suite containing multiple test cases
@@ -222,7 +222,7 @@ mod integration_test_runner {
                 )
             })?;
 
-            let suite: TestSuite = sonic_rs::from_str(&content)
+            let suite: TestSuite = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse test suite JSON: {e}"))?;
 
             Ok(suite)
@@ -264,7 +264,7 @@ mod integration_test_runner {
                 )
             })?;
 
-            let json_value: Value = sonic_rs::from_str(&content)
+            let json_value: Value = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse JSON in {filename}: {e}"))?;
 
             if self.verbose {
@@ -294,8 +294,8 @@ mod integration_test_runner {
         /// Simplified comparison with proper handling of FHIRPath collection semantics
         fn compare_results(&self, actual: &FhirPathValue, expected: &Value) -> bool {
             // Convert actual to JSON for uniform comparison
-            let actual_json = match sonic_rs::to_string(actual) {
-                Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+            let actual_json = match serde_json::to_string(actual) {
+                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
                     Ok(json) => json,
                     Err(_) => return false,
                 },
@@ -435,7 +435,7 @@ mod integration_test_runner {
                 println!("Result: {result:?}");
                 println!(
                     "Expected: {}",
-                    sonic_rs::to_string(&test.expected).unwrap_or_default()
+                    serde_json::to_string(&test.expected).unwrap_or_default()
                 );
             }
 
@@ -444,8 +444,8 @@ mod integration_test_runner {
                 TestResult::Passed
             } else {
                 // Convert actual result to JSON for comparison
-                let actual_json = sonic_rs::to_string(&result)
-                    .and_then(|s| sonic_rs::from_str::<Value>(&s))
+                let actual_json = serde_json::to_string(&result)
+                    .and_then(|s| serde_json::from_str::<Value>(&s))
                     .unwrap_or_default();
                 TestResult::Failed {
                     expected: test.expected.clone(),

@@ -21,7 +21,7 @@ The easiest way to get started:
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,7 +48,7 @@ For more advanced usage:
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use sonic_rs::json;
+use serde_json::json;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -130,7 +130,7 @@ match result {
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -200,7 +200,7 @@ Advanced reference resolution with full Bundle support:
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -246,7 +246,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -294,7 +294,7 @@ FHIRPath supports environment variables for dynamic expressions:
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use sonic_rs::json;
+use serde_json::json;
 use std::collections::HashMap;
 
 #[tokio::main]
@@ -318,7 +318,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use sonic_rs::json;
+use serde_json::json;
 use std::collections::HashMap;
 
 #[tokio::main]
@@ -352,7 +352,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use sonic_rs::json;
+use serde_json::json;
 use std::collections::HashMap;
 
 #[tokio::main] 
@@ -390,7 +390,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathError};
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() {
@@ -430,7 +430,7 @@ fn handle_fhirpath_error(error: FhirPathError) {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -461,7 +461,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -495,7 +495,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -540,7 +540,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -586,7 +586,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -633,7 +633,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

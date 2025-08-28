@@ -17,7 +17,7 @@
 //! Usage: cargo run --bin test-runner <test_file.json>
 
 use octofhir_fhirpath::FhirPathValue;
-use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
+use serde_json::Value;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -56,7 +56,7 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
     let input_path = specs_dir.join(inputfile);
 
     let content = fs::read_to_string(&input_path)?;
-    let data: Value = sonic_rs::from_str(&content)?;
+    let data: Value = serde_json::from_str(&content)?;
     Ok(data)
 }
 
@@ -64,8 +64,8 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 /// Simplified comparison with proper handling of FHIRPath collection semantics
 fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
     // Convert actual to JSON for uniform comparison
-    let actual_json = match sonic_rs::to_string(actual) {
-        Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+    let actual_json = match serde_json::to_string(actual) {
+        Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
             Ok(json) => json,
             Err(_) => return false,
         },
@@ -143,7 +143,7 @@ async fn main() {
         }
     };
 
-    let test_suite: TestSuite = match sonic_rs::from_str(&content) {
+    let test_suite: TestSuite = match serde_json::from_str(&content) {
         Ok(suite) => suite,
         Err(e) => {
             eprintln!("❌ Failed to parse test file: {e}");
@@ -199,7 +199,7 @@ async fn main() {
         } else if let Some(ref input) = test_case.input {
             input.clone()
         } else {
-            Value::new_null()
+            Value::Null
         };
 
         // Evaluate expression
@@ -227,11 +227,11 @@ async fn main() {
             if let Some(inputfile) = &test_case.inputfile {
                 println!("   Input file: {inputfile}");
             }
-            let expected_json = sonic_rs::to_string_pretty(&test_case.expected).unwrap_or_default();
-            let actual_json = match sonic_rs::to_string(&result) {
-                Ok(json_str) => match sonic_rs::from_str::<Value>(&json_str) {
+            let expected_json = serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
+            let actual_json = match serde_json::to_string(&result) {
+                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
                     Ok(v) => {
-                        sonic_rs::to_string_pretty(&v).unwrap_or_else(|_| format!("{result:?}"))
+                        serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{result:?}"))
                     }
                     Err(_) => format!("{result:?}"),
                 },

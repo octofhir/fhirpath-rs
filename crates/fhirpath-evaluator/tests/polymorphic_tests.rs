@@ -19,7 +19,7 @@
 
 use octofhir_fhirpath_evaluator::FhirPathEngine;
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::{JsonValueTrait, json};
+use serde_json::{ json};
 
 /// Test basic observation value resolution
 #[tokio::test]
@@ -49,7 +49,7 @@ async fn test_observation_value_quantity_resolution() -> Result<(), Box<dyn std:
             assert_eq!(items.len(), 1);
             // Should resolve to the valueQuantity object
             if let Some(FhirPathValue::JsonValue(json_val)) = items.iter().next() {
-                let sonic_val = json_val.as_sonic_value();
+                let sonic_val = json_val.as_value();
                 assert_eq!(sonic_val.get("value").unwrap().as_i64().unwrap(), 185);
                 assert_eq!(sonic_val.get("unit").unwrap().as_str().unwrap(), "lbs");
             } else {

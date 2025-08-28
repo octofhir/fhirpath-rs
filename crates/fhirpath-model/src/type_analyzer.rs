@@ -16,7 +16,6 @@
 
 use crate::type_object::{FhirPathTypeObject, TypeObjectMetadata};
 use crate::{FhirPathValue, JsonValue};
-use sonic_rs::JsonValueTrait;
 
 /// Utility for analyzing FHIRPath value types
 pub struct ValueTypeAnalyzer;
@@ -106,7 +105,7 @@ impl ValueTypeAnalyzer {
 
     /// Determine FHIR type from JSON value
     async fn determine_fhir_type_from_json(json: &JsonValue) -> Result<FhirPathTypeObject, String> {
-        let sonic_value = json.as_sonic_value();
+        let sonic_value = json.as_value();
 
         // Try to get resourceType first
         if let Some(resource_type) = sonic_value.get("resourceType").and_then(|rt| rt.as_str()) {
@@ -164,7 +163,7 @@ impl ValueTypeAnalyzer {
             ));
         }
 
-        if sonic_value.is_str() {
+        if sonic_value.is_string() {
             // Could be a FHIR string primitive
             return Ok(FhirPathTypeObject::fhir_type(
                 "string",

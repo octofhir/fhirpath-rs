@@ -13,7 +13,7 @@ FHIRPath is the standard query language for navigating FHIR healthcare data. Thi
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 [dependencies]
 octofhir-fhirpath = "0.4"
 tokio = { version = "1.0", features = ["full"] }
-sonic-rs = "0.5"
+serde_json = "1.0"
 ```
 
 ### As a CLI Tool
@@ -66,7 +66,7 @@ cargo install octofhir-fhirpath
 
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
-use sonic_rs::json;
+use serde_json::json;
 
 // Create engine (use MockModelProvider for simple cases)
 let engine = FhirPathEngine::with_mock_provider().await?;

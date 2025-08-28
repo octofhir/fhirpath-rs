@@ -20,9 +20,9 @@
 
 use crate::{FhirPathValue, JsonValue};
 
-/// High-level JSON parsing with automatic optimization
+/// High-level JSON parsing
 ///
-/// This function uses sonic-rs for maximum performance by default.
+/// This function uses serde_json for JSON parsing.
 /// The resulting JsonValue can be used directly with the FHIRPath engine.
 ///
 /// # Example
@@ -36,50 +36,49 @@ pub fn parse_json(input: &str) -> Result<JsonValue, String> {
     JsonValue::parse(input).map_err(|e| format!("JSON parsing error: {e}"))
 }
 
-/// Convert FhirPathValue to sonic_rs::Value for high-performance processing
+/// Convert FhirPathValue to serde_json::Value for JSON processing
 ///
-/// This provides direct access to the underlying sonic-rs value for
-/// users who want maximum performance.
+/// This provides direct access to the underlying serde_json value for
+/// users who want to work with standard JSON.
 ///
 /// # Example
 /// ```rust
 /// use octofhir_fhirpath::{utils, FhirPathValue};
 ///
 /// let value = FhirPathValue::String("hello".into());
-/// let sonic_value = utils::to_sonic(value).unwrap();
+/// let json_value = utils::to_json(value).unwrap();
 /// ```
-pub fn to_sonic(value: FhirPathValue) -> Result<sonic_rs::Value, String> {
+pub fn to_json(value: FhirPathValue) -> Result<serde_json::Value, String> {
     match value {
-        FhirPathValue::JsonValue(json_val) => Ok(json_val.as_sonic_value().clone()),
+        FhirPathValue::JsonValue(json_val) => Ok(json_val.as_value().clone()),
         _ => {
-            // Convert to JSON string and parse with sonic-rs
-            let json_str = value.to_sonic_value()?.to_string();
-            sonic_rs::from_str(&json_str).map_err(|e| format!("Sonic parse error: {e}"))
+            // Use the existing conversion from FhirPathValue to serde_json::Value
+            Ok(value.into())
         }
     }
 }
 
-/// Convert sonic_rs::Value to FhirPathValue
+/// Convert serde_json::Value to FhirPathValue
 ///
-/// This creates a FhirPathValue from a sonic_rs::Value, enabling
-/// users to leverage sonic-rs parsing with FHIRPath evaluation.
+/// This creates a FhirPathValue from a serde_json::Value, enabling
+/// users to use serde_json parsing with FHIRPath evaluation.
 ///
 /// # Example
 /// ```rust
 /// use octofhir_fhirpath::utils;
 ///
 /// let json_str = r#"{"name": "John"}"#;
-/// let sonic_value = sonic_rs::from_str(json_str).unwrap();
-/// let fhir_value = utils::from_sonic(sonic_value);
+/// let json_value = serde_json::from_str(json_str).unwrap();
+/// let fhir_value = utils::from_json(json_value);
 /// ```
-pub fn from_sonic(value: sonic_rs::Value) -> FhirPathValue {
+pub fn from_json(value: serde_json::Value) -> FhirPathValue {
     FhirPathValue::JsonValue(octofhir_fhirpath_model::JsonValue::new(value))
 }
 
-/// Convert between JSON string representations with automatic optimization
+/// Convert between JSON string representations
 ///
-/// This function parses JSON using sonic-rs and can optionally convert
-/// for high performance JSON processing.
+/// This function parses JSON using serde_json and can optionally convert
+/// for pretty printing.
 ///
 /// # Example
 /// ```rust
@@ -114,53 +113,17 @@ pub fn reformat_json(input: &str, pretty: bool) -> Result<String, String> {
 /// let fhir_value = utils::parse_as_fhir_value(json_str).unwrap();
 /// ```
 pub fn parse_as_fhir_value(input: &str) -> Result<FhirPathValue, String> {
-    let sonic_value: sonic_rs::Value =
-        sonic_rs::from_str(input).map_err(|e| format!("JSON parsing error: {e}"))?;
+    let json_value: serde_json::Value =
+        serde_json::from_str(input).map_err(|e| format!("JSON parsing error: {e}"))?;
     Ok(FhirPathValue::JsonValue(
-        octofhir_fhirpath_model::JsonValue::new(sonic_value),
+        octofhir_fhirpath_model::JsonValue::new(json_value),
     ))
-}
-
-/// Convert serde_json::Value to sonic_rs::Value
-///
-/// This function converts from serde_json::Value to sonic_rs::Value
-/// for users who need to integrate with existing serde_json-based code.
-///
-/// # Example
-/// ```rust
-/// use octofhir_fhirpath::utils;
-///
-/// let serde_value: serde_json::Value = serde_json::json!({"name": "John", "age": 30});
-/// let sonic_value = utils::serde_to_sonic(&serde_value).unwrap();
-/// ```
-pub fn serde_to_sonic(value: &serde_json::Value) -> Result<sonic_rs::Value, String> {
-    let json_str =
-        serde_json::to_string(value).map_err(|e| format!("Serde JSON serialization error: {e}"))?;
-    sonic_rs::from_str(&json_str).map_err(|e| format!("Sonic RS parsing error: {e}"))
-}
-
-/// Convert sonic_rs::Value to serde_json::Value
-///
-/// This function converts from sonic_rs::Value to serde_json::Value
-/// for users who need to integrate with existing serde_json-based code.
-///
-/// # Example
-/// ```rust
-/// use octofhir_fhirpath::utils;
-///
-/// let json_str = r#"{"name": "John", "age": 30}"#;
-/// let sonic_value: sonic_rs::Value = sonic_rs::from_str(json_str).unwrap();
-/// let serde_value = utils::sonic_to_serde(&sonic_value).unwrap();
-/// ```
-pub fn sonic_to_serde(value: &sonic_rs::Value) -> Result<serde_json::Value, String> {
-    let json_str = value.to_string();
-    serde_json::from_str(&json_str).map_err(|e| format!("Serde JSON parsing error: {e}"))
 }
 
 /// Convert serde_json::Value to FhirPathValue
 ///
 /// This function converts from serde_json::Value to FhirPathValue
-/// by first converting to sonic_rs::Value for optimal performance.
+/// directly.
 ///
 /// # Example
 /// ```rust
@@ -170,8 +133,7 @@ pub fn sonic_to_serde(value: &sonic_rs::Value) -> Result<serde_json::Value, Stri
 /// let fhir_value = utils::serde_to_fhir_value(&serde_value).unwrap();
 /// ```
 pub fn serde_to_fhir_value(value: &serde_json::Value) -> Result<FhirPathValue, String> {
-    let sonic_value = serde_to_sonic(value)?;
-    Ok(from_sonic(sonic_value))
+    Ok(from_json(value.clone()))
 }
 
 /// Convert FhirPathValue to serde_json::Value
@@ -187,15 +149,13 @@ pub fn serde_to_fhir_value(value: &serde_json::Value) -> Result<FhirPathValue, S
 /// let serde_value = utils::fhir_value_to_serde(&fhir_value).unwrap();
 /// ```
 pub fn fhir_value_to_serde(value: &FhirPathValue) -> Result<serde_json::Value, String> {
-    let sonic_value = to_sonic(value.clone())?;
-    sonic_to_serde(&sonic_value)
+    to_json(value.clone())
 }
 
 /// Parse JSON string using serde_json and convert to FhirPathValue
 ///
-/// This function is for users who prefer serde_json parsing but want
-/// to use the result with FHIRPath evaluation. Note that for optimal
-/// performance, prefer using `parse_as_fhir_value()` which uses sonic_rs directly.
+/// This function is for users who prefer serde_json parsing and want
+/// to use the result with FHIRPath evaluation.
 ///
 /// # Example
 /// ```rust
@@ -216,7 +176,6 @@ pub type JsonResult<T> = Result<T, String>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 
     #[test]
     fn test_parse_json() {
@@ -233,13 +192,13 @@ mod tests {
     }
 
     #[test]
-    fn test_sonic_conversion() {
+    fn test_json_conversion() {
         let json_str = r#"{"name": "John", "age": 30}"#;
-        let sonic_value: sonic_rs::Value = sonic_rs::from_str(json_str).unwrap();
-        let fhir_value = from_sonic(sonic_value.clone());
-        let back_to_sonic = to_sonic(fhir_value).unwrap();
+        let json_value: serde_json::Value = serde_json::from_str(json_str).unwrap();
+        let fhir_value = from_json(json_value.clone());
+        let back_to_json = to_json(fhir_value).unwrap();
 
-        assert_eq!(back_to_sonic, sonic_value);
+        assert_eq!(back_to_json, json_value);
     }
 
     #[test]
@@ -269,69 +228,9 @@ mod tests {
         assert!(pretty.contains("  "));
 
         let back_to_compact = reformat_json(&pretty, false).unwrap();
-        let parsed_original = sonic_rs::from_str::<sonic_rs::Value>(compact).unwrap();
-        let parsed_reformatted = sonic_rs::from_str::<sonic_rs::Value>(&back_to_compact).unwrap();
+        let parsed_original = serde_json::from_str::<serde_json::Value>(compact).unwrap();
+        let parsed_reformatted = serde_json::from_str::<serde_json::Value>(&back_to_compact).unwrap();
         assert_eq!(parsed_original, parsed_reformatted);
-    }
-
-    #[test]
-    fn test_serde_to_sonic_conversion() {
-        let serde_value: serde_json::Value = serde_json::json!({
-            "name": "John",
-            "age": 30,
-            "active": true,
-            "scores": [95, 87, 92]
-        });
-
-        let sonic_value = serde_to_sonic(&serde_value).unwrap();
-
-        // Verify the conversion preserved the data
-        assert_eq!(sonic_value.get("name").unwrap().as_str(), Some("John"));
-        assert_eq!(sonic_value.get("age").unwrap().as_i64(), Some(30));
-        assert_eq!(sonic_value.get("active").unwrap().as_bool(), Some(true));
-
-        let scores = sonic_value.get("scores").unwrap().as_array().unwrap();
-        assert_eq!(scores.len(), 3);
-        assert_eq!(scores[0].as_i64(), Some(95));
-    }
-
-    #[test]
-    fn test_sonic_to_serde_conversion() {
-        let json_str = r#"{"name":"Alice","age":25,"hobbies":["reading","coding"]}"#;
-        let sonic_value: sonic_rs::Value = sonic_rs::from_str(json_str).unwrap();
-
-        let serde_value = sonic_to_serde(&sonic_value).unwrap();
-
-        // Verify the conversion preserved the data
-        assert_eq!(serde_value["name"].as_str(), Some("Alice"));
-        assert_eq!(serde_value["age"].as_i64(), Some(25));
-
-        let hobbies = serde_value["hobbies"].as_array().unwrap();
-        assert_eq!(hobbies.len(), 2);
-        assert_eq!(hobbies[0].as_str(), Some("reading"));
-        assert_eq!(hobbies[1].as_str(), Some("coding"));
-    }
-
-    #[test]
-    fn test_round_trip_conversion() {
-        let original_serde: serde_json::Value = serde_json::json!({
-            "patient": {
-                "resourceType": "Patient",
-                "id": "123",
-                "name": [{
-                    "family": "Doe",
-                    "given": ["John", "William"]
-                }],
-                "birthDate": "1990-01-01",
-                "active": true
-            }
-        });
-
-        // serde -> sonic -> serde
-        let sonic_value = serde_to_sonic(&original_serde).unwrap();
-        let round_trip_serde = sonic_to_serde(&sonic_value).unwrap();
-
-        assert_eq!(original_serde, round_trip_serde);
     }
 
     #[test]
@@ -387,11 +286,11 @@ mod tests {
                     Some("Patient")
                 );
                 let name_json = json_val.get_property("name").unwrap();
-                let name_sonic = name_json.as_sonic_value();
-                let name_array = name_sonic.as_array().unwrap();
+                let name_json_value = name_json.as_value();
+                let name_array = name_json_value.as_array().unwrap();
                 assert_eq!(name_array.len(), 1);
-                let first_name_sonic = &name_array[0];
-                let first_name = octofhir_fhirpath_model::JsonValue::new(first_name_sonic.clone());
+                let first_name_json = &name_array[0];
+                let first_name = octofhir_fhirpath_model::JsonValue::new(first_name_json.clone());
                 assert_eq!(
                     first_name.get_property("family").unwrap().as_str(),
                     Some("Smith")

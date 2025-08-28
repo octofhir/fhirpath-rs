@@ -176,6 +176,42 @@ cli-analyze-validate EXPRESSION:
 cli-help:
     cargo run --package octofhir-fhirpath --bin octofhir-fhirpath help
 
+# Start Interactive REPL
+repl FILE="" *ARGS:
+    @if [ "{{FILE}}" = "" ]; then \
+        echo "🔥 Starting FHIRPath Interactive REPL"; \
+        echo "Type expressions to evaluate, or ':help' for commands"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath repl {{ARGS}}; \
+    else \
+        echo "🔥 Starting FHIRPath REPL with initial resource: {{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath repl --input "{{FILE}}" {{ARGS}}; \
+    fi
+
+# Enhanced CLI output format examples
+cli-pretty EXPRESSION FILE="":
+    @if [ "{{FILE}}" = "" ]; then \
+        echo "Reading FHIR resource from stdin..."; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features terminal -- --output-format pretty evaluate "{{EXPRESSION}}"; \
+    else \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features terminal -- --output-format pretty evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+    fi
+
+cli-json EXPRESSION FILE="":
+    @if [ "{{FILE}}" = "" ]; then \
+        echo "Reading FHIR resource from stdin..."; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format json evaluate "{{EXPRESSION}}"; \
+    else \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format json evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+    fi
+
+cli-table EXPRESSION FILE="":
+    @if [ "{{FILE}}" = "" ]; then \
+        echo "Reading FHIR resource from stdin..."; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format table evaluate "{{EXPRESSION}}"; \
+    else \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format table evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+    fi
+
 # Main CLI command - pass arguments directly to the CLI
 cli *ARGS:
     cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- {{ARGS}}

@@ -26,9 +26,10 @@ pub use octofhir_fhirpath_model as model;
 pub use octofhir_fhirpath_parser as parser;
 pub use octofhir_fhirpath_registry as registry;
 
-// Main implementation modules
-pub mod pipeline;
 pub mod utils;
+
+// CLI module
+pub mod cli;
 
 // Primary engine - use this for all new code
 pub use octofhir_fhirpath_evaluator::{EvaluationConfig, EvaluationContext, FhirPathEngine};
@@ -57,8 +58,8 @@ pub mod value_ext;
 
 // Re-export conversion utilities for easier access
 pub use utils::{
-    JsonResult, fhir_value_to_serde, from_sonic, parse_as_fhir_value, parse_json, parse_with_serde,
-    reformat_json, serde_to_fhir_value, serde_to_sonic, sonic_to_serde, to_sonic,
+    JsonResult, fhir_value_to_serde, from_json, parse_as_fhir_value, parse_json, parse_with_serde,
+    reformat_json, serde_to_fhir_value, to_json,
 };
 
 // Re-export analyzer components
@@ -147,7 +148,7 @@ impl FhirPathEngineWithAnalyzer {
     pub async fn evaluate(
         &self,
         expression: &str,
-        context: sonic_rs::Value,
+        context: serde_json::Value,
     ) -> octofhir_fhirpath_core::EvaluationResult<FhirPathValue> {
         self.engine.evaluate(expression, context).await
     }
@@ -156,7 +157,7 @@ impl FhirPathEngineWithAnalyzer {
     pub async fn evaluate_with_analysis(
         &self,
         expression: &str,
-        context: sonic_rs::Value,
+        context: serde_json::Value,
     ) -> octofhir_fhirpath_core::EvaluationResult<(FhirPathValue, Option<AnalysisResult>)> {
         // Perform analysis if analyzer is available
         let analysis = if let Some(analyzer) = &self.analyzer {

@@ -15,7 +15,6 @@
 //! Mock model provider for testing
 
 use super::provider::*;
-use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 use std::collections::HashMap;
 
 /// Mock model provider for testing
@@ -189,15 +188,15 @@ impl ModelProvider for MockModelProvider {
 
         // First check for direct extensions on the value
         if let FhirPathValue::JsonValue(json) = value {
-            if let Some(extensions) = json.as_sonic_value().get("extension") {
+            if let Some(extensions) = json.as_value().get("extension") {
                 if let Some(ext_array) = extensions.as_array() {
                     let mut matching_extensions = Vec::new();
                     for ext in ext_array {
                         if let Some(ext_obj) = ext.as_object() {
-                            if let Some(ext_url) = ext_obj.get(&"url") {
+                            if let Some(ext_url) = ext_obj.get("url") {
                                 if let Some(ext_url_str) = ext_url.as_str() {
                                     if ext_url_str == url {
-                                        // ext is already a sonic_rs::Value
+                                        // ext is already a serde_json::Value
                                         matching_extensions
                                             .push(FhirPathValue::resource_from_json(ext.clone()));
                                     }
@@ -221,7 +220,7 @@ impl ModelProvider for MockModelProvider {
                 | FhirPathValue::Boolean(_)
         ) {
             if let FhirPathValue::JsonValue(parent_json) = parent_resource {
-                let parent_obj = parent_json.as_sonic_value();
+                let parent_obj = parent_json.as_value();
 
                 // Check common underscore properties
                 let underscore_properties =
@@ -235,10 +234,10 @@ impl ModelProvider for MockModelProvider {
 
                                 for ext in ext_array {
                                     if let Some(ext_obj) = ext.as_object() {
-                                        if let Some(ext_url) = ext_obj.get(&"url") {
+                                        if let Some(ext_url) = ext_obj.get("url") {
                                             if let Some(ext_url_str) = ext_url.as_str() {
                                                 if ext_url_str == url {
-                                                    // ext is already a sonic_rs::Value
+                                                    // ext is already a serde_json::Value
                                                     matching_extensions.push(
                                                         FhirPathValue::resource_from_json(
                                                             ext.clone(),
@@ -437,9 +436,9 @@ impl ModelProvider for MockModelProvider {
     ) -> Option<crate::FhirPathValue> {
         let bundle_json = match bundle {
             crate::FhirPathValue::Resource(bundle_resource) => {
-                bundle_resource.as_sonic_value().clone()
+                bundle_resource.as_json().clone()
             }
-            crate::FhirPathValue::JsonValue(json_value) => json_value.as_sonic_value().clone(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_value().clone(),
             _ => return None,
         };
 
@@ -449,7 +448,7 @@ impl ModelProvider for MockModelProvider {
                     // Check fullUrl first (preferred for Bundle resolution)
                     if let Some(full_url) = entry.get("fullUrl").and_then(|u| u.as_str()) {
                         if full_url.ends_with(reference_url) || full_url == reference_url {
-                            // resource is already a sonic_rs::Value
+                            // resource is already a serde_json::Value
                             return Some(crate::FhirPathValue::resource_from_json(
                                 resource.clone(),
                             ));
@@ -463,7 +462,7 @@ impl ModelProvider for MockModelProvider {
                     ) {
                         let resource_ref = format!("{resource_type}/{id}");
                         if resource_ref == reference_url {
-                            // resource is already a sonic_rs::Value
+                            // resource is already a serde_json::Value
                             return Some(crate::FhirPathValue::resource_from_json(
                                 resource.clone(),
                             ));
@@ -481,8 +480,8 @@ impl ModelProvider for MockModelProvider {
         containing_resource: &crate::FhirPathValue,
     ) -> Option<crate::FhirPathValue> {
         let resource_json = match containing_resource {
-            crate::FhirPathValue::Resource(resource) => resource.as_sonic_value().clone(),
-            crate::FhirPathValue::JsonValue(json_value) => json_value.as_sonic_value().clone(),
+            crate::FhirPathValue::Resource(resource) => resource.as_json().clone(),
+            crate::FhirPathValue::JsonValue(json_value) => json_value.as_value().clone(),
             _ => return None,
         };
 
@@ -687,7 +686,7 @@ impl ModelProvider for MockModelProvider {
         // Check the data to see which specific property exists
         match data {
             crate::FhirPathValue::JsonValue(json_val) => {
-                let sonic_val = json_val.as_sonic_value();
+                let sonic_val = json_val.as_value();
 
                 // Check each variant to see which property exists in the data
                 for variant in &variants {

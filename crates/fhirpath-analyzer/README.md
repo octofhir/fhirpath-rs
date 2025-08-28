@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```rust
 use octofhir_fhirpath::FhirPathEngine;
 use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

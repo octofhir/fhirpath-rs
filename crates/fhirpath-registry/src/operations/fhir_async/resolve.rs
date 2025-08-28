@@ -5,7 +5,6 @@ use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::Result;
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::JsonValueTrait;
 
 /// Resolve function - resolves FHIR references using ModelProvider
 #[derive(Debug, Clone)]

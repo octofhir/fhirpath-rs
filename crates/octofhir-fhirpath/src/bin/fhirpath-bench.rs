@@ -98,8 +98,8 @@ impl Default for BenchmarkExpressions {
 }
 
 /// Sample FHIR data for benchmarking
-pub fn get_sample_patient() -> sonic_rs::Value {
-    sonic_rs::json!({
+pub fn get_sample_patient() -> serde_json::Value {
+    serde_json::json!({
         "resourceType": "Patient",
         "id": "example",
         "active": true,
@@ -142,16 +142,16 @@ pub fn get_sample_patient() -> sonic_rs::Value {
     })
 }
 
-pub fn get_sample_bundle() -> sonic_rs::Value {
+pub fn get_sample_bundle() -> serde_json::Value {
     // Load bundle-medium.json from the specs directory
     let bundle_path = "specs/fhirpath/tests/input/bundle-medium.json";
 
     match std::fs::read_to_string(bundle_path) {
         Ok(content) => {
-            sonic_rs::from_str(&content).unwrap_or_else(|e| {
+            serde_json::from_str(&content).unwrap_or_else(|e| {
                 eprintln!("Failed to parse bundle-medium.json: {e}");
                 // Fallback to a minimal bundle structure
-                sonic_rs::json!({
+                serde_json::json!({
                     "resourceType": "Bundle",
                     "id": "fallback-bundle",
                     "type": "collection",
@@ -169,7 +169,7 @@ pub fn get_sample_bundle() -> sonic_rs::Value {
                 "Using fallback bundle. Make sure to run benchmarks from the workspace root."
             );
             // Fallback to a minimal bundle structure
-            sonic_rs::json!({
+            serde_json::json!({
                 "resourceType": "Bundle",
                 "id": "fallback-bundle",
                 "type": "collection",
@@ -397,7 +397,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     async fn run_evaluate_benchmark(
         name: &str,
         expressions: &[&str],
-        data: &sonic_rs::Value,
+        data: &serde_json::Value,
         engine: &FhirPathEngine,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();

@@ -6,7 +6,7 @@ use crate::signature::{
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
 use octofhir_fhirpath_model::FhirPathValue;
-use sonic_rs::{JsonContainerTrait, JsonValueTrait};
+use serde_json;
 
 /// HasTemplateIdOf function: checks if a resource has a specific template ID/profile
 #[derive(Debug, Default, Clone)]
@@ -62,7 +62,7 @@ impl HasTemplateIdOfFunction {
     }
 
     /// Check template IDs in CDA format
-    fn check_template_ids(&self, template_ids: &sonic_rs::Value, target_id: &str) -> bool {
+    fn check_template_ids(&self, template_ids: &serde_json::Value, target_id: &str) -> bool {
         if template_ids.is_array() {
             if let Some(arr) = template_ids.as_array() {
                 arr.iter()
@@ -76,7 +76,7 @@ impl HasTemplateIdOfFunction {
     }
 
     /// Check a single template ID object
-    fn check_single_template(&self, template: &sonic_rs::Value, target_id: &str) -> bool {
+    fn check_single_template(&self, template: &serde_json::Value, target_id: &str) -> bool {
         if let Some(root) = template.get("root") {
             if let Some(root_str) = root.as_str() {
                 return root_str == target_id;
@@ -95,7 +95,7 @@ impl HasTemplateIdOfFunction {
     }
 
     /// Check FHIR profiles
-    fn check_profiles(&self, profiles: &sonic_rs::Value, target_id: &str) -> bool {
+    fn check_profiles(&self, profiles: &serde_json::Value, target_id: &str) -> bool {
         if profiles.is_array() {
             if let Some(arr) = profiles.as_array() {
                 arr.iter().any(|profile| {
@@ -116,7 +116,7 @@ impl HasTemplateIdOfFunction {
     }
 
     /// Check for implicit template matching based on document structure
-    fn check_implicit_template(&self, json_val: &sonic_rs::Value, target_id: &str) -> bool {
+    fn check_implicit_template(&self, json_val: &serde_json::Value, target_id: &str) -> bool {
         // Check if this is a ContinuityofCareDocumentCCD based on resourceType and content
         if target_id == "http://hl7.org/cda/us/ccda/StructureDefinition/ContinuityofCareDocumentCCD"
         {
@@ -134,13 +134,13 @@ impl HasTemplateIdOfFunction {
     }
 
     /// Check for patterns that indicate a Continuity of Care Document
-    fn has_ccd_content_pattern(&self, json_val: &sonic_rs::Value) -> bool {
+    fn has_ccd_content_pattern(&self, json_val: &serde_json::Value) -> bool {
         // Look for "Continuity of Care" pattern in nested text content
         self.search_for_ccd_pattern(json_val)
     }
 
     /// Recursively search for CCD pattern in JSON structure
-    fn search_for_ccd_pattern(&self, value: &sonic_rs::Value) -> bool {
+    fn search_for_ccd_pattern(&self, value: &serde_json::Value) -> bool {
         if let Some(s) = value.as_str() {
             s.contains("Continuity of Care") || s.contains("ContinuityofCare")
         } else if value.is_object() {

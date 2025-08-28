@@ -69,7 +69,7 @@ The analyzer integrates seamlessly with the existing FHIRPath engine:
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 use octofhir_fhirpath_analyzer::FhirPathAnalyzer;
 use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-use sonic_rs::json;
+use serde_json::json;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -123,7 +123,7 @@ Create a wrapper that validates before evaluation:
 ```rust
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 use octofhir_fhirpath_analyzer::{FhirPathAnalyzer, ValidationError};
-use sonic_rs::Value;
+use serde_json::Value;
 use std::sync::Arc;
 
 pub struct ValidatingFhirPathEngine {

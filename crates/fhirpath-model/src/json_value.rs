@@ -12,40 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Primary JSON value implementation using sonic-rs exclusively
+//! Primary JSON value implementation using serde_json
 //!
-//! This module provides the core JSON value type that uses sonic-rs for
-//! high-performance SIMD-accelerated parsing and manipulation.
+//! This module provides the core JSON value type that uses serde_json for
+//! JSON parsing and manipulation.
 
-use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value as InternalValue};
+use serde_json::Value as InternalValue;
 
-/// High-performance JSON value wrapper using sonic-rs exclusively
+/// JSON value wrapper using serde_json
 ///
 /// This is the primary JSON value type used throughout the FHIRPath engine.
-/// It leverages sonic-rs for SIMD-accelerated parsing and zero-copy operations.
+/// It leverages serde_json for JSON parsing and operations.
 #[derive(Clone, Debug)]
 pub struct JsonValue {
     inner: InternalValue,
 }
 
 impl JsonValue {
-    /// Parse JSON string with high-performance sonic-rs parser
-    pub fn parse(input: &str) -> Result<Self, sonic_rs::Error> {
-        let value = sonic_rs::from_str(input)?;
+    /// Parse JSON string with serde_json parser
+    pub fn parse(input: &str) -> Result<Self, serde_json::Error> {
+        let value = serde_json::from_str(input)?;
         Ok(Self { inner: value })
     }
 
-    /// Create a new JsonValue from sonic_rs::Value
+    /// Create a new JsonValue from serde_json::Value
     pub fn new(value: InternalValue) -> Self {
         Self { inner: value }
     }
 
-    /// Get a reference to the underlying sonic_rs::Value
+    /// Get a reference to the underlying serde_json::Value
     pub fn as_inner(&self) -> &InternalValue {
         &self.inner
     }
 
-    /// Convert to owned sonic_rs::Value
+    /// Convert to owned serde_json::Value
     pub fn into_inner(self) -> InternalValue {
         self.inner
     }
@@ -107,7 +107,7 @@ impl JsonValue {
 
     /// Check if value is string
     pub fn is_string(&self) -> bool {
-        self.inner.is_str()
+        self.inner.is_string()
     }
 
     /// Check if value is array
@@ -216,33 +216,33 @@ impl JsonValue {
     }
 
     /// Convert to JSON string
-    pub fn to_string(&self) -> Result<String, sonic_rs::Error> {
-        sonic_rs::to_string(&self.inner)
+    pub fn to_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self.inner)
     }
 
     /// Convert to pretty-printed JSON string
-    pub fn to_string_pretty(&self) -> Result<String, sonic_rs::Error> {
-        sonic_rs::to_string_pretty(&self.inner)
+    pub fn to_string_pretty(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(&self.inner)
     }
 
     // === Compatibility Methods for Migration ===
 
-    /// Get as sonic_rs::Value directly (zero-copy)
-    pub fn as_sonic_value(&self) -> &InternalValue {
+    /// Get as serde_json::Value directly (zero-copy)
+    pub fn as_value(&self) -> &InternalValue {
         &self.inner
     }
 
-    /// Create from any serializable type using sonic-rs
+    /// Create from any serializable type using serde_json
     pub fn from_value<T: serde::Serialize>(value: &T) -> Result<Self, String> {
         let inner =
-            sonic_rs::to_value(value).map_err(|e| format!("sonic-rs serialization error: {e}"))?;
+            serde_json::to_value(value).map_err(|e| format!("serde_json serialization error: {e}"))?;
         Ok(Self { inner })
     }
 
-    /// Convert to any deserializable type using sonic-rs
+    /// Convert to any deserializable type using serde_json
     pub fn to_value<T: serde::de::DeserializeOwned>(&self) -> Result<T, String> {
-        sonic_rs::from_value(&self.inner)
-            .map_err(|e| format!("sonic-rs deserialization error: {e}"))
+        serde_json::from_value(self.inner.clone())
+            .map_err(|e| format!("serde_json deserialization error: {e}"))
     }
 }
 
@@ -299,12 +299,10 @@ impl<'a> Iterator for ObjectIter<'a> {
     type Item = (String, JsonValue);
 
     fn next(&mut self) -> Option<Self::Item> {
-        use sonic_rs::{JsonContainerTrait, JsonValueTrait};
-
         // Initialize keys on first iteration
         if !self.initialized {
             if let Some(obj) = self.value.as_object() {
-                self.keys = obj.iter().map(|(k, _)| k.to_string()).collect();
+                self.keys = obj.keys().map(|k| k.to_string()).collect();
             }
             self.initialized = true;
         }
@@ -414,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_from_to_value() {
-        let original = sonic_rs::json!({"name": "John", "age": 30});
+        let original = serde_json::json!({"name": "John", "age": 30});
         let json_value = JsonValue::from_value(&original).unwrap();
 
         assert!(json_value.is_object());

@@ -26,7 +26,6 @@ use octofhir_fhirpath_model::{
     polymorphic_resolver::PolymorphicPathResolver,
     provider::{ModelProvider, TypeReflectionInfo},
 };
-use sonic_rs::{JsonContainerTrait, JsonValueTrait};
 
 /// Enhanced navigation engine with polymorphic support
 #[derive(Debug)]
@@ -191,7 +190,7 @@ impl PolymorphicNavigationEngine {
         }
 
         // If direct access failed, try FHIR choice type pattern matching
-        let sonic_value = json.as_sonic_value();
+        let sonic_value = json.as_value();
         if let Some(obj) = sonic_value.as_object() {
             // Look for properties that start with the requested property name followed by an uppercase letter
             for (key, value) in obj.iter() {
@@ -225,7 +224,7 @@ impl PolymorphicNavigationEngine {
         Box::pin(async move {
             match value {
                 FhirPathValue::JsonValue(json) => {
-                    let sonic_value = json.as_sonic_value();
+                    let sonic_value = json.as_value();
                     if let Some(resource_type) =
                         sonic_value.get("resourceType").and_then(|rt| rt.as_str())
                     {
@@ -261,7 +260,7 @@ impl PolymorphicNavigationEngine {
         // Create a deterministic cache key based on value type and path
         match value {
             FhirPathValue::JsonValue(json) => {
-                let sonic_value = json.as_sonic_value();
+                let sonic_value = json.as_value();
                 if let Some(resource_type) =
                     sonic_value.get("resourceType").and_then(|rt| rt.as_str())
                 {
@@ -359,7 +358,7 @@ impl PolymorphicNavigationFactory {
 mod tests {
     use super::*;
     use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-    use sonic_rs::json;
+    use serde_json::json;
 
     async fn create_test_engine() -> PolymorphicNavigationEngine {
         let model_provider = Arc::new(MockModelProvider::new());

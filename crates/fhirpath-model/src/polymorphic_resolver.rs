@@ -20,7 +20,7 @@
 
 use dashmap::DashMap;
 use regex::Regex;
-use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -932,7 +932,7 @@ pub use crate::polymorphic_factory::PolymorphicResolverFactory;
 mod tests {
     use super::*;
     use crate::mock_provider::MockModelProvider;
-    use sonic_rs::json;
+    use serde_json::json;
 
     async fn create_test_resolver() -> PolymorphicPathResolver {
         let model_provider = Arc::new(MockModelProvider::new());

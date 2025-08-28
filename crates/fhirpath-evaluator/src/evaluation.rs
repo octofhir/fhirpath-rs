@@ -9,7 +9,6 @@ use crate::parsing::{parse_fhirpath_date, parse_fhirpath_datetime, parse_fhirpat
 use octofhir_fhirpath_ast::{ExpressionNode, LiteralValue};
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
 use octofhir_fhirpath_model::{Collection, FhirPathValue};
-use sonic_rs::JsonValueTrait;
 use std::str::FromStr;
 
 /// Core evaluation methods for the FHIRPath engine
@@ -242,7 +241,7 @@ impl crate::FhirPathEngine {
                     let inner = prop_value.as_inner();
                     if inner.is_boolean()
                         || inner.is_number()
-                        || (inner.is_str() && !inner.as_str().unwrap_or("").starts_with('@'))
+                        || (inner.is_string() && !inner.as_str().unwrap_or("").starts_with('@'))
                     {
                         // Primitive FHIR types - preserve context with JsonValue wrapper
                         Ok(FhirPathValue::JsonValue(prop_value))

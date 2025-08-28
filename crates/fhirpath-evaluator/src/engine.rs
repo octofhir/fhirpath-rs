@@ -30,7 +30,7 @@
 //!
 //! ```rust
 //! use octofhir_fhirpath_evaluator::FhirPathEngine;
-//! use sonic_rs::json;
+//! use serde_json::json;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -101,7 +101,7 @@ use std::sync::Arc;
 /// Basic usage:
 /// ```rust
 /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-/// use sonic_rs::json;
+/// use serde_json::json;
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -399,7 +399,7 @@ impl FhirPathEngine {
     ///
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -472,7 +472,7 @@ impl FhirPathEngine {
     ///
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -612,7 +612,7 @@ impl FhirPathEngine {
     /// Basic property access:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -631,7 +631,7 @@ impl FhirPathEngine {
     /// Lambda expressions:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -654,7 +654,7 @@ impl FhirPathEngine {
     /// Mathematical expressions:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -668,7 +668,7 @@ impl FhirPathEngine {
     pub async fn evaluate(
         &self,
         expression: &str,
-        input_data: sonic_rs::Value,
+        input_data: serde_json::Value,
     ) -> EvaluationResult<FhirPathValue> {
         // Parse expression
         let ast = match octofhir_fhirpath_parser::parse_expression(expression) {
@@ -748,7 +748,7 @@ impl FhirPathEngine {
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
     /// use octofhir_fhirpath_model::FhirPathValue;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
     /// # #[tokio::main]
@@ -767,7 +767,7 @@ impl FhirPathEngine {
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
     /// use octofhir_fhirpath_model::FhirPathValue;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
     /// # #[tokio::main]
@@ -791,7 +791,7 @@ impl FhirPathEngine {
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
     /// use octofhir_fhirpath_model::FhirPathValue;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
     /// # #[tokio::main]
@@ -831,7 +831,7 @@ impl FhirPathEngine {
     pub async fn evaluate_with_variables(
         &self,
         expression: &str,
-        input_data: sonic_rs::Value,
+        input_data: serde_json::Value,
         variables: std::collections::HashMap<String, FhirPathValue>,
     ) -> EvaluationResult<FhirPathValue> {
         // Parse expression
@@ -892,7 +892,7 @@ impl FhirPathEngine {
     ///
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use sonic_rs::json;
+    /// use serde_json::json;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -923,9 +923,6 @@ impl FhirPathEngine {
 
     /// Evaluate a FHIRPath expression with JSON string input using adaptive parsing.
     ///
-    /// This method automatically selects the optimal JSON parser based on input size:
-    /// - sonic-rs for large JSON (when available) for enhanced performance
-    /// - sonic_rs for high-performance JSON processing
     ///
     /// # Arguments
     ///
@@ -966,14 +963,13 @@ impl FhirPathEngine {
     ) -> EvaluationResult<FhirPathValue> {
         use octofhir_fhirpath_model::JsonValue;
 
-        // Parse JSON using sonic_rs via JsonValue
         let json_value =
             JsonValue::parse(json_str).map_err(|e| EvaluationError::InvalidOperation {
                 message: format!("JSON parsing failed: {e}"),
             })?;
 
-        // Use sonic_rs::Value directly
-        let sonic_value = json_value.as_sonic_value().clone();
+        // Use serde_json::Value directly
+        let sonic_value = json_value.as_value().clone();
 
         self.evaluate(expression, sonic_value).await
     }

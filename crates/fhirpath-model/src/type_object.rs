@@ -18,7 +18,7 @@
 //! enabling proper `type().namespace` and `type().name` functionality.
 
 use crate::{FhirPathValue, JsonValue};
-use sonic_rs::json;
+use serde_json::json;
 use std::sync::Arc;
 
 /// FHIRPath type object with namespace and name properties
@@ -151,7 +151,7 @@ pub use crate::type_analyzer::ValueTypeAnalyzer;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sonic_rs::JsonValueTrait;
+    use serde_json;
 
     #[test]
     fn test_system_type_object() {
@@ -179,7 +179,7 @@ mod tests {
 
         match value {
             FhirPathValue::JsonValue(json) => {
-                let sonic_val = json.as_sonic_value();
+                let sonic_val = json.as_value();
                 assert_eq!(
                     sonic_val.get("namespace").and_then(|v| v.as_str()),
                     Some("System")

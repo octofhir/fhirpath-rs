@@ -17,7 +17,7 @@
 //! This module provides comprehensive mapping and resolution of FHIR choice types
 //! (value[x] patterns) to enable proper navigation of polymorphic properties.
 
-use sonic_rs::JsonValueTrait;
+use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -346,7 +346,7 @@ impl ChoiceTypeMapper {
         &self,
         resource_type: &str,
         base_property: &str,
-        json_data: &sonic_rs::Value,
+        json_data: &serde_json::Value,
     ) -> Option<String> {
         if let Some(variants) = self.get_choice_variants(resource_type, base_property) {
             // Check which specific property exists in the data
@@ -436,7 +436,7 @@ impl Default for ChoiceTypeMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sonic_rs::json;
+    use serde_json::json;
 
     #[test]
     fn test_observation_choice_types() {

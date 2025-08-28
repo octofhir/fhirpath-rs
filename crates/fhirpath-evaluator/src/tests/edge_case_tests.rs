@@ -15,7 +15,7 @@
 //! Edge case and error handling tests
 
 use super::{TestUtils, as_single_integer};
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::test]
 async fn test_type_coercion_edge_cases() {

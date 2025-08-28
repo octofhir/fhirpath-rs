@@ -15,7 +15,7 @@
 //! Compatibility tests to ensure unified engine matches existing API behavior
 
 use super::{TestUtils, as_collection, as_single_boolean, as_single_string, count};
-use sonic_rs::json;
+use serde_json::json;
 
 #[tokio::test]
 async fn test_api_compatibility() {

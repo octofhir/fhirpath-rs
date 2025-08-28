@@ -31,7 +31,6 @@ async-trait = { workspace = true }
 async-recursion = "1.1"
 
 # JSON processing
-sonic-rs = { workspace = true }
 
 # Error handling and data structures
 thiserror = { workspace = true }
