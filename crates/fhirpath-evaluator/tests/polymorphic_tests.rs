@@ -19,7 +19,7 @@
 
 use octofhir_fhirpath_evaluator::FhirPathEngine;
 use octofhir_fhirpath_model::FhirPathValue;
-use serde_json::{ json};
+use serde_json::json;
 
 /// Test basic observation value resolution
 #[tokio::test]

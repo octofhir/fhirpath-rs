@@ -234,8 +234,8 @@ impl JsonValue {
 
     /// Create from any serializable type using serde_json
     pub fn from_value<T: serde::Serialize>(value: &T) -> Result<Self, String> {
-        let inner =
-            serde_json::to_value(value).map_err(|e| format!("serde_json serialization error: {e}"))?;
+        let inner = serde_json::to_value(value)
+            .map_err(|e| format!("serde_json serialization error: {e}"))?;
         Ok(Self { inner })
     }
 

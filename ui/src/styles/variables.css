@@ -1,0 +1,114 @@
+/* CSS Custom Properties for Theming */
+:root {
+  /* OctoFHIR Logo-Inspired Color Palette - Lower Contrast */
+  --color-primary: #9c6fb8;        /* Softer purple */
+  --color-primary-light: rgba(156, 111, 184, 0.12);
+  --color-primary-dark: #7a5793;   /* Softer darker purple */
+  --color-primary-gradient: linear-gradient(135deg, #9c6fb8 0%, #7a5793 100%);
+  
+  --color-secondary: #1a1a24;      /* Softer dark blue */
+  --color-secondary-dark: #0f0f18;
+  --color-secondary-light: #252538;
+  
+  --color-bg: #1a1a24;             /* Softer background */
+  --color-surface: #242438;        /* Less contrasting surface */
+  --color-surface-elevated: #2d2d42;
+  --color-border: #404054;         /* Softer borders */
+  --color-border-light: #525266;
+  --color-border-glow: rgba(156, 111, 184, 0.25);  /* Softer purple glow */
+  
+  --color-text: #e2e8f0;           /* Softer white text */
+  --color-text-muted: #a0aec0;     /* Softer muted text */
+  --color-text-light: #718096;     /* Softer light text */
+  --color-text-accent: #9c6fb8;    /* Softer purple accent */
+  
+  --color-success: #4ade80;         /* Softer green */
+  --color-success-light: rgba(74, 222, 128, 0.12);
+  --color-success-glow: rgba(74, 222, 128, 0.25);
+  
+  --color-error: #f87171;           /* Softer red */
+  --color-error-light: rgba(248, 113, 113, 0.12);
+  --color-error-glow: rgba(248, 113, 113, 0.25);
+  
+  --color-warning: #fb923c;         /* Softer orange */
+  --color-warning-light: rgba(251, 146, 60, 0.12);
+  --color-warning-glow: rgba(251, 146, 60, 0.25);
+  
+  --color-info: #9c6fb8;            /* Softer purple */
+  --color-info-light: rgba(156, 111, 184, 0.12);
+  --color-info-glow: rgba(156, 111, 184, 0.25);
+  
+  --color-accent-1: #f87171;        /* Softer red */
+  --color-accent-2: #fb923c;        /* Softer orange */  
+  --color-accent-3: #c084fc;        /* Softer light purple */
+  
+  /* Compact Spacing (6px grid) */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.375rem;  /* 6px */
+  --space-md: 0.75rem;   /* 12px */
+  --space-lg: 1rem;      /* 16px */
+  --space-xl: 1.25rem;   /* 20px */
+  --space-2xl: 1.75rem;  /* 28px */
+  --space-3xl: 2.25rem;  /* 36px */
+  
+  /* Typography */
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-md: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* Borders */
+  --border-radius-sm: 0.25rem;  /* 4px */
+  --border-radius-md: 0.375rem; /* 6px */
+  --border-radius-lg: 0.5rem;   /* 8px */
+  --border-radius-xl: 0.75rem;  /* 12px */
+  
+  /* Compact OctoFHIR Shadows & Effects - Softer */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(156, 111, 184, 0.08);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(156, 111, 184, 0.08);
+  --shadow-xl: 0 6px 16px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(156, 111, 184, 0.1);
+  --shadow-glow: 0 0 8px rgba(156, 111, 184, 0.2);
+  --shadow-error-glow: 0 0 8px rgba(248, 113, 113, 0.2);
+  --shadow-success-glow: 0 0 8px rgba(74, 222, 128, 0.2);
+  --shadow-warning-glow: 0 0 8px rgba(251, 146, 60, 0.2);
+  
+  /* OctoFHIR Gradients - Softer */
+  --gradient-bg: linear-gradient(135deg, #1a1a24 0%, #242438 100%);
+  --gradient-surface: linear-gradient(135deg, #242438 0%, #2d2d42 100%);
+  --gradient-primary: linear-gradient(135deg, #9c6fb8 0%, #7a5793 100%);
+  --gradient-error: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  --gradient-success: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  --gradient-warning: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+  
+  /* Animation Curves */
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+  
+  /* Z-index scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}

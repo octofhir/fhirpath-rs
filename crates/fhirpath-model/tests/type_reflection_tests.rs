@@ -15,7 +15,7 @@
 //! Comprehensive tests for the FHIRPath type reflection system
 
 use octofhir_fhirpath_model::{FhirPathTypeObject, FhirPathValue, JsonValue, ValueTypeAnalyzer};
-use serde_json::{ json};
+use serde_json::json;
 use std::sync::Arc;
 
 #[tokio::test]

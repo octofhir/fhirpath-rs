@@ -18,7 +18,11 @@ impl ExtensionFunction {
     }
 
     /// Find extensions in JSON, checking both direct extensions and underscore elements
-    fn find_extensions_in_json(&self, json: &serde_json::Value, url: &str) -> Result<FhirPathValue> {
+    fn find_extensions_in_json(
+        &self,
+        json: &serde_json::Value,
+        url: &str,
+    ) -> Result<FhirPathValue> {
         let mut matching_extensions = Vec::new();
 
         // First, check for direct extension array

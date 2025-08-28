@@ -69,9 +69,10 @@ impl DiagnosticReporter {
 
     /// Generate summary statistics
     fn generate_summary(&self) -> DiagnosticSummary {
-        let mut summary = DiagnosticSummary::default();
-
-        summary.total_count = self.diagnostics.len();
+        let mut summary = DiagnosticSummary {
+            total_count: self.diagnostics.len(),
+            ..Default::default()
+        };
 
         for diagnostic in &self.diagnostics {
             match diagnostic.severity {
@@ -168,7 +169,7 @@ impl fmt::Display for DiagnosticReport {
         writeln!(f)?;
 
         for diagnostic in &self.diagnostics {
-            writeln!(f, "{}", diagnostic)?;
+            writeln!(f, "{diagnostic}")?;
         }
 
         Ok(())

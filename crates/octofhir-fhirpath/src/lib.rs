@@ -28,7 +28,8 @@ pub use octofhir_fhirpath_registry as registry;
 
 pub mod utils;
 
-// CLI module
+// CLI module (includes server functionality) - optional
+#[cfg(feature = "cli")]
 pub mod cli;
 
 // Primary engine - use this for all new code
@@ -78,6 +79,7 @@ pub struct FhirPathEngineWithAnalyzer {
     /// Optional analyzer
     pub analyzer: Option<FhirPathAnalyzer>,
     /// Model provider (kept as Arc for analyzer)
+    #[allow(dead_code)]
     model_provider: std::sync::Arc<dyn ModelProvider>,
 }
 

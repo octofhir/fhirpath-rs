@@ -493,9 +493,7 @@ impl From<Value> for FhirPathValue {
             Self::Collection(items)
         } else if let Some(obj) = value.as_object() {
             // Check if this looks like a Quantity
-            if obj.contains_key("value")
-                && (obj.contains_key("unit") || obj.contains_key("code"))
-            {
+            if obj.contains_key("value") && (obj.contains_key("unit") || obj.contains_key("code")) {
                 if let Some(value_json) = obj.get("value") {
                     if let Some(value_num) = value_json.as_f64() {
                         let unit = obj

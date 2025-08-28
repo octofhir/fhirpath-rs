@@ -393,7 +393,7 @@ impl FhirPathError {
     pub fn arithmetic_overflow(operation: impl Into<String>) -> Self {
         let op = operation.into();
         Self::ArithmeticError {
-            message: format!("Arithmetic overflow in {}", op),
+            message: format!("Arithmetic overflow in {op}"),
             operation: Some(op),
         }
     }
@@ -412,15 +412,14 @@ impl FhirPathError {
     ) -> Self {
         let function_name = name.into();
         let expected_desc = match max_arity {
-            Some(max) if min_arity == max => format!("{}", min_arity),
-            Some(max) => format!("{}-{}", min_arity, max),
-            None => format!("{} or more", min_arity),
+            Some(max) if min_arity == max => format!("{min_arity}"),
+            Some(max) => format!("{min_arity}-{max}"),
+            None => format!("{min_arity} or more"),
         };
         Self::FunctionError {
             function_name: function_name.clone(),
             message: format!(
-                "Function '{}' expects {} arguments, got {}",
-                function_name, expected_desc, actual
+                "Function '{function_name}' expects {expected_desc} arguments, got {actual}"
             ),
             arguments: None,
             expected_args: Some(expected_desc),

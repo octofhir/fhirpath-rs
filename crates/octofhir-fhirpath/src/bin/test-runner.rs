@@ -227,7 +227,8 @@ async fn main() {
             if let Some(inputfile) = &test_case.inputfile {
                 println!("   Input file: {inputfile}");
             }
-            let expected_json = serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
+            let expected_json =
+                serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
             let actual_json = match serde_json::to_string(&result) {
                 Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
                     Ok(v) => {

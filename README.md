@@ -7,7 +7,7 @@
 
 **Fast, safe, and production-ready FHIRPath implementation in Rust.**
 
-FHIRPath is the standard query language for navigating FHIR healthcare data. This library provides high-performance evaluation with **87.0% specification compliance**.
+FHIRPath is the standard query language for navigating FHIR healthcare data. This library provides high-performance evaluation with **90.9% specification compliance**.
 
 ## ✨ Quick Example
 
@@ -99,6 +99,13 @@ let result = engine.evaluate("Patient.active is Boolean", patient).await?;
 # Evaluate expression against JSON file
 octofhir-fhirpath evaluate "Patient.name.given" --input patient.json
 
+# Interactive REPL for rapid prototyping
+octofhir-fhirpath repl --input patient.json
+
+# Enhanced output formats
+octofhir-fhirpath evaluate "Patient.name" --output-format pretty --input patient.json
+octofhir-fhirpath evaluate "Patient.name.given" --output-format table --input patient.json
+
 # Pipe JSON data
 echo '{"resourceType":"Patient","active":true}' | \
   octofhir-fhirpath evaluate "Patient.active"
@@ -107,6 +114,9 @@ echo '{"resourceType":"Patient","active":true}' | \
 octofhir-fhirpath evaluate "age > %minAge" \
   --input patient.json \
   --variable "minAge=18"
+
+# Web interface and HTTP server
+octofhir-fhirpath server --port 8080
 ```
 
 See **[CLI.md](CLI.md)** for complete command-line reference.
@@ -115,10 +125,11 @@ See **[CLI.md](CLI.md)** for complete command-line reference.
 
 - **Fast**: High-performance tokenizer, parser, and evaluator
 - **Safe**: 100% memory-safe Rust with zero unsafe blocks
-- **Compliant**: 87.0% FHIRPath specification compliance (885/1017 tests)
+- **Compliant**: 90.9% FHIRPath specification compliance (1003/1104 tests)
 - **Production Ready**: Thread-safe, async-first, comprehensive error handling
 - **FHIR Support**: Full R4/R5 support with Bundle resolution and type checking
-- **Developer Friendly**: Rich error messages, CLI tools, extensive documentation
+- **Interactive**: Rich REPL with auto-completion, history, and help system
+- **Developer Friendly**: Multiple output formats, web interface, extensive documentation
 
 ## 🔧 Common Use Cases
 
@@ -153,10 +164,12 @@ engine.evaluate("MedicationRequest.dosageInstruction.doseAndRate.doseQuantity.va
 
 | Guide | Description |
 |-------|-------------|
-| **[CLI.md](CLI.md)** | Complete command-line tool reference |
+| **[CLI.md](CLI.md)** | Complete command-line tool reference with REPL and server docs |
 | **[API Documentation](https://docs.rs/octofhir-fhirpath)** | Full Rust API documentation |
 | **[Examples](examples/)** | Code examples and patterns |
 | **[Specification Compliance](TEST_COVERAGE.md)** | Detailed compliance report |
+| **[Architecture Guide](docs/ARCHITECTURE.md)** | Technical architecture and design patterns |
+| **[Development Guide](docs/DEVELOPMENT.md)** | Contributing and development setup |
 
 ## ⚡ Performance
 
@@ -176,7 +189,7 @@ just test
 just --list
 ```
 
-## 📋 Specification Compliance: 87.0%
+## 📋 Specification Compliance: 90.9%
 
 ✅ **Fully Supported (100%)**
 - Path navigation and filtering
@@ -185,12 +198,13 @@ just --list
 - String manipulation functions
 - Boolean logic and comparisons
 - Date/time operations
-
-🟡 **Well Supported (70%+)**
 - Type operations (`is`, `as`, `ofType`)
+
+🟡 **Well Supported (85%+)**
 - FHIR-specific functions (`resolve`, `extension`, `children`)
 - Advanced filtering with environment variables
 - Lambda expressions and complex iterations
+- Aggregate functions and advanced collections
 
 See **[TEST_COVERAGE.md](TEST_COVERAGE.md)** for detailed compliance status.
 

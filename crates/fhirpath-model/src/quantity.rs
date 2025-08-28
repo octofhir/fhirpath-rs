@@ -373,7 +373,7 @@ impl Quantity {
     pub fn to_json(&self) -> serde_json::Value {
         // Convert decimal to JSON value - use string representation for precision
         let value_str = self.value.to_string();
-        
+
         if let Some(unit) = &self.unit {
             serde_json::json!({
                 "value": value_str,

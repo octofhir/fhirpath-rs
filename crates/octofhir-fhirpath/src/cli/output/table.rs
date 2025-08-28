@@ -14,9 +14,9 @@
 
 //! Table output formatter
 
-use super::{OutputFormatter, EvaluationOutput, ParseOutput, AnalysisOutput, FormatError};
-use tabled::{Table, Tabled};
+use super::{AnalysisOutput, EvaluationOutput, FormatError, OutputFormatter, ParseOutput};
 use octofhir_fhirpath_model::FhirPathValue;
+use tabled::{Table, Tabled};
 
 pub struct TableFormatter {
     _colored: bool,
@@ -69,13 +69,15 @@ impl OutputFormatter for TableFormatter {
                 if let Some(ref value) = output.result {
                     // Convert FhirPathValue to table rows
                     let rows = match value {
-                        FhirPathValue::Collection(values) => {
-                            values.iter().enumerate().map(|(i, v)| ResultRow {
+                        FhirPathValue::Collection(values) => values
+                            .iter()
+                            .enumerate()
+                            .map(|(i, v)| ResultRow {
                                 index: i.to_string(),
                                 value_type: get_fhir_type_name(v),
                                 value: format_fhir_value(v),
-                            }).collect()
-                        },
+                            })
+                            .collect(),
                         single_value => vec![ResultRow {
                             index: "0".to_string(),
                             value_type: get_fhir_type_name(single_value),
@@ -90,8 +92,10 @@ impl OutputFormatter for TableFormatter {
                     }
 
                     result.push_str(&format!("\nExpression: {}\n", output.expression));
-                    result.push_str(&format!("Execution time: {:.1}ms\n", 
-                                           output.execution_time.as_secs_f64() * 1000.0));
+                    result.push_str(&format!(
+                        "Execution time: {:.1}ms\n",
+                        output.execution_time.as_secs_f64() * 1000.0
+                    ));
                     if output.metadata.cache_hits > 0 {
                         result.push_str(&format!("Cache hits: {}\n", output.metadata.cache_hits));
                     }
@@ -135,13 +139,16 @@ impl OutputFormatter for TableFormatter {
 
             if !output.validation_errors.is_empty() {
                 result.push_str("❌ Validation Errors\n");
-                
-                let error_rows: Vec<ValidationErrorRow> = output.validation_errors.iter()
+
+                let error_rows: Vec<ValidationErrorRow> = output
+                    .validation_errors
+                    .iter()
                     .map(|e| ValidationErrorRow {
                         error_type: format!("{:?}", e.error_type),
                         message: e.message.clone(),
                         suggestions: e.suggestions.join(", "),
-                    }).collect();
+                    })
+                    .collect();
 
                 let table = Table::new(error_rows).to_string();
                 result.push_str(&table);
@@ -156,16 +163,25 @@ impl OutputFormatter for TableFormatter {
 
                     if !analysis.type_annotations.is_empty() {
                         result.push_str("\n🔍 Type Annotations:\n");
-                        
-                        let type_rows: Vec<TypeAnnotationRow> = analysis.type_annotations.iter()
+
+                        let type_rows: Vec<TypeAnnotationRow> = analysis
+                            .type_annotations
+                            .iter()
                             .map(|(node_id, info)| TypeAnnotationRow {
                                 node_id: node_id.to_string(),
-                                fhir_path_type: info.fhir_path_type.as_ref()
-                                    .map(|t| t.to_string()).unwrap_or_else(|| "Unknown".to_string()),
-                                model_type: info.model_type.as_ref()
-                                    .map(|t| t.to_string()).unwrap_or_else(|| "Unknown".to_string()),
+                                fhir_path_type: info
+                                    .fhir_path_type
+                                    .as_ref()
+                                    .map(|t| t.to_string())
+                                    .unwrap_or_else(|| "Unknown".to_string()),
+                                model_type: info
+                                    .model_type
+                                    .as_ref()
+                                    .map(|t| t.to_string())
+                                    .unwrap_or_else(|| "Unknown".to_string()),
                                 cardinality: format!("{:?}", info.cardinality),
-                            }).collect();
+                            })
+                            .collect();
 
                         let table = Table::new(type_rows).to_string();
                         result.push_str(&table);
@@ -177,8 +193,7 @@ impl OutputFormatter for TableFormatter {
                         for func_analysis in &analysis.function_calls {
                             result.push_str(&format!(
                                 "  - {} ({})\n",
-                                func_analysis.function_name, 
-                                func_analysis.signature.description
+                                func_analysis.function_name, func_analysis.signature.description
                             ));
                             for error in &func_analysis.validation_errors {
                                 result.push_str(&format!("    ⚠️  {}\n", error.message));
@@ -226,7 +241,7 @@ fn format_fhir_value(value: &FhirPathValue) -> String {
             } else {
                 json
             }
-        },
+        }
         Err(_) => format!("{value:?}"),
     }
 }

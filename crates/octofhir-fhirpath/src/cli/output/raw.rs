@@ -14,7 +14,7 @@
 
 //! Raw text output formatter (current default)
 
-use super::{OutputFormatter, EvaluationOutput, ParseOutput, AnalysisOutput, FormatError};
+use super::{AnalysisOutput, EvaluationOutput, FormatError, OutputFormatter, ParseOutput};
 
 pub struct RawFormatter;
 
@@ -83,7 +83,10 @@ impl OutputFormatter for RawFormatter {
                 };
                 result.push_str(&format!("  {} {}\n", icon, error.message));
                 if !error.suggestions.is_empty() {
-                    result.push_str(&format!("    💡 Suggestions: {}\n", error.suggestions.join(", ")));
+                    result.push_str(&format!(
+                        "    💡 Suggestions: {}\n",
+                        error.suggestions.join(", ")
+                    ));
                 }
             }
             return Ok(result);
@@ -104,8 +107,12 @@ impl OutputFormatter for RawFormatter {
                         if let Some(ref model_type) = semantic_info.model_type {
                             result.push_str(&format!("    FHIR Model Type: {model_type}\n"));
                         }
-                        result.push_str(&format!("    Cardinality: {:?}\n", semantic_info.cardinality));
-                        result.push_str(&format!("    Confidence: {:?}\n", semantic_info.confidence));
+                        result.push_str(&format!(
+                            "    Cardinality: {:?}\n",
+                            semantic_info.cardinality
+                        ));
+                        result
+                            .push_str(&format!("    Confidence: {:?}\n", semantic_info.confidence));
                     }
                 }
 
@@ -114,8 +121,7 @@ impl OutputFormatter for RawFormatter {
                     for func_analysis in &analysis.function_calls {
                         result.push_str(&format!(
                             "  - {} ({})\n",
-                            func_analysis.function_name, 
-                            func_analysis.signature.description
+                            func_analysis.function_name, func_analysis.signature.description
                         ));
                         for error in &func_analysis.validation_errors {
                             result.push_str(&format!("    ⚠️  {}\n", error.message));

@@ -17,16 +17,18 @@
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
 
 use clap::Parser;
+use octofhir_fhirpath::cli::output::{
+    AnalysisOutput, EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput,
+};
 use octofhir_fhirpath::cli::{Cli, Commands};
-use octofhir_fhirpath::cli::output::{FormatterFactory, EvaluationOutput, ParseOutput, AnalysisOutput, OutputMetadata};
 use octofhir_fhirpath::model::provider::PackageSpec;
 use octofhir_fhirpath::parse;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
+use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
 use std::time::Instant;
-
 
 #[tokio::main]
 async fn main() {
@@ -34,7 +36,7 @@ async fn main() {
     human_panic::setup_panic!();
 
     let cli = Cli::parse();
-    
+
     // Create formatter factory
     let formatter_factory = FormatterFactory::new(cli.no_color);
     let formatter = formatter_factory.create_formatter(cli.output_format.clone());
@@ -46,7 +48,15 @@ async fn main() {
             ref variables,
             pretty,
         } => {
-            handle_evaluate(expression, input.as_deref(), variables, pretty, &cli, &*formatter).await;
+            handle_evaluate(
+                expression,
+                input.as_deref(),
+                variables,
+                pretty,
+                &cli,
+                &*formatter,
+            )
+            .await;
         }
         Commands::Parse { ref expression } => {
             handle_parse(expression, &cli, &*formatter);
@@ -60,7 +70,15 @@ async fn main() {
             validate_only,
             no_inference,
         } => {
-            handle_analyze(expression, variables, validate_only, no_inference, &cli, &*formatter).await;
+            handle_analyze(
+                expression,
+                variables,
+                validate_only,
+                no_inference,
+                &cli,
+                &*formatter,
+            )
+            .await;
         }
         Commands::Repl {
             ref input,
@@ -68,7 +86,22 @@ async fn main() {
             ref history_file,
             history_size,
         } => {
-            handle_repl(input.as_deref(), variables, history_file.as_deref(), history_size, &cli).await;
+            handle_repl(
+                input.as_deref(),
+                variables,
+                history_file.as_deref(),
+                history_size,
+                &cli,
+            )
+            .await;
+        }
+        Commands::Server {
+            port,
+            ref storage,
+            ref host,
+            cors_all,
+        } => {
+            handle_server(port, storage.clone(), host.clone(), cors_all, &cli).await;
         }
     }
 }
@@ -82,7 +115,7 @@ async fn handle_evaluate(
     formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
 ) {
     let start_time = Instant::now();
-    
+
     // Get resource data
     let resource_data = if let Some(input_str) = input {
         // Check if input is a file path or JSON string
@@ -234,7 +267,7 @@ async fn handle_evaluate(
     };
 
     let execution_time = start_time.elapsed();
-    
+
     let output = match result {
         Ok(result_value) => EvaluationOutput {
             success: true,
@@ -243,8 +276,8 @@ async fn handle_evaluate(
             expression: expression.to_string(),
             execution_time,
             metadata: OutputMetadata {
-                cache_hits: 0, // TODO: Track cache hits from engine
-                ast_nodes: 0, // TODO: Track AST nodes
+                cache_hits: 0,  // TODO: Track cache hits from engine
+                ast_nodes: 0,   // TODO: Track AST nodes
                 memory_used: 0, // TODO: Track memory usage
             },
         },
@@ -437,7 +470,9 @@ async fn handle_analyze(
                 success: false,
                 analysis: None,
                 validation_errors: vec![],
-                error: Some(Box::<dyn std::error::Error>::from("No analyzer available".to_string()).into()),
+                error: Some(
+                    Box::<dyn std::error::Error>::from("No analyzer available".to_string()).into(),
+                ),
                 expression: expression.to_string(),
                 metadata: OutputMetadata::default(),
             },
@@ -473,9 +508,9 @@ async fn handle_repl(
     history_size: usize,
     cli: &Cli,
 ) {
-    use octofhir_fhirpath::cli::repl::{start_repl, ReplConfig};
+    use octofhir_fhirpath::cli::repl::{ReplConfig, start_repl};
     use octofhir_fhirpath::model::{
-        fhirschema_provider::FhirSchemaModelProvider, 
+        fhirschema_provider::FhirSchemaModelProvider,
         provider::{FhirVersion, ModelProvider},
     };
     use std::fs;
@@ -491,7 +526,10 @@ async fn handle_repl(
                 let value = var[eq_pos + 1..].to_string();
                 Some((name, value))
             } else {
-                eprintln!("Warning: Invalid variable format '{}', expected 'name=value'", var);
+                eprintln!(
+                    "Warning: Invalid variable format '{}', expected 'name=value'",
+                    var
+                );
                 None
             }
         })
@@ -500,15 +538,13 @@ async fn handle_repl(
     // Load initial resource if provided
     let initial_resource = if let Some(input_path) = input {
         match fs::read_to_string(input_path) {
-            Ok(content) => {
-                match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json) => Some(json),
-                    Err(e) => {
-                        eprintln!("Error parsing initial resource '{}': {}", input_path, e);
-                        process::exit(1);
-                    }
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(json) => Some(json),
+                Err(e) => {
+                    eprintln!("Error parsing initial resource '{}': {}", input_path, e);
+                    process::exit(1);
                 }
-            }
+            },
             Err(e) => {
                 eprintln!("Error reading initial resource '{}': {}", input_path, e);
                 process::exit(1);
@@ -533,33 +569,36 @@ async fn handle_repl(
     };
 
     let model_provider = match fhir_version {
-        FhirVersion::R4 => {
-            match FhirSchemaModelProvider::r4().await {
-                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-                Err(e) => {
-                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
-                    process::exit(1);
-                }
+        FhirVersion::R4 => match FhirSchemaModelProvider::r4().await {
+            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+            Err(e) => {
+                eprintln!(
+                    "Failed to create model provider for FHIR {:?}: {}",
+                    fhir_version, e
+                );
+                process::exit(1);
             }
-        }
-        FhirVersion::R4B => {
-            match FhirSchemaModelProvider::r4b().await {
-                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-                Err(e) => {
-                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
-                    process::exit(1);
-                }
+        },
+        FhirVersion::R4B => match FhirSchemaModelProvider::r4b().await {
+            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+            Err(e) => {
+                eprintln!(
+                    "Failed to create model provider for FHIR {:?}: {}",
+                    fhir_version, e
+                );
+                process::exit(1);
             }
-        }
-        FhirVersion::R5 => {
-            match FhirSchemaModelProvider::r5().await {
-                Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-                Err(e) => {
-                    eprintln!("Failed to create model provider for FHIR {:?}: {}", fhir_version, e);
-                    process::exit(1);
-                }
+        },
+        FhirVersion::R5 => match FhirSchemaModelProvider::r5().await {
+            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
+            Err(e) => {
+                eprintln!(
+                    "Failed to create model provider for FHIR {:?}: {}",
+                    fhir_version, e
+                );
+                process::exit(1);
             }
-        }
+        },
     };
 
     // Create REPL configuration
@@ -581,8 +620,51 @@ async fn handle_repl(
     }
 
     // Start REPL
-    if let Err(e) = start_repl(model_provider, repl_config, initial_resource, initial_variables).await {
+    if let Err(e) = start_repl(
+        model_provider,
+        repl_config,
+        initial_resource,
+        initial_variables,
+    )
+    .await
+    {
         eprintln!("REPL error: {}", e);
+        process::exit(1);
+    }
+}
+
+async fn handle_server(port: u16, storage: PathBuf, host: String, cors_all: bool, cli: &Cli) {
+    use octofhir_fhirpath::cli::server::{config::ServerConfig, start_server};
+
+    // Initialize tracing for server logging
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        )
+        .init();
+
+    if !cli.quiet {
+        println!("🚀 Starting FHIRPath HTTP server...");
+        println!("📍 Host: {}", host);
+        println!("🔌 Port: {}", port);
+        println!("📁 Storage: {}", storage.display());
+        if cors_all {
+            println!("🌐 CORS: Enabled for all origins (development mode)");
+        }
+    }
+
+    // Create server configuration
+    let config = ServerConfig::new(port, host, storage, cors_all);
+
+    // Ensure storage directory exists
+    if let Err(e) = config.ensure_storage_dir().await {
+        eprintln!("❌ Failed to create storage directory: {}", e);
+        process::exit(1);
+    }
+
+    // Start the server
+    if let Err(e) = start_server(config).await {
+        eprintln!("❌ Server error: {}", e);
         process::exit(1);
     }
 }

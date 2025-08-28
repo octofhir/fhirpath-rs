@@ -4,3 +4,5 @@ node_modules
 .DS_Store
 .lsp
 .clj-kondo
+storage
+dist

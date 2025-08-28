@@ -227,7 +227,6 @@ impl Boxing {
 
     /// Convert JSON value to FhirPathValue
     fn json_to_fhirpath_value(value: &Value) -> FhirPathValue {
-
         if value.is_null() {
             FhirPathValue::Empty
         } else if let Some(b) = value.as_bool() {
@@ -253,7 +252,6 @@ impl Boxing {
 
     /// Infer FHIR type from JSON value
     fn infer_fhir_type_from_value(value: &Value) -> (String, Option<String>) {
-
         if value.as_bool().is_some() {
             ("boolean".to_string(), None)
         } else if let Some(f) = value.as_f64() {
@@ -296,7 +294,6 @@ impl Boxing {
 
     /// Parse primitive extensions from JSON
     fn parse_primitive_extensions(extensions_json: Option<Value>) -> Option<PrimitiveElement> {
-
         if let Some(json_value) = extensions_json {
             if json_value.is_object() {
                 let extensions: Vec<Extension> = json_value

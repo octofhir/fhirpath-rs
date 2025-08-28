@@ -20,10 +20,10 @@ mod raw;
 mod table;
 
 use clap::ValueEnum;
-use octofhir_fhirpath_model::FhirPathValue;
-use octofhir_fhirpath_core::FhirPathError;
-use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_analyzer::{AnalysisResult, ValidationError};
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_core::FhirPathError;
+use octofhir_fhirpath_model::FhirPathValue;
 use std::time::Duration;
 use thiserror::Error;
 

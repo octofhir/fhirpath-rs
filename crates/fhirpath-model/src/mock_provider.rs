@@ -435,9 +435,7 @@ impl ModelProvider for MockModelProvider {
         bundle: &crate::FhirPathValue,
     ) -> Option<crate::FhirPathValue> {
         let bundle_json = match bundle {
-            crate::FhirPathValue::Resource(bundle_resource) => {
-                bundle_resource.as_json().clone()
-            }
+            crate::FhirPathValue::Resource(bundle_resource) => bundle_resource.as_json().clone(),
             crate::FhirPathValue::JsonValue(json_value) => json_value.as_value().clone(),
             _ => return None,
         };

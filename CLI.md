@@ -1,6 +1,6 @@
 # FHIRPath CLI Reference
 
-The `octofhir-fhirpath` command-line tool provides a powerful interface for evaluating FHIRPath expressions against FHIR data.
+The `octofhir-fhirpath` command-line tool provides a comprehensive interface for evaluating FHIRPath expressions against FHIR data, featuring an interactive REPL, multiple output formats, web interface, and advanced analysis capabilities.
 
 ## Installation
 
@@ -25,6 +25,17 @@ octofhir-fhirpath parse "Patient.name.where(use='official').family"
 octofhir-fhirpath validate "Patient.birthDate > @2000-01-01"
 ```
 
+## Global Options
+
+All commands support these global options:
+
+- `--fhir-version <VERSION>` - FHIR version to use (r4, r4b, r5) [default: r4]
+- `--package <PACKAGE>` - Additional FHIR packages to load (format: package@version)
+- `-o, --output-format <FORMAT>` - Output format: `raw`, `pretty`, `json`, `table` [default: raw]
+- `--no-color` - Disable colored output (also via `FHIRPATH_NO_COLOR` env var)
+- `-q, --quiet` - Suppress informational messages
+- `-v, --verbose` - Verbose output with additional details
+
 ## Commands
 
 ### `evaluate` - Evaluate FHIRPath Expression
@@ -41,10 +52,7 @@ octofhir-fhirpath evaluate [OPTIONS] <EXPRESSION>
 #### Options
 - `-i, --input <FILE>` - Input JSON file (if not provided, reads from stdin)
 - `-v, --variable <NAME=VALUE>` - Set environment variable (can be used multiple times)
-- `-p, --pretty` - Pretty-print JSON output  
-- `-f, --format <FORMAT>` - Output format: `json` (default), `yaml`, `table`
-- `--model <MODEL>` - FHIR model version: `r4` (default), `r5`, `mock`
-- `--timeout <SECONDS>` - Evaluation timeout (default: 30)
+- `-p, --pretty` - Pretty-print JSON output (only applies to raw format)
 
 #### Examples
 
@@ -133,7 +141,7 @@ cat expressions.txt | xargs -I {} octofhir-fhirpath validate "{}"
 
 ### `analyze` - Analyze Expression
 
-Analyzes FHIRPath expressions for potential issues, performance characteristics, and optimization suggestions.
+Analyzes FHIRPath expressions with comprehensive FHIR field validation, type checking, and optimization suggestions.
 
 ```bash
 octofhir-fhirpath analyze [OPTIONS] <EXPRESSION>
@@ -143,22 +151,49 @@ octofhir-fhirpath analyze [OPTIONS] <EXPRESSION>
 - `<EXPRESSION>` - The FHIRPath expression to analyze
 
 #### Options
-- `--validate-only` - Only validate, don't analyze
-- `--show-optimizations` - Show optimization suggestions
-- `--performance` - Include performance analysis
-- `--resource-type <TYPE>` - Specify target resource type for better analysis
+- `-v, --variable <NAME=VALUE>` - Set environment variable (can be used multiple times)
+- `--validate-only` - Only validate, don't analyze types
+- `--no-inference` - Disable type inference
+
+### `repl` - Interactive FHIRPath REPL
+
+Starts an interactive Read-Eval-Print Loop for rapid FHIRPath prototyping and debugging.
+
+```bash
+octofhir-fhirpath repl [OPTIONS]
+```
+
+#### Options
+- `-i, --input <FILE>` - JSON file containing FHIR resource to load initially
+- `-v, --variable <NAME=VALUE>` - Set environment variable (can be used multiple times)
+- `--history-file <FILE>` - History file to use (default: ~/.fhirpath_history)
+- `--history-size <SIZE>` - Maximum number of history entries [default: 1000]
+
+### `server` - HTTP Server with Web Interface
+
+Starts an HTTP server with a web-based FHIRPath evaluation interface.
+
+```bash
+octofhir-fhirpath server [OPTIONS]
+```
+
+#### Options
+- `-p, --port <PORT>` - Port to bind the server to [default: 8080]
+- `-s, --storage <DIR>` - Directory for JSON file storage [default: ./storage]
+- `--host <HOST>` - Host to bind to [default: 127.0.0.1]
+- `--cors-all` - Enable CORS for all origins (development mode)
 
 #### Examples
 
 ```bash
-# Basic analysis
+# Basic analysis with type checking
 octofhir-fhirpath analyze "Patient.name.where(use='official').family"
 
-# Performance analysis
-octofhir-fhirpath analyze "Bundle.entry.resource.count()" --performance
+# Validation only
+octofhir-fhirpath analyze "Bundle.entry.resource.count()" --validate-only
 
-# With resource type context
-octofhir-fhirpath analyze "name.given" --resource-type Patient
+# With variables
+octofhir-fhirpath analyze "age > %minAge" --variable "minAge=18"
 ```
 
 ## Environment Variables
@@ -228,38 +263,163 @@ curl -s "https://api.example.com/Patient/123" | \
   octofhir-fhirpath evaluate "Patient.name.family"
 ```
 
+## Interactive REPL
+
+The FHIRPath REPL provides an interactive environment for rapid prototyping and debugging of FHIRPath expressions.
+
+### Starting the REPL
+
+```bash
+# Start REPL
+octofhir-fhirpath repl
+
+# Start REPL with initial resource
+octofhir-fhirpath repl --input patient.json
+
+# Start REPL with specific FHIR version
+octofhir-fhirpath repl --fhir-version r5
+
+# Start REPL with initial variables
+octofhir-fhirpath repl --variable "minAge=18" --variable "organization=Acme"
+```
+
+### REPL Commands
+
+All REPL commands start with `:` (colon):
+
+- `<expression>` - Evaluate any FHIRPath expression
+- `:load <file>` - Load FHIR resource from file
+- `:set <name> <value>` - Set variable value
+- `:unset <name>` - Remove variable
+- `:vars` - List all variables and context
+- `:resource` - Show current resource information
+- `:type <expression>` - Show type information for expression
+- `:explain <expression>` - Show evaluation steps and analysis
+- `:help [function]` - Show help for commands or functions
+- `:history` - Show command history
+- `:quit` - Exit REPL (aliases: `:q`, `:exit`)
+
+### REPL Features
+
+- **Interactive line editing** with history and arrow key navigation
+- **Auto-completion** for function names and FHIR properties
+- **Colored output** for better readability
+- **Variable management** for complex expression building
+- **Resource loading** from JSON files
+- **Command history** with persistent storage
+- **Help system** with comprehensive function documentation
+- **Error handling** with clear, actionable messages
+
+### Example REPL Session
+
+```
+$ octofhir-fhirpath repl
+FHIRPath REPL v0.4.x - Type :help for commands
+
+fhirpath> :load examples/patient.json
+Loaded Patient resource (id: example-1)
+
+fhirpath> Patient.name.given.first()
+"John"
+
+fhirpath> :set myVar "test"
+Variable 'myVar' set to "test"
+
+fhirpath> :vars
+%context = Patient resource (id: example-1)
+%resource = Patient resource (id: example-1)
+myVar = "test"
+
+fhirpath> Patient.name.where(use = 'official').family
+["Doe"]
+
+fhirpath> :help first
+first() - Returns the first item in a collection
+Usage: collection.first()
+Returns: single item or empty if collection is empty
+
+Examples:
+  Patient.name.first()
+  telecom.first().value
+
+fhirpath> :quit
+Goodbye!
+```
+
+## Web Server Interface
+
+The server command starts an HTTP server with a web-based FHIRPath evaluation interface.
+
+```bash
+# Start server on default port 8080
+octofhir-fhirpath server
+
+# Start server on custom port with CORS enabled
+octofhir-fhirpath server --port 3000 --cors-all
+
+# Start server with custom storage directory
+octofhir-fhirpath server --storage ./my-fhir-data
+```
+
+### Server Features
+
+- **Web-based interface** for FHIRPath evaluation
+- **File management** for FHIR resources
+- **Real-time evaluation** with syntax highlighting
+- **Multiple output formats** (JSON, table, pretty)
+- **CORS support** for development integration
+- **REST API** for programmatic access
+
+### Server Endpoints
+
+- `GET /` - Web interface
+- `POST /evaluate` - Evaluate FHIRPath expression
+- `GET /files` - List stored files
+- `POST /files` - Upload FHIR resource
+- `GET /files/{id}` - Get specific file
+- `DELETE /files/{id}` - Delete file
+
 ## Output Formats
 
-### JSON (default)
+### Raw (default)
 ```bash
 octofhir-fhirpath evaluate "Patient.name.given" --input patient.json
 # Output: ["Alice","Bob"]
 ```
 
-### Pretty JSON
+### Pretty Format
+Colorized, emoji-rich output with execution metrics:
 ```bash
-octofhir-fhirpath evaluate "Patient" --input patient.json --pretty
-# Output: 
-# [
-#   {
-#     "resourceType": "Patient",
-#     "name": [...]
-#   }
-# ]
+octofhir-fhirpath evaluate "Patient.name.given" --output-format pretty --input patient.json
+# Output with colors and emojis:
+# 🎯 Expression: Patient.name.given
+# ⚡ Result: ["Alice", "Bob"]
+# ⏱️  Execution time: 1.2ms
+# 💾 Memory used: 1.5KB
 ```
 
-### YAML
+### JSON Format
+Structured JSON output for machine parsing:
 ```bash
-octofhir-fhirpath evaluate "Patient.name" --input patient.json --format yaml
+octofhir-fhirpath evaluate "Patient.name.given" --output-format json --input patient.json
 # Output:
-# - given:
-#   - Alice
-#   family: Smith
+# {
+#   "success": true,
+#   "result": ["Alice", "Bob"],
+#   "expression": "Patient.name.given",
+#   "execution_time_ms": 1.2,
+#   "metadata": {
+#     "cache_hits": 0,
+#     "ast_nodes": 3,
+#     "memory_used": 1536
+#   }
+# }
 ```
 
-### Table (for simple values)
+### Table Format
+Formatted table output for collections:
 ```bash
-octofhir-fhirpath evaluate "Patient.name.given" --input patient.json --format table
+octofhir-fhirpath evaluate "Patient.name.given" --output-format table --input patient.json
 # Output:
 # ┌─────────┐
 # │ Value   │
@@ -269,24 +429,30 @@ octofhir-fhirpath evaluate "Patient.name.given" --input patient.json --format ta
 # └─────────┘
 ```
 
-## Model Providers
+## FHIR Version Support
 
-### Mock Provider (default)
-Fast, basic provider for simple use cases:
-```bash
-octofhir-fhirpath evaluate "Patient.active" --model mock --input patient.json
-```
-
-### FHIR R4 Provider
+### FHIR R4 (default)
 Full FHIR R4 schema support with type checking:
 ```bash
-octofhir-fhirpath evaluate "Patient.active is Boolean" --model r4 --input patient.json
+octofhir-fhirpath evaluate "Patient.active is Boolean" --fhir-version r4 --input patient.json
 ```
 
-### FHIR R5 Provider  
+### FHIR R4B
+FHIR R4B schema support:
+```bash
+octofhir-fhirpath evaluate "Patient.active is Boolean" --fhir-version r4b --input patient.json
+```
+
+### FHIR R5
 Latest FHIR R5 schema support:
 ```bash
-octofhir-fhirpath evaluate "Patient.active is Boolean" --model r5 --input patient.json
+octofhir-fhirpath evaluate "Patient.active is Boolean" --fhir-version r5 --input patient.json
+```
+
+### Additional FHIR Packages
+Load additional FHIR packages for extended functionality:
+```bash
+octofhir-fhirpath evaluate "expression" --package "us.core@6.1.0" --input patient.json
 ```
 
 ## Advanced Examples
@@ -387,34 +553,24 @@ Error: Cannot add Boolean and Integer
 ## Configuration
 
 ### Environment Variables
-- `FHIRPATH_MODEL` - Default model provider (`mock`, `r4`, `r5`)
-- `FHIRPATH_TIMEOUT` - Default timeout in seconds
-- `FHIRPATH_FORMAT` - Default output format
-- `NO_COLOR` - Disable colored output
+- `FHIRPATH_OUTPUT_FORMAT` - Default output format (`raw`, `pretty`, `json`, `table`)
+- `FHIRPATH_NO_COLOR` - Disable colored output (also `NO_COLOR`)
+- `RUST_LOG` - Enable debug logging (`debug`, `info`, `warn`, `error`)
 
-### Configuration File
-Create `~/.fhirpath.yaml`:
-```yaml
-model: r5
-timeout: 60
-format: json
-pretty: true
-variables:
-  defaultMinAge: 18
-  organization: "Acme Healthcare"
-```
 
 ## Tips and Best Practices
 
 ### Performance
-- Use `--model mock` for simple expressions on large datasets
-- Use `--timeout` for complex expressions on large bundles  
-- Profile expressions with the `analyze` command
+- Use the `analyze` command to profile expressions and get optimization suggestions
+- Enable JSON streaming for large datasets
+- Use the REPL for iterative development to avoid startup overhead
 
 ### Debugging
 - Use `parse` to understand expression structure
 - Use `validate` to check syntax before evaluation
-- Use `--verbose` flags for detailed error information
+- Use `--verbose` flag for detailed error information
+- Use REPL `:explain` command for step-by-step evaluation
+- Use REPL `:type` command for type information
 
 ### Security
 - Be careful with `--variable` when processing untrusted input
@@ -425,6 +581,50 @@ variables:
 - Check exit codes in scripts
 - Use `--format table` for human-readable output
 - Use `--format json` for programmatic processing
+
+## Function Reference
+
+The CLI provides comprehensive help for FHIRPath functions. Use the REPL's `:help` command:
+
+```bash
+# In REPL
+fhirpath> :help first
+first() - Returns the first item in a collection
+Usage: collection.first()
+Returns: single item or empty if collection is empty
+
+Examples:
+  Patient.name.first()
+  telecom.first().value
+```
+
+### Common Functions
+
+**Collection Functions:**
+- `first()`, `last()`, `count()`, `length()`
+- `where(condition)`, `select(expression)` 
+- `exists()`, `empty()`, `single()`
+- `skip(n)`, `take(n)`, `distinct()`
+
+**String Functions:**
+- `contains(substring)`, `startsWith(prefix)`, `endsWith(suffix)`
+- `substring(start)`, `substring(start, length)`
+- `upper()`, `lower()`, `replace(old, new)`
+
+**Type Functions:**
+- `is(Type)`, `as(Type)`, `ofType(Type)`
+- `toString()`, `toInteger()`, `toDecimal()`
+
+**FHIR Functions:**
+- `resolve()`, `extension(url)`, `children()`
+- `conformsTo(url)`, `memberOf(valueset)`
+
+**Date/Time Functions:**
+- `today()`, `now()`, `timeOfDay()`
+
+**Logical Functions:**
+- `iif(condition, true_val, false_val)`
+- `all(condition)`, `any(condition)`
 
 ## Integration Examples
 
@@ -470,4 +670,65 @@ print(result)  # [True]
     done
 ```
 
-For more examples and advanced usage, see the [examples directory](examples/) in the repository.
+## Quick Reference Commands
+
+Here are the most commonly used commands for quick reference:
+
+```bash
+# Basic evaluation
+octofhir-fhirpath evaluate "Patient.name.given" --input patient.json
+
+# Interactive REPL
+octofhir-fhirpath repl --input patient.json
+
+# Pretty output with colors
+octofhir-fhirpath evaluate "Patient.name" --output-format pretty --input patient.json
+
+# Table format for collections
+octofhir-fhirpath evaluate "Patient.name.given" --output-format table --input patient.json
+
+# JSON format with metadata
+octofhir-fhirpath evaluate "Patient.active" --output-format json --input patient.json
+
+# Parse expression to AST
+octofhir-fhirpath parse "Patient.name.where(use='official').family"
+
+# Validate syntax
+octofhir-fhirpath validate "Patient.birthDate > @2000-01-01"
+
+# Analyze with type checking
+octofhir-fhirpath analyze "Patient.name.where(use='official').family"
+
+# Start web server
+octofhir-fhirpath server --port 8080
+
+# FHIR R5 with additional packages
+octofhir-fhirpath evaluate "Patient.active" --fhir-version r5 --package "us.core@6.1.0"
+```
+
+## Justfile Integration
+
+If you're working with the source code, use the provided `justfile` commands:
+
+```bash
+# CLI evaluation (reads from stdin)
+just cli-evaluate "Patient.name.given"
+just cli-evaluate "Patient.name.given" patient.json
+
+# Enhanced output formats
+just cli-pretty "Patient.name" patient.json
+just cli-json "Patient.name" patient.json  
+just cli-table "Patient.name.given" patient.json
+
+# Interactive REPL
+just repl
+just repl patient.json
+just repl --fhir-version r5
+
+# Analysis and parsing
+just cli-parse "Patient.name.where(use='official')"
+just cli-validate "Patient.birthDate > @2000-01-01"
+just cli-analyze "Patient.name.given"
+```
+
+For more examples and advanced usage, see the [examples directory](examples/) and [CLAUDE.md](CLAUDE.md) development guide in the repository.

@@ -47,7 +47,7 @@ impl HelpSystem {
             function_help: HashMap::new(),
             registry: None,
         };
-        
+
         system.load_builtin_help();
         system
     }
@@ -58,7 +58,7 @@ impl HelpSystem {
             function_help: HashMap::new(),
             registry: Some(registry),
         };
-        
+
         system.load_builtin_help();
         system
     }
@@ -82,7 +82,7 @@ impl HelpSystem {
         if self.function_help.contains_key(name) {
             return true;
         }
-        
+
         if let Some(registry) = &self.registry {
             registry.has_function(name).await
         } else {
@@ -391,7 +391,7 @@ impl HelpSystem {
                     "Observation.effectiveDateTime < now()".to_string(),
                 ],
             },
-            
+
             // Lambda functions (handled directly by evaluator, not in registry)
             FunctionHelp {
                 name: "where".to_string(),

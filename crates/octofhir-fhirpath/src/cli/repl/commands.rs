@@ -50,7 +50,7 @@ impl ReplCommand {
 
         let line = &line[1..]; // Remove the ':'
         let parts: Vec<&str> = line.split_whitespace().collect();
-        
+
         if parts.is_empty() {
             return Err(anyhow!("Empty command"));
         }

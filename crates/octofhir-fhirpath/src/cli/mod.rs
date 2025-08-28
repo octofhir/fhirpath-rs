@@ -16,9 +16,11 @@
 
 pub mod output;
 pub mod repl;
+pub mod server;
 
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "octofhir-fhirpath")]
@@ -114,5 +116,20 @@ pub enum Commands {
         /// Maximum number of history entries (default: 1000)
         #[arg(long, default_value = "1000")]
         history_size: usize,
+    },
+    /// Start HTTP server with web interface
+    Server {
+        /// Port to bind the server to
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+        /// Directory for JSON file storage
+        #[arg(short, long, default_value = "./storage")]
+        storage: PathBuf,
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Enable CORS for all origins (development mode)
+        #[arg(long)]
+        cors_all: bool,
     },
 }

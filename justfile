@@ -3,6 +3,16 @@
 
 # Show available commands
 default:
+    @echo "🔥 FHIRPath-rs Development Commands"
+    @echo "=================================="
+    @echo ""
+    @echo "🚀 Quick Start:"
+    @echo "  just server              # Start HTTP server on port 8080"
+    @echo "  just server-dev          # Start server with CORS for development"
+    @echo "  just repl                # Start interactive REPL"
+    @echo "  just test                # Run all tests"
+    @echo ""
+    @echo "📋 All available commands:"
     @just --list
 
 # Build commands
@@ -11,6 +21,12 @@ build:
 
 build-release:
     cargo build --workspace --release
+
+# Build UI assets
+build-ui:
+    @echo "🏗️  Building UI assets..."
+    cd ui && pnpm install && pnpm build
+    @echo "✅ UI build complete"
 
 # Test commands
 test:
@@ -154,67 +170,197 @@ test-case CASE:
 cli-evaluate EXPRESSION FILE="":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath evaluate "{{EXPRESSION}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- evaluate "{{EXPRESSION}}"; \
     else \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
     fi
 
 cli-parse EXPRESSION:
-    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath parse "{{EXPRESSION}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- parse "{{EXPRESSION}}"
 
 cli-validate EXPRESSION:
-    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath validate "{{EXPRESSION}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- validate "{{EXPRESSION}}"
 
 # Analyze FHIRPath expression
 cli-analyze EXPRESSION *ARGS:
-    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath analyze "{{EXPRESSION}}" {{ARGS}}
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- analyze "{{EXPRESSION}}" {{ARGS}}
 
 # Validate FHIRPath expression  
 cli-analyze-validate EXPRESSION:
     just cli-analyze "{{EXPRESSION}}" --validate-only
 
 cli-help:
-    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath help
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- help
 
 # Start Interactive REPL
 repl FILE="" *ARGS:
     @if [ "{{FILE}}" = "" ]; then \
         echo "🔥 Starting FHIRPath Interactive REPL"; \
         echo "Type expressions to evaluate, or ':help' for commands"; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath repl {{ARGS}}; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- repl {{ARGS}}; \
     else \
         echo "🔥 Starting FHIRPath REPL with initial resource: {{FILE}}"; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath repl --input "{{FILE}}" {{ARGS}}; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- repl --input "{{FILE}}" {{ARGS}}; \
     fi
 
 # Enhanced CLI output format examples
 cli-pretty EXPRESSION FILE="":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features terminal -- --output-format pretty evaluate "{{EXPRESSION}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli,terminal -- --output-format pretty evaluate "{{EXPRESSION}}"; \
     else \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features terminal -- --output-format pretty evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli,terminal -- --output-format pretty evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
     fi
 
 cli-json EXPRESSION FILE="":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format json evaluate "{{EXPRESSION}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- --output-format json evaluate "{{EXPRESSION}}"; \
     else \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format json evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- --output-format json evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
     fi
 
 cli-table EXPRESSION FILE="":
     @if [ "{{FILE}}" = "" ]; then \
         echo "Reading FHIR resource from stdin..."; \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format table evaluate "{{EXPRESSION}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- --output-format table evaluate "{{EXPRESSION}}"; \
     else \
-        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- --output-format table evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
+        cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- --output-format table evaluate "{{EXPRESSION}}" --input "{{FILE}}"; \
     fi
 
 # Main CLI command - pass arguments directly to the CLI
 cli *ARGS:
-    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath -- {{ARGS}}
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- {{ARGS}}
+
+# HTTP Server commands
+server *ARGS:
+    @echo "🌐 Starting FHIRPath HTTP Server"
+    @echo "==============================="
+    @echo "🔗 Server will be available at http://localhost:8080"
+    @echo "📁 Storage directory: ./storage"
+    @echo "📚 API documentation: http://localhost:8080/health for status"
+    @echo "⏹️  Press Ctrl+C to stop the server"
+    @echo ""
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server {{ARGS}}
+
+# Start server with custom port
+server-port PORT *ARGS:
+    @echo "🌐 Starting FHIRPath HTTP Server on port {{PORT}}"
+    @echo "============================================="
+    @echo "🔗 Server will be available at http://localhost:{{PORT}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server --port {{PORT}} {{ARGS}}
+
+# Start server in development mode with CORS enabled for all origins
+server-dev *ARGS:
+    @echo "🧪 Starting FHIRPath HTTP Server (Development Mode)"
+    @echo "=================================================="
+    @echo "🔗 Server: http://localhost:8080"
+    @echo "🌐 CORS: Enabled for all origins"
+    @echo "📁 Storage: ./storage"
+    @echo ""
+    @echo "🏗️  Building UI..."
+    cd ui && pnpm install && pnpm build
+    @echo "🚀 Starting server..."
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server --cors-all {{ARGS}}
+
+# Start server with custom storage directory
+server-storage STORAGE_DIR *ARGS:
+    @echo "🌐 Starting FHIRPath HTTP Server"
+    @echo "📁 Custom storage directory: {{STORAGE_DIR}}"
+    cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server --storage {{STORAGE_DIR}} {{ARGS}}
+
+# Test server endpoints with curl examples
+server-test:
+    @echo "🧪 Testing FHIRPath HTTP Server Endpoints"
+    @echo "=========================================="
+    @echo ""
+    @echo "🔍 Testing health endpoint..."
+    curl -s http://localhost:8080/health | head -10 || echo "❌ Server not running. Start with 'just server'"
+    @echo ""
+    @echo "📁 Testing file list endpoint..."
+    curl -s http://localhost:8080/files | head -10 || echo "❌ Server not running"
+    @echo ""
+    @echo "💡 Example evaluation request:"
+    @echo "curl -X POST http://localhost:8080/r4/evaluate \\"
+    @echo "  -H 'Content-Type: application/json' \\"
+    @echo "  -d '{\"expression\": \"Patient.name.given\", \"resource\": {\"resourceType\": \"Patient\", \"name\": [{\"given\": [\"John\"]}]}}'"
+
+# Server examples with different FHIR versions
+server-examples:
+    @echo "📚 FHIRPath Server API Examples"
+    @echo "=============================="
+    @echo ""
+    @echo "🏥 Example Patient evaluation (R4):"
+    @echo "curl -X POST http://localhost:8080/r4/evaluate \\"
+    @echo "  -H 'Content-Type: application/json' \\"
+    @echo "  -d @storage/examples/patient-example.json"
+    @echo ""
+    @echo "🔬 Example Observation evaluation (R5):" 
+    @echo "curl -X POST http://localhost:8080/r5/evaluate \\"
+    @echo "  -H 'Content-Type: application/json' \\"
+    @echo "  -d '{\"expression\": \"Observation.valueQuantity.value\", \"resource\": {...}}'"
+    @echo ""
+    @echo "📦 Bundle analysis (R4B):"
+    @echo "curl -X POST http://localhost:8080/r4b/analyze \\"
+    @echo "  -H 'Content-Type: application/json' \\"
+    @echo "  -d '{\"expression\": \"Bundle.entry.resource.where(resourceType = \\\"Patient\\\")\"}'"
+    @echo ""
+    @echo "📄 File operations:"
+    @echo "curl http://localhost:8080/files                    # List files"
+    @echo "curl http://localhost:8080/files/patient-example.json  # Get specific file"
+
+# Watch server logs in development
+server-watch:
+    @echo "👀 Starting server with file watching for development"
+    @echo "====================================================="
+    cargo watch -x 'run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server --cors-all'
+
+# Create example FHIR resources for testing
+server-setup-examples:
+    @echo "📁 Setting up example FHIR resources"
+    @echo "===================================="
+    @mkdir -p storage/examples
+    @if [ ! -f storage/examples/patient-example.json ]; then \
+        echo "Creating patient-example.json..."; \
+    else \
+        echo "✅ Example files already exist in storage/examples/"; \
+    fi
+    @echo "📚 Available example files:"
+    @ls -la storage/examples/ 2>/dev/null || echo "📁 Run server to auto-create storage directory"
+
+# Build server and run in background for testing
+server-background:
+    @echo "🚀 Building and starting server in background"
+    @echo "============================================="
+    @cargo build --package octofhir-fhirpath --bin octofhir-fhirpath --features cli
+    @echo "Starting server in background (PID will be shown)..."
+    @nohup cargo run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server > server.log 2>&1 &
+    @echo "✅ Server started in background"
+    @echo "📋 Log output: tail -f server.log"
+    @echo "🛑 Stop with: pkill -f octofhir-fhirpath"
+
+# Stop background server
+server-stop:
+    @echo "🛑 Stopping background server"
+    @echo "============================="
+    @pkill -f "octofhir-fhirpath server" || echo "No server process found"
+    @rm -f server.log
+
+# Quick server health check
+server-ping:
+    @echo "🏥 Checking server health..."
+    @curl -s http://localhost:8080/health >/dev/null && echo "✅ Server is running" || echo "❌ Server is not responding"
+
+# Performance test the server endpoints
+server-perf:
+    @echo "⚡ Performance testing server endpoints"
+    @echo "======================================"
+    @echo "🔍 Testing evaluation endpoint performance..."
+    @echo "POST /r4/evaluate with simple expression:"
+    @time curl -s -X POST http://localhost:8080/r4/evaluate \
+        -H 'Content-Type: application/json' \
+        -d '{"expression": "Patient.active", "resource": {"resourceType": "Patient", "active": true}}' \
+        >/dev/null || echo "❌ Server not running"
 
 # Code coverage with tarpaulin
 coverage:

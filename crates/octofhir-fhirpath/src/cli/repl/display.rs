@@ -14,9 +14,9 @@
 
 //! Display formatting for REPL output
 
+use crate::model::value::{Collection, FhirPathValue};
 use anyhow::Error;
 use colored::*;
-use crate::model::value::{FhirPathValue, Collection};
 
 /// Handles formatting of REPL output
 pub struct DisplayFormatter {
@@ -55,14 +55,18 @@ impl DisplayFormatter {
     pub fn format_error(&self, error: &Error) -> String {
         let error_message = error.to_string();
         let suggestion = self.get_error_suggestion(&error_message);
-        
+
         if self.use_colors {
             if suggestion.is_empty() {
                 format!("🚨 {}: {}", self.red("Error"), error_message)
             } else {
-                format!("🚨 {}: {}\n💡 {}: {}", 
-                    self.red("Error"), error_message,
-                    self.cyan("Suggestion"), suggestion)
+                format!(
+                    "🚨 {}: {}\n💡 {}: {}",
+                    self.red("Error"),
+                    error_message,
+                    self.cyan("Suggestion"),
+                    suggestion
+                )
             }
         } else if suggestion.is_empty() {
             format!("Error: {error_message}")
@@ -70,80 +74,82 @@ impl DisplayFormatter {
             format!("Error: {error_message}\nSuggestion: {suggestion}")
         }
     }
-    
+
     /// Get helpful suggestions based on error messages
     fn get_error_suggestion(&self, error_message: &str) -> String {
         let error_lower = error_message.to_lowercase();
-        
+
         // Common FHIRPath syntax errors
         if error_lower.contains("expected") && error_lower.contains("')'") {
             return "Check for missing closing parenthesis ')'. Try using ':help' for syntax guidance.".to_string();
         }
-        
+
         if error_lower.contains("unexpected") && error_lower.contains("token") {
             return "Check your expression syntax. Common issues: missing quotes for strings, incorrect operators.".to_string();
         }
-        
+
         if error_lower.contains("parse") {
-            return "Syntax error in expression. Try ':help' for FHIRPath syntax examples.".to_string();
+            return "Syntax error in expression. Try ':help' for FHIRPath syntax examples."
+                .to_string();
         }
-        
+
         // Function/operation errors
         if error_lower.contains("function") && error_lower.contains("not found") {
             return "Function not recognized. Use ':help' to see available operations or check spelling.".to_string();
         }
-        
+
         if error_lower.contains("cannot resolve") {
             return "Property or path not found. Check the resource structure or try ':type <expression>' for type info.".to_string();
         }
-        
+
         // Type errors
         if error_lower.contains("type") && error_lower.contains("mismatch") {
             return "Type mismatch. Use '.ofType()' or '.as()' for type casting, or check expected types.".to_string();
         }
-        
+
         // Collection errors
         if error_lower.contains("single") && error_lower.contains("multiple") {
             return "Expression returned multiple values. Use '.first()', '.last()', or add filters with '.where()'.".to_string();
         }
-        
+
         if error_lower.contains("empty") && error_lower.contains("collection") {
             return "Empty result. Check if the resource has the expected properties or use '.exists()' to verify.".to_string();
         }
-        
+
         // Resource/model errors
         if error_lower.contains("no resource") {
-            return "No resource loaded. Use ':load <file>' to load a FHIR resource first.".to_string();
+            return "No resource loaded. Use ':load <file>' to load a FHIR resource first."
+                .to_string();
         }
-        
+
         if error_lower.contains("model provider") {
             return "Model provider issue. Try restarting the REPL or check your FHIR version setting.".to_string();
         }
-        
+
         // Variable errors
         if error_lower.contains("variable") && error_lower.contains("not defined") {
             return "Variable not found. Use ':set <name> <value>' to define variables or ':vars' to list them.".to_string();
         }
-        
+
         // File/IO errors
         if error_lower.contains("file") && error_lower.contains("not found") {
             return "File not found. Check the file path and ensure the file exists.".to_string();
         }
-        
+
         if error_lower.contains("json") {
             return "JSON parsing error. Ensure the file contains valid JSON and is a FHIR resource.".to_string();
         }
-        
+
         // Network/timeout errors
         if error_lower.contains("timeout") {
             return "Operation timed out. Try simpler expressions or check your network connection.".to_string();
         }
-        
+
         // Generic help for unknown errors
         if !error_lower.is_empty() {
             return "Try ':help' for general assistance or ':explain <expression>' to understand expression evaluation.".to_string();
         }
-        
+
         String::new()
     }
 
@@ -305,7 +311,11 @@ impl DisplayFormatter {
         } else {
             // Show first few items and count
             let displayed = items_str.iter().take(3).cloned().collect::<Vec<_>>();
-            format!("[{}, ... ({} items)]", displayed.join(", "), collection.len())
+            format!(
+                "[{}, ... ({} items)]",
+                displayed.join(", "),
+                collection.len()
+            )
         };
 
         if show_types {
@@ -322,7 +332,7 @@ impl DisplayFormatter {
                     "Collection<Any>".to_string()
                 }
             };
-            
+
             if self.use_colors {
                 format!("{}: {}", result, self.dim(&type_name))
             } else {

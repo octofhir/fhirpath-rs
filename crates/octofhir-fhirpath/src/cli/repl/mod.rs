@@ -17,8 +17,8 @@
 pub mod commands;
 pub mod completion;
 pub mod display;
-pub mod session;
 pub mod help;
+pub mod session;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -28,8 +28,8 @@ use serde_json::Value as JsonValue;
 
 use crate::model::provider::ModelProvider;
 
-pub use session::ReplSession;
 pub use commands::ReplCommand;
+pub use session::ReplSession;
 
 /// Configuration for the REPL session
 #[derive(Debug, Clone)]
@@ -70,11 +70,11 @@ pub async fn start_repl(
 ) -> Result<()> {
     use crate::FhirPathEngine;
     use crate::registry::create_standard_registry;
-    
+
     // Create the engine asynchronously
     let registry = Arc::new(create_standard_registry().await);
     let engine = FhirPathEngine::new(registry, model_provider);
-    
+
     let mut session = ReplSession::with_engine(engine, config)?;
 
     // Load initial resource if provided
@@ -84,7 +84,7 @@ pub async fn start_repl(
 
     // Set initial variables
     for (name, value) in initial_variables {
-        session.set_variable(&name, &value)?;
+        session.set_variable(&name, &value).await?;
     }
 
     session.run().await

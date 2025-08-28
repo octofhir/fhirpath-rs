@@ -14,7 +14,7 @@
 
 //! JSON output formatter
 
-use super::{OutputFormatter, EvaluationOutput, ParseOutput, AnalysisOutput, FormatError};
+use super::{AnalysisOutput, EvaluationOutput, FormatError, OutputFormatter, ParseOutput};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -137,7 +137,11 @@ impl OutputFormatter for JsonFormatter {
                 None
             },
             error: output.error.as_ref().map(|e| JsonError {
-                error_type: format!("{e:?}").split('(').next().unwrap_or("Error").to_string(),
+                error_type: format!("{e:?}")
+                    .split('(')
+                    .next()
+                    .unwrap_or("Error")
+                    .to_string(),
                 message: e.to_string(),
                 location: None, // TODO: Extract location if available
             }),
@@ -162,7 +166,11 @@ impl OutputFormatter for JsonFormatter {
                 None
             },
             error: output.error.as_ref().map(|e| JsonError {
-                error_type: format!("{e:?}").split('(').next().unwrap_or("Error").to_string(),
+                error_type: format!("{e:?}")
+                    .split('(')
+                    .next()
+                    .unwrap_or("Error")
+                    .to_string(),
                 message: e.to_string(),
                 location: None, // TODO: Extract location if available
             }),
@@ -183,25 +191,37 @@ impl OutputFormatter for JsonFormatter {
             analysis: if let Some(ref analysis) = output.analysis {
                 let mut type_annotations = HashMap::new();
                 for (node_id, semantic_info) in &analysis.type_annotations {
-                    type_annotations.insert(node_id.to_string(), JsonSemanticInfo {
-                        fhir_path_type: semantic_info.fhir_path_type.as_ref().map(|t| t.to_string()),
-                        model_type: semantic_info.model_type.as_ref().map(|t| t.to_string()),
-                        cardinality: format!("{:?}", semantic_info.cardinality),
-                        confidence: format!("{:?}", semantic_info.confidence),
-                    });
+                    type_annotations.insert(
+                        node_id.to_string(),
+                        JsonSemanticInfo {
+                            fhir_path_type: semantic_info
+                                .fhir_path_type
+                                .as_ref()
+                                .map(|t| t.to_string()),
+                            model_type: semantic_info.model_type.as_ref().map(|t| t.to_string()),
+                            cardinality: format!("{:?}", semantic_info.cardinality),
+                            confidence: format!("{:?}", semantic_info.confidence),
+                        },
+                    );
                 }
 
-                let function_calls: Vec<JsonFunctionAnalysis> = analysis.function_calls.iter()
+                let function_calls: Vec<JsonFunctionAnalysis> = analysis
+                    .function_calls
+                    .iter()
                     .map(|func_analysis| JsonFunctionAnalysis {
                         function_name: func_analysis.function_name.clone(),
                         signature_description: func_analysis.signature.description.clone(),
-                        validation_errors: func_analysis.validation_errors.iter()
+                        validation_errors: func_analysis
+                            .validation_errors
+                            .iter()
                             .map(|error| JsonValidationError {
                                 error_type: format!("{:?}", error.error_type),
                                 message: error.message.clone(),
                                 suggestions: error.suggestions.clone(),
-                            }).collect(),
-                    }).collect();
+                            })
+                            .collect(),
+                    })
+                    .collect();
 
                 Some(JsonAnalysis {
                     type_annotations,
@@ -210,14 +230,21 @@ impl OutputFormatter for JsonFormatter {
             } else {
                 None
             },
-            validation_errors: output.validation_errors.iter()
+            validation_errors: output
+                .validation_errors
+                .iter()
                 .map(|error| JsonValidationError {
                     error_type: format!("{:?}", error.error_type),
                     message: error.message.clone(),
                     suggestions: error.suggestions.clone(),
-                }).collect(),
+                })
+                .collect(),
             error: output.error.as_ref().map(|e| JsonError {
-                error_type: format!("{e:?}").split('(').next().unwrap_or("Error").to_string(),
+                error_type: format!("{e:?}")
+                    .split('(')
+                    .next()
+                    .unwrap_or("Error")
+                    .to_string(),
                 message: e.to_string(),
                 location: None, // TODO: Extract location if available
             }),

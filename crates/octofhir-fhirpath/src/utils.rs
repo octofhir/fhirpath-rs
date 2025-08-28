@@ -229,7 +229,8 @@ mod tests {
 
         let back_to_compact = reformat_json(&pretty, false).unwrap();
         let parsed_original = serde_json::from_str::<serde_json::Value>(compact).unwrap();
-        let parsed_reformatted = serde_json::from_str::<serde_json::Value>(&back_to_compact).unwrap();
+        let parsed_reformatted =
+            serde_json::from_str::<serde_json::Value>(&back_to_compact).unwrap();
         assert_eq!(parsed_original, parsed_reformatted);
     }
 
