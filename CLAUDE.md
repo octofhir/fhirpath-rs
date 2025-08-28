@@ -2,472 +2,209 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Architecture
+## Project Overview
 
-This is a FHIRPath implementation in Rust organized as a **workspace with 9 specialized crates**:
+This is **fhirpath-rs** (octofhir-fhirpath), a high-performance FHIRPath implementation in Rust for healthcare data processing. It provides a complete implementation of the FHIRPath expression language for FHIR resources with **90.9% specification compliance** (1003/1104 tests passing).
 
-### Workspace Structure
-- **octofhir-fhirpath**: Main library crate that re-exports and integrates all components. Contains development-only binaries for benchmarking and testing (excluded from publishing)
-- **fhirpath-core**: Core types, errors, and evaluation results  
-- **fhirpath-ast**: Abstract Syntax Tree definitions, operators, and visitor patterns
-- **fhirpath-diagnostics**: Error reporting, diagnostic formatting, and LSP integration
-- **fhirpath-parser**: Tokenizer and parser using nom library (version 8)
-- **fhirpath-model**: Value types, ModelProvider trait, FHIR data model, and resource handling
-- **fhirpath-evaluator**: Expression evaluation engine with context management and optimizations
-- **fhirpath-registry**: Function and operator registry with built-in implementations
-- **fhirpath-analyzer**: Code analysis and validation tools for FHIRPath expressions
+## Common Commands
 
-### Development Binaries (Not Published)
-The main crate includes development-only binaries accessible via the `dev-tools` feature:
-- **fhirpath-bench**: Performance benchmarking and profiling tool
-- **test-coverage**: Test coverage analysis and report generation
-- **test-runner**: Individual test file runner for debugging
+All development tasks use the `justfile` system. Essential commands:
 
-### Key Architecture Components
+### Build and Test
+- `just build` - Build entire workspace
+- `just test` - Run all tests
+- `just test-coverage` - Generate test coverage report (may timeout on first run)
+- `just test-coverage-mock` - Fast test coverage using MockModelProvider
+- `just test-official` - Run official FHIRPath specification tests
 
-- **Three-stage pipeline**: Tokenizer → Parser → Evaluator with arena-based memory management  
-- **ModelProvider Architecture**: Async trait for FHIR type resolution and validation (required since v0.3.0)
-- **Registry system**: Modular function and operator registration with caching and fast-path optimizations
-- **Performance optimization**: Specialized evaluators, memory pools, and streaming evaluation
-- **Reference Resolution**: Enhanced Bundle support with `resolve()` function for cross-resource references
-- **Extension framework**: Support for custom functions and CDA/FHIR-specific extensions
-- **Memory efficiency**: Arc-based root resource sharing to reduce memory usage during evaluation
-- **FHIRPath Compliance**: All evaluation results are collections per specification
-- **Zero warnings**: Clean codebase with all compiler warnings resolved
+### Code Quality  
+- `just qa` - Complete quality assurance (format + lint + test)
+- `just fix` - Auto-fix formatting and clippy issues
+- `just clippy` - Run linting
+- `just fmt` - Format code
+- `just check` - Quick compilation check
 
-### Data Flow Architecture
+### Performance
+- `just bench` - Run unified benchmark suite
+- `just bench-full` - Complete benchmark suite with report generation
+- `just profile "expression"` - Profile specific FHIRPath expressions
+
+### CLI Development
+- `just cli-evaluate "expression"` - Test CLI evaluation (reads from stdin)
+- `just cli-evaluate "expression" file.json` - Evaluate against specific file
+- `just cli-parse "expression"` - Parse expression to AST
+- `just cli-validate "expression"` - Validate syntax only
+- `just cli-analyze "expression"` - Analyze expression with optimization suggestions
+
+### Documentation
+- `just doc` - Generate API documentation
+- `just docs` - Generate all documentation including benchmarks
+
+## Architecture
+
+### Modular Workspace Structure
+The project uses 9 specialized crates for flexibility and maintainability:
+
 ```
-Input JSON → ModelProvider → Parser (AST) → Evaluator (Context) → FhirPathValue
-                ↓              ↓                ↓
-           Type Validation  Error Recovery  Registry Lookup
-```
-
-## Development Commands
-
-### Building and Testing
-```bash
-# Build entire workspace
-just build
-
-# Build with release optimization  
-just build-release
-
-# Run all tests
-just test
-
-# Run integration tests (official FHIRPath test suites)
-just test-official
-
-# Update test coverage report
-just test-coverage
-
-# Run simplified unified benchmark suite
-just bench
-
-# Run full benchmark suite (same as bench - simplified)
-just bench-full
-
-# Update benchmark documentation
-just bench-update-docs
-
-# Fix all formatting and clippy issues automatically
-just fix
+crates/
+├── octofhir-fhirpath/     # Main library (re-exports everything)
+├── fhirpath-core/         # Core types, errors, evaluation results
+├── fhirpath-ast/          # Abstract syntax tree definitions
+├── fhirpath-parser/       # Tokenizer and parser (nom-based)
+├── fhirpath-evaluator/    # Expression evaluation engine
+├── fhirpath-model/        # Value types and FHIR data model
+├── fhirpath-registry/     # Function and operator registry
+├── fhirpath-analyzer/     # Static analysis and validation
+└── fhirpath-diagnostics/  # Error handling and reporting
 ```
 
-### Performance and Quality
-```bash
-# Run clippy linting
-just clippy
-
-# Format code
-just fmt
-
-# Check code without building
-just check
-
-# Quality assurance (format + lint + test)
-just qa
-
-# Clean build artifacts
-just clean
-
-# Security audit
-just audit
-
-# Install development tools
-just install-tools
-
-# Watch for changes and run tests
-just watch
-
-# Watch for changes (check only)
-just watch-check
-
-# Expand macros for debugging
-just expand [ITEM]
-
-# Install profiling tools
-just install-profiling-tools
-```
-
-### Test-Specific Commands
-```bash
-# Run specific test case
-just test-case test-case-name
-
-# Run failed expression tests
-just test-failed
-
-# Test coverage with tarpaulin (HTML report)
-just coverage
-
-# Release preparation (full QA + docs)  
-just release-prep
-```
-
-### Documentation Commands
-```bash
-# Generate API documentation
-just doc
-
-# Generate complete documentation (including dependencies)
-just doc-all
-
-# Generate all documentation (API + benchmarks)
-just docs
-```
-
-### CLI Commands
-```bash
-# Evaluate FHIRPath expression (read FHIR resource from stdin)
-just cli-evaluate "Patient.name.given"
-
-# Evaluate FHIRPath expression with specific file
-just cli-evaluate "Patient.name.given" path/to/resource.json
-
-# Evaluate with environment variables
-just cli-evaluate "%customVar" --variable "customVar=hello world"
-
-# Multiple variables
-just cli-evaluate "age > %minAge" --variable "minAge=18" --variable "maxAge=65"
-
-# Parse FHIRPath expression to AST
-just cli-parse "Patient.name.given"
-
-# Validate FHIRPath expression syntax
-just cli-validate "Patient.name.given"
-
-# Show CLI help
-just cli-help
-
-# Run CLI with custom arguments
-just cli [arguments...]
-```
-
-### Profiling Commands
-```bash
-# Profile specific expression
-just profile "Patient.name.given"
-
-# Profile with Patient data
-just profile-patient "Patient.name.where(use = 'official').family"
-
-# Profile with Bundle data
-just profile-bundle "Bundle.entry.resource.count()"
-
-# Run example profiling sessions
-just profile-examples
-```
-
-### Environment Variables Support
-
-The implementation supports FHIRPath environment variables per the specification:
-
-#### Standard Environment Variables
-- `%context` - The original node in the input context
-- `%resource` - The resource containing the original node
-- `%rootResource` - The container resource (for contained resources)
-- `%sct` - SNOMED CT URL (`http://snomed.info/sct`)
-- `%loinc` - LOINC URL (`http://loinc.org`)
-- `%"vs-[name]"` - HL7 value set URLs
-
-#### Custom Variables
-```bash
-# Set custom variables via CLI
-echo '{"age": 25}' | octofhir-fhirpath evaluate 'age > %threshold' --variable 'threshold=18'
-
-# JSON values
-echo '{}' | octofhir-fhirpath evaluate '%config.enabled' --variable 'config={"enabled": true}'
-```
-
-See [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for complete documentation.
-
-### Debug Utilities
-For debugging parser errors, create simple tests instead of dedicated binaries. 
-The project includes utilities for troubleshooting:
-```bash
-# Run specific test case from official FHIRPath test suite
-just test-case test-case-name
-
-# Example: just test-case literals
-# This runs specs/fhirpath/tests/literals.json
-
-# Alternative test coverage with MockModelProvider (faster, no network)
-just test-coverage-mock
-
-# Run single test by name
-cargo test test_name -- --nocapture
-
-# Run tests for specific crate
-cargo test --package fhirpath-parser
-
-# Run a single test with full output
-cargo test test_name -- --nocapture
-
-# Test coverage with tarpaulin (HTML report)
-just coverage
-```
-
-## Guidelines
-
-Apply the following guidelines when developing fhirpath-rs:
-- [Rust Performance Book](https://nnethercote.github.io/perf-book/)
-- [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
-- [Rust Coding Guidelines](https://rust-lang.github.io/rust-clippy/master/index.html)
-- [Rust Style Guide](https://rust-lang.github.io/rust-style-guide/)
-
-## IMPORTANT: Mandatory Implementation Patterns
-
-**⚠️ CRITICAL ARCHITECTURAL REQUIREMENTS - MUST BE FOLLOWED ⚠️**
-
-### JSON Processing with sonic_rs
-- **ALWAYS use sonic_rs::Value** instead of serde_json::Value for all JSON processing
-- **NEVER mix serde_json and sonic_rs types** - use consistent sonic_rs throughout
-- Convert from serde_json to sonic_rs using: `sonic_rs::from_str(&serde_json::to_string(&value).unwrap()).unwrap()`
-- For new code, use `sonic_rs::json!()` macro instead of `serde_json::json!()`
-
-### Async-First Architecture
-- **ALL features MUST be async-first** with non-blocking behavior
-- No synchronous blocking operations in public APIs
-- Use `async/await` pattern throughout the codebase
-- Ensure all I/O operations are non-blocking
-
-### Unified Function Registry Usage
-- **ALWAYS use UnifiedFunctionRegistry** for function implementations
-- **NEVER create hardcoded function implementations**
-- If existing functions need improvement, enhance them to support both regular and lambda evaluation
-- Functions must be registered through the registry system, not implemented as static methods
-
-### Operator Registry Requirements  
-- **ALWAYS use operator registry** for all operator operations
-- **NEVER implement static or hardcoded operator solutions**
-- All operators (arithmetic, logical, comparison, etc.) must go through the registry
-- No direct operator implementation in evaluator code
-
-### Prohibited Patterns
-- **NEVER create fallback or simplified solutions** - implement full functionality
-- **NEVER bypass registry systems** with direct implementations  
-- **NEVER create hardcoded function mappings** or static dispatch
-- **NEVER implement operators outside the registry system**
-- **NEVER create synchronous wrappers** around async functionality
-- **NEVER use serde_json types in new code** - use sonic_rs consistently
-
-### Implementation Standards
-- Always check FHIRPath specification for function and operator behavior
-- Extend existing registry systems rather than creating new ones
-- Maintain registry-based architecture for extensibility
-- Follow existing patterns in unified implementations
-- **CRITICAL**: Always use `ensure_collection_result()` to wrap evaluation results in collections per FHIRPath specification
-- **CRITICAL**: Use `Arc<FhirPathValue>` for root resource sharing to optimize memory usage
-- **CRITICAL**: Implement proper equivalence logic for unordered collection comparisons
-
-## Specifications and Dependencies
-
-- FHIRPath specification reference in [HL7](https://build.fhir.org/ig/HL7/FHIRPath/)
-- Official test cases in `specs/fhirpath/tests/` 
-- FHIRSchema spec: https://fhir-schema.github.io/fhir-schema/intro.html
-- Uses nom library version 8 for parsing
-- For UCUM units: use https://github.com/octofhir/ucum-rs or local path `./…/ucum-rs`
-
-## Development Process
-
-### Architecture Decision Records (ADRs)
-Before implementing major features:
-1. Create ADR following: https://github.com/joelparkerhenderson/architecture-decision-record
-2. Split implementation into phases/tasks stored in `tasks/` directory  
-3. Update task files with implementation status
-
-### Task Management
-For every ADR implementation split record into phases/tasks and store in `tasks/` directory. Maintain a specific task file when working on it. Before starting on the first task, create all tasks for future use. After implementing features from a task file update its status.
-
-### Debug Workflow  
-For debugging cases create a simple test inside the test directory and delete it after resolving the issue.
-
-## Test Coverage
-
-ALL tests files must be under the tests directory for the current crate
-
-To track progress and maintain visibility into implementation completeness:
-
-### Updating Test Coverage Report
-Run the automated test coverage generator:
-```bash
-just test-coverage
-```
-
-This command:
-- Builds the test infrastructure 
-- Runs all official FHIRPath test suites
-- Generates a comprehensive report in `TEST_COVERAGE.md`
-- Provides statistics on pass rates and identifies missing functionality
-
-The coverage report should be updated after completing any major functionality to track progress.
-
-### Recent Architectural Improvements
-
-The following critical improvements have been implemented to enhance performance and FHIRPath specification compliance:
-
-#### Memory Optimization with Arc
-- **Problem**: Context root resource was being cloned for every evaluation, causing memory inefficiency
-- **Solution**: Implemented Arc (Atomic Reference Counting) for root resource sharing
-- **Impact**: Significantly reduced memory usage during evaluation by sharing references instead of cloning
-- **Implementation**: Changed `EvaluationContext.root` from `FhirPathValue` to `Arc<FhirPathValue>`
-
-#### FHIRPath Specification Compliance 
-- **Problem**: Some evaluation results were not wrapped in collections, violating FHIRPath spec requirement
-- **Solution**: Enhanced `ensure_collection_result()` to wrap ALL non-collection values in collections
-- **Impact**: Full compliance with FHIRPath specification that mandates all results be collections
-- **Critical Fix**: Empty values and scalar results are now properly wrapped in collections
-
-#### Collection Equivalence Operator
-- **Problem**: Collection equivalence (~) operator failed on unordered comparisons like `(1 | 2 | 3) ~ (3 | 2 | 1)`
-- **Solution**: Implemented proper unordered collection comparison logic
-- **Impact**: Fixed 50+ test failures and achieved proper equivalence semantics
-
-#### Decimal Serialization
-- **Problem**: Decimal values were serialized as strings instead of numbers in JSON output  
-- **Solution**: Modified `FhirPathValue::From` implementation to output numeric values
-- **Impact**: Tests expecting `[1.5875]` now correctly get numbers instead of `"1.5875"`
-
-These improvements significantly enhanced test pass rates, with 37 test suites achieving 100% pass rates and overall specification compliance improving substantially.
-
-## Library Usage
-
-The main library crate provides a clean API using **sonic_rs::Value** for high performance JSON handling:
-
-### Basic Usage with MockModelProvider (for testing/simple use cases)
-
-```rust
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue, MockModelProvider};
-use sonic_rs::json;
-use std::collections::HashMap;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // MockModelProvider for testing and simple use cases
-    let model_provider = MockModelProvider::new();
-    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
-    
-    let patient = json!({"resourceType": "Patient", "name": [{"given": ["John"]}]});
-    
-    // Basic evaluation
-    let result = engine.evaluate("Patient.name.given", patient.clone()).await?;
-    println!("Result: {:?}", result);
-    
-    // Evaluation with environment variables
-    let mut variables = HashMap::new();
-    variables.insert("myVar".to_string(), FhirPathValue::String("test".into()));
-    let result = engine.evaluate_with_variables("%myVar", patient, variables).await?;
-    println!("Variable result: {:?}", result);
-    
-    Ok(())
-}
-```
-
-### Production Usage with FhirSchemaModelProvider (with multi-tier caching)
-
-For production use and full FHIR compliance with high-performance multi-tier caching:
-
-```rust
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use octofhir_fhirpath_model::FhirSchemaModelProvider;
-use sonic_rs::json;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // FhirSchemaModelProvider with multi-tier caching (default)
-    // Provides full FHIR type information and intelligent caching
-    let model_provider = FhirSchemaModelProvider::new().await?;
-    let mut engine = FhirPathEngine::with_model_provider(Box::new(model_provider));
-    
-    let patient = json!({"resourceType": "Patient", "active": true});
-    
-    // Type operations work efficiently with hot/warm/cold cache hierarchy
-    let type_result = engine.evaluate("Patient.active.type()", patient.clone()).await?;
-    println!("Type: {:?}", type_result); // Should show System.Boolean
-    
-    // Type checking operations are cached automatically
-    let is_result = engine.evaluate("Patient.active is Boolean", patient.clone()).await?;
-    println!("Is Boolean: {:?}", is_result); // Should show true
-    
-    Ok(())
-}
-```
-
-Main exports from `octofhir-fhirpath`:
-- `FhirPathEngine`: Main evaluation engine (async, requires ModelProvider)
-- `FhirPathValue`: Value types and smart collections
-- `parse()`: Parse FHIRPath expressions to AST
-- `FunctionRegistry`: Function registry for extensions  
-- `EvaluationContext`: Context for expression evaluation
-- `MockModelProvider`: Basic ModelProvider for testing/simple use cases
-
-From `octofhir-fhirpath-model`:
-- `FhirSchemaModelProvider`: High-performance ModelProvider with multi-tier caching (default)
-- `CacheManager`: Multi-tier cache system with hot/warm/cold storage
-- `PrecomputedTypeRegistry`: High-performance type registry for fast type operations
-- `ModelProvider`: Async trait for FHIR type introspection
-
-## Performance Characteristics
-
-This implementation is optimized for high-performance with:
-- **Tokenizer**: 10M+ operations/second
-- **Parser**: 1M+ operations/second  
-- **Evaluator**: Arena-based memory management with specialized evaluation paths and Arc-optimized resource sharing
-- **Multi-tier Caching**: Hot cache (lock-free, <100ns), Warm cache (<1μs), Cold storage (<10μs)
-- **Intelligent Caching**: Access pattern tracking with predictive cache warming
-- **Memory Efficiency**: Reduced memory usage through Arc-based root resource sharing and smart cache tiers
-- **Benchmarks**: Comprehensive suite testing all components and cache performance
-- **Test Coverage**: Significantly improved specification compliance (37 test suites at 100% pass rate)
-- **Code Quality**: Zero compiler warnings with clean, maintainable codebase
-
-## Architecture Decision Records (ADRs)
-
-Major architectural decisions are documented in `docs/adr/`:
-
-- **ADR-003**: FHIRPath Type Reflection System - Type reflection and enhanced type() function implementation with FHIRSchema integration
-
-## Future Development
-
-Planned major features documented in ADRs and tasks:
-- **Type Reflection System**: Enhanced type() function with FHIRSchema integration (ADR-003)
-- **CDA Support**: Clinical Document Architecture extensions and functions
-- **Advanced Type Operations**: Enhanced type coercion and validation
-- Cross-platform distribution and Docker support
-
-## Implementation Notes
-
-- Always check FHIRPath specification for functions and operator behavior
-- Use the unified registry system for all function and operator implementations
-- Maintain async-first architecture throughout the codebase
-- Follow the three-stage pipeline: Tokenizer → Parser → Evaluator
-- Prioritize performance with arena-based memory management and caching
-
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-
-      
-      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
+### Key Design Principles
+1. **Performance**: Zero-copy parsing, arena allocation, efficient data structures
+2. **Safety**: 100% memory-safe Rust, no unsafe blocks
+3. **Async-First**: ModelProvider architecture supports async operations without over-engineering
+4. **Thread-Safe**: Full Send + Sync support for FhirPathEngine
+5. **Modular**: Clean separation via workspace crates
+6. **Simplicity**: Clean, maintainable code without unnecessary overhead or complexity
+
+### JSON Processing
+**Important**: This codebase uses `serde_json::Value` for all JSON processing. Maintain consistency by always using `serde_json` throughout the codebase. Do not introduce other JSON libraries unless there is a compelling performance or compatibility reason.
+
+## Development Patterns
+
+### Testing Strategy
+- **Unit Tests**: Each crate has comprehensive unit tests
+- **Integration Tests**: Cross-crate functionality testing
+- **Specification Compliance**: 1104 official FHIRPath tests (90.9% pass rate)
+- **Performance Tests**: Automated benchmarking and regression detection
+- Always run `just test-coverage` to update compliance report
+
+### Code Quality Standards
+- **Zero Warnings**: All clippy warnings must be resolved
+- **Documentation**: All public APIs must have doc comments
+- **Formatting**: Uses rustfmt with 100-character line limit
+- **Performance**: Maintain 100K+ ops/sec for parser, 1K+ ops/sec for evaluator
+
+### Error Handling
+- Uses comprehensive diagnostic system with source location tracking
+- All errors include helpful context and suggestions
+- Parser has error recovery capabilities
+
+### FHIRPath Function Implementation
+When implementing new FHIRPath functions:
+1. Add function to appropriate category in `fhirpath-registry/src/operations/`
+2. Register in the registry with proper signature
+3. Add comprehensive tests including edge cases
+4. Update test coverage by running official test suites
+5. Consider performance implications and add benchmarks if needed
+
+### Performance Considerations  
+- Use `SmallVec` for small collections to avoid heap allocation
+- Prefer arena allocation in evaluation contexts
+- Profile with `just bench` before and after changes
+- Memory usage is critical for large Bundle resources
+
+### CLI Development
+The main binary is in `crates/octofhir-fhirpath/src/bin/octofhir-fhirpath.rs`. All CLI functionality should use the unified FhirPathEngine and provide consistent output formatting.
+
+## Testing and Validation
+
+### Running Tests
+- `just test` - All tests
+- `just test-official` - Official FHIRPath specification tests  
+- `cargo test specific_test_name -- --nocapture` - Individual test with output
+- `cargo test --package crate-name` - Tests for specific crate
+
+### Test Coverage
+Current status: **90.9%** (1003/1104 tests passing)
+- Run `just test-coverage` to update TEST_COVERAGE.md
+- Focus on improving coverage in areas marked 🟠 or 🔴 in test report
+- All new functionality must include tests
+
+### Performance Benchmarks
+- `just bench` provides comprehensive performance metrics
+- Parser target: 100K+ operations/second  
+- Evaluator target: 1K+ operations/second with Bundle resolution
+- Memory efficiency is crucial for healthcare applications
+
+## Environment Variables
+
+### Development
+- `RUST_LOG=debug` - Enable debug logging
+- `RUST_BACKTRACE=1` - Enable backtraces
+- `FHIRPATH_USE_MOCK_PROVIDER=1` - Use MockModelProvider for faster testing
+
+### CLI Usage
+- `FHIRPATH_MODEL` - Default model provider (mock, r4, r5)
+- `FHIRPATH_TIMEOUT` - Default timeout in seconds
+- `NO_COLOR` - Disable colored output
+
+## Key Files and Directories
+
+- `justfile` - All development commands
+- `Cargo.toml` - Workspace configuration with sonic_rs, tokio, and healthcare-specific dependencies
+- `specs/fhirpath/tests/` - Official FHIRPath test suite (1104 tests)
+- `TEST_COVERAGE.md` - Auto-generated compliance report
+- `benchmark.md` - Performance benchmark results
+- `docs/ARCHITECTURE.md` - Detailed technical architecture
+- `docs/DEVELOPMENT.md` - Comprehensive development guide
+- `CLI.md` - Complete CLI reference
+
+## Special Considerations
+
+### FHIRPath Compliance
+- Follow FHIRPath specification exactly (http://hl7.org/fhirpath/)
+- Any deviations must be documented with rationale
+- Test against official test suites regularly
+- Current focus: improving from 90.9% to 95%+ compliance
+
+### Healthcare Data Processing
+- Large Bundle resources are common (hundreds of entries)
+- Reference resolution across Bundle entries is critical
+- Type safety and validation are essential for medical data
+- Performance matters for high-throughput healthcare systems
+
+### ModelProvider Architecture
+Starting from v0.3.0, ModelProvider is mandatory:
+- `MockModelProvider` - Fast, simple provider for development/testing
+- `FhirSchemaModelProvider` - Full FHIR R4/R5 schema integration
+- Async operations for external data fetching
+- Caching is essential for performance
+
+**Critical**: Do NOT hardcode FHIR properties, choice types, or resource types in ModelProvider implementations. All FHIR schema information (properties, types, choices, resource definitions) MUST be dynamically retrieved from FHIRSchema. This ensures:
+- Accurate compliance with official FHIR specifications
+- Support for all FHIR versions and profiles
+- Automatic updates when FHIR schemas change
+- Consistency with the broader FHIR ecosystem
+
+### Release Process
+- Run `just release-prep` for complete quality assurance
+- Update CHANGELOG.md for significant changes
+- Use semantic versioning (currently v0.4.x)
+- All releases require 90%+ test compliance
+
+## Current Priorities
+
+1. **Improve FHIRPath compliance** from 90.9% to 95%+
+2. **Optimize performance** for complex expressions on large Bundles  
+3. **Enhance error messages** with better diagnostics
+4. **Complete missing functions** (see TEST_COVERAGE.md for specifics)
+5. **Add analyzer integration** for static analysis capabilities
+
+## Development Philosophy
+
+**Develop as a Professional Rust Developer and FHIR Expert:**
+- Write idiomatic, clean Rust code that follows best practices
+- Apply deep FHIR domain knowledge to design decisions
+- Prioritize async-first architecture without over-engineering or unnecessary overhead
+- Keep the codebase simple, readable, and maintainable
+- Focus on performance and correctness without sacrificing code clarity
+- Use established patterns and avoid premature optimization
+- Ensure all code is production-ready and enterprise-grade
+
+## Integration Notes
+
+This codebase integrates with broader healthcare ecosystem:
+- Uses octofhir-* family of healthcare crates
+- Compatible with FHIR R4 and R5 specifications
+- Designed for integration with EHR systems and healthcare APIs
+- Thread-safe for server applications
