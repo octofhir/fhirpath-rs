@@ -2534,6 +2534,7 @@ dependencies = [
  "lsp-types",
  "octofhir-fhirpath-core",
  "serde",
+ "serde_json",
  "thiserror 2.0.16",
 ]
 
