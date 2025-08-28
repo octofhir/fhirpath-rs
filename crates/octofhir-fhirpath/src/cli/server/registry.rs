@@ -7,9 +7,7 @@
 use crate::FhirPathEngineWithAnalyzer;
 use crate::cli::server::{error::ServerResult, version::ServerFhirVersion};
 use octofhir_fhirpath_evaluator::FhirPathEngine;
-use octofhir_fhirpath_model::{
-    fhirschema_provider::FhirSchemaModelProvider, provider::ModelProvider,
-};
+use octofhir_fhirpath_model::fhirschema_provider::FhirSchemaModelProvider;
 use octofhir_fhirpath_registry::create_standard_registry;
 use std::collections::HashMap;
 use std::sync::Arc;

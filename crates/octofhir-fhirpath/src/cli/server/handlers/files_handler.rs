@@ -253,28 +253,43 @@ async fn detect_file_type(path: &PathBuf) -> Option<String> {
 
 /// Sanitize filename to prevent directory traversal attacks
 fn sanitize_filename(filename: &str) -> String {
-    // Remove path components and keep only the filename
-    let filename = std::path::Path::new(filename)
-        .file_name()
-        .unwrap_or_else(|| std::ffi::OsStr::new("upload.json"))
-        .to_string_lossy();
+    // Remove directory traversal attempts and normalize path separators
+    let cleaned = filename
+        .replace("../", "")
+        .replace("..\\", "")
+        .replace(['/', '\\'], "_");
 
-    // Replace dangerous characters
-    filename
+    // Determine if we need to be more aggressive with sanitization
+    let has_spaces_or_special = cleaned
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '.' && c != '-' && c != '_');
+
+    // Replace dangerous characters with underscores
+    let sanitized = cleaned
         .chars()
         .map(|c| {
-            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else if c == '.' && !has_spaces_or_special {
+                // Keep dots only if there are no other special characters
                 c
             } else {
                 '_'
             }
         })
         .collect::<String>()
-        .trim_start_matches('.')
-        .to_string()
-        .get(..255) // Limit filename length
-        .unwrap_or("upload.json")
-        .to_string()
+        .trim_start_matches('.') // Always remove leading dots
+        .trim_start_matches('_')
+        .to_string();
+
+    // Return default name if result is empty, otherwise limit length
+    if sanitized.is_empty() {
+        "upload.json".to_string()
+    } else if sanitized.len() > 255 {
+        sanitized[..255].to_string()
+    } else {
+        sanitized
+    }
 }
 
 #[cfg(test)]

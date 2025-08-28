@@ -1,7 +1,6 @@
 //! Request and response models for the FHIRPath HTTP server
 
 use crate::FhirPathValue;
-use octofhir_fhirpath_analyzer::{AnalysisResult as AnalyzerResult, ValidationError};
 use octofhir_ucum::precision::NumericOps;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

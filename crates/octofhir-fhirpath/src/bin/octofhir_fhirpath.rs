@@ -307,7 +307,7 @@ async fn handle_evaluate(
 
 fn handle_parse(
     expression: &str,
-    cli: &Cli,
+    _cli: &Cli,
     formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
 ) {
     let output = match parse(expression) {
@@ -347,7 +347,7 @@ fn handle_parse(
 
 fn handle_validate(
     expression: &str,
-    cli: &Cli,
+    _cli: &Cli,
     formatter: &dyn octofhir_fhirpath::cli::output::OutputFormatter,
 ) {
     // Validate is basically the same as parse but focuses on success/failure
@@ -388,7 +388,7 @@ fn handle_validate(
 
 async fn handle_analyze(
     expression: &str,
-    variables: &[String],
+    _variables: &[String],
     validate_only: bool,
     _no_inference: bool,
     cli: &Cli,

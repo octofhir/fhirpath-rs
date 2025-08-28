@@ -720,7 +720,7 @@ impl FieldValidator {
     fn parse_cardinality_info(
         &self,
         field_info: &octofhir_fhirschema::FieldInfo,
-        field_name: &str,
+        _field_name: &str,
     ) -> FieldCardinalityInfo {
         let cardinality = &field_info.cardinality;
 

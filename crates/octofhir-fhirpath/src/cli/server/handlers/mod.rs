@@ -9,7 +9,6 @@ use crate::cli::server::{
     registry::ServerRegistry,
     version::{ServerFhirVersion, extract_version_from_path},
 };
-use octofhir_fhirpath_analyzer::error::SourceLocation as AnalyzerSourceLocation;
 use octofhir_fhirpath_analyzer::{AnalysisResult as AnalyzerResult, ValidationError};
 
 use axum::{

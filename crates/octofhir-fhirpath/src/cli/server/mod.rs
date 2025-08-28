@@ -23,7 +23,6 @@ use axum::{
     routing::{get, post},
 };
 use std::net::SocketAddr;
-use tower::ServiceBuilder;
 use tower_http::{
     catch_panic::CatchPanicLayer,
     cors::{Any, CorsLayer},
