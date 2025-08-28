@@ -33,7 +33,7 @@ regex = { workspace = true }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
 num-traits = "0.2"
-base64 = "0.21"
+base64 = "0.22"
 url = "2.0"
 percent-encoding = { workspace = true }
 thiserror = { workspace = true }
