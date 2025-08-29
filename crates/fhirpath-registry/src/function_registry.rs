@@ -218,6 +218,21 @@ impl FunctionRegistry {
         names
     }
 
+    /// Get list of all function names synchronously (for completion/highlighting)
+    /// This method uses the cached function names when available for better performance
+    pub fn get_all_function_names(&self) -> Vec<String> {
+        // Use blocking call to access the cache synchronously
+        // This is acceptable for UI operations like completion and highlighting
+        if let Ok(cache) = self.function_cache.try_read() {
+            let mut names: Vec<String> = cache.keys().cloned().collect();
+            names.sort();
+            names
+        } else {
+            // Fallback to empty if cache is locked
+            Vec::new()
+        }
+    }
+
     /// Get function signature by name  
     pub async fn get_function_signature(&self, name: &str) -> Option<FunctionSignature> {
         // Try sync registry first

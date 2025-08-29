@@ -11,7 +11,7 @@ description = "A high-performance FHIRPath implementation in Rust with comprehen
 readme = "../../README.md"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
 categories = ["parser-implementations", "data-structures", "science"]
-build = "../../build.rs"
+build = "build.rs"
 include = [
     "src/**/*",
     "../../dist/ui/**/*",
@@ -19,7 +19,7 @@ include = [
     "../../ui/package.json",
     "../../ui/vite.config.ts",
     "../../ui/tsconfig.json",
-    "../../build.rs",
+    "build.rs",
     "../../specs/**/*",
     "../../tests/**/*",
     "../../benches/**/*",

@@ -14,7 +14,7 @@ exclude = []
 resolver = "3"
 
 [workspace.package]
-version = "0.4.18"
+version = "0.4.19"
 edition = "2024"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -73,7 +73,7 @@ reqwest = { version = "0.12.22", features = [
 # CLI dependencies
 clap = { version = "4", features = ["derive"] }
 human-panic = "2.0"
-rustyline = "14.0"
+rustyline = "17.0"
 
 # Optional diagnostic dependencies
 colored = "3.0.0"

@@ -151,7 +151,6 @@ pub use crate::type_analyzer::ValueTypeAnalyzer;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_system_type_object() {

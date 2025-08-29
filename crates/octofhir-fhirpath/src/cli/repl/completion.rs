@@ -16,7 +16,7 @@
 
 use rustyline::Helper;
 use rustyline::completion::{Completer, Pair};
-use rustyline::highlight::Highlighter;
+use rustyline::highlight::{CmdKind, Highlighter};
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Result as RlResult};
@@ -29,18 +29,21 @@ use crate::registry::FunctionRegistry;
 pub struct FhirPathCompleter {
     commands: Vec<String>,
     cached_functions: std::sync::RwLock<Option<Vec<String>>>,
+    cached_resource_types: std::sync::RwLock<Option<Vec<String>>>,
+    model_provider: Arc<dyn ModelProvider>,
+    registry: std::sync::RwLock<Option<Arc<FunctionRegistry>>>,
 }
 
 impl FhirPathCompleter {
     /// Create a new completer
-    pub fn new(_model_provider: Arc<dyn ModelProvider>) -> Self {
-        Self::with_registry(_model_provider, None)
+    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
+        Self::with_registry(model_provider, None)
     }
 
     /// Create a new completer with function registry
     pub fn with_registry(
-        _model_provider: Arc<dyn ModelProvider>,
-        _registry: Option<Arc<FunctionRegistry>>,
+        model_provider: Arc<dyn ModelProvider>,
+        registry: Option<Arc<FunctionRegistry>>,
     ) -> Self {
         let commands = vec![
             ":load".to_string(),
@@ -59,6 +62,9 @@ impl FhirPathCompleter {
         Self {
             commands,
             cached_functions: std::sync::RwLock::new(None),
+            cached_resource_types: std::sync::RwLock::new(None),
+            model_provider,
+            registry: std::sync::RwLock::new(registry),
         }
     }
 
@@ -196,10 +202,15 @@ impl FhirPathCompleter {
             Vec::new()
         };
 
+        // If no cached functions, try to get from registry
+        if function_names.is_empty() {
+            function_names.extend(self.get_functions_from_registry());
+        }
+
         // Always add lambda functions since they're not in the registry
         function_names.extend(self.get_lambda_functions());
 
-        // If no cache, add fallback common FHIR properties and basic functions
+        // If still no functions, add fallback common FHIR properties and basic functions
         if function_names.is_empty() {
             function_names.extend(vec![
                 // Common FHIR properties for property navigation
@@ -251,6 +262,59 @@ impl FhirPathCompleter {
         if let Ok(mut cache) = self.cached_functions.write() {
             *cache = Some(function_names);
         }
+    }
+
+    /// Update the registry reference
+    pub fn set_registry(&self, registry: Arc<FunctionRegistry>) {
+        if let Ok(mut reg) = self.registry.write() {
+            *reg = Some(registry);
+        }
+        // Clear function cache when registry changes
+        if let Ok(mut cache) = self.cached_functions.write() {
+            *cache = None;
+        }
+    }
+
+    /// Get function names from registry if available
+    fn get_functions_from_registry(&self) -> Vec<String> {
+        if let Ok(registry_guard) = self.registry.read() {
+            if let Some(ref registry) = *registry_guard {
+                return registry.get_all_function_names();
+            }
+        }
+        Vec::new()
+    }
+
+    /// Get resource types from model provider
+    fn get_resource_types_from_provider(&self) -> Vec<String> {
+        // Try cache first
+        if let Ok(cache) = self.cached_resource_types.read() {
+            if let Some(ref types) = *cache {
+                return types.clone();
+            }
+        }
+
+        // Get from model provider (this would be async in real implementation)
+        let resource_types = vec![
+            "Patient".to_string(),
+            "Bundle".to_string(),
+            "Observation".to_string(),
+            "Condition".to_string(),
+            "Organization".to_string(),
+            "Practitioner".to_string(),
+            "Encounter".to_string(),
+            "Procedure".to_string(),
+            "MedicationRequest".to_string(),
+            "DiagnosticReport".to_string(),
+            "AllergyIntolerance".to_string(),
+        ];
+
+        // Cache the result
+        if let Ok(mut cache) = self.cached_resource_types.write() {
+            *cache = Some(resource_types.clone());
+        }
+
+        resource_types
     }
 
     /// Complete FHIR properties with descriptions
@@ -692,16 +756,247 @@ impl FhirPathCompleter {
         // No specific hint
         None
     }
+
+    /// Highlight REPL commands
+    fn highlight_command<'l>(&self, line: &'l str) -> std::borrow::Cow<'l, str> {
+        if !line.trim_start().starts_with(':') {
+            return std::borrow::Cow::Borrowed(line);
+        }
+
+        let mut result = String::new();
+        let mut chars = line.chars().peekable();
+        let mut current_word = String::new();
+        let mut in_command = false;
+
+        while let Some(ch) = chars.next() {
+            if ch == ':' && !in_command {
+                // Start of command - color it cyan
+                result.push_str("\x1b[36m:"); // Cyan
+                in_command = true;
+                current_word.clear();
+            } else if in_command && (ch.is_whitespace() || chars.peek().is_none()) {
+                // End of command word
+                if !ch.is_whitespace() {
+                    current_word.push(ch);
+                }
+
+                // Color known commands differently
+                if self
+                    .commands
+                    .iter()
+                    .any(|cmd| cmd == &format!(":{}", current_word))
+                {
+                    result.push_str(&format!("\x1b[1;36m{}\x1b[0m", current_word)); // Bold cyan
+                } else {
+                    result.push_str(&format!("\x1b[36m{}\x1b[0m", current_word)); // Regular cyan
+                }
+
+                if ch.is_whitespace() {
+                    result.push(ch);
+                }
+                in_command = false;
+                current_word.clear();
+            } else if in_command {
+                current_word.push(ch);
+            } else {
+                // Regular text after command
+                result.push(ch);
+            }
+        }
+
+        // Handle case where command is at end of line
+        if in_command && !current_word.is_empty() {
+            if self
+                .commands
+                .iter()
+                .any(|cmd| cmd == &format!(":{}", current_word))
+            {
+                result.push_str(&format!("\x1b[1;36m{}\x1b[0m", current_word));
+            } else {
+                result.push_str(&format!("\x1b[36m{}\x1b[0m", current_word));
+            }
+        }
+
+        std::borrow::Cow::Owned(result)
+    }
+
+    /// Highlight FHIRPath expressions with syntax coloring
+    fn highlight_fhirpath<'l>(&self, line: &'l str) -> std::borrow::Cow<'l, str> {
+        if line.trim().is_empty() {
+            return std::borrow::Cow::Borrowed(line);
+        }
+
+        let mut result = String::new();
+        let mut chars = line.chars().peekable();
+        let mut current_token = String::new();
+
+        while let Some(ch) = chars.next() {
+            match ch {
+                // String literals
+                '\'' => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+
+                    result.push_str("\x1b[32m'"); // Green for strings
+
+                    // Read until closing quote or end of line
+                    let mut string_content = String::new();
+                    let mut escaped = false;
+
+                    while let Some(inner_ch) = chars.next() {
+                        if escaped {
+                            string_content.push(inner_ch);
+                            escaped = false;
+                        } else if inner_ch == '\\' {
+                            string_content.push(inner_ch);
+                            escaped = true;
+                        } else if inner_ch == '\'' {
+                            string_content.push(inner_ch);
+                            break;
+                        } else {
+                            string_content.push(inner_ch);
+                        }
+                    }
+
+                    result.push_str(&string_content);
+                    result.push_str("\x1b[0m"); // Reset color
+                }
+
+                // Operators and punctuation
+                '=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+
+                    // Look ahead for multi-character operators
+                    let mut operator = String::from(ch);
+                    if let Some(&next_ch) = chars.peek() {
+                        match (ch, next_ch) {
+                            ('=', '=') | ('!', '=') | ('>', '=') | ('<', '=') => {
+                                operator.push(chars.next().unwrap());
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    result.push_str(&format!("\x1b[33m{}\x1b[0m", operator)); // Yellow for operators
+                }
+
+                // Parentheses and brackets
+                '(' | ')' | '[' | ']' => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for brackets
+                }
+
+                // Dot notation
+                '.' => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for dots
+                }
+
+                // Comma
+                ',' => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+                    result.push_str(&format!("\x1b[37m{}\x1b[0m", ch)); // White for commas
+                }
+
+                // Whitespace
+                ch if ch.is_whitespace() => {
+                    if !current_token.is_empty() {
+                        self.append_highlighted_token(&mut result, &current_token);
+                        current_token.clear();
+                    }
+                    result.push(ch);
+                }
+
+                // Regular characters - accumulate into token
+                _ => {
+                    current_token.push(ch);
+                }
+            }
+        }
+
+        // Handle final token
+        if !current_token.is_empty() {
+            self.append_highlighted_token(&mut result, &current_token);
+        }
+
+        std::borrow::Cow::Owned(result)
+    }
+
+    /// Helper to append a highlighted token based on its type
+    fn append_highlighted_token(&self, result: &mut String, token: &str) {
+        // Check if it's a number
+        if token.parse::<f64>().is_ok() || token.parse::<i64>().is_ok() {
+            result.push_str(&format!("\x1b[35m{}\x1b[0m", token)); // Magenta for numbers
+            return;
+        }
+
+        // Check if it's a boolean
+        if matches!(token, "true" | "false") {
+            result.push_str(&format!("\x1b[35m{}\x1b[0m", token)); // Magenta for booleans
+            return;
+        }
+
+        // Check if it's a logical operator/keyword
+        if matches!(
+            token,
+            "and" | "or" | "xor" | "implies" | "mod" | "div" | "in" | "contains"
+        ) {
+            result.push_str(&format!("\x1b[33m{}\x1b[0m", token)); // Yellow for keywords/operators
+            return;
+        }
+
+        // Check if it's a function from registry or common functions
+        let function_names = self.get_cached_function_names();
+        if function_names.iter().any(|f| f == token) {
+            result.push_str(&format!("\x1b[34m{}\x1b[0m", token)); // Blue for functions
+            return;
+        }
+
+        // Check if it's a FHIR resource type from model provider
+        let resource_types = self.get_resource_types_from_provider();
+        if resource_types.iter().any(|r| r == token) {
+            result.push_str(&format!("\x1b[1;32m{}\x1b[0m", token)); // Bold green for resource types
+            return;
+        }
+
+        // Check if it starts with uppercase (likely a resource type or property)
+        if token.chars().next().map_or(false, |c| c.is_uppercase()) {
+            result.push_str(&format!("\x1b[32m{}\x1b[0m", token)); // Green for properties/types
+            return;
+        }
+
+        // Default: no highlighting
+        result.push_str(token);
+    }
 }
 
 impl Highlighter for FhirPathCompleter {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> std::borrow::Cow<'l, str> {
-        // Basic syntax highlighting could be added here
-        std::borrow::Cow::Borrowed(line)
+        // Skip highlighting for commands
+        if line.trim_start().starts_with(':') {
+            return self.highlight_command(line);
+        }
+
+        self.highlight_fhirpath(line)
     }
 
-    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
-        false
+    fn highlight_char(&self, _line: &str, _pos: usize, _kind: CmdKind) -> bool {
+        // Return true to trigger highlighting on most actions for responsive syntax coloring
+        matches!(_kind, CmdKind::MoveCursor | CmdKind::Other)
     }
 }
 
