@@ -113,6 +113,10 @@
 #![allow(clippy::result_large_err)]
 
 pub mod analyzer;
+pub mod bridge_constraint_analyzer;
+pub mod bridge_error_reporter;
+pub mod bridge_field_validator;
+pub mod bridge_path_navigator;
 pub mod cache;
 pub mod children_analyzer;
 pub mod config;
@@ -124,6 +128,22 @@ pub mod types;
 
 // Re-export main types
 pub use analyzer::FhirPathAnalyzer;
+pub use bridge_constraint_analyzer::{
+    ConstraintAnalyzer, ConstraintPerformanceMetrics, ConstraintSuggestion,
+    ConstraintValidationResult, ConstraintViolation, ExecutionTimeCategory, MemoryUsageCategory,
+};
+pub use bridge_error_reporter::{
+    AnalyzerErrorReporter, AutomaticFix, DocumentationLink, EnhancedErrorReport, ErrorCategory,
+    ErrorSeverity, ErrorSuggestion, FhirPathError, PropertySuggestion,
+};
+pub use bridge_field_validator::{
+    AnalyzerError, AnalyzerFieldValidator, BridgeCardinality, BridgeValidationResult, PropertyInfo,
+    SimilarityMatcher,
+};
+pub use bridge_path_navigator::{
+    AnalyzerPathNavigator, EnhancedPathSuggestion, NavigationCacheStats, PathSuggestion,
+    UsageStatistics,
+};
 pub use cache::{AnalysisCache, ExpressionAnalysisMap};
 pub use children_analyzer::ChildrenFunctionAnalyzer;
 pub use config::AnalyzerConfig;
@@ -132,3 +152,6 @@ pub use field_validator::FieldValidator;
 pub use function_analyzer::FunctionAnalyzer;
 pub use model_provider_ext::ModelProviderChildrenExt;
 pub use types::{AnalysisContext, AnalysisResult, AnalysisSettings, SemanticInfo};
+
+#[cfg(test)]
+mod tests;

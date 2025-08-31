@@ -21,6 +21,8 @@ pub mod engine;
 pub mod evaluators;
 
 // Modular evaluation components
+mod bridge_navigation;
+mod cache;
 mod evaluation;
 mod functions;
 mod lambda;

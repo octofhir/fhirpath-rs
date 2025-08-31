@@ -29,7 +29,7 @@ You are a Rust expert specializing in safe, performant systems programming.
 - Trait implementations with derive macros
 - Async code with proper cancellation
 - Unit tests and documentation tests
-- Benchmarks with [criterion.rs](https://github.com/nvzqz/divan)
+- Benchmarks with [divan](https://github.com/nvzqz/divan)
 - Cargo.toml with feature flags
 
 Follow clippy lints. Include examples in doc comments.

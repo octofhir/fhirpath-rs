@@ -19,6 +19,10 @@ octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 
+# Bridge support dependencies
+octofhir-fhirschema = { workspace = true }
+octofhir-canonical-manager = { workspace = true }
+
 # Performance and concurrency
 dashmap = { workspace = true }
 once_cell = { workspace = true }
@@ -51,5 +55,5 @@ rustc-hash = { workspace = true }
 default = []
 
 [dev-dependencies]
-criterion = { version = "0.7.0", features = ["html_reports"] }
+divan = "0.1"
 pretty_assertions = "1.4.1"

@@ -14,7 +14,8 @@
 
 //! FHIRPath implementation in Rust
 //!
-//! A complete implementation of the FHIRPath expression language for FHIR resources.
+//! A complete implementation of the FHIRPath expression language for FHIR resources
+//! with Bridge Support Architecture for enhanced performance and FHIR compliance.
 
 // Import workspace crates
 pub use octofhir_fhirpath_analyzer as analyzer;
@@ -26,6 +27,17 @@ pub use octofhir_fhirpath_model as model;
 pub use octofhir_fhirpath_parser as parser;
 pub use octofhir_fhirpath_registry as registry;
 
+// Bridge Support exports
+pub use octofhir_fhirschema::package::FhirSchemaPackageManager;
+// TODO: Re-enable when bridge_support module is made public
+// pub use octofhir_fhirschema::types::bridge_support::{
+//     PropertyInfo, BridgeCardinality, BridgeValidationResult, BridgeResourceInfo
+// };
+
+pub mod config;
+pub mod convenience;
+pub mod engine_factory;
+pub mod fhirpath;
 pub mod utils;
 
 // CLI module (includes server functionality) - optional
@@ -50,12 +62,41 @@ pub use octofhir_fhirpath_diagnostics::{
     Diagnostic, DiagnosticBuilder, DiagnosticCode, DiagnosticReporter, DiagnosticSeverity,
 };
 
+// Enhanced Bridge Support re-exports
+pub use octofhir_fhirpath_analyzer::{
+    AnalyzerErrorReporter, AnalyzerFieldValidator, AnalyzerPathNavigator,
+};
+pub use octofhir_fhirpath_registry::{
+    FhirPathTypeRegistry, PackageError, RegistryError, RegistryPackageManager,
+    SchemaAwareFunctionRegistry, create_schema_aware_registry,
+};
+// TODO: Re-enable when BridgeNavigationEvaluator is exported
+// pub use octofhir_fhirpath_evaluator::{BridgeNavigationEvaluator};
+
 // Re-export ModelProvider from fhir-model-rs
 pub use octofhir_fhirpath_model::ModelProvider;
 pub use octofhir_fhirpath_model::fhir_model;
 
 // Re-export from local modules (minimal local integration code)
 pub mod value_ext;
+
+// Main API exports with Bridge Support
+pub use config::{
+    FhirPathConfig, FhirPathConfigBuilder, FhirPathEngineConfig, FhirPathEvaluationResult,
+    FhirVersion, OutputFormat, PerformanceMetrics, SchemaConfig,
+};
+pub use engine_factory::{
+    AdvancedFhirPathEngine, CliEvaluationResult, CliFhirPathEngine, CliValidationResult,
+    FhirPathEngineFactory,
+};
+pub use fhirpath::FhirPath;
+
+// Convenience function exports
+pub use convenience::{
+    evaluate_boolean, evaluate_fhirpath, evaluate_fhirpath_with_analysis,
+    evaluate_fhirpath_with_version, get_all_string_values, get_string_value, parse_expression,
+    path_exists, validate_fhirpath,
+};
 
 // Re-export conversion utilities for easier access
 pub use utils::{
@@ -103,7 +144,7 @@ impl FhirPathEngineWithAnalyzer {
         model_provider: Box<dyn ModelProvider>,
     ) -> octofhir_fhirpath_core::EvaluationResult<Self> {
         let arc_provider: std::sync::Arc<dyn ModelProvider> = std::sync::Arc::from(model_provider);
-        let analyzer = FhirPathAnalyzer::new(arc_provider.clone());
+        let analyzer = FhirPathAnalyzer::new(arc_provider.clone()).await?;
         let engine = FhirPathEngine::with_model_provider(arc_provider.clone()).await?;
 
         Ok(Self {
@@ -119,7 +160,7 @@ impl FhirPathEngineWithAnalyzer {
         analyzer_config: AnalyzerConfig,
     ) -> octofhir_fhirpath_core::EvaluationResult<Self> {
         let arc_provider: std::sync::Arc<dyn ModelProvider> = std::sync::Arc::from(model_provider);
-        let analyzer = FhirPathAnalyzer::with_config(arc_provider.clone(), analyzer_config);
+        let analyzer = FhirPathAnalyzer::with_config(arc_provider.clone(), analyzer_config).await?;
         let engine = FhirPathEngine::with_model_provider(arc_provider.clone()).await?;
 
         Ok(Self {
@@ -136,7 +177,8 @@ impl FhirPathEngineWithAnalyzer {
     ) -> octofhir_fhirpath_core::EvaluationResult<Self> {
         let arc_provider: std::sync::Arc<dyn ModelProvider> = std::sync::Arc::from(model_provider);
         let analyzer =
-            FhirPathAnalyzer::with_function_registry(arc_provider.clone(), function_registry);
+            FhirPathAnalyzer::with_function_registry(arc_provider.clone(), function_registry)
+                .await?;
         let engine = FhirPathEngine::with_model_provider(arc_provider.clone()).await?;
 
         Ok(Self {

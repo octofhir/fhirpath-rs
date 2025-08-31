@@ -1,5 +1,6 @@
 //! Comprehensive test suite for unified FHIRPath engine
 
+pub mod bridge_evaluation_tests; // Bridge support integration tests
 pub mod compatibility_tests; // Compatibility with existing API
 pub mod edge_case_tests; // Edge cases and error handling
 pub mod stress_tests; // Memory and load tests
@@ -232,6 +233,53 @@ pub fn values_equal(actual: &FhirPathValue, expected: &FhirPathValue) -> bool {
         }
         (FhirPathValue::Empty, FhirPathValue::Empty) => true,
         _ => false,
+    }
+}
+
+// Helper trait to add convenience methods to FhirPathValue for testing
+pub trait FhirPathValueTestExt {
+    fn as_single_string(&self) -> Option<String>;
+    fn as_single_decimal(&self) -> Option<f64>;
+    fn as_single_integer(&self) -> Option<i64>;
+    fn as_single_boolean(&self) -> Option<bool>;
+}
+
+impl FhirPathValueTestExt for FhirPathValue {
+    fn as_single_string(&self) -> Option<String> {
+        match self {
+            FhirPathValue::String(s) => Some(s.clone()),
+            FhirPathValue::Collection(items) => items.first()?.as_string().map(|s| s.to_string()),
+            _ => None,
+        }
+    }
+
+    fn as_single_decimal(&self) -> Option<f64> {
+        match self {
+            FhirPathValue::Decimal(d) => Some(d.to_f64().unwrap_or(0.0)),
+            FhirPathValue::Integer(i) => Some(*i as f64),
+            FhirPathValue::Collection(items) => items.first().and_then(|v| match v {
+                FhirPathValue::Decimal(d) => Some(d.to_f64().unwrap_or(0.0)),
+                FhirPathValue::Integer(i) => Some(*i as f64),
+                _ => None,
+            }),
+            _ => None,
+        }
+    }
+
+    fn as_single_integer(&self) -> Option<i64> {
+        match self {
+            FhirPathValue::Integer(i) => Some(*i),
+            FhirPathValue::Collection(items) => items.first()?.as_integer(),
+            _ => None,
+        }
+    }
+
+    fn as_single_boolean(&self) -> Option<bool> {
+        match self {
+            FhirPathValue::Boolean(b) => Some(*b),
+            FhirPathValue::Collection(items) => items.first()?.as_boolean(),
+            _ => None,
+        }
     }
 }
 

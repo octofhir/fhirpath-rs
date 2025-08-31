@@ -18,10 +18,8 @@
 //! at startup, eliminating the need for expensive schema lookups during FHIRPath evaluation.
 
 use crate::provider::{ModelError, TypeReflectionInfo};
-use octofhir_fhirschema::{
-    Element as FhirSchemaElement, FhirSchema, FhirSchemaPackageManager,
-    ModelProvider as FhirSchemaModelProviderTrait,
-};
+use crate::type_resolution::TypeResolver;
+use octofhir_fhirschema::{Element as FhirSchemaElement, FhirSchema, FhirSchemaPackageManager};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -175,11 +173,11 @@ impl PrecomputedTypeRegistry {
         let available_types = self.get_available_types(package_manager).await?;
 
         for type_name in available_types {
-            if let Some(schema) = FhirSchemaModelProviderTrait::get_schema(
-                package_manager,
-                &format!("http://hl7.org/fhir/StructureDefinition/{type_name}"),
-            )
-            .await
+            if let Some(schema) = package_manager
+                .get_schema(&format!(
+                    "http://hl7.org/fhir/StructureDefinition/{type_name}"
+                ))
+                .await
             {
                 self.process_schema(type_name, &schema)?;
             }
@@ -378,7 +376,16 @@ impl PrecomputedTypeRegistry {
     }
 
     /// Check if a type is a FHIR resource type
+    /// Check if type name represents a FHIR resource
+    /// TODO: Replace hardcoded resource type check with bridge API integration
+    /// This method should be replaced with bridge API call for O(1) lookup:
+    /// ```rust
+    /// fn is_resource_type(&self, type_name: &str, schema_manager: &FhirSchemaPackageManager) -> bool {
+    ///     schema_manager.has_resource_type(type_name) // O(1) lookup
+    /// }
+    /// ```
     fn is_resource_type(&self, type_name: &str) -> bool {
+        // LEGACY hardcoded list - should be replaced with bridge API
         matches!(
             type_name,
             "Patient"
@@ -568,6 +575,33 @@ impl PrecomputedTypeRegistry {
             choice_mappings_count: self.choice_mappings.len(),
             total_properties_count: self.property_maps.values().map(|props| props.len()).sum(),
         }
+    }
+
+    /// Check if type is resource using bridge API (replaces hardcoded check)
+    pub async fn is_resource_type_bridge(
+        &self,
+        type_name: &str,
+        schema_manager: &FhirSchemaPackageManager,
+    ) -> bool {
+        schema_manager.has_resource_type(type_name).await
+    }
+
+    /// Check if type is primitive using bridge API (replaces hardcoded check)
+    pub async fn is_primitive_type_bridge(
+        &self,
+        type_name: &str,
+        schema_manager: &FhirSchemaPackageManager,
+    ) -> bool {
+        schema_manager.is_primitive_type(type_name).await
+    }
+
+    /// Get comprehensive type info using bridge API
+    pub async fn get_type_info_bridge(
+        &self,
+        type_name: &str,
+        type_resolver: &mut TypeResolver,
+    ) -> Result<crate::type_resolution::TypeInfo, octofhir_fhirpath_core::FhirPathError> {
+        type_resolver.get_type_info(type_name).await
     }
 }
 

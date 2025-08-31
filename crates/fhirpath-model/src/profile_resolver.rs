@@ -16,7 +16,7 @@
 
 use super::cache::Cache;
 use super::provider::*;
-use octofhir_fhirschema::{Element as FhirSchemaElement, FhirSchema};
+use octofhir_fhirschema::{Element as FhirSchemaElement, FhirSchema, FhirSchemaPackageManager};
 use std::collections::HashMap;
 use url::Url;
 
@@ -512,7 +512,7 @@ impl ProfileResolver {
         }
     }
 
-    /// Check if type is primitive
+    /// Check if type is primitive (LEGACY - replaced by bridge API)
     fn is_primitive_type(&self, type_code: &str) -> bool {
         matches!(
             type_code,
@@ -535,6 +535,15 @@ impl ProfileResolver {
                 | "unsignedInt"
                 | "positiveInt"
         )
+    }
+
+    /// Check if type is primitive using bridge API (replaces hardcoded check)
+    pub async fn is_primitive_type_bridge(
+        &self,
+        type_code: &str,
+        schema_manager: &FhirSchemaPackageManager,
+    ) -> bool {
+        schema_manager.is_primitive_type(type_code).await
     }
 
     /// Normalize primitive type name

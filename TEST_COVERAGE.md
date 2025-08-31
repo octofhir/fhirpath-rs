@@ -1,6 +1,6 @@
 # FHIRPath Test Coverage Report
 
-Generated on: 2025-08-28
+Generated on: 2025-08-31
 Implementation: fhirpath-rs (octofhir-fhirpath)
 
 ## Executive Summary
@@ -13,8 +13,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 111 | 100% |
 | **Total Individual Tests** | 1104 | 100% |
-| **Passing Tests** | 993 | 89.9% |
-| **Failing Tests** | 98 | 8.9% |
+| **Passing Tests** | 992 | 89.9% |
+| **Failing Tests** | 99 | 9.0% |
 | **Error Tests** | 13 | 1.2% |
 
 ## Test Results by Suite
@@ -127,9 +127,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **extension.json** - 66.7% (2/3 tests)
 - **miscellaneous-accessor-tests.json** - 66.7% (2/3 tests)
 - **select.json** - 66.7% (2/3 tests)
-- **type.json** - 63.3% (19/30 tests)
 - **high-boundary.json** - 62.5% (15/24 tests)
 - **dollar.json** - 60.0% (3/5 tests)
+- **type.json** - 60.0% (18/30 tests)
 - **inheritance.json** - 58.3% (14/24 tests)
 - **from--zulip.json** - 50.0% (1/2 tests)
 - **misc-engine-tests.json** - 50.0% (1/2 tests)
@@ -154,5 +154,5 @@ The fhirpath-rs implementation currently passes approximately **89.9% of all FHI
 
 ---
 
-*Report generated on: 2025-08-28 17:29:56*
+*Report generated on: 2025-08-31 17:12:09*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

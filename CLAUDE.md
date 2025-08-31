@@ -208,6 +208,7 @@ Current status: **90.9%** (1003/1104 tests passing)
 - Parser target: 100K+ operations/second  
 - Evaluator target: 1K+ operations/second with Bundle resolution
 - Memory efficiency is crucial for healthcare applications
+- **Important**: This codebase uses **Divan** for all benchmarking. Always use Divan instead of Criterion when creating new benchmarks.
 
 ## Environment Variables
 

@@ -235,7 +235,7 @@ Apply the following guidelines when developing fhirpath-core:
 - FHIRSchema spec: https://fhir-schema.github.io/fhir-schema/intro.html
 - Uses nom library version 8 for parsing
 - For UCUM units: use https://github.com/octofhir/ucum-rs or local path `./…/ucum-rs`
-- Criterion version 0.7
+- Divan for all benchmarking (no Criterion)
 
 
 ## Development Process

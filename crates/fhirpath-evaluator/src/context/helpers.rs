@@ -288,6 +288,7 @@ impl VariableScopeMemoryInfo {
 /// This struct provides static utility methods for creating contexts in
 /// common scenarios. These methods encapsulate best practices and ensure
 /// consistent context creation across the codebase.
+#[allow(dead_code)]
 pub struct ContextFactory;
 
 impl ContextFactory {
@@ -305,6 +306,7 @@ impl ContextFactory {
     ///
     /// # Returns
     /// EvaluationContext with pre-allocated variable storage
+    #[allow(dead_code)]
     pub fn with_capacity(
         input: FhirPathValue,
         registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
@@ -341,6 +343,7 @@ impl ContextFactory {
     ///
     /// # Returns
     /// EvaluationContext with standard environment variables configured
+    #[allow(dead_code)]
     pub fn with_environment(
         input: FhirPathValue,
         registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
@@ -401,6 +404,7 @@ impl ContextFactory {
     ///
     /// # Returns
     /// Child EvaluationContext with shared resources and new variable scope
+    #[allow(dead_code)]
     pub fn child_context(
         parent: &EvaluationContext,
         new_input: FhirPathValue,

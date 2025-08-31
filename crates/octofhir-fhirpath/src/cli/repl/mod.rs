@@ -75,7 +75,7 @@ pub async fn start_repl(
     let registry = Arc::new(create_standard_registry().await);
     let engine = FhirPathEngine::new(registry, model_provider);
 
-    let mut session = ReplSession::with_engine(engine, config)?;
+    let mut session = ReplSession::with_engine(engine, config).await?;
 
     // Load initial resource if provided
     if let Some(resource) = initial_resource {

@@ -25,7 +25,9 @@
 //! in type reflection operations like `type()`, `is()`, and `as()` functions.
 
 pub mod boxing;
+pub mod bridge_types;
 pub mod cache;
+pub mod choice_type_bridge;
 pub mod choice_type_mapper;
 pub mod coercion_utils;
 pub mod error;
@@ -36,6 +38,7 @@ pub mod json_value;
 pub mod legacy_cache;
 pub mod mock_provider;
 pub mod mock_type_definitions;
+pub mod navigation;
 pub mod polymorphic_factory;
 pub mod polymorphic_resolver;
 pub mod precomputed_registry;
@@ -45,30 +48,36 @@ pub mod quantity;
 pub mod resource;
 pub mod smart_collection;
 pub mod string_intern;
+pub mod system_types;
 pub mod temporal;
 pub mod type_analyzer;
 pub mod type_coercion;
 pub mod type_object;
+pub mod type_resolution;
 pub mod types;
 pub mod value;
 
 // Re-export main types
 pub use cache::{Cache, CacheConfig, CacheStats};
+pub use choice_type_bridge::BridgeChoiceTypeResolver;
 pub use choice_type_mapper::{ChoiceTypeMapper, ChoiceVariant, SharedChoiceTypeMapper};
 pub use fhirschema_provider::FhirSchemaModelProvider;
+pub use navigation::PropertyNavigator;
 pub use polymorphic_resolver::{PolymorphicPathResolver, PolymorphicResolverFactory, ResolvedPath};
 // JsonParser functionality is integrated into JsonValue directly
 pub use json_value::JsonValue;
 pub use mock_provider::MockModelProvider;
 pub use precomputed_registry::{
-    ChoiceTypeInfo, FhirTypeInfo, PrecomputedTypeRegistry, PrimitiveTypeKind, PropertyInfo,
-    RegistryStatistics, SystemTypeInfo,
+    ChoiceTypeInfo, FhirTypeInfo, PrecomputedTypeRegistry, PrimitiveTypeKind, RegistryStatistics,
+    SystemTypeInfo,
 };
 pub use provider::ModelProvider;
 pub use quantity::Quantity;
 pub use smart_collection::{SmartCollection, SmartCollectionBuilder};
+pub use system_types::{SystemTypeCategory, SystemTypes};
 pub use temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 pub use type_object::{FhirPathTypeObject, TypeObjectMetadata, ValueTypeAnalyzer};
+pub use type_resolution::{ChoiceTypeResolver, PropertyResolver, TypeInfo, TypeResolver};
 pub use value::{Collection, FhirPathValue};
 
 // Re-export value pool functionality
@@ -79,3 +88,12 @@ pub use octofhir_fhirpath_core::{FhirPathError, Result};
 
 // Re-export from external crates
 pub use octofhir_fhir_model as fhir_model;
+
+// Re-export bridge support types for external integrations
+pub use bridge_types::{BridgeChoiceInfo, BridgeResourceInfo};
+pub use octofhir_fhirschema::types::{
+    BridgeCardinality, BridgeValidationResult, PropertyInfo as SchemaPropertyInfo,
+};
+
+#[cfg(test)]
+mod tests;

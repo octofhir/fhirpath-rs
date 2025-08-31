@@ -3,6 +3,10 @@ use octofhir_fhir_model::reflection::TypeReflectionInfo;
 use octofhir_fhirpath_model::*;
 use std::sync::Arc;
 
+fn main() {
+    divan::main();
+}
+
 fn create_test_type_info(name: &str) -> TypeReflectionInfo {
     TypeReflectionInfo::SimpleType {
         namespace: "Test".to_string(),

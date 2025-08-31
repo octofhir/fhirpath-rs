@@ -36,7 +36,7 @@ test-coverage:
     @echo "🔍 Running comprehensive test coverage analysis..."
     @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
     @echo "⚠️  If this hangs, try running 'just test-coverage-mock' for MockModelProvider version"
-    timeout 60 cargo run --package octofhir-fhirpath --bin test-coverage --features dev-tools || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
+    timeout 60 cargo run --package octofhir-fhirpath --bin test-coverage --features dev-tools,cli || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-mock' instead" && exit 0)
 
 # Run test coverage with MockModelProvider (faster, no network required)
 test-coverage-mock:

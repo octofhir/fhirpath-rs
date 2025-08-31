@@ -355,22 +355,30 @@ just bench-update-docs
 
 ### Adding Benchmarks
 
-Add benchmarks to `crates/fhirpath-bench/src/`:
+Add benchmarks using Divan (we use Divan instead of Criterion for all benchmarking):
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use divan::{Bencher, black_box};
 
-fn benchmark_your_feature(c: &mut Criterion) {
-    c.bench_function("your_feature", |b| {
-        b.iter(|| {
-            // Benchmark code
-            black_box(your_function())
-        })
+fn main() {
+    divan::main();
+}
+
+#[divan::bench]
+fn benchmark_your_feature(bencher: Bencher) {
+    bencher.bench_local(|| {
+        // Benchmark code
+        black_box(your_function())
     });
 }
 
-criterion_group!(benches, benchmark_your_feature);
-criterion_main!(benches);
+// For parameterized benchmarks
+#[divan::bench(args = [10, 100, 1000])]
+fn benchmark_with_params(bencher: Bencher, size: usize) {
+    bencher.bench_local(|| {
+        black_box(your_function_with_size(size))
+    });
+}
 ```
 
 ### Performance Guidelines

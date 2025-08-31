@@ -54,3 +54,7 @@ reqwest = { workspace = true }
 [features]
 default = []
 serde = []
+
+[dev-dependencies]
+divan = "0.1.21"
+tokio-test = "0.4"

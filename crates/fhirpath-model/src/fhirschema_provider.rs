@@ -21,11 +21,10 @@ use super::provider::*;
 use async_trait::async_trait;
 use octofhir_canonical_manager::FcmConfig;
 use octofhir_fhirschema::converter::ConverterConfig;
-use octofhir_fhirschema::package::{
-    DependencyStrategy, ModelProvider as SchemaModelProvider, RegistryConfig, ValidationLevel,
-};
+use octofhir_fhirschema::package::{DependencyStrategy, RegistryConfig, ValidationLevel};
 use octofhir_fhirschema::storage::StorageConfig;
 use octofhir_fhirschema::{FhirSchema, FhirSchemaPackageManager, PackageManagerConfig};
+// Bridge support types are available via the schema manager
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -36,91 +35,105 @@ pub struct FhirSchemaModelProvider {
     fhir_version: FhirVersion,
     // Enhanced field type mappings for FHIR primitive type semantics
     field_type_mappings: HashMap<String, HashMap<String, String>>,
-    // Schema package manager for dynamic schema access
-    schema_manager: Option<Arc<FhirSchemaPackageManager>>,
+    // Schema package manager for dynamic schema access (required)
+    schema_manager: Arc<FhirSchemaPackageManager>,
 }
 
 impl FhirSchemaModelProvider {
     /// Create a new FhirSchemaModelProvider with default R4 configuration
     pub async fn new() -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: FhirVersion::R4,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok(); // Optional initialization
         Ok(provider)
     }
 
     /// Create a new FhirSchemaModelProvider for FHIR R4
     pub async fn r4() -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: FhirVersion::R4,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok();
         Ok(provider)
     }
 
     /// Create a new FhirSchemaModelProvider for FHIR R5
     pub async fn r5() -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: FhirVersion::R5,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok();
         Ok(provider)
     }
 
     /// Create a new FhirSchemaModelProvider for FHIR R4B
     pub async fn r4b() -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: FhirVersion::R4B,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok();
         Ok(provider)
     }
 
     /// Create a new FhirSchemaModelProvider with custom configuration
     pub async fn with_config(config: FhirSchemaConfig) -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: config.fhir_version,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok();
         Ok(provider)
     }
 
     /// Create a new FhirSchemaModelProvider with custom packages
     pub async fn with_packages(_packages: Vec<PackageSpec>) -> Result<Self, ModelError> {
+        let schema_manager = Self::create_schema_manager().await?;
         let mut provider = Self {
             inner: MockModelProvider::new(),
             fhir_version: FhirVersion::R4,
             field_type_mappings: HashMap::new(),
-            schema_manager: None,
+            schema_manager,
         };
         provider.initialize_fhir_field_mappings();
-        provider.initialize_schema_manager().await.ok();
+        Ok(provider)
+    }
+
+    /// Create a new FhirSchemaModelProvider with an existing schema manager
+    pub async fn with_manager(
+        schema_manager: Arc<FhirSchemaPackageManager>,
+    ) -> Result<Self, ModelError> {
+        let mut provider = Self {
+            inner: MockModelProvider::new(),
+            fhir_version: FhirVersion::R4,
+            field_type_mappings: HashMap::new(),
+            schema_manager,
+        };
+        provider.initialize_fhir_field_mappings();
         Ok(provider)
     }
 
     /// Initialize the schema manager for dynamic schema access
-    async fn initialize_schema_manager(&mut self) -> Result<(), ModelError> {
+    async fn create_schema_manager() -> Result<Arc<FhirSchemaPackageManager>, ModelError> {
         // Create default configuration for FHIR core packages
         let fcm_config = FcmConfig::default();
         let pkg_config = PackageManagerConfig {
@@ -140,14 +153,13 @@ impl FhirSchemaModelProvider {
         };
 
         match FhirSchemaPackageManager::new(fcm_config, pkg_config).await {
-            Ok(manager) => {
-                self.schema_manager = Some(Arc::new(manager));
-                Ok(())
-            }
+            Ok(manager) => Ok(Arc::new(manager)),
             Err(e) => {
                 log::warn!("Failed to initialize schema manager: {e}");
-                // Fall back to hardcoded approach
-                Ok(())
+                Err(ModelError::ConstraintError {
+                    constraint_key: "schema-manager-init".to_string(),
+                    message: format!("Failed to initialize schema manager: {e}"),
+                })
             }
         }
     }
@@ -205,7 +217,8 @@ impl FhirSchemaModelProvider {
 
     /// Check if a property is a FHIR choice property (value[x] pattern) using schema
     async fn is_schema_choice_property(&self, resource_type: &str, property: &str) -> bool {
-        if let Some(manager) = &self.schema_manager {
+        {
+            let manager = &self.schema_manager;
             // Get the base schema for the resource type
             if let Some(schema) = manager
                 .get_schema(&format!(
@@ -243,7 +256,8 @@ impl FhirSchemaModelProvider {
         resource_type: &str,
         property: &str,
     ) -> Vec<crate::choice_type_mapper::ChoiceVariant> {
-        if let Some(manager) = &self.schema_manager {
+        {
+            let manager = &self.schema_manager;
             if let Some(schema) = manager
                 .get_schema(&format!(
                     "http://hl7.org/fhir/StructureDefinition/{resource_type}"
@@ -595,7 +609,8 @@ impl ModelProvider for FhirSchemaModelProvider {
     }
 
     async fn is_resource_type(&self, type_code: &str) -> bool {
-        self.inner.is_resource_type(type_code).await
+        // Use bridge API for O(1) resource type check instead of delegating to inner
+        self.schema_manager.has_resource_type(type_code).await
     }
 
     fn fhir_version(&self) -> FhirVersion {
@@ -716,7 +731,8 @@ impl ModelProvider for FhirSchemaModelProvider {
         concrete_property: &str,
     ) -> Option<String> {
         // Schema-based reverse lookup: given valueQuantity, return "value"
-        if let Some(manager) = &self.schema_manager {
+        {
+            let manager = &self.schema_manager;
             if let Some(schema) = manager
                 .get_schema(&format!(
                     "http://hl7.org/fhir/StructureDefinition/{type_code}"
@@ -764,7 +780,7 @@ impl std::fmt::Debug for FhirSchemaModelProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FhirSchemaModelProvider")
             .field("fhir_version", &self.fhir_version)
-            .field("schema_manager_initialized", &self.schema_manager.is_some())
+            .field("schema_manager_initialized", &true)
             .field("field_mappings_count", &self.field_type_mappings.len())
             .finish()
     }

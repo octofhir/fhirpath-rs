@@ -17,7 +17,9 @@
 //! Provides the complete type reflection system required for FHIRPath compliance,
 //! enabling proper `type().namespace` and `type().name` functionality.
 
+use crate::type_resolution::TypeResolver;
 use crate::{FhirPathValue, JsonValue};
+use octofhir_fhirschema::FhirSchemaPackageManager;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -65,6 +67,7 @@ impl FhirPathTypeObject {
     }
 
     /// Create FHIR namespace type object
+    /// TODO: Replace hardcoded resource type check with bridge API integration
     pub fn fhir_type(name: impl Into<String>, base_type: Option<String>) -> Self {
         let name_str = name.into();
         let is_resource = Self::is_resource_type(&name_str);
@@ -82,8 +85,18 @@ impl FhirPathTypeObject {
     }
 
     /// Check if type name represents a FHIR resource
+    /// TODO: This should be replaced with bridge API call for O(1) lookup
+    /// Current implementation is a hardcoded list that needs to be replaced with:
+    /// ```rust
+    /// async fn is_resource_type(
+    ///     type_name: &str,
+    ///     schema_manager: &FhirSchemaPackageManager
+    /// ) -> bool {
+    ///     schema_manager.has_resource_type(type_name) // O(1) lookup
+    /// }
+    /// ```
     fn is_resource_type(type_name: &str) -> bool {
-        // Common FHIR resource types
+        // Common FHIR resource types (LEGACY - to be replaced with bridge API)
         matches!(
             type_name,
             "Patient"
@@ -142,6 +155,48 @@ impl FhirPathTypeObject {
             namespace: Arc::from(self.namespace.as_str()),
             name: Arc::from(self.name.as_str()),
         }
+    }
+
+    /// Create FHIR type using bridge support API for accurate type resolution
+    pub async fn fhir_type_with_schema(
+        name: impl Into<String>,
+        base_type: Option<String>,
+        schema_manager: &FhirSchemaPackageManager,
+    ) -> Self {
+        let name_str = name.into();
+        let is_resource = schema_manager.has_resource_type(&name_str).await;
+
+        Self {
+            namespace: "FHIR".to_string(),
+            name: name_str,
+            base_type,
+            metadata: TypeObjectMetadata {
+                is_primitive: false,
+                is_resource,
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Create type object using TypeResolver for comprehensive type information  
+    pub async fn from_type_resolver(
+        name: impl Into<String>,
+        type_resolver: &mut TypeResolver,
+    ) -> Result<Self, octofhir_fhirpath_core::FhirPathError> {
+        let name_str = name.into();
+        let type_info = type_resolver.get_type_info(&name_str).await?;
+
+        Ok(Self {
+            namespace: type_info.namespace,
+            name: type_info.name,
+            base_type: type_info.base_type,
+            metadata: TypeObjectMetadata {
+                is_primitive: type_info.is_primitive,
+                is_resource: type_info.is_resource,
+                is_abstract: false, // Would need schema metadata for this
+                properties: vec![], // Would be populated from schema
+            },
+        })
     }
 }
 

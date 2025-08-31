@@ -23,6 +23,9 @@ octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirschema.workspace = true
 
+# Bridge support dependencies
+octofhir-canonical-manager.workspace = true
+
 # Performance and concurrency
 dashmap = { workspace = true }
 lru = { workspace = true }

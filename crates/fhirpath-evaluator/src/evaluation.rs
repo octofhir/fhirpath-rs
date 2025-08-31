@@ -199,9 +199,27 @@ impl crate::FhirPathEngine {
         &self,
         identifier: &str,
         input: &FhirPathValue,
-        _context: &LocalEvaluationContext,
+        context: &LocalEvaluationContext,
     ) -> EvaluationResult<FhirPathValue> {
-        // If polymorphic navigation is enabled, try it first
+        // If bridge navigation is enabled, use it first (priority over polymorphic)
+        if let Some(bridge_navigator) = &self.bridge_navigator {
+            // Clone the navigator to avoid mutable borrow issues
+            let mut navigator = bridge_navigator.clone();
+            match navigator
+                .navigate_property(input, identifier, context)
+                .await
+            {
+                Ok(result) => {
+                    // Bridge navigation succeeded
+                    return Ok(result);
+                }
+                Err(_) => {
+                    // Bridge navigation failed, continue with fallback methods
+                }
+            }
+        }
+
+        // If polymorphic navigation is enabled, try it as fallback
         if let Some(polymorphic_engine) = self.polymorphic_engine() {
             if let Ok(nav_result) = polymorphic_engine.navigate_path(input, identifier).await {
                 if nav_result.used_choice_resolution || !nav_result.values.is_empty() {
@@ -213,7 +231,7 @@ impl crate::FhirPathEngine {
         }
 
         // Fall back to standard identifier evaluation
-        self.evaluate_identifier(identifier, input, _context)
+        self.evaluate_identifier(identifier, input, context)
     }
 
     pub fn evaluate_identifier(

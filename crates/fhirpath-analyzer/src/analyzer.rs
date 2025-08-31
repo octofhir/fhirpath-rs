@@ -27,44 +27,49 @@ pub struct FhirPathAnalyzer {
 
 impl FhirPathAnalyzer {
     /// Create new analyzer with ModelProvider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
-        let field_validator = FieldValidator::new(model_provider.clone());
-        Self {
+    pub async fn new(
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let field_validator = FieldValidator::new(model_provider.clone()).await?;
+        Ok(Self {
             model_provider,
             cache: Arc::new(AnalysisCache::new()),
             config: AnalyzerConfig::default(),
             function_analyzer: None,
             field_validator,
-        }
+        })
     }
 
     /// Create analyzer with custom configuration
-    pub fn with_config(model_provider: Arc<dyn ModelProvider>, config: AnalyzerConfig) -> Self {
-        let field_validator = FieldValidator::new(model_provider.clone());
-        Self {
+    pub async fn with_config(
+        model_provider: Arc<dyn ModelProvider>,
+        config: AnalyzerConfig,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let field_validator = FieldValidator::new(model_provider.clone()).await?;
+        Ok(Self {
             model_provider,
             cache: Arc::new(AnalysisCache::with_capacity(config.cache_size)),
             config,
             function_analyzer: None,
             field_validator,
-        }
+        })
     }
 
     /// Create analyzer with function registry
-    pub fn with_function_registry(
+    pub async fn with_function_registry(
         model_provider: Arc<dyn ModelProvider>,
         function_registry: Arc<FunctionRegistry>,
-    ) -> Self {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let function_analyzer = Some(FunctionAnalyzer::new(function_registry));
-        let field_validator = FieldValidator::new(model_provider.clone());
+        let field_validator = FieldValidator::new(model_provider.clone()).await?;
 
-        Self {
+        Ok(Self {
             model_provider,
             cache: Arc::new(AnalysisCache::new()),
             config: AnalyzerConfig::default(),
             function_analyzer,
             field_validator,
-        }
+        })
     }
 
     /// Analyze expression and enrich with semantic type information
@@ -916,7 +921,7 @@ impl FhirPathAnalyzer {
     /// Get suggestions for similar resource types
     async fn get_resource_type_suggestions(&self, unknown_type: &str) -> Vec<String> {
         // Use the field validator to get available resource types from schema
-        let schema_validator = self.field_validator.get_schema_field_validator();
+        let schema_validator = self.field_validator.schema_field_validator();
         let resource_types = match schema_validator.get_available_resource_types().await {
             Ok(types) => types,
             Err(_) => return Vec::new(),

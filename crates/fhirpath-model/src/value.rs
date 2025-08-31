@@ -26,12 +26,15 @@ use super::json_value::JsonValue;
 use super::quantity::Quantity;
 use super::resource::FhirResource;
 use super::types::TypeInfo;
+// Bridge support types available if needed for future enhancements
 
 /// Core value type for FHIRPath expressions
 ///
 /// This enum represents all possible values that can be produced by FHIRPath expressions.
 /// All values in FHIRPath are conceptual collections, but single values are represented
 /// directly for performance reasons.
+///
+/// Enhanced with bridge support for dynamic schema metadata integration.
 #[derive(Clone, PartialEq)]
 pub enum FhirPathValue {
     /// Boolean value

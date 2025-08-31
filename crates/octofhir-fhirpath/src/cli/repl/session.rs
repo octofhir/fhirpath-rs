@@ -48,11 +48,13 @@ pub struct ReplSession {
 
 impl ReplSession {
     /// Create a new REPL session with a pre-created engine
-    pub fn with_engine(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
+    pub async fn with_engine(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
         // Create analyzer
         let analyzer_config = AnalyzerConfig::default();
         let analyzer =
-            FhirPathAnalyzer::with_config(engine.model_provider().clone(), analyzer_config);
+            FhirPathAnalyzer::with_config(engine.model_provider().clone(), analyzer_config)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to create analyzer: {}", e))?;
 
         // Initialize editor with history
         let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()

@@ -75,14 +75,19 @@
 //! # }
 //! ```
 
+use crate::bridge_navigation::BridgeNavigationEvaluator;
+use crate::cache::SchemaCache;
 use crate::context::EvaluationContext as LocalEvaluationContext;
 use crate::evaluators::polymorphic::PolymorphicNavigationEngine;
 
 // Import the new modular components
 use octofhir_fhirpath_ast::ExpressionNode;
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
+use octofhir_fhirpath_model::{
+    ChoiceTypeResolver, FhirPathValue, ModelProvider, SystemTypes, TypeResolver,
+};
 use octofhir_fhirpath_registry::traits::EvaluationContext as RegistryEvaluationContext;
+use octofhir_fhirschema::FhirSchemaPackageManager;
 use std::sync::Arc;
 
 /// Unified FHIRPath evaluation engine.
@@ -144,6 +149,23 @@ pub struct FhirPathEngine {
     config: EvaluationConfig,
     /// Optional polymorphic navigation engine for FHIR choice types
     polymorphic_engine: Option<Arc<PolymorphicNavigationEngine>>,
+    /// Schema manager for bridge API integration
+    #[allow(dead_code)]
+    schema_manager: Option<Arc<FhirSchemaPackageManager>>,
+    /// Schema cache for performance optimization
+    #[allow(dead_code)]
+    schema_cache: SchemaCache,
+    /// Type resolver for O(1) type operations
+    #[allow(dead_code)]
+    type_resolver: Option<TypeResolver>,
+    /// Choice type resolver for polymorphic navigation
+    #[allow(dead_code)]
+    choice_resolver: Option<ChoiceTypeResolver>,
+    /// System types for type categorization
+    #[allow(dead_code)]
+    system_types: Option<SystemTypes>,
+    /// Bridge navigation evaluator for property navigation
+    pub(crate) bridge_navigator: Option<BridgeNavigationEvaluator>,
 }
 
 /// Configuration options for FHIRPath evaluation.
@@ -307,6 +329,12 @@ impl FhirPathEngine {
             model_provider,
             config: EvaluationConfig::default(),
             polymorphic_engine: None,
+            schema_manager: None,
+            schema_cache: SchemaCache::new(),
+            type_resolver: None,
+            choice_resolver: None,
+            system_types: None,
+            bridge_navigator: None,
         }
     }
 
@@ -518,6 +546,64 @@ impl FhirPathEngine {
     ) -> EvaluationResult<Self> {
         let registry = octofhir_fhirpath_registry::create_standard_registry().await;
         Ok(Self::new(Arc::new(registry), model_provider))
+    }
+
+    /// Creates an engine with bridge support and schema manager integration.
+    ///
+    /// This constructor enables the full bridge support architecture with O(1) type operations,
+    /// choice type resolution, and dynamic schema-based property navigation.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_manager` - FHIR schema package manager for bridge API
+    /// * `model_provider` - Model provider implementation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
+    /// use octofhir_fhirpath_model::FhirSchemaModelProvider;
+    /// use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig};
+    /// use octofhir_canonical_manager::FcmConfig;
+    /// use std::sync::Arc;
+    ///
+    /// let fcm_config = FcmConfig::default();
+    /// let config = PackageManagerConfig::default();
+    /// let schema_manager = Arc::new(
+    ///     FhirSchemaPackageManager::new(fcm_config, config).await?
+    /// );
+    /// let model_provider = Arc::new(FhirSchemaModelProvider::new().await?);
+    ///
+    /// let engine = FhirPathEngine::with_bridge_support(schema_manager, model_provider).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn with_bridge_support(
+        schema_manager: Arc<FhirSchemaPackageManager>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> EvaluationResult<Self> {
+        let registry = octofhir_fhirpath_registry::create_standard_registry().await;
+
+        // Create bridge-enabled components
+        let type_resolver = TypeResolver::new(schema_manager.clone());
+        let choice_resolver = ChoiceTypeResolver::new(schema_manager.clone());
+        let system_types = SystemTypes::new(schema_manager.clone());
+        let bridge_navigator = BridgeNavigationEvaluator::new(schema_manager.clone());
+
+        Ok(Self {
+            registry: Arc::new(registry),
+            model_provider,
+            config: EvaluationConfig::default(),
+            polymorphic_engine: None,
+            schema_manager: Some(schema_manager),
+            schema_cache: SchemaCache::new(),
+            type_resolver: Some(type_resolver),
+            choice_resolver: Some(choice_resolver),
+            system_types: Some(system_types),
+            bridge_navigator: Some(bridge_navigator),
+        })
     }
 
     /// Creates a new engine instance with a modified configuration.
@@ -1098,20 +1184,133 @@ impl FhirPathEngine {
             .evaluate_node_async(expression, input, context, depth + 1)
             .await?;
 
-        // Check type - simplified implementation
-        let matches_type = match (&value, type_name) {
-            (FhirPathValue::Boolean(_), "Boolean") => true,
-            (FhirPathValue::Integer(_), "Integer") => true,
-            (FhirPathValue::Decimal(_), "Decimal") => true,
-            (FhirPathValue::String(_), "String") => true,
-            (FhirPathValue::Date(_), "Date") => true,
-            (FhirPathValue::DateTime(_), "DateTime") => true,
-            (FhirPathValue::Time(_), "Time") => true,
-            (FhirPathValue::Quantity(_), "Quantity") => true,
-            _ => false, // More sophisticated type checking can be added
+        // Use bridge-enabled type checking when available
+        let matches_type = if let (Some(system_types), Some(type_resolver)) =
+            (&self.system_types, &self.type_resolver)
+        {
+            // Advanced type checking with bridge support
+            self.check_type_with_bridge(&value, type_name, system_types, type_resolver)
+                .await
+        } else {
+            // Fallback to simplified implementation
+            match (&value, type_name) {
+                (FhirPathValue::Boolean(_), "Boolean") => true,
+                (FhirPathValue::Integer(_), "Integer") => true,
+                (FhirPathValue::Decimal(_), "Decimal") => true,
+                (FhirPathValue::String(_), "String") => true,
+                (FhirPathValue::Date(_), "Date") => true,
+                (FhirPathValue::DateTime(_), "DateTime") => true,
+                (FhirPathValue::Time(_), "Time") => true,
+                (FhirPathValue::Quantity(_), "Quantity") => true,
+                _ => false,
+            }
         };
 
         Ok(FhirPathValue::Boolean(matches_type))
+    }
+
+    /// Advanced type checking using bridge support
+    fn check_type_with_bridge<'a>(
+        &'a self,
+        value: &'a FhirPathValue,
+        type_name: &'a str,
+        system_types: &'a SystemTypes,
+        type_resolver: &'a TypeResolver,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            self.check_type_with_bridge_impl(value, type_name, system_types, type_resolver)
+                .await
+        })
+    }
+
+    /// Implementation for bridge type checking
+    async fn check_type_with_bridge_impl(
+        &self,
+        value: &FhirPathValue,
+        type_name: &str,
+        system_types: &SystemTypes,
+        _type_resolver: &TypeResolver,
+    ) -> bool {
+        match value {
+            // Primitive types
+            FhirPathValue::Boolean(_) => {
+                system_types.get_system_type_category("boolean").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "boolean"
+            }
+            FhirPathValue::Integer(_) => {
+                system_types.get_system_type_category("integer").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "integer"
+            }
+            FhirPathValue::Decimal(_) => {
+                system_types.get_system_type_category("decimal").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "decimal"
+            }
+            FhirPathValue::String(_) => {
+                system_types.get_system_type_category("string").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "string"
+            }
+            FhirPathValue::Date(_) => {
+                system_types.get_system_type_category("date").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "date"
+            }
+            FhirPathValue::DateTime(_) => {
+                system_types.get_system_type_category("dateTime").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "dateTime"
+            }
+            FhirPathValue::Time(_) => {
+                system_types.get_system_type_category("time").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
+                    && type_name == "time"
+            }
+            FhirPathValue::Quantity(_) => {
+                system_types.get_system_type_category("Quantity").await
+                    == octofhir_fhirpath_model::SystemTypeCategory::Complex
+                    && type_name == "Quantity"
+            }
+
+            // JSON values - check based on content
+            FhirPathValue::JsonValue(json) => {
+                if let Some(resource_type_value) = json.get_property("resourceType") {
+                    if let Some(resource_type) = resource_type_value.as_str() {
+                        // This is a FHIR resource - check if it matches the expected type
+                        if resource_type == type_name {
+                            return true;
+                        }
+
+                        // Check inheritance using bridge API
+                        return system_types.is_subtype_of(resource_type, type_name).await;
+                    }
+                }
+                // Generic element - would need more sophisticated checking
+                return false;
+            }
+
+            // Collections - check element types
+            FhirPathValue::Collection(items) => {
+                // For collections, check if all elements match the type
+                for item in items.iter() {
+                    let result = Box::pin(self.check_type_with_bridge_impl(
+                        item,
+                        type_name,
+                        system_types,
+                        _type_resolver,
+                    ))
+                    .await;
+                    if !result {
+                        return false;
+                    }
+                }
+                true
+            }
+
+            _ => false,
+        }
     }
 
     /// Evaluate type cast expressions (value as Type)

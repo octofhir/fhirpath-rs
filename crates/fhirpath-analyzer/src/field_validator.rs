@@ -4,9 +4,12 @@
 //! actually exist in FHIR resource types, leveraging FhirSchemaFieldValidator
 //! for accurate field existence checking based on the actual FHIR schema.
 
+use octofhir_canonical_manager::FcmConfig;
 use octofhir_fhirpath_ast::{ExpressionNode, LiteralValue};
 use octofhir_fhirpath_model::provider::{ModelProvider, TypeReflectionInfo};
-use octofhir_fhirschema::{FhirSchemaFieldValidator, ModelProvider as SchemaModelProvider};
+use octofhir_fhirschema::{
+    FhirSchemaPackageManager, validation::field_validator::FhirSchemaFieldValidator,
+};
 use std::sync::Arc;
 
 use crate::{
@@ -39,8 +42,12 @@ enum FunctionCardinalityRequirement {
 }
 
 /// Field validator that checks if fields exist in FHIR resource types using FhirSchema
+/// This integrates with the bridge support architecture for accurate field validation
 pub struct FieldValidator {
+    /// Schema field validator for bridge-enabled validation  
     schema_field_validator: Arc<FhirSchemaFieldValidator>,
+    /// Model provider for type reflection and validation
+    model_provider: Arc<dyn ModelProvider>,
 }
 
 /// Context for tracking field validation during AST traversal
@@ -314,22 +321,40 @@ impl FieldValidationContext {
 
 impl FieldValidator {
     /// Create a new field validator with the given model provider
-    pub fn new(model_provider: Arc<dyn ModelProvider>) -> Self {
-        // Create a FhirSchemaFieldValidator using the ModelProvider
-        // We need to convert from ModelProvider to SchemaModelProvider
-        let schema_model_provider = SchemaModelProviderAdapter::new(model_provider);
-        let schema_field_validator = Arc::new(FhirSchemaFieldValidator::new(Arc::new(
-            schema_model_provider,
-        )));
+    /// This properly integrates with FhirSchemaPackageManager for bridge support
+    pub async fn new_with_schema_manager(
+        model_provider: Arc<dyn ModelProvider>,
+        schema_manager: Arc<FhirSchemaPackageManager>,
+    ) -> Self {
+        let schema_field_validator = Arc::new(FhirSchemaFieldValidator::new(schema_manager));
 
         Self {
             schema_field_validator,
+            model_provider,
         }
     }
 
-    /// Get access to the schema field validator for additional operations
-    pub fn get_schema_field_validator(&self) -> &Arc<FhirSchemaFieldValidator> {
+    /// Create a new field validator with default configuration
+    /// This creates the FhirSchemaPackageManager with bridge support enabled
+    pub async fn new(
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let fcm_config = FcmConfig::default();
+        let config = octofhir_fhirschema::PackageManagerConfig::default();
+
+        let schema_manager = Arc::new(FhirSchemaPackageManager::new(fcm_config, config).await?);
+
+        Ok(Self::new_with_schema_manager(model_provider, schema_manager).await)
+    }
+
+    /// Get the schema field validator for bridge operations
+    pub fn schema_field_validator(&self) -> &Arc<FhirSchemaFieldValidator> {
         &self.schema_field_validator
+    }
+
+    /// Get the model provider for additional operations
+    pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
+        &self.model_provider
     }
 
     /// Validate that all field navigation in the expression uses existing fields
@@ -637,7 +662,7 @@ impl FieldValidator {
         }
     }
 
-    /// Validate a specific field in a resource type using FhirSchema
+    /// Validate a specific field in a resource type using FhirSchemaFieldValidator
     async fn validate_field_in_resource(
         &self,
         resource_type: &str,
@@ -650,25 +675,42 @@ impl FieldValidator {
             .validate_field(resource_type, field_name)
             .await
         {
-            Ok(result) => {
-                if result.exists {
-                    // Field exists, check if we can determine the next type
-                    if let Some(field_info) = &result.element_info {
-                        // Parse cardinality information from the field
-                        let cardinality_info = self.parse_cardinality_info(field_info, field_name);
+            Ok(validation_result) => {
+                if validation_result.exists {
+                    // Field exists - extract type information from field info
+                    if let Some(element_info) = validation_result.element_info {
+                        // Parse cardinality information from field result
+                        let cardinality_info = FieldCardinalityInfo {
+                            is_collection: element_info.cardinality.contains("*")
+                                || element_info.cardinality.ends_with("+")
+                                || element_info.cardinality.contains(".."),
+                            is_required: element_info.is_required,
+                            cardinality: element_info.cardinality.clone(),
+                            field_type: element_info
+                                .element_types
+                                .first()
+                                .unwrap_or(&"Unknown".to_string())
+                                .clone(),
+                        };
 
                         // Update field context with cardinality information
                         field_context.current_cardinality = Some(cardinality_info);
 
-                        // Try to get the first element type for navigation
-                        field_info.element_types.first().cloned()
+                        // Return the first element type for navigation
+                        Some(
+                            element_info
+                                .element_types
+                                .first()
+                                .unwrap_or(&"Unknown".to_string())
+                                .clone(),
+                        )
                     } else {
-                        // Field exists but we don't have type information
+                        // Field exists but we don't have detailed type information
                         field_context.current_cardinality = None;
                         None
                     }
                 } else {
-                    // Field doesn't exist
+                    // Field doesn't exist - use suggestions from bridge API
                     let detailed_message = if field_context.navigation_path.len() > 1 {
                         format!(
                             "Field '{}' does not exist in FHIR resource type '{}' at path: {}",
@@ -687,16 +729,16 @@ impl FieldValidator {
                         message: detailed_message,
                         error_type: ValidationErrorType::InvalidField,
                         location: None,
-                        suggestions: result.suggestions,
+                        suggestions: validation_result.suggestions,
                     });
                     None
                 }
             }
             Err(_) => {
-                // Error occurred during validation
+                // Error occurred during validation - use bridge API error handling
                 errors.push(ValidationError {
                     message: format!(
-                        "Failed to validate field '{}' in resource type '{}'",
+                        "Failed to validate field '{}' in resource type '{}' using bridge API",
                         field_name, resource_type
                     ),
                     error_type: ValidationErrorType::InvalidField,
@@ -713,47 +755,6 @@ impl FieldValidator {
         match node {
             ExpressionNode::Literal(LiteralValue::Integer(i)) => (*i as usize).into(),
             _ => None, // Complex expressions for index not supported
-        }
-    }
-
-    /// Parse cardinality information from field info
-    fn parse_cardinality_info(
-        &self,
-        field_info: &octofhir_fhirschema::FieldInfo,
-        _field_name: &str,
-    ) -> FieldCardinalityInfo {
-        let cardinality = &field_info.cardinality;
-
-        // Parse cardinality string (e.g., "0..1", "1..*", "0..*")
-        let is_collection = cardinality.contains("*") || cardinality.ends_with("..n") || {
-            // Check if max is > 1
-            if let Some(max_part) = cardinality.split("..").last() {
-                max_part.parse::<u32>().map_or(false, |max| max > 1)
-            } else {
-                false
-            }
-        };
-
-        let is_required = cardinality.starts_with('1') || {
-            // Check if min is > 0
-            if let Some(min_part) = cardinality.split("..").next() {
-                min_part.parse::<u32>().map_or(false, |min| min > 0)
-            } else {
-                false
-            }
-        };
-
-        let field_type = field_info
-            .element_types
-            .first()
-            .cloned()
-            .unwrap_or_default();
-
-        FieldCardinalityInfo {
-            is_collection,
-            is_required,
-            cardinality: cardinality.clone(),
-            field_type,
         }
     }
 
@@ -899,8 +900,9 @@ impl SchemaModelProviderAdapter {
     }
 }
 
-#[async_trait::async_trait]
-impl SchemaModelProvider for SchemaModelProviderAdapter {
+// Note: SchemaModelProvider trait is not available in octofhir-fhirschema
+// This adapter pattern would need to be implemented based on the actual API
+impl SchemaModelProviderAdapter {
     async fn get_schema(
         &self,
         canonical_url: &str,
