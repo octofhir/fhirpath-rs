@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// convertsToLong(): Returns true if the input can be converted to Long (64-bit integer)

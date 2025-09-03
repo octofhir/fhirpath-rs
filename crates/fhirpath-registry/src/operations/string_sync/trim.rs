@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified trim function: removes whitespace from both ends of a string
 pub struct SimpleTrimFunction;

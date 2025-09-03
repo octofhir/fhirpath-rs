@@ -1,13 +1,12 @@
 //! toDate() sync implementation
 
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use chrono::NaiveDate;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{
-    FhirPathValue,
-    temporal::{PrecisionDate, TemporalPrecision},
-};
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// toDate(): Converts input to Date where possible
 pub struct ToDateFunction;
@@ -64,12 +63,12 @@ fn convert_to_date(value: &FhirPathValue) -> Result<FhirPathValue> {
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             } else if c.len() == 1 {
                 convert_to_date(c.first().unwrap())
             } else {
                 // Multiple items - return empty collection per FHIRPath spec
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
 

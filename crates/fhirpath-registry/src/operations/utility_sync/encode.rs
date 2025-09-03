@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Encode function - encodes strings to various formats
 #[derive(Debug, Clone)]

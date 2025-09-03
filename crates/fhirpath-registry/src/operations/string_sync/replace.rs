@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified replace function: replaces all instances of a pattern with a substitution
 pub struct SimpleReplaceFunction;
@@ -55,7 +55,7 @@ impl SyncOperation for SimpleReplaceFunction {
         }
 
         // Get pattern parameter
-        let pattern = match &args[0] {
+        let pattern: &str = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 // Return empty collection for invalid pattern type per FHIRPath spec
@@ -64,7 +64,7 @@ impl SyncOperation for SimpleReplaceFunction {
         };
 
         // Get substitution parameter
-        let substitution = match &args[1] {
+        let substitution: &str = match &args[1] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 // Return empty collection for invalid substitution type per FHIRPath spec
@@ -97,14 +97,9 @@ impl SyncOperation for SimpleReplaceFunction {
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => {
                 // Try to convert to string first
-                if let Some(string_val) = context.input.to_string_value() {
-                    let result = string_val.replace(pattern, substitution);
-                    Ok(FhirPathValue::String(result.into()))
-                } else {
-                    Err(FhirPathError::TypeError {
-                        message: "replace() can only be called on string values".to_string(),
-                    })
-                }
+                let string_val = context.input.to_string_value();
+                let result = string_val.replace(pattern, substitution);
+                Ok(FhirPathValue::String(result.into()))
             }
         }
     }

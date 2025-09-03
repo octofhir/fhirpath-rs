@@ -89,8 +89,8 @@ pub fn to_lsp_code_actions(
                 changes.insert(
                     uri.clone(),
                     vec![lsp_types::TextEdit {
-                        range: to_lsp_range(&suggestion.location),
-                        new_text: replacement.clone(),
+                        range: to_lsp_range(&replacement.location),
+                        new_text: replacement.new_text.clone(),
                     }],
                 );
 

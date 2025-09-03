@@ -36,9 +36,9 @@ macro_rules! impl_sync_op {
                 &SIGNATURE
             }
 
-            fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
                 use $crate::traits::validation::*;
 
                 validate_no_args(args, $op_name)?;
@@ -64,9 +64,9 @@ macro_rules! impl_sync_op {
                 &SIGNATURE
             }
 
-            fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 if args.len() != 1 {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -97,9 +97,9 @@ macro_rules! impl_sync_op {
                 &SIGNATURE
             }
 
-            fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 let expected_count = SIGNATURE.parameters.len();
                 if args.len() != expected_count {
@@ -131,9 +131,9 @@ macro_rules! impl_sync_op {
                 &SIGNATURE
             }
 
-            fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 let min_args = SIGNATURE.parameters.len();
                 if args.len() < min_args {
@@ -182,9 +182,9 @@ macro_rules! impl_async_op {
                 &SIGNATURE
             }
 
-            async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            async fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
                 use $crate::traits::validation::*;
 
                 validate_no_args(args, $op_name)?;
@@ -211,9 +211,9 @@ macro_rules! impl_async_op {
                 &SIGNATURE
             }
 
-            async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            async fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 if args.len() != 1 {
                     return Err(FhirPathError::InvalidArgumentCount {
@@ -245,9 +245,9 @@ macro_rules! impl_async_op {
                 &SIGNATURE
             }
 
-            async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            async fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 let expected_count = SIGNATURE.parameters.len();
                 if args.len() != expected_count {
@@ -280,9 +280,9 @@ macro_rules! impl_async_op {
                 &SIGNATURE
             }
 
-            async fn execute(&self, args: &[octofhir_fhirpath_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhirpath_model::FhirPathValue> {
+            async fn execute(&self, args: &[octofhir_fhir_model::FhirPathValue], context: &$crate::traits::EvaluationContext) -> octofhir_fhirpath_core::Result<octofhir_fhir_model::FhirPathValue> {
                 use octofhir_fhirpath_core::FhirPathError;
-                use octofhir_fhirpath_model::FhirPathValue;
+                use crate::FhirPathValue;
 
                 let min_args = SIGNATURE.parameters.len();
                 if args.len() < min_args {

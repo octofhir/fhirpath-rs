@@ -13,7 +13,7 @@
 
 use crate::signature::FunctionSignature;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::FhirPathValue;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use tokio::sync::RwLock;

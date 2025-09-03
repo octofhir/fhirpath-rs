@@ -33,8 +33,8 @@ pub mod traits;
 pub mod operations;
 // Bridge support modules
 pub mod package_manager;
-pub mod schema_aware_registry;
-pub mod type_registry;
+// pub mod schema_aware_registry;  // Not needed - using model provider instead
+// pub mod type_registry;          // Not needed - using model provider instead
 // Test modules
 #[cfg(test)]
 mod integration_test;
@@ -44,12 +44,17 @@ mod tests;
 pub use function_registry::FunctionRegistry;
 // Bridge support exports
 pub use package_manager::{PackageError, PackageInfo, RefreshableRegistry, RegistryPackageManager};
-pub use schema_aware_registry::SchemaAwareFunctionRegistry;
-pub use type_registry::{FhirPathTypeRegistry, RegistryError};
+// pub use schema_aware_registry::SchemaAwareFunctionRegistry;  // Not needed
+// pub use type_registry::{FhirPathTypeRegistry, RegistryError};      // Not needed
 // Re-exports from workspace crates
 pub use octofhir_fhirpath_ast::{BinaryOperator, ExpressionNode, UnaryOperator};
 pub use octofhir_fhirpath_core::{FhirPathError, Result};
-pub use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
+pub use octofhir_fhir_model::ModelProvider;
+pub use octofhir_fhirpath_core::{FhirPathValue, FhirResource, Collection, JsonValueExt};
+
+// Re-export additional types commonly used in operations
+pub use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+pub use rust_decimal::Decimal;
 /// Create a standard unified registry with all built-in operations
 ///
 /// This creates the unified registry with optimized sync/async dispatch and pre-warmed cache.
@@ -73,32 +78,10 @@ pub async fn create_standard_registry() -> FunctionRegistry {
     crate::function_registry::create_standard_registry().await
 }
 
-/// Create a schema-aware registry with bridge support
-///
-/// This creates a registry with full schema awareness and O(1) type checking.
-/// Recommended for production applications requiring full FHIR compliance.
-/// # Arguments
-/// * `schema_manager` - The schema manager for bridge API access
-/// # Returns
-/// A fully configured `SchemaAwareFunctionRegistry` with schema-aware operations.
-/// # Examples
-/// ```rust
-/// use octofhir_fhirpath_registry::create_schema_aware_registry;
-/// use octofhir_fhirschema::package::FhirSchemaPackageManager;
-/// use std::sync::Arc;
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let schema_manager = Arc::new(FhirSchemaPackageManager::new(config).await?);
-///     let registry = create_schema_aware_registry(schema_manager).await?;
-///     
-///     // Use schema-aware functions with O(1) type checking
-///     // let result = registry.evaluate_function("ofType", &args, &context).await?;
-///     Ok(())
-/// }
-/// ```
+/*
 pub async fn create_schema_aware_registry(
     schema_manager: std::sync::Arc<octofhir_fhirschema::package::FhirSchemaPackageManager>,
 ) -> std::result::Result<SchemaAwareFunctionRegistry, RegistryError> {
     SchemaAwareFunctionRegistry::new(schema_manager).await
 }
+*/

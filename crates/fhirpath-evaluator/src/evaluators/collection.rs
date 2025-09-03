@@ -15,7 +15,7 @@
 //! Collection operations evaluator
 
 use octofhir_fhirpath_core::EvaluationResult;
-use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use octofhir_fhirpath_core::FhirPathValue;
 use std::collections::HashSet;
 
 /// Specialized evaluator for collection operations
@@ -54,7 +54,7 @@ impl CollectionEvaluator {
         // Add all items from right collection
         result_items.extend(Self::to_collection(right));
 
-        Ok(FhirPathValue::Collection(Collection::from(result_items)))
+        Ok(FhirPathValue::Collection(result_items))
     }
 
     /// Evaluate contains operation (checks if collection contains an item)
@@ -103,7 +103,7 @@ impl CollectionEvaluator {
             }
         }
 
-        Ok(FhirPathValue::Collection(Collection::from(distinct_items)))
+        Ok(FhirPathValue::Collection(distinct_items))
     }
 
     /// Evaluate intersect operation (returns items that appear in both collections)
@@ -133,9 +133,7 @@ impl CollectionEvaluator {
             }
         }
 
-        Ok(FhirPathValue::Collection(Collection::from(
-            intersection_items,
-        )))
+        Ok(FhirPathValue::Collection(intersection_items))
     }
 
     // Helper method to create a comparable key for deduplication
@@ -148,10 +146,10 @@ impl CollectionEvaluator {
             FhirPathValue::Date(d) => format!("date:{d}"),
             FhirPathValue::DateTime(dt) => format!("datetime:{dt}"),
             FhirPathValue::Time(t) => format!("time:{t}"),
-            FhirPathValue::Quantity(q) => format!(
+            FhirPathValue::Quantity { value, unit, .. } => format!(
                 "quantity:{}:{}",
-                q.value,
-                q.unit.as_ref().unwrap_or(&"".to_string())
+                value,
+                unit.as_ref().unwrap_or(&"".to_string())
             ),
             FhirPathValue::Empty => "empty".to_string(),
             FhirPathValue::Collection(items) => {

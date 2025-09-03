@@ -14,7 +14,7 @@
 
 //! Builder pattern for constructing diagnostics
 
-use super::diagnostic::{Diagnostic, DiagnosticCode, RelatedInformation, Severity, Suggestion};
+use super::diagnostic::{Diagnostic, DiagnosticCode, RelatedInformation, Severity, Suggestion, SuggestionType, TextEdit};
 use crate::location::{Position, SourceLocation, Span};
 
 /// Builder for constructing diagnostics fluently
@@ -138,10 +138,12 @@ impl DiagnosticBuilder {
     /// Add a suggestion
     pub fn suggest(mut self, message: impl Into<String>, replacement: Option<String>) -> Self {
         let location = self.location.clone().unwrap_or_default();
+        let replacement = replacement.map(|text| TextEdit::new(location.clone(), text));
         self.suggestions.push(Suggestion {
             message: message.into(),
             replacement,
-            location,
+            confidence: 0.8,
+            suggestion_type: SuggestionType::General,
         });
         self
     }
@@ -153,10 +155,12 @@ impl DiagnosticBuilder {
         replacement: Option<String>,
         location: SourceLocation,
     ) -> Self {
+        let replacement = replacement.map(|text| TextEdit::new(location.clone(), text));
         self.suggestions.push(Suggestion {
             message: message.into(),
             replacement,
-            location,
+            confidence: 0.8,
+            suggestion_type: SuggestionType::General,
         });
         self
     }

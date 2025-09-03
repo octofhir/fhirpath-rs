@@ -5,8 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, JsonValueExt, Result};
 
 /// Extension function - finds extensions by URL
 #[derive(Debug, Default, Clone)]
@@ -33,7 +32,7 @@ impl ExtensionFunction {
                         if let Some(ext_url) = ext_obj.get("url") {
                             if let Some(url_str) = ext_url.as_str() {
                                 if url_str == url {
-                                    matching_extensions.push(FhirPathValue::from(ext.clone()));
+                                    matching_extensions.push(FhirPathValue::JsonValue(ext.clone().into()));
                                 }
                             }
                         }
@@ -55,7 +54,7 @@ impl ExtensionFunction {
                                         if let Some(url_str) = ext_url.as_str() {
                                             if url_str == url {
                                                 matching_extensions
-                                                    .push(FhirPathValue::from(ext.clone()));
+                                                    .push(FhirPathValue::JsonValue(ext.clone().into()));
                                             }
                                         }
                                     }
@@ -84,9 +83,7 @@ impl ExtensionFunction {
             }
         }
 
-        Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(matching_extensions),
-        ))
+        Ok(FhirPathValue::Collection(matching_extensions))
     }
 }
 
@@ -155,9 +152,7 @@ impl AsyncOperation for ExtensionFunction {
                             let json = resource.as_json();
                             self.find_extensions_in_json(&json, url)?
                         }
-                        _ => FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(
-                            vec![],
-                        )),
+                        _ => FhirPathValue::Collection(vec![]),
                     };
 
                     if let FhirPathValue::Collection(ref ext_col) = extensions_result {
@@ -165,15 +160,11 @@ impl AsyncOperation for ExtensionFunction {
                     }
                 }
 
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(all_extensions),
-                ))
+                Ok(FhirPathValue::Collection(all_extensions))
             }
             _ => {
                 // Non-object types don't have extensions
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
     }

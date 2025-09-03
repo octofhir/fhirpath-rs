@@ -4,7 +4,7 @@
 //! from octofhir-fhirschema for efficient type resolution and validation.
 
 //! Removed unused import
-use octofhir_fhirpath_model::BridgeResourceInfo;
+#[cfg(feature = "schema")]
 use octofhir_fhirschema::package::FhirSchemaPackageManager;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,6 +31,7 @@ pub enum RegistryError {
 }
 
 /// FHIRPath Type Registry with O(1) operations via bridge API
+#[cfg(feature = "schema")]
 pub struct FhirPathTypeRegistry {
     resource_types: HashMap<String, bool>,
     data_types: HashMap<String, bool>,
@@ -38,6 +39,7 @@ pub struct FhirPathTypeRegistry {
     schema_manager: Arc<FhirSchemaPackageManager>,
 }
 
+#[cfg(feature = "schema")]
 impl FhirPathTypeRegistry {
     /// Create a new type registry from schema manager
     pub async fn new(
@@ -186,7 +188,8 @@ impl FhirPathTypeRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirschema::package::FhirSchemaPackageManager;
+    #[cfg(feature = "schema")]
+use octofhir_fhirschema::package::FhirSchemaPackageManager;
 
     async fn create_test_schema_manager()
     -> Result<FhirSchemaPackageManager, Box<dyn std::error::Error>> {

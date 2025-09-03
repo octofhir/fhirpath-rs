@@ -75,19 +75,14 @@
 //! # }
 //! ```
 
-use crate::bridge_navigation::BridgeNavigationEvaluator;
-use crate::cache::SchemaCache;
 use crate::context::EvaluationContext as LocalEvaluationContext;
-use crate::evaluators::polymorphic::PolymorphicNavigationEngine;
 
 // Import the new modular components
 use octofhir_fhirpath_ast::ExpressionNode;
-use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::{
-    ChoiceTypeResolver, FhirPathValue, ModelProvider, SystemTypes, TypeResolver,
+use octofhir_fhirpath_core::{
+    EvaluationError, EvaluationResult, FhirPathValue, JsonValueExt, ModelProvider,
 };
 use octofhir_fhirpath_registry::traits::EvaluationContext as RegistryEvaluationContext;
-use octofhir_fhirschema::FhirSchemaPackageManager;
 use std::sync::Arc;
 
 /// Unified FHIRPath evaluation engine.
@@ -143,29 +138,10 @@ use std::sync::Arc;
 pub struct FhirPathEngine {
     /// Unified registry containing all operations (functions and operators)
     registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
-    /// Model provider (Send + Sync)
+    /// Model provider (Send + Sync) - THE CORE INTERFACE
     model_provider: Arc<dyn ModelProvider>,
     /// Evaluation configuration
     config: EvaluationConfig,
-    /// Optional polymorphic navigation engine for FHIR choice types
-    polymorphic_engine: Option<Arc<PolymorphicNavigationEngine>>,
-    /// Schema manager for bridge API integration
-    #[allow(dead_code)]
-    schema_manager: Option<Arc<FhirSchemaPackageManager>>,
-    /// Schema cache for performance optimization
-    #[allow(dead_code)]
-    schema_cache: SchemaCache,
-    /// Type resolver for O(1) type operations
-    #[allow(dead_code)]
-    type_resolver: Option<TypeResolver>,
-    /// Choice type resolver for polymorphic navigation
-    #[allow(dead_code)]
-    choice_resolver: Option<ChoiceTypeResolver>,
-    /// System types for type categorization
-    #[allow(dead_code)]
-    system_types: Option<SystemTypes>,
-    /// Bridge navigation evaluator for property navigation
-    pub(crate) bridge_navigator: Option<BridgeNavigationEvaluator>,
 }
 
 /// Configuration options for FHIRPath evaluation.
@@ -308,7 +284,7 @@ impl FhirPathEngine {
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
     /// use octofhir_fhirpath_registry::FunctionRegistry;
-    /// use octofhir_fhirpath_model::MockModelProvider;
+    /// // Note: Use a concrete ModelProvider implementation
     /// use std::sync::Arc;
     ///
     /// # #[tokio::main]
@@ -328,13 +304,6 @@ impl FhirPathEngine {
             registry,
             model_provider,
             config: EvaluationConfig::default(),
-            polymorphic_engine: None,
-            schema_manager: None,
-            schema_cache: SchemaCache::new(),
-            type_resolver: None,
-            choice_resolver: None,
-            system_types: None,
-            bridge_navigator: None,
         }
     }
 
@@ -367,14 +336,9 @@ impl FhirPathEngine {
         &self.registry
     }
 
-    /// Get the model provider reference  
+    /// Get the model provider reference
     pub fn model_provider(&self) -> &Arc<dyn ModelProvider> {
         &self.model_provider
-    }
-
-    /// Get the polymorphic navigation engine reference (if enabled)
-    pub fn polymorphic_engine(&self) -> Option<&Arc<PolymorphicNavigationEngine>> {
-        self.polymorphic_engine.as_ref()
     }
 
     /// Creates a new engine with custom registries and configuration.
@@ -416,81 +380,6 @@ impl FhirPathEngine {
         self
     }
 
-    /// Enables polymorphic navigation for FHIR choice types.
-    ///
-    /// This method creates and enables a polymorphic navigation engine that provides
-    /// enhanced support for FHIR choice types (value[x] patterns), allowing expressions
-    /// like `Observation.value.unit` to correctly resolve to `Observation.valueQuantity.unit`
-    /// based on the actual data.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use serde_json::json;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let engine = FhirPathEngine::with_mock_provider().await?
-    ///     .with_polymorphic_navigation();
-    ///
-    /// let observation = json!({
-    ///     "resourceType": "Observation",
-    ///     "valueQuantity": {
-    ///         "value": 185,
-    ///         "unit": "lbs"
-    ///     }
-    /// });
-    ///
-    /// // Now this works correctly due to polymorphic navigation
-    /// let result = engine.evaluate("Observation.value.unit", observation).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn with_polymorphic_navigation(mut self) -> Self {
-        use crate::evaluators::polymorphic::PolymorphicNavigationFactory;
-
-        let polymorphic_engine =
-            PolymorphicNavigationFactory::create_r4_navigation_engine(self.model_provider.clone());
-        self.polymorphic_engine = Some(Arc::new(polymorphic_engine));
-        self
-    }
-
-    /// Enables polymorphic navigation with a custom navigation engine.
-    ///
-    /// This method allows you to provide a custom polymorphic navigation engine
-    /// for specialized use cases or custom choice type mappings.
-    ///
-    /// # Arguments
-    ///
-    /// * `engine` - Custom polymorphic navigation engine
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_evaluator::evaluators::polymorphic::PolymorphicNavigationFactory;
-    /// use std::sync::Arc;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let engine = FhirPathEngine::with_mock_provider().await?;
-    /// let custom_nav_engine = PolymorphicNavigationFactory::create_r4_navigation_engine(
-    ///     engine.model_provider().clone()
-    /// );
-    ///
-    /// let enhanced_engine = engine.with_custom_polymorphic_navigation(Arc::new(custom_nav_engine));
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn with_custom_polymorphic_navigation(
-        mut self,
-        engine: Arc<PolymorphicNavigationEngine>,
-    ) -> Self {
-        self.polymorphic_engine = Some(engine);
-        self
-    }
-
     /// Creates an engine with a mock model provider for testing.
     ///
     /// This is the easiest way to get started with the engine for testing
@@ -509,12 +398,13 @@ impl FhirPathEngine {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(test)]
     pub async fn with_mock_provider() -> EvaluationResult<Self> {
-        use octofhir_fhirpath_model::MockModelProvider;
+        use octofhir_fhirpath::MockModelProvider;
 
         let registry = octofhir_fhirpath_registry::create_standard_registry().await;
 
-        let model_provider = Arc::new(MockModelProvider::new());
+        let model_provider = Arc::new(MockModelProvider::default());
         Ok(Self::new(Arc::new(registry), model_provider))
     }
 
@@ -533,10 +423,10 @@ impl FhirPathEngine {
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_model::MockModelProvider;
+    /// // Note: Use a concrete ModelProvider implementation
     /// use std::sync::Arc;
     ///
-    /// let provider = Arc::new(MockModelProvider::new());
+    /// // let provider = Arc::new(SomeModelProvider::new());
     /// let engine = FhirPathEngine::with_model_provider(provider).await?;
     /// # Ok(())
     /// # }
@@ -546,64 +436,6 @@ impl FhirPathEngine {
     ) -> EvaluationResult<Self> {
         let registry = octofhir_fhirpath_registry::create_standard_registry().await;
         Ok(Self::new(Arc::new(registry), model_provider))
-    }
-
-    /// Creates an engine with bridge support and schema manager integration.
-    ///
-    /// This constructor enables the full bridge support architecture with O(1) type operations,
-    /// choice type resolution, and dynamic schema-based property navigation.
-    ///
-    /// # Arguments
-    ///
-    /// * `schema_manager` - FHIR schema package manager for bridge API
-    /// * `model_provider` - Model provider implementation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_model::FhirSchemaModelProvider;
-    /// use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig};
-    /// use octofhir_canonical_manager::FcmConfig;
-    /// use std::sync::Arc;
-    ///
-    /// let fcm_config = FcmConfig::default();
-    /// let config = PackageManagerConfig::default();
-    /// let schema_manager = Arc::new(
-    ///     FhirSchemaPackageManager::new(fcm_config, config).await?
-    /// );
-    /// let model_provider = Arc::new(FhirSchemaModelProvider::new().await?);
-    ///
-    /// let engine = FhirPathEngine::with_bridge_support(schema_manager, model_provider).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn with_bridge_support(
-        schema_manager: Arc<FhirSchemaPackageManager>,
-        model_provider: Arc<dyn ModelProvider>,
-    ) -> EvaluationResult<Self> {
-        let registry = octofhir_fhirpath_registry::create_standard_registry().await;
-
-        // Create bridge-enabled components
-        let type_resolver = TypeResolver::new(schema_manager.clone());
-        let choice_resolver = ChoiceTypeResolver::new(schema_manager.clone());
-        let system_types = SystemTypes::new(schema_manager.clone());
-        let bridge_navigator = BridgeNavigationEvaluator::new(schema_manager.clone());
-
-        Ok(Self {
-            registry: Arc::new(registry),
-            model_provider,
-            config: EvaluationConfig::default(),
-            polymorphic_engine: None,
-            schema_manager: Some(schema_manager),
-            schema_cache: SchemaCache::new(),
-            type_resolver: Some(type_resolver),
-            choice_resolver: Some(choice_resolver),
-            system_types: Some(system_types),
-            bridge_navigator: Some(bridge_navigator),
-        })
     }
 
     /// Creates a new engine instance with a modified configuration.
@@ -780,7 +612,7 @@ impl FhirPathEngine {
         }
 
         // Convert input data to FhirPathValue
-        let fhir_value = FhirPathValue::from(input_data);
+        let fhir_value = FhirPathValue::JsonValue(input_data);
 
         // Create evaluation context with unified registry and proper root preservation
         let mut context = LocalEvaluationContext::new(
@@ -833,7 +665,7 @@ impl FhirPathEngine {
     /// Basic variable usage:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_model::FhirPathValue;
+    /// use octofhir_fhirpath_core::FhirPathValue;
     /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
@@ -852,7 +684,7 @@ impl FhirPathEngine {
     /// Multiple variables:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_model::FhirPathValue;
+    /// use octofhir_fhirpath_core::FhirPathValue;
     /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
@@ -876,7 +708,7 @@ impl FhirPathEngine {
     /// String and complex variables:
     /// ```rust
     /// use octofhir_fhirpath_evaluator::FhirPathEngine;
-    /// use octofhir_fhirpath_model::FhirPathValue;
+    /// use octofhir_fhirpath_core::FhirPathValue;
     /// use serde_json::json;
     /// use std::collections::HashMap;
     ///
@@ -933,7 +765,7 @@ impl FhirPathEngine {
         };
 
         // Convert input data to FhirPathValue
-        let fhir_value = FhirPathValue::from(input_data);
+        let fhir_value = FhirPathValue::JsonValue(input_data);
 
         // Create evaluation context with variables
         let context = LocalEvaluationContext::with_variables(
@@ -1047,17 +879,15 @@ impl FhirPathEngine {
         expression: &str,
         json_str: &str,
     ) -> EvaluationResult<FhirPathValue> {
-        use octofhir_fhirpath_model::JsonValue;
+        use serde_json::Value as JsonValue;
 
-        let json_value =
-            JsonValue::parse(json_str).map_err(|e| EvaluationError::InvalidOperation {
+        let json_value: JsonValue =
+            serde_json::from_str(json_str).map_err(|e| EvaluationError::InvalidOperation {
                 message: format!("JSON parsing failed: {e}"),
             })?;
 
         // Use serde_json::Value directly
-        let sonic_value = json_value.as_value().clone();
-
-        self.evaluate(expression, sonic_value).await
+        self.evaluate(expression, json_value).await
     }
 
     /// Evaluate a FHIRPath expression with a FhirPathValue input.
@@ -1184,95 +1014,28 @@ impl FhirPathEngine {
             .evaluate_node_async(expression, input, context, depth + 1)
             .await?;
 
-        // Use bridge-enabled type checking when available
-        let matches_type = if let (Some(system_types), Some(type_resolver)) =
-            (&self.system_types, &self.type_resolver)
-        {
-            // Advanced type checking with bridge support
-            self.check_type_with_bridge(&value, type_name, system_types, type_resolver)
-                .await
-        } else {
-            // Fallback to simplified implementation
-            match (&value, type_name) {
-                (FhirPathValue::Boolean(_), "Boolean") => true,
-                (FhirPathValue::Integer(_), "Integer") => true,
-                (FhirPathValue::Decimal(_), "Decimal") => true,
-                (FhirPathValue::String(_), "String") => true,
-                (FhirPathValue::Date(_), "Date") => true,
-                (FhirPathValue::DateTime(_), "DateTime") => true,
-                (FhirPathValue::Time(_), "Time") => true,
-                (FhirPathValue::Quantity(_), "Quantity") => true,
-                _ => false,
-            }
-        };
+        // Use ModelProvider for type checking
+        let matches_type = self.check_type_with_model_provider(&value, type_name).await;
 
         Ok(FhirPathValue::Boolean(matches_type))
     }
 
-    /// Advanced type checking using bridge support
-    fn check_type_with_bridge<'a>(
-        &'a self,
-        value: &'a FhirPathValue,
-        type_name: &'a str,
-        system_types: &'a SystemTypes,
-        type_resolver: &'a TypeResolver,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
-        Box::pin(async move {
-            self.check_type_with_bridge_impl(value, type_name, system_types, type_resolver)
-                .await
-        })
+    /// Type checking using ModelProvider (with proper async recursion)
+    async fn check_type_with_model_provider(&self, value: &FhirPathValue, type_name: &str) -> bool {
+        self.check_type_with_model_provider_impl(value, type_name)
     }
 
-    /// Implementation for bridge type checking
-    async fn check_type_with_bridge_impl(
-        &self,
-        value: &FhirPathValue,
-        type_name: &str,
-        system_types: &SystemTypes,
-        _type_resolver: &TypeResolver,
-    ) -> bool {
+    fn check_type_with_model_provider_impl(&self, value: &FhirPathValue, type_name: &str) -> bool {
         match value {
             // Primitive types
-            FhirPathValue::Boolean(_) => {
-                system_types.get_system_type_category("boolean").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "boolean"
-            }
-            FhirPathValue::Integer(_) => {
-                system_types.get_system_type_category("integer").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "integer"
-            }
-            FhirPathValue::Decimal(_) => {
-                system_types.get_system_type_category("decimal").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "decimal"
-            }
-            FhirPathValue::String(_) => {
-                system_types.get_system_type_category("string").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "string"
-            }
-            FhirPathValue::Date(_) => {
-                system_types.get_system_type_category("date").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "date"
-            }
-            FhirPathValue::DateTime(_) => {
-                system_types.get_system_type_category("dateTime").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "dateTime"
-            }
-            FhirPathValue::Time(_) => {
-                system_types.get_system_type_category("time").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Primitive
-                    && type_name == "time"
-            }
-            FhirPathValue::Quantity(_) => {
-                system_types.get_system_type_category("Quantity").await
-                    == octofhir_fhirpath_model::SystemTypeCategory::Complex
-                    && type_name == "Quantity"
-            }
+            FhirPathValue::Boolean(_) => matches!(type_name, "Boolean" | "boolean"),
+            FhirPathValue::Integer(_) => matches!(type_name, "Integer" | "integer"),
+            FhirPathValue::Decimal(_) => matches!(type_name, "Decimal" | "decimal"),
+            FhirPathValue::String(_) => matches!(type_name, "String" | "string"),
+            FhirPathValue::Date(_) => matches!(type_name, "Date" | "date"),
+            FhirPathValue::DateTime(_) => matches!(type_name, "DateTime" | "dateTime"),
+            FhirPathValue::Time(_) => matches!(type_name, "Time" | "time"),
+            FhirPathValue::Quantity { .. } => matches!(type_name, "Quantity"),
 
             // JSON values - check based on content
             FhirPathValue::JsonValue(json) => {
@@ -1283,26 +1046,18 @@ impl FhirPathEngine {
                             return true;
                         }
 
-                        // Check inheritance using bridge API
-                        return system_types.is_subtype_of(resource_type, type_name).await;
+                        // TODO: Type reflection not implemented in core ModelProvider yet
+                        // Advanced type checking would go here
                     }
                 }
-                // Generic element - would need more sophisticated checking
-                return false;
+                false
             }
 
             // Collections - check element types
             FhirPathValue::Collection(items) => {
                 // For collections, check if all elements match the type
                 for item in items.iter() {
-                    let result = Box::pin(self.check_type_with_bridge_impl(
-                        item,
-                        type_name,
-                        system_types,
-                        _type_resolver,
-                    ))
-                    .await;
-                    if !result {
+                    if !self.check_type_with_model_provider_impl(item, type_name) {
                         return false;
                     }
                 }
@@ -1328,12 +1083,13 @@ impl FhirPathEngine {
             .await?;
 
         // Create evaluation context for the operation
-        let eval_context = RegistryEvaluationContext {
-            input: expr_result,
-            root: context.root.clone(),
-            variables: context.variable_scope.variables.as_ref().clone(),
-            model_provider: self.model_provider().clone(),
-        };
+        // TODO: Fix ModelProvider trait mismatch between core and fhir_model crates
+        // let eval_context = RegistryEvaluationContext {
+        //     input: expr_result,
+        //     root: context.root.clone(),
+        //     variables: context.variable_scope.variables.as_ref().clone(),
+        //     model_provider: self.model_provider().clone(),
+        // };
 
         // Call the as operator with the type name as argument
         // Check if this is a known type identifier, otherwise treat as string
@@ -1355,24 +1111,812 @@ impl FhirPathEngine {
                 }
             };
             FhirPathValue::TypeInfoObject {
-                namespace: Arc::from(namespace),
-                name: Arc::from(name),
+                namespace: namespace.to_string(),
+                name: name.to_string(),
             }
         } else {
             // Treat as string literal for backward compatibility
-            FhirPathValue::String(type_name.into())
+            FhirPathValue::String(type_name.to_string())
         };
-        let args = vec![type_arg];
 
-        self.registry
-            .evaluate("as", &args, &eval_context)
-            .await
-            .map_err(|e| EvaluationError::InvalidOperation {
-                message: format!("Method error in as: {e}"),
-            })
+        // TODO: Implement proper type casting once ModelProvider trait mismatch is resolved
+        // For now, return the expression result as-is since we can't call the registry
+        Ok(expr_result)
     }
 
-    /// Helper: Check if a value is truthy
+    /// Check if a function is a lambda function
+    async fn is_lambda_function(&self, function_name: &str) -> bool {
+        matches!(
+            function_name,
+            "where" | "select" | "all" | "any" | "exists" | "sort" | "repeat" | "aggregate"
+        )
+    }
+
+    /// Main async evaluation method for expression nodes
+    pub fn evaluate_node_async<'a>(
+        &'a self,
+        node: &'a ExpressionNode,
+        input: FhirPathValue,
+        context: &'a LocalEvaluationContext,
+        depth: usize,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            // Check recursion depth to prevent stack overflow
+            if depth > self.config.max_recursion_depth {
+                return Err(EvaluationError::InvalidOperation {
+                    message: format!(
+                        "Maximum recursion depth ({}) exceeded",
+                        self.config.max_recursion_depth
+                    ),
+                });
+            }
+
+            use octofhir_fhirpath_ast::ExpressionNode as Node;
+
+            match node {
+                Node::Literal(literal) => {
+                    use octofhir_fhirpath_ast::LiteralValue;
+                    match literal {
+                        LiteralValue::Boolean(b) => Ok(FhirPathValue::Boolean(*b)),
+                        LiteralValue::Integer(i) => Ok(FhirPathValue::Integer(*i)),
+                        LiteralValue::Decimal(d) => {
+                            let decimal_val = d.parse::<rust_decimal::Decimal>().map_err(|_| {
+                                EvaluationError::InvalidOperation {
+                                    message: format!("Invalid decimal literal: {d}"),
+                                }
+                            })?;
+                            Ok(FhirPathValue::Decimal(decimal_val))
+                        }
+                        LiteralValue::String(s) => Ok(FhirPathValue::String(s.clone())),
+                        LiteralValue::Quantity { value, unit } => {
+                            let decimal_val =
+                                value.parse::<rust_decimal::Decimal>().map_err(|_| {
+                                    EvaluationError::InvalidOperation {
+                                        message: format!("Invalid quantity value: {value}"),
+                                    }
+                                })?;
+                            Ok(FhirPathValue::Quantity {
+                                value: decimal_val,
+                                unit: Some(unit.clone()),
+                                ucum_expr: None,
+                            })
+                        }
+                        LiteralValue::DateTime(date_time) => {
+                            // TODO: Proper datetime parsing - for now, use string representation
+                            Ok(FhirPathValue::String(date_time.clone()))
+                        }
+                        LiteralValue::Date(date) => {
+                            // TODO: Proper date parsing - for now, use string representation
+                            Ok(FhirPathValue::String(date.clone()))
+                        }
+                        LiteralValue::Time(time) => {
+                            // TODO: Proper time parsing - for now, use string representation
+                            Ok(FhirPathValue::String(time.clone()))
+                        }
+                        LiteralValue::Null => Ok(FhirPathValue::Empty),
+                    }
+                }
+                Node::Identifier(name) => {
+                    // Handle special identifiers
+                    match name.as_str() {
+                        "$this" => Ok(input),
+                        name if name.starts_with('$') => {
+                            // Variables
+                            let var_name = &name[1..]; // Remove $ prefix
+                            context
+                                .variable_scope
+                                .get_variable(var_name)
+                                .cloned()
+                                .ok_or_else(|| EvaluationError::InvalidOperation {
+                                    message: format!("Undefined variable: {name}"),
+                                })
+                        }
+                        name => {
+                            // Regular property access
+                            self.evaluate_property_access(name, input).await
+                        }
+                    }
+                }
+                Node::Path { base, path } => {
+                    let base_result = self
+                        .evaluate_node_async(base, input, context, depth + 1)
+                        .await?;
+                    self.evaluate_property_access(path, base_result).await
+                }
+                Node::BinaryOp(binary_data) => {
+                    self.evaluate_binary_op(binary_data, input, context, depth)
+                        .await
+                }
+                Node::UnaryOp { op, operand } => {
+                    let operand_result = self
+                        .evaluate_node_async(operand, input, context, depth + 1)
+                        .await?;
+                    self.evaluate_unary_op(op, operand_result).await
+                }
+                Node::FunctionCall(func_data) => {
+                    self.evaluate_function_call(func_data, input, context, depth)
+                        .await
+                }
+                Node::MethodCall(method_data) => {
+                    self.evaluate_method_call(method_data, input, context, depth)
+                        .await
+                }
+                Node::Index { base, index } => {
+                    let base_result = self
+                        .evaluate_node_async(base, input.clone(), context, depth + 1)
+                        .await?;
+                    let index_result = self
+                        .evaluate_node_async(index, input, context, depth + 1)
+                        .await?;
+                    self.evaluate_index(base_result, index_result).await
+                }
+                Node::Filter { base, condition } => {
+                    self.evaluate_filter(base, condition, input, context, depth)
+                        .await
+                }
+                Node::Union { left, right } => {
+                    self.evaluate_union(left, right, input, context, depth)
+                        .await
+                }
+                Node::TypeCheck {
+                    expression,
+                    type_name,
+                } => {
+                    self.evaluate_type_check(expression, type_name, input, context, depth)
+                        .await
+                }
+                Node::TypeCast {
+                    expression,
+                    type_name,
+                } => {
+                    self.evaluate_type_cast(expression, type_name, input, context, depth)
+                        .await
+                }
+                Node::Lambda(lambda_data) => {
+                    self.evaluate_lambda_expression(lambda_data, input, context, depth)
+                        .await
+                }
+                Node::Conditional(cond_data) => {
+                    let condition_result = self
+                        .evaluate_node_async(
+                            &cond_data.condition,
+                            input.clone(),
+                            context,
+                            depth + 1,
+                        )
+                        .await?;
+
+                    if self.is_truthy(&condition_result) {
+                        self.evaluate_node_async(&cond_data.then_expr, input, context, depth + 1)
+                            .await
+                    } else if let Some(else_expr) = &cond_data.else_expr {
+                        self.evaluate_node_async(else_expr, input, context, depth + 1)
+                            .await
+                    } else {
+                        Ok(FhirPathValue::Empty)
+                    }
+                }
+                Node::Variable(name) => context
+                    .variable_scope
+                    .get_variable(name)
+                    .cloned()
+                    .ok_or_else(|| EvaluationError::InvalidOperation {
+                        message: format!("Undefined variable: %{name}"),
+                    }),
+            }
+        })
+    }
+
+    /// Evaluate property access on a FhirPathValue
+    fn evaluate_property_access<'a>(
+        &'a self,
+        property: &'a str,
+        input: FhirPathValue,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = EvaluationResult<FhirPathValue>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            use crate::evaluators::navigation::NavigationEvaluator;
+
+            // TODO: Fix NavigationEvaluator constructor and method call
+            // For now, use simple property access
+            match &input {
+                FhirPathValue::JsonValue(json_val) => {
+                    if let Some(prop_value) = json_val.get_property(property) {
+                        // Convert the JsonValue to FhirPathValue
+                        let inner_value = prop_value.as_inner();
+                        let result = match inner_value {
+                            serde_json::Value::Bool(b) => FhirPathValue::Boolean(*b),
+                            serde_json::Value::Number(n) => {
+                                if let Some(i) = n.as_i64() {
+                                    FhirPathValue::Integer(i)
+                                } else if let Some(f) = n.as_f64() {
+                                    FhirPathValue::Decimal(
+                                        rust_decimal::Decimal::try_from(f).unwrap_or_default(),
+                                    )
+                                } else {
+                                    FhirPathValue::String(n.to_string())
+                                }
+                            }
+                            serde_json::Value::String(s) => FhirPathValue::String(s.clone()),
+                            serde_json::Value::Array(arr) => {
+                                let items: Vec<FhirPathValue> = arr
+                                    .iter()
+                                    .map(|v| {
+                                        // Simple conversion for array items
+                                        match v {
+                                            serde_json::Value::Bool(b) => {
+                                                FhirPathValue::Boolean(*b)
+                                            }
+                                            serde_json::Value::Number(n) => {
+                                                if let Some(i) = n.as_i64() {
+                                                    FhirPathValue::Integer(i)
+                                                } else {
+                                                    FhirPathValue::String(n.to_string())
+                                                }
+                                            }
+                                            serde_json::Value::String(s) => {
+                                                FhirPathValue::String(s.clone())
+                                            }
+                                            _ => FhirPathValue::String(v.to_string()),
+                                        }
+                                    })
+                                    .collect();
+                                FhirPathValue::collection(items)
+                            }
+                            serde_json::Value::Object(_) => {
+                                FhirPathValue::JsonValue(prop_value.clone())
+                            }
+                            serde_json::Value::Null => FhirPathValue::Empty,
+                        };
+                        Ok(result)
+                    } else {
+                        Ok(FhirPathValue::Empty)
+                    }
+                }
+                FhirPathValue::Collection(items) => {
+                    let mut results = Vec::new();
+                    for item in items.iter() {
+                        match self
+                            .evaluate_property_access(property, item.clone())
+                            .await?
+                        {
+                            FhirPathValue::Empty => {} // Skip empty results
+                            FhirPathValue::Collection(sub_items) => {
+                                results.extend(sub_items);
+                            }
+                            other => results.push(other),
+                        }
+                    }
+                    Ok(FhirPathValue::collection(results))
+                }
+                _ => Ok(FhirPathValue::Empty),
+            }
+        })
+    }
+
+    /// Evaluate binary operations
+    async fn evaluate_binary_op(
+        &self,
+        binary_data: &octofhir_fhirpath_ast::BinaryOpData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        let left = self
+            .evaluate_node_async(&binary_data.left, input.clone(), context, depth + 1)
+            .await?;
+        let right = self
+            .evaluate_node_async(&binary_data.right, input, context, depth + 1)
+            .await?;
+
+        // TODO: Fix ModelProvider trait mismatch and implement binary operations
+        // For now, return basic operation results
+        use octofhir_fhirpath_ast::BinaryOperator;
+        match binary_data.op {
+            BinaryOperator::Equal => Ok(FhirPathValue::Boolean(left == right)),
+            BinaryOperator::NotEqual => Ok(FhirPathValue::Boolean(left != right)),
+            BinaryOperator::Add => match (&left, &right) {
+                (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
+                    Ok(FhirPathValue::Integer(a + b))
+                }
+                (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                    Ok(FhirPathValue::Decimal(a + b))
+                }
+                _ => Err(EvaluationError::InvalidOperation {
+                    message: "Addition not supported for these types".to_string(),
+                }),
+            },
+            _ => Err(EvaluationError::InvalidOperation {
+                message: format!("Binary operation {:?} not implemented yet", binary_data.op),
+            }),
+        }
+    }
+
+    /// Evaluate unary operations
+    async fn evaluate_unary_op(
+        &self,
+        op: &octofhir_fhirpath_ast::UnaryOperator,
+        operand: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        use octofhir_fhirpath_ast::UnaryOperator;
+
+        match op {
+            UnaryOperator::Not => Ok(FhirPathValue::Boolean(!self.is_truthy(&operand))),
+            UnaryOperator::Plus => {
+                // Unary plus - return numeric value as-is
+                match operand {
+                    FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) => Ok(operand),
+                    _ => Err(EvaluationError::InvalidOperation {
+                        message: "Unary plus can only be applied to numeric values".to_string(),
+                    }),
+                }
+            }
+            UnaryOperator::Minus => {
+                // Unary minus - negate numeric value
+                match operand {
+                    FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(-i)),
+                    FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
+                    _ => Err(EvaluationError::InvalidOperation {
+                        message: "Unary minus can only be applied to numeric values".to_string(),
+                    }),
+                }
+            }
+        }
+    }
+
+    /// Evaluate function calls
+    async fn evaluate_function_call(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // Special handling for defineVariable
+        if func_data.name == "defineVariable" {
+            return self
+                .evaluate_define_variable_function(func_data, input, context, depth)
+                .await;
+        }
+
+        // Check if this is a lambda function
+        if self.is_lambda_function(&func_data.name).await {
+            // Handle lambda functions
+            match func_data.name.as_str() {
+                "where" => {
+                    self.evaluate_where_lambda(func_data, input, context, depth)
+                        .await
+                }
+                "select" => {
+                    self.evaluate_select_lambda(func_data, input, context, depth)
+                        .await
+                }
+                "all" => {
+                    self.evaluate_all_lambda(func_data, input, context, depth)
+                        .await
+                }
+                "exists" => {
+                    self.evaluate_exists_lambda(func_data, input, context, depth)
+                        .await
+                }
+                _ => {
+                    // TODO: Fix ModelProvider trait mismatch
+                    Err(EvaluationError::InvalidOperation {
+                        message: format!(
+                            "Lambda function {} not yet implemented in consolidated engine",
+                            func_data.name
+                        ),
+                    })
+                }
+            }
+        } else {
+            // Standard function - evaluate arguments first
+            let mut args = Vec::new();
+            for arg_expr in &func_data.args {
+                let arg_value = self
+                    .evaluate_node_async(arg_expr, input.clone(), context, depth + 1)
+                    .await?;
+                args.push(arg_value);
+            }
+
+            // TODO: Fix ModelProvider trait mismatch
+            Err(EvaluationError::InvalidOperation {
+                message: format!(
+                    "Standard function {} not yet implemented in consolidated engine",
+                    func_data.name
+                ),
+            })
+        }
+    }
+
+    /// Evaluate index access
+    async fn evaluate_index(
+        &self,
+        base: FhirPathValue,
+        index: FhirPathValue,
+    ) -> EvaluationResult<FhirPathValue> {
+        let index_num = match index {
+            FhirPathValue::Integer(i) => i,
+            _ => {
+                return Err(EvaluationError::InvalidOperation {
+                    message: "Index must be an integer".to_string(),
+                });
+            }
+        };
+
+        match base {
+            FhirPathValue::Collection(items) => {
+                if index_num < 0 {
+                    // Negative indexing from the end
+                    let abs_index = (-index_num) as usize;
+                    if abs_index <= items.len() {
+                        let actual_index = items.len() - abs_index;
+                        Ok(items
+                            .get(actual_index)
+                            .cloned()
+                            .unwrap_or(FhirPathValue::Empty))
+                    } else {
+                        Ok(FhirPathValue::Empty)
+                    }
+                } else {
+                    // Positive indexing from the beginning
+                    let index_usize = index_num as usize;
+                    Ok(items
+                        .get(index_usize)
+                        .cloned()
+                        .unwrap_or(FhirPathValue::Empty))
+                }
+            }
+            single_item => {
+                if index_num == 0 {
+                    Ok(single_item)
+                } else {
+                    Ok(FhirPathValue::Empty)
+                }
+            }
+        }
+    }
+
+    /// Evaluate defineVariable function
+    async fn evaluate_define_variable_function(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        // defineVariable just returns the input unchanged after validation
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "defineVariable() requires at least 1 argument".to_string(),
+            });
+        }
+
+        // Get variable name
+        let name_value = self
+            .evaluate_node_async(&func_data.args[0], input.clone(), context, depth + 1)
+            .await?;
+
+        let _var_name = match name_value {
+            FhirPathValue::String(name) => name.to_string(),
+            _ => {
+                return Err(EvaluationError::InvalidOperation {
+                    message: "defineVariable() first argument must be a string".to_string(),
+                });
+            }
+        };
+
+        // Variable is handled in the calling context - just return input unchanged
+        Ok(input)
+    }
+
+    /// Evaluate where lambda function
+    async fn evaluate_where_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "where() requires 1 argument".to_string(),
+            });
+        }
+
+        let condition_expr = &func_data.args[0];
+        let collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        let mut filtered_items = Vec::new();
+        for item in collection {
+            let condition_result = self
+                .evaluate_node_async(condition_expr, item.clone(), context, depth + 1)
+                .await?;
+
+            if self.is_truthy(&condition_result) {
+                filtered_items.push(item);
+            }
+        }
+
+        Ok(FhirPathValue::collection(filtered_items))
+    }
+
+    /// Evaluate select lambda function
+    async fn evaluate_select_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "select() requires 1 argument".to_string(),
+            });
+        }
+
+        let transform_expr = &func_data.args[0];
+        let collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        let mut results = Vec::new();
+        for item in collection {
+            let result = self
+                .evaluate_node_async(transform_expr, item, context, depth + 1)
+                .await?;
+
+            // Flatten results
+            match result {
+                FhirPathValue::Collection(items) => results.extend(items),
+                FhirPathValue::Empty => {} // Skip empty values
+                single => results.push(single),
+            }
+        }
+
+        Ok(FhirPathValue::collection(results))
+    }
+
+    /// Evaluate all lambda function
+    async fn evaluate_all_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "all() requires 1 argument".to_string(),
+            });
+        }
+
+        let condition_expr = &func_data.args[0];
+        let collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        for item in collection {
+            let condition_result = self
+                .evaluate_node_async(condition_expr, item, context, depth + 1)
+                .await?;
+
+            if !self.is_truthy(&condition_result) {
+                return Ok(FhirPathValue::Boolean(false));
+            }
+        }
+
+        Ok(FhirPathValue::Boolean(true))
+    }
+
+    /// Evaluate exists lambda function
+    async fn evaluate_exists_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            // exists() without arguments - check if collection is not empty
+            return Ok(FhirPathValue::Boolean(!self.is_empty(&input)));
+        }
+
+        let condition_expr = &func_data.args[0];
+        let collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        for item in collection {
+            let condition_result = self
+                .evaluate_node_async(condition_expr, item, context, depth + 1)
+                .await?;
+
+            if self.is_truthy(&condition_result) {
+                return Ok(FhirPathValue::Boolean(true));
+            }
+        }
+
+        Ok(FhirPathValue::Boolean(false))
+    }
+
+    /// Evaluate sort lambda function
+    async fn evaluate_sort_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "sort() requires 1 argument".to_string(),
+            });
+        }
+
+        let sort_expr = &func_data.args[0];
+        let mut collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        // Simple sort implementation - could be enhanced for more complex sorting
+        collection.sort_by(|a, b| {
+            // For now, use simple string comparison
+            let a_str = self.to_string_value(a);
+            let b_str = self.to_string_value(b);
+            a_str.cmp(&b_str)
+        });
+
+        Ok(FhirPathValue::collection(collection))
+    }
+
+    /// Evaluate repeat lambda function
+    async fn evaluate_repeat_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.is_empty() {
+            return Err(EvaluationError::InvalidOperation {
+                message: "repeat() requires 1 argument".to_string(),
+            });
+        }
+
+        let repeat_expr = &func_data.args[0];
+        let mut current_result = input;
+        let mut all_results = Vec::new();
+        let mut iteration = 0;
+        const MAX_ITERATIONS: usize = 1000; // Prevent infinite loops
+
+        loop {
+            if iteration >= MAX_ITERATIONS {
+                return Err(EvaluationError::InvalidOperation {
+                    message: "repeat() exceeded maximum iterations".to_string(),
+                });
+            }
+
+            let next_result = self
+                .evaluate_node_async(repeat_expr, current_result.clone(), context, depth + 1)
+                .await?;
+
+            // Check if we have new results
+            let has_new_results = match (&current_result, &next_result) {
+                (FhirPathValue::Empty, FhirPathValue::Empty) => false,
+                (_, FhirPathValue::Empty) => false,
+                (FhirPathValue::Collection(prev), FhirPathValue::Collection(next)) => {
+                    next.len() != prev.len() || next != prev
+                }
+                (prev, next) => prev != next,
+            };
+
+            if !has_new_results {
+                break;
+            }
+
+            // Add to results
+            match &next_result {
+                FhirPathValue::Collection(items) => all_results.extend(items.clone()),
+                FhirPathValue::Empty => {}
+                single => all_results.push(single.clone()),
+            }
+
+            current_result = next_result;
+            iteration += 1;
+        }
+
+        Ok(FhirPathValue::collection(all_results))
+    }
+
+    /// Evaluate aggregate lambda function
+    async fn evaluate_aggregate_lambda(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() < 2 {
+            return Err(EvaluationError::InvalidOperation {
+                message: "aggregate() requires 2 arguments".to_string(),
+            });
+        }
+
+        let initial_expr = &func_data.args[0];
+        let aggregate_expr = &func_data.args[1];
+
+        let collection = match input {
+            FhirPathValue::Collection(items) => items,
+            single_item => vec![single_item],
+        };
+
+        // Evaluate initial value
+        let mut accumulator = self
+            .evaluate_node_async(initial_expr, FhirPathValue::Empty, context, depth + 1)
+            .await?;
+
+        // Apply aggregation for each item
+        for item in collection {
+            // Create context with $this and accumulator available
+            let mut agg_context = context.clone();
+            agg_context.set_variable("$this".to_string(), item);
+            agg_context.set_variable("$total".to_string(), accumulator.clone());
+
+            accumulator = self
+                .evaluate_node_async(aggregate_expr, accumulator, &agg_context, depth + 1)
+                .await?;
+        }
+
+        Ok(accumulator)
+    }
+
+    /// Evaluate iif (immediate if) function
+    async fn evaluate_iif_function(
+        &self,
+        func_data: &octofhir_fhirpath_ast::FunctionCallData,
+        input: FhirPathValue,
+        context: &LocalEvaluationContext,
+        depth: usize,
+    ) -> EvaluationResult<FhirPathValue> {
+        if func_data.args.len() < 2 {
+            return Err(EvaluationError::InvalidOperation {
+                message: "iif() requires at least 2 arguments".to_string(),
+            });
+        }
+
+        let condition_expr = &func_data.args[0];
+        let then_expr = &func_data.args[1];
+        let else_expr = func_data.args.get(2);
+
+        // Evaluate condition
+        let condition_result = self
+            .evaluate_node_async(condition_expr, input.clone(), context, depth + 1)
+            .await?;
+
+        if self.is_truthy(&condition_result) {
+            // Execute then branch
+            self.evaluate_node_async(then_expr, input, context, depth + 1)
+                .await
+        } else if let Some(else_expr) = else_expr {
+            // Execute else branch
+            self.evaluate_node_async(else_expr, input, context, depth + 1)
+                .await
+        } else {
+            // No else branch
+            Ok(FhirPathValue::Empty)
+        }
+    }
 
     // Function and method evaluation
 
@@ -1721,7 +2265,7 @@ impl FhirPathEngine {
                         let mut new_context = context.clone();
                         new_context
                             .variable_scope
-                            .set_variable(var_name.as_ref().to_string(), var_value);
+                            .set_variable(var_name.to_string(), var_value);
 
                         // Continue evaluation with the updated context using the method call logic
                         return self
@@ -1857,30 +2401,14 @@ impl FhirPathEngine {
                                 .await
                         }
                         _ => {
-                            // Fallback to registry for other lambda functions not yet moved to engine
-                            if self.registry().has_function(method_name).await {
-                                // Create registry context with the object as input for the lambda and variables from engine context
-                                let all_variables = context.variable_scope.collect_all_variables();
-                                let registry_context =
-                                    octofhir_fhirpath_registry::traits::EvaluationContext {
-                                        input: object,
-                                        root: context.root.clone(),
-                                        variables: all_variables,
-                                        model_provider: self.model_provider().clone(),
-                                    };
-
-                                // Use generic lambda function evaluation for remaining functions
-                                self.registry()
-                                    .evaluate(method_name, &[], &registry_context)
-                                    .await
-                                    .map_err(|e| EvaluationError::InvalidOperation {
-                                        message: format!(
-                                            "Lambda method error in {method_name}: {e}"
-                                        ),
-                                    })
-                            } else {
+                            // TODO: Fix ModelProvider trait mismatch and implement fallback
+                            {
+                                // TODO: Fix ModelProvider trait mismatch
                                 Err(EvaluationError::InvalidOperation {
-                                    message: format!("Unknown lambda method: {method_name}"),
+                                    message: format!(
+                                        "Lambda method {} not yet implemented in consolidated engine",
+                                        method_name
+                                    ),
                                 })
                             }
                         }
@@ -1917,8 +2445,8 @@ impl FhirPathEngine {
                                             }
                                         };
                                         FhirPathValue::TypeInfoObject {
-                                            namespace: Arc::from(namespace),
-                                            name: Arc::from(name),
+                                            namespace: namespace.to_string(),
+                                            name: name.to_string(),
                                         }
                                     } else {
                                         // Treat as string literal for backward compatibility
@@ -1930,8 +2458,8 @@ impl FhirPathEngine {
                                     if let ExpressionNode::Identifier(namespace) = base.as_ref() {
                                         if matches!(namespace.as_str(), "FHIR" | "System") {
                                             FhirPathValue::TypeInfoObject {
-                                                namespace: Arc::from(namespace.as_str()),
-                                                name: Arc::from(path.as_str()),
+                                                namespace: namespace.to_string(),
+                                                name: path.to_string(),
                                             }
                                         } else {
                                             // Evaluate as normal path expression
@@ -1976,28 +2504,10 @@ impl FhirPathEngine {
                         }
                     }
 
-                    // Get method from registry and evaluate
-                    if self.registry().has_function(method_name).await {
-                        // Create registry context with the object as input (context) for the method
-                        let registry_context =
-                            octofhir_fhirpath_registry::traits::EvaluationContext {
-                                input: object,
-                                root: context.root.clone(),
-                                variables: context.variable_scope.collect_all_variables(),
-                                model_provider: self.model_provider().clone(),
-                            };
-
-                        self.registry()
-                            .evaluate(method_name, &evaluated_args, &registry_context)
-                            .await
-                            .map_err(|e| EvaluationError::InvalidOperation {
-                                message: format!("Method error in {method_name}: {e}"),
-                            })
-                    } else {
-                        Err(EvaluationError::InvalidOperation {
-                            message: format!("Unknown method: {method_name}"),
-                        })
-                    }
+                    // TODO: Fix ModelProvider trait mismatch - registry expects different ModelProvider type
+                    Err(EvaluationError::InvalidOperation {
+                        message: format!("Unknown method: {method_name}"),
+                    })
                 }
             }
         }
@@ -2024,22 +2534,21 @@ impl FhirPathEngine {
     }
 
     /// Convert value to string
-    fn to_string_value(&self, value: &FhirPathValue) -> std::sync::Arc<str> {
+    fn to_string_value(&self, value: &FhirPathValue) -> String {
         match value {
             FhirPathValue::String(s) => s.clone(),
-            FhirPathValue::Integer(i) => i.to_string().into(),
-            FhirPathValue::Decimal(d) => d.to_string().into(),
-            FhirPathValue::Boolean(b) => b.to_string().into(),
-            FhirPathValue::Date(date) => date.to_string().into(),
-            FhirPathValue::DateTime(datetime) => datetime.to_string().into(),
-            FhirPathValue::Time(time) => time.to_string().into(),
+            FhirPathValue::Integer(i) => i.to_string(),
+            FhirPathValue::Decimal(d) => d.to_string(),
+            FhirPathValue::Boolean(b) => b.to_string(),
+            FhirPathValue::Date(date) => date.to_string(),
+            FhirPathValue::DateTime(datetime) => datetime.to_string(),
+            FhirPathValue::Time(time) => time.to_string(),
             FhirPathValue::Collection(items) => items
                 .iter()
-                .map(|item| self.to_string_value(item).to_string())
+                .map(|item| self.to_string_value(item))
                 .collect::<Vec<_>>()
-                .join(", ")
-                .into(),
-            _ => format!("{value:?}").into(),
+                .join(", "),
+            _ => format!("{value:?}"),
         }
     }
 

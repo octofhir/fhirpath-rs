@@ -4,7 +4,7 @@ use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignatu
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// HourOf function - extracts hour component from DateTime or Time (0-23)
 #[derive(Debug, Clone)]

@@ -1,11 +1,11 @@
-//! convertsToQuantity() sync implementation
+//! convertsToQuantity { value: , .. } sync implementation
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
-/// convertsToQuantity(): Returns true if the input can be converted to Quantity
+/// convertsToQuantity { value: , .. }: Returns true if the input can be converted to Quantity
 pub struct ConvertsToQuantityFunction;
 
 impl SyncOperation for ConvertsToQuantityFunction {
@@ -38,7 +38,7 @@ impl SyncOperation for ConvertsToQuantityFunction {
 fn can_convert_to_quantity(value: &FhirPathValue) -> Result<bool> {
     match value {
         // Already a quantity
-        FhirPathValue::Quantity(_) => Ok(true),
+        FhirPathValue::Quantity { value: _, .. } => Ok(true),
 
         // Integer can be converted (becomes quantity with unit "1")
         FhirPathValue::Integer(_) => Ok(true),

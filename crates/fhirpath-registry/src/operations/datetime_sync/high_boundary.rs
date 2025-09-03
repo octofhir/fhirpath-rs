@@ -1,13 +1,11 @@
 //! HighBoundary function implementation - sync version
+use octofhir_fhirpath_core::JsonValueExt;use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{
-    FhirPathValue,
-    temporal::{PrecisionDateTime, TemporalPrecision},
-};
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 /// HighBoundary function - gets high precision boundary of date/time values
@@ -336,9 +334,9 @@ impl SyncOperation for HighBoundaryFunction {
                             let year = date.date.year();
                             let end_of_year_date = NaiveDate::from_ymd_opt(year, 12, 1).unwrap();
                             FhirPathValue::Date(
-                                octofhir_fhirpath_model::temporal::PrecisionDate::new(
+                                PrecisionDate::new(
                                     end_of_year_date,
-                                    octofhir_fhirpath_model::temporal::TemporalPrecision::Month,
+                                    TemporalPrecision::Month,
                                 ),
                             )
                         }
@@ -364,7 +362,7 @@ impl SyncOperation for HighBoundaryFunction {
                     FhirPathValue::DateTime(high_boundary)
                 }
             }
-            FhirPathValue::Quantity(quantity) => {
+            FhirPathValue::Quantity { value: quantity, unit, ucum_expr } => {
                 // For Quantity, apply highBoundary to the numeric value and preserve unit
                 if let Some(prec) = precision {
                     if prec < 0 {
@@ -373,34 +371,26 @@ impl SyncOperation for HighBoundaryFunction {
                         ));
                     }
                     let boundary_value =
-                        Self::get_numeric_high_boundary_decimal(&quantity.value, prec as usize)?;
+                        Self::get_numeric_high_boundary_decimal(quantity, prec as usize)?;
                     match boundary_value {
                         FhirPathValue::Decimal(d) => {
-                            let boundary_quantity =
-                                octofhir_fhirpath_model::Quantity::new(d, quantity.unit.clone());
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: d, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         FhirPathValue::Integer(i) => {
                             let decimal = Decimal::from(i);
-                            let boundary_quantity = octofhir_fhirpath_model::Quantity::new(
-                                decimal,
-                                quantity.unit.clone(),
-                            );
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: decimal, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         _ => boundary_value,
                     }
                 } else {
                     // For quantity without precision, return high boundary at implicit precision + 1 digit
                     let boundary_value = Self::get_numeric_high_boundary_decimal(
-                        &quantity.value,
-                        (quantity.value.scale() as usize) + 1,
+                        quantity,
+                        (quantity.scale() as usize) + 1,
                     )?;
                     match boundary_value {
                         FhirPathValue::Decimal(d) => {
-                            let boundary_quantity =
-                                octofhir_fhirpath_model::Quantity::new(d, quantity.unit.clone());
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: d, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         _ => boundary_value,
                     }
@@ -422,9 +412,9 @@ impl SyncOperation for HighBoundaryFunction {
                     if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(str_val, "%Y-%m-%d") {
                         let high_boundary = Self::get_high_boundary(&naive_date);
                         FhirPathValue::DateTime(
-                            octofhir_fhirpath_model::temporal::PrecisionDateTime::new(
+                            PrecisionDateTime::new(
                                 high_boundary,
-                                octofhir_fhirpath_model::temporal::TemporalPrecision::Millisecond,
+                                TemporalPrecision::Millisecond,
                             ),
                         )
                     } else if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(str_val) {
@@ -437,9 +427,9 @@ impl SyncOperation for HighBoundaryFunction {
                     } else if let Ok(naive_time) =
                         chrono::NaiveTime::parse_from_str(str_val, "%H:%M:%S")
                     {
-                        let precision_time = octofhir_fhirpath_model::temporal::PrecisionTime::new(
+                        let precision_time = PrecisionTime::new(
                             naive_time,
-                            octofhir_fhirpath_model::temporal::TemporalPrecision::Second,
+                            TemporalPrecision::Second,
                         );
                         FhirPathValue::Time(precision_time)
                     } else if str_val.len() == 4 && str_val.parse::<i32>().is_ok() {

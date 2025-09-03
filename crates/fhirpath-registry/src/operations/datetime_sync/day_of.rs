@@ -4,7 +4,7 @@ use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignatu
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Datelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// DayOf function - extracts day component from Date or DateTime (1-31)
 #[derive(Debug, Clone)]

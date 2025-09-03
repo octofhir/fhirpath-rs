@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Trace function - debug output for expression evaluation
 #[derive(Debug, Clone)]

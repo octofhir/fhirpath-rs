@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// toBoolean(): Converts input to Boolean where possible
 pub struct ToBooleanFunction;
@@ -61,12 +61,12 @@ fn convert_to_boolean(value: &FhirPathValue) -> Result<FhirPathValue> {
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             } else if c.len() == 1 {
                 convert_to_boolean(c.first().unwrap())
             } else {
                 // Multiple items - return empty collection per FHIRPath spec
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
 

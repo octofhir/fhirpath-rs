@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Simplified power function: raises the value to the specified power
@@ -111,8 +111,8 @@ impl SyncOperation for SimplePowerFunction {
                     Err(_) => Ok(FhirPathValue::Empty), // Return empty for conversion errors
                 }
             }
-            FhirPathValue::Quantity(q) => {
-                let base = q.value.to_f64().unwrap_or(0.0);
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let base = value.to_f64().unwrap_or(0.0);
 
                 // Check for invalid power operations per FHIRPath spec
                 if base < 0.0 && exponent.fract() != 0.0 {
@@ -128,7 +128,11 @@ impl SyncOperation for SimplePowerFunction {
                 }
 
                 match rust_decimal::Decimal::try_from(result) {
-                    Ok(decimal) => Ok(FhirPathValue::quantity(decimal, q.unit.clone())),
+                    Ok(decimal) => Ok(FhirPathValue::Quantity { 
+                        value: decimal, 
+                        unit: unit.clone(), 
+                        ucum_expr: ucum_expr.clone() 
+                    }),
                     Err(_) => Ok(FhirPathValue::Empty), // Return empty for conversion errors
                 }
             }

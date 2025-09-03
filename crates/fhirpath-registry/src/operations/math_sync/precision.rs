@@ -1,9 +1,10 @@
 //! Simplified precision function implementation for FHIRPath
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, temporal::TemporalPrecision};
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Simplified precision function: returns the number of significant decimal places
@@ -87,8 +88,8 @@ impl SyncOperation for SimplePrecisionFunction {
                 let precision = self.count_decimal_places(n.to_f64().unwrap_or(0.0));
                 Ok(FhirPathValue::Integer(precision))
             }
-            FhirPathValue::Quantity(q) => {
-                let precision = self.count_decimal_places(q.value.to_f64().unwrap_or(0.0));
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let precision = self.count_decimal_places(value.to_f64().unwrap_or(0.0));
                 Ok(FhirPathValue::Integer(precision))
             }
             FhirPathValue::Date(date) => {

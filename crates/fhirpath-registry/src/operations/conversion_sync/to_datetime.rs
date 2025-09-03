@@ -1,14 +1,12 @@
 //! toDateTime() sync implementation
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use super::to_date::parse_iso_date_string;
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use chrono::{FixedOffset, TimeZone};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{
-    FhirPathValue,
-    temporal::{PrecisionDateTime, TemporalPrecision},
-};
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// toDateTime(): Converts input to DateTime where possible
 pub struct ToDateTimeFunction;
@@ -55,9 +53,9 @@ fn convert_to_datetime(value: &FhirPathValue) -> Result<FhirPathValue> {
             } else if let Some(datetime) = parse_iso_datetime_string(s) {
                 // If it's a datetime string, extract the date part
                 let date_part = datetime.datetime.date_naive();
-                let precision_date = octofhir_fhirpath_model::temporal::PrecisionDate::new(
+                let precision_date = PrecisionDate::new(
                     date_part,
-                    octofhir_fhirpath_model::temporal::TemporalPrecision::Day,
+                    TemporalPrecision::Day,
                 );
                 Ok(FhirPathValue::Date(precision_date))
             } else {
@@ -71,12 +69,12 @@ fn convert_to_datetime(value: &FhirPathValue) -> Result<FhirPathValue> {
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             } else if c.len() == 1 {
                 convert_to_datetime(c.first().unwrap())
             } else {
                 // Multiple items - return empty collection per FHIRPath spec
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
 

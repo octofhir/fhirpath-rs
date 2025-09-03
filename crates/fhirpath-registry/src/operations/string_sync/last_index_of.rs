@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified lastIndexOf function: finds the last index of a substring
 pub struct SimpleLastIndexOfFunction;
@@ -53,7 +53,7 @@ impl SyncOperation for SimpleLastIndexOfFunction {
             });
         }
 
-        let substring = match &args[0] {
+        let substring: &str = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
             _ => {

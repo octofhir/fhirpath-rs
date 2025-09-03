@@ -4,8 +4,7 @@ use crate::signature::{
     CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
 };
 use crate::traits::{EvaluationContext, SyncOperation};
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, JsonValueExt, Result};
 
 /// Simplified exclude function: excludes items from the first collection that are in the second
 pub struct SimpleExcludeFunction;
@@ -30,7 +29,7 @@ impl SimpleExcludeFunction {
             // Handle JsonValue vs String comparison (common case)
             (JsonValue(a), String(b)) | (String(b), JsonValue(a)) => {
                 if let Some(a_str) = a.as_inner().as_str() {
-                    a_str == b.as_ref()
+                    a_str == b.as_ref() as &str
                 } else {
                     false
                 }
@@ -103,8 +102,6 @@ impl SyncOperation for SimpleExcludeFunction {
             })
             .collect();
 
-        Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(result),
-        ))
+        Ok(FhirPathValue::Collection(result))
     }
 }

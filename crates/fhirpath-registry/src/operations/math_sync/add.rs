@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified add function: adds two numeric values
 pub struct SimpleAddFunction;
@@ -72,16 +72,16 @@ impl SyncOperation for SimpleAddFunction {
             (FhirPathValue::Decimal(l), FhirPathValue::Decimal(r)) => {
                 Ok(FhirPathValue::Decimal(l + r))
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Quantity(r)) => {
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Quantity { value: r_value, unit: r_unit, ucum_expr: r_ucum }) => {
                 // For now, assume same units - full UCUM conversion would be needed for proper implementation
-                if l.unit == r.unit {
-                    let result = l.value + r.value;
-                    Ok(FhirPathValue::quantity(result, l.unit.clone()))
+                if l_unit == r_unit {
+                    let result = l_value + r_value;
+                    Ok(FhirPathValue::Quantity { value: result, unit: l_unit.clone(), ucum_expr: l_ucum.clone() })
                 } else {
                     Err(FhirPathError::TypeError {
                         message: format!(
                             "Cannot add quantities with different units: {:?} and {:?}",
-                            l.unit, r.unit
+                            l_unit, r_unit
                         ),
                     })
                 }

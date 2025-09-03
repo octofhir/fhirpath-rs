@@ -1,6 +1,6 @@
 //! Configuration system for FHIRPath with Bridge Support
 
-use crate::{FhirPathError, FhirSchemaPackageManager};
+use crate::FhirPathError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -142,6 +142,13 @@ impl Default for FhirPathConfig {
     }
 }
 
+impl FhirPathConfig {
+    /// Convert to engine config
+    pub fn to_engine_config(&self) -> FhirPathEngineConfig {
+        self.engine_config.clone()
+    }
+}
+
 /// Builder for FHIRPath configuration with fluent API
 pub struct FhirPathConfigBuilder {
     config: FhirPathConfig,
@@ -246,8 +253,7 @@ impl Default for FhirPathConfigBuilder {
 pub struct FhirPathEvaluationResult {
     /// The evaluated values
     pub values: Vec<crate::FhirPathValue>,
-    /// Validation result if analyzer was enabled
-    pub validation_result: Option<BridgeValidationResult>,
+
     /// Execution time
     pub execution_time: std::time::Duration,
     /// Warnings generated during evaluation
@@ -272,8 +278,6 @@ pub struct PerformanceMetrics {
     /// Memory usage in bytes
     pub memory_usage: Option<usize>,
 }
-
-use octofhir_fhirpath_analyzer::BridgeValidationResult;
 
 #[cfg(test)]
 mod tests {

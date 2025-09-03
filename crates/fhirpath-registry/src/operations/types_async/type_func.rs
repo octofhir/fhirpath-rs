@@ -3,8 +3,8 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, ModelProvider};
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, Result};
+use octofhir_fhir_model::ModelProvider;
 
 /// Type function - returns type information for values
 #[derive(Debug, Default, Clone)]
@@ -21,8 +21,8 @@ impl TypeFunction {
         value: &FhirPathValue,
         model_provider: &dyn ModelProvider,
     ) -> FhirPathValue {
-        // Use ModelProvider to get the value type name
-        let raw_type_name = model_provider.get_value_type_name(value);
+        // Use basic type detection for now
+        let raw_type_name = value.type_name();
 
         // Determine namespace and type name based on the context
         let (namespace, type_name) = match value {
@@ -31,7 +31,7 @@ impl TypeFunction {
                 if self.is_fhir_primitive_type(&raw_type_name) {
                     // FHIR primitives keep their lowercase names and FHIR namespace
                     ("FHIR", raw_type_name.clone())
-                } else if model_provider.is_resource_type(&raw_type_name).await {
+                } else if model_provider.resource_type_exists(&raw_type_name).unwrap_or(false) {
                     // FHIR resource types
                     ("FHIR", raw_type_name.clone())
                 } else {
@@ -140,24 +140,18 @@ impl AsyncOperation for TypeFunction {
                     type_infos.push(type_info);
                 }
 
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(type_infos),
-                ))
+                Ok(FhirPathValue::Collection(type_infos))
             }
             FhirPathValue::Empty => {
                 // Empty input returns empty collection
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ))
+                Ok(FhirPathValue::Collection(vec![]))
             }
             _ => {
                 // Single item - return its type
                 let type_info = self
                     .get_type_info(&context.input, context.model_provider.as_ref())
                     .await;
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![type_info]),
-                ))
+                Ok(FhirPathValue::Collection(vec![type_info]))
             }
         }
     }

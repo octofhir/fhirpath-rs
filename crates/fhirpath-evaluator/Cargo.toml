@@ -14,13 +14,12 @@ categories = ["parser-implementations", "science"]
 [dependencies]
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
+octofhir-fhir-model = { workspace = true }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 
 # Bridge support dependencies
-octofhir-fhirschema = { workspace = true }
 octofhir-canonical-manager = { workspace = true }
 
 # Performance and concurrency
@@ -57,3 +56,4 @@ default = []
 [dev-dependencies]
 divan = "0.1"
 pretty_assertions = "1.4.1"
+octofhir-fhirpath = { path = "../octofhir-fhirpath" }

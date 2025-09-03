@@ -26,7 +26,26 @@ pub mod lsp;
 
 // Re-export main types (using streamlined modules)
 pub use builder::DiagnosticBuilder;
-pub use diagnostic::{Diagnostic, DiagnosticCode, Severity, Severity as DiagnosticSeverity};
+pub use diagnostic::{
+    Diagnostic, DiagnosticCode, QuickFix, QuickFixKind, RelatedInformation, Severity,
+    Severity as DiagnosticSeverity, Suggestion, SuggestionType, TextEdit,
+};
 pub use diagnostic_reporter::DiagnosticReporter;
 pub use formatter::DiagnosticFormatter;
 pub use location::{Position, SourceLocation, Span};
+
+// Re-export new diagnostic engine and error codes
+pub mod diagnostics;
+pub use diagnostics::diagnostic_engine::{
+    DiagnosticEngine, ErrorRecoveryEngine, FormatError, RecoveryResult, RecoveryStrategy,
+    SuggestionEngine,
+};
+pub use diagnostics::error_codes::{
+    ErrorCategory, ErrorCodeRegistry, StructuredDiagnosticCode,
+};
+pub use diagnostics::formatters::{
+    RustLikeDiagnosticFormatter, RustLikeFormatterConfig,
+};
+pub use diagnostics::suggestions::{
+    EnhancedSuggestionEngine, fuzzy_matching,
+};

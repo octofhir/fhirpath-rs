@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified tail function: returns all items except the first
 pub struct SimpleTailFunction;
@@ -55,24 +55,16 @@ impl SyncOperation for SimpleTailFunction {
         match &context.input {
             FhirPathValue::Collection(collection) => {
                 if collection.len() <= 1 {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![]))
                 } else {
                     let tail: Vec<FhirPathValue> = collection.iter().skip(1).cloned().collect();
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(tail),
-                    ))
+                    Ok(FhirPathValue::Collection(tail))
                 }
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            )),
+            FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![])),
             _ => {
                 // Single item - tail is empty
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
     }

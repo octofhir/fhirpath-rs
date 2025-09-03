@@ -15,7 +15,7 @@
 use crate::registry_core::{OperationLookupResult, RegistryCore, RegistryOperation};
 use crate::traits::{AsyncOperation, EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::FhirPathValue;
 use std::sync::Arc;
 
 /// Wrapper for sync operations to implement RegistryOperation
@@ -619,7 +619,7 @@ mod tests {
     }
 
     fn create_test_context() -> EvaluationContext {
-        use octofhir_fhirpath_model::MockModelProvider;
+        use octofhir_fhir_model::MockModelProvider;
         let model_provider = std::sync::Arc::new(MockModelProvider::new());
         EvaluationContext::new(
             FhirPathValue::Empty,

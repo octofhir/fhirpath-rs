@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified union function: returns the union of two collections (with duplicates)
 pub struct SimpleUnionFunction;
@@ -72,8 +72,6 @@ impl SyncOperation for SimpleUnionFunction {
         let mut result = left_items;
         result.extend(right_items);
 
-        Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(result),
-        ))
+        Ok(FhirPathValue::Collection(result))
     }
 }

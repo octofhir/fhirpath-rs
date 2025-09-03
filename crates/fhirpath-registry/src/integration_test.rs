@@ -6,7 +6,8 @@
 mod tests {
     use crate::function_registry::create_standard_registry;
     use crate::traits::EvaluationContext;
-    use octofhir_fhirpath_model::{FhirPathValue, MockModelProvider};
+    use crate::FhirPathValue;
+    use octofhir_fhirpath_core::MockModelProvider;
     use std::sync::Arc;
 
     use std::str::FromStr;
@@ -52,7 +53,7 @@ mod tests {
 
         // Test collection operations
         let collection =
-            FhirPathValue::Collection(octofhir_fhirpath_model::Collection::from(vec![
+            FhirPathValue::Collection(vec![
                 FhirPathValue::Integer(1),
                 FhirPathValue::Integer(2),
                 FhirPathValue::Integer(3),

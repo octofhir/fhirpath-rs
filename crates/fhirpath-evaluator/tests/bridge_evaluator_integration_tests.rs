@@ -19,7 +19,8 @@
 
 use octofhir_canonical_manager::FcmConfig;
 use octofhir_fhirpath_evaluator::FhirPathEngine;
-use octofhir_fhirpath_model::FhirSchemaModelProvider;
+// TODO: Re-enable when FhirSchemaModelProvider is moved to core
+// use octofhir_fhir_model::FhirSchemaModelProvider;
 use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig};
 use serde_json::json;
 use std::sync::Arc;
@@ -58,9 +59,9 @@ async fn test_bridge_property_navigation() {
         .evaluate("Patient.gender", patient.clone())
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert_eq!(items.len(), 1);
-        if let Some(octofhir_fhirpath_model::FhirPathValue::String(gender)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::String(gender)) = items.first() {
             assert_eq!(gender.as_ref(), "male");
         } else {
             panic!("Expected string value for gender");
@@ -74,9 +75,9 @@ async fn test_bridge_property_navigation() {
         .evaluate("Patient.name.given", patient)
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert!(!items.is_empty());
-        if let Some(octofhir_fhirpath_model::FhirPathValue::String(given)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::String(given)) = items.first() {
             assert_eq!(given.as_ref(), "John");
         } else {
             panic!("Expected string value for given name");
@@ -114,10 +115,10 @@ async fn test_bridge_choice_type_resolution() {
         .evaluate("Observation.valueQuantity", observation.clone())
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert_eq!(items.len(), 1);
         // Should be a JSON object representing the Quantity
-        if let Some(octofhir_fhirpath_model::FhirPathValue::JsonValue(quantity)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::JsonValue(quantity)) = items.first() {
             assert!(quantity.get_property("value").is_some());
             assert!(quantity.get_property("unit").is_some());
         } else {
@@ -132,12 +133,12 @@ async fn test_bridge_choice_type_resolution() {
         .evaluate("Observation.valueQuantity.value", observation)
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert_eq!(items.len(), 1);
         // Value should be a number
         match items.first() {
-            Some(octofhir_fhirpath_model::FhirPathValue::Decimal(_))
-            | Some(octofhir_fhirpath_model::FhirPathValue::Integer(_)) => {
+            Some(octofhir_fhir_model::FhirPathValue::Decimal(_))
+            | Some(octofhir_fhir_model::FhirPathValue::Integer(_)) => {
                 // Success - got a numeric value
             }
             _ => panic!("Expected numeric value for quantity.value"),
@@ -162,9 +163,9 @@ async fn test_bridge_type_checking() {
         .evaluate("Patient.active is boolean", patient.clone())
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert_eq!(items.len(), 1);
-        if let Some(octofhir_fhirpath_model::FhirPathValue::Boolean(is_boolean)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::Boolean(is_boolean)) = items.first() {
             assert!(*is_boolean);
         } else {
             panic!("Expected boolean result for type check");
@@ -178,9 +179,9 @@ async fn test_bridge_type_checking() {
         .evaluate("Patient is Patient", patient)
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert_eq!(items.len(), 1);
-        if let Some(octofhir_fhirpath_model::FhirPathValue::Boolean(is_patient)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::Boolean(is_patient)) = items.first() {
             assert!(*is_patient);
         } else {
             panic!("Expected boolean result for resource type check");
@@ -222,9 +223,9 @@ async fn test_bridge_complex_navigation() {
         .evaluate("Bundle.entry.resource.ofType(Patient).name.given", bundle)
         .await
         .unwrap();
-    if let octofhir_fhirpath_model::FhirPathValue::Collection(items) = result {
+    if let octofhir_fhir_model::FhirPathValue::Collection(items) = result {
         assert!(!items.is_empty());
-        if let Some(octofhir_fhirpath_model::FhirPathValue::String(given)) = items.first() {
+        if let Some(octofhir_fhir_model::FhirPathValue::String(given)) = items.first() {
             assert_eq!(given.as_ref(), "Alice");
         } else {
             panic!("Expected string value for given name");
@@ -279,10 +280,10 @@ async fn test_bridge_error_handling() {
         .await
         .unwrap();
     match result {
-        octofhir_fhirpath_model::FhirPathValue::Empty => {
+        octofhir_fhir_model::FhirPathValue::Empty => {
             // Correct - should return empty for non-existent properties
         }
-        octofhir_fhirpath_model::FhirPathValue::Collection(items) => {
+        octofhir_fhir_model::FhirPathValue::Collection(items) => {
             assert!(
                 items.is_empty(),
                 "Should return empty collection for non-existent property"

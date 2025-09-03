@@ -1,11 +1,12 @@
 //! Today function implementation - async version (system calls)
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use chrono::Utc;
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::{FhirPathValue, PrecisionDate, TemporalPrecision};
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Today function - returns current date (requires system call)
 #[derive(Debug, Clone)]

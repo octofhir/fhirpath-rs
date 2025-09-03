@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified abs function: returns the absolute value of a numeric value
 pub struct SimpleAbsFunction;
@@ -55,9 +55,13 @@ impl SyncOperation for SimpleAbsFunction {
         match &context.input {
             FhirPathValue::Integer(n) => Ok(FhirPathValue::Integer(n.abs())),
             FhirPathValue::Decimal(n) => Ok(FhirPathValue::Decimal(n.abs())),
-            FhirPathValue::Quantity(q) => {
-                let abs_value = q.value.abs();
-                Ok(FhirPathValue::quantity(abs_value, q.unit.clone()))
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let abs_value = value.abs();
+                Ok(FhirPathValue::Quantity { 
+                    value: abs_value, 
+                    unit: unit.clone(), 
+                    ucum_expr: ucum_expr.clone() 
+                })
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {

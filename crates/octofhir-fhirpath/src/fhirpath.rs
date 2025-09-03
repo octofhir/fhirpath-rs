@@ -1,20 +1,18 @@
-//! Main FHIRPath API with Bridge Support
+//! Main FHIRPath API - Simplified Version
 
 use crate::{
-    AnalyzerFieldValidator, FhirPathError, FhirPathValue, FhirSchemaPackageManager,
+    FhirPathError, FhirPathValue, MockModelProvider,
     config::{FhirPathConfig, FhirPathConfigBuilder, FhirPathEvaluationResult},
     engine_factory::{AdvancedFhirPathEngine, FhirPathEngineFactory},
 };
-use octofhir_fhirpath_analyzer::BridgeValidationResult;
 use std::sync::Arc;
 
-/// Main FHIRPath entry point with Bridge Support Architecture
+/// Main FHIRPath entry point
 ///
-/// This provides a high-level API for FHIRPath operations with enhanced
-/// performance and FHIR compliance through the Bridge Support system.
+/// This provides a high-level API for FHIRPath operations using MockModelProvider.
+/// For full FHIR schema support, use the CLI crate instead.
 pub struct FhirPath {
     engine: AdvancedFhirPathEngine,
-    schema_manager: Arc<FhirSchemaPackageManager>,
     config: FhirPathConfig,
 }
 
@@ -28,14 +26,19 @@ impl FhirPath {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let fhirpath = FhirPath::new().await?;
+    ///     // Use fhirpath for evaluation...
     ///     Ok(())
     /// }
     /// ```
     pub async fn new() -> Result<Self, FhirPathError> {
-        Self::with_config(FhirPathConfig::default()).await
+        let config = FhirPathConfig::default();
+        Self::with_config(config).await
     }
 
     /// Create a new FHIRPath instance with custom configuration
+    ///
+    /// # Arguments
+    /// * `config` - The configuration to use
     ///
     /// # Example
     /// ```no_run
@@ -45,41 +48,25 @@ impl FhirPath {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let config = FhirPathConfigBuilder::new()
     ///         .with_fhir_version(FhirVersion::R5)
-    ///         .with_analyzer(true)
     ///         .build();
-    ///         
+    ///
     ///     let fhirpath = FhirPath::with_config(config).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn with_config(config: FhirPathConfig) -> Result<Self, FhirPathError> {
-        // Initialize schema manager with bridge support
-        let fcm_config = octofhir_canonical_manager::FcmConfig::default();
-        let pm_config = octofhir_fhirschema::PackageManagerConfig::default();
-        let schema_manager = Arc::new(
-            FhirSchemaPackageManager::new(fcm_config, pm_config)
-                .await
-                .map_err(|e| FhirPathError::Generic {
-                    message: format!("Failed to initialize schema manager: {}", e),
-                })?,
-        );
+        let engine_config = config.to_engine_config();
+        let engine = AdvancedFhirPathEngine::new(engine_config).await?;
 
-        // Create engine factory and advanced engine
-        let engine_factory = FhirPathEngineFactory::new(schema_manager.clone());
-        let engine = engine_factory
-            .create_advanced_engine(&config.engine_config)
-            .await?;
-
-        Ok(Self {
-            engine,
-            schema_manager,
-            config,
-        })
+        Ok(Self { engine, config })
     }
 
-    /// Evaluate a FHIRPath expression against a JSON resource
-    ///
-    /// This is the basic evaluation method that returns just the results.
+    /// Get the current configuration
+    pub fn config(&self) -> &FhirPathConfig {
+        &self.config
+    }
+
+    /// Evaluate a FHIRPath expression
     ///
     /// # Arguments
     /// * `expression` - The FHIRPath expression to evaluate
@@ -93,77 +80,69 @@ impl FhirPath {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let fhirpath = FhirPath::new().await?;
-    ///     
+    ///
     ///     let patient = json!({
     ///         "resourceType": "Patient",
     ///         "name": [{"given": ["John"], "family": "Doe"}]
     ///     });
     ///
-    ///     let results = fhirpath.evaluate("Patient.name.given", &patient).await?;
-    ///     println!("Names: {:?}", results);
-    ///     
+    ///     let result = fhirpath.evaluate("Patient.name.given", patient).await?;
+    ///     println!("Values: {:?}", result.values);
     ///     Ok(())
     /// }
     /// ```
     pub async fn evaluate(
         &self,
         expression: &str,
-        context: &serde_json::Value,
-    ) -> Result<Vec<FhirPathValue>, FhirPathError> {
-        let result = self.engine.evaluate(expression, context.clone()).await?;
-        Ok(vec![result])
+        context: serde_json::Value,
+    ) -> Result<FhirPathEvaluationResult, FhirPathError> {
+        let start_time = std::time::Instant::now();
+
+        // Parse expression first for validation
+        let _ast = crate::parse(expression)?;
+
+        // Evaluate
+        let result = self
+            .engine
+            .engine
+            .evaluate(expression, context)
+            .await
+            .map_err(crate::evaluation_error_to_fhirpath_error)?;
+        let execution_time = start_time.elapsed();
+
+        Ok(FhirPathEvaluationResult {
+            values: vec![result],
+            execution_time,
+            warnings: vec![],
+            performance_metrics: None,
+        })
     }
 
-    /// Evaluate with additional validation and analysis
-    ///
-    /// This method provides comprehensive analysis including validation,
-    /// performance metrics, and warnings.
+    /// Parse a FHIRPath expression
     ///
     /// # Arguments
-    /// * `expression` - The FHIRPath expression to evaluate
-    /// * `context` - The JSON resource to evaluate against
+    /// * `expression` - The FHIRPath expression to parse
     ///
     /// # Example
     /// ```no_run
     /// use octofhir_fhirpath::FhirPath;
-    /// use serde_json::json;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let fhirpath = FhirPath::new().await?;
-    ///     
-    ///     let patient = json!({
-    ///         "resourceType": "Patient",
-    ///         "name": [{"given": ["Alice"], "family": "Smith"}]
-    ///     });
-    ///
-    ///     let result = fhirpath.evaluate_with_analysis(
-    ///         "Patient.name.where(use = 'official').family",
-    ///         &patient
-    ///     ).await?;
-    ///     
-    ///     println!("Values: {:?}", result.values);
-    ///     println!("Execution time: {:?}", result.execution_time);
-    ///     if !result.warnings.is_empty() {
-    ///         println!("Warnings: {:?}", result.warnings);
-    ///     }
-    ///     
+    ///     let ast = fhirpath.parse_expression("Patient.name.given")?;
+    ///     println!("AST: {:?}", ast);
     ///     Ok(())
     /// }
     /// ```
-    pub async fn evaluate_with_analysis(
+    pub fn parse_expression(
         &self,
         expression: &str,
-        context: &serde_json::Value,
-    ) -> Result<FhirPathEvaluationResult, FhirPathError> {
-        self.engine
-            .evaluate_with_analysis(expression, context.clone())
-            .await
+    ) -> Result<crate::ast::ExpressionNode, FhirPathError> {
+        crate::parse(expression)
     }
 
-    /// Validate a FHIRPath expression without evaluation
-    ///
-    /// Checks both syntax and semantic validity of the expression.
+    /// Check if an expression has valid syntax
     ///
     /// # Arguments
     /// * `expression` - The FHIRPath expression to validate
@@ -175,155 +154,66 @@ impl FhirPath {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let fhirpath = FhirPath::new().await?;
-    ///     
-    ///     match fhirpath.validate_expression("Patient.name.invalid").await? {
-    ///         Some(result) if !result.is_valid => {
-    ///             println!("Invalid expression: {:?}", result.messages);
-    ///         },
-    ///         Some(_) => println!("Expression is valid"),
-    ///         None => println!("Validation not available (analyzer disabled)"),
+    ///
+    ///     if fhirpath.is_valid_syntax("Patient.name.given")? {
+    ///         println!("Valid syntax");
     ///     }
-    ///     
     ///     Ok(())
     /// }
     /// ```
-    pub async fn validate_expression(
-        &self,
-        expression: &str,
-    ) -> Result<Option<BridgeValidationResult>, FhirPathError> {
-        self.engine.validate_expression(expression).await
+    pub fn is_valid_syntax(&self, expression: &str) -> Result<bool, FhirPathError> {
+        match self.parse_expression(expression) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
     }
 
-    /// Parse a FHIRPath expression to its AST representation
+    /// Evaluate multiple expressions against the same context
     ///
-    /// Useful for static analysis and expression introspection.
-    ///
-    /// # Arguments
-    /// * `expression` - The FHIRPath expression to parse
-    pub fn parse_expression(
-        &self,
-        expression: &str,
-    ) -> Result<crate::ExpressionNode, FhirPathError> {
-        crate::parse(expression).map_err(|e| FhirPathError::Generic {
-            message: format!("Parse error: {}", e),
-        })
-    }
-
-    /// Get the schema manager for advanced operations
-    ///
-    /// Provides access to the underlying schema manager for operations
-    /// like package loading and schema introspection.
-    pub fn schema_manager(&self) -> &Arc<FhirSchemaPackageManager> {
-        &self.schema_manager
-    }
-
-    /// Check if analyzer is enabled
-    pub fn has_analyzer(&self) -> bool {
-        self.config.analyzer_enabled
-    }
-
-    /// Check if performance tracking is enabled
-    pub fn has_performance_tracking(&self) -> bool {
-        self.config.performance_tracking
-    }
-
-    /// Get the current configuration
-    pub fn config(&self) -> &FhirPathConfig {
-        &self.config
-    }
-
-    /// Load additional FHIR packages
-    ///
-    /// Dynamically load additional FHIR packages for enhanced functionality.
+    /// This is more efficient than calling evaluate multiple times
+    /// when you have the same context.
     ///
     /// # Arguments
-    /// * `package_ids` - List of package identifiers to load
+    /// * `expressions` - The FHIRPath expressions to evaluate
+    /// * `context` - The JSON resource to evaluate against
     ///
     /// # Example
     /// ```no_run
     /// use octofhir_fhirpath::FhirPath;
+    /// use serde_json::json;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut fhirpath = FhirPath::new().await?;
-    ///     
-    ///     // Load US Core profiles
-    ///     fhirpath.load_packages(vec!["hl7.fhir.us.core".to_string()]).await?;
-    ///     
+    ///     let fhirpath = FhirPath::new().await?;
+    ///
+    ///     let patient = json!({
+    ///         "resourceType": "Patient",
+    ///         "name": [{"given": ["John"], "family": "Doe"}],
+    ///         "active": true
+    ///     });
+    ///
+    ///     let expressions = vec!["Patient.name.given", "Patient.name.family", "Patient.active"];
+    ///     let results = fhirpath.evaluate_batch(expressions, patient).await?;
+    ///
+    ///     for (expr, result) in results {
+    ///         println!("{}: {:?}", expr, result.values);
+    ///     }
     ///     Ok(())
     /// }
     /// ```
-    pub async fn load_packages(&mut self, package_ids: Vec<String>) -> Result<(), FhirPathError> {
-        for package_id in package_ids {
-            // TODO: Implement actual package loading through schema manager
-            // For now, just add to configuration
-            self.config.schema_config.packages.push(package_id);
+    pub async fn evaluate_batch(
+        &self,
+        expressions: Vec<&str>,
+        context: serde_json::Value,
+    ) -> Result<Vec<(String, FhirPathEvaluationResult)>, FhirPathError> {
+        let mut results = Vec::new();
+
+        for expression in expressions {
+            let result = self.evaluate(expression, context.clone()).await?;
+            results.push((expression.to_string(), result));
         }
 
-        // TODO: Refresh engine with new packages
-        Ok(())
-    }
-
-    /// Generate evaluation warnings for potential issues
-    async fn generate_evaluation_warnings(&self, _values: &[FhirPathValue]) -> Vec<String> {
-        let warnings = Vec::new();
-
-        // TODO: Implement actual warning generation based on:
-        // - Deprecated function usage
-        // - Performance concerns
-        // - Type safety issues
-        // - FHIR compliance issues
-
-        warnings
-    }
-}
-
-// Convenience methods for common operations
-impl FhirPath {
-    /// Check if a path exists in the resource
-    pub async fn path_exists(
-        &self,
-        path: &str,
-        context: &serde_json::Value,
-    ) -> Result<bool, FhirPathError> {
-        let results = self.evaluate(path, context).await?;
-        Ok(!results.is_empty() && !results[0].is_empty())
-    }
-
-    /// Get the first value from evaluation results
-    pub async fn evaluate_single(
-        &self,
-        expression: &str,
-        context: &serde_json::Value,
-    ) -> Result<Option<FhirPathValue>, FhirPathError> {
-        let results = self.evaluate(expression, context).await?;
-        Ok(results.into_iter().next())
-    }
-
-    /// Get string representation of evaluation results
-    pub async fn evaluate_to_string(
-        &self,
-        expression: &str,
-        context: &serde_json::Value,
-    ) -> Result<Vec<String>, FhirPathError> {
-        let results = self.evaluate(expression, context).await?;
-        Ok(results
-            .into_iter()
-            .filter_map(|v| v.as_string().map(|s| s.to_string()))
-            .collect())
-    }
-
-    /// Get boolean result from evaluation (useful for where clauses)
-    pub async fn evaluate_to_boolean(
-        &self,
-        expression: &str,
-        context: &serde_json::Value,
-    ) -> Result<bool, FhirPathError> {
-        let results = self.evaluate(expression, context).await?;
-        Ok(results
-            .first()
-            .and_then(|v| v.as_boolean())
-            .unwrap_or(false))
+        Ok(results)
     }
 }
 
@@ -333,35 +223,71 @@ mod tests {
     use serde_json::json;
 
     #[tokio::test]
-    async fn test_fhirpath_creation() {
-        let result = FhirPath::new().await;
-        // This will fail until we have proper mock implementations
-        // assert!(result.is_ok());
-        let _ = result; // Acknowledge the result to avoid warnings
+    async fn test_fhirpath_new() {
+        let fhirpath = FhirPath::new().await.unwrap();
+        assert!(fhirpath.config().fhir_version == crate::config::FhirVersion::R4);
     }
 
     #[tokio::test]
     async fn test_fhirpath_with_config() {
-        let config = FhirPathConfigBuilder::new().with_analyzer(false).build();
+        let config = FhirPathConfigBuilder::new()
+            .with_fhir_version(crate::config::FhirVersion::R5)
+            .build();
 
-        let result = FhirPath::with_config(config).await;
-        // This will fail until we have proper mock implementations
-        // assert!(result.is_ok());
-        let _ = result; // Acknowledge the result to avoid warnings
+        let fhirpath = FhirPath::with_config(config).await.unwrap();
+        assert!(fhirpath.config().fhir_version == crate::config::FhirVersion::R5);
     }
 
-    #[test]
-    fn test_parse_expression() {
-        // This should work since parsing doesn't require the schema manager
-        let expression = "Patient.name.given";
-        let result = crate::parse(expression);
-        assert!(result.is_ok());
+    #[tokio::test]
+    async fn test_evaluate_simple() {
+        let fhirpath = FhirPath::new().await.unwrap();
+
+        let patient = json!({
+            "resourceType": "Patient",
+            "id": "test-patient"
+        });
+
+        let result = fhirpath.evaluate("Patient.id", patient).await.unwrap();
+        assert!(!result.values.is_empty());
     }
 
-    #[test]
-    fn test_invalid_parse_expression() {
-        let expression = "Patient.name.";
-        let result = crate::parse(expression);
-        assert!(result.is_err());
+    #[tokio::test]
+    async fn test_parse_expression() {
+        let fhirpath = FhirPath::new().await.unwrap();
+
+        // Valid expression
+        let ast = fhirpath.parse_expression("Patient.name.given");
+        assert!(ast.is_ok());
+
+        // Invalid expression
+        let invalid_ast = fhirpath.parse_expression("Patient.name(");
+        assert!(invalid_ast.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_is_valid_syntax() {
+        let fhirpath = FhirPath::new().await.unwrap();
+
+        assert!(fhirpath.is_valid_syntax("Patient.name").unwrap());
+        assert!(!fhirpath.is_valid_syntax("Patient.name(").unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_batch() {
+        let fhirpath = FhirPath::new().await.unwrap();
+
+        let patient = json!({
+            "resourceType": "Patient",
+            "id": "test-patient",
+            "active": true
+        });
+
+        let expressions = vec!["Patient.id", "Patient.active", "Patient.resourceType"];
+        let results = fhirpath.evaluate_batch(expressions, patient).await.unwrap();
+
+        assert_eq!(results.len(), 3);
+        for (_, result) in results {
+            assert!(!result.values.is_empty());
+        }
     }
 }

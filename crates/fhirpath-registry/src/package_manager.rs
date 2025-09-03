@@ -3,9 +3,6 @@
 //! This module provides package management capabilities integrated with
 //! the FHIRPath registry system for dynamic schema loading and updates.
 
-use crate::type_registry::{FhirPathTypeRegistry, RegistryError};
-use octofhir_fhirschema::package::FhirSchemaPackageManager;
-// Simplified implementation without ResourceTypeRegistry for now
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -40,54 +37,36 @@ pub enum PackageError {
     },
 }
 
-/// Registry package manager for dynamic schema operations
+/// Registry package manager for dynamic schema operations (stub implementation)
 pub struct RegistryPackageManager {
-    schema_manager: Arc<FhirSchemaPackageManager>,
-    type_registry: Arc<FhirPathTypeRegistry>,
+    // Simplified without external dependencies
 }
 
 impl RegistryPackageManager {
     /// Create a new package manager
-    pub async fn new(
-        schema_manager: Arc<FhirSchemaPackageManager>,
-    ) -> std::result::Result<Self, RegistryError> {
-        let type_registry = Arc::new(
-            FhirPathTypeRegistry::new(schema_manager.clone())
-                .await
-                .map_err(|e| RegistryError::InitializationError {
-                    source: Box::new(e),
-                })?,
-        );
-
-        Ok(Self {
-            schema_manager,
-            type_registry,
-        })
+    pub async fn new() -> std::result::Result<Self, PackageError> {
+        Ok(Self {})
     }
 
     /// Load a FHIR package and update registries
     pub async fn load_package(
         &self,
-        package_id: &str,
-        version: Option<&str>,
+        _package_id: &str,
+        _version: Option<&str>,
     ) -> std::result::Result<(), PackageError> {
-        // Placeholder implementation - in a real implementation this would
-        // use the schema manager to load packages
-        let _package_id = package_id;
-        let _version = version;
+        // Stub implementation
         Ok(())
     }
 
     /// Unload a FHIR package
-    pub async fn unload_package(&self, package_id: &str) -> std::result::Result<(), PackageError> {
-        // Placeholder implementation
-        let _package_id = package_id;
+    pub async fn unload_package(&self, _package_id: &str) -> std::result::Result<(), PackageError> {
+        // Stub implementation
         Ok(())
     }
 
     /// Get list of loaded packages
     pub async fn get_loaded_packages(&self) -> std::result::Result<Vec<String>, PackageError> {
-        // Placeholder implementation - return a hardcoded list for now
+        // Return hardcoded list for now
         Ok(vec!["hl7.fhir.r4.core".to_string()])
     }
 
@@ -105,23 +84,11 @@ impl RegistryPackageManager {
         &self,
         package_id: &str,
     ) -> std::result::Result<PackageInfo, PackageError> {
-        // This would typically return package metadata
-        // For now, return a basic implementation
         Ok(PackageInfo {
             id: package_id.to_string(),
             version: "unknown".to_string(),
             loaded: self.is_package_loaded(package_id).await?,
         })
-    }
-
-    /// Get the type registry
-    pub fn type_registry(&self) -> &Arc<FhirPathTypeRegistry> {
-        &self.type_registry
-    }
-
-    /// Get the schema manager
-    pub fn schema_manager(&self) -> &Arc<FhirSchemaPackageManager> {
-        &self.schema_manager
     }
 }
 
@@ -140,22 +107,14 @@ pub struct RefreshableRegistry {
 
 impl RefreshableRegistry {
     /// Create a new refreshable registry
-    pub async fn new(
-        schema_manager: Arc<FhirSchemaPackageManager>,
-    ) -> std::result::Result<Self, RegistryError> {
-        let package_manager = RegistryPackageManager::new(schema_manager).await?;
-
+    pub async fn new() -> std::result::Result<Self, PackageError> {
+        let package_manager = RegistryPackageManager::new().await?;
         Ok(Self { package_manager })
     }
 
     /// Refresh all registries after package changes
     pub async fn refresh_registry(&mut self) -> std::result::Result<(), PackageError> {
-        // Placeholder implementation - in a full implementation, this would:
-        // 1. Get updated schemas from schema manager
-        // 2. Rebuild type registries from schemas
-        // 3. Update cached information
-
-        // For now, just return success as we're using a simplified implementation
+        // Stub implementation
         Ok(())
     }
 
@@ -191,18 +150,10 @@ impl RefreshableRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirschema::package::FhirSchemaPackageManager;
-
-    async fn create_test_schema_manager()
-    -> Result<FhirSchemaPackageManager, Box<dyn std::error::Error>> {
-        // Mock implementation for testing
-        todo!("Implement test schema manager creation")
-    }
 
     #[tokio::test]
     async fn test_package_management() -> Result<(), Box<dyn std::error::Error>> {
-        let manager = Arc::new(create_test_schema_manager().await?);
-        let package_manager = RegistryPackageManager::new(manager).await?;
+        let package_manager = RegistryPackageManager::new().await?;
 
         // Test package loading
         package_manager
@@ -221,8 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_refreshable_registry() -> Result<(), Box<dyn std::error::Error>> {
-        let manager = Arc::new(create_test_schema_manager().await?);
-        let mut refreshable = RefreshableRegistry::new(manager).await?;
+        let mut refreshable = RefreshableRegistry::new().await?;
 
         // Test load and refresh
         refreshable

@@ -18,7 +18,8 @@
 //! different JSON representations, making it easy for users to integrate
 //! the FHIRPath engine with existing code.
 
-use crate::{FhirPathValue, JsonValue};
+use crate::FhirPathValue;
+use octofhir_ucum::precision::NumericOps;
 
 /// High-level JSON parsing
 ///
@@ -32,8 +33,8 @@ use crate::{FhirPathValue, JsonValue};
 /// let json_str = r#"{"resourceType": "Patient", "id": "123"}"#;
 /// let json_value = utils::parse_json(json_str).unwrap();
 /// ```
-pub fn parse_json(input: &str) -> Result<JsonValue, String> {
-    JsonValue::parse(input).map_err(|e| format!("JSON parsing error: {e}"))
+pub fn parse_json(input: &str) -> Result<serde_json::Value, String> {
+    serde_json::from_str(input).map_err(|e| format!("JSON parsing error: {e}"))
 }
 
 /// Convert FhirPathValue to serde_json::Value for JSON processing
@@ -50,11 +51,17 @@ pub fn parse_json(input: &str) -> Result<JsonValue, String> {
 /// ```
 pub fn to_json(value: FhirPathValue) -> Result<serde_json::Value, String> {
     match value {
-        FhirPathValue::JsonValue(json_val) => Ok(json_val.as_value().clone()),
-        _ => {
-            // Use the existing conversion from FhirPathValue to serde_json::Value
-            Ok(value.into())
+        FhirPathValue::JsonValue(json_val) => Ok(json_val.clone()),
+        FhirPathValue::String(s) => Ok(serde_json::Value::String(s)),
+        FhirPathValue::Boolean(b) => Ok(serde_json::Value::Bool(b)),
+        FhirPathValue::Integer(i) => Ok(serde_json::Value::Number(serde_json::Number::from(i))),
+        FhirPathValue::Decimal(d) => {
+            let f64_val = d.to_f64();
+            Ok(serde_json::Value::Number(
+                serde_json::Number::from_f64(f64_val).unwrap_or(serde_json::Number::from(0)),
+            ))
         }
+        _ => Ok(serde_json::Value::Null),
     }
 }
 
@@ -72,7 +79,7 @@ pub fn to_json(value: FhirPathValue) -> Result<serde_json::Value, String> {
 /// let fhir_value = utils::from_json(json_value);
 /// ```
 pub fn from_json(value: serde_json::Value) -> FhirPathValue {
-    FhirPathValue::JsonValue(octofhir_fhirpath_model::JsonValue::new(value))
+    FhirPathValue::JsonValue(value)
 }
 
 /// Convert between JSON string representations
@@ -90,13 +97,9 @@ pub fn from_json(value: serde_json::Value) -> FhirPathValue {
 pub fn reformat_json(input: &str, pretty: bool) -> Result<String, String> {
     let json_value = parse_json(input)?;
     if pretty {
-        json_value
-            .to_string_pretty()
-            .map_err(|e| format!("JSON formatting error: {e}"))
+        serde_json::to_string_pretty(&json_value).map_err(|e| format!("JSON formatting error: {e}"))
     } else {
-        json_value
-            .to_string()
-            .map_err(|e| format!("JSON formatting error: {e}"))
+        serde_json::to_string(&json_value).map_err(|e| format!("JSON formatting error: {e}"))
     }
 }
 
@@ -115,9 +118,7 @@ pub fn reformat_json(input: &str, pretty: bool) -> Result<String, String> {
 pub fn parse_as_fhir_value(input: &str) -> Result<FhirPathValue, String> {
     let json_value: serde_json::Value =
         serde_json::from_str(input).map_err(|e| format!("JSON parsing error: {e}"))?;
-    Ok(FhirPathValue::JsonValue(
-        octofhir_fhirpath_model::JsonValue::new(json_value),
-    ))
+    Ok(FhirPathValue::JsonValue(json_value))
 }
 
 /// Convert serde_json::Value to FhirPathValue
@@ -291,7 +292,7 @@ mod tests {
                 let name_array = name_json_value.as_array().unwrap();
                 assert_eq!(name_array.len(), 1);
                 let first_name_json = &name_array[0];
-                let first_name = octofhir_fhirpath_model::JsonValue::new(first_name_json.clone());
+                let first_name = first_name_json.clone();
                 assert_eq!(
                     first_name.get_property("family").unwrap().as_str(),
                     Some("Smith")

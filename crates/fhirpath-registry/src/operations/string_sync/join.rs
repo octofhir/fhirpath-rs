@@ -1,11 +1,11 @@
 //! Simplified join function implementation for FHIRPath
-
+use octofhir_fhirpath_core::JsonValueExt;
 use crate::signature::{
     CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified join function: joins a collection of strings into a single string using the specified separator
 pub struct SimpleJoinFunction;
@@ -76,7 +76,10 @@ impl SyncOperation for SimpleJoinFunction {
         let string_items: Result<Vec<String>> = collection
             .iter()
             .map(|item| match item {
-                FhirPathValue::String(s) => Ok(s.as_ref().to_string()),
+                FhirPathValue::String(s) => {
+                    let str_val: &str = s.as_ref();
+                    Ok(str_val.to_string())
+                }
                 FhirPathValue::Integer(i) => Ok(i.to_string()),
                 FhirPathValue::Decimal(d) => Ok(d.to_string()),
                 FhirPathValue::Boolean(b) => Ok(b.to_string()),

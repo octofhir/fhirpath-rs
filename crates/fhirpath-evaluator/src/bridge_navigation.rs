@@ -20,9 +20,12 @@
 use crate::cache::SchemaCache;
 use crate::context::EvaluationContext as LocalEvaluationContext;
 use octofhir_fhirpath_core::EvaluationResult;
-use octofhir_fhirpath_model::{
-    ChoiceTypeResolver, FhirPathValue, JsonValue, SystemTypes, TypeResolver,
-};
+use octofhir_fhirpath_core::FhirPathValue;
+use serde_json::Value as JsonValue;
+// TODO: Re-enable when bridge types are moved to core
+// use octofhir_fhir_model::{
+//     ChoiceTypeResolver, SystemTypes, TypeResolver,
+// };
 use octofhir_fhirschema::FhirSchemaPackageManager;
 use std::sync::Arc;
 

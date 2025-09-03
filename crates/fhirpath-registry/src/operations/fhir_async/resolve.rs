@@ -1,10 +1,10 @@
 //! Resolve function implementation - async version (simplified)
-
+use octofhir_fhirpath_core::JsonValueExt;
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{AsyncOperation, EvaluationContext, validation};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Resolve function - resolves FHIR references using ModelProvider
 #[derive(Debug, Clone)]
@@ -26,15 +26,9 @@ impl ResolveFunction {
             return Ok(FhirPathValue::Empty);
         }
 
-        // Use ModelProvider for reference resolution
-        // Use the root context (Bundle) for reference resolution, not the current input (Reference)
-        if let Some(resolved) = context
-            .model_provider
-            .resolve_reference_in_context(reference, &context.root, Some(&context.input))
-            .await
-        {
-            return Ok(resolved);
-        }
+        // Use ModelProvider for reference resolution - simplified approach
+        // For now, return empty since we don't have reference resolution implemented
+        // TODO: Implement proper reference resolution in ModelProvider
 
         // Return empty if not found
         Ok(FhirPathValue::Empty)

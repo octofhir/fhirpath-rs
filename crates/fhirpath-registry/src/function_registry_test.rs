@@ -5,7 +5,8 @@
 
 use crate::traits::EvaluationContext;
 use crate::function_registry::create_standard_registry;
-use octofhir_fhirpath_model::{FhirPathValue, MockModelProvider};
+use crate::FhirPathValue;
+use octofhir_fhirpath_core::MockModelProvider;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -34,13 +35,11 @@ async fn test_unified_registry_collection_operations() {
     let registry = create_standard_registry();
     
     // Test sync collection operations
-    let collection = FhirPathValue::Collection(
-        octofhir_fhirpath_model::Collection::from(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-            FhirPathValue::Integer(3),
-        ])
-    );
+    let collection = FhirPathValue::Collection(vec![
+        FhirPathValue::Integer(1),
+        FhirPathValue::Integer(2),
+        FhirPathValue::Integer(3),
+    ]);
     
     let context = EvaluationContext::new(
         collection.clone(),

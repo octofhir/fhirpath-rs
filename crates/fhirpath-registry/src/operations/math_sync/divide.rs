@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified divide function: divides two numeric values
 pub struct SimpleDivideFunction;
@@ -61,7 +61,7 @@ impl SyncOperation for SimpleDivideFunction {
         let is_zero = match right {
             FhirPathValue::Integer(r) => *r == 0,
             FhirPathValue::Decimal(r) => *r == rust_decimal::Decimal::ZERO,
-            FhirPathValue::Quantity(r) => r.value == rust_decimal::Decimal::ZERO,
+            FhirPathValue::Quantity { value: r_value, unit: r_unit, ucum_expr: r_ucum } => *r_value == rust_decimal::Decimal::ZERO,
             _ => false,
         };
 
@@ -89,26 +89,26 @@ impl SyncOperation for SimpleDivideFunction {
             (FhirPathValue::Decimal(l), FhirPathValue::Decimal(r)) => {
                 Ok(FhirPathValue::Decimal(l / r))
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Integer(r)) => {
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Integer(r)) => {
                 let right_decimal = rust_decimal::Decimal::from(*r);
-                let result = l.value / right_decimal;
-                Ok(FhirPathValue::quantity(result, l.unit.clone()))
+                let result = l_value / right_decimal;
+                Ok(FhirPathValue::Quantity { value: result, unit: l_unit.clone(), ucum_expr: l_ucum.clone() })
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Decimal(r)) => {
-                let result = l.value / r;
-                Ok(FhirPathValue::quantity(result, l.unit.clone()))
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Decimal(r)) => {
+                let result = l_value / r;
+                Ok(FhirPathValue::Quantity { value: result, unit: l_unit.clone(), ucum_expr: l_ucum.clone() })
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Quantity(r)) => {
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Quantity { value: r_value, unit: r_unit, ucum_expr: r_ucum }) => {
                 // For now, assume same units - full UCUM conversion would be needed for proper implementation
-                if l.unit == r.unit {
-                    let result = l.value / r.value;
+                if l_unit == r_unit {
+                    let result = l_value / r_value;
                     // Division of same units typically results in dimensionless quantity
                     Ok(FhirPathValue::Decimal(result))
                 } else {
                     Err(FhirPathError::TypeError {
                         message: format!(
                             "Cannot divide quantities with different units: {:?} and {:?}",
-                            l.unit, r.unit
+                            l_unit, r_unit
                         ),
                     })
                 }

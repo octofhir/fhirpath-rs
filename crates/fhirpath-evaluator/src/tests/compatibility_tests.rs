@@ -32,7 +32,7 @@ async fn test_api_compatibility() {
     let mut variables = std::collections::HashMap::new();
     variables.insert(
         "testVar".to_string(),
-        octofhir_fhirpath_model::FhirPathValue::String("test".into()),
+        octofhir_fhirpath_core::FhirPathValue::String("test".into()),
     );
 
     let result = unified_engine

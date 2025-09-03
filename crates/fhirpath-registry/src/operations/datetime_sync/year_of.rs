@@ -4,7 +4,7 @@ use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignatu
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Datelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// YearOf function - extracts year component from Date or DateTime
 #[derive(Debug, Clone)]

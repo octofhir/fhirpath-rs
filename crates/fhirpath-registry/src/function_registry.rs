@@ -9,7 +9,7 @@ use crate::registry::{AsyncRegistry, SyncRegistry};
 use crate::signature::FunctionSignature;
 use crate::traits::{AsyncOperation, EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::FhirPathValue;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -423,7 +423,6 @@ pub async fn create_standard_registry() -> FunctionRegistry {
     // Register sync FHIR data traversal operations (from Task 16)
     registry
         .register_sync_many(vec![
-            Box::new(crate::operations::fhir_sync::ChildrenFunction),
             Box::new(crate::operations::fhir_sync::DescendantsFunction),
         ])
         .await;
@@ -460,6 +459,7 @@ pub async fn create_standard_registry() -> FunctionRegistry {
     // Register async FHIR ModelProvider operations (from Task 16) using batch registration
     registry
         .register_async_many(vec![
+            Box::new(crate::operations::fhir_async::ChildrenFunction),
             Box::new(crate::operations::fhir_async::ResolveFunction),
             Box::new(crate::operations::fhir_async::ConformsToFunction),
             Box::new(crate::operations::fhir_async::ExtensionFunction),

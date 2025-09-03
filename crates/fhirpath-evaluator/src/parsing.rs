@@ -4,7 +4,7 @@
 //! dates, times, datetimes, and other temporal values with proper precision handling.
 
 use chrono::TimeZone;
-use octofhir_fhirpath_model::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 /// Parse FHIRPath date literal supporting partial dates
 /// Supports: @YYYY, @YYYY-MM, @YYYY-MM-DD

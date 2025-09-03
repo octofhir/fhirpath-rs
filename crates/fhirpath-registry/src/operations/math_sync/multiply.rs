@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified multiply function: multiplies two numeric values
 pub struct SimpleMultiplyFunction;
@@ -72,23 +72,23 @@ impl SyncOperation for SimpleMultiplyFunction {
             (FhirPathValue::Decimal(l), FhirPathValue::Decimal(r)) => {
                 Ok(FhirPathValue::Decimal(l * r))
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Integer(r)) => {
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Integer(r)) => {
                 let right_decimal = rust_decimal::Decimal::from(*r);
-                let result = l.value * right_decimal;
-                Ok(FhirPathValue::quantity(result, l.unit.clone()))
+                let result = l_value * right_decimal;
+                Ok(FhirPathValue::Quantity { value: result, unit: l_unit.clone(), ucum_expr: l_ucum.clone() })
             }
-            (FhirPathValue::Quantity(l), FhirPathValue::Decimal(r)) => {
-                let result = l.value * r;
-                Ok(FhirPathValue::quantity(result, l.unit.clone()))
+            (FhirPathValue::Quantity { value: l_value, unit: l_unit, ucum_expr: l_ucum }, FhirPathValue::Decimal(r)) => {
+                let result = l_value * r;
+                Ok(FhirPathValue::Quantity { value: result, unit: l_unit.clone(), ucum_expr: l_ucum.clone() })
             }
-            (FhirPathValue::Integer(l), FhirPathValue::Quantity(r)) => {
+            (FhirPathValue::Integer(l), FhirPathValue::Quantity { value: r_value, unit: r_unit, ucum_expr: r_ucum }) => {
                 let left_decimal = rust_decimal::Decimal::from(*l);
-                let result = left_decimal * r.value;
-                Ok(FhirPathValue::quantity(result, r.unit.clone()))
+                let result = left_decimal * r_value;
+                Ok(FhirPathValue::Quantity { value: result, unit: r_unit.clone(), ucum_expr: r_ucum.clone() })
             }
-            (FhirPathValue::Decimal(l), FhirPathValue::Quantity(r)) => {
-                let result = l * r.value;
-                Ok(FhirPathValue::quantity(result, r.unit.clone()))
+            (FhirPathValue::Decimal(l), FhirPathValue::Quantity { value: r_value, unit: r_unit, ucum_expr: r_ucum }) => {
+                let result = l * r_value;
+                Ok(FhirPathValue::Quantity { value: result, unit: r_unit.clone(), ucum_expr: r_ucum.clone() })
             }
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
             _ => Err(FhirPathError::TypeError {

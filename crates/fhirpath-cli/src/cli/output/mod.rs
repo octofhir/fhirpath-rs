@@ -1,0 +1,131 @@
+// Copyright 2024 OctoFHIR Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Output formatting for CLI commands
+
+mod json;
+mod pretty;
+mod raw;
+mod table;
+
+use clap::ValueEnum;
+use octofhir_fhirpath_analyzer::{AnalysisResult, ValidationError};
+use octofhir_fhirpath_ast::ExpressionNode;
+use octofhir_fhirpath_core::FhirPathError;
+use octofhir_fhir_model::FhirPathValue;
+use std::time::Duration;
+use thiserror::Error;
+
+pub use json::JsonFormatter;
+pub use pretty::PrettyFormatter;
+pub use raw::RawFormatter;
+pub use table::TableFormatter;
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum OutputFormat {
+    /// JSON structured output
+    Json,
+    /// Formatted table output
+    Table,
+    /// Raw text output (default)
+    Raw,
+    /// Pretty formatted output with colors and symbols
+    Pretty,
+}
+
+impl std::fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OutputFormat::Json => write!(f, "json"),
+            OutputFormat::Table => write!(f, "table"),
+            OutputFormat::Raw => write!(f, "raw"),
+            OutputFormat::Pretty => write!(f, "pretty"),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum FormatError {
+    #[error("JSON serialization error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("Format error: {0}")]
+    FormatError(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct EvaluationOutput {
+    pub success: bool,
+    pub result: Option<FhirPathValue>,
+    pub error: Option<FhirPathError>,
+    pub expression: String,
+    pub execution_time: Duration,
+    pub metadata: OutputMetadata,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParseOutput {
+    pub success: bool,
+    pub ast: Option<ExpressionNode>,
+    pub error: Option<FhirPathError>,
+    pub expression: String,
+    pub metadata: OutputMetadata,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnalysisOutput {
+    pub success: bool,
+    pub analysis: Option<AnalysisResult>,
+    pub validation_errors: Vec<ValidationError>,
+    pub error: Option<FhirPathError>,
+    pub expression: String,
+    pub metadata: OutputMetadata,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OutputMetadata {
+    pub cache_hits: usize,
+    pub ast_nodes: usize,
+    pub memory_used: usize,
+}
+
+pub trait OutputFormatter {
+    fn format_evaluation(&self, output: &EvaluationOutput) -> Result<String, FormatError>;
+    fn format_parse(&self, output: &ParseOutput) -> Result<String, FormatError>;
+    fn format_analysis(&self, output: &AnalysisOutput) -> Result<String, FormatError>;
+}
+
+pub struct FormatterFactory {
+    no_color: bool,
+}
+
+impl FormatterFactory {
+    pub fn new(no_color: bool) -> Self {
+        Self { no_color }
+    }
+
+    pub fn create_formatter(&self, format: OutputFormat) -> Box<dyn OutputFormatter> {
+        match format {
+            OutputFormat::Json => Box::new(JsonFormatter::new()),
+            OutputFormat::Table => Box::new(TableFormatter::new(!self.no_color)),
+            OutputFormat::Raw => Box::new(RawFormatter::new()),
+            OutputFormat::Pretty => Box::new(PrettyFormatter::new(!self.no_color)),
+        }
+    }
+}
+
+impl Default for FormatterFactory {
+    fn default() -> Self {
+        Self::new(false)
+    }
+}

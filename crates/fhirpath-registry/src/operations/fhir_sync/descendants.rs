@@ -1,9 +1,7 @@
 //! Descendants function implementation - sync version
-
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
-use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::{Collection, FhirPathValue};
+use octofhir_fhirpath_core::{FhirPathValue, JsonValueExt, Result};
 use std::collections::HashSet;
 
 /// Descendants function - returns a collection with all descendant nodes
@@ -64,11 +62,11 @@ impl DescendantsFunction {
                             if property_value.is_array() {
                                 if let Some(array_iter) = property_value.array_iter() {
                                     for element in array_iter {
-                                        children.push(FhirPathValue::JsonValue(element));
+                                        children.push(FhirPathValue::JsonValue(element.clone()));
                                     }
                                 }
                             } else {
-                                children.push(FhirPathValue::JsonValue(property_value));
+                                children.push(FhirPathValue::JsonValue(property_value.clone()));
                             }
                         }
                     }
@@ -76,7 +74,7 @@ impl DescendantsFunction {
                 } else if json_val.is_array() {
                     // If the input itself is an array, each element is a child
                     if let Some(iter) = json_val.array_iter() {
-                        iter.map(FhirPathValue::JsonValue).collect()
+                        iter.map(|v| FhirPathValue::JsonValue(v.clone())).collect()
                     } else {
                         Vec::new()
                     }
@@ -105,7 +103,10 @@ impl DescendantsFunction {
 
     fn value_to_key(&self, value: &FhirPathValue) -> String {
         match value {
-            FhirPathValue::String(s) => format!("string:{}", s.as_ref()),
+            FhirPathValue::String(s) => {
+                let str_val: &str = s.as_ref();
+                format!("string:{}", str_val)
+            }
             FhirPathValue::Integer(i) => format!("integer:{i}"),
             FhirPathValue::Decimal(d) => format!("decimal:{d}"),
             FhirPathValue::Boolean(b) => format!("boolean:{b}"),
@@ -122,13 +123,13 @@ impl DescendantsFunction {
                     }
                 }
                 // Fallback to string representation
-                format!("json:{}", json.to_string().unwrap_or_default())
+                format!("json:{}", json.to_string())
             }
             FhirPathValue::Collection(items) => {
                 format!("collection:len:{}", items.len())
             }
             FhirPathValue::Empty => "empty".to_string(),
-            FhirPathValue::Quantity(q) => format!("quantity:{q}"),
+            FhirPathValue::Quantity { value: q, .. } => format!("quantity:{q}"),
             FhirPathValue::Resource(r) => {
                 let id = r
                     .as_json_value()
@@ -171,7 +172,7 @@ impl SyncOperation for DescendantsFunction {
         let focus = &context.input;
         let descendants = self.get_all_descendants(focus);
 
-        Ok(FhirPathValue::Collection(Collection::from(descendants)))
+        Ok(FhirPathValue::Collection(descendants))
     }
 }
 

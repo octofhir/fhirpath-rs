@@ -14,7 +14,7 @@ categories = ["parser-implementations"]
 # Workspace crates
 octofhir-fhirpath-core = { path = "../fhirpath-core" }
 octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-model = { path = "../fhirpath-model" }
+# octofhir-fhirpath-model replaced with octofhir-fhir-model (already included below)
 
 # Core dependencies
 serde = { workspace = true }
@@ -42,8 +42,8 @@ anyhow = { workspace = true }
 # FHIR model dependencies
 octofhir-fhir-model = { workspace = true }
 octofhir-ucum = { workspace = true }
-octofhir-fhirschema = { workspace = true }
 octofhir-canonical-manager = { workspace = true }
+# octofhir-fhirschema = { workspace = true, optional = true }  # Not needed - using model provider instead
 
 # Async dependencies
 async-trait = { workspace = true }

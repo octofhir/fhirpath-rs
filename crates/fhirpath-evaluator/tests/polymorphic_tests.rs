@@ -18,7 +18,7 @@
 //! FHIR choice types (value[x] patterns) correctly.
 
 use octofhir_fhirpath_evaluator::FhirPathEngine;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use serde_json::json;
 
 /// Test basic observation value resolution

@@ -33,9 +33,9 @@
 //! - **Child contexts**: Inherit variables with COW semantics
 //! - **Lambda contexts**: Special contexts for lambda expressions with implicit variables
 
-use octofhir_fhirpath_model::{
-    FhirPathValue, provider::ModelProvider, provider::TypeReflectionInfo,
-};
+use octofhir_fhirpath_core::{FhirPathValue, ModelProvider};
+// TODO: Re-enable when TypeReflectionInfo is moved to core
+use octofhir_fhir_model::reflection::TypeReflectionInfo;
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, Mutex};
 
@@ -591,7 +591,7 @@ impl std::fmt::Debug for EvaluationContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirpath_model::MockModelProvider;
+    use octofhir_fhirpath_core::MockModelProvider;
 
     fn create_test_context() -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());

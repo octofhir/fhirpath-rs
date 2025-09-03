@@ -1,0 +1,81 @@
+[package]
+name = "fhirpath-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Command-line interface for FHIRPath expression evaluation and testing"
+readme = "../../README.md"
+keywords = ["fhir", "fhirpath", "cli", "healthcare", "hl7"]
+categories = ["command-line-utilities", "parser-implementations", "science"]
+publish = false
+build = "build.rs"
+include = [
+    "src/**/*",
+    "build.rs",
+    "../../dist/ui/**/*",
+    "../../ui/src/**/*",
+    "../../ui/package.json",
+    "../../ui/vite.config.ts",
+    "../../ui/tsconfig.json",
+    "Cargo.toml",
+    "../../README.md",
+]
+
+[[bin]]
+name = "fhirpath"
+path = "src/main.rs"
+
+[dependencies]
+# Main FHIRPath library
+octofhir-fhirpath = { path = "../octofhir-fhirpath" }
+
+# Workspace crates for direct access
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
+# octofhir-fhirpath-model replaced with octofhir-fhir-model (already included below)
+octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
+octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
+
+# FHIR schema provider (for CLI)
+octofhir-fhirschema = { workspace = true }
+octofhir-fhir-model = { workspace = true }
+
+# Core dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+# CLI dependencies
+clap = { workspace = true, features = ["derive", "env"] }
+human-panic = { workspace = true }
+tabled = "0.15"
+indicatif = "0.17"
+rustyline = { workspace = true }
+dirs = "5.0"
+
+# HTTP server dependencies
+axum = { version = "0.8", features = ["macros", "multipart"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = [
+    "cors",
+    "trace",
+    "fs",
+    "catch-panic",
+] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+include_dir = "0.7"
+mime_guess = "2.0"
+
+# Output formatting
+colored = { workspace = true }
+
+[dev-dependencies]
+axum-test = "17.0"
+
+[features]
+default = []

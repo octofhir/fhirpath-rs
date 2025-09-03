@@ -5,8 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, JsonValueExt, Result};
 
 /// As operation - converts values to specific type (returns empty if conversion fails)
 #[derive(Debug, Default, Clone)]
@@ -18,7 +17,23 @@ impl AsOperation {
     }
 
     /// Check if a value matches a type name and return it, or empty if not
-    fn try_cast_to_type(&self, value: &FhirPathValue, type_name: &str) -> Option<FhirPathValue> {
+    async fn try_cast_to_type(&self, value: &FhirPathValue, type_name: &str, context: &EvaluationContext) -> Option<FhirPathValue> {
+        // Use ModelProvider for accurate FHIR type matching
+        if let Ok(Some(_type_reflection)) = context.model_provider.get_type_reflection(type_name).await {
+            // Check type compatibility using ModelProvider
+            if let Ok(compatible) = context.model_provider.is_type_compatible(&value.type_name(), type_name).await {
+                if compatible {
+                    return Some(value.clone());
+                }
+            }
+            
+            // Also check type hierarchy for inheritance relationships
+            if let Ok(Some(hierarchy)) = context.model_provider.get_type_hierarchy(&value.type_name()).await {
+                if hierarchy.ancestors.iter().any(|ancestor| ancestor == type_name) {
+                    return Some(value.clone());
+                }
+            }
+        }
         // For 'as', we return the original value if it matches the type, empty otherwise
         let matches = match value {
             FhirPathValue::String(_) => {
@@ -49,7 +64,7 @@ impl AsOperation {
                 type_name.eq_ignore_ascii_case("System.Time")
                     || type_name.eq_ignore_ascii_case("Time")
             }
-            FhirPathValue::Quantity(_) => {
+            FhirPathValue::Quantity { value: _, .. } => {
                 type_name.eq_ignore_ascii_case("System.Quantity")
                     || type_name.eq_ignore_ascii_case("Quantity")
             }
@@ -141,8 +156,10 @@ impl AsyncOperation for AsOperation {
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 // For FHIR types, use just the name (e.g., "code" not "FHIR.code")
                 // For System types, use the full name (e.g., "System.String")
-                if namespace.as_ref() == "FHIR" {
-                    name.as_ref()
+                let ns_str: &str = namespace.as_ref();
+                let name_str: &str = name.as_ref();
+                if ns_str == "FHIR" {
+                    name_str
                 } else {
                     // Create full type name for non-FHIR types
                     return match &context.input {
@@ -151,20 +168,20 @@ impl AsyncOperation for AsOperation {
                             let full_type_name = format!("{namespace}.{name}");
                             for item in col.iter() {
                                 if let Some(cast_item) =
-                                    self.try_cast_to_type(item, &full_type_name)
+                                    self.try_cast_to_type(item, &full_type_name, context).await
                                 {
                                     cast_items.push(cast_item);
                                 }
                             }
-                            Ok(FhirPathValue::Collection(cast_items.into()))
+                            Ok(FhirPathValue::Collection(vec![]))
                         }
                         single => {
                             let full_type_name = format!("{namespace}.{name}");
-                            if let Some(cast_item) = self.try_cast_to_type(single, &full_type_name)
+                            if let Some(cast_item) = self.try_cast_to_type(single, &full_type_name, context).await
                             {
                                 Ok(cast_item)
                             } else {
-                                Ok(FhirPathValue::Collection(vec![].into()))
+                                Ok(FhirPathValue::Collection(vec![]))
                             }
                         }
                     };
@@ -174,8 +191,10 @@ impl AsyncOperation for AsOperation {
             FhirPathValue::Collection(col) => {
                 if col.len() == 1 {
                     if let Some(FhirPathValue::TypeInfoObject { namespace, name }) = col.get(0) {
-                        if namespace.as_ref() == "FHIR" {
-                            name.as_ref()
+                        let ns_str: &str = namespace.as_ref();
+                        let name_str: &str = name.as_ref();
+                        if ns_str == "FHIR" {
+                            name_str
                         } else {
                             let full_type_name = format!("{namespace}.{name}");
                             return match &context.input {
@@ -183,20 +202,20 @@ impl AsyncOperation for AsOperation {
                                     let mut cast_items = Vec::new();
                                     for item in input_col.iter() {
                                         if let Some(cast_item) =
-                                            self.try_cast_to_type(item, &full_type_name)
+                                            self.try_cast_to_type(item, &full_type_name, context).await
                                         {
                                             cast_items.push(cast_item);
                                         }
                                     }
-                                    Ok(FhirPathValue::Collection(cast_items.into()))
+                                    Ok(FhirPathValue::Collection(vec![]))
                                 }
                                 single => {
                                     if let Some(cast_item) =
-                                        self.try_cast_to_type(single, &full_type_name)
+                                        self.try_cast_to_type(single, &full_type_name, context).await
                                     {
                                         Ok(cast_item)
                                     } else {
-                                        Ok(FhirPathValue::Collection(vec![].into()))
+                                        Ok(FhirPathValue::Collection(vec![]))
                                     }
                                 }
                             };
@@ -205,7 +224,7 @@ impl AsyncOperation for AsOperation {
                         return Err(FhirPathError::TypeError {
                             message: format!(
                                 "as() type argument must be a type identifier or string, got {}",
-                                col.get(0).map(|v| v.type_name()).unwrap_or("None")
+                                col.get(0).map(|v| v.type_name()).unwrap_or("None".to_string())
                             ),
                         });
                     }
@@ -235,31 +254,23 @@ impl AsyncOperation for AsOperation {
                 let mut cast_items = Vec::new();
 
                 for item in col.iter() {
-                    if let Some(cast_item) = self.try_cast_to_type(item, type_name) {
+                    if let Some(cast_item) = self.try_cast_to_type(item, type_name, context).await {
                         cast_items.push(cast_item);
                     }
                 }
 
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(cast_items),
-                ))
+                Ok(FhirPathValue::Collection(cast_items))
             }
             FhirPathValue::Empty => {
                 // Empty input returns empty collection
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ))
+                Ok(FhirPathValue::Collection(vec![]))
             }
             _ => {
                 // Single item - return it if cast succeeds, otherwise empty
-                if let Some(cast_item) = self.try_cast_to_type(&context.input, type_name) {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![cast_item]),
-                    ))
+                if let Some(cast_item) = self.try_cast_to_type(&context.input, type_name, context).await {
+                    Ok(FhirPathValue::Collection(vec![cast_item]))
                 } else {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![]))
                 }
             }
         }

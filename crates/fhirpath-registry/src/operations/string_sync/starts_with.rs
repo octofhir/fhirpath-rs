@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified starts_with function: returns true if the input string starts with the given prefix
 pub struct SimpleStartsWithFunction;
@@ -55,7 +55,7 @@ impl SyncOperation for SimpleStartsWithFunction {
         }
 
         // Get prefix parameter - try to convert to string if not already one
-        let prefix = match &args[0] {
+        let prefix: &str = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             FhirPathValue::Integer(i) => {
                 // Convert integer to string for comparison

@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use regex::Regex;
 
 /// Simplified replaceMatches function: replaces all matches of a regular expression with a substitution
@@ -18,7 +18,10 @@ impl SimpleReplaceMatchesFunction {
 
     fn extract_string_from_value(&self, value: &FhirPathValue) -> Result<Option<String>> {
         match value {
-            FhirPathValue::String(s) => Ok(Some(s.as_ref().to_string())),
+            FhirPathValue::String(s) => {
+                let str_val: &str = s.as_ref();
+                Ok(Some(str_val.to_string()))
+            }
             FhirPathValue::Integer(i) => Ok(Some(i.to_string())),
             FhirPathValue::Decimal(d) => Ok(Some(d.to_string())),
             FhirPathValue::Boolean(b) => Ok(Some(b.to_string())),
@@ -43,47 +46,40 @@ impl SimpleReplaceMatchesFunction {
     ) -> Result<FhirPathValue> {
         // Convert input to string (including numeric values)
         let input_str = match value {
-            FhirPathValue::String(s) => s.as_ref().to_string(),
+            FhirPathValue::String(s) => {
+                let str_val: &str = s.as_ref();
+                str_val.to_string()
+            }
             FhirPathValue::Integer(i) => i.to_string(),
             FhirPathValue::Decimal(d) => d.to_string(),
             FhirPathValue::Boolean(b) => b.to_string(),
             FhirPathValue::Empty => {
-                return Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ));
+                return Ok(FhirPathValue::Collection(vec![]));
             }
             _ => {
-                return Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ));
+                return Ok(FhirPathValue::Collection(vec![]));
             }
         };
 
         // Extract and convert pattern parameter to string (handle collections)
         let pattern = self.extract_string_from_value(&args[0])?;
         if pattern.is_none() {
-            return Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            ));
+            return Ok(FhirPathValue::Collection(vec![]));
         }
         let pattern = pattern.unwrap();
 
         // Extract and convert substitution parameter to string (handle collections)
         let substitution = self.extract_string_from_value(&args[1])?;
         if substitution.is_none() {
-            return Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            ));
+            return Ok(FhirPathValue::Collection(vec![]));
         }
         let substitution = substitution.unwrap();
 
         // Special case: empty pattern should return the original string unchanged for replaceMatches
         if pattern.is_empty() {
-            return Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![FhirPathValue::String(
-                    input_str.into(),
-                )]),
-            ));
+            return Ok(FhirPathValue::Collection(vec![FhirPathValue::String(
+                input_str.into(),
+            )]));
         }
 
         // Compile regex
@@ -93,11 +89,9 @@ impl SimpleReplaceMatchesFunction {
 
         // Perform regex replacement with capture group support
         let result = regex.replace_all(&input_str, &substitution);
-        Ok(FhirPathValue::Collection(
-            octofhir_fhirpath_model::Collection::from(vec![FhirPathValue::String(
-                result.to_string().into(),
-            )]),
-        ))
+        Ok(FhirPathValue::Collection(vec![FhirPathValue::String(
+            result.to_string().into(),
+        )]))
     }
 }
 
@@ -144,14 +138,10 @@ impl SyncOperation for SimpleReplaceMatchesFunction {
         match input {
             FhirPathValue::Collection(items) => {
                 if items.is_empty() {
-                    return Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ));
+                    return Ok(FhirPathValue::Collection(vec![]));
                 }
                 if items.len() > 1 {
-                    return Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ));
+                    return Ok(FhirPathValue::Collection(vec![]));
                 }
                 // Single element collection - unwrap and process
                 let value = items.first().unwrap();

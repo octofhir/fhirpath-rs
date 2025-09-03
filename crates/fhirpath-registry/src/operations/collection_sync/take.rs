@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified take function: takes the first n items
 pub struct SimpleTakeFunction;
@@ -74,23 +74,15 @@ impl SyncOperation for SimpleTakeFunction {
                 let take_count = count as usize;
                 let taken: Vec<FhirPathValue> =
                     collection.iter().take(take_count).cloned().collect();
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(taken),
-                ))
+                Ok(FhirPathValue::Collection(taken))
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            )),
+            FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![])),
             _ => {
                 // Single item
                 if count == 0 {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![]))
                 } else {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![context.input.clone()]))
                 }
             }
         }

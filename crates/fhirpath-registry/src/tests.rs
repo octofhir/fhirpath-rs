@@ -15,7 +15,9 @@
 //! Unit tests for fhirpath-registry with schema-aware functions
 
 use super::*;
-use octofhir_fhirpath_model::{FhirPathValue, FhirSchemaModelProvider, MockModelProvider};
+use crate::FhirPathValue;
+use octofhir_fhirpath_core::{FhirSchemaModelProvider, MockModelProvider};
+#[cfg(feature = "schema")]
 use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig};
 use serde_json::json;
 use std::sync::Arc;

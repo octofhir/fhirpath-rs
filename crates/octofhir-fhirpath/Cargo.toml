@@ -11,15 +11,9 @@ description = "A high-performance FHIRPath implementation in Rust with comprehen
 readme = "../../README.md"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
 categories = ["parser-implementations", "data-structures", "science"]
-build = "build.rs"
+# build.rs moved to fhirpath-cli crate
 include = [
     "src/**/*",
-    "../../dist/ui/**/*",
-    "../../ui/src/**/*",
-    "../../ui/package.json",
-    "../../ui/vite.config.ts",
-    "../../ui/tsconfig.json",
-    "build.rs",
     "../../specs/**/*",
     "../../tests/**/*",
     "../../benches/**/*",
@@ -28,35 +22,11 @@ include = [
     "../../LICENSE*",
     "../../CHANGELOG.md",
 ]
-exclude = [
-    "src/bin/fhirpath-bench.rs",
-    "src/bin/test-coverage.rs",
-    "src/bin/test-runner.rs",
-]
 
 [lib]
 name = "octofhir_fhirpath"
 path = "src/lib.rs"
 
-[[bin]]
-name = "octofhir-fhirpath"
-path = "src/bin/octofhir_fhirpath.rs"
-required-features = ["cli"]
-
-# Development-only binaries (not published)
-[[bin]]
-name = "fhirpath-bench"
-path = "src/bin/fhirpath-bench.rs"
-required-features = ["cli", "dev-tools"]
-
-[[bin]]
-name = "test-coverage"
-path = "src/bin/test-coverage.rs"
-required-features = ["cli"]
-
-[[bin]]
-name = "test-runner"
-path = "src/bin/test-runner.rs"
 
 [dependencies]
 # Workspace crates
@@ -66,10 +36,11 @@ octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = [
     "terminal",
 ] }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
-octofhir-fhirpath-model = { path = "../fhirpath-model", features = [] }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
 octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator", features = [] }
-octofhir-fhirpath-analyzer = { path = "../fhirpath-analyzer" }
+
+# FHIR model - external dependency
+octofhir-fhir-model = { workspace = true }
 
 # Core dependencies
 anyhow = { workspace = true }
@@ -84,9 +55,7 @@ lru = { workspace = true }
 nom = { workspace = true }
 nom_locate = { workspace = true }
 octofhir-ucum = { workspace = true }
-octofhir-fhir-model = { workspace = true }
-octofhir-fhirschema = { workspace = true }
-octofhir-canonical-manager = { workspace = true }
+
 url = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
@@ -109,69 +78,20 @@ tokio = { workspace = true }
 # HTTP client for external profile fetching
 reqwest = { workspace = true }
 
-# CLI dependencies (optional)
-clap = { workspace = true, features = ["derive", "env"], optional = true }
-human-panic = { workspace = true, optional = true }
-tabled = { version = "0.15", optional = true }
-indicatif = { version = "0.17", optional = true }
-rustyline = { workspace = true, optional = true }
-dirs = { version = "5.0", optional = true }
-
-# HTTP server dependencies (optional)
-axum = { version = "0.8", features = ["macros", "multipart"], optional = true }
-tower = { version = "0.5", optional = true }
-tower-http = { version = "0.5", features = [
-    "cors",
-    "trace",
-    "fs",
-    "catch-panic",
-], optional = true }
-tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", features = [
-    "env-filter",
-], optional = true }
-uuid = { version = "1.0", features = ["v4", "serde"], optional = true }
-include_dir = { version = "0.7", optional = true }
-mime_guess = { version = "2.0", optional = true }
-
-# Development binary dependencies (for bench and tools)
-env_logger = "0.11"
-comfy-table = { version = "7.0", optional = true }
 
 # Optional diagnostic dependencies
 colored = { workspace = true }
 
 [dev-dependencies]
-comfy-table = "7.0"
 divan = "0.1"
 pretty_assertions = "1.4.1"
 rstest = "0.26"
 serde-xml-rs = "0.8"
-axum-test = "17.0"
 
 [features]
 default = []
-# CLI features (includes server)
-cli = [
-    "clap",
-    "human-panic",
-    "tabled",
-    "indicatif",
-    "rustyline",
-    "dirs",
-    "axum",
-    "tower",
-    "tower-http",
-    "tracing",
-    "tracing-subscriber",
-    "uuid",
-    "include_dir",
-    "mime_guess",
-]
 # Existing features
 diagnostics = ["octofhir-fhirpath-diagnostics/terminal"]
 serde = []
 terminal = ["octofhir-fhirpath-diagnostics/terminal"]
 profiling = []
-# Development-only features for binaries (not exposed in published API)
-dev-tools = ["comfy-table"]

@@ -17,14 +17,11 @@ homepage.workspace = true
 [dependencies]
 # Core workspace dependencies
 octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-model = { path = "../fhirpath-model" }
+octofhir-fhirpath-core = { path = "../fhirpath-core" }
+octofhir-fhir-model = { workspace = true }
 octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
 octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics" }
 octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
-octofhir-fhirschema.workspace = true
-
-# Bridge support dependencies
-octofhir-canonical-manager.workspace = true
 
 # Performance and concurrency
 dashmap = { workspace = true }

@@ -15,10 +15,10 @@
 //! Arithmetic operations evaluator
 
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathValue, PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use std::sync::Arc;
+use serde_json::Value as JsonValue;
 
 /// Specialized evaluator for arithmetic operations
 pub struct ArithmeticEvaluator;
@@ -153,7 +153,7 @@ impl ArithmeticEvaluator {
 
         // Unary plus just returns the operand for numeric types
         match value {
-            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) | FhirPathValue::Quantity(_) => {
+            FhirPathValue::Integer(_) | FhirPathValue::Decimal(_) | FhirPathValue::Quantity { .. } => {
                 Ok(value.clone())
             }
             _ => Err(EvaluationError::TypeError {
@@ -179,9 +179,13 @@ impl ArithmeticEvaluator {
         match value {
             FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(-i)),
             FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
-            FhirPathValue::Quantity(q) => {
-                let negated_value = -q.value;
-                Ok(FhirPathValue::quantity(negated_value, q.unit.clone()))
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let negated_value = -value;
+                Ok(FhirPathValue::Quantity {
+                    value: negated_value,
+                    unit: unit.clone(),
+                    ucum_expr: ucum_expr.clone(),
+                })
             }
             _ => Err(EvaluationError::TypeError {
                 expected: "numeric type".to_string(),
@@ -218,16 +222,16 @@ impl ArithmeticEvaluator {
                 Ok(FhirPathValue::String(format!("{a}{b}").into()))
             }
             // DateTime + Quantity operations
-            (FhirPathValue::DateTime(dt), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_datetime(&dt.datetime, q)
+            (FhirPathValue::DateTime(dt), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::add_quantity_to_datetime(&dt.datetime, value, unit)
             }
             // Date + Quantity operations
-            (FhirPathValue::Date(date), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_date(&date.date, q)
+            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::add_quantity_to_date(&date.date, value, unit)
             }
             // Time + Quantity operations
-            (FhirPathValue::Time(time), FhirPathValue::Quantity(q)) => {
-                Self::add_quantity_to_time(&time.time, q)
+            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::add_quantity_to_time(&time.time, value, unit)
             }
             // JsonValue arithmetic operations - handle Sonic JSON values
             (FhirPathValue::JsonValue(left_json), FhirPathValue::JsonValue(right_json)) => {
@@ -384,16 +388,16 @@ impl ArithmeticEvaluator {
                 }),
             },
             // Date - Quantity operations (subtract time-based quantities from dates)
-            (FhirPathValue::Date(date), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_date(&date.date, q)
+            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::subtract_quantity_from_date(&date.date, value, unit)
             }
             // DateTime - Quantity operations (subtract time-based quantities from datetime)
-            (FhirPathValue::DateTime(dt), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_datetime(&dt.datetime, q)
+            (FhirPathValue::DateTime(dt), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::subtract_quantity_from_datetime(&dt.datetime, value, unit)
             }
             // Time - Quantity operations (subtract time-based quantities from time)
-            (FhirPathValue::Time(time), FhirPathValue::Quantity(q)) => {
-                Self::subtract_quantity_from_time(&time.time, q)
+            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, ucum_expr: _ }) => {
+                Self::subtract_quantity_from_time(&time.time, value, unit)
             }
             // String subtraction is not defined - return empty per FHIRPath spec
             (FhirPathValue::String(_), FhirPathValue::String(_)) => Ok(FhirPathValue::Empty),
@@ -435,8 +439,8 @@ impl ArithmeticEvaluator {
                 }),
             },
             // Quantity multiplication operations
-            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                Self::multiply_quantities(a, b)
+            (FhirPathValue::Quantity { value: a_value, unit: a_unit, ucum_expr: _a_ucum }, FhirPathValue::Quantity { value: b_value, unit: b_unit, ucum_expr: _b_ucum }) => {
+                Self::multiply_quantities(a_value, a_unit, b_value, b_unit)
             }
             // Handle Empty values - any operation with Empty returns Empty per FHIRPath spec
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
@@ -499,12 +503,12 @@ impl ArithmeticEvaluator {
                 }
             }
             // Quantity division operations
-            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                if b.value.is_zero() {
+            (FhirPathValue::Quantity { value: a_value, unit: a_unit, ucum_expr: _a_ucum }, FhirPathValue::Quantity { value: b_value, unit: b_unit, ucum_expr: _b_ucum }) => {
+                if b_value.is_zero() {
                     // Division by zero returns empty collection per FHIRPath spec
                     return Ok(FhirPathValue::Collection(Default::default()));
                 }
-                Self::divide_quantities(a, b)
+                Self::divide_quantities(a_value, a_unit, b_value, b_unit)
             }
             // Handle Empty values - any operation with Empty returns Empty per FHIRPath spec
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
@@ -630,12 +634,10 @@ impl ArithmeticEvaluator {
     /// Add a time-based quantity to a DateTime
     fn add_quantity_to_datetime(
         dt: &chrono::DateTime<chrono::FixedOffset>,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity value to nanoseconds based on unit
         let duration_nanos = match unit.as_deref() {
@@ -725,9 +727,9 @@ impl ArithmeticEvaluator {
 
         if let Some(new_dt) = dt.checked_add_signed(duration) {
             Ok(FhirPathValue::DateTime(
-                octofhir_fhirpath_model::PrecisionDateTime::new(
+                PrecisionDateTime::new(
                     new_dt,
-                    octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                    TemporalPrecision::Millisecond, // Default precision for arithmetic
                 ),
             ))
         } else {
@@ -740,12 +742,10 @@ impl ArithmeticEvaluator {
     /// Add a time-based quantity to a Date  
     fn add_quantity_to_date(
         date: &chrono::NaiveDate,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity to days for date arithmetic
         let days = match unit.as_deref() {
@@ -792,9 +792,9 @@ impl ArithmeticEvaluator {
 
         if let Some(new_date) = date.checked_add_signed(duration) {
             Ok(FhirPathValue::Date(
-                octofhir_fhirpath_model::PrecisionDate::new(
+                PrecisionDate::new(
                     new_date,
-                    octofhir_fhirpath_model::TemporalPrecision::Day, // Default precision for arithmetic
+                    TemporalPrecision::Day, // Default precision for arithmetic
                 ),
             ))
         } else {
@@ -807,12 +807,10 @@ impl ArithmeticEvaluator {
     /// Add a time-based quantity to a Time
     fn add_quantity_to_time(
         time: &chrono::NaiveTime,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity value to nanoseconds based on unit
         let duration_nanos = match unit.as_deref() {
@@ -860,23 +858,25 @@ impl ArithmeticEvaluator {
 
         let new_time = time.overflowing_add_signed(duration).0;
         Ok(FhirPathValue::Time(
-            octofhir_fhirpath_model::PrecisionTime::new(
+            PrecisionTime::new(
                 new_time,
-                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                TemporalPrecision::Millisecond, // Default precision for arithmetic
             ),
         ))
     }
 
     /// Divide two quantities
     fn divide_quantities(
-        left: &octofhir_fhirpath_model::Quantity,
-        right: &octofhir_fhirpath_model::Quantity,
+        left_value: &Decimal,
+        left_unit: &Option<String>,
+        right_value: &Decimal,
+        right_unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         // Divide the numeric values
-        let result_value = left.value / right.value;
+        let result_value = left_value / right_value;
 
         // Create the resulting unit by combining left unit / right unit
-        let result_unit = match (&left.unit, &right.unit) {
+        let result_unit = match (left_unit, right_unit) {
             // If same units, they cancel out to dimensionless "1"
             (Some(left_unit), Some(right_unit)) if left_unit == right_unit => Some("1".to_string()),
             // Different units or one is None - create compound unit
@@ -889,20 +889,25 @@ impl ArithmeticEvaluator {
             (None, None) => Some("1".to_string()),
         };
 
-        let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
-        Ok(FhirPathValue::Quantity(Arc::new(result_quantity)))
+        Ok(FhirPathValue::Quantity {
+            value: result_value,
+            unit: result_unit,
+            ucum_expr: None,
+        })
     }
 
     /// Multiply two quantities
     fn multiply_quantities(
-        left: &octofhir_fhirpath_model::Quantity,
-        right: &octofhir_fhirpath_model::Quantity,
+        left_value: &Decimal,
+        left_unit: &Option<String>,
+        right_value: &Decimal,
+        right_unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         // Multiply the numeric values
-        let result_value = left.value * right.value;
+        let result_value = left_value * right_value;
 
         // Create the resulting unit by combining left unit * right unit
-        let result_unit = match (&left.unit, &right.unit) {
+        let result_unit = match (left_unit, right_unit) {
             // Both have units - multiply them
             (Some(left_unit), Some(right_unit)) => {
                 // Handle special cases for same units that create square units
@@ -920,19 +925,20 @@ impl ArithmeticEvaluator {
             (None, None) => Some("1".to_string()),
         };
 
-        let result_quantity = octofhir_fhirpath_model::Quantity::new(result_value, result_unit);
-        Ok(FhirPathValue::Quantity(Arc::new(result_quantity)))
+        Ok(FhirPathValue::Quantity {
+            value: result_value,
+            unit: result_unit,
+            ucum_expr: None,
+        })
     }
 
     /// Subtract a time-based quantity from a Date
     fn subtract_quantity_from_date(
         date: &chrono::NaiveDate,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity to days for date arithmetic
         let days = match unit.as_deref() {
@@ -977,9 +983,9 @@ impl ArithmeticEvaluator {
 
         if let Some(new_date) = date.checked_add_signed(duration) {
             Ok(FhirPathValue::Date(
-                octofhir_fhirpath_model::PrecisionDate::new(
+                PrecisionDate::new(
                     new_date,
-                    octofhir_fhirpath_model::TemporalPrecision::Day, // Default precision for arithmetic
+                    TemporalPrecision::Day, // Default precision for arithmetic
                 ),
             ))
         } else {
@@ -992,12 +998,10 @@ impl ArithmeticEvaluator {
     /// Subtract a time-based quantity from a DateTime
     fn subtract_quantity_from_datetime(
         dt: &chrono::DateTime<chrono::FixedOffset>,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity value to nanoseconds based on unit
         let duration_nanos = match unit.as_deref() {
@@ -1076,9 +1080,9 @@ impl ArithmeticEvaluator {
 
         if let Some(new_dt) = dt.checked_add_signed(duration) {
             Ok(FhirPathValue::DateTime(
-                octofhir_fhirpath_model::PrecisionDateTime::new(
+                PrecisionDateTime::new(
                     new_dt,
-                    octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                    TemporalPrecision::Millisecond, // Default precision for arithmetic
                 ),
             ))
         } else {
@@ -1091,12 +1095,10 @@ impl ArithmeticEvaluator {
     /// Subtract a time-based quantity from a Time
     fn subtract_quantity_from_time(
         time: &chrono::NaiveTime,
-        q: &octofhir_fhirpath_model::Quantity,
+        value: &Decimal,
+        unit: &Option<String>,
     ) -> EvaluationResult<FhirPathValue> {
         use chrono::Duration;
-
-        let value = q.value;
-        let unit = &q.unit;
 
         // Convert quantity value to nanoseconds based on unit
         let duration_nanos = match unit.as_deref() {
@@ -1143,19 +1145,19 @@ impl ArithmeticEvaluator {
 
         let new_time = time.overflowing_add_signed(duration).0;
         Ok(FhirPathValue::Time(
-            octofhir_fhirpath_model::PrecisionTime::new(
+            PrecisionTime::new(
                 new_time,
-                octofhir_fhirpath_model::TemporalPrecision::Millisecond, // Default precision for arithmetic
+                TemporalPrecision::Millisecond, // Default precision for arithmetic
             ),
         ))
     }
 
-    /// Helper method to add two JsonValue numbers using Sonic JSON directly
+    /// Helper method to add two JsonValue numbers using serde_json directly
     fn add_json_values(
-        left_json: &octofhir_fhirpath_model::JsonValue,
-        right_json: &octofhir_fhirpath_model::JsonValue,
+        left_json: &JsonValue,
+        right_json: &JsonValue,
     ) -> EvaluationResult<FhirPathValue> {
-        // Use Sonic JSON directly for better performance
+        // Use serde_json directly for better performance
         if left_json.is_number() && right_json.is_number() {
             // Try integer addition first
             if let (Some(left_int), Some(right_int)) = (left_json.as_i64(), right_json.as_i64()) {

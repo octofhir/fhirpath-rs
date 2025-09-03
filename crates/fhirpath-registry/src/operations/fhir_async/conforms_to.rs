@@ -6,7 +6,7 @@ use crate::signature::{
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// ConformsTo function - validates if resource conforms to a StructureDefinition
 #[derive(Debug, Clone)]
@@ -82,11 +82,11 @@ impl AsyncOperation for ConformsToFunction {
         // Use ModelProvider to validate resource against profile
         let conforms = context
             .model_provider
-            .validates_resource_against_profile(&context.input, profile_url)
+            .conforms_to_profile(profile_url)
             .await;
 
         match conforms {
-            Ok(result) => Ok(FhirPathValue::Boolean(result)),
+            Ok(result) => Ok(FhirPathValue::Boolean(result.is_valid)),
             Err(_) => {
                 // If validation fails (e.g., invalid profile URL), return empty
                 Ok(FhirPathValue::Empty)

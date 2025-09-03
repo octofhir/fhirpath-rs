@@ -6,9 +6,10 @@ members = [
     "crates/fhirpath-ast",
     "crates/fhirpath-diagnostics",
     "crates/fhirpath-parser",
-    "crates/fhirpath-model",
     "crates/fhirpath-registry",
     "crates/fhirpath-evaluator",
+    "crates/fhirpath-cli",
+    "crates/fhirpath-dev-tools",
 ]
 exclude = []
 resolver = "3"
@@ -78,4 +79,3 @@ rustyline = "17.0"
 # Optional diagnostic dependencies
 colored = "3.0.0"
 lsp-types = "0.97.0"
-

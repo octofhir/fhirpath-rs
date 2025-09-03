@@ -13,11 +13,14 @@ categories = ["parser-implementations", "data-structures"]
 [dependencies]
 # Core dependencies
 serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 smallvec = { workspace = true }
 rustc-hash = { workspace = true }
 log = { workspace = true }
+async-trait = { workspace = true }
 
 # FHIR model dependencies
 octofhir-fhir-model = { workspace = true }

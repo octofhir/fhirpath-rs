@@ -15,7 +15,7 @@
 //! Logical operations evaluator
 
 use octofhir_fhirpath_core::EvaluationResult;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Specialized evaluator for logical operations
 pub struct LogicalEvaluator;

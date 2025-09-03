@@ -1,9 +1,9 @@
 //! convertsToString() sync implementation
-
+use octofhir_fhirpath_core::JsonValueExt;
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// convertsToString(): Returns true if the input can be converted to String
 pub struct ConvertsToStringFunction;
@@ -47,7 +47,7 @@ fn can_convert_to_string(value: &FhirPathValue) -> Result<bool> {
         | FhirPathValue::Date(_)
         | FhirPathValue::DateTime(_)
         | FhirPathValue::Time(_)
-        | FhirPathValue::Quantity(_) => Ok(true),
+        | FhirPathValue::Quantity { value: _, .. } => Ok(true),
 
         // JSON simple types convertible by to_string_value()
         FhirPathValue::JsonValue(json) => {

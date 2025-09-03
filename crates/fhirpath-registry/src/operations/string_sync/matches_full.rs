@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use regex::Regex;
 
 /// Simplified matchesFull function: returns true if the entire input string matches the given regular expression
@@ -56,7 +56,7 @@ impl SyncOperation for SimpleMatchesFullFunction {
         }
 
         // Get regex pattern parameter
-        let pattern = match &args[0] {
+        let pattern: &str = match &args[0] {
             FhirPathValue::String(s) => s.as_ref(),
             _ => {
                 return Err(FhirPathError::TypeError {

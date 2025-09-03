@@ -1,13 +1,13 @@
-//! toQuantity() sync implementation
+//! toQuantity { value: , .. } sync implementation
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::SyncOperation;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, Quantity};
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
-/// toQuantity(): Converts input to Quantity where possible
+/// toQuantity { value: , .. }: Converts input to Quantity where possible
 pub struct ToQuantityFunction;
 
 impl SyncOperation for ToQuantityFunction {
@@ -39,28 +39,38 @@ impl SyncOperation for ToQuantityFunction {
 fn convert_to_quantity(value: &FhirPathValue) -> Result<FhirPathValue> {
     match value {
         // Already a quantity
-        FhirPathValue::Quantity(q) => Ok(FhirPathValue::Quantity(q.clone())),
+        FhirPathValue::Quantity { value, unit, .. } => Ok(FhirPathValue::Quantity { 
+            value: value.clone(), 
+            unit: unit.clone(), 
+            ucum_expr: None 
+        }),
 
         // Integer can be converted (becomes quantity with unit "1")
         FhirPathValue::Integer(i) => {
-            let quantity = Quantity::new(Decimal::new(*i, 0), Some("1".to_string()));
-            Ok(FhirPathValue::Quantity(Arc::new(quantity)))
+            Ok(FhirPathValue::Quantity { 
+                value: Decimal::new(*i, 0), 
+                unit: Some("1".to_string()), 
+                ucum_expr: None 
+            })
         }
 
         // Decimal can be converted (becomes quantity with unit "1")
         FhirPathValue::Decimal(d) => {
-            let quantity = Quantity::new(*d, Some("1".to_string()));
-            Ok(FhirPathValue::Quantity(Arc::new(quantity)))
+            Ok(FhirPathValue::Quantity { 
+                value: *d, 
+                unit: Some("1".to_string()), 
+                ucum_expr: None 
+            })
         }
 
         // String conversion with quantity parsing
         FhirPathValue::String(s) => match parse_quantity_string(s) {
             Some((value, unit)) => {
-                let quantity = Quantity::new(
-                    Decimal::from_f64_retain(value).unwrap_or(Decimal::ZERO),
-                    unit,
-                );
-                Ok(FhirPathValue::Quantity(Arc::new(quantity)))
+                Ok(FhirPathValue::Quantity { 
+                    value: Decimal::from_f64_retain(value).unwrap_or(Decimal::ZERO), 
+                    unit, 
+                    ucum_expr: None 
+                })
             }
             None => Err(FhirPathError::ConversionError {
                 from: format!("Cannot convert string '{s}' to Quantity"),
@@ -74,12 +84,12 @@ fn convert_to_quantity(value: &FhirPathValue) -> Result<FhirPathValue> {
         // Collection handling
         FhirPathValue::Collection(c) => {
             if c.is_empty() {
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             } else if c.len() == 1 {
                 convert_to_quantity(c.first().unwrap())
             } else {
                 // Multiple items - return empty collection per FHIRPath spec
-                Ok(FhirPathValue::Collection(vec![].into()))
+                Ok(FhirPathValue::Collection(vec![]))
             }
         }
 

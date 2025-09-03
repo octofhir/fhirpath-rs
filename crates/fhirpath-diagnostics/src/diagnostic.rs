@@ -96,15 +96,155 @@ pub enum DiagnosticCode {
 }
 
 /// A suggestion for fixing a diagnostic
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Suggestion {
     /// Human-readable message describing the suggestion
     pub message: String,
-    /// Optional replacement text
-    pub replacement: Option<String>,
-    /// Location where the replacement should be applied
+    /// Optional replacement text edit
+    pub replacement: Option<TextEdit>,
+    /// Confidence level of this suggestion (0.0 to 1.0)
+    pub confidence: f32,
+    /// Type of suggestion
+    pub suggestion_type: SuggestionType,
+}
+
+/// Text edit for replacing content at a specific location
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TextEdit {
+    /// Location where the edit should be applied
     pub location: SourceLocation,
+    /// New text to insert
+    pub new_text: String,
+}
+
+/// Types of suggestions that can be provided
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SuggestionType {
+    /// Fix a typo in function or property name
+    TypoFix,
+    /// Alternative function suggestion
+    AlternativeFunction,
+    /// Alternative property suggestion
+    AlternativeProperty,
+    /// Type conversion suggestion
+    TypeConversion,
+    /// Syntax improvement suggestion
+    SyntaxImprovement,
+    /// Performance optimization suggestion
+    PerformanceOptimization,
+    /// General suggestion
+    General,
+}
+
+/// Quick fix action that can be applied automatically
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct QuickFix {
+    /// Title describing the quick fix
+    pub title: String,
+    /// Text edits to apply
+    pub edits: Vec<TextEdit>,
+    /// Kind of quick fix
+    pub kind: QuickFixKind,
+}
+
+/// Types of quick fixes
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum QuickFixKind {
+    /// Quick fix that corrects an error
+    QuickFix,
+    /// Refactoring that improves code
+    Refactor,
+    /// Source action that adds functionality
+    Source,
+}
+
+impl Suggestion {
+    /// Create a new suggestion
+    pub fn new(
+        message: String,
+        suggestion_type: SuggestionType,
+        confidence: f32,
+    ) -> Self {
+        Self {
+            message,
+            replacement: None,
+            confidence: confidence.clamp(0.0, 1.0),
+            suggestion_type,
+        }
+    }
+    
+    /// Create a suggestion with a text replacement
+    pub fn with_replacement(
+        message: String,
+        replacement: TextEdit,
+        suggestion_type: SuggestionType,
+        confidence: f32,
+    ) -> Self {
+        Self {
+            message,
+            replacement: Some(replacement),
+            confidence: confidence.clamp(0.0, 1.0),
+            suggestion_type,
+        }
+    }
+    
+    /// Create a typo fix suggestion
+    pub fn typo_fix(_original: &str, replacement: &str, location: SourceLocation, confidence: f32) -> Self {
+        Self::with_replacement(
+            format!("Did you mean '{replacement}'?"),
+            TextEdit {
+                location,
+                new_text: replacement.to_string(),
+            },
+            SuggestionType::TypoFix,
+            confidence,
+        )
+    }
+    
+    /// Create an alternative function suggestion
+    pub fn alternative_function(function_name: &str, location: SourceLocation) -> Self {
+        Self::with_replacement(
+            format!("Consider using '{function_name}()' instead"),
+            TextEdit {
+                location,
+                new_text: function_name.to_string(),
+            },
+            SuggestionType::AlternativeFunction,
+            0.8,
+        )
+    }
+}
+
+impl TextEdit {
+    /// Create a new text edit
+    pub fn new(location: SourceLocation, new_text: String) -> Self {
+        Self { location, new_text }
+    }
+}
+
+impl QuickFix {
+    /// Create a new quick fix
+    pub fn new(title: String, edits: Vec<TextEdit>, kind: QuickFixKind) -> Self {
+        Self { title, edits, kind }
+    }
+    
+    /// Create a simple single-edit quick fix
+    pub fn simple_replacement(
+        title: String,
+        location: SourceLocation,
+        new_text: String,
+    ) -> Self {
+        Self::new(
+            title,
+            vec![TextEdit::new(location, new_text)],
+            QuickFixKind::QuickFix,
+        )
+    }
 }
 
 /// Related information for a diagnostic
@@ -118,7 +258,7 @@ pub struct RelatedInformation {
 }
 
 /// A diagnostic message
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Diagnostic {
     /// Severity of the diagnostic
@@ -135,6 +275,8 @@ pub struct Diagnostic {
     pub suggestions: Vec<Suggestion>,
     /// Related information
     pub related: Vec<RelatedInformation>,
+    /// Quick fixes that can be applied automatically
+    pub quick_fixes: Vec<QuickFix>,
 }
 
 impl Diagnostic {
@@ -154,6 +296,7 @@ impl Diagnostic {
             help,
             suggestions: Vec::new(),
             related: Vec::new(),
+            quick_fixes: Vec::new(),
         }
     }
 
@@ -194,6 +337,12 @@ impl Diagnostic {
     /// Add related information
     pub fn with_related(mut self, related: RelatedInformation) -> Self {
         self.related.push(related);
+        self
+    }
+
+    /// Add a quick fix
+    pub fn with_quick_fix(mut self, quick_fix: QuickFix) -> Self {
+        self.quick_fixes.push(quick_fix);
         self
     }
 

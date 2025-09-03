@@ -3,7 +3,7 @@
 //! Comprehensive tests for the bridge support functionality including
 //! type registry, schema-aware functions, and package management.
 
-use octofhir_fhirpath_model::ModelProvider;
+use octofhir_fhir_model::ModelProvider;
 use octofhir_fhirpath_registry::{
     FhirPathTypeRegistry, FhirPathValue, PackageError, RefreshableRegistry, RegistryError,
     RegistryPackageManager, SchemaAwareFunctionRegistry,
@@ -31,7 +31,7 @@ async fn create_test_schema_manager()
 
 /// Create a test evaluation context
 fn create_test_evaluation_context() -> octofhir_fhirpath_registry::traits::EvaluationContext {
-    use octofhir_fhirpath_model::{FhirPathValue, MockModelProvider};
+    use octofhir_fhir_model::{FhirPathValue, MockModelProvider};
     use octofhir_fhirpath_registry::traits::EvaluationContext;
 
     // Create a simple patient resource value for testing

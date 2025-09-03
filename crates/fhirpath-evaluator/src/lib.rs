@@ -21,8 +21,8 @@ pub mod engine;
 pub mod evaluators;
 
 // Modular evaluation components
-mod bridge_navigation;
-mod cache;
+// mod bridge_navigation; // Disabled - no bridge support
+// mod cache; // Disabled - bridge-dependent
 mod evaluation;
 mod functions;
 mod lambda;

@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Simplified truncate function: truncates a numeric value to an integer by removing the fractional part
@@ -59,12 +59,13 @@ impl SyncOperation for SimpleTruncateFunction {
                 let result = n.to_f64().unwrap_or(0.0).trunc() as i64;
                 Ok(FhirPathValue::Integer(result))
             }
-            FhirPathValue::Quantity(q) => {
-                let result = q.value.to_f64().unwrap_or(0.0).trunc();
-                Ok(FhirPathValue::quantity(
-                    rust_decimal::Decimal::try_from(result).unwrap_or_default(),
-                    q.unit.clone(),
-                ))
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let result = value.to_f64().unwrap_or(0.0).trunc();
+                Ok(FhirPathValue::Quantity { 
+                    value: rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    unit: unit.clone(), 
+                    ucum_expr: ucum_expr.clone(),
+                })
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {

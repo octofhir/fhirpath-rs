@@ -22,7 +22,7 @@
 //! Lambda functions like `where`, `select`, `all`, `any` create contexts where these
 //! implicit variables are automatically available for use within the lambda expression.
 
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Lambda-specific metadata for implicit variables
 ///

@@ -191,7 +191,7 @@ impl DiagnosticFormatter {
             for suggestion in &diagnostic.suggestions {
                 result.push_str(&format!("  - {}", suggestion.message));
                 if let Some(replacement) = &suggestion.replacement {
-                    result.push_str(&format!(" (replace with '{replacement}')"));
+                    result.push_str(&format!(" (replace with '{}')", replacement.new_text));
                 }
                 result.push('\n');
             }

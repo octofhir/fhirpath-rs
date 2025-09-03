@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified skip function: skips the first n items
 pub struct SimpleSkipFunction;
@@ -73,30 +73,20 @@ impl SyncOperation for SimpleSkipFunction {
             FhirPathValue::Collection(collection) => {
                 let skip_count = count as usize;
                 if skip_count >= collection.len() {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![]))
                 } else {
                     let remaining: Vec<FhirPathValue> =
                         collection.iter().skip(skip_count).cloned().collect();
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(remaining),
-                    ))
+                    Ok(FhirPathValue::Collection(remaining))
                 }
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            )),
+            FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![])),
             _ => {
                 // Single item
                 if count == 0 {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![context.input.clone()]))
                 } else {
-                    Ok(FhirPathValue::Collection(
-                        octofhir_fhirpath_model::Collection::from(vec![]),
-                    ))
+                    Ok(FhirPathValue::Collection(vec![]))
                 }
             }
         }

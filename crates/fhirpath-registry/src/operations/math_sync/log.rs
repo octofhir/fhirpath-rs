@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Simplified log function: returns the logarithm of the value with the specified base
@@ -96,17 +96,18 @@ impl SyncOperation for SimpleLogFunction {
                     ))
                 }
             }
-            FhirPathValue::Quantity(q) => {
-                if q.value <= rust_decimal::Decimal::ZERO {
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                if *value <= rust_decimal::Decimal::ZERO {
                     Err(FhirPathError::evaluation_error(
                         "log() can only be applied to positive numbers",
                     ))
                 } else {
-                    let result = q.value.to_f64().unwrap_or(0.0).log(base);
-                    Ok(FhirPathValue::quantity(
-                        rust_decimal::Decimal::try_from(result).unwrap_or_default(),
-                        q.unit.clone(),
-                    ))
+                    let result = value.to_f64().unwrap_or(0.0).log(base);
+                    Ok(FhirPathValue::Quantity { 
+                        value: rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                        unit: unit.clone(), 
+                        ucum_expr: ucum_expr.clone(),
+                    })
                 }
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),

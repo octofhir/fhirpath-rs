@@ -4,7 +4,7 @@ use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignatu
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::Timelike;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// MinuteOf function - extracts minute component from DateTime or Time (0-59)
 #[derive(Debug, Clone)]

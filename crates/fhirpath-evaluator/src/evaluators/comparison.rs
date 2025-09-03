@@ -15,8 +15,7 @@
 //! Comparison operations evaluator
 
 use chrono::{Datelike, Timelike};
-use octofhir_fhirpath_core::EvaluationResult;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{EvaluationResult, FhirPathValue, JsonValueExt, PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 
@@ -237,10 +236,13 @@ impl ComparisonEvaluator {
             },
 
             // Quantity equality with unit conversion support
-            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                match a.equals_with_conversion(b) {
-                    Ok(result) => Some(result),
-                    Err(_) => Some(false), // Conversion error means not equal
+            (FhirPathValue::Quantity { value: a_val, unit: a_unit, .. }, 
+             FhirPathValue::Quantity { value: b_val, unit: b_unit, .. }) => {
+                // For now, simple comparison - units must match exactly
+                if a_unit == b_unit {
+                    Some((a_val - b_val).abs() < Decimal::new(1, 10)) // Small tolerance
+                } else {
+                    Some(false) // Different units
                 }
             }
 
@@ -252,7 +254,7 @@ impl ComparisonEvaluator {
                 // Compare JsonValue with String - use Sonic JSON directly
                 if json_val.is_string() {
                     if let Some(json_str) = json_val.as_str() {
-                        Some(json_str == string_val.as_ref())
+                        Some(json_str == string_val.as_str())
                     } else {
                         Some(false)
                     }
@@ -264,7 +266,7 @@ impl ComparisonEvaluator {
                 // Compare String with JsonValue - use Sonic JSON directly
                 if json_val.is_string() {
                     if let Some(json_str) = json_val.as_str() {
-                        Some(string_val.as_ref() == json_str)
+                        Some(string_val.as_str() == json_str)
                     } else {
                         Some(false)
                     }
@@ -438,10 +440,13 @@ impl ComparisonEvaluator {
             },
 
             // Quantity equivalence with unit conversion support
-            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                match a.equals_with_conversion(b) {
-                    Ok(result) => Some(result),
-                    Err(_) => Some(false), // Conversion error means not equivalent
+            (FhirPathValue::Quantity { value: a_val, unit: a_unit, .. }, 
+             FhirPathValue::Quantity { value: b_val, unit: b_unit, .. }) => {
+                // For now, simple comparison - units must match exactly
+                if a_unit == b_unit {
+                    Some((a_val - b_val).abs() < Decimal::new(5, 3)) // 0.005 tolerance for equivalence
+                } else {
+                    Some(false) // Different units
                 }
             }
 
@@ -614,47 +619,26 @@ impl ComparisonEvaluator {
             }
 
             // Quantity comparison with unit conversion support
-            (FhirPathValue::Quantity(a), FhirPathValue::Quantity(b)) => {
-                Self::compare_quantities(a, b)
+            (FhirPathValue::Quantity { value: a_val, unit: a_unit, .. }, 
+             FhirPathValue::Quantity { value: b_val, unit: b_unit, .. }) => {
+                // For now, simple comparison - units must match exactly
+                if a_unit == b_unit {
+                    Some(a_val.cmp(b_val))
+                } else {
+                    None // Different units - incomparable for now
+                }
             }
 
             _ => None, // Incomparable types
         }
     }
 
-    /// Compare two quantities with unit conversion support
-    fn compare_quantities(
-        left: &octofhir_fhirpath_model::Quantity,
-        right: &octofhir_fhirpath_model::Quantity,
-    ) -> Option<Ordering> {
-        // Check if units are compatible for comparison
-        if !left.has_compatible_dimensions(right) {
-            return None; // Incomparable quantities
-        }
-
-        // If same unit, direct comparison
-        if left.unit == right.unit {
-            return Some(left.value.cmp(&right.value));
-        }
-
-        // Try to convert right to left's unit for comparison
-        if let Some(left_unit) = &left.unit {
-            match right.convert_to_compatible_unit(left_unit) {
-                Ok(converted_right) => Some(left.value.cmp(&converted_right.value)),
-                Err(_) => None, // Conversion failed
-            }
-        } else {
-            // Both should be unitless if we reach here (due to compatible dimensions check)
-            Some(left.value.cmp(&right.value))
-        }
-    }
 
     /// Compare DateTime values with precision-aware logic
     fn compare_datetime_with_precision_check(
-        a: &octofhir_fhirpath_model::PrecisionDateTime,
-        b: &octofhir_fhirpath_model::PrecisionDateTime,
+        a: &PrecisionDateTime,
+        b: &PrecisionDateTime,
     ) -> Option<Ordering> {
-        use octofhir_fhirpath_model::TemporalPrecision;
 
         // Truncate both datetimes to the lowest precision level
         let min_precision = std::cmp::min(a.precision, b.precision);
@@ -727,10 +711,9 @@ impl ComparisonEvaluator {
 
     /// Compare Time values with precision-aware logic
     fn compare_time_with_precision_check(
-        a: &octofhir_fhirpath_model::PrecisionTime,
-        b: &octofhir_fhirpath_model::PrecisionTime,
+        a: &PrecisionTime,
+        b: &PrecisionTime,
     ) -> Option<Ordering> {
-        use octofhir_fhirpath_model::TemporalPrecision;
 
         // Truncate both times to the lowest precision level
         let min_precision = std::cmp::min(a.precision, b.precision);

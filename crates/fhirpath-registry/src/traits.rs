@@ -14,7 +14,7 @@
 use crate::signature::FunctionSignature;
 use async_trait::async_trait;
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use crate::FhirPathValue;
 
 /// Evaluation context for operations
 ///
@@ -26,7 +26,7 @@ pub struct EvaluationContext {
     /// Root input value (for resolve() function and context variables) - shared for memory efficiency
     pub root: std::sync::Arc<FhirPathValue>,
     /// Reference to the model provider for type information
-    pub model_provider: std::sync::Arc<dyn octofhir_fhirpath_model::ModelProvider>,
+    pub model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider>,
     /// Environment variables for evaluation
     pub variables: rustc_hash::FxHashMap<String, FhirPathValue>,
 }
@@ -36,7 +36,7 @@ impl EvaluationContext {
     pub fn new(
         input: FhirPathValue,
         root: std::sync::Arc<FhirPathValue>,
-        model_provider: std::sync::Arc<dyn octofhir_fhirpath_model::ModelProvider>,
+        model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider>,
     ) -> Self {
         Self {
             input,
@@ -76,7 +76,7 @@ impl EvaluationContext {
 /// ```rust
 /// use octofhir_fhirpath_registry::traits::{SyncOperation, EvaluationContext};
 /// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType, FunctionCategory, CardinalityRequirement};
-/// use octofhir_fhirpath_model::FhirPathValue;
+/// use crate::FhirPathValue;
 /// use octofhir_fhirpath_core::{Result, FhirPathError};
 ///
 /// pub struct LengthFunction;
@@ -169,7 +169,7 @@ pub trait SyncOperation: Send + Sync {
 /// ```rust
 /// use octofhir_fhirpath_registry::traits::{AsyncOperation, EvaluationContext};
 /// use octofhir_fhirpath_registry::signature::{FunctionSignature, ValueType, FunctionCategory, CardinalityRequirement};
-/// use octofhir_fhirpath_model::FhirPathValue;
+/// use crate::FhirPathValue;
 /// use octofhir_fhirpath_core::{Result, FhirPathError};
 /// use async_trait::async_trait;
 ///
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_sync_operation() {
-        use octofhir_fhirpath_model::MockModelProvider;
+        use octofhir_fhir_model::MockModelProvider;
 
         let op = TestSyncOperation;
         assert_eq!(op.name(), "testSync");
@@ -493,7 +493,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_operation() {
-        use octofhir_fhirpath_model::MockModelProvider;
+        use octofhir_fhir_model::MockModelProvider;
 
         let op = TestAsyncOperation;
         assert_eq!(op.name(), "testAsync");

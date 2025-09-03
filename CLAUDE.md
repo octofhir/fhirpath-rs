@@ -66,19 +66,21 @@ Global flags:
 ## Architecture
 
 ### Modular Workspace Structure
-The project uses 9 specialized crates for flexibility and maintainability:
+The project uses 11 specialized crates for flexibility and maintainability:
 
 ```
 crates/
-├── octofhir-fhirpath/     # Main library (re-exports everything)
-├── fhirpath-core/         # Core types, errors, evaluation results
-├── fhirpath-ast/          # Abstract syntax tree definitions
-├── fhirpath-parser/       # Tokenizer and parser (nom-based)
-├── fhirpath-evaluator/    # Expression evaluation engine
-├── fhirpath-model/        # Value types and FHIR data model
-├── fhirpath-registry/     # Function and operator registry
-├── fhirpath-analyzer/     # Static analysis and validation
-└── fhirpath-diagnostics/  # Error handling and reporting
+├── octofhir-fhirpath/     # Main library (core functionality, published)
+├── fhirpath-core/         # Core types, errors, evaluation results (published)
+├── fhirpath-ast/          # Abstract syntax tree definitions (published)
+├── fhirpath-parser/       # Tokenizer and parser (nom-based) (published)
+├── fhirpath-evaluator/    # Expression evaluation engine (published)
+├── fhirpath-model/        # Value types and FHIR data model (published)
+├── fhirpath-registry/     # Function and operator registry (published)
+├── fhirpath-analyzer/     # Static analysis and validation (published)
+├── fhirpath-diagnostics/  # Error handling and reporting (published)
+├── fhirpath-cli/          # Command-line interface (NOT published)
+└── fhirpath-dev-tools/    # Development tools (NOT published)
 ```
 
 ### Key Design Principles
@@ -88,6 +90,24 @@ crates/
 4. **Thread-Safe**: Full Send + Sync support for FhirPathEngine
 5. **Modular**: Clean separation via workspace crates
 6. **Simplicity**: Clean, maintainable code without unnecessary overhead or complexity
+7. **Separation of Concerns**: Core library, CLI, and dev tools are cleanly separated
+
+### Crate Architecture Details
+
+#### Published Crates (for library users)
+- **octofhir-fhirpath**: Main library with minimal dependencies, includes MockModelProvider
+- **fhirpath-core**: Core types and errors
+- **fhirpath-ast**: AST definitions  
+- **fhirpath-parser**: Parsing functionality
+- **fhirpath-evaluator**: Expression evaluation
+- **fhirpath-model**: Value types and ModelProvider trait
+- **fhirpath-registry**: Function registry
+- **fhirpath-analyzer**: Static analysis
+- **fhirpath-diagnostics**: Error handling
+
+#### Private Crates (NOT published)
+- **fhirpath-cli**: Complete CLI application with FhirSchemaModelProvider, REPL, server
+- **fhirpath-dev-tools**: Test runners, benchmarking, coverage analysis
 
 ### JSON Processing
 **Important**: This codebase uses `serde_json::Value` for all JSON processing. Maintain consistency by always using `serde_json` throughout the codebase. Do not introduce other JSON libraries unless there is a compelling performance or compatibility reason.
@@ -187,7 +207,7 @@ When implementing new FHIRPath functions:
 - Memory usage is critical for large Bundle resources
 
 ### CLI Development
-The main binary is in `crates/octofhir-fhirpath/src/bin/octofhir-fhirpath.rs`. All CLI functionality should use the unified FhirPathEngine and provide consistent output formatting.
+The main CLI binary is now in `crates/fhirpath-cli/src/main.rs`. All CLI functionality has been separated from the main library and uses FhirSchemaModelProvider for full FHIR schema support. The CLI provides consistent output formatting and includes REPL, server, and various output modes.
 
 ## Testing and Validation
 
@@ -250,10 +270,12 @@ Current status: **90.9%** (1003/1104 tests passing)
 
 ### ModelProvider Architecture
 Starting from v0.3.0, ModelProvider is mandatory:
-- `MockModelProvider` - Fast, simple provider for development/testing
-- `FhirSchemaModelProvider` - Full FHIR R4/R5 schema integration
+- `MockModelProvider` - Fast, simple provider for development/testing (main library)
+- `FhirSchemaModelProvider` - Full FHIR R4/R5 schema integration (CLI and dev tools only)
 - Async operations for external data fetching
 - Caching is essential for performance
+
+**Important**: The main library (`octofhir-fhirpath`) now only includes MockModelProvider to keep dependencies minimal. For full FHIR schema support with FhirSchemaModelProvider, use the CLI crate (`fhirpath-cli`) or dev tools (`fhirpath-dev-tools`).
 
 **Critical**: Do NOT hardcode FHIR properties, choice types, or resource types in ModelProvider implementations. All FHIR schema information (properties, types, choices, resource definitions) MUST be dynamically retrieved from FHIRSchema. This ensures:
 - Accurate compliance with official FHIR specifications

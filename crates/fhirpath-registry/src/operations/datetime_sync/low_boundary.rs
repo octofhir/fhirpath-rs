@@ -1,13 +1,11 @@
 //! LowBoundary function implementation - sync version
+use octofhir_fhirpath_core::JsonValueExt;use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{
-    FhirPathValue,
-    temporal::{PrecisionDateTime, TemporalPrecision},
-};
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 /// LowBoundary function - gets low precision boundary of date/time values
@@ -291,9 +289,9 @@ impl SyncOperation for LowBoundaryFunction {
                             // Return start of year (January) for year-only dates
                             let year = date.date.year();
                             let start_of_year_date = NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
-                            FhirPathValue::Date(octofhir_fhirpath_model::temporal::PrecisionDate::new(
+                            FhirPathValue::Date(PrecisionDate::new(
                                 start_of_year_date,
-                                octofhir_fhirpath_model::temporal::TemporalPrecision::Month,
+                                TemporalPrecision::Month,
                             ))
                         }
                         _ => {
@@ -315,32 +313,29 @@ impl SyncOperation for LowBoundaryFunction {
                     FhirPathValue::DateTime(low_boundary)
                 }
             }
-            FhirPathValue::Quantity(quantity) => {
+            FhirPathValue::Quantity { value: quantity, unit, ucum_expr } => {
                 // For Quantity, apply lowBoundary to the numeric value and preserve unit
                 if let Some(prec) = precision {
                     if prec < 0 {
                         return Err(FhirPathError::evaluation_error("lowBoundary() precision must be >= 0"));
                     }
-                    let boundary_value = Self::get_numeric_low_boundary_decimal(&quantity.value, prec as usize)?;
+                    let boundary_value = Self::get_numeric_low_boundary_decimal(&quantity, prec as usize)?;
                     match boundary_value {
                         FhirPathValue::Decimal(d) => {
-                            let boundary_quantity = octofhir_fhirpath_model::Quantity::new(d, quantity.unit.clone());
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: d, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         FhirPathValue::Integer(i) => {
                             let decimal = Decimal::from(i);
-                            let boundary_quantity = octofhir_fhirpath_model::Quantity::new(decimal, quantity.unit.clone());
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: decimal, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         _ => boundary_value
                     }
                 } else {
                     // For quantity without precision, return low boundary at implicit precision + 1 digit
-                    let boundary_value = Self::get_numeric_low_boundary_decimal(&quantity.value, (quantity.value.scale() as usize) + 1)?;
+                    let boundary_value = Self::get_numeric_low_boundary_decimal(&quantity, (quantity.scale() as usize) + 1)?;
                     match boundary_value {
                         FhirPathValue::Decimal(d) => {
-                            let boundary_quantity = octofhir_fhirpath_model::Quantity::new(d, quantity.unit.clone());
-                            FhirPathValue::Quantity(std::sync::Arc::new(boundary_quantity))
+                            FhirPathValue::Quantity { value: d, unit: unit.clone(), ucum_expr: ucum_expr.clone() }
                         }
                         _ => boundary_value
                     }

@@ -16,7 +16,9 @@
 
 use super::*;
 use crate::engine::{EvaluationConfig, FhirPathEngine};
-use octofhir_fhirpath_model::{FhirPathValue, FhirSchemaModelProvider};
+use octofhir_fhirpath_core::FhirPathValue;
+// TODO: Re-enable when FhirSchemaModelProvider is moved to core
+// use octofhir_fhir_model::FhirSchemaModelProvider;
 use octofhir_fhirpath_registry::create_standard_registry;
 use octofhir_fhirschema::{FhirSchemaPackageManager, PackageManagerConfig};
 use serde_json::json;

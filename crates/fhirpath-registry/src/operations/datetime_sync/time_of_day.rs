@@ -1,9 +1,10 @@
 //! TimeOfDay function implementation - sync version
+use octofhir_fhirpath_core::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::{FhirPathValue, PrecisionTime, TemporalPrecision};
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// TimeOfDay function - extracts time portion from DateTime
 #[derive(Debug, Clone)]

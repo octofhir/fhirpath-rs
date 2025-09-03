@@ -1,9 +1,9 @@
 //! HasValue function implementation - sync version
-
+use octofhir_fhirpath_core::JsonValueExt;
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation, validation};
 use octofhir_fhirpath_core::Result;
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// HasValue function - returns true if the input collection contains exactly one item that has a value
 #[derive(Debug, Clone)]

@@ -4,8 +4,7 @@ use crate::signature::{
     CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
 };
 use crate::traits::{EvaluationContext, SyncOperation};
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, JsonValueExt, Result};
 use serde_json;
 
 /// HasTemplateIdOf function: checks if a resource has a specific template ID/profile

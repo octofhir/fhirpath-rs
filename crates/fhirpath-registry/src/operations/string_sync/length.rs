@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified length function: returns the length of a string
 pub struct SimpleLengthFunction;
@@ -66,13 +66,9 @@ impl SyncOperation for SimpleLengthFunction {
                         }
                         // For single non-string items, try to convert to string
                         item => {
-                            if let Some(string_val) = item.to_string_value() {
-                                let length = string_val.chars().count() as i64;
-                                Ok(FhirPathValue::Integer(length))
-                            } else {
-                                // For collections of non-strings, return collection length
-                                Ok(FhirPathValue::Integer(items.len() as i64))
-                            }
+                            let string_val = item.to_string_value();
+                            let length = string_val.chars().count() as i64;
+                            Ok(FhirPathValue::Integer(length))
                         }
                     }
                 } else {
@@ -83,15 +79,9 @@ impl SyncOperation for SimpleLengthFunction {
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             _ => {
                 // Try to convert to string first
-                if let Some(string_val) = context.input.to_string_value() {
-                    let length = string_val.chars().count() as i64;
-                    Ok(FhirPathValue::Integer(length))
-                } else {
-                    Err(FhirPathError::TypeError {
-                        message: "length() can only be called on string values or collections"
-                            .to_string(),
-                    })
-                }
+                let string_val = context.input.to_string_value();
+                let length = string_val.chars().count() as i64;
+                Ok(FhirPathValue::Integer(length))
             }
         }
     }

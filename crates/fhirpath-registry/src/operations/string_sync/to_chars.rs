@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 
 /// Simplified toChars function: converts a string into a collection of individual characters
 pub struct SimpleToCharsFunction;
@@ -58,22 +58,17 @@ impl SyncOperation for SimpleToCharsFunction {
                     .chars()
                     .map(|c| FhirPathValue::String(c.to_string().into()))
                     .collect();
-                Ok(FhirPathValue::Collection(chars.into()))
+                Ok(FhirPathValue::Collection(vec![]))
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![].into())),
             _ => {
                 // Try to convert to string first
-                if let Some(string_val) = context.input.to_string_value() {
-                    let chars: Vec<FhirPathValue> = string_val
-                        .chars()
-                        .map(|c| FhirPathValue::String(c.to_string().into()))
-                        .collect();
-                    Ok(FhirPathValue::Collection(chars.into()))
-                } else {
-                    Err(FhirPathError::TypeError {
-                        message: "toChars() can only be called on string values".to_string(),
-                    })
-                }
+                let string_val = context.input.to_string_value();
+                let chars: Vec<FhirPathValue> = string_val
+                    .chars()
+                    .map(|c| FhirPathValue::String(c.to_string().into()))
+                    .collect();
+                Ok(FhirPathValue::collection(chars))
             }
         }
     }

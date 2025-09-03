@@ -19,7 +19,7 @@
 //! scenarios. These helpers maintain the underlying COW semantics and performance
 //! optimizations while providing more user-friendly APIs.
 
-use octofhir_fhirpath_model::{FhirPathValue, provider::ModelProvider};
+use octofhir_fhirpath_core::{FhirPathValue, ModelProvider};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, Mutex};
 
@@ -44,7 +44,7 @@ use super::{EvaluationContext, VariableScope};
 ///
 /// ```rust,no_run
 /// use octofhir_fhirpath_evaluator::{LambdaContextBuilder, EvaluationContext};
-/// use octofhir_fhirpath_model::FhirPathValue;
+/// use octofhir_fhirpath_core::FhirPathValue;
 ///
 /// // Assume we have a base context from somewhere (e.g., from FhirPathEngine)
 /// # let base_context: EvaluationContext = unimplemented!();
@@ -521,7 +521,7 @@ impl VariableScope {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhirpath_model::MockModelProvider;
+    use octofhir_fhirpath_core::MockModelProvider;
 
     fn create_test_context() -> EvaluationContext {
         let model_provider = Arc::new(MockModelProvider::new());

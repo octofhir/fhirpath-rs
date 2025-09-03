@@ -1,12 +1,10 @@
 //! Is operation - async implementation for FunctionRegistry
-
 use crate::signature::{
     CardinalityRequirement, FunctionCategory, FunctionSignature, ParameterType, ValueType,
 };
 use crate::traits::{AsyncOperation, EvaluationContext};
 use async_trait::async_trait;
-use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{FhirPathError, FhirPathValue, JsonValueExt, Result};
 
 /// Is operation - checks if value is of specific type
 #[derive(Debug, Default, Clone)]
@@ -17,43 +15,47 @@ impl IsOperation {
         Self
     }
 
-    /// Check if a value matches a type name
+    /// Check if a value matches a type name using ModelProvider's enhanced capabilities
     async fn matches_type(
         &self,
         value: &FhirPathValue,
         type_name: &str,
         context: &EvaluationContext,
     ) -> bool {
-        // For FHIR types, try to use ModelProvider to get the correct type information
-        // This is important for cases like Patient.gender which is stored as a string
-        // but should be recognized as a FHIR code type
-        if context
-            .model_provider
-            .is_value_of_type(value, type_name)
-            .await
-        {
-            return true;
+        // First, try to get type reflection for the target type to validate it exists
+        if let Ok(Some(_type_reflection)) = context.model_provider.get_type_reflection(type_name).await {
+            // Use ModelProvider's type compatibility checking for accurate FHIR type matching
+            if let Ok(value_type_info) = context.model_provider.get_type_reflection(&value.type_name()).await {
+                if let Some(value_type_info) = value_type_info {
+                    // Use type hierarchy to check compatibility
+                    if let Ok(Some(hierarchy)) = context.model_provider.get_type_hierarchy(&value.type_name()).await {
+                        // Check if the target type is in the hierarchy (inheritance chain)
+                        if hierarchy.ancestors.iter().any(|ancestor| ancestor == type_name) {
+                            return true;
+                        }
+                    }
+                    
+                    // Use type compatibility check for more complex cases
+                    if let Ok(compatible) = context.model_provider.is_type_compatible(&value.type_name(), type_name).await {
+                        if compatible {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
 
-        // Also try with FHIR prefix if not already present
+        // Also try with FHIR prefix variations for flexibility
         if !type_name.starts_with("FHIR.") {
             let fhir_type_name = format!("FHIR.{type_name}");
-            if context
-                .model_provider
-                .is_value_of_type(value, &fhir_type_name)
-                .await
-            {
+            if Box::pin(self.matches_type(value, &fhir_type_name, context)).await {
                 return true;
             }
         }
 
         // Also try without FHIR prefix if present
         if let Some(bare_type_name) = type_name.strip_prefix("FHIR.") {
-            if context
-                .model_provider
-                .is_value_of_type(value, bare_type_name)
-                .await
-            {
+            if Box::pin(self.matches_type(value, bare_type_name, context)).await {
                 return true;
             }
         }
@@ -67,7 +69,7 @@ impl IsOperation {
             FhirPathValue::DateTime(_) => "System.DateTime",
             FhirPathValue::Date(_) => "System.Date",
             FhirPathValue::Time(_) => "System.Time",
-            FhirPathValue::Quantity(_) => "System.Quantity",
+            FhirPathValue::Quantity { value: _, .. } => "System.Quantity",
             FhirPathValue::JsonValue(json_val) => {
                 // Try to match FHIR resource type
                 if let Some(resource_type) = json_val.as_inner().get("resourceType") {
@@ -143,8 +145,10 @@ impl AsyncOperation for IsOperation {
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 // For FHIR types, use just the name (e.g., "code" not "FHIR.code")
                 // For System types, use the full name (e.g., "System.String")
-                if namespace.as_ref() == "FHIR" {
-                    name.as_ref()
+                let ns_str: &str = namespace.as_ref();
+                let name_str: &str = name.as_ref();
+                if ns_str == "FHIR" {
+                    name_str
                 } else {
                     // Create full type name for non-FHIR types
                     return Ok(FhirPathValue::Boolean(
@@ -157,8 +161,10 @@ impl AsyncOperation for IsOperation {
             FhirPathValue::Collection(col) => {
                 if col.len() == 1 {
                     if let Some(FhirPathValue::TypeInfoObject { namespace, name }) = col.get(0) {
-                        if namespace.as_ref() == "FHIR" {
-                            name.as_ref()
+                        let ns_str: &str = namespace.as_ref();
+                        let name_str: &str = name.as_ref();
+                        if ns_str == "FHIR" {
+                            name_str
                         } else {
                             return Ok(FhirPathValue::Boolean(
                                 self.matches_type(
@@ -173,7 +179,7 @@ impl AsyncOperation for IsOperation {
                         return Err(FhirPathError::TypeError {
                             message: format!(
                                 "is() type argument must be a type identifier or string, got {}",
-                                col.get(0).map(|v| v.type_name()).unwrap_or("None")
+                                col.get(0).map(|v| v.type_name()).unwrap_or("None".to_string())
                             ),
                         });
                     }
@@ -207,24 +213,16 @@ impl AsyncOperation for IsOperation {
                     results.push(FhirPathValue::Boolean(matches));
                 }
 
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(results),
-                ))
+                Ok(FhirPathValue::Collection(results))
             }
             FhirPathValue::Empty => {
                 // Empty input returns empty collection
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![]),
-                ))
+                Ok(FhirPathValue::Collection(vec![]))
             }
             _ => {
                 // Single item - check if it matches the type
                 let matches = self.matches_type(&context.input, type_name, context).await;
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![FhirPathValue::Boolean(
-                        matches,
-                    )]),
-                ))
+                Ok(FhirPathValue::Collection(vec![FhirPathValue::Boolean(matches)]))
             }
         }
     }

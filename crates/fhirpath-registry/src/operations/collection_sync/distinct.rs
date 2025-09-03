@@ -3,7 +3,7 @@
 use crate::signature::{CardinalityRequirement, FunctionCategory, FunctionSignature, ValueType};
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use std::collections::HashSet;
 
 /// Simplified distinct function: returns unique items from collection
@@ -67,18 +67,12 @@ impl SyncOperation for SimpleDistinctFunction {
                     }
                 }
 
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(unique_items),
-                ))
+                Ok(FhirPathValue::Collection(unique_items))
             }
-            FhirPathValue::Empty => Ok(FhirPathValue::Collection(
-                octofhir_fhirpath_model::Collection::from(vec![]),
-            )),
+            FhirPathValue::Empty => Ok(FhirPathValue::Collection(vec![])),
             _ => {
                 // Single item is always distinct
-                Ok(FhirPathValue::Collection(
-                    octofhir_fhirpath_model::Collection::from(vec![context.input.clone()]),
-                ))
+                Ok(FhirPathValue::Collection(vec![context.input.clone()]))
             }
         }
     }

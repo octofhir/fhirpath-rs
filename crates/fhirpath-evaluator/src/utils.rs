@@ -4,8 +4,7 @@
 //! evaluation engine, including type checking, value comparison, and validation.
 
 use octofhir_fhirpath_ast::ExpressionNode;
-use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::{EvaluationError, EvaluationResult, FhirPathValue, JsonValueExt};
 
 /// Utility functions for the FHIRPath evaluation engine
 impl crate::FhirPathEngine {
@@ -18,11 +17,7 @@ impl crate::FhirPathEngine {
             // Empty becomes empty collection
             FhirPathValue::Empty => FhirPathValue::Collection(Default::default()),
             // All other values must be wrapped in single-item collections
-            other => {
-                let mut collection = octofhir_fhirpath_model::Collection::new();
-                collection.push(other);
-                FhirPathValue::Collection(collection)
-            }
+            other => FhirPathValue::Collection(vec![other]),
         }
     }
 
@@ -194,10 +189,10 @@ impl crate::FhirPathEngine {
                         if let Some(id) = id_val.as_str() {
                             format!("object:id:{id}")
                         } else {
-                            format!("object:hash:{}", json_val.to_string().unwrap_or_default())
+                            format!("object:hash:{}", json_val.to_string())
                         }
                     } else {
-                        format!("object:hash:{}", json_val.to_string().unwrap_or_default())
+                        format!("object:hash:{}", json_val.to_string())
                     }
                 } else {
                     format!("json:{json_val:?}")

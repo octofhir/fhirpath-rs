@@ -5,12 +5,15 @@
 
 use crate::registry::{AsyncRegistry, SyncRegistry};
 use crate::type_registry::{FhirPathTypeRegistry, RegistryError};
+#[cfg(feature = "schema")]
 use octofhir_fhirschema::package::FhirSchemaPackageManager;
+use crate::FhirPathValue;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Enhanced function registry with schema awareness
+#[cfg(feature = "schema")]
 pub struct SchemaAwareFunctionRegistry {
     #[allow(dead_code)]
     sync_registry: Arc<SyncRegistry>,
@@ -23,6 +26,7 @@ pub struct SchemaAwareFunctionRegistry {
 }
 
 /// Function type for caching dispatch decisions
+#[cfg(feature = "schema")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 enum FunctionType {
@@ -30,6 +34,7 @@ enum FunctionType {
     Async,
 }
 
+#[cfg(feature = "schema")]
 impl SchemaAwareFunctionRegistry {
     /// Create a new schema-aware function registry
     pub async fn new(schema_manager: Arc<FhirSchemaPackageManager>) -> Result<Self, RegistryError> {
@@ -50,10 +55,9 @@ impl SchemaAwareFunctionRegistry {
     pub async fn evaluate_function(
         &self,
         function_name: &str,
-        args: &[octofhir_fhirpath_model::FhirPathValue],
+        args: &[FhirPathValue],
         context: &crate::traits::EvaluationContext,
-    ) -> Result<octofhir_fhirpath_model::FhirPathValue, octofhir_fhirpath_core::FhirPathError> {
-        use octofhir_fhirpath_model::FhirPathValue;
+    ) -> Result<FhirPathValue, octofhir_fhirpath_core::FhirPathError> {
 
         // Simple implementation for core type functions
         match function_name {
@@ -86,10 +90,10 @@ impl SchemaAwareFunctionRegistry {
                             vec![context.input.clone()].into(),
                         ))
                     } else {
-                        Ok(FhirPathValue::Collection(vec![].into()))
+                        Ok(FhirPathValue::Collection(vec![]))
                     }
                 } else {
-                    Ok(FhirPathValue::Collection(vec![].into()))
+                    Ok(FhirPathValue::Collection(vec![]))
                 }
             }
 
@@ -140,7 +144,7 @@ impl SchemaAwareFunctionRegistry {
                         vec![context.input.clone()].into(),
                     ))
                 } else {
-                    Ok(FhirPathValue::Collection(vec![].into()))
+                    Ok(FhirPathValue::Collection(vec![]))
                 }
             }
 

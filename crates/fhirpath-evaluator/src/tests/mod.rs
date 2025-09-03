@@ -7,7 +7,7 @@ pub mod stress_tests; // Memory and load tests
 pub mod validation_pipeline; // Automated validation
 
 use super::engine::{EvaluationConfig, FhirPathEngine};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use serde_json::json;
 use std::time::Instant;
 
@@ -17,7 +17,7 @@ pub struct TestUtils;
 impl TestUtils {
     /// Create engine with test configuration
     pub async fn create_test_engine() -> Result<FhirPathEngine, Box<dyn std::error::Error>> {
-        use octofhir_fhirpath_model::MockModelProvider;
+        use octofhir_fhirpath_core::MockModelProvider;
         use octofhir_fhirpath_registry::create_standard_registry;
         use std::sync::Arc;
 
@@ -209,7 +209,7 @@ pub fn as_single_boolean(value: &FhirPathValue) -> Option<bool> {
 }
 
 /// Get collection reference
-pub fn as_collection(value: &FhirPathValue) -> Option<&octofhir_fhirpath_model::Collection> {
+pub fn as_collection(value: &FhirPathValue) -> Option<&octofhir_fhirpath_core::Collection> {
     match value {
         FhirPathValue::Collection(c) => Some(c),
         _ => None,

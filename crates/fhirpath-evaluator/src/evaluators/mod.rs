@@ -30,4 +30,4 @@ pub use collection::CollectionEvaluator;
 pub use comparison::ComparisonEvaluator;
 pub use logical::LogicalEvaluator;
 pub use navigation::NavigationEvaluator;
-pub use polymorphic::{NavigationResult, PolymorphicNavigationEngine};
+pub use polymorphic::PolymorphicEvaluator;

@@ -19,7 +19,14 @@
 
 pub mod error;
 pub mod evaluation;
+pub mod temporal;
+pub mod value;
 
 // Re-export main types
 pub use error::{FhirPathError, Result};
 pub use evaluation::{EvaluationError, EvaluationResult};
+pub use temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+pub use value::{Collection, FhirPathValue, FhirResource, JsonValueExt};
+
+// Re-export ModelProvider from octofhir-fhir-model
+pub use octofhir_fhir_model::ModelProvider;

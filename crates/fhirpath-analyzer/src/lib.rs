@@ -1,157 +1,83 @@
-//! # FHIRPath Static Analysis and Type-Enriched AST Engine
+//! # FHIRPath Static Analysis Engine
 //!
-//! This crate provides comprehensive static analysis capabilities for FHIRPath expressions
-//! with a focus on specification compliance and rich functionality.
+//! This crate provides comprehensive static analysis capabilities for FHIRPath expressions,
+//! including type checking, semantic validation, performance optimization analysis,
+//! and advanced diagnostic reporting.
 //!
-//! ## Core Components
+//! ## Key Features
 //!
-//! - [`FhirPathAnalyzer`] - Main analysis engine
-//! - [`AnalysisResult`] - Rich analysis information  
-//! - [`SemanticInfo`] - Type and semantic metadata
-//! - [`ValidationError`] - Detailed error information
+//! - **Multi-phase analysis**: Lexical, semantic, property resolution, function validation
+//! - **Rich diagnostics**: Error recovery, suggestions, multiple output formats
+//! - **Type system**: Full FHIR type awareness and validation
+//! - **Performance optimization**: Analysis of expression efficiency
+//! - **Integration ready**: Designed for IDE, CLI, and server integration
 //!
-//! ## Quick Start
+//! ## Architecture
 //!
-//! ```rust
-//! use octofhir_fhirpath_analyzer::{FhirPathAnalyzer};
-//! use octofhir_fhirpath_model::mock_provider::MockModelProvider;
+//! The analyzer follows a modular, multi-phase approach:
+//!
+//! 1. **Lexical Analysis**: Token-level validation and basic syntax checking
+//! 2. **Semantic Analysis**: Context-aware validation and type inference
+//! 3. **Property Resolution**: FHIR property and path validation
+//! 4. **Function Validation**: Function signature and usage validation
+//! 5. **Optimization Analysis**: Performance and efficiency recommendations
+//!
+//! ## Usage
+//!
+//! ```rust,no_run
+//! use octofhir_fhirpath_analyzer::core::analyzer_engine::FhirPathAnalyzer;
+//! use octofhir_fhirpath_analyzer::providers::MockFhirProvider;
 //! use std::sync::Arc;
 //!
-//! # tokio_test::block_on(async {
-//! let provider = Arc::new(MockModelProvider::new());
-//! let analyzer = FhirPathAnalyzer::new(provider);
-//!
-//! let result = analyzer.analyze("Patient.name.given").await?;
-//! println!("Found {} type annotations", result.type_annotations.len());
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # });
-//! ```
-//!
-//! ## Advanced Usage
-//!
-//! ### Function Registry Integration
-//!
-//! ```rust
-//! use octofhir_fhirpath_analyzer::FhirPathAnalyzer;
-//! use octofhir_fhirpath_registry::create_standard_registry;
-//! use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-//! use std::sync::Arc;
-//!
-//! # tokio_test::block_on(async {
-//! let provider = Arc::new(MockModelProvider::new());
-//! let registry = Arc::new(create_standard_registry().await);
-//! let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
-//!
-//! // Function signature validation
-//! let result = analyzer.analyze("count()").await?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # });
-//! ```
-//!
-//! ### Children() Function Analysis
-//!
-//! ```rust
-//! # use octofhir_fhirpath_analyzer::FhirPathAnalyzer;
-//! # use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-//! # use std::sync::Arc;
-//! # tokio_test::block_on(async {
-//! # let provider = Arc::new(MockModelProvider::new());
-//! # let analyzer = FhirPathAnalyzer::new(provider);
-//! // Union type analysis for children() function
-//! let result = analyzer.analyze("Patient.children().ofType(HumanName)").await?;
-//!
-//! // Check for union type information
-//! if !result.union_types.is_empty() {
-//!     println!("Found union types from children() analysis");
-//! }
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # });
-//! ```
-//!
-//! ## Error Handling
-//!
-//! The analyzer provides detailed validation errors with suggestions:
-//!
-//! ```rust
-//! # use octofhir_fhirpath_analyzer::{FhirPathAnalyzer, ValidationErrorType};
-//! # use octofhir_fhirpath_model::mock_provider::MockModelProvider;
-//! # use std::sync::Arc;
-//! # tokio_test::block_on(async {
-//! # let provider = Arc::new(MockModelProvider::new());
-//! # let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
-//! # let analyzer = FhirPathAnalyzer::with_function_registry(provider, registry);
-//! let result = analyzer.analyze("unknownFunction()").await?;
-//!
-//! for error in result.validation_errors {
-//!     match error.error_type {
-//!         ValidationErrorType::InvalidFunction => {
-//!             println!("Function error: {}", error.message);
-//!             println!("Suggestions: {:?}", error.suggestions);
+//! async fn analyze_expression() -> Result<(), Box<dyn std::error::Error>> {
+//!     let provider = Arc::new(MockFhirProvider::new());
+//!     let mut analyzer = FhirPathAnalyzer::new(provider);
+//!     
+//!     let result = analyzer.analyze("Patient.name.family").await?;
+//!     
+//!     if result.has_errors() {
+//!         for diagnostic in result.diagnostics() {
+//!             println!("Error: {}", diagnostic);
 //!         }
-//!         _ => println!("Other error: {}", error.message),
 //!     }
+//!     
+//!     Ok(())
 //! }
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # });
 //! ```
-//!
-//! ## Performance Considerations
-//!
-//! The analyzer is designed for high performance:
-//!
-//! - **Caching**: Aggressive caching of analysis results
-//! - **External Mapping**: No AST modifications for zero overhead when disabled
-//! - **Concurrent**: Thread-safe operations with DashMap
-//!
-//! Typical performance targets:
-//! - Analysis: <100μs for basic expressions
-//! - Memory: <10% overhead when enabled
-//! - Cache hit rate: >90% for repeated expressions
 
-#![warn(missing_docs)]
-#![warn(clippy::all)]
-#![allow(clippy::result_large_err)]
+pub mod core;
+pub mod phases;
+pub mod diagnostics;
+pub mod validators;
+pub mod providers;
 
-pub mod analyzer;
-pub mod bridge_constraint_analyzer;
-pub mod bridge_error_reporter;
-pub mod bridge_field_validator;
-pub mod bridge_path_navigator;
-pub mod cache;
-pub mod children_analyzer;
-pub mod config;
-pub mod error;
-pub mod field_validator;
-pub mod function_analyzer;
-pub mod model_provider_ext;
-pub mod types;
+// Re-export commonly used types for convenience
+pub use core::{
+    analyzer_engine::{
+        FhirPathAnalyzer, AnalysisResult, AnalyzerConfig, NodeId,
+        SymbolResolution, PropertyResolution, FunctionResolution, VariableResolution,
+        OptimizationHint, OptimizationHintType, CompletionItem, CompletionKind,
+        HoverInfo, AnalysisMetadata, MemoryStats
+    },
+    context::{
+        AnalysisContext, ScopeInfo, LambdaContext, PathSegment, AnalysisPhase, IterationType
+    },
+    symbol_table::{
+        SymbolTable, SymbolTableError, Scope, ScopeType, VariableBinding, FunctionBinding
+    },
+    type_system::{
+        FhirType, PrimitiveType, ResourceType, BackboneElementType, 
+        TypeInformation, TypeSystem, Cardinality, TypeConstraint, ConstraintType, ConstraintSeverity
+    },
+    error::AnalysisError,
+};
 
-// Re-export main types
-pub use analyzer::FhirPathAnalyzer;
-pub use bridge_constraint_analyzer::{
-    ConstraintAnalyzer, ConstraintPerformanceMetrics, ConstraintSuggestion,
-    ConstraintValidationResult, ConstraintViolation, ExecutionTimeCategory, MemoryUsageCategory,
+pub use providers::{
+    fhir_provider::{FhirProvider, PropertyInfo, FhirProviderError},
+    function_provider::{FunctionProvider, FunctionSignature, FunctionProviderError},
+    cache_provider::CacheProvider,
 };
-pub use bridge_error_reporter::{
-    AnalyzerErrorReporter, AutomaticFix, DocumentationLink, EnhancedErrorReport, ErrorCategory,
-    ErrorSeverity, ErrorSuggestion, FhirPathError, PropertySuggestion,
-};
-pub use bridge_field_validator::{
-    AnalyzerError, AnalyzerFieldValidator, BridgeCardinality, BridgeValidationResult, PropertyInfo,
-    SimilarityMatcher,
-};
-pub use bridge_path_navigator::{
-    AnalyzerPathNavigator, EnhancedPathSuggestion, NavigationCacheStats, PathSuggestion,
-    UsageStatistics,
-};
-pub use cache::{AnalysisCache, ExpressionAnalysisMap};
-pub use children_analyzer::ChildrenFunctionAnalyzer;
-pub use config::AnalyzerConfig;
-pub use error::{AnalysisError, ValidationError, ValidationErrorType};
-pub use field_validator::FieldValidator;
-pub use function_analyzer::FunctionAnalyzer;
-pub use model_provider_ext::ModelProviderChildrenExt;
-pub use types::{AnalysisContext, AnalysisResult, AnalysisSettings, SemanticInfo};
 
-#[cfg(test)]
-mod tests;
+// Version information
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CRATE_NAME: &str = env!("CARGO_PKG_NAME");

@@ -5,7 +5,7 @@ use crate::signature::{
 };
 use crate::traits::{EvaluationContext, SyncOperation};
 use octofhir_fhirpath_core::{FhirPathError, Result};
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Simplified round function: rounds a numeric value to the specified number of decimal places
@@ -89,18 +89,19 @@ impl SyncOperation for SimpleRoundFunction {
                     ))
                 }
             }
-            FhirPathValue::Quantity(q) => {
-                let value = q.value.to_f64().unwrap_or(0.0);
+            FhirPathValue::Quantity { value, unit, ucum_expr } => {
+                let value = value.to_f64().unwrap_or(0.0);
                 let result = if precision <= 0 {
                     value.round()
                 } else {
                     let multiplier = 10_f64.powi(precision as i32);
                     (value * multiplier).round() / multiplier
                 };
-                Ok(FhirPathValue::quantity(
-                    rust_decimal::Decimal::try_from(result).unwrap_or_default(),
-                    q.unit.clone(),
-                ))
+                Ok(FhirPathValue::Quantity { 
+                    value: rust_decimal::Decimal::try_from(result).unwrap_or_default(),
+                    unit: unit.clone(), 
+                    ucum_expr: ucum_expr.clone(),
+                })
             }
             FhirPathValue::Empty => Ok(FhirPathValue::Empty),
             FhirPathValue::Collection(c) => {

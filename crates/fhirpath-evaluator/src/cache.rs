@@ -18,7 +18,8 @@
 //! to reduce the overhead of bridge API calls during evaluation.
 
 use octofhir_fhirpath_core::{EvaluationError, EvaluationResult};
-use octofhir_fhirpath_model::{BridgeChoiceInfo, TypeInfo};
+// TODO: Re-enable when bridge types are moved to core
+// use octofhir_fhir_model::{BridgeChoiceInfo, TypeInfo};
 use octofhir_fhirschema::FhirSchemaPackageManager;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -33,7 +33,7 @@
 //! 3. **Parent scopes**: Recursively search up the scope chain
 //! 4. **Environment variables**: System variables like `%context`, `%resource`
 
-use octofhir_fhirpath_model::FhirPathValue;
+use octofhir_fhirpath_core::FhirPathValue;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::sync::Arc;
