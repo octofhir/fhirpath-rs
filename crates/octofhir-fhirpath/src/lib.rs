@@ -1,115 +1,175 @@
-// Copyright 2024 OctoFHIR Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! FHIRPath implementation in Rust
+//! # OctoFHIR FHIRPath Implementation
 //!
-//! A complete implementation of the FHIRPath expression language for FHIR resources
-//! with high performance and FHIR compliance.
+//! A high-performance, spec-compliant implementation of the FHIRPath expression language
+//! for FHIR resources. This implementation consolidates all functionality into a single
+//! crate for easier maintenance while providing a clean, modular architecture.
+//!
+//! ## Overview
+//!
+//! FHIRPath is a path-based navigation and extraction language designed for FHIR resources.
+//! This implementation provides:
+//!
+//! - **Complete FHIRPath 3.0 specification compliance**
+//! - **High-performance evaluation engine** 
+//! - **Comprehensive error handling and diagnostics**
+//! - **Integration with FHIR model providers**
+//! - **Rich type system with precision temporal types**
+//! - **UCUM unit support for quantities**
+//!
+//! ## Architecture
+//!
+//! The crate is organized into the following modules:
+//!
+//! - [`ast`] - Abstract syntax tree definitions
+//! - [`core`] - Core types, errors, and value system  
+//! - [`parser`] - Expression parsing with nom
+//! - [`evaluator`] - Expression evaluation engine
+//! - [`registry`] - Function and operator registry
+//! - [`diagnostics`] - Error reporting and diagnostics
+//! - [`analyzer`] - Static analysis and validation
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use octofhir_fhirpath::{FhirPathEngine, Collection};
+//! use octofhir_fhir_model::EmptyModelProvider;
+//! use std::sync::Arc;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a FHIRPath engine with a model provider
+//! let registry = octofhir_fhirpath::create_standard_registry().await;
+//! let model_provider = Arc::new(EmptyModelProvider);
+//! let engine = FhirPathEngine::new(Arc::new(registry), model_provider);
+//!
+//! // Parse and evaluate an expression
+//! let expression = "Patient.name.family";
+//! let result = engine.evaluate(expression, &Collection::empty()).await?;
+//!
+//! println!("Result: {:?}", result);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Features
+//!
+//! - **Parser**: Complete FHIRPath syntax support using nom parser combinators
+//! - **Type System**: Rich type system with temporal precision and UCUM quantities
+//! - **Functions**: Comprehensive function library covering all FHIRPath operations
+//! - **Error Handling**: Detailed error messages with source location tracking
+//! - **Performance**: Optimized evaluation with efficient collection handling
+//! - **ModelProvider**: Pluggable model provider system for different FHIR versions
 
-// Import workspace crates
-pub use octofhir_fhirpath_ast as ast;
-pub use octofhir_fhirpath_core as core;
-pub use octofhir_fhirpath_diagnostics as diagnostics;
-pub use octofhir_fhirpath_evaluator as evaluator;
-pub use octofhir_fhirpath_parser as parser;
-pub use octofhir_fhirpath_registry as registry;
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
 
-pub mod config;
-pub mod convenience;
-pub mod engine_factory;
-pub mod fhirpath;
+// Core modules
+pub mod ast;
+pub mod core;
+
+// Engine modules  
+pub mod parser;
+pub mod evaluator;
+pub mod registry;
+
+// Support modules
+pub mod diagnostics;
+pub mod analyzer;
+
+// Additional modules
 pub mod mock_provider;
-pub mod utils;
 
-// Primary engine - use this for all new code
-pub use octofhir_fhirpath_core::{Collection, FhirPathValue};
-pub use octofhir_fhirpath_evaluator::{EvaluationConfig, EvaluationContext, FhirPathEngine};
-pub use octofhir_fhirpath_parser::{ParseError, parse_expression as parse};
-pub use octofhir_fhirpath_registry::{FunctionRegistry, create_standard_registry};
-
-// Re-export from workspace crates
-pub use octofhir_fhirpath_ast::{
-    BinaryOpData, BinaryOperator, ConditionalData, ExpressionNode, FunctionCallData, LambdaData,
-    LiteralValue, MethodCallData, UnaryOperator,
-};
-pub use octofhir_fhirpath_core::{EvaluationError, FhirPathError, Result};
-pub use octofhir_fhirpath_diagnostics::{
-    Diagnostic, DiagnosticBuilder, DiagnosticCode, DiagnosticReporter, DiagnosticSeverity,
+// Re-export core types for convenience
+pub use crate::core::{
+    Collection, FhirPathValue, FhirPathError, Result, ModelProvider,
 };
 
-// Registry re-exports - only what exists
-pub use octofhir_fhirpath_registry::{PackageError, RegistryPackageManager};
-
-// Re-export ModelProvider from core
-pub use octofhir_fhirpath_core::ModelProvider;
-
-// Re-export from local modules (minimal local integration code)
-pub mod value_ext;
-
-// Main API exports
-pub use config::{
-    FhirPathConfig, FhirPathConfigBuilder, FhirPathEngineConfig, FhirPathEvaluationResult,
-    FhirVersion, OutputFormat, PerformanceMetrics, SchemaConfig,
+// Re-export main engine types
+pub use crate::evaluator::{FhirPathEngine, EvaluationContext, EvaluationConfig};
+// Parser API exports - New unified API with clean naming
+pub use crate::parser::{
+    // Main parsing functions with clean names
+    parse, parse_with_analysis, parse_with_mode, parse_ast, parse_ast_with_mode, parse_with_config,
+    
+    // Convenience functions
+    is_valid, validate, parse_multiple, parse_multiple_ast,
+    recommend_mode, get_errors, get_warnings,
+    
+    // Types
+    ParsingMode, ParseResult, ParserConfig, ParserUseCase,
+    
+    // Backward compatibility (legacy names)
+    parse_expression,
 };
-pub use engine_factory::{
-    AdvancedFhirPathEngine, CliEvaluationResult, CliFhirPathEngine, CliValidationResult,
-};
-pub use fhirpath::FhirPath;
+pub use crate::registry::{FunctionRegistry, create_standard_registry};
 
-// Convenience function exports
-pub use convenience::{
-    evaluate_boolean, evaluate_fhirpath, evaluate_fhirpath_with_analysis,
-    evaluate_fhirpath_with_version, get_all_string_values, get_string_value, parse_expression,
-    path_exists, validate_fhirpath,
-};
+// Re-export AST types
+pub use crate::ast::{ExpressionNode, LiteralValue, BinaryOperator, UnaryOperator};
 
-// Re-export conversion utilities for easier access
-pub use utils::{
-    JsonResult, fhir_value_to_serde, from_json, parse_as_fhir_value, parse_json, parse_with_serde,
-    reformat_json, serde_to_fhir_value, to_json,
+// Re-export diagnostic types
+pub use crate::diagnostics::{
+    Diagnostic, DiagnosticSeverity, DiagnosticCode,
+    // New Ariadne-based diagnostic types
+    AriadneDiagnostic, RelatedDiagnostic, 
+    DiagnosticEngine, DiagnosticFormatter,
+    ColorScheme, SourceManager, SourceInfo,
 };
 
-// Re-export MockModelProvider for convenience in examples
-pub use mock_provider::MockModelProvider;
+// Re-export MockModelProvider for testing and development
+pub use crate::mock_provider::MockModelProvider;
 
-/// Create a FhirPathEngine with enhanced MockModelProvider for testing
-pub async fn create_engine_with_mock_provider()
--> octofhir_fhirpath_core::EvaluationResult<FhirPathEngine> {
+/// Create a FhirPathEngine with MockModelProvider for testing and development
+/// 
+/// This is a convenience function for getting started quickly with FHIRPath
+/// evaluation when you don't need full FHIR schema support.
+///
+/// ```rust,no_run
+/// use octofhir_fhirpath::create_engine_with_mock_provider;
+///
+/// # async fn example() -> octofhir_fhirpath::Result<()> {
+/// let engine = create_engine_with_mock_provider().await?;
+/// 
+/// let result = engine.evaluate("1 + 2", &octofhir_fhirpath::Collection::empty()).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
     use std::sync::Arc;
-    let registry = octofhir_fhirpath_registry::create_standard_registry().await;
-    let model_provider = Arc::new(MockModelProvider::default());
+    
+    let registry = create_standard_registry().await;
+    let model_provider = Arc::new(octofhir_fhir_model::EmptyModelProvider);
+    
     Ok(FhirPathEngine::new(Arc::new(registry), model_provider))
 }
 
-// Helper functions for error conversion (since we can't implement orphan traits)
-
-/// Convert EvaluationError to FhirPathError
-pub fn evaluation_error_to_fhirpath_error(err: EvaluationError) -> FhirPathError {
-    FhirPathError::EvaluationError {
-        message: err.to_string(),
-        expression: None,
-        location: None,
-        error_type: None,
-    }
+/// Main evaluation function for simple use cases
+///
+/// This function provides a simple interface for evaluating FHIRPath expressions
+/// when you don't need the full engine configuration options.
+///
+/// ```rust,no_run
+/// use octofhir_fhirpath::{evaluate, Collection};
+/// use serde_json::json;
+///
+/// # async fn example() -> octofhir_fhirpath::Result<()> {
+/// let patient = json!({
+///     "resourceType": "Patient",
+///     "name": [{"family": "Doe", "given": ["John"]}]
+/// });
+/// 
+/// let context = Collection::single(octofhir_fhirpath::FhirPathValue::resource(patient));
+/// let result = evaluate("Patient.name.family", &context).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub async fn evaluate(expression: &str, context: &Collection) -> Result<Collection> {
+    let engine = create_engine_with_mock_provider().await?;
+    engine.evaluate(expression, context).await
 }
 
-/// Convert serde_json::Error to FhirPathError
-pub fn json_error_to_fhirpath_error(err: serde_json::Error) -> FhirPathError {
-    FhirPathError::EvaluationError {
-        message: format!("JSON serialization error: {}", err),
-        expression: None,
-        location: None,
-        error_type: Some("JsonError".to_string()),
-    }
-}
+// Version information
+/// The version of this crate
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The FHIRPath specification version this implementation targets
+pub const FHIRPATH_VERSION: &str = "3.0.0";

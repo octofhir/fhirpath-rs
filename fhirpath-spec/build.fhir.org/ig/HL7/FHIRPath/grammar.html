@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HTML>
+<html xml:lang="en" xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <title>FHIRPath Antlr 4.0 Grammar - FHIRPath Specification v3.0.0-ballot</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="author" content="http://hl7.org/fhir"/>
+
+    <link href="fhir.css" rel="stylesheet"/>
+
+    <!-- Bootstrap core CSS -->
+    <link href="assets/css/bootstrap-fhir.css" rel="stylesheet"/>
+
+    <!-- Project extras -->
+    <link href="assets/css/project.css" rel="stylesheet"/>
+    <link href="assets/css/pygments-manni.css" rel="stylesheet"/>
+    <link href="assets/css/jquery-ui.css" rel="stylesheet"/>
+  	<link href="assets/css/prism.css" rel="stylesheet" />
+    <!-- Placeholder for child template CSS declarations -->
+    <link href="assets/css/hl7.css" rel="stylesheet"/>
+    <link href="assets/css/fhirpath.css" rel="stylesheet"/>
+    <link href="assets/css/prism-fhirpath.css" rel="stylesheet"/>
+
+    <script type="text/javascript" src="fhir-table-scripts.js"> </script>
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="assets/js/html5shiv.js"></script>
+    <script src="assets/js/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Favicons -->
+    <link rel="fhir-logo" sizes="144x144" href="assets/ico/icon-fhir-144.png"/>
+    <link rel="fhir-logo" sizes="114x114" href="assets/ico/icon-fhir-114.png"/>
+    <link rel="fhir-logo" sizes="72x72" href="assets/ico/icon-fhir-72.png"/>
+    <link rel="fhir-logo" href="assets/ico/icon-fhir-57.png"/>
+    <link rel="shortcut icon" href="assets/ico/favicon.png"/>
+  </head>
+  <body onload="document.body.style.opacity='1'">
+
+	  <script src="assets/js/prism.js"></script>
+
+    <style type="text/css">h2{--heading-prefix:"2"}
+    h3,h4,h5,h6{--heading-prefix:"2"}</style>
+    <div id="segment-header" class="segment">  <!-- segment-header -->
+      <div class="container">  <!-- container -->
+        <!-- Placeholder for child template header declarations -->
+
+      <div id="hl7-nav">
+        <a id="hl7-logo" no-external="true" href="http://hl7.org">
+          <img height="50" alt="Visit the HL7 website" src="assets/images/hl7-logo-header.png"/>
+        </a>
+      </div>
+              <!-- fhirpath expression syntax highlighting -->
+        <script src="assets/js/prism-fhirpath.js"></script>
+
+        <div id="ig-status">
+          <p><span style="font-size:12pt;font-weight:bold">FHIRPath Specification</span>
+            <br/>
+            <span style="display:inline-block;">3.0.0-ballot - R2 STU1
+
+
+
+  <img alt="International flag" src="assets/images/001.svg" height="16" title="International"/>
+
+
+            </span>
+          </p>
+        </div>
+      </div> <!-- /container -->
+    </div>  <!-- /segment-header -->
+
+    <div id="segment-navbar" class="segment">  <!-- segment-navbar -->
+      <div id="stripe"> </div>
+      <div class="container">  <!-- container -->
+        <!-- HEADER CONTENT -->
+
+        <nav class="navbar navbar-inverse">
+          <!--status-bar-->
+          <div class="container">
+            <button data-target=".navbar-inverse-collapse" class="navbar-toggle" data-toggle="collapse" type="button" aria-label="Show navigation menu" title="Show navigation menu">
+              <span class="icon-bar"> </span>
+              <span class="icon-bar"> </span>
+              <span class="icon-bar"> </span>
+            </button>
+            <a class="navbar-brand hidden" href="http://hl7.org/fhir/R4/index.html">FHIR</a>
+            <div class="nav-collapse collapse navbar-inverse-collapse">
+              <ul xmlns="http://www.w3.org/1999/xhtml" class="nav navbar-nav">
+    <li>
+        <a href="index.html">Documentation</a>
+    </li>
+    <li>
+        <a href="grammar.html">Grammar</a>
+    </li>
+    <li>
+        <a href="tests.html">Tests</a>
+    </li>
+    <li>
+        <a href="http://hl7.org/fhirpath/history.html">Version History</a>
+    </li>
+</ul>
+
+            </div>  <!-- /.nav-collapse -->
+          </div>  <!-- /.container -->
+        </nav>  <!-- /.navbar -->
+      <!-- /HEADER CONTENT -->
+      </div>  <!-- /container -->
+    </div>  <!-- /segment-navbar -->
+    <!--status-bar-->
+
+
+    <a name="top"> </a>
+    <div id="segment-content" class="segment">  <!-- segment-content -->
+      <div class="container">  <!-- container -->
+        <div class="row">
+          <div class="inner-wrapper">
+
+<div class="col-12">
+  <!--ReleaseHeader--><p id="publish-box">FHIRPath Specification, published by Implementable Technology Specifications WG. This guide is not an authorized publication; it is the continuous build for version 3.0.0-ballot built by the FHIR (HL7® FHIR® Standard) CI Build. This version is based on the current content of <a href="https://github.com/HL7/FHIRPath/">https://github.com/HL7/FHIRPath/</a> and changes regularly. See the <a href="http://hl7.org/fhirpath/history.html">Directory of published versions</a></p><!--EndReleaseHeader-->
+
+  
+
+
+
+
+
+
+
+
+
+
+
+    <p><!-- white space is critical inside of capture --></p>
+<div>
+<!-- do not remove - needed to prevent Jekyll from adding a p tag to any non block level element in the markdown.-->
+</div>
+
+<h1 id="fhirpath-grammar">FHIRPath Grammar</h1>
+
+<p>This page contains the <a href="http://www.antlr.org/">Antlr 4.0</a> grammar for FHIRPath.</p>
+
+<p><a href="fhirpath.g4">Raw FHIRPath grammar</a></p>
+
+<pre><code class="language-antlr4">grammar fhirpath;
+
+// Grammar rules
+// [FHIRPath](http://hl7.org/fhirpath/N1) Normative Release
+
+//prog: line (line)*;
+//line: ID ( '(' expr ')') ':' expr '\r'? '\n';
+
+entireExpression
+        : expression EOF
+        ;
+        
+expression
+        : term                                                      #termExpression
+        | expression '.' invocation                                 #invocationExpression
+        | expression '[' expression ']'                             #indexerExpression
+        | ('+' | '-') expression                                    #polarityExpression
+        | expression ('*' | '/' | 'div' | 'mod') expression         #multiplicativeExpression
+        | expression ('+' | '-' | '&amp;') expression                   #additiveExpression
+        | expression ('is' | 'as') typeSpecifier                    #typeExpression
+        | expression '|' expression                                 #unionExpression
+        | expression ('&lt;=' | '&lt;' | '&gt;' | '&gt;=') expression           #inequalityExpression
+        | expression ('=' | '~' | '!=' | '!~') expression           #equalityExpression
+        | expression ('in' | 'contains') expression                 #membershipExpression
+        | expression 'and' expression                               #andExpression
+        | expression ('or' | 'xor') expression                      #orExpression
+        | expression 'implies' expression                           #impliesExpression
+        //| (IDENTIFIER)? '=&gt;' expression                             #lambdaExpression
+        ;
+
+term
+        : invocation                                            #invocationTerm
+        | literal                                               #literalTerm
+        | externalConstant                                      #externalConstantTerm
+        | '(' expression ')'                                    #parenthesizedTerm
+        ;
+
+literal
+        : '{' '}'                                               #nullLiteral
+        | ('true' | 'false')                                    #booleanLiteral
+        | STRING                                                #stringLiteral
+        | NUMBER                                                #numberLiteral
+        | LONGNUMBER                                            #longNumberLiteral
+        | DATE                                                  #dateLiteral
+        | DATETIME                                              #dateTimeLiteral
+        | TIME                                                  #timeLiteral
+        | quantity                                              #quantityLiteral
+        ;
+
+externalConstant
+        : '%' ( identifier | STRING )
+        ;
+
+invocation                          // Terms that can be used after the function/member invocation '.'
+        : identifier                                            #memberInvocation
+        | function                                              #functionInvocation
+        | '$this'                                               #thisInvocation
+        | '$index'                                              #indexInvocation
+        | '$total'                                              #totalInvocation
+        ;
+
+function
+        : identifier '(' paramList? ')'
+        ;
+
+paramList
+        : expression (',' expression)*
+        ;
+
+quantity
+        : NUMBER unit?
+        ;
+
+unit
+        : dateTimePrecision
+        | pluralDateTimePrecision
+        | STRING // UCUM syntax for units of measure
+        ;
+
+dateTimePrecision
+        : 'year' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second' | 'millisecond'
+        ;
+
+pluralDateTimePrecision
+        : 'years' | 'months' | 'weeks' | 'days' | 'hours' | 'minutes' | 'seconds' | 'milliseconds'
+        ;
+
+typeSpecifier
+        : qualifiedIdentifier
+        ;
+
+qualifiedIdentifier
+        : identifier ('.' identifier)*
+        ;
+
+identifier
+        : IDENTIFIER
+        | DELIMITEDIDENTIFIER
+        | 'as'
+        | 'contains'
+        | 'in'
+        | 'is'
+        ;
+
+
+/****************************************************************
+    Lexical rules
+*****************************************************************/
+
+/*
+NOTE: The goal of these rules in the grammar is to provide a date
+token to the parser. As such it is not attempting to validate that
+the date is a correct date, that task is for the parser or interpreter.
+*/
+
+DATE
+        : '@' DATEFORMAT
+        ;
+
+DATETIME
+        : '@' DATEFORMAT 'T' (TIMEFORMAT TIMEZONEOFFSETFORMAT?)?
+        ;
+
+TIME
+        : '@' 'T' TIMEFORMAT
+        ;
+
+fragment DATEFORMAT
+        : [0-9][0-9][0-9][0-9] ('-'[0-9][0-9] ('-'[0-9][0-9])?)?
+        ;
+
+fragment TIMEFORMAT
+        : [0-9][0-9] (':'[0-9][0-9] (':'[0-9][0-9] ('.'[0-9]+)?)?)?
+        ;
+
+fragment TIMEZONEOFFSETFORMAT
+        : ('Z' | ('+' | '-') [0-9][0-9]':'[0-9][0-9])
+        ;
+
+IDENTIFIER
+        : ([A-Za-z] | '_')([A-Za-z0-9] | '_')*            // Added _ to support CQL (FHIR could constrain it out)
+        ;
+
+DELIMITEDIDENTIFIER
+        : '`' (ESC | .)*? '`'
+        ;
+
+STRING
+        : '\'' (ESC | .)*? '\''
+        ;
+
+// Also allows leading zeroes now (just like CQL and XSD)
+NUMBER
+        : [0-9]+('.' [0-9]+)?
+        ;
+
+LONGNUMBER
+        : [0-9]+ 'L'?
+        ;
+
+// Pipe whitespace to the HIDDEN channel to support retrieving source text through the parser.
+WS
+        : [ \r\n\t]+ -&gt; channel(HIDDEN)
+        ;
+
+COMMENT
+        : '/*' .*? '*/' -&gt; channel(HIDDEN)
+        ;
+
+LINE_COMMENT
+        : '//' ~[\r\n]* -&gt; channel(HIDDEN)
+        ;
+
+fragment ESC
+        : '\\' ([`'\\/fnrt] | UNICODE)    // allow \`, \', \\, \/, \f, etc. and \uXXX
+        ;
+
+fragment UNICODE
+        : 'u' HEX HEX HEX HEX
+        ;
+
+fragment HEX
+        : [0-9a-fA-F]
+        ;
+
+</code></pre>
+
+
+
+
+</div>
+        </div>  <!-- /inner-wrapper -->
+      </div>  <!-- /row -->
+    </div>  <!-- /container -->
+  </div>  <!-- /segment-content -->
+
+  <script type="text/javascript" src="assets/js/jquery.js"> </script>     <!-- note keep space here, otherwise it will be transformed to empty tag -> fails -->
+  <script type="text/javascript" src="assets/js/jquery-ui.min.js"> </script>
+
+  <script type="text/javascript" src="assets/js/window-hash.js"> </script>
+  <a name="bottom"> </a>
+  <div id="segment-footer" igtool="footer" class="segment">  <!-- segment-footer -->
+    <div class="container">  <!-- container -->
+
+      <div class="inner-wrapper">
+        <p>
+          IG &#169; 2014+ <a style="color:var(--footer-hyperlink-text-color)" href="http://www.hl7.org/Special/committees/xml/index.cfm">Implementable Technology Specifications WG</a>.  Package hl7.fhirpath#3.0.0-ballot based on <a style="color: var(--footer-hyperlink-text-color)" href="http://hl7.org/fhir/R4/">FHIR 4.0.1</a>. Generated <span title="Tue, Jan 28, 2025 21:54+0000">2025-01-28</span>
+          <br/>
+          <span style="color: var(--footer-highlight-text-color)">
+                      Links: <a style="color: var(--footer-hyperlink-text-color)" href="toc.html">Table of Contents</a> |
+                 <a style="color: var(--footer-hyperlink-text-color)" href="qa.html">QA Report</a>
+                 
+                
+          </span>
+        </p>
+      </div>  <!-- /inner-wrapper -->
+    </div>  <!-- /container -->
+  </div>  <!-- /segment-footer -->
+  
+  <div id="segment-post-footer" class="segment hidden">  <!-- segment-post-footer -->
+    <div class="container">  <!-- container -->
+    </div>  <!-- /container -->
+  </div>  <!-- /segment-post-footer -->
+
+  <!-- JS and analytics only. -->
+  <!-- Bootstrap core JavaScript
+  ================================================== -->
+  <!-- Placed at the end of the document so the pages load faster -->
+  <script type="text/javascript" src="assets/js/bootstrap.min.js"> </script>
+  <script type="text/javascript" src="assets/js/respond.min.js"> </script>
+  <script type="text/javascript" src="assets/js/anchor.min.js"> </script>
+  <script type="text/javascript" src="assets/js/clipboard.min.js"> </script>
+  <script type="text/javascript" src="assets/js/clipboard-btn.js"> </script>
+  <script type="text/javascript" src="assets/js/anchor-hover.js"> </script>
+  <!-- Analytics Below
+  ================================================== -->
+  </body>
+</html>
+

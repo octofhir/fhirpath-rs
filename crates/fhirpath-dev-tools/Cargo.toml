@@ -13,53 +13,19 @@ publish = false
 
 [[bin]]
 name = "test-runner"
-path = "src/bin/test-runner.rs"
-
-[[bin]]
-name = "test-coverage"
-path = "src/bin/test-coverage.rs"
-
-[[bin]]
-name = "fhirpath-bench"
-path = "src/bin/fhirpath-bench.rs"
+path = "src/main.rs"
 
 [dependencies]
-# Main FHIRPath library
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-
-# Workspace crates for direct access
-octofhir-fhirpath-core = { path = "../fhirpath-core" }
-# octofhir-fhirpath-model replaced with octofhir-fhir-model
-octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
-octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator" }
-octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
-
-# FHIR schema provider (for dev tools)
 octofhir-fhirschema = { workspace = true }
 octofhir-fhir-model = { workspace = true }
 
-# Core dependencies
-anyhow = { workspace = true }
-serde = { workspace = true }
+# Dev tools dependencies
 serde_json = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true }
+anyhow = { workspace = true }
 log = { workspace = true }
 env_logger = "0.11"
-
-# Development tool dependencies
-comfy-table = "7.0"
-glob = { workspace = true }
-indicatif = "0.17"
-colored = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true }
 chrono = { workspace = true }
-
-# Benchmarking
-divan = "0.1"
-pprof = { workspace = true, features = ["flamegraph"] }
-
-[dev-dependencies]
-divan = "0.1.21"
-
-[features]
-default = []

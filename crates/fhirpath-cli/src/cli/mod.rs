@@ -14,17 +14,19 @@
 
 //! CLI module for FHIRPath evaluation and analysis
 
+pub mod diagnostics;
+pub mod diagnostic_demo;
 pub mod output;
-pub mod repl;
-pub mod server;
+// TODO: Re-enable after improving implementation
+// pub mod repl;
+// pub mod server;
 
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
-use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "octofhir-fhirpath")]
-#[command(about = "FHIRPath CLI")]
+#[command(about = "OctoFHIR FHIRPath CLI")]
 #[command(version)]
 #[command(author = "OctoFHIR Team <funyloony@gmail.com>")]
 pub struct Cli {
@@ -41,13 +43,12 @@ pub struct Cli {
         long,
         short = 'o',
         value_enum,
-        default_value = "raw",
-        env = "FHIRPATH_OUTPUT_FORMAT"
+        default_value = "raw"
     )]
     pub output_format: OutputFormat,
 
     /// Disable colored output
-    #[arg(long, env = "FHIRPATH_NO_COLOR")]
+    #[arg(long)]
     pub no_color: bool,
 
     /// Suppress informational messages
@@ -102,34 +103,44 @@ pub enum Commands {
         #[arg(long)]
         no_inference: bool,
     },
-    /// Start interactive FHIRPath REPL
-    Repl {
-        /// JSON file containing FHIR resource to load initially
-        #[arg(short, long)]
-        input: Option<String>,
-        /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
-        variables: Vec<String>,
-        /// History file to use (default: ~/.fhirpath_history)
+    // TODO: Re-enable REPL subcommand after improving implementation
+    // /// Start interactive FHIRPath REPL
+    // Repl {
+    //     /// JSON file containing FHIR resource to load initially
+    //     #[arg(short, long)]
+    //     input: Option<String>,
+    //     /// Initial variables to set in format var=value (can be used multiple times)
+    //     #[arg(short, long = "variable")]
+    //     variables: Vec<String>,
+    //     /// History file to use (default: ~/.fhirpath_history)
+    //     #[arg(long)]
+    //     history_file: Option<String>,
+    //     /// Maximum number of history entries (default: 1000)
+    //     #[arg(long, default_value = "1000")]
+    //     history_size: usize,
+    // },
+    // TODO: Re-enable server subcommand after fixing dependencies
+    // /// Start HTTP server with web interface
+    // Server {
+    //     /// Port to bind the server to
+    //     #[arg(short, long, default_value = "8080")]
+    //     port: u16,
+    //     /// Directory for JSON file storage
+    //     #[arg(short, long, default_value = "./storage")]
+    //     storage: PathBuf,
+    //     /// Host to bind to
+    //     #[arg(long, default_value = "127.0.0.1")]
+    //     host: String,
+    //     /// Enable CORS for all origins (development mode)
+    //     #[arg(long)]
+    //     cors_all: bool,
+    // },
+    /// Demonstrate Ariadne diagnostic integration
+    DiagnosticDemo {
+        /// FHIRPath expression to parse with diagnostics (optional)
+        expression: Option<String>,
+        /// Show different diagnostic types
         #[arg(long)]
-        history_file: Option<String>,
-        /// Maximum number of history entries (default: 1000)
-        #[arg(long, default_value = "1000")]
-        history_size: usize,
-    },
-    /// Start HTTP server with web interface
-    Server {
-        /// Port to bind the server to
-        #[arg(short, long, default_value = "8080")]
-        port: u16,
-        /// Directory for JSON file storage
-        #[arg(short, long, default_value = "./storage")]
-        storage: PathBuf,
-        /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-        /// Enable CORS for all origins (development mode)
-        #[arg(long)]
-        cors_all: bool,
+        show_types: bool,
     },
 }

@@ -14,8 +14,7 @@
 
 //! Common utilities for development tools
 
-use octofhir_fhirpath::MockModelProvider;
-use octofhir_fhirpath_core::ModelProvider;
+use octofhir_fhirpath::{MockModelProvider, ModelProvider};
 use octofhir_fhirschema::provider::FhirSchemaModelProvider;
 use std::env;
 use std::sync::Arc;

@@ -80,29 +80,31 @@ async fn main() {
             )
             .await;
         }
-        Commands::Repl {
-            ref input,
-            ref variables,
-            ref history_file,
-            history_size,
-        } => {
-            handle_repl(
-                input.as_deref(),
-                variables,
-                history_file.as_deref(),
-                history_size,
-                &cli,
-            )
-            .await;
-        }
-        Commands::Server {
-            port,
-            ref storage,
-            ref host,
-            cors_all,
-        } => {
-            handle_server(port, storage.clone(), host.clone(), cors_all, &cli).await;
-        }
+        // TODO: Re-enable REPL handling after improving implementation
+        // Commands::Repl {
+        //     ref input,
+        //     ref variables,
+        //     ref history_file,
+        //     history_size,
+        // } => {
+        //     handle_repl(
+        //         input.as_deref(),
+        //         variables,
+        //         history_file.as_deref(),
+        //         history_size,
+        //         &cli,
+        //     )
+        //     .await;
+        // }
+        // TODO: Re-enable server handling after fixing dependencies
+        // Commands::Server {
+        //     port,
+        //     ref storage,
+        //     ref host,
+        //     cors_all,
+        // } => {
+        //     handle_server(port, storage.clone(), host.clone(), cors_all, &cli).await;
+        // }
     }
 }
 
@@ -393,111 +395,8 @@ async fn handle_analyze(
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
 ) {
-    use octofhir_fhirpath::FhirPathEngineWithAnalyzer;
-    use octofhir_fhir_model::FhirSchemaModelProvider;
-    use octofhir_fhirpath_registry::create_standard_registry;
-    use std::sync::Arc;
-
-    // Always use FhirSchemaModelProvider for comprehensive field validation
-    if !cli.quiet {
-        eprintln!("🔧 Initializing FhirSchemaModelProvider for comprehensive field validation...");
-    }
-
-    let model_provider: Box<dyn octofhir_fhir_model::provider::ModelProvider> =
-        match FhirSchemaModelProvider::new().await {
-            Ok(provider) => {
-                if !cli.quiet {
-                    eprintln!("✅ FhirSchemaModelProvider initialized successfully");
-                }
-                Box::new(provider)
-            }
-            Err(e) => {
-                eprintln!(
-                    "❌ CRITICAL: Failed to create FhirSchemaModelProvider: {}",
-                    e
-                );
-                eprintln!("💡 This is required for proper FHIR field validation.");
-                eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
-                process::exit(1);
-            }
-        };
-
-    let function_registry = Arc::new(create_standard_registry().await);
-    let engine =
-        match FhirPathEngineWithAnalyzer::with_full_analysis(model_provider, function_registry)
-            .await
-        {
-            Ok(engine) => engine,
-            Err(e) => {
-                eprintln!("❌ Failed to create analyzer engine: {}", e);
-                process::exit(1);
-            }
-        };
-
-    let output = if validate_only {
-        // Validation only
-        match engine.validate_expression(expression).await {
-            Ok(validation_errors) => AnalysisOutput {
-                success: validation_errors.is_empty(),
-                analysis: None,
-                validation_errors,
-                error: None,
-                expression: expression.to_string(),
-                metadata: OutputMetadata::default(),
-            },
-            Err(e) => AnalysisOutput {
-                success: false,
-                analysis: None,
-                validation_errors: vec![],
-                error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
-                expression: expression.to_string(),
-                metadata: OutputMetadata::default(),
-            },
-        }
-    } else {
-        // Full analysis
-        match engine.analyze_expression(expression).await {
-            Ok(Some(analysis)) => AnalysisOutput {
-                success: analysis.validation_errors.is_empty(),
-                analysis: Some(analysis),
-                validation_errors: vec![], // Validation errors are in analysis.validation_errors
-                error: None,
-                expression: expression.to_string(),
-                metadata: OutputMetadata::default(),
-            },
-            Ok(None) => AnalysisOutput {
-                success: false,
-                analysis: None,
-                validation_errors: vec![],
-                error: Some(
-                    Box::<dyn std::error::Error>::from("No analyzer available".to_string()).into(),
-                ),
-                expression: expression.to_string(),
-                metadata: OutputMetadata::default(),
-            },
-            Err(e) => AnalysisOutput {
-                success: false,
-                analysis: None,
-                validation_errors: vec![],
-                error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
-                expression: expression.to_string(),
-                metadata: OutputMetadata::default(),
-            },
-        }
-    };
-
-    match formatter.format_analysis(&output) {
-        Ok(formatted) => {
-            println!("{}", formatted);
-            if !output.success {
-                process::exit(1);
-            }
-        }
-        Err(e) => {
-            eprintln!("Error formatting output: {}", e);
-            process::exit(1);
-        }
-    }
+    // Always use comprehensive multi-error display
+    handle_analyze_multi_error(expression, cli, formatter).await;
 }
 
 async fn handle_repl(
@@ -601,69 +500,110 @@ async fn handle_repl(
     };
 
     // Create REPL configuration
-    let mut repl_config = ReplConfig {
-        color_output: !cli.no_color,
-        show_types: cli.verbose,
-        history_size,
-        ..Default::default()
-    };
+    let config = ReplConfig::new()
+        .with_model_provider(model_provider)
+        .with_initial_resource(initial_resource)
+        .with_initial_variables(initial_variables)
+        .with_history_file(history_file.map(|s| s.to_string()))
+        .with_history_size(history_size)
+        .with_quiet(cli.quiet)
+        .with_verbose(cli.verbose);
 
-    // Set history file
-    if let Some(history_path) = history_file {
-        repl_config.history_file = Some(PathBuf::from(history_path));
-    } else {
-        // Use default history file location
-        if let Some(home_dir) = dirs::home_dir() {
-            repl_config.history_file = Some(home_dir.join(".fhirpath_history"));
+    // Start the REPL
+    match start_repl(config).await {
+        Ok(()) => {
+            if !cli.quiet {
+                eprintln!("🎯 REPL session ended successfully");
+            }
         }
-    }
-
-    // Start REPL
-    if let Err(e) = start_repl(
-        model_provider,
-        repl_config,
-        initial_resource,
-        initial_variables,
-    )
-    .await
-    {
-        eprintln!("REPL error: {}", e);
-        process::exit(1);
+        Err(e) => {
+            eprintln!("❌ REPL error: {}", e);
+            process::exit(1);
+        }
     }
 }
 
-async fn handle_server(port: u16, storage: PathBuf, host: String, cors_all: bool, cli: &Cli) {
-    use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
+// TODO: Re-enable server function after fixing dependencies
+// async fn handle_server(port: u16, storage: PathBuf, host: String, cors_all: bool, cli: &Cli) {
+//     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
+//     // Initialize tracing for server logging
+//     tracing_subscriber::fmt()
+//         .with_env_filter(
+//             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+//         )
+//         .init();
+//     if !cli.quiet {
+//         println!("🚀 Starting FHIRPath server...");
+//         println!("🌐 Host: {}", host);
+//         println!("🔌 Port: {}", port);
+//         println!("📁 Storage: {}", storage.display());
+//         if cors_all {
+//             println!("🌐 CORS: Enabled for all origins (development mode)");
+//         }
+//     }
 
-    // Initialize tracing for server logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
+//     // Create server configuration
+//     let config = ServerConfig::new(port, host, storage, cors_all);
 
-    if !cli.quiet {
-        println!("🚀 Starting FHIRPath HTTP server...");
-        println!("📍 Host: {}", host);
-        println!("🔌 Port: {}", port);
-        println!("📁 Storage: {}", storage.display());
-        if cors_all {
-            println!("🌐 CORS: Enabled for all origins (development mode)");
-        }
+//     // Ensure storage directory exists
+//     if let Err(e) = config.ensure_storage_dir().await {
+//         eprintln!("❌ Failed to create storage directory: {}", e);
+//         process::exit(1);
+//     }
+
+//     // Start the server
+//     if let Err(e) = start_server(config).await {
+//         eprintln!("❌ Server error: {}", e);
+//         process::exit(1);
+//     }
+// }
+
+/// Handle analyze command with comprehensive multi-error display (default mode)
+async fn handle_analyze_multi_error(
+    expression: &str,
+    cli: &Cli,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+) {
+    use fhirpath_cli::cli::{diagnostics::CliDiagnosticHandler, output::OutputFormat};
+    use octofhir_fhirpath::parser::analysis_integration::ComprehensiveAnalyzer;
+    use std::io::{self, Write};
+
+    let mut handler = CliDiagnosticHandler::new(cli.output_format.clone())
+        .with_quiet(cli.quiet)
+        .with_verbose(cli.verbose);
+
+    let mut stdout = io::stdout();
+    let mut stderr = io::stderr();
+
+    // Add source for better error reporting
+    let source_id = handler.add_source("expression".to_string(), expression.to_string());
+
+    handler.info(&format!("Analyzing FHIRPath expression: {}", expression), &mut stderr).unwrap_or_default();
+
+    // Show progress phases
+    handler.show_analysis_progress("Phase 1: Parsing with error recovery", &mut stderr).unwrap_or_default();
+    
+    // Run comprehensive analysis
+    let mut analyzer = ComprehensiveAnalyzer::new();
+    let analysis_result = analyzer.analyze(expression, "expression".to_string());
+
+    handler.show_analysis_progress("Phase 2: Static analysis", &mut stderr).unwrap_or_default();
+    handler.show_analysis_progress("Phase 3: Generating diagnostics", &mut stderr).unwrap_or_default();
+
+    // Report all results with beautiful formatting
+    if cli.output_format == OutputFormat::Json {
+        // JSON output goes to stdout
+        handler.report_analysis_result(&analysis_result, &mut stdout).unwrap_or_default();
+    } else {
+        // Other formats show diagnostics on stderr
+        handler.report_analysis_result(&analysis_result, &mut stderr).unwrap_or_default();
     }
 
-    // Create server configuration
-    let config = ServerConfig::new(port, host, storage, cors_all);
+    // Show completion status
+    handler.show_analysis_completion(&analysis_result.diagnostics.statistics, &mut stderr).unwrap_or_default();
 
-    // Ensure storage directory exists
-    if let Err(e) = config.ensure_storage_dir().await {
-        eprintln!("❌ Failed to create storage directory: {}", e);
-        process::exit(1);
-    }
-
-    // Start the server
-    if let Err(e) = start_server(config).await {
-        eprintln!("❌ Server error: {}", e);
+    // Exit with appropriate code
+    if analysis_result.diagnostics.statistics.error_count > 0 {
         process::exit(1);
     }
 }

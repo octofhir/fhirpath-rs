@@ -228,7 +228,7 @@ async fn profile_expression(
     iterations: usize,
     use_bundle: bool,
 ) -> Result<()> {
-    use octofhir_fhirpath_evaluator::FhirPathEngine;
+    use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirschema::provider::FhirSchemaModelProvider;
     use std::sync::Arc;
 
@@ -238,7 +238,7 @@ async fn profile_expression(
     println!("Setting up profiling environment...");
 
     // Initialize engine
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
+    let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
     let model_provider = Arc::new(
         FhirSchemaModelProvider::r5()
             .await
@@ -261,7 +261,8 @@ async fn profile_expression(
         if i % 100 == 0 && i > 0 {
             println!("Completed {} iterations", i);
         }
-        let _ = engine.evaluate(expression, data.clone()).await;
+        let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
+        let _ = engine.evaluate(expression, &collection).await;
     }
     let duration = start.elapsed();
 
@@ -322,9 +323,9 @@ fn list_expressions() {
 }
 
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
-    use octofhir_fhirpath_evaluator::FhirPathEngine;
+    use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirschema::provider::FhirSchemaModelProvider;
-    use octofhir_fhirpath_parser::{Tokenizer, parse_expression};
+    use octofhir_fhirpath::{parse_expression_default};
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -336,7 +337,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let mut results = Vec::new();
 
     // Setup for evaluation benchmarks
-    let registry = Arc::new(octofhir_fhirpath_registry::create_standard_registry().await);
+    let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing FhirSchemaModelProvider R5...");
@@ -360,7 +361,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let _ = Tokenizer::new(expr).tokenize_all();
+                let _ = parse_expression_default(expr);
             }
 
             let elapsed = start_time.elapsed();
@@ -381,7 +382,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let _ = parse_expression(expr);
+                let _ = parse_expression_default(expr);
             }
 
             let elapsed = start_time.elapsed();
@@ -408,7 +409,8 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let _ = engine.evaluate(expr, data.clone()).await;
+                let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
+                let _ = engine.evaluate(expr, &collection).await;
             }
 
             let elapsed = start_time.elapsed();

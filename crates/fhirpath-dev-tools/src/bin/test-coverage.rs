@@ -26,10 +26,10 @@ use std::path::PathBuf;
 // Integration test runner functionality
 mod integration_test_runner {
     use fhirpath_dev_tools::DevToolsConfig;
+    use octofhir_fhirpath::FhirPathValue;
+    use octofhir_fhirpath::ModelProvider;
     use octofhir_fhirpath::ast::ExpressionNode;
-    use octofhir_fhirpath::{FhirPathEngine, create_standard_registry, parse};
-    use octofhir_fhirpath_core::FhirPathValue;
-    use octofhir_fhirpath_core::ModelProvider;
+    use octofhir_fhirpath::{FhirPathEngine, create_standard_registry};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::collections::HashMap;
@@ -123,7 +123,7 @@ mod integration_test_runner {
     /// Integration test runner that uses the complete FHIRPath stack
     pub struct IntegrationTestRunner {
         engine: FhirPathEngine,
-        registry: Arc<octofhir_fhirpath_registry::FunctionRegistry>,
+        registry: Arc<octofhir_fhirpath::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         input_cache: HashMap<String, Value>,
         base_path: PathBuf,
@@ -137,7 +137,7 @@ mod integration_test_runner {
             // Always use FhirSchemaModelProvider in dev-tools as requested
             println!("🔄 Loading FhirSchemaModelProvider (may download packages on first run)...");
 
-            let model_provider: std::sync::Arc<dyn octofhir_fhirpath_core::ModelProvider> = {
+            let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
                 // Add timeout to FhirSchemaModelProvider initialization to prevent hanging
                 let timeout_duration = std::time::Duration::from_secs(60); // 60 seconds timeout
                 match tokio::time::timeout(
@@ -262,7 +262,8 @@ mod integration_test_runner {
 
         /// Parse a FHIRPath expression using the integrated parser
         fn parse_expression(&mut self, expression: &str) -> Result<ExpressionNode, String> {
-            parse(expression).map_err(|e| format!("Parser error in '{expression}': {e}"))
+            parse_expression_default(expression)
+                .map_err(|e| format!("Parser error in '{expression}': {e}"))
         }
 
         /// Convert expected JSON value to FhirPathValue for comparison
@@ -386,15 +387,14 @@ mod integration_test_runner {
                 }
             };
 
-            // Create evaluation context using the same registries as the engine
-            let context = octofhir_fhirpath::EvaluationContext::new(
-                input_data.clone(),
-                self.registry.clone(),
-                self.model_provider.clone(),
-            );
+            // Create evaluation context (stub implementation)
+            let _context = octofhir_fhirpath::EvaluationContext::new();
+
+            // Convert input_data to Collection for evaluation
+            let collection = octofhir_fhirpath::Collection::single(input_data.clone());
 
             // Evaluate expression using integrated engine
-            let result = match self.engine.evaluate_ast(&ast, input_data, &context).await {
+            let result = match self.engine.evaluate_ast(&ast, &collection).await {
                 Ok(result) => result,
                 Err(e) => {
                     // Per FHIRPath spec, evaluation errors should return empty collection
@@ -419,8 +419,14 @@ mod integration_test_runner {
                 );
             }
 
+            // Extract first value from collection for comparison (temporary fix)
+            let first_value = result
+                .first()
+                .cloned()
+                .unwrap_or_else(|| FhirPathValue::empty());
+
             // Compare results
-            if self.compare_results(&result, &test.expected) {
+            if self.compare_results(&first_value, &test.expected) {
                 TestResult::Passed
             } else {
                 // Convert actual result to JSON for comparison

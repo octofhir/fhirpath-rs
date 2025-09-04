@@ -11,7 +11,6 @@ description = "A high-performance FHIRPath implementation in Rust with comprehen
 readme = "../../README.md"
 keywords = ["fhir", "fhirpath", "healthcare", "hl7", "parser"]
 categories = ["parser-implementations", "data-structures", "science"]
-# build.rs moved to fhirpath-cli crate
 include = [
     "src/**/*",
     "../../specs/**/*",
@@ -29,15 +28,7 @@ path = "src/lib.rs"
 
 
 [dependencies]
-# Workspace crates
-octofhir-fhirpath-core = { path = "../fhirpath-core" }
-octofhir-fhirpath-ast = { path = "../fhirpath-ast" }
-octofhir-fhirpath-diagnostics = { path = "../fhirpath-diagnostics", features = [
-    "terminal",
-] }
-octofhir-fhirpath-parser = { path = "../fhirpath-parser" }
-octofhir-fhirpath-registry = { path = "../fhirpath-registry" }
-octofhir-fhirpath-evaluator = { path = "../fhirpath-evaluator", features = [] }
+# All dependencies are now internal - no more workspace crate dependencies
 
 # FHIR model - external dependency
 octofhir-fhir-model = { workspace = true }
@@ -55,6 +46,10 @@ lru = { workspace = true }
 nom = { workspace = true }
 nom_locate = { workspace = true }
 octofhir-ucum = { workspace = true }
+uuid = { workspace = true }
+chumsky = { version = "0.10", features = ["pratt"] }
+ariadne = "0.5.1"
+tabled = "0.15"
 
 url = { workspace = true }
 parking_lot = { workspace = true }
@@ -86,12 +81,8 @@ colored = { workspace = true }
 divan = "0.1"
 pretty_assertions = "1.4.1"
 rstest = "0.26"
-serde-xml-rs = "0.8"
 
 [features]
 default = []
-# Existing features
-diagnostics = ["octofhir-fhirpath-diagnostics/terminal"]
-serde = []
-terminal = ["octofhir-fhirpath-diagnostics/terminal"]
-profiling = []
+mock-provider = []  # Include MockModelProvider for testing and development
+analysis = []       # Include static analysis features
