@@ -1,0 +1,135 @@
+{
+  "name": "testObservations",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testPolymorphismA",
+      "expression": "Observation.value.unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismB",
+      "expression": "Observation.valueQuantity.unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    },
+    {
+      "name": "testPolymorphismIsA1",
+      "expression": "Observation.value.is(Quantity)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismIsA2",
+      "expression": "Observation.value is Quantity",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismIsA3",
+      "expression": "Observation.issued is instant",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismIsB",
+      "expression": "Observation.value.is(Period).not()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismAsA",
+      "expression": "Observation.value.as(Quantity).unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismAsAFunction",
+      "expression": "(Observation.value as Quantity).unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        "lbs"
+      ],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    },
+    {
+      "name": "testPolymorphismAsB",
+      "expression": "(Observation.value as Period).unit",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    },
+    {
+      "name": "testPolymorphismAsBFunction",
+      "expression": "Observation.value.as(Period).start",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testObservations"
+      ]
+    }
+  ]
+}

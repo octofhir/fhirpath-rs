@@ -1,0 +1,35 @@
+{
+  "name": "polymorphics",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testPolymorphicsA",
+      "expression": "Observation.value.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "polymorphics"
+      ]
+    },
+    {
+      "name": "testPolymorphicsB",
+      "expression": "Observation.valueQuantity.exists()",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "polymorphics"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    }
+  ]
+}

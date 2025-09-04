@@ -1,0 +1,319 @@
+{
+  "name": "testEquivalent",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testEquivalent1",
+      "expression": "1 ~ 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent2",
+      "expression": "{} ~ {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent3",
+      "expression": "1 ~ {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent4",
+      "expression": "1 ~ 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent5",
+      "expression": "'a' ~ 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent6",
+      "expression": "'a' ~ 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent7",
+      "expression": "'a' ~ 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent8",
+      "expression": "1.1 ~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent9",
+      "expression": "1.1 ~ 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent10",
+      "expression": "1.10 ~ 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent11",
+      "expression": "1.2 / 1.8 ~ 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent12",
+      "expression": "0 ~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent13",
+      "expression": "0.0 ~ 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent14",
+      "expression": "@2012-04-15 ~ @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent15",
+      "expression": "@2012-04-15 ~ @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent16",
+      "expression": "@2012-04-15 ~ @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent17",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent18",
+      "expression": "@2012-04-15T15:30:31 ~ @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent19",
+      "expression": "name ~ name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent20",
+      "expression": "name.take(2).given ~ name.take(2).first().given | name.take(2).last().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent21",
+      "expression": "name.take(2).given ~ name.take(2).last().given | name.take(2).first().given",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent22",
+      "expression": "Observation.value ~ 185 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent23",
+      "expression": "(1 | 2 | 3) ~ (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    },
+    {
+      "name": "testEquivalent24",
+      "expression": "(1 | 2 | 3) ~ (3 | 2 | 1)",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquivalent"
+      ]
+    }
+  ]
+}

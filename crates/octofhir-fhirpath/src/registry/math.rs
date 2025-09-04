@@ -711,58 +711,43 @@ impl ArithmeticOperations {
         }
     }
 
-    pub fn divide(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+    pub fn divide(left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
                 // Integer division in FHIRPath returns decimal
                 let a_decimal = Decimal::from(*a);
                 let b_decimal = Decimal::from(*b);
-                Ok(FhirPathValue::Decimal(a_decimal / b_decimal))
+                Some(FhirPathValue::Decimal(a_decimal / b_decimal))
             }
             (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
                 let a_decimal = Decimal::from(*a);
-                Ok(FhirPathValue::Decimal(a_decimal / b))
+                Some(FhirPathValue::Decimal(a_decimal / b))
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
                 let b_decimal = Decimal::from(*b);
-                Ok(FhirPathValue::Decimal(a / b_decimal))
+                Some(FhirPathValue::Decimal(a / b_decimal))
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
-                Ok(FhirPathValue::Decimal(a / b))
+                Some(FhirPathValue::Decimal(a / b))
             }
             (FhirPathValue::Quantity { value: a, unit: unit_a, ucum_unit: ucum_a, calendar_unit: cal_a }, FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
                 let b_decimal = Decimal::from(*b);
-                Ok(FhirPathValue::Quantity {
+                Some(FhirPathValue::Quantity {
                     value: a / b_decimal,
                     unit: unit_a.clone(),
                     ucum_unit: ucum_a.clone(),
@@ -771,49 +756,113 @@ impl ArithmeticOperations {
             }
             (FhirPathValue::Quantity { value: a, unit: unit_a, ucum_unit: ucum_a, calendar_unit: cal_a }, FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Division by zero".to_string()
-                    ));
+                    return None; // Division by zero returns empty collection
                 }
-                Ok(FhirPathValue::Quantity {
+                Some(FhirPathValue::Quantity {
                     value: a / b,
                     unit: unit_a.clone(),
                     ucum_unit: ucum_a.clone(),
                     calendar_unit: *cal_a,
                 })
             }
-            _ => Err(crate::core::FhirPathError::evaluation_error(
-                FP0053,
-                "Cannot divide values of these types".to_string()
-            ))
+            _ => None // Invalid types for division return empty collection
         }
     }
 
-    pub fn modulo(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+    pub fn modulo(left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 if *b == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Modulo by zero".to_string()
-                    ));
+                    return None; // Modulo by zero returns empty collection
                 }
-                Ok(FhirPathValue::Integer(a % b))
+                Some(FhirPathValue::Integer(a % b))
             }
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
                 if b.is_zero() {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "Modulo by zero".to_string()
-                    ));
+                    return None; // Modulo by zero returns empty collection
                 }
-                Ok(FhirPathValue::Decimal(a % b))
+                Some(FhirPathValue::Decimal(a % b))
             }
-            _ => Err(crate::core::FhirPathError::evaluation_error(
-                FP0053,
-                "Modulo operation only supported for integer and decimal types".to_string()
-            ))
+            _ => None // Invalid types for modulo return empty collection
+        }
+    }
+
+    pub fn integer_divide(left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
+        match (left, right) {
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return None; // Division by zero returns empty collection
+                }
+                // Integer division truncates towards zero
+                Some(FhirPathValue::Integer(a / b))
+            }
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return None; // Division by zero returns empty collection
+                }
+                let a_decimal = Decimal::from(*a);
+                let result = a_decimal / b;
+                // Convert to integer by truncating towards zero
+                if let Some(int_value) = result.trunc().to_i64() {
+                    Some(FhirPathValue::Integer(int_value))
+                } else {
+                    None // Cannot represent as integer returns empty collection
+                }
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return None; // Division by zero returns empty collection
+                }
+                let b_decimal = Decimal::from(*b);
+                let result = a / b_decimal;
+                // Convert to integer by truncating towards zero
+                if let Some(int_value) = result.trunc().to_i64() {
+                    Some(FhirPathValue::Integer(int_value))
+                } else {
+                    None // Cannot represent as integer returns empty collection
+                }
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return None; // Division by zero returns empty collection
+                }
+                let result = a / b;
+                // Convert to integer by truncating towards zero
+                if let Some(int_value) = result.trunc().to_i64() {
+                    Some(FhirPathValue::Integer(int_value))
+                } else {
+                    None // Cannot represent as integer returns empty collection
+                }
+            }
+            // Quantity integer division by scalar
+            (FhirPathValue::Quantity { value: a, unit: unit_a, ucum_unit: ucum_a, calendar_unit: cal_a }, FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return None; // Division by zero returns empty collection
+                }
+                let b_decimal = Decimal::from(*b);
+                let result = a / b_decimal;
+                // Truncate for integer division
+                Some(FhirPathValue::Quantity {
+                    value: result.trunc(),
+                    unit: unit_a.clone(),
+                    ucum_unit: ucum_a.clone(),
+                    calendar_unit: *cal_a,
+                })
+            }
+            (FhirPathValue::Quantity { value: a, unit: unit_a, ucum_unit: ucum_a, calendar_unit: cal_a }, FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return None; // Division by zero returns empty collection
+                }
+                let result = a / b;
+                // Truncate for integer division
+                Some(FhirPathValue::Quantity {
+                    value: result.trunc(),
+                    unit: unit_a.clone(),
+                    ucum_unit: ucum_a.clone(),
+                    calendar_unit: *cal_a,
+                })
+            }
+            _ => None // Invalid types for integer division return empty collection
         }
     }
 }

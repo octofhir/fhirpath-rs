@@ -1,0 +1,72 @@
+{
+  "name": "testLog",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testLog1",
+      "expression": "16.log(2) = 4.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLog"
+      ]
+    },
+    {
+      "name": "testLog2",
+      "expression": "100.0.log(10.0) = 2.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLog"
+      ]
+    },
+    {
+      "name": "testLogEmpty",
+      "expression": "{}.log(10).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLog"
+      ]
+    },
+    {
+      "name": "testLogEmpty2",
+      "expression": "{}.log({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLog"
+      ]
+    },
+    {
+      "name": "testLogEmpty3",
+      "expression": "16.log({}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLog"
+      ]
+    }
+  ]
+}

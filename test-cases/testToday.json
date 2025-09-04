@@ -1,0 +1,33 @@
+{
+  "name": "testToday",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToday1",
+      "expression": "Patient.birthDate &lt; today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToday"
+      ]
+    },
+    {
+      "name": "testToday2",
+      "expression": "today().toString().length() = 10",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToday"
+      ]
+    }
+  ]
+}

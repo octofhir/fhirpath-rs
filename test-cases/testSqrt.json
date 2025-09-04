@@ -1,0 +1,44 @@
+{
+  "name": "testSqrt",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testSqrt1",
+      "expression": "81.sqrt() = 9.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSqrt"
+      ]
+    },
+    {
+      "name": "testSqrt2",
+      "expression": "(-1).sqrt()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testSqrt"
+      ]
+    },
+    {
+      "name": "testSqrtEmpty",
+      "expression": "{}.sqrt().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSqrt"
+      ]
+    }
+  ]
+}

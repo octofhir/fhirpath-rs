@@ -1,0 +1,163 @@
+{
+  "name": "testContainsString",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testContainsString1",
+      "expression": "'12345'.contains('6') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString2",
+      "expression": "'12345'.contains('5') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString3",
+      "expression": "'12345'.contains('45') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString4",
+      "expression": "'12345'.contains('35') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString5",
+      "expression": "'12345'.contains('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString6",
+      "expression": "'12345'.contains('012345') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString7",
+      "expression": "'12345'.contains('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString8",
+      "expression": "{}.contains('a').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString9",
+      "expression": "{}.contains('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString10",
+      "expression": "'123456789'.select(contains(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ]
+    },
+    {
+      "name": "testContainsString10a",
+      "expression": "'123456789'.contains(length().toString())",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    },
+    {
+      "name": "testContainsNonString1",
+      "expression": "Appointment.identifier.contains('rand')",
+      "input": null,
+      "inputfile": "appointment-examplereq.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testContainsString"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    }
+  ]
+}

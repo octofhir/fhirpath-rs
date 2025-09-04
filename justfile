@@ -12,6 +12,7 @@ default:
     @echo "  just repl                # Start interactive REPL"
     @echo "  just test                # Run all tests"
     @echo "  just diagnostic-demo     # Show beautiful error reporting demo"
+    @echo "  just convert-r5-xml      # Convert official R5 XML tests to JSON (in-place)"
     @echo ""
     @echo "🧪 Diagnostic Demo Commands:"
     @echo "  just diagnostic-demo-examples    # Run all diagnostic examples"
@@ -40,22 +41,14 @@ test:
     cargo test --workspace
 
 test-coverage:
-    @echo "🔍 Running comprehensive test coverage analysis..."
-    @echo "⏱️  This may take several minutes on first run (downloading FHIR packages)..."
-    @echo "⚠️  If this hangs, try running 'just test-coverage-r4' or 'just test-coverage-r5' for specific versions"
-    timeout 60 cargo run --package fhirpath-dev-tools --bin test-coverage || (echo "⚠️  Test timed out after 1 minute - likely network/package download issues" && echo "💡 Try running 'just test-coverage-r4' instead" && exit 0)
+    @echo "🔍 Running comprehensive test coverage analysis (FHIR R5)..."
+    cargo run --package fhirpath-dev-tools --bin test-coverage
+ 
+# Convert official R5 XML test suite to grouped JSON files (in same directory as XML)
+convert-r5-xml FILE="test-cases/tests-fhir-r5.xml":
+    cargo run --package fhirpath-dev-tools --bin convert-r5-xml-to-json -- {{FILE}}
 
-# Run test coverage with specific FHIR version
-test-coverage-r4:
-    @echo "🔍 Running comprehensive test coverage analysis with FHIR R4..."
-    FHIRPATH_FHIR_VERSION=r4 cargo run --package fhirpath-dev-tools --bin test-coverage
-
-test-coverage-r5:
-    @echo "🔍 Running comprehensive test coverage analysis with FHIR R5..."
-    FHIRPATH_FHIR_VERSION=r5 cargo run --package fhirpath-dev-tools --bin test-coverage
-
-test-official:
-    cargo test --workspace run_official_tests -- --ignored --nocapture
+ 
 
 # Run tests with specific FHIR versions
 test-r4:
@@ -187,7 +180,7 @@ clean:
 
 # Run specific test case
 test-case CASE:
-    cargo run --package fhirpath-dev-tools --bin test-runner specs/fhirpath/tests/{{CASE}}.json
+    cargo run --package fhirpath-dev-tools --bin test-runner test-cases/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":

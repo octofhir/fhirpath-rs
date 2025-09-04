@@ -1,0 +1,46 @@
+{
+  "name": "testRound",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testRound1",
+      "expression": "1.round() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRound"
+      ]
+    },
+    {
+      "name": "testRound2",
+      "expression": "3.14159.round(3) = 3.142",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRound"
+      ]
+    },
+    {
+      "name": "testRoundEmpty",
+      "expression": "{}.round().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRound"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "testLn",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testLn1",
+      "expression": "1.ln() = 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLn"
+      ]
+    },
+    {
+      "name": "testLn2",
+      "expression": "1.0.ln() = 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLn"
+      ]
+    },
+    {
+      "name": "testLnEmpty",
+      "expression": "{}.ln().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLn"
+      ]
+    }
+  ]
+}

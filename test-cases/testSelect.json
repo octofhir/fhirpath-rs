@@ -1,0 +1,46 @@
+{
+  "name": "testSelect",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testSelect1",
+      "expression": "Patient.name.select(given).count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSelect"
+      ]
+    },
+    {
+      "name": "testSelect2",
+      "expression": "Patient.name.select(given | family).count() = 7",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSelect"
+      ]
+    },
+    {
+      "name": "testSelect3",
+      "expression": "name.select(use.contains('i')).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ],
+      "tags": [
+        "r5-xml",
+        "testSelect"
+      ]
+    }
+  ]
+}

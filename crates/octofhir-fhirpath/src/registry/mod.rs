@@ -13,6 +13,11 @@ use crate::core::{
     FhirPathValue, FhirPathError, Result, ModelProvider, Collection,
     error_code::{FP0051, FP0054},
 };
+use crate::evaluator::TerminologyService;
+
+pub use terminology_utils::{
+    Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils
+};
 
 pub mod builder;
 pub mod dispatcher;
@@ -26,6 +31,10 @@ pub mod conversion;
 pub mod conversion_utils;
 pub mod datetime;
 pub mod datetime_utils;
+pub mod fhir;
+pub mod fhir_utils;
+pub mod terminology;
+pub mod terminology_utils;
 
 pub use collection::CollectionUtils;
 pub use math::ArithmeticOperations;
@@ -34,6 +43,7 @@ pub use types::{FhirPathType, TypeChecker};
 pub use type_utils::TypeUtils;
 pub use conversion_utils::ConversionUtils;
 pub use datetime_utils::{DateTimeUtils, DateTimeDuration};
+pub use fhir_utils::FhirUtils;
 
 #[cfg(test)]
 mod tests;
@@ -43,6 +53,9 @@ mod type_tests;
 
 #[cfg(test)]
 mod datetime_tests;
+
+#[cfg(test)]
+mod terminology_tests;
 
 #[derive(Debug, Clone)]
 pub struct FunctionMetadata {
@@ -84,6 +97,8 @@ pub struct FunctionContext<'a> {
     pub model_provider: &'a dyn ModelProvider,
     pub variables: &'a HashMap<String, FhirPathValue>,
     pub resource_context: Option<&'a FhirPathValue>,
+    /// Optional terminology service available to functions needing terminology operations
+    pub terminology: Option<&'a dyn TerminologyService>,
 }
 
 /// Sync function signature

@@ -1,0 +1,72 @@
+{
+  "name": "testRepeat",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testRepeat1",
+      "expression": "ValueSet.expansion.repeat(contains).count() = 10",
+      "input": null,
+      "inputfile": "valueset-example-expansion.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat"
+      ]
+    },
+    {
+      "name": "testRepeat2",
+      "expression": "Questionnaire.repeat(item).code.count() = 11",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat"
+      ]
+    },
+    {
+      "name": "testRepeat3",
+      "expression": "Questionnaire.descendants().code.count() = 23",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat"
+      ]
+    },
+    {
+      "name": "testRepeat4",
+      "expression": "Questionnaire.children().code.count() = 2",
+      "input": null,
+      "inputfile": "questionnaire-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat"
+      ]
+    },
+    {
+      "name": "testRepeat5",
+      "expression": "Patient.name.repeat('test')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "test"
+      ],
+      "tags": [
+        "r5-xml",
+        "testRepeat"
+      ]
+    }
+  ]
+}

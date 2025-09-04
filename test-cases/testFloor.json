@@ -1,0 +1,59 @@
+{
+  "name": "testFloor",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testFloor1",
+      "expression": "1.floor() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testFloor"
+      ]
+    },
+    {
+      "name": "testFloor2",
+      "expression": "2.1.floor() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testFloor"
+      ]
+    },
+    {
+      "name": "testFloor3",
+      "expression": "(-2.1).floor() = -3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testFloor"
+      ]
+    },
+    {
+      "name": "testFloorEmpty",
+      "expression": "{}.floor().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testFloor"
+      ]
+    }
+  ]
+}

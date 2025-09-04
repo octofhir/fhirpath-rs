@@ -1,0 +1,43 @@
+{
+  "name": "Comparable",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "Comparable1",
+      "expression": "1 'cm'.comparable(1 '[in_i]')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ]
+    },
+    {
+      "name": "Comparable2",
+      "expression": "1 'cm'.comparable(1 '[s]')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ]
+    },
+    {
+      "name": "Comparable3",
+      "expression": "1 'cm'.comparable(1 's')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "Comparable"
+      ]
+    }
+  ]
+}

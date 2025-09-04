@@ -1,0 +1,59 @@
+{
+  "name": "testCount",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testCount1",
+      "expression": "Patient.name.count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        3
+      ],
+      "tags": [
+        "r5-xml",
+        "testCount"
+      ]
+    },
+    {
+      "name": "testCount2",
+      "expression": "Patient.name.count() = 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCount"
+      ]
+    },
+    {
+      "name": "testCount3",
+      "expression": "Patient.name.first().count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        1
+      ],
+      "tags": [
+        "r5-xml",
+        "testCount"
+      ]
+    },
+    {
+      "name": "testCount4",
+      "expression": "Patient.name.first().count() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCount"
+      ]
+    }
+  ]
+}

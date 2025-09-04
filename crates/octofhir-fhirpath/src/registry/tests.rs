@@ -131,6 +131,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         }
     }
 }

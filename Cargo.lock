@@ -934,6 +934,7 @@ dependencies = [
  "octofhir-fhir-model",
  "octofhir-fhirpath",
  "octofhir-fhirschema",
+ "quick-xml",
  "serde",
  "serde_json",
  "tokio",

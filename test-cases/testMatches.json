@@ -1,0 +1,199 @@
+{
+  "name": "testMatches",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testMatchesCaseSensitive1",
+      "expression": "'FHIR'.matches('FHIR')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesCaseSensitive2",
+      "expression": "'FHIR'.matches('fhir')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesEmpty",
+      "expression": "'FHIR'.matches({}).empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesEmpty2",
+      "expression": "{}.matches('FHIR').empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesEmpty3",
+      "expression": "{}.matches({}).empty() = true",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesSingleLineMode1",
+      "expression": "'A\n\t\t\tB'.matches('A.*B')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesWithinUrl1",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesWithinUrl2",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('Library')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesWithinUrl3",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('^Library$')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesWithinUrl1a",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('.*Library.*')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesWithinUrl4",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matches('Measure')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesFullWithinUrl1",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesFullWithinUrl3",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('Library')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesFullWithinUrl4",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('^Library$')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesFullWithinUrl1a",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('.*Library.*')",
+      "input": null,
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    },
+    {
+      "name": "testMatchesFullWithinUrl2",
+      "expression": "'http://fhir.org/guides/cqf/common/Library/FHIR-ModelInfo|4.0.1'.matchesFull('Measure')",
+      "input": null,
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testMatches"
+      ]
+    }
+  ]
+}

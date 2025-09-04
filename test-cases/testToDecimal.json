@@ -1,0 +1,72 @@
+{
+  "name": "testToDecimal",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToDecimal1",
+      "expression": "'1'.toDecimal() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToDecimal"
+      ]
+    },
+    {
+      "name": "testToDecimal2",
+      "expression": "'-1'.toInteger() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToDecimal"
+      ]
+    },
+    {
+      "name": "testToDecimal3",
+      "expression": "'0'.toDecimal() = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToDecimal"
+      ]
+    },
+    {
+      "name": "testToDecimal4",
+      "expression": "'0.0'.toDecimal() = 0.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToDecimal"
+      ]
+    },
+    {
+      "name": "testToDecimal5",
+      "expression": "'st'.toDecimal().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToDecimal"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "name": "testIn",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testIn1",
+      "expression": "1 in (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testIn2",
+      "expression": "1 in (2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testIn3",
+      "expression": "'a' in ('a' | 'c' | 'd')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testIn4",
+      "expression": "'b' in ('a' | 'c' | 'd')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testIn5",
+      "expression": "('a' | 'c' | 'd') in 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testInEmptyCollection",
+      "expression": "1 in {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testInEmptyValue",
+      "expression": "{} in (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    },
+    {
+      "name": "testInEmptyBoth",
+      "expression": "{} in {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testIn"
+      ]
+    }
+  ]
+}

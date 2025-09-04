@@ -27,6 +27,13 @@ impl FunctionRegistry {
         
         // Register datetime functions
         self.register_datetime_functions()?;
+
+        // Register FHIR-specific functions
+        self.register_fhir_functions()?;
+        self.register_fhir_extension_functions()?;
+
+        // Register terminology functions
+        self.register_terminology_functions()?;
         
         Ok(())
     }

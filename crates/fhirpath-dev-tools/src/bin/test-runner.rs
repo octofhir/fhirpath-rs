@@ -51,12 +51,42 @@ struct TestSuite {
 }
 
 fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let specs_dir = Path::new("specs/fhirpath/tests/input");
+    let specs_dir = Path::new("test-cases/input");
     let input_path = specs_dir.join(inputfile);
 
     let content = fs::read_to_string(&input_path)?;
     let data: Value = serde_json::from_str(&content)?;
     Ok(data)
+}
+
+/// Extract the primitive value from a FhirPathValue JSON representation
+fn extract_primitive_value(value: &Value) -> Value {
+    if let Some(obj) = value.as_object() {
+        if obj.len() == 1 {
+            if let Some(boolean_val) = obj.get("Boolean") {
+                return boolean_val.clone();
+            }
+            if let Some(integer_val) = obj.get("Integer") {
+                return integer_val.clone();
+            }
+            if let Some(decimal_val) = obj.get("Decimal") {
+                return decimal_val.clone();
+            }
+            if let Some(string_val) = obj.get("String") {
+                return string_val.clone();
+            }
+            if let Some(date_val) = obj.get("Date") {
+                return date_val.clone();
+            }
+            if let Some(datetime_val) = obj.get("DateTime") {
+                return datetime_val.clone();
+            }
+            if let Some(time_val) = obj.get("Time") {
+                return time_val.clone();
+            }
+        }
+    }
+    value.clone()
 }
 
 /// Compare expected result with actual result
@@ -71,13 +101,20 @@ fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> 
         Err(_) => return false,
     };
 
+    // Extract primitive values from FhirPathValue enums in actual results
+    let actual_normalized = if let Some(actual_arr) = actual_json.as_array() {
+        Value::Array(actual_arr.iter().map(extract_primitive_value).collect())
+    } else {
+        extract_primitive_value(&actual_json)
+    };
+
     // Direct comparison first - handles most cases
-    if expected == &actual_json {
+    if expected == &actual_normalized {
         return true;
     }
 
     // FHIRPath collection handling: expected single value should match [single_value]
-    match (expected, &actual_json) {
+    match (expected, &actual_normalized) {
         // Test expects single value, actual is collection with one item
         (expected_single, actual_json) if actual_json.is_array() => {
             if let Some(actual_arr) = actual_json.as_array() {
@@ -113,6 +150,18 @@ fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> 
         (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
             if let Some(actual_arr) = actual_json.as_array() {
                 actual_arr.is_empty()
+            } else {
+                false
+            }
+        }
+        // Test expects array with single item, actual is single primitive
+        (expected, actual_single) if expected.is_array() => {
+            if let Some(expected_arr) = expected.as_array() {
+                if expected_arr.len() == 1 {
+                    &expected_arr[0] == actual_single
+                } else {
+                    false
+                }
             } else {
                 false
             }
@@ -163,10 +212,10 @@ async fn main() {
     // Create FHIR schema provider for accurate type checking and conformance validation
     println!("📋 Initializing FHIR schema provider...");
     let model_provider = fhirpath_dev_tools::common::create_dev_model_provider().await;
-    
+
     // Create function registry
     let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
-    
+
     // Create the FhirPathEngine with model provider
     let engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone());
     let mut passed = 0;
@@ -196,7 +245,7 @@ async fn main() {
         let input_value = octofhir_fhirpath::FhirPathValue::JsonValue(input_data);
         let collection = octofhir_fhirpath::Collection::single(input_value);
         let context = octofhir_fhirpath::EvaluationContext::new(collection);
-        
+
         // Parse expression
         let ast = match octofhir_fhirpath::parse_expression(&test_case.expression) {
             Ok(ast) => ast,
@@ -211,7 +260,7 @@ async fn main() {
                 continue;
             }
         };
-        
+
         // Evaluate expression
         let result = match engine.evaluate_ast(&ast, &context).await {
             Ok(result) => result,

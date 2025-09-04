@@ -57,9 +57,29 @@ mod integration_test_runner {
         #[serde(default)]
         pub description: Option<String>,
 
-        /// expression call allows to fail
-        #[serde(rename = "expectError")]
+        /// Expression is expected to error (parse or evaluation)
+        #[serde(rename = "expectError", alias = "expecterror")]
         pub expect_error: Option<bool>,
+
+        /// Mark test disabled/skipped
+        #[serde(default)]
+        pub disabled: Option<bool>,
+
+        /// For metadata only (not used in execution)
+        #[serde(default)]
+        pub predicate: Option<bool>,
+
+        /// Skip static check metadata from XML (kept for reference)
+        #[serde(rename = "skipStaticCheck")]
+        pub skip_static_check: Option<bool>,
+
+        /// Invalid kind from XML: syntax|semantic|execution (reference only)
+        #[serde(rename = "invalidKind")]
+        pub invalid_kind: Option<String>,
+
+        /// Expression mode (e.g., strict) from XML
+        #[serde(default)]
+        pub mode: Option<String>,
     }
 
     /// Custom deserializer to handle "input": null as Some(Value::Null) instead of None
@@ -77,7 +97,8 @@ mod integration_test_runner {
         /// Suite name
         pub name: String,
         /// Suite description
-        pub description: String,
+        #[serde(default)]
+        pub description: Option<String>,
         /// Source of the tests
         #[serde(default)]
         pub source: Option<String>,
@@ -131,31 +152,28 @@ mod integration_test_runner {
     }
 
     impl IntegrationTestRunner {
-        /// Create a new integration test runner with real FhirSchemaModelProvider
+        /// Create a new integration test runner with FHIR R5 ModelProvider
         pub async fn new() -> Self {
-            // Use real FhirSchemaModelProvider for official test validation (FHIR R4) with timeout
-            // Always use FhirSchemaModelProvider in dev-tools as requested
-            println!("🔄 Loading FhirSchemaModelProvider (may download packages on first run)...");
-
+            println!("🔄 Loading FHIR R5 ModelProvider (using schema packages)...");
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
-                // Add timeout to FhirSchemaModelProvider initialization to prevent hanging
-                let timeout_duration = std::time::Duration::from_secs(60); // 60 seconds timeout
+                // Add timeout to prevent hanging
+                let timeout_duration = std::time::Duration::from_secs(60);
                 match tokio::time::timeout(
                     timeout_duration,
-                    octofhir_fhirschema::provider::FhirSchemaModelProvider::r4(),
+                    octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
                 )
                 .await
                 {
                     Ok(Ok(provider)) => {
-                        println!("✅ FhirSchemaModelProvider loaded successfully");
+                        println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
                         std::sync::Arc::new(provider)
                     }
                     Ok(Err(e)) => {
-                        panic!("❌ Failed to load FhirSchemaModelProvider: {e}");
+                        panic!("❌ Failed to load FhirSchemaModelProvider (R5): {e}");
                     }
                     Err(_) => {
                         panic!(
-                            "❌ FhirSchemaModelProvider initialization timed out ({}s)",
+                            "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
                             timeout_duration.as_secs()
                         );
                     }
@@ -216,7 +234,7 @@ mod integration_test_runner {
 
             // Try multiple possible paths for input files
             let possible_paths = vec![
-                PathBuf::from("specs/fhirpath/tests/input").join(filename),
+                PathBuf::from("test-cases/input").join(filename),
                 PathBuf::from("input").join(filename),
                 self.base_path.join("input").join(filename),
             ];
@@ -271,9 +289,43 @@ mod integration_test_runner {
             FhirPathValue::JsonValue(expected.clone())
         }
 
+        /// Extract the primitive value from a FhirPathValue JSON representation
+        fn extract_primitive_value(value: &Value) -> Value {
+            if let Some(obj) = value.as_object() {
+                if obj.len() == 1 {
+                    if let Some(boolean_val) = obj.get("Boolean") {
+                        return boolean_val.clone();
+                    }
+                    if let Some(integer_val) = obj.get("Integer") {
+                        return integer_val.clone();
+                    }
+                    if let Some(decimal_val) = obj.get("Decimal") {
+                        return decimal_val.clone();
+                    }
+                    if let Some(string_val) = obj.get("String") {
+                        return string_val.clone();
+                    }
+                    if let Some(date_val) = obj.get("Date") {
+                        return date_val.clone();
+                    }
+                    if let Some(datetime_val) = obj.get("DateTime") {
+                        return datetime_val.clone();
+                    }
+                    if let Some(time_val) = obj.get("Time") {
+                        return time_val.clone();
+                    }
+                }
+            }
+            value.clone()
+        }
+
         /// Compare actual collection result with expected result
         /// Matches the test-runner comparison logic exactly  
-        fn compare_results_collection(&self, actual: &octofhir_fhirpath::Collection, expected: &Value) -> bool {
+        fn compare_results_collection(
+            &self,
+            actual: &octofhir_fhirpath::Collection,
+            expected: &Value,
+        ) -> bool {
             // Convert actual to JSON for uniform comparison
             let actual_json = match serde_json::to_string(actual) {
                 Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
@@ -283,13 +335,20 @@ mod integration_test_runner {
                 Err(_) => return false,
             };
 
+            // Extract primitive values from FhirPathValue enums in actual results
+            let actual_normalized = if let Some(actual_arr) = actual_json.as_array() {
+                Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
+            } else {
+                Self::extract_primitive_value(&actual_json)
+            };
+
             // Direct comparison first - handles most cases
-            if expected == &actual_json {
+            if expected == &actual_normalized {
                 return true;
             }
 
             // FHIRPath collection handling: expected single value should match [single_value]
-            match (expected, &actual_json) {
+            match (expected, &actual_normalized) {
                 // Test expects single value, actual is collection with one item
                 (expected_single, actual_json) if actual_json.is_array() => {
                     if let Some(actual_arr) = actual_json.as_array() {
@@ -329,6 +388,18 @@ mod integration_test_runner {
                         false
                     }
                 }
+                // Test expects array with single item, actual is single primitive
+                (expected, actual_single) if expected.is_array() => {
+                    if let Some(expected_arr) = expected.as_array() {
+                        if expected_arr.len() == 1 {
+                            &expected_arr[0] == actual_single
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
                 // Default: no match
                 _ => false,
             }
@@ -346,13 +417,16 @@ mod integration_test_runner {
                 Err(_) => return false,
             };
 
+            // Extract primitive values from FhirPathValue enums in actual results
+            let actual_normalized = Self::extract_primitive_value(&actual_json);
+
             // Direct comparison first - handles most cases
-            if expected == &actual_json {
+            if expected == &actual_normalized {
                 return true;
             }
 
             // FHIRPath collection handling: expected single value should match [single_value]
-            match (expected, &actual_json) {
+            match (expected, &actual_normalized) {
                 // Test expects single value, actual is collection with one item
                 (expected_single, actual_json) if actual_json.is_array() => {
                     if let Some(actual_arr) = actual_json.as_array() {
@@ -399,6 +473,12 @@ mod integration_test_runner {
 
         /// Run a single test case using the integrated stack
         pub async fn run_test(&mut self, test: &TestCase) -> TestResult {
+            // Skip disabled tests
+            if test.disabled.unwrap_or(false) {
+                return TestResult::Skipped {
+                    reason: "disabled".into(),
+                };
+            }
             if self.verbose {
                 println!("Running test: {}", test.name);
                 println!("Expression: {}", test.expression);
@@ -438,15 +518,17 @@ mod integration_test_runner {
             let ast = match self.parse_expression(&test.expression) {
                 Ok(ast) => ast,
                 Err(e) => {
-                    // Per FHIRPath spec, syntax errors should return empty collection
-                    // Check if expected result is empty array
-                    let expected = self.convert_expected_value(&test.expected);
-                    if expected.is_empty() {
-                        // This is expected - syntax errors should produce empty
+                    // If an error was expected, treat as pass
+                    if test.expect_error.unwrap_or(false) {
                         return TestResult::Passed;
-                    } else {
-                        return TestResult::Error { error: e };
                     }
+                    // Legacy behavior: expected empty means error acceptable
+                    let expected = self.convert_expected_value(&test.expected);
+                    return if expected.is_empty() {
+                        TestResult::Passed
+                    } else {
+                        TestResult::Error { error: e }
+                    };
                 }
             };
 
@@ -460,19 +542,31 @@ mod integration_test_runner {
             let result = match self.engine.evaluate_ast(&ast, &context).await {
                 Ok(result) => result,
                 Err(e) => {
-                    // Per FHIRPath spec, evaluation errors should return empty collection
-                    // Check if an expected result is empty array
-                    let expected = self.convert_expected_value(&test.expected);
-                    if expected.is_empty() {
-                        // This is expected - evaluation errors should produce empty
+                    if test.expect_error.unwrap_or(false) {
                         return TestResult::Passed;
-                    } else {
-                        return TestResult::Error {
-                            error: format!("Evaluation error: {e}"),
-                        };
                     }
+                    // Legacy: empty expected means error acceptable
+                    let expected = self.convert_expected_value(&test.expected);
+                    return if expected.is_empty() {
+                        TestResult::Passed
+                    } else {
+                        TestResult::Error {
+                            error: format!("Evaluation error: {e}"),
+                        }
+                    };
                 }
             };
+
+            // If an error was expected but evaluation succeeded, mark as failure
+            if test.expect_error.unwrap_or(false) {
+                let actual_json = serde_json::to_string(&result)
+                    .and_then(|s| serde_json::from_str::<Value>(&s))
+                    .unwrap_or_default();
+                return TestResult::Failed {
+                    expected: serde_json::json!({"__errorExpected": true}),
+                    actual: actual_json,
+                };
+            }
 
             if self.verbose {
                 println!("Result: {result:?}");
@@ -503,7 +597,9 @@ mod integration_test_runner {
 
             if self.verbose {
                 println!("Running test suite: {}", suite.name);
-                println!("Description: {}", suite.description);
+                if let Some(desc) = &suite.description {
+                    println!("Description: {}", desc);
+                }
                 println!("Total tests: {}", suite.tests.len());
                 println!();
             }
@@ -553,7 +649,9 @@ mod integration_test_runner {
                         stats.errored += 1;
                         // Capture first 3 error details for debugging
                         if stats.error_details.len() < 3 {
-                            stats.error_details.push(format!("{}: {}", test.name, error));
+                            stats
+                                .error_details
+                                .push(format!("{}: {}", test.name, error));
                         }
                     }
                     TestResult::Skipped { .. } => stats.skipped += 1,
@@ -577,7 +675,7 @@ async fn main() -> Result<()> {
                 .long("specs-dir")
                 .value_name("DIR")
                 .help("Path to FHIRPath test specifications")
-                .default_value("specs/fhirpath/tests"),
+                .default_value("test-cases"),
         )
         .arg(
             Arg::new("output")
@@ -633,10 +731,7 @@ async fn main() -> Result<()> {
                     if stats.errored > 0 {
                         println!(
                             " ⚠️ ERROR {}/{} ({} parse errors, {} failed)",
-                            stats.passed,
-                            stats.total,
-                            stats.errored,
-                            stats.failed
+                            stats.passed, stats.total, stats.errored, stats.failed
                         );
                         // Show detailed error messages for debugging
                         if !stats.error_details.is_empty() {
@@ -644,7 +739,10 @@ async fn main() -> Result<()> {
                                 println!("     {}. {}", i + 1, error_detail);
                             }
                             if stats.error_details.len() < stats.errored {
-                                println!("     ... and {} more parse errors", stats.errored - stats.error_details.len());
+                                println!(
+                                    "     ... and {} more parse errors",
+                                    stats.errored - stats.error_details.len()
+                                );
                             }
                         }
                     } else {
@@ -711,16 +809,29 @@ async fn main() -> Result<()> {
 }
 
 fn get_all_test_files(specs_path: &PathBuf) -> Vec<PathBuf> {
-    let mut test_files = Vec::new();
-    if let Ok(entries) = fs::read_dir(specs_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "json") {
-                test_files.push(path);
+    fn collect(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // Skip input data directories — they contain JSON resources, not test suites
+                    if path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.eq_ignore_ascii_case("input") || n.eq_ignore_ascii_case("inputs"))
+                    {
+                        continue;
+                    }
+                    collect(&path, out);
+                } else if path.extension().is_some_and(|ext| ext == "json") {
+                    out.push(path);
+                }
             }
         }
     }
 
+    let mut test_files = Vec::new();
+    collect(specs_path, &mut test_files);
     test_files.sort();
     test_files
 }

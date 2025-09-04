@@ -1,0 +1,79 @@
+{
+  "name": "testMultiply",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testMultiply1",
+      "expression": "1 * 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    },
+    {
+      "name": "testMultiply2",
+      "expression": "1 * 0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    },
+    {
+      "name": "testMultiply3",
+      "expression": "1.2 * 1.8 = 2.16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    },
+    {
+      "name": "testMultiplyEmpty1",
+      "expression": "1 * {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    },
+    {
+      "name": "testMultiplyEmpty2",
+      "expression": "{} * 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    },
+    {
+      "name": "testMultiplyEmpty3",
+      "expression": "{} * {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMultiply"
+      ]
+    }
+  ]
+}

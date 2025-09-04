@@ -1,0 +1,46 @@
+{
+  "name": "testConformsTo",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testConformsTo1",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testConformsTo"
+      ]
+    },
+    {
+      "name": "testConformsTo2",
+      "expression": "conformsTo('http://hl7.org/fhir/StructureDefinition/Person')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testConformsTo"
+      ]
+    },
+    {
+      "name": "testConformsTo3",
+      "expression": "conformsTo('http://trash')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testConformsTo"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    }
+  ]
+}

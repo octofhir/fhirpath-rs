@@ -1,0 +1,189 @@
+{
+  "name": "testStartsWith",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testStartsWith1",
+      "expression": "'12345'.startsWith('2') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith2",
+      "expression": "'12345'.startsWith('1') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith3",
+      "expression": "'12345'.startsWith('12') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith4",
+      "expression": "'12345'.startsWith('13') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith5",
+      "expression": "'12345'.startsWith('12345') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith6",
+      "expression": "'12345'.startsWith('123456') = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith7",
+      "expression": "'12345'.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith8",
+      "expression": "{}.startsWith('1').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith9",
+      "expression": "{}.startsWith('').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith10",
+      "expression": "''.startsWith('') = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith11",
+      "expression": "{}.startsWith('').exists() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith12",
+      "expression": "'987654321'.select(startsWith(length().toString()))",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ]
+    },
+    {
+      "name": "testStartsWith12a",
+      "expression": "'987654321'.startsWith(length().toString())",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    },
+    {
+      "name": "testStartsWithNonString1",
+      "expression": "Appointment.identifier.startsWith('rand')",
+      "input": null,
+      "inputfile": "appointment-examplereq.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testStartsWith"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    }
+  ]
+}

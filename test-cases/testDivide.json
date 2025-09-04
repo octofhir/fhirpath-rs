@@ -1,0 +1,116 @@
+{
+  "name": "testDivide",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testDivide1",
+      "expression": "1 / 1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivide2",
+      "expression": "4 / 2 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivide3",
+      "expression": "4.0 / 2.0 = 2.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivide4",
+      "expression": "1 / 2 = 0.5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivide5",
+      "expression": "(1.2 / 1.8).round(2) = 0.67",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivide6",
+      "expression": "1 / 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivideEmpty1",
+      "expression": "1 / {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivideEmpty2",
+      "expression": "{} / 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    },
+    {
+      "name": "testDivideEmpty3",
+      "expression": "{} / {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testDivide"
+      ]
+    }
+  ]
+}

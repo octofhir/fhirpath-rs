@@ -1,0 +1,1287 @@
+{
+  "name": "testTypes",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testStringYearConvertsToDate",
+      "expression": "'2015'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMonthConvertsToDate",
+      "expression": "'2015-02'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDayConvertsToDate",
+      "expression": "'2015-02-04'.convertsToDate()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringYearConvertsToDateTime",
+      "expression": "'2015'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMonthConvertsToDateTime",
+      "expression": "'2015-02'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDayConvertsToDateTime",
+      "expression": "'2015-02-04'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringHourConvertsToDateTime",
+      "expression": "'2015-02-04T14'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMinuteConvertsToDateTime",
+      "expression": "'2015-02-04T14:34'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringSecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMillisecondConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28.123'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringUTCConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28Z'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringTZConvertsToDateTime",
+      "expression": "'2015-02-04T14:34:28+10:00'.convertsToDateTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringHourConvertsToTime",
+      "expression": "'14'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMinuteConvertsToTime",
+      "expression": "'14:34'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringSecondConvertsToTime",
+      "expression": "'14:34:28'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringMillisecondConvertsToTime",
+      "expression": "'14:34:28.123'.convertsToTime()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToInteger",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsInteger",
+      "expression": "1.is(Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsSystemInteger",
+      "expression": "1.is(System.Integer)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToInteger",
+      "expression": "'1'.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToIntegerFalse",
+      "expression": "'a'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalConvertsToIntegerFalse",
+      "expression": "'1.0'.convertsToInteger().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralIsNotInteger",
+      "expression": "'1'.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToInteger",
+      "expression": "true.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotInteger",
+      "expression": "true.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDateIsNotInteger",
+      "expression": "@2013-04-05.is(Integer).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToInteger",
+      "expression": "1.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralToInteger",
+      "expression": "'1'.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToInteger",
+      "expression": "'1.1'.toInteger() = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToIntegerIsEmpty",
+      "expression": "'1.1'.toInteger().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToInteger",
+      "expression": "true.toInteger() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToDecimal",
+      "expression": "1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotDecimal",
+      "expression": "1.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToDecimal",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralIsDecimal",
+      "expression": "1.0.is(Decimal)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToDecimal",
+      "expression": "'1'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotDecimal",
+      "expression": "'1'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToDecimalFalse",
+      "expression": "'1.a'.convertsToDecimal().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToDecimal",
+      "expression": "'1.0'.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotDecimal",
+      "expression": "'1.0'.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToDecimal",
+      "expression": "true.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotDecimal",
+      "expression": "true.is(Decimal).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToDecimal",
+      "expression": "1.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToDeciamlEquivalent",
+      "expression": "1.toDecimal() ~ 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToDecimal",
+      "expression": "1.0.toDecimal() = 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToDecimalEqual",
+      "expression": "'1.1'.toDecimal() = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToDecimal",
+      "expression": "true.toDecimal() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToQuantity",
+      "expression": "1.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotQuantity",
+      "expression": "1.is(Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToQuantity",
+      "expression": "1.0.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralIsNotQuantity",
+      "expression": "1.0.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralConvertsToQuantity",
+      "expression": "'1'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralIsNotQuantity",
+      "expression": "'1'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityLiteralConvertsToQuantity",
+      "expression": "'1 day'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantity",
+      "expression": "'1 \\'wk\\''.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityWeekConvertsToQuantityFalse",
+      "expression": "'1 wk'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantityFalse",
+      "expression": "'1.a'.convertsToQuantity().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralConvertsToQuantity",
+      "expression": "'1.0'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralIsNotSystemQuantity",
+      "expression": "'1.0'.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToQuantity",
+      "expression": "true.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralIsNotSystemQuantity",
+      "expression": "true.is(System.Quantity).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToQuantity",
+      "expression": "1.toQuantity() = 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToQuantity",
+      "expression": "1.0.toQuantity() = 1.0 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringIntegerLiteralToQuantity",
+      "expression": "'1'.toQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 '1'"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 day",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityDayLiteralToQuantity",
+      "expression": "'1 day'.toQuantity() = 1 'd'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ],
+      "description": "Contested: calendar day units are not equal to ucum day units"
+    },
+    {
+      "name": "testStringQuantityWeekLiteralToQuantity",
+      "expression": "'1 \\'wk\\''.toQuantity() = 1 week",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityMonthLiteralToQuantity",
+      "expression": "'1 \\'mo\\''.toQuantity() = 1 month",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringQuantityYearLiteralToQuantity",
+      "expression": "'1 \\'a\\''.toQuantity() = 1 year",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringDecimalLiteralToQuantity",
+      "expression": "'1.0'.toQuantity() ~ 1 '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBoolean",
+      "expression": "1.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToBooleanFalse",
+      "expression": "2.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToBooleanFalse",
+      "expression": "(-1).convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralFalseConvertsToBoolean",
+      "expression": "0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToBoolean",
+      "expression": "1.0.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringTrueLiteralConvertsToBoolean",
+      "expression": "'true'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringFalseLiteralConvertsToBoolean",
+      "expression": "'false'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringFalseLiteralAlsoConvertsToBoolean",
+      "expression": "'False'.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testTrueLiteralConvertsToBoolean",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testFalseLiteralConvertsToBoolean",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToBoolean",
+      "expression": "1.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToBooleanEmpty",
+      "expression": "2.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToBooleanFalse",
+      "expression": "0.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringTrueToBoolean",
+      "expression": "'true'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringFalseToBoolean",
+      "expression": "'false'.toBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralConvertsToString",
+      "expression": "1.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralIsNotString",
+      "expression": "1.is(String).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralConvertsToString",
+      "expression": "(-1).convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralConvertsToString",
+      "expression": "1.0.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralConvertsToString",
+      "expression": "'true'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralConvertsToString",
+      "expression": "true.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testQuantityLiteralConvertsToString",
+      "expression": "1 'wk'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testIntegerLiteralToString",
+      "expression": "1.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testNegativeIntegerLiteralToString",
+      "expression": "(-1).toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "-1"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testDecimalLiteralToString",
+      "expression": "1.0.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1.0"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testStringLiteralToString",
+      "expression": "'true'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testBooleanLiteralToString",
+      "expression": "true.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "true"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testQuantityLiteralWkToString",
+      "expression": "1 'wk'.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 'wk'"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    },
+    {
+      "name": "testQuantityLiteralWeekToString",
+      "expression": "1 week.toString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1 week"
+      ],
+      "tags": [
+        "r5-xml",
+        "testTypes"
+      ]
+    }
+  ]
+}

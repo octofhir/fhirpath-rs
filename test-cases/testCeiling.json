@@ -1,0 +1,59 @@
+{
+  "name": "testCeiling",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testCeiling1",
+      "expression": "1.ceiling() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCeiling"
+      ]
+    },
+    {
+      "name": "testCeiling2",
+      "expression": "(-1.1).ceiling() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCeiling"
+      ]
+    },
+    {
+      "name": "testCeiling3",
+      "expression": "1.1.ceiling() = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCeiling"
+      ]
+    },
+    {
+      "name": "testCeilingEmpty",
+      "expression": "{}.ceiling().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCeiling"
+      ]
+    }
+  ]
+}

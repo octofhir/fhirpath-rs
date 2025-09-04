@@ -31,7 +31,7 @@ nom_locate = "5.0.0-beta.5"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { path = "../fhir-model-rs", features = ["serde"] }
 octofhir-fhirschema = { path = "../fhirschema" }
-octofhir-canonical-manager = { version = "0.1.6" }
+octofhir-canonical-manager = { version = "0.1.7" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
@@ -41,6 +41,7 @@ rust_decimal = { version = "1.37.2", features = ["serde-with-str"] }
 rustc-hash = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
+quick-xml = "0.38"
 smallvec = { version = "1.13", features = ["serde", "const_new"] }
 thiserror = "2"
 typed-arena = "2.0.2"

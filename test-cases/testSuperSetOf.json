@@ -1,0 +1,33 @@
+{
+  "name": "testSuperSetOf",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testSuperSetOf1",
+      "expression": "Patient.name.first().supersetOf($this.name).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSuperSetOf"
+      ]
+    },
+    {
+      "name": "testSuperSetOf2",
+      "expression": "Patient.name.supersetOf($this.name.first())",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSuperSetOf"
+      ]
+    }
+  ]
+}

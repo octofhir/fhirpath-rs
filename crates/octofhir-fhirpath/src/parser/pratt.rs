@@ -34,14 +34,103 @@ use crate::core::{FhirPathError, FP0001};
 use super::combinators::{
     string_literal_parser, number_parser, boolean_parser, datetime_literal_parser,
     identifier_parser, variable_parser, equals_parser, not_equals_parser,
-    less_equal_parser, greater_equal_parser, keyword_parser, backtick_identifier_parser
+    less_equal_parser, greater_equal_parser, keyword_parser, backtick_identifier_parser,
+    comment_parser, comment_or_whitespace
 };
+
+/// Strip comments, decode HTML entities, and normalize whitespace from input
+fn preprocess_input(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut string_char = '\0';
+    
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\'' | '"' if !in_string => {
+                in_string = true;
+                string_char = ch;
+                result.push(ch);
+            }
+            c if in_string && c == string_char => {
+                // Check for escaped quotes
+                if chars.peek() == Some(&string_char) {
+                    result.push(ch);
+                    result.push(chars.next().unwrap());
+                } else {
+                    in_string = false;
+                    result.push(ch);
+                }
+            }
+            '/' if !in_string => {
+                match chars.peek() {
+                    Some('/') => {
+                        // Single-line comment - skip to end of line
+                        chars.next(); // consume the second /
+                        result.push(' '); // Add space where comment was
+                        while let Some(c) = chars.next() {
+                            if c == '\n' || c == '\r' {
+                                result.push(c); // Keep the newline
+                                break;
+                            }
+                        }
+                    }
+                    Some('*') => {
+                        // Multi-line comment - skip to */
+                        chars.next(); // consume the *
+                        result.push(' '); // Add space where comment started
+                        let mut prev_char = '\0';
+                        while let Some(c) = chars.next() {
+                            if prev_char == '*' && c == '/' {
+                                break; // End of comment
+                            }
+                            prev_char = c;
+                        }
+                    }
+                    _ => result.push(ch),
+                }
+            }
+            '&' if !in_string => {
+                // Handle HTML entities
+                let remaining: String = chars.clone().collect();
+                if remaining.starts_with("lt;") {
+                    // Consume "lt;"
+                    chars.next(); chars.next(); chars.next(); // l, t, ;
+                    result.push('<');
+                } else if remaining.starts_with("gt;") {
+                    // Consume "gt;"
+                    chars.next(); chars.next(); chars.next(); // g, t, ;
+                    result.push('>');
+                } else if remaining.starts_with("amp;") {
+                    // Consume "amp;"
+                    chars.next(); chars.next(); chars.next(); chars.next(); // a, m, p, ;
+                    result.push('&');
+                } else if remaining.starts_with("quot;") {
+                    // Consume "quot;"
+                    chars.next(); chars.next(); chars.next(); chars.next(); chars.next(); // q, u, o, t, ;
+                    result.push('"');
+                } else if remaining.starts_with("apos;") {
+                    // Consume "apos;"
+                    chars.next(); chars.next(); chars.next(); chars.next(); chars.next(); // a, p, o, s, ;
+                    result.push('\'');
+                } else {
+                    result.push(ch);
+                }
+            }
+            _ => result.push(ch),
+        }
+    }
+    
+    result
+}
 
 /// Parse a FHIRPath expression into an AST using Chumsky Pratt parser
 pub fn parse(input: &str) -> Result<ExpressionNode, FhirPathError> {
+    // Preprocess to remove comments
+    let cleaned_input = preprocess_input(input);
     let parser = fhirpath_parser();
     
-    let result = parser.parse(input).into_result();
+    let result = parser.parse(&cleaned_input).into_result();
     
     match result {
         Ok(ast) => Ok(ast),

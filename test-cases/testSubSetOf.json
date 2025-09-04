@@ -1,0 +1,46 @@
+{
+  "name": "testSubSetOf",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testSubSetOf1",
+      "expression": "Patient.name.first().subsetOf($this.name)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSubSetOf"
+      ]
+    },
+    {
+      "name": "testSubSetOf2",
+      "expression": "Patient.name.subsetOf($this.name.first()).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSubSetOf"
+      ]
+    },
+    {
+      "name": "testSubSetOf3",
+      "expression": "supportingInfo.where(category.coding.code = 'additionalbodysite').sequence.subsetOf($this.item.informationSequence)",
+      "input": null,
+      "inputfile": "explanationofbenefit-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSubSetOf"
+      ]
+    }
+  ]
+}

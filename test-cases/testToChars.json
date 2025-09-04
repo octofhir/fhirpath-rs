@@ -1,0 +1,20 @@
+{
+  "name": "testToChars",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToChars1",
+      "expression": "'t2'.toChars() = 't' | '2'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToChars"
+      ]
+    }
+  ]
+}

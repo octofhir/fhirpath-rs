@@ -1,0 +1,98 @@
+{
+  "name": "testReplaceMatches",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testReplaceMatches1",
+      "expression": "'123456'.replaceMatches('234', 'X')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1X56"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches2",
+      "expression": "'abc'.replaceMatches('', 'x')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "abc"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches3",
+      "expression": "'123456'.replaceMatches('234', '')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "156"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches4",
+      "expression": "{}.replaceMatches('234', 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches5",
+      "expression": "'123'.replaceMatches({}, 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches6",
+      "expression": "'123'.replaceMatches('2', {}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    },
+    {
+      "name": "testReplaceMatches7",
+      "expression": "'abc123'.replaceMatches('[0-9]', '-')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "abc---"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplaceMatches"
+      ]
+    }
+  ]
+}

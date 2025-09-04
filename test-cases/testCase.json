@@ -1,0 +1,59 @@
+{
+  "name": "testCase",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testCase1",
+      "expression": "'t'.upper() = 'T'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase"
+      ]
+    },
+    {
+      "name": "testCase2",
+      "expression": "'t'.lower() = 't'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase"
+      ]
+    },
+    {
+      "name": "testCase3",
+      "expression": "'T'.upper() = 'T'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase"
+      ]
+    },
+    {
+      "name": "testCase4",
+      "expression": "'T'.lower() = 't'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCase"
+      ]
+    }
+  ]
+}

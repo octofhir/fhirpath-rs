@@ -1,0 +1,145 @@
+{
+  "name": "testMinus",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testMinus1",
+      "expression": "1 - 1 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinus2",
+      "expression": "1 - 0 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinus3",
+      "expression": "1.8 - 1.2 = 0.6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinus4",
+      "expression": "'a'-'b' = 'ab'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testMinus5",
+      "expression": "@1974-12-25 - 1 'month'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1974-11-25"
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ],
+      "description": "Contested: single quotes are ucum units, which are not applicable to date arithmetic"
+    },
+    {
+      "name": "testMinus6",
+      "expression": "@1974-12-25 - 1 'cm'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testMinus7",
+      "expression": "@T00:30:00 - 1 hour",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T23:30:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinus8",
+      "expression": "@T01:00:00 - 2 hours",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "T23:00:00"
+      ],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinusEmpty1",
+      "expression": "1 - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinusEmpty2",
+      "expression": "{} - 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    },
+    {
+      "name": "testMinusEmpty3",
+      "expression": "{} - {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testMinus"
+      ]
+    }
+  ]
+}

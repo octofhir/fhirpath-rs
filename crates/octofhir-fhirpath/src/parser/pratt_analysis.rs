@@ -350,11 +350,71 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
     }).then_ignore(end())
 }
 
+/// Strip comments and normalize whitespace from input (shared from pratt.rs)
+fn preprocess_input(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut string_char = '\0';
+    
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\'' | '"' if !in_string => {
+                in_string = true;
+                string_char = ch;
+                result.push(ch);
+            }
+            c if in_string && c == string_char => {
+                // Check for escaped quotes
+                if chars.peek() == Some(&string_char) {
+                    result.push(ch);
+                    result.push(chars.next().unwrap());
+                } else {
+                    in_string = false;
+                    result.push(ch);
+                }
+            }
+            '/' if !in_string => {
+                match chars.peek() {
+                    Some('/') => {
+                        // Single-line comment - skip to end of line
+                        chars.next(); // consume the second /
+                        while let Some(c) = chars.next() {
+                            if c == '\n' || c == '\r' {
+                                result.push(' '); // Replace comment with space
+                                break;
+                            }
+                        }
+                    }
+                    Some('*') => {
+                        // Multi-line comment - skip to */
+                        chars.next(); // consume the *
+                        let mut prev_char = '\0';
+                        while let Some(c) = chars.next() {
+                            if prev_char == '*' && c == '/' {
+                                result.push(' '); // Replace comment with space
+                                break;
+                            }
+                            prev_char = c;
+                        }
+                    }
+                    _ => result.push(ch),
+                }
+            }
+            _ => result.push(ch),
+        }
+    }
+    
+    result
+}
+
 /// Parse expression for analysis with comprehensive error recovery
 pub fn parse_for_analysis(input: &str) -> AnalysisResult {
+    // Preprocess to remove comments
+    let cleaned_input = preprocess_input(input);
     let parser = analysis_parser();
     
-    match parser.parse(input).into_result() {
+    match parser.parse(&cleaned_input).into_result() {
         Ok(ast) => AnalysisResult {
             ast: Some(ast),
             diagnostics: vec![],

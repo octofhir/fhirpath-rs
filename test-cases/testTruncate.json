@@ -1,0 +1,59 @@
+{
+  "name": "testTruncate",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testTruncate1",
+      "expression": "101.truncate() = 101",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTruncate"
+      ]
+    },
+    {
+      "name": "testTruncate2",
+      "expression": "1.00000001.truncate() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTruncate"
+      ]
+    },
+    {
+      "name": "testTruncate3",
+      "expression": "(-1.56).truncate() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTruncate"
+      ]
+    },
+    {
+      "name": "testTruncateEmpty",
+      "expression": "{}.truncate().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testTruncate"
+      ]
+    }
+  ]
+}

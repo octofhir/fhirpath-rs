@@ -1,0 +1,72 @@
+{
+  "name": "testExists",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testExists1",
+      "expression": "Patient.name.exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExists"
+      ]
+    },
+    {
+      "name": "testExists2",
+      "expression": "Patient.name.exists(use = 'nickname')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testExists"
+      ]
+    },
+    {
+      "name": "testExists3",
+      "expression": "Patient.name.exists(use = 'official')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExists"
+      ]
+    },
+    {
+      "name": "testExists4",
+      "expression": "Patient.maritalStatus.coding.exists(code = 'P' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')\n\t\t\tor Patient.maritalStatus.coding.exists(code = 'A' and system = 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testExists"
+      ]
+    },
+    {
+      "name": "testExists5",
+      "expression": "(1 | 2).exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExists"
+      ]
+    }
+  ]
+}

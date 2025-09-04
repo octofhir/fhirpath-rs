@@ -171,6 +171,13 @@ engine.evaluate("MedicationRequest.dosageInstruction.doseAndRate.doseQuantity.va
 | **[Architecture Guide](docs/ARCHITECTURE.md)** | Technical architecture and design patterns |
 | **[Development Guide](docs/DEVELOPMENT.md)** | Contributing and development setup |
 
+## 🧪 Test Runners (Dev Tools)
+
+- Convert official R5 XML suite to grouped JSON:
+  - `cargo run --bin convert-r5-xml-to-json -- specs/fhirpath/tests/tests-fhir-r5.xml`
+- Run existing JSON test suites:
+  - `cargo run --bin test-runner -- specs/fhirpath/tests/<suite>.json`
+
 ## ⚡ Performance
 
 Built for high-throughput healthcare applications with optimized parsing and evaluation engine designed for production workloads.

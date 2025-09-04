@@ -1,0 +1,398 @@
+{
+  "name": "testType",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testType1",
+      "expression": "1.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType1a",
+      "expression": "1.type().name = 'Integer'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType2",
+      "expression": "'1'.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType2a",
+      "expression": "'1'.type().name = 'String'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType3",
+      "expression": "true.type().namespace = 'System'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType4",
+      "expression": "true.type().name = 'Boolean'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType5",
+      "expression": "true.is(Boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType6",
+      "expression": "true.is(System.Boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType7",
+      "expression": "true is Boolean",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType8",
+      "expression": "true is System.Boolean",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType9",
+      "expression": "Patient.active.type().namespace = 'FHIR'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType10",
+      "expression": "Patient.active.type().name = 'boolean'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType11",
+      "expression": "Patient.active.is(boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType12",
+      "expression": "Patient.active.is(Boolean).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType13",
+      "expression": "Patient.active.is(FHIR.boolean)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType14",
+      "expression": "Patient.active.is(System.Boolean).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType15",
+      "expression": "Patient.type().namespace = 'FHIR'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType16",
+      "expression": "Patient.type().name = 'Patient'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType17",
+      "expression": "Patient.is(Patient)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType18",
+      "expression": "Patient.is(FHIR.Patient)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType19",
+      "expression": "Patient.is(FHIR.`Patient`)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType20",
+      "expression": "Patient.ofType(Patient).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType21",
+      "expression": "Patient.ofType(FHIR.Patient).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testType22",
+      "expression": "Patient.is(System.Patient).not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ],
+      "description": "Note: Some systems may return an error due to failing to resolve System.Patient"
+    },
+    {
+      "name": "testType23",
+      "expression": "Patient.ofType(FHIR.`Patient`).type().name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Patient"
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testTypeA1",
+      "expression": "Parameters.parameter[0].value.is(FHIR.string)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testTypeA2",
+      "expression": "Parameters.parameter[1].value.is(FHIR.integer)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testTypeA3",
+      "expression": "Parameters.parameter[2].value.is(FHIR.uuid)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testTypeA4",
+      "expression": "Parameters.parameter[2].value.is(FHIR.uri)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    },
+    {
+      "name": "testTypeA",
+      "expression": "Parameters.parameter[3].value.is(FHIR.decimal)",
+      "input": null,
+      "inputfile": "parameters-example-types.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testType"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,385 @@
+{
+  "name": "testGreaterThan",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testGreaterThan1",
+      "expression": "1 > 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan2",
+      "expression": "1.0 > 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan3",
+      "expression": "'a' > 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan4",
+      "expression": "'A' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan5",
+      "expression": "@2014-12-12 > @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan6",
+      "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan7",
+      "expression": "@T12:00:00 > @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan8",
+      "expression": "1 > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan9",
+      "expression": "1.0 > 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan10",
+      "expression": "'a' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan11",
+      "expression": "'A' > 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan12",
+      "expression": "@2014-12-12 > @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan13",
+      "expression": "@2014-12-13T12:00:00 > @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan14",
+      "expression": "@T12:00:00 > @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan15",
+      "expression": "2 > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan16",
+      "expression": "1.1 > 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan17",
+      "expression": "'b' > 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan18",
+      "expression": "'B' > 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan19",
+      "expression": "@2014-12-13 > @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan20",
+      "expression": "@2014-12-13T12:00:01 > @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan21",
+      "expression": "@T12:00:01 > @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan22",
+      "expression": "Observation.value &gt; 100 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan23",
+      "expression": "@2018-03 > @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan24",
+      "expression": "@2018-03-01T10:30 > @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan25",
+      "expression": "@T10:30 > @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan26",
+      "expression": "@2018-03-01T10:30:00 > @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThan27",
+      "expression": "@T10:30:00 > @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThanEmpty1",
+      "expression": "1 > {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThanEmpty2",
+      "expression": "{} > 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    },
+    {
+      "name": "testGreaterThanEmpty3",
+      "expression": "{} > {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreaterThan"
+      ]
+    }
+  ]
+}

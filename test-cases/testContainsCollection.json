@@ -1,0 +1,122 @@
+{
+  "name": "testContainsCollection",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testContainsCollection1",
+      "expression": "(1 | 2 | 3) contains 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollection2",
+      "expression": "(2 | 3) contains 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollection3",
+      "expression": "('a' | 'c' | 'd') contains 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollection4",
+      "expression": "('a' | 'c' | 'd') contains 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollectionEmpty1",
+      "expression": "{} contains 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollectionEmpty2",
+      "expression": "{} contains 'value'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollectionEmpty3",
+      "expression": "{} contains true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollectionEmpty4",
+      "expression": "{} contains {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    },
+    {
+      "name": "testContainsCollectionEmptyDateTime",
+      "expression": "{} contains @2023-01-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testContainsCollection"
+      ]
+    }
+  ]
+}

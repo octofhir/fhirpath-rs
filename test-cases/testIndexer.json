@@ -1,0 +1,33 @@
+{
+  "name": "testIndexer",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testIndexer1",
+      "expression": "Patient.name[0].given = 'Peter' | 'James'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexer"
+      ]
+    },
+    {
+      "name": "testIndexer2",
+      "expression": "Patient.name[1].given = 'Jim'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexer"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "name": "testAggregate",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testAggregate1",
+      "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 0) = 45",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testAggregate"
+      ]
+    },
+    {
+      "name": "testAggregate2",
+      "expression": "(1|2|3|4|5|6|7|8|9).aggregate($this+$total, 2) = 47",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testAggregate"
+      ]
+    },
+    {
+      "name": "testAggregate3",
+      "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this &lt; $total, $this, $total))) = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testAggregate"
+      ]
+    },
+    {
+      "name": "testAggregate4",
+      "expression": "(1|2|3|4|5|6|7|8|9).aggregate(iif($total.empty(), $this, iif($this &gt; $total, $this, $total))) = 9",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testAggregate"
+      ]
+    }
+  ]
+}

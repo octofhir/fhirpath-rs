@@ -74,6 +74,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         // Test now() returns DateTime
@@ -115,6 +116,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         let (year_func, _) = registry.get_sync_function("yearOf").unwrap();

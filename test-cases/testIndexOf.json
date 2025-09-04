@@ -1,0 +1,85 @@
+{
+  "name": "testIndexOf",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testIndexOf1",
+      "expression": "'LogicalModel-Person'.indexOf('-')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        12
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    },
+    {
+      "name": "testIndexOf2",
+      "expression": "'LogicalModel-Person'.indexOf('z')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        -1
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    },
+    {
+      "name": "testIndexOf3",
+      "expression": "'LogicalModel-Person'.indexOf('')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        0
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    },
+    {
+      "name": "testIndexOf5",
+      "expression": "'LogicalModel-Person'.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    },
+    {
+      "name": "testIndexOf4",
+      "expression": "{}.indexOf('-').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    },
+    {
+      "name": "testIndexOf6",
+      "expression": "{}.indexOf({}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testIndexOf"
+      ]
+    }
+  ]
+}

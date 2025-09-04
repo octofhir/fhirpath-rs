@@ -1,0 +1,385 @@
+{
+  "name": "testGreatorOrEqual",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testGreatorOrEqual1",
+      "expression": "1 >= 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual2",
+      "expression": "1.0 >= 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual3",
+      "expression": "'a' >= 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual4",
+      "expression": "'A' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual5",
+      "expression": "@2014-12-12 >= @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual6",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual7",
+      "expression": "@T12:00:00 >= @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual8",
+      "expression": "1 >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual9",
+      "expression": "1.0 >= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual10",
+      "expression": "'a' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual11",
+      "expression": "'A' >= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual12",
+      "expression": "@2014-12-12 >= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual13",
+      "expression": "@2014-12-13T12:00:00 >= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual14",
+      "expression": "@T12:00:00 >= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual15",
+      "expression": "2 >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual16",
+      "expression": "1.1 >= 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual17",
+      "expression": "'b' >= 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual18",
+      "expression": "'B' >= 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual19",
+      "expression": "@2014-12-13 >= @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual20",
+      "expression": "@2014-12-13T12:00:01 >= @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual21",
+      "expression": "@T12:00:01 >= @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual22",
+      "expression": "Observation.value &gt;= 100 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual23",
+      "expression": "@2018-03 >= @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual24",
+      "expression": "@2018-03-01T10:30 >= @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual25",
+      "expression": "@T10:30 >= @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual26",
+      "expression": "@2018-03-01T10:30:00 >= @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqual27",
+      "expression": "@T10:30:00 >= @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqualEmpty1",
+      "expression": "1 >= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqualEmpty2",
+      "expression": "{} >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    },
+    {
+      "name": "testGreatorOrEqualEmpty3",
+      "expression": "{} >= {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testGreatorOrEqual"
+      ]
+    }
+  ]
+}

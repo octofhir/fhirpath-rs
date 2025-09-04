@@ -1,0 +1,385 @@
+{
+  "name": "testLessThan",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testLessThan1",
+      "expression": "1 &lt; 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan2",
+      "expression": "1.0 &lt; 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan3",
+      "expression": "'a' &lt; 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan4",
+      "expression": "'A' &lt; 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan5",
+      "expression": "@2014-12-12 &lt; @2014-12-13",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan6",
+      "expression": "@2014-12-13T12:00:00 &lt; @2014-12-13T12:00:01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan7",
+      "expression": "@T12:00:00 &lt; @T14:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan8",
+      "expression": "1 &lt; 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan9",
+      "expression": "1.0 &lt; 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan10",
+      "expression": "'a' &lt; 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan11",
+      "expression": "'A' &lt; 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan12",
+      "expression": "@2014-12-12 &lt; @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan13",
+      "expression": "@2014-12-13T12:00:00 &lt; @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan14",
+      "expression": "@T12:00:00 &lt; @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan15",
+      "expression": "2 &lt; 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan16",
+      "expression": "1.1 &lt; 1.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan17",
+      "expression": "'b' &lt; 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan18",
+      "expression": "'B' &lt; 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan19",
+      "expression": "@2014-12-13 &lt; @2014-12-12",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan20",
+      "expression": "@2014-12-13T12:00:01 &lt; @2014-12-13T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan21",
+      "expression": "@T12:00:01 &lt; @T12:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan22",
+      "expression": "Observation.value &lt; 200 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan23",
+      "expression": "@2018-03 &lt; @2018-03-01",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan24",
+      "expression": "@2018-03-01T10:30 &lt; @2018-03-01T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan25",
+      "expression": "@T10:30 &lt; @T10:30:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan26",
+      "expression": "@2018-03-01T10:30:00 &lt; @2018-03-01T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThan27",
+      "expression": "@T10:30:00 &lt; @T10:30:00.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThanEmpty1",
+      "expression": "1 &lt; {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThanEmpty2",
+      "expression": "{} &lt; 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    },
+    {
+      "name": "testLessThanEmpty3",
+      "expression": "{} &lt; {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLessThan"
+      ]
+    }
+  ]
+}

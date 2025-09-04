@@ -578,11 +578,12 @@ impl ExpressionEvaluator {
     ///
     /// # Returns
     /// * `Collection` - Evaluation result
-    async fn evaluate_expression(
-        &mut self,
-        node: &ExpressionNode,
-        context: &EvaluationContext
-    ) -> Result<Collection> {
+    fn evaluate_expression<'a>(
+        &'a mut self,
+        node: &'a ExpressionNode,
+        context: &'a EvaluationContext
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Collection>> + 'a>> {
+        Box::pin(async move {
         // Check recursion depth
         if self.recursion_depth > self.config.max_recursion_depth {
             return Err(FhirPathError::evaluation_error(
@@ -593,8 +594,6 @@ impl ExpressionEvaluator {
         
         self.recursion_depth += 1;
         
-        // For now, return a basic implementation that delegates to the existing evaluator
-        // TODO: Implement full evaluation logic for all AST node types
         let result = match node {
             ExpressionNode::Literal(literal_node) => {
                 self.evaluate_literal(&literal_node.value)
@@ -602,11 +601,13 @@ impl ExpressionEvaluator {
             ExpressionNode::Identifier(identifier_node) => {
                 self.evaluate_identifier(&identifier_node.name, context).await
             },
+            ExpressionNode::BinaryOperation(binary_node) => {
+                self.evaluate_binary_operation(binary_node, context).await
+            },
             _ => {
                 // For now, return empty collection for unsupported AST nodes
-                // This is a temporary implementation until full evaluation is completed
-                // TODO: Implement evaluation for all AST node types:
-                // - PropertyAccess, FunctionCall, BinaryOperation, UnaryOperation
+                // TODO: Implement evaluation for all remaining AST node types:
+                // - PropertyAccess, FunctionCall, UnaryOperation
                 // - Collection, Variable, TypeCast, Filter, Union, etc.
                 Ok(Collection::empty())
             }
@@ -614,6 +615,7 @@ impl ExpressionEvaluator {
         
         self.recursion_depth -= 1;
         result
+        })
     }
     
     /// Evaluate literal expression
@@ -690,6 +692,170 @@ impl ExpressionEvaluator {
         Ok(result)
     }
     
+    /// Evaluate binary operation
+    ///
+    /// # Arguments
+    /// * `binary_node` - Binary operation node
+    /// * `context` - Evaluation context
+    ///
+    /// # Returns
+    /// * `Collection` - Evaluation result
+    async fn evaluate_binary_operation(
+        &mut self,
+        binary_node: &crate::ast::BinaryOperationNode,
+        context: &EvaluationContext
+    ) -> Result<Collection> {
+        use crate::ast::BinaryOperator;
+        use crate::registry::math::ArithmeticOperations;
+        
+        // Evaluate left and right operands
+        let left_result = self.evaluate_expression(&binary_node.left, context).await?;
+        let right_result = self.evaluate_expression(&binary_node.right, context).await?;
+        
+        // Handle binary operations according to FHIRPath spec
+        match binary_node.operator {
+            // Arithmetic operations that can fail with Results
+            BinaryOperator::Add => {
+                self.apply_binary_result_op(left_result, right_result, ArithmeticOperations::add)
+            },
+            BinaryOperator::Subtract => {
+                self.apply_binary_result_op(left_result, right_result, ArithmeticOperations::subtract)
+            },
+            BinaryOperator::Multiply => {
+                self.apply_binary_result_op(left_result, right_result, ArithmeticOperations::multiply)
+            },
+            // Division operations that return Options (can be zero or invalid types)
+            BinaryOperator::Divide => {
+                self.apply_binary_option_op(left_result, right_result, ArithmeticOperations::divide)
+            },
+            BinaryOperator::IntegerDivide => {
+                self.apply_binary_option_op(left_result, right_result, ArithmeticOperations::integer_divide)
+            },
+            BinaryOperator::Modulo => {
+                self.apply_binary_option_op(left_result, right_result, ArithmeticOperations::modulo)
+            },
+            // Comparison operations
+            BinaryOperator::Equal => {
+                self.apply_binary_comparison_op(left_result, right_result)
+            },
+            // TODO: Implement other binary operators
+            _ => {
+                // For now, return empty collection for unsupported operators
+                Ok(Collection::empty())
+            }
+        }
+    }
+    
+    /// Apply binary arithmetic operation that returns Result
+    fn apply_binary_result_op<F>(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+        op: F
+    ) -> Result<Collection>
+    where 
+        F: Fn(&FhirPathValue, &FhirPathValue) -> Result<FhirPathValue>
+    {
+        // FHIRPath binary operations work on single values
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty()); // Returns empty if operands are not single values
+        }
+        
+        let left_value = left_result.first().unwrap();
+        let right_value = right_result.first().unwrap();
+        
+        match op(left_value, right_value) {
+            Ok(result) => {
+                self.memory_allocations += 1;
+                Ok(Collection::single(result))
+            },
+            Err(_) => Ok(Collection::empty()) // Error in operation returns empty collection
+        }
+    }
+
+    /// Apply binary arithmetic operation that returns Option
+    fn apply_binary_option_op<F>(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+        op: F
+    ) -> Result<Collection>
+    where 
+        F: Fn(&FhirPathValue, &FhirPathValue) -> Option<FhirPathValue>
+    {
+        // FHIRPath binary operations work on single values
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty()); // Returns empty if operands are not single values
+        }
+        
+        let left_value = left_result.first().unwrap();
+        let right_value = right_result.first().unwrap();
+        
+        match op(left_value, right_value) {
+            Some(result) => {
+                self.memory_allocations += 1;
+                Ok(Collection::single(result))
+            },
+            None => Ok(Collection::empty()) // Error in operation returns empty collection
+        }
+    }
+    
+    /// Apply binary comparison operation
+    fn apply_binary_comparison_op(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // FHIRPath comparison operations work on single values
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty()); // Returns empty if operands are not single values
+        }
+        
+        let left_value = left_result.first().unwrap();
+        let right_value = right_result.first().unwrap();
+        
+        let result = self.fhirpath_values_equal(left_value, right_value);
+        self.memory_allocations += 1;
+        Ok(Collection::single(FhirPathValue::Boolean(result)))
+    }
+    
+    /// FHIRPath equality comparison with proper numeric type coercion
+    fn fhirpath_values_equal(&self, left: &FhirPathValue, right: &FhirPathValue) -> bool {
+        use rust_decimal::Decimal;
+        
+        match (left, right) {
+            // Same type - direct comparison
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => a == b,
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => a == b,
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a == b,
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a == b,
+            
+            // Numeric type coercion - Integer and Decimal should be comparable
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                let a_decimal = Decimal::from(*a);
+                a_decimal == *b
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                let b_decimal = Decimal::from(*b);
+                *a == b_decimal
+            },
+            
+            // Date/Time comparisons
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a == b,
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a == b,
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a == b,
+            
+            // Quantity comparisons (same unit)
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, 
+             FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                v1 == v2 && u1 == u2
+            },
+            
+            // Default: different types are not equal
+            _ => false,
+        }
+    }
+
     /// Get property from a value item
     ///
     /// # Arguments

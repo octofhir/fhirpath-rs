@@ -1,0 +1,33 @@
+{
+  "name": "testSingle",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testSingle1",
+      "expression": "Patient.name.first().single().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testSingle"
+      ]
+    },
+    {
+      "name": "testSingle2",
+      "expression": "Patient.name.single().exists()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testSingle"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    }
+  ]
+}

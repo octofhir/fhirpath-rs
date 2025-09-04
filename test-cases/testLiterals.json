@@ -1,0 +1,1065 @@
+{
+  "name": "testLiterals",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testLiteralTrue",
+      "expression": "Patient.name.exists() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralFalse",
+      "expression": "Patient.name.empty() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralString1",
+      "expression": "Patient.name.given.first() = 'Peter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralInteger1",
+      "expression": "1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralInteger0",
+      "expression": "0.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNegative1",
+      "expression": "(-1).convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNegative1Invalid",
+      "expression": "-1.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testLiteralIntegerMax",
+      "expression": "2147483647.convertsToInteger()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralString2",
+      "expression": "'test'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralStringEscapes",
+      "expression": "'\\\\\\/\\f\\r\\n\\t\\\"\\`\\'\\u002a'.convertsToString()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralBooleanTrue",
+      "expression": "true.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralBooleanFalse",
+      "expression": "false.convertsToBoolean()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimal10",
+      "expression": "1.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimal01",
+      "expression": "0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimal00",
+      "expression": "0.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalNegative01",
+      "expression": "(-0.1).convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalNegative01Invalid",
+      "expression": "-0.1.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testLiteralDecimalMax",
+      "expression": "1234567890987654321.0.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalStep",
+      "expression": "0.00000001.convertsToDecimal()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateYear",
+      "expression": "@2015.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateMonth",
+      "expression": "@2015-02.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateDay",
+      "expression": "@2015-02-04.is(Date)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeYear",
+      "expression": "@2015T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMonth",
+      "expression": "@2015-02T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeDay",
+      "expression": "@2015-02-04T.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeHour",
+      "expression": "@2015-02-04T14.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMinute",
+      "expression": "@2015-02-04T14:34.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeSecond",
+      "expression": "@2015-02-04T14:34:28.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeMillisecond",
+      "expression": "@2015-02-04T14:34:28.123.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeUTC",
+      "expression": "@2015-02-04T14:34:28Z.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTimezoneOffset",
+      "expression": "@2015-02-04T14:34:28+10:00.is(DateTime)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralTimeHour",
+      "expression": "@T14.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralTimeMinute",
+      "expression": "@T14:34.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralTimeSecond",
+      "expression": "@T14:34:28.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralTimeMillisecond",
+      "expression": "@T14:34:28.123.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralTimeUTC",
+      "expression": "@T14:34:28Z.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testLiteralTimeTimezoneOffset",
+      "expression": "@T14:34:28+10:00.is(Time)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testLiteralQuantityDecimal",
+      "expression": "10.1 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralQuantityInteger",
+      "expression": "10 'mg'.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralQuantityDay",
+      "expression": "4 days.convertsToQuantity()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerNotEqual",
+      "expression": "-3 != 3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerEqual",
+      "expression": "Patient.name.given.count() = 5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testPolarityPrecedence",
+      "expression": "-Patient.name.given.count() = -5",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerGreaterThan",
+      "expression": "Patient.name.given.count() &gt; -3",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerCountNotEqual",
+      "expression": "Patient.name.given.count() != 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanTrue",
+      "expression": "1 &lt; 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanFalse",
+      "expression": "1 &lt; -2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityTrue",
+      "expression": "+1 &lt; +2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralIntegerLessThanPolarityFalse",
+      "expression": "-1 &lt; 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanNonZeroTrue",
+      "expression": "Observation.value.value &gt; 180.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanZeroTrue",
+      "expression": "Observation.value.value &gt; 0.0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalGreaterThanIntegerTrue",
+      "expression": "Observation.value.value &gt; 0",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalLessThanInteger",
+      "expression": "Observation.value.value &lt; 190",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDecimalLessThanInvalid",
+      "expression": "Observation.value.value &lt; 'test'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testDateEqual",
+      "expression": "Patient.birthDate = @1974-12-25",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqual",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetBefore",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00-10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualTimezoneOffsetAfter",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00+10:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualUTC",
+      "expression": "Patient.birthDate != @1974-12-25T12:34:00Z",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualTimeSecond",
+      "expression": "Patient.birthDate != @T12:14:15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualTimeMinute",
+      "expression": "Patient.birthDate != @T12:14",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateNotEqualToday",
+      "expression": "Patient.birthDate &lt; today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateTimeGreaterThanDate1",
+      "expression": "now() &gt; Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateGreaterThanDate",
+      "expression": "today() &gt; Patient.birthDate",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testDateTimeGreaterThanDate2",
+      "expression": "now() &gt; today()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZGreater",
+      "expression": "@2017-11-05T01:30:00.0-04:00 > @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZLess",
+      "expression": "@2017-11-05T01:30:00.0-04:00 &lt; @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualFalse",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T01:15:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralDateTimeTZEqualTrue",
+      "expression": "@2017-11-05T01:30:00.0-04:00 = @2017-11-05T00:30:00.0-05:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralUnicode",
+      "expression": "Patient.name.given.first() = 'P\\u0065ter'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testCollectionNotEmpty",
+      "expression": "Patient.name.given.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testCollectionNotEqualEmpty",
+      "expression": "Patient.name.given != {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testExpressions",
+      "expression": "Patient.name.select(given | family).distinct()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "Peter",
+        "James",
+        "Chalmers",
+        "Jim",
+        "Windsor"
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testExpressionsEqual",
+      "expression": "Patient.name.given.count() = 1 + 4",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testNotEmpty",
+      "expression": "Patient.name.empty().not()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testEmpty",
+      "expression": "Patient.link.empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralNotOnEmpty",
+      "expression": "{}.not().empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralNotTrue",
+      "expression": "true.not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testLiteralNotFalse",
+      "expression": "false.not() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testIntegerBooleanNotTrue",
+      "expression": "(0).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testIntegerBooleanNotFalse",
+      "expression": "(1).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ]
+    },
+    {
+      "name": "testNotInvalid",
+      "expression": "(1|2).not() = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testLiterals"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "miscEngineTests",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testContainedId",
+      "expression": "contained.id",
+      "input": null,
+      "inputfile": "patient-container-example.json",
+      "expected": [
+        "1"
+      ],
+      "tags": [
+        "r5-xml",
+        "miscEngineTests"
+      ]
+    },
+    {
+      "name": "testMultipleResolve",
+      "expression": "composition.exists() \n\t\t\timplies \n\t\t\t(\n\t\t\t\tcomposition.resolve().section.entry.reference.where(resolve() is Observation)\n\t\t\t\t.where($this in (%resource.result.reference | %resource.result.reference.resolve().hasMember.reference)).exists()\n\t\t\t)",
+      "input": null,
+      "inputfile": "diagnosticreport-eric.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "miscEngineTests"
+      ]
+    }
+  ]
+}

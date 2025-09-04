@@ -1,0 +1,85 @@
+{
+  "name": "testCollectionBoolean",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testCollectionBoolean1",
+      "expression": "iif(1 | 2 | 3, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ],
+      "expectError": true,
+      "invalidKind": "semantic"
+    },
+    {
+      "name": "testCollectionBoolean2",
+      "expression": "iif({}, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ]
+    },
+    {
+      "name": "testCollectionBoolean3",
+      "expression": "iif(true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ]
+    },
+    {
+      "name": "testCollectionBoolean4",
+      "expression": "iif({} | true, true, false)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ]
+    },
+    {
+      "name": "testCollectionBoolean5",
+      "expression": "iif(true, true, 1/0)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ]
+    },
+    {
+      "name": "testCollectionBoolean6",
+      "expression": "iif(false, 1/0, true)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testCollectionBoolean"
+      ]
+    }
+  ]
+}

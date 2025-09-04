@@ -1,0 +1,364 @@
+{
+  "name": "testEquality",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testEquality1",
+      "expression": "1 = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality2",
+      "expression": "{} = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality3",
+      "expression": "true = {}",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality4",
+      "expression": "(1) = (1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality5",
+      "expression": "(1 | 2) = (1 | 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality6",
+      "expression": "(1 | 2 | 3) = (1 | 2 | 3)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality7",
+      "expression": "(1 | 1) = (1 | 2 | {})",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality8",
+      "expression": "1 = 2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality9",
+      "expression": "'a' = 'a'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality10",
+      "expression": "'a' = 'A'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality11",
+      "expression": "'a' = 'b'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality12",
+      "expression": "1.1 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality13",
+      "expression": "1.1 = 1.2",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality14",
+      "expression": "1.10 = 1.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality15",
+      "expression": "0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality16",
+      "expression": "0.0 = 0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality17",
+      "expression": "@2012-04-15 = @2012-04-15",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality18",
+      "expression": "@2012-04-15 = @2012-04-16",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality19",
+      "expression": "@2012-04-15 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality20",
+      "expression": "@2012-04-15T15:00:00 = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality21",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.0",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality22",
+      "expression": "@2012-04-15T15:30:31 = @2012-04-15T15:30:31.1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality23",
+      "expression": "@2012-04-15T15:00:00Z = @2012-04-15T10:00:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ],
+      "description": "This could be impacted by the timezone of the engine running the test"
+    },
+    {
+      "name": "testEquality24",
+      "expression": "@2012-04-15T15:00:00+02:00 = @2012-04-15T16:00:00+03:00",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality25",
+      "expression": "name = name",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality26",
+      "expression": "name.take(2) = name.take(2).first() | name.take(2).last()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality27",
+      "expression": "name.take(2) = name.take(2).last() | name.take(2).first()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    },
+    {
+      "name": "testEquality28",
+      "expression": "Observation.value = 185 '[lb_av]'",
+      "input": null,
+      "inputfile": "observation-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testEquality"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "name": "testBooleanImplies",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testBooleanImplies1",
+      "expression": "(true implies true) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies2",
+      "expression": "(true implies false) = false",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies3",
+      "expression": "(true implies {}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies4",
+      "expression": "(false implies true) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies5",
+      "expression": "(false implies false) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies6",
+      "expression": "(false implies {}) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies7",
+      "expression": "({} implies true) = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies8",
+      "expression": "({} implies false).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    },
+    {
+      "name": "testBooleanImplies9",
+      "expression": "({} implies {}).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testBooleanImplies"
+      ]
+    }
+  ]
+}

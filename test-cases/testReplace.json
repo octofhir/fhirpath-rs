@@ -1,0 +1,85 @@
+{
+  "name": "testReplace",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testReplace1",
+      "expression": "'123456'.replace('234', 'X')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "1X56"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    },
+    {
+      "name": "testReplace2",
+      "expression": "'abc'.replace('', 'x')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "xaxbxcx"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    },
+    {
+      "name": "testReplace3",
+      "expression": "'123456'.replace('234', '')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "156"
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    },
+    {
+      "name": "testReplace4",
+      "expression": "{}.replace('234', 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    },
+    {
+      "name": "testReplace5",
+      "expression": "'123'.replace({}, 'X').empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    },
+    {
+      "name": "testReplace6",
+      "expression": "'123'.replace('2', {}).empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testReplace"
+      ]
+    }
+  ]
+}

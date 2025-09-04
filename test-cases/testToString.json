@@ -1,0 +1,72 @@
+{
+  "name": "testToString",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testToString1",
+      "expression": "1.toString() = '1'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToString"
+      ]
+    },
+    {
+      "name": "testToString2",
+      "expression": "'-1'.toInteger() = -1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToString"
+      ]
+    },
+    {
+      "name": "testToString3",
+      "expression": "0.toString() = '0'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToString"
+      ]
+    },
+    {
+      "name": "testToString4",
+      "expression": "0.0.toString() = '0.0'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToString"
+      ]
+    },
+    {
+      "name": "testToString5",
+      "expression": "@2014-12-14.toString() = '2014-12-14'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testToString"
+      ]
+    }
+  ]
+}

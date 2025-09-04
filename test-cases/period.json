@@ -1,0 +1,33 @@
+{
+  "name": "period",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testPeriodInvariantOld",
+      "expression": "Patient.identifier.period.all(start.hasValue().not() or end.hasValue().not() or (start &lt;= end))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        false
+      ],
+      "tags": [
+        "r5-xml",
+        "period"
+      ]
+    },
+    {
+      "name": "testPeriodInvariantNew",
+      "expression": "Patient.identifier.period.all(start.empty() or end.empty() or (start.lowBoundary() &lt; end.highBoundary()))",
+      "input": null,
+      "inputfile": "patient-example-period.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "period"
+      ]
+    }
+  ]
+}

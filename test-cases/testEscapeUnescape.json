@@ -1,0 +1,59 @@
+{
+  "name": "testEscapeUnescape",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testEscapeHtml",
+      "expression": "'\"1&lt;2\"'.escape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "&amp;quot;1&amp;lt;2&amp;quot;"
+      ],
+      "tags": [
+        "r5-xml",
+        "testEscapeUnescape"
+      ]
+    },
+    {
+      "name": "testEscapeJson",
+      "expression": "'\"1&lt;2\"'.escape('json')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\\\"1&lt;2\\\""
+      ],
+      "tags": [
+        "r5-xml",
+        "testEscapeUnescape"
+      ]
+    },
+    {
+      "name": "testUnescapeHtml",
+      "expression": "'&amp;quot;1&amp;lt;2&amp;quot;'.unescape('html')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\"1&lt;2\""
+      ],
+      "tags": [
+        "r5-xml",
+        "testEscapeUnescape"
+      ]
+    },
+    {
+      "name": "testUnescapeJson",
+      "expression": "'\\\"1&lt;2\\\"'.unescape('json')",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        "\"1&lt;2\""
+      ],
+      "tags": [
+        "r5-xml",
+        "testEscapeUnescape"
+      ]
+    }
+  ]
+}

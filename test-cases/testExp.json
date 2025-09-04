@@ -1,0 +1,46 @@
+{
+  "name": "testExp",
+  "description": null,
+  "source": "fhir-test-cases r5",
+  "tests": [
+    {
+      "name": "testExp1",
+      "expression": "0.exp() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExp"
+      ]
+    },
+    {
+      "name": "testExp2",
+      "expression": "(-0.0).exp() = 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExp"
+      ]
+    },
+    {
+      "name": "testExp3",
+      "expression": "{}.exp().empty() = true",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "testExp"
+      ]
+    }
+  ]
+}
