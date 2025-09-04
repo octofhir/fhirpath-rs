@@ -4,16 +4,7 @@ members = [
     "crates/fhirpath-cli",
     "crates/fhirpath-dev-tools",
 ]
-
-exclude = [
-    "crates/fhirpath-ast",
-    "crates/fhirpath-analazer",
-    "crates/fhirpath-core",
-    "crates/fhirpath-diagnostics",
-    "crates/fhirpath-registry",
-    "crates/fhirpath-parser",
-    "crates/fhirpath-evaluator",
-]
+exclude = []
 resolver = "3"
 
 [workspace.package]
@@ -41,6 +32,7 @@ octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { path = "../fhir-model-rs", features = ["serde"] }
 octofhir-fhirschema = { path = "../fhirschema" }
 octofhir-canonical-manager = { version = "0.1.6" }
+papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"
 parking_lot = "0.12.4"

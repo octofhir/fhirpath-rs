@@ -325,7 +325,7 @@ fn list_expressions() {
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirschema::provider::FhirSchemaModelProvider;
-    use octofhir_fhirpath::{parse_expression_default};
+    use octofhir_fhirpath::parse_expression;
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -361,7 +361,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let _ = parse_expression_default(expr);
+                let _ = parse_expression(expr);
             }
 
             let elapsed = start_time.elapsed();
@@ -382,7 +382,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let _ = parse_expression_default(expr);
+                let _ = parse_expression(expr);
             }
 
             let elapsed = start_time.elapsed();

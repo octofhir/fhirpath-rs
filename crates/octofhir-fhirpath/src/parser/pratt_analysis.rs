@@ -21,7 +21,7 @@ use super::combinators::{
     string_literal_parser, number_parser, boolean_parser, datetime_literal_parser,
     identifier_parser, variable_parser, equals_parser, not_equals_parser,
     less_equal_parser, greater_equal_parser, keyword_parser, comment_parser,
-    whitespace_parser, error_recovery_parser
+    whitespace_parser, error_recovery_parser, backtick_identifier_parser
 };
 
 /// Analysis parser result with comprehensive error information
@@ -314,7 +314,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             // Property access and method calls - precedence 11
             postfix(11,
                 just('.')
-                    .ignore_then(text::ident())
+                    .ignore_then(identifier_parser())
                     .then(
                         expr.clone()
                             .separated_by(just(',').padded())
@@ -322,7 +322,12 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
                             .delimited_by(just('(').padded(), just(')').padded())
                             .or_not()
                     ),
-                |expr, (name, args): (&str, Option<Vec<ExpressionNode>>), _| {
+                |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), _| {
+                    let name = if let ExpressionNode::Identifier(id) = identifier {
+                        id.name
+                    } else {
+                        "unknown".to_string() // This should not happen
+                    };
                     if let Some(arguments) = args {
                         // Method call
                         ExpressionNode::MethodCall(MethodCallNode {

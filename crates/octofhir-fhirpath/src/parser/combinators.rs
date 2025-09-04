@@ -61,18 +61,44 @@ pub fn string_literal_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, e
     ))
 }
 
-/// Parser for integer and decimal numbers
+/// Parser for integer and decimal numbers (with optional units for quantities)
 pub fn number_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     text::int(10)
         .then(just('.').ignore_then(text::int(10)).or_not())
-        .map(|(int_part, decimal_part): (&str, Option<&str>)| {
+        .then(
+            // Optional unit specification using single quotes (e.g., 'mg', 'kg')
+            just(' ').or_not()
+                .ignore_then(
+                    just('\'')
+                        .ignore_then(
+                            none_of(['\'']).repeated().collect::<String>()
+                        )
+                        .then_ignore(just('\''))
+                )
+                .or_not()
+        )
+        .map(|((int_part, decimal_part), unit): ((&str, Option<&str>), Option<String>)| {
             if let Some(dec_part) = decimal_part {
                 let full_number = format!("{}.{}", int_part, dec_part);
                 match full_number.parse::<Decimal>() {
-                    Ok(decimal) => ExpressionNode::Literal(LiteralNode {
-                        value: LiteralValue::Decimal(decimal),
-                        location: None,
-                    }),
+                    Ok(decimal) => {
+                        if let Some(unit_str) = unit {
+                            // Create Quantity literal
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Quantity { 
+                                    value: decimal,
+                                    unit: Some(unit_str)
+                                },
+                                location: None,
+                            })
+                        } else {
+                            // Plain decimal
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Decimal(decimal),
+                                location: None,
+                            })
+                        }
+                    },
                     Err(_) => ExpressionNode::Literal(LiteralNode {
                         value: LiteralValue::String(full_number),
                         location: None,
@@ -80,15 +106,41 @@ pub fn number_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Er
                 }
             } else {
                 match int_part.parse::<i64>() {
-                    Ok(num) => ExpressionNode::Literal(LiteralNode {
-                        value: LiteralValue::Integer(num),
-                        location: None,
-                    }),
+                    Ok(num) => {
+                        if let Some(unit_str) = unit {
+                            // Create Quantity literal from integer
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Quantity {
+                                    value: Decimal::from(num),
+                                    unit: Some(unit_str)
+                                },
+                                location: None,
+                            })
+                        } else {
+                            // Plain integer
+                            ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::Integer(num),
+                                location: None,
+                            })
+                        }
+                    },
                     Err(_) => match int_part.parse::<Decimal>() {
-                        Ok(decimal) => ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::Decimal(decimal),
-                            location: None,
-                        }),
+                        Ok(decimal) => {
+                            if let Some(unit_str) = unit {
+                                ExpressionNode::Literal(LiteralNode {
+                                    value: LiteralValue::Quantity {
+                                        value: decimal,
+                                        unit: Some(unit_str)
+                                    },
+                                    location: None,
+                                })
+                            } else {
+                                ExpressionNode::Literal(LiteralNode {
+                                    value: LiteralValue::Decimal(decimal),
+                                    location: None,
+                                })
+                            }
+                        },
                         Err(_) => ExpressionNode::Literal(LiteralNode {
                             value: LiteralValue::String(int_part.to_string()),
                             location: None,
@@ -117,7 +169,9 @@ pub fn boolean_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::E
 pub fn datetime_literal_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     just('@')
         .ignore_then(
-            one_of("0123456789-:TZ+.")
+            // Fixed: removed '.' from allowed chars to prevent consuming method call operators
+            // This prevents @2023-05-15.yearOf() from consuming the dot as part of datetime literal
+            one_of("0123456789-:TZ+")
                 .repeated()
                 .at_least(1)
                 .collect::<String>()
@@ -131,13 +185,31 @@ pub fn datetime_literal_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode,
         })
 }
 
-/// Parser for identifiers (including keywords)
+/// Parser for backtick-delimited identifiers (`identifier`)
+pub fn backtick_identifier_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
+    just('`')
+        .ignore_then(
+            none_of(['`', '\n', '\r'])
+                .repeated()
+                .at_least(1)
+                .collect::<String>()
+        )
+        .then_ignore(just('`'))
+        .map(|name: String| ExpressionNode::Identifier(IdentifierNode {
+            name,
+            location: None,
+        }))
+}
+
+/// Parser for identifiers (including keywords and backtick-delimited)
 pub fn identifier_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
-    text::ident()
-        .map(|name: &str| ExpressionNode::Identifier(IdentifierNode {
+    choice((
+        backtick_identifier_parser(),
+        text::ident().map(|name: &str| ExpressionNode::Identifier(IdentifierNode {
             name: name.to_string(),
             location: None,
         }))
+    ))
 }
 
 /// Parser for variable references ($variable)
@@ -195,12 +267,16 @@ pub fn single_char_operators<'a>() -> impl Parser<'a, &'a str, char, extra::Err<
 pub fn keyword_parser<'a>() -> impl Parser<'a, &'a str, &'a str, extra::Err<Rich<'a, char>>> + Clone {
     choice((
         just("and"),
-        just("or"), 
+        just("or"),
+        just("xor"),     // Added XOR operator
+        just("implies"), // Added IMPLIES operator
         just("not"),
         just("in"),
         just("contains"),
         just("div"),
         just("mod"),
+        just("is"),      // Added type operators
+        just("as"),
     ))
 }
 
@@ -327,6 +403,47 @@ mod tests {
         assert!(result.is_ok());
         if let Ok(ExpressionNode::Identifier(id)) = result {
             assert_eq!(id.name, "Patient");
+        }
+    }
+
+    #[test]
+    fn test_backtick_identifier_parser() {
+        let parser = backtick_identifier_parser();
+        let result = parser.parse("`given`").into_result();
+        
+        assert!(result.is_ok());
+        if let Ok(ExpressionNode::Identifier(id)) = result {
+            assert_eq!(id.name, "given");
+        }
+    }
+
+    #[test]
+    fn test_backtick_identifier_with_special_chars() {
+        let parser = backtick_identifier_parser();
+        let result = parser.parse("`PID-1`").into_result();
+        
+        assert!(result.is_ok());
+        if let Ok(ExpressionNode::Identifier(id)) = result {
+            assert_eq!(id.name, "PID-1");
+        }
+    }
+
+    #[test]
+    fn test_identifier_parser_choice() {
+        let parser = identifier_parser();
+        
+        // Test regular identifier
+        let result1 = parser.parse("Patient").into_result();
+        assert!(result1.is_ok());
+        if let Ok(ExpressionNode::Identifier(id)) = result1 {
+            assert_eq!(id.name, "Patient");
+        }
+        
+        // Test backtick identifier
+        let result2 = parser.parse("`given`").into_result();
+        assert!(result2.is_ok());
+        if let Ok(ExpressionNode::Identifier(id)) = result2 {
+            assert_eq!(id.name, "given");
         }
     }
 

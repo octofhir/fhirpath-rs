@@ -85,7 +85,16 @@ pub use crate::core::{
 };
 
 // Re-export main engine types
-pub use crate::evaluator::{FhirPathEngine, EvaluationContext, EvaluationConfig};
+pub use crate::evaluator::{
+    FhirPathEngine, EngineConfig,
+    // Enhanced context system
+    EvaluationContext, EvaluationContextBuilder, BuiltinVariables, ServerContext,
+    TypeFactory, TypeDefinition, TypeKind, PropertyDefinition,
+    TerminologyService, ServerApi,
+    // Performance and caching types
+    EvaluationResult, EvaluationWarning, EvaluationMetrics, MetricsCollector, PerformanceLevel,
+    CacheStats, CacheMetrics, CacheEfficiency,
+};
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
     // Main parsing functions with clean names
@@ -101,7 +110,13 @@ pub use crate::parser::{
     // Backward compatibility (legacy names)
     parse_expression,
 };
-pub use crate::registry::{FunctionRegistry, create_standard_registry};
+pub use crate::registry::{
+    FunctionRegistry, create_standard_registry,
+    FunctionMetadata, ParameterMetadata, FunctionCategory, FunctionContext,
+    SyncFunction, AsyncFunction,
+    builder::FunctionBuilder,
+    dispatcher::FunctionDispatcher,
+};
 
 // Re-export AST types
 pub use crate::ast::{ExpressionNode, LiteralValue, BinaryOperator, UnaryOperator};
@@ -164,7 +179,9 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 /// ```
 pub async fn evaluate(expression: &str, context: &Collection) -> Result<Collection> {
     let engine = create_engine_with_mock_provider().await?;
-    engine.evaluate(expression, context).await
+    let eval_context = EvaluationContext::new(context.clone());
+    let result = engine.evaluate(expression, &eval_context).await?;
+    Ok(result.value)
 }
 
 // Version information

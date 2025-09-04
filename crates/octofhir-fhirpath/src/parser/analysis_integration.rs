@@ -283,14 +283,14 @@ mod tests {
         let help = analyzer.generate_error_help(
             "Unexpected token '(' found",
             "Patient.name[",
-            &10..11
+            &(10..11)
         );
         assert!(help.contains("parentheses"));
         
         let help = analyzer.generate_error_help(
             "Unclosed bracket found",
             "Patient.name[test",
-            &12..17
+            &(12..17)
         );
         assert!(help.contains("closing bracket"));
     }

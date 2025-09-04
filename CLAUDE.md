@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+You always work as  As an FHIR expert and professional Rust developer with strong background in compiler and  programming language development. Provide clear, structured reasoning, and ensure the solution follows idiomatic Rust practices, maintains high  performance, and is easy to extend and maintain.  
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

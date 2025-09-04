@@ -16,7 +16,6 @@
 //!
 //! Usage: cargo run --bin test-runner <test_file.json>
 
-use octofhir_fhirpath::FhirPathValue;
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -62,7 +61,7 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
-fn compare_results(expected: &Value, actual: &FhirPathValue) -> bool {
+fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> bool {
     // Convert actual to JSON for uniform comparison
     let actual_json = match serde_json::to_string(actual) {
         Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
@@ -164,18 +163,12 @@ async fn main() {
     // Create FHIR schema provider for accurate type checking and conformance validation
     println!("📋 Initializing FHIR schema provider...");
     let model_provider = fhirpath_dev_tools::common::create_dev_model_provider().await;
+    
+    // Create function registry
+    let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
+    
     // Create the FhirPathEngine with model provider
-    let engine = match octofhir_fhirpath::FhirPathEngine::with_model_provider(
-        model_provider.clone(),
-    )
-    .await
-    {
-        Ok(engine) => engine,
-        Err(e) => {
-            eprintln!("Failed to create FhirPath engine: {e}");
-            process::exit(1);
-        }
-    };
+    let engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone());
     let mut passed = 0;
     let mut failed = 0;
     let mut errors = 0;
@@ -199,8 +192,28 @@ async fn main() {
             Value::Null
         };
 
+        // Convert input to FhirPathValue and create evaluation context
+        let input_value = octofhir_fhirpath::FhirPathValue::JsonValue(input_data);
+        let collection = octofhir_fhirpath::Collection::single(input_value);
+        let context = octofhir_fhirpath::EvaluationContext::new(collection);
+        
+        // Parse expression
+        let ast = match octofhir_fhirpath::parse_expression(&test_case.expression) {
+            Ok(ast) => ast,
+            Err(e) => {
+                if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+                    println!("✅ PASS");
+                    passed += 1;
+                    continue;
+                }
+                println!("⚠️ PARSE ERROR: {e}");
+                errors += 1;
+                continue;
+            }
+        };
+        
         // Evaluate expression
-        let result = match engine.evaluate(&test_case.expression, input_data).await {
+        let result = match engine.evaluate_ast(&ast, &context).await {
             Ok(result) => result,
             Err(e) => {
                 if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
@@ -229,11 +242,11 @@ async fn main() {
             let actual_json = match serde_json::to_string(&result) {
                 Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
                     Ok(v) => {
-                        serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{result:?}"))
+                        serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{:?}", result))
                     }
-                    Err(_) => format!("{result:?}"),
+                    Err(_) => format!("{:?}", result),
                 },
-                Err(_) => format!("{result:?}"),
+                Err(_) => format!("{:?}", result),
             };
             println!("   Expected: {expected_json}");
             println!("   Actual:   {actual_json}");

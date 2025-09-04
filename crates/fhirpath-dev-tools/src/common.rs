@@ -14,7 +14,7 @@
 
 //! Common utilities for development tools
 
-use octofhir_fhirpath::{MockModelProvider, ModelProvider};
+use octofhir_fhirpath::ModelProvider;
 use octofhir_fhirschema::provider::FhirSchemaModelProvider;
 use std::env;
 use std::sync::Arc;
@@ -81,6 +81,7 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
 /// This should only be used in unit tests where speed is more important than accuracy
 #[cfg(test)]
 pub fn create_mock_provider_for_tests() -> Arc<dyn ModelProvider> {
+    use octofhir_fhirpath::MockModelProvider;
     log::info!("Using MockModelProvider for unit tests only");
     Arc::new(MockModelProvider::new())
 }

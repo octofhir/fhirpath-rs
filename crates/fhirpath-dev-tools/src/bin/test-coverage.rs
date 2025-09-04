@@ -25,7 +25,6 @@ use std::path::PathBuf;
 
 // Integration test runner functionality
 mod integration_test_runner {
-    use fhirpath_dev_tools::DevToolsConfig;
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
     use octofhir_fhirpath::ast::ExpressionNode;
@@ -107,6 +106,7 @@ mod integration_test_runner {
         pub failed: usize,
         pub errored: usize,
         pub skipped: usize,
+        pub error_details: Vec<String>, // Store first few error messages for debugging
     }
 
     impl TestStats {
@@ -262,13 +262,76 @@ mod integration_test_runner {
 
         /// Parse a FHIRPath expression using the integrated parser
         fn parse_expression(&mut self, expression: &str) -> Result<ExpressionNode, String> {
-            parse_expression_default(expression)
+            octofhir_fhirpath::parse_expression(expression)
                 .map_err(|e| format!("Parser error in '{expression}': {e}"))
         }
 
         /// Convert expected JSON value to FhirPathValue for comparison
         fn convert_expected_value(&self, expected: &Value) -> FhirPathValue {
             FhirPathValue::JsonValue(expected.clone())
+        }
+
+        /// Compare actual collection result with expected result
+        /// Matches the test-runner comparison logic exactly  
+        fn compare_results_collection(&self, actual: &octofhir_fhirpath::Collection, expected: &Value) -> bool {
+            // Convert actual to JSON for uniform comparison
+            let actual_json = match serde_json::to_string(actual) {
+                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
+                    Ok(json) => json,
+                    Err(_) => return false,
+                },
+                Err(_) => return false,
+            };
+
+            // Direct comparison first - handles most cases
+            if expected == &actual_json {
+                return true;
+            }
+
+            // FHIRPath collection handling: expected single value should match [single_value]
+            match (expected, &actual_json) {
+                // Test expects single value, actual is collection with one item
+                (expected_single, actual_json) if actual_json.is_array() => {
+                    if let Some(actual_arr) = actual_json.as_array() {
+                        if actual_arr.len() == 1 {
+                            expected_single == &actual_arr[0]
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                // Test expects array, actual is single value (shouldn't happen with new spec compliance but handle it)
+                (expected, actual_single) if expected.is_array() => {
+                    if let Some(expected_arr) = expected.as_array() {
+                        if expected_arr.len() == 1 {
+                            &expected_arr[0] == actual_single
+                        } else {
+                            expected == actual_single
+                        }
+                    } else {
+                        false
+                    }
+                }
+                // Both empty
+                (expected, actual_json) if expected.is_array() && actual_json.is_null() => {
+                    if let Some(expected_arr) = expected.as_array() {
+                        expected_arr.is_empty()
+                    } else {
+                        false
+                    }
+                }
+                (expected, actual_json) if expected.is_null() && actual_json.is_array() => {
+                    if let Some(actual_arr) = actual_json.as_array() {
+                        actual_arr.is_empty()
+                    } else {
+                        false
+                    }
+                }
+                // Default: no match
+                _ => false,
+            }
         }
 
         /// Compare actual result with expected result
@@ -387,14 +450,14 @@ mod integration_test_runner {
                 }
             };
 
-            // Create evaluation context (stub implementation)
-            let _context = octofhir_fhirpath::EvaluationContext::new();
-
             // Convert input_data to Collection for evaluation
             let collection = octofhir_fhirpath::Collection::single(input_data.clone());
 
+            // Create evaluation context with the collection
+            let context = octofhir_fhirpath::EvaluationContext::new(collection);
+
             // Evaluate expression using integrated engine
-            let result = match self.engine.evaluate_ast(&ast, &collection).await {
+            let result = match self.engine.evaluate_ast(&ast, &context).await {
                 Ok(result) => result,
                 Err(e) => {
                     // Per FHIRPath spec, evaluation errors should return empty collection
@@ -419,14 +482,8 @@ mod integration_test_runner {
                 );
             }
 
-            // Extract first value from collection for comparison (temporary fix)
-            let first_value = result
-                .first()
-                .cloned()
-                .unwrap_or_else(|| FhirPathValue::empty());
-
-            // Compare results
-            if self.compare_results(&first_value, &test.expected) {
+            // Compare results using the entire collection (matches test-runner behavior)
+            if self.compare_results_collection(&result, &test.expected) {
                 TestResult::Passed
             } else {
                 // Convert actual result to JSON for comparison
@@ -492,7 +549,13 @@ mod integration_test_runner {
                 match result {
                     TestResult::Passed => stats.passed += 1,
                     TestResult::Failed { .. } => stats.failed += 1,
-                    TestResult::Error { .. } => stats.errored += 1,
+                    TestResult::Error { error } => {
+                        stats.errored += 1;
+                        // Capture first 3 error details for debugging
+                        if stats.error_details.len() < 3 {
+                            stats.error_details.push(format!("{}: {}", test.name, error));
+                        }
+                    }
                     TestResult::Skipped { .. } => stats.skipped += 1,
                 }
             }
@@ -566,23 +629,43 @@ async fn main() -> Result<()> {
 
             match runner.run_and_report_quiet(test_file).await {
                 Ok(stats) => {
-                    let emoji = if stats.pass_rate() == 100.0 {
-                        "✅"
-                    } else if stats.pass_rate() >= 70.0 {
-                        "🟡"
-                    } else if stats.pass_rate() >= 30.0 {
-                        "🟠"
+                    // Show ERROR status if there are parse errors, otherwise show pass/fail info
+                    if stats.errored > 0 {
+                        println!(
+                            " ⚠️ ERROR {}/{} ({} parse errors, {} failed)",
+                            stats.passed,
+                            stats.total,
+                            stats.errored,
+                            stats.failed
+                        );
+                        // Show detailed error messages for debugging
+                        if !stats.error_details.is_empty() {
+                            for (i, error_detail) in stats.error_details.iter().enumerate() {
+                                println!("     {}. {}", i + 1, error_detail);
+                            }
+                            if stats.error_details.len() < stats.errored {
+                                println!("     ... and {} more parse errors", stats.errored - stats.error_details.len());
+                            }
+                        }
                     } else {
-                        "🔴"
-                    };
+                        let emoji = if stats.pass_rate() == 100.0 {
+                            "✅"
+                        } else if stats.pass_rate() >= 70.0 {
+                            "🟡"
+                        } else if stats.pass_rate() >= 30.0 {
+                            "🟠"
+                        } else {
+                            "🔴"
+                        };
 
-                    println!(
-                        " {} {}/{} ({:.1}%)",
-                        emoji,
-                        stats.passed,
-                        stats.total,
-                        stats.pass_rate()
-                    );
+                        println!(
+                            " {} {}/{} ({:.1}%)",
+                            emoji,
+                            stats.passed,
+                            stats.total,
+                            stats.pass_rate()
+                        );
+                    }
 
                     test_results.push((filename.to_string(), stats));
                 }
@@ -596,6 +679,7 @@ async fn main() -> Result<()> {
                             failed: 0,
                             errored: 1,
                             skipped: 0,
+                            error_details: vec![format!("File load error: {}", e)],
                         },
                     ));
                 }

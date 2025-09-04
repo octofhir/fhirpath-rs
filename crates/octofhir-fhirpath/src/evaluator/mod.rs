@@ -1,104 +1,49 @@
 //! FHIRPath expression evaluator
 //!
-//! This module provides the evaluation engine for FHIRPath expressions with proper
-//! context management and async support for model provider integration.
+//! This module provides the comprehensive evaluation engine for FHIRPath expressions with
+//! multi-method support, performance metrics, AST caching, and async model provider integration.
 
-use std::sync::Arc;
-use crate::ast::ExpressionNode;
-use crate::core::{Collection, FhirPathError, Result, ModelProvider};
-use crate::registry::FunctionRegistry;
+// Core evaluation modules
+pub mod context;
+pub mod engine;
+pub mod config;
+pub mod metrics;
+pub mod cache;
+pub mod scoping;
+pub mod lambda;
 
-/// Evaluation context for FHIRPath expressions
-#[derive(Debug)]
-pub struct EvaluationContext {
-    _placeholder: (), // TODO: Add context fields
-}
+// Re-export the comprehensive context system
+pub use context::{
+    EvaluationContext, EvaluationContextBuilder, BuiltinVariables, ServerContext,
+    TypeFactory, TypeDefinition, TypeKind, PropertyDefinition,
+    TerminologyService, ServerApi,
+};
 
-impl EvaluationContext {
-    /// Create a new evaluation context
-    pub fn new() -> Self {
-        Self {
-            _placeholder: (),
-        }
-    }
-}
+// Re-export the main engine types
+pub use engine::{
+    FhirPathEngine, EvaluationResult, EvaluationWarning,
+};
 
-impl Default for EvaluationContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// Re-export configuration types
+pub use config::EngineConfig;
 
-/// Configuration for FHIRPath evaluation
-#[derive(Debug, Clone)]
-pub struct EvaluationConfig {
-    /// Maximum depth for nested evaluations
-    pub max_depth: usize,
-    /// Whether to enable strict mode
-    pub strict_mode: bool,
-}
+// Re-export metrics types
+pub use metrics::{
+    EvaluationMetrics, MetricsCollector, PerformanceLevel,
+};
 
-impl Default for EvaluationConfig {
-    fn default() -> Self {
-        Self {
-            max_depth: 100,
-            strict_mode: false,
-        }
-    }
-}
+// Re-export cache types
+pub use cache::{
+    CacheStats, CacheMetrics, CacheEfficiency,
+};
 
-/// Main FHIRPath evaluation engine
-#[derive(Debug)]
-pub struct FhirPathEngine {
-    /// Function registry
-    pub registry: Arc<FunctionRegistry>,
-    /// Model provider for type information
-    pub model_provider: Arc<dyn ModelProvider>,
-    /// Evaluation configuration
-    pub config: EvaluationConfig,
-}
+// Re-export scoping types
+pub use scoping::{
+    ScopeManager, VariableScope, ScopeType, LambdaExpression, LambdaContext, 
+    ScopeId, ScopeInfo,
+};
 
-impl FhirPathEngine {
-    /// Create a new FHIRPath engine
-    pub fn new(
-        registry: Arc<FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
-    ) -> Self {
-        Self {
-            registry,
-            model_provider,
-            config: EvaluationConfig::default(),
-        }
-    }
-
-    /// Create a new FHIRPath engine with custom configuration
-    pub fn with_config(
-        registry: Arc<FunctionRegistry>,
-        model_provider: Arc<dyn ModelProvider>,
-        config: EvaluationConfig,
-    ) -> Self {
-        Self {
-            registry,
-            model_provider,
-            config,
-        }
-    }
-
-    /// Evaluate a FHIRPath expression against a collection
-    pub async fn evaluate(&self, expression: &str, context: &Collection) -> Result<Collection> {
-        // TODO: Parse expression and evaluate against context
-        Err(FhirPathError::evaluation_error(
-            crate::core::error_code::FP0200,
-            format!("Evaluation not yet implemented for expression: {}", expression),
-        ))
-    }
-
-    /// Evaluate a parsed AST against a collection
-    pub async fn evaluate_ast(&self, ast: &ExpressionNode, context: &Collection) -> Result<Collection> {
-        // TODO: Implement AST evaluation
-        Err(FhirPathError::evaluation_error(
-            crate::core::error_code::FP0200,
-            "AST evaluation not yet implemented".to_string(),
-        ))
-    }
-}
+// Re-export lambda evaluation types
+pub use lambda::{
+    LambdaEvaluator, LambdaExpressionEvaluator, SortCriterion,
+};

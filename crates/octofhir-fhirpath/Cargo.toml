@@ -44,12 +44,13 @@ indexmap = { workspace = true }
 log = { workspace = true }
 lru = { workspace = true }
 nom = { workspace = true }
+papaya = { workspace = true }
 nom_locate = { workspace = true }
 octofhir-ucum = { workspace = true }
 uuid = { workspace = true }
 chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = "0.5.1"
-tabled = "0.15"
+tabled = "0.20"
 
 url = { workspace = true }
 parking_lot = { workspace = true }
@@ -84,5 +85,5 @@ rstest = "0.26"
 
 [features]
 default = []
-mock-provider = []  # Include MockModelProvider for testing and development
-analysis = []       # Include static analysis features
+mock-provider = [] # Include MockModelProvider for testing and development
+analysis = []      # Include static analysis features
