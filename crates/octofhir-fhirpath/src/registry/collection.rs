@@ -107,6 +107,18 @@ impl FunctionRegistry {
         self.register_select_function_metadata()?;
         self.register_all_function_metadata()?;
         
+        // Register missing collection functions
+        self.register_alltrue_function()?;
+        self.register_combine_function()?;
+        self.register_isdistinct_function()?;
+        self.register_exclude_function()?;
+        self.register_aggregate_function()?;
+        self.register_sort_function()?;
+        self.register_subsetof_function()?;
+        self.register_supersetof_function()?;
+        self.register_trace_function()?;
+        self.register_repeat_function()?;
+        
         Ok(())
     }
 
@@ -406,6 +418,314 @@ impl FunctionRegistry {
                 Err(crate::core::FhirPathError::evaluation_error(
                     FP0053,
                     "all() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                ))
+            }
+        )
+    }
+
+    fn register_alltrue_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "allTrue",
+            category: FunctionCategory::Collection,
+            description: "Returns true if all items in the collection are boolean true",
+            parameters: [],
+            return_type: "boolean",
+            examples: ["(true | true | true).allTrue()", "(Patient.active | Patient.active).allTrue()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.is_empty() {
+                    return Ok(vec![FhirPathValue::Boolean(true)]); // Empty collection is vacuously true
+                }
+                
+                for value in context.input {
+                    match value {
+                        FhirPathValue::Boolean(false) => return Ok(vec![FhirPathValue::Boolean(false)]),
+                        FhirPathValue::Boolean(true) => continue,
+                        FhirPathValue::Empty => return Ok(vec![]), // Presence of empty makes result empty
+                        _ => return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "allTrue() can only be applied to boolean values".to_string()
+                        ))
+                    }
+                }
+                
+                Ok(vec![FhirPathValue::Boolean(true)])
+            }
+        )
+    }
+
+    fn register_combine_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "combine",
+            category: FunctionCategory::Collection,
+            description: "Combines two collections into a single collection with duplicates removed",
+            parameters: ["other": Some("collection".to_string()) => "Collection to combine with"],
+            return_type: "collection",
+            examples: ["(1 | 2).combine(2 | 3)", "Patient.name.combine(Patient.address)"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "combine() requires exactly one argument".to_string()
+                    ));
+                }
+
+                let second_collection = match &context.arguments[0] {
+                    FhirPathValue::Collection(items) => items.clone(),
+                    single_item => vec![single_item.clone()],
+                };
+
+                let result = CollectionUtils::union_collections(context.input, &second_collection);
+                Ok(result)
+            }
+        )
+    }
+
+    fn register_isdistinct_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "isDistinct",
+            category: FunctionCategory::Collection,
+            description: "Returns true if all items in the collection are unique",
+            parameters: [],
+            return_type: "boolean",
+            examples: ["(1 | 2 | 3).isDistinct()", "Patient.name.given.isDistinct()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                let mut seen = HashSet::new();
+                
+                for value in context.input {
+                    let hash_key = CollectionUtils::value_hash_key(value);
+                    if !seen.insert(hash_key) {
+                        return Ok(vec![FhirPathValue::Boolean(false)]);
+                    }
+                }
+                
+                Ok(vec![FhirPathValue::Boolean(true)])
+            }
+        )
+    }
+
+    fn register_exclude_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "exclude",
+            category: FunctionCategory::Collection,
+            description: "Returns a collection with all items from the input except those that match the argument",
+            parameters: ["other": Some("collection".to_string()) => "Collection of items to exclude"],
+            return_type: "collection",
+            examples: ["(1 | 2 | 3).exclude(2)", "Patient.telecom.exclude(Patient.telecom.where(system = 'email'))"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "exclude() requires exactly one argument".to_string()
+                    ));
+                }
+
+                let exclude_items = match &context.arguments[0] {
+                    FhirPathValue::Collection(items) => items.clone(),
+                    single_item => vec![single_item.clone()],
+                };
+
+                // Build set of items to exclude
+                let mut exclude_set = HashSet::new();
+                for item in &exclude_items {
+                    exclude_set.insert(CollectionUtils::value_hash_key(item));
+                }
+
+                // Filter input collection
+                let result: Vec<FhirPathValue> = context.input
+                    .iter()
+                    .filter(|value| !exclude_set.contains(&CollectionUtils::value_hash_key(value)))
+                    .cloned()
+                    .collect();
+
+                Ok(result)
+            }
+        )
+    }
+
+    fn register_aggregate_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "aggregate",
+            category: FunctionCategory::Collection,
+            description: "Performs aggregation over a collection using lambda expressions (placeholder implementation)",
+            parameters: [
+                "initial": Some("any".to_string()) => "Initial value for aggregation",
+                "expression": Some("expression".to_string()) => "Lambda expression for aggregation"
+            ],
+            return_type: "any",
+            examples: ["(1 | 2 | 3).aggregate($total + $this, 0)"],
+            implementation: |_context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                Err(crate::core::FhirPathError::evaluation_error(
+                    FP0053,
+                    "aggregate() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                ))
+            }
+        )
+    }
+
+    fn register_sort_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "sort",
+            category: FunctionCategory::Collection,
+            description: "Returns the collection sorted by the specified criteria (placeholder implementation)",
+            parameters: ["criteria": Some("expression".to_string()) => "Expression to sort by (optional)"],
+            return_type: "collection",
+            examples: ["Patient.name.sort()", "Bundle.entry.sort(resource.id)"],
+            implementation: |_context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                Err(crate::core::FhirPathError::evaluation_error(
+                    FP0053,
+                    "sort() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                ))
+            }
+        )
+    }
+
+    fn register_subsetof_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "subsetOf",
+            category: FunctionCategory::Collection,
+            description: "Returns true if this collection is a subset of the other collection",
+            parameters: ["other": Some("collection".to_string()) => "Collection to compare against"],
+            return_type: "boolean",
+            examples: ["(1 | 2).subsetOf(1 | 2 | 3)", "Patient.name.given.subsetOf(Patient.name.family)"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "subsetOf() requires exactly one argument".to_string()
+                    ));
+                }
+
+                let other_collection = match &context.arguments[0] {
+                    FhirPathValue::Collection(items) => items.clone(),
+                    single_item => vec![single_item.clone()],
+                };
+
+                // Build set of items in the other collection
+                let mut other_set = HashSet::new();
+                for item in &other_collection {
+                    other_set.insert(CollectionUtils::value_hash_key(item));
+                }
+
+                // Check if all items in input are in other collection
+                for value in context.input {
+                    if !other_set.contains(&CollectionUtils::value_hash_key(value)) {
+                        return Ok(vec![FhirPathValue::Boolean(false)]);
+                    }
+                }
+
+                Ok(vec![FhirPathValue::Boolean(true)])
+            }
+        )
+    }
+
+    fn register_supersetof_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "supersetOf",
+            category: FunctionCategory::Collection,
+            description: "Returns true if this collection is a superset of the other collection",
+            parameters: ["other": Some("collection".to_string()) => "Collection to compare against"],
+            return_type: "boolean",
+            examples: ["(1 | 2 | 3).supersetOf(1 | 2)", "Patient.telecom.supersetOf(Patient.telecom.where(system = 'phone'))"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "supersetOf() requires exactly one argument".to_string()
+                    ));
+                }
+
+                let other_collection = match &context.arguments[0] {
+                    FhirPathValue::Collection(items) => items.clone(),
+                    single_item => vec![single_item.clone()],
+                };
+
+                // Build set of items in this collection
+                let mut this_set = HashSet::new();
+                for item in context.input {
+                    this_set.insert(CollectionUtils::value_hash_key(item));
+                }
+
+                // Check if all items in other collection are in this collection
+                for value in &other_collection {
+                    if !this_set.contains(&CollectionUtils::value_hash_key(value)) {
+                        return Ok(vec![FhirPathValue::Boolean(false)]);
+                    }
+                }
+
+                Ok(vec![FhirPathValue::Boolean(true)])
+            }
+        )
+    }
+
+    fn register_trace_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "trace",
+            category: FunctionCategory::Utility,
+            description: "Logs the input value and passes it through unchanged for debugging",
+            parameters: ["name": Some("string".to_string()) => "Name to use in trace output (optional)"],
+            return_type: "any",
+            examples: ["Patient.name.trace('names')", "Bundle.entry.trace().resource"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                let trace_name = if !context.arguments.is_empty() {
+                    match &context.arguments[0] {
+                        FhirPathValue::String(s) => s.clone(),
+                        _ => "trace".to_string(),
+                    }
+                } else {
+                    "trace".to_string()
+                };
+
+                // Print trace information to stderr for debugging
+                eprintln!("TRACE[{}]: {} items", trace_name, context.input.len());
+                for (i, value) in context.input.iter().enumerate() {
+                    eprintln!("  [{}]: {:?}", i, value);
+                }
+
+                // Pass through input unchanged
+                Ok(context.input.to_vec())
+            }
+        )
+    }
+
+    fn register_repeat_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "repeat",
+            category: FunctionCategory::Collection,
+            description: "Repeatedly evaluates a lambda expression until no new unique items are found, preventing infinite loops",
+            parameters: ["expression": Some("expression".to_string()) => "Lambda expression to repeat recursively"],
+            return_type: "collection",
+            examples: ["ValueSet.expansion.repeat(contains)", "Questionnaire.repeat(item)", "Bundle.entry.resource.repeat(reference.resolve())"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                // The repeat() function requires lambda evaluation support
+                // For now, we'll return an error indicating lambda support is required
+                // The actual implementation should be handled by the evaluator engine
+                // with proper lambda expression evaluation and cycle detection
+                
+                if context.arguments.is_empty() {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "repeat() requires exactly one lambda expression argument".to_string()
+                    ));
+                }
+                
+                // This is a placeholder - the real implementation needs:
+                // 1. Lambda expression parsing from arguments 
+                // 2. Recursive evaluation with cycle detection
+                // 3. Queue-based processing to prevent stack overflow
+                // 4. Integration with the evaluator's lambda support
+                Err(crate::core::FhirPathError::evaluation_error(
+                    FP0053,
+                    "repeat() function with lambda expressions requires full evaluator integration. Use the FhirPathEngine.evaluate() method which supports lambda evaluation.".to_string()
                 ))
             }
         )

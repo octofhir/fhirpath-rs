@@ -35,6 +35,12 @@ impl FunctionRegistry {
         // Register terminology functions
         self.register_terminology_functions()?;
         
+        // Register logic functions
+        self.register_logic_functions()?;
+        
+        // Register numeric functions
+        self.register_numeric_functions()?;
+        
         Ok(())
     }
 

@@ -36,7 +36,7 @@ impl fmt::Display for SourceLocation {
 }
 
 /// Main FHIRPath error type with rich error codes and context
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum FhirPathError {
     /// Parse error with source location
     #[error("{error_code}: {message}")]

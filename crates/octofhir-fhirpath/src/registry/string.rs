@@ -92,6 +92,18 @@ impl StringUtils {
     pub fn get_cached_regex(pattern: &str) -> std::result::Result<Regex, regex::Error> {
         REGEX_CACHE.get_regex(pattern)
     }
+
+    /// Get cached regex pattern with dotall mode enabled (for matches() function)
+    pub fn get_cached_regex_dotall(pattern: &str) -> std::result::Result<Regex, regex::Error> {
+        let dotall_pattern = if pattern.starts_with("(?") {
+            // Pattern already has flags, don't add (?s)
+            pattern.to_string()
+        } else {
+            // Add dotall flag to make '.' match newlines
+            format!("(?s){}", pattern)
+        };
+        REGEX_CACHE.get_regex(&dotall_pattern)
+    }
 }
 
 impl FunctionRegistry {
@@ -112,6 +124,11 @@ impl FunctionRegistry {
         self.register_length_function()?;
         self.register_trim_function()?;
         self.register_toChars_function()?;
+        self.register_encode_function()?;
+        self.register_decode_function()?;
+        self.register_escape_function()?;
+        self.register_unescape_function()?;
+        self.register_matchesFull_function()?;
         Ok(())
     }
 
@@ -719,7 +736,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let regex = match StringUtils::get_cached_regex(pattern) {
+                let regex = match StringUtils::get_cached_regex_dotall(pattern) {
                     Ok(r) => r,
                     Err(e) => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -948,6 +965,413 @@ impl FunctionRegistry {
                     .collect();
 
                 Ok(result)
+            }
+        )
+    }
+
+    fn register_encode_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "encode",
+            category: FunctionCategory::String,
+            description: "Encodes the input string using the specified format",
+            parameters: ["format": Some("string".to_string()) => "Encoding format ('base64', 'hex', 'url')"],
+            return_type: "string",
+            examples: ["'Hello'.encode('base64')", "'test@example.com'.encode('url')"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "encode() can only be called on a single string value".to_string()
+                    ));
+                }
+
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "encode() requires exactly one format argument".to_string()
+                    ));
+                }
+
+                let input_str = match &context.input[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "encode() can only be called on string values".to_string()
+                        ));
+                    }
+                };
+
+                let format = match &context.arguments[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "encode() format argument must be a string".to_string()
+                        ));
+                    }
+                };
+
+                let result = match format.as_str() {
+                    "base64" => {
+                        use base64::{Engine as _, engine::general_purpose::STANDARD};
+                        STANDARD.encode(input_str.as_bytes())
+                    },
+                    "hex" => {
+                        input_str.as_bytes()
+                            .iter()
+                            .map(|b| format!("{:02x}", b))
+                            .collect::<String>()
+                    },
+                    "url" => urlencoding::encode(input_str).to_string(),
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Unsupported encoding format: '{}'", format)
+                        ));
+                    }
+                };
+
+                Ok(vec![FhirPathValue::String(result)])
+            }
+        )
+    }
+
+    fn register_decode_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "decode",
+            category: FunctionCategory::String,
+            description: "Decodes the input string using the specified format",
+            parameters: ["format": Some("string".to_string()) => "Decoding format ('base64', 'hex', 'url')"],
+            return_type: "string",
+            examples: ["'SGVsbG8='.decode('base64')", "'48656c6c6f'.decode('hex')"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "decode() can only be called on a single string value".to_string()
+                    ));
+                }
+
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "decode() requires exactly one format argument".to_string()
+                    ));
+                }
+
+                let input_str = match &context.input[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "decode() can only be called on string values".to_string()
+                        ));
+                    }
+                };
+
+                let format = match &context.arguments[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "decode() format argument must be a string".to_string()
+                        ));
+                    }
+                };
+
+                let result = match format.as_str() {
+                    "base64" => {
+                        use base64::{Engine as _, engine::general_purpose::STANDARD};
+                        match STANDARD.decode(input_str.as_bytes()) {
+                            Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
+                            Err(_) => {
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid base64 input".to_string()
+                                ));
+                            }
+                        }
+                    },
+                    "hex" => {
+                        let mut bytes = Vec::new();
+                        let mut chars = input_str.chars();
+                        
+                        while let (Some(high), Some(low)) = (chars.next(), chars.next()) {
+                            if let (Some(h), Some(l)) = (high.to_digit(16), low.to_digit(16)) {
+                                bytes.push(((h << 4) | l) as u8);
+                            } else {
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid hex input".to_string()
+                                ));
+                            }
+                        }
+                        
+                        String::from_utf8_lossy(&bytes).to_string()
+                    },
+                    "url" => {
+                        match urlencoding::decode(input_str) {
+                            Ok(cow) => cow.to_string(),
+                            Err(_) => {
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid URL-encoded input".to_string()
+                                ));
+                            }
+                        }
+                    },
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Unsupported decoding format: '{}'", format)
+                        ));
+                    }
+                };
+
+                Ok(vec![FhirPathValue::String(result)])
+            }
+        )
+    }
+
+    fn register_escape_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "escape",
+            category: FunctionCategory::String,
+            description: "Escapes special characters in the input string for the specified format",
+            parameters: ["format": Some("string".to_string()) => "Escape format ('html', 'json', 'xml')"],
+            return_type: "string",
+            examples: ["'<tag>'.escape('html')", "'\"text\"'.escape('json')"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "escape() can only be called on a single string value".to_string()
+                    ));
+                }
+
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "escape() requires exactly one format argument".to_string()
+                    ));
+                }
+
+                let input_str = match &context.input[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "escape() can only be called on string values".to_string()
+                        ));
+                    }
+                };
+
+                let format = match &context.arguments[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "escape() format argument must be a string".to_string()
+                        ));
+                    }
+                };
+
+                let result = match format.as_str() {
+                    "html" => {
+                        // Based on FHIRPath tests, HTML escape should NOT escape quotes
+                        // Only escape < > & and control characters
+                        input_str
+                            .replace('&', "&amp;")
+                            .replace('<', "&lt;")
+                            .replace('>', "&gt;")
+                    },
+                    "json" => {
+                        // JSON escape should escape quotes and special characters
+                        // But keep surrounding quotes from serde_json
+                        serde_json::to_string(input_str)
+                            .map_err(|_| crate::core::FhirPathError::evaluation_error(
+                                FP0053,
+                                "Failed to escape JSON string".to_string()
+                            ))?
+                    },
+                    "xml" => {
+                        input_str
+                            .replace('&', "&amp;")
+                            .replace('<', "&lt;")
+                            .replace('>', "&gt;")
+                            .replace('"', "&quot;")
+                            .replace('\'', "&apos;")
+                    },
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Unsupported escape format: '{}'", format)
+                        ));
+                    }
+                };
+
+                Ok(vec![FhirPathValue::String(result)])
+            }
+        )
+    }
+
+    fn register_unescape_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "unescape",
+            category: FunctionCategory::String,
+            description: "Unescapes special characters in the input string for the specified format",
+            parameters: ["format": Some("string".to_string()) => "Unescape format ('html', 'json', 'xml')"],
+            return_type: "string",
+            examples: ["'&lt;tag&gt;'.unescape('html')", "'\\\"text\\\"'.unescape('json')"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "unescape() can only be called on a single string value".to_string()
+                    ));
+                }
+
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "unescape() requires exactly one format argument".to_string()
+                    ));
+                }
+
+                let input_str = match &context.input[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "unescape() can only be called on string values".to_string()
+                        ));
+                    }
+                };
+
+                let format = match &context.arguments[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "unescape() format argument must be a string".to_string()
+                        ));
+                    }
+                };
+
+                let result = match format.as_str() {
+                    "html" | "xml" => {
+                        input_str
+                            .replace("&lt;", "<")
+                            .replace("&gt;", ">")
+                            .replace("&quot;", "\"")
+                            .replace("&#39;", "'")
+                            .replace("&apos;", "'")
+                            .replace("&amp;", "&") // Must be last
+                    },
+                    "json" => {
+                        // If input is already JSON string format (starts and ends with quotes), use as-is
+                        // Otherwise wrap in quotes and use serde_json for proper JSON string unescaping
+                        let to_parse = if input_str.starts_with('"') && input_str.ends_with('"') && input_str.len() >= 2 {
+                            input_str.to_string()
+                        } else {
+                            format!("\"{}\"", input_str)
+                        };
+                        
+                        match serde_json::from_str::<String>(&to_parse) {
+                            Ok(s) => s,
+                            Err(_) => {
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid JSON escape sequence".to_string()
+                                ));
+                            }
+                        }
+                    },
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Unsupported unescape format: '{}'", format)
+                        ));
+                    }
+                };
+
+                Ok(vec![FhirPathValue::String(result)])
+            }
+        )
+    }
+
+    fn register_matchesFull_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "matchesFull",
+            category: FunctionCategory::String,
+            description: "Returns true if the entire input string matches the given regex pattern",
+            parameters: ["pattern": Some("string".to_string()) => "Regular expression pattern"],
+            return_type: "boolean",
+            examples: ["'Hello123'.matchesFull('[A-Za-z0-9]+')", "Patient.id.matchesFull('[a-f0-9-]+')"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "matchesFull() can only be called on a single string value".to_string()
+                    ));
+                }
+
+                if context.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "matchesFull() requires exactly one pattern argument".to_string()
+                    ));
+                }
+
+                let input_str = match &context.input[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "matchesFull() can only be called on string values".to_string()
+                        ));
+                    }
+                };
+
+                let pattern = match &context.arguments[0] {
+                    FhirPathValue::String(s) => s,
+                    _ => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "matchesFull() pattern argument must be a string".to_string()
+                        ));
+                    }
+                };
+
+                // Ensure the pattern matches the entire string by anchoring it
+                let anchored_pattern = if pattern.starts_with('^') && pattern.ends_with('$') {
+                    pattern.clone()
+                } else if pattern.starts_with('^') {
+                    format!("{}$", pattern)
+                } else if pattern.ends_with('$') {
+                    format!("^{}", pattern)
+                } else {
+                    format!("^{}$", pattern)
+                };
+
+                match StringUtils::get_cached_regex(&anchored_pattern) {
+                    Ok(regex) => {
+                        let result = regex.is_match(input_str);
+                        Ok(vec![FhirPathValue::Boolean(result)])
+                    },
+                    Err(_) => {
+                        Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Invalid regular expression: '{}'", pattern)
+                        ))
+                    }
+                }
             }
         )
     }

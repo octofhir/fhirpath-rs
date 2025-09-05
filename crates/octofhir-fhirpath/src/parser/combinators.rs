@@ -31,10 +31,15 @@ pub fn string_literal_parser_single<'a>() -> impl Parser<'a, &'a str, Expression
                         just('`').to('`'),    // backtick escape
                         just('f').to('\x0C'), // form feed
                         just('/').to('/'),    // forward slash
-                        // Simple unicode replacement (simplified for now)
+                        // Unicode escape: \uXXXX
                         just('u').ignore_then(
-                            one_of("0123456789abcdefABCDEF").repeated().exactly(4).ignored()
-                        ).to('?') // placeholder for unicode
+                            one_of("0123456789abcdefABCDEF").repeated().exactly(4).collect::<String>()
+                        ).try_map(|hex: String, span| {
+                            u32::from_str_radix(&hex, 16)
+                                .ok()
+                                .and_then(char::from_u32)
+                                .ok_or_else(|| Rich::custom(span, format!("Invalid unicode escape: \\u{}", hex)))
+                        })
                     )))
                 )
                 .repeated()
@@ -63,10 +68,15 @@ pub fn string_literal_parser_double<'a>() -> impl Parser<'a, &'a str, Expression
                         just('r').to('\r'),
                         just('f').to('\x0C'), // form feed
                         just('/').to('/'),    // forward slash
-                        // Simple unicode replacement (simplified for now)
+                        // Unicode escape: \uXXXX
                         just('u').ignore_then(
-                            one_of("0123456789abcdefABCDEF").repeated().exactly(4).ignored()
-                        ).to('?') // placeholder for unicode
+                            one_of("0123456789abcdefABCDEF").repeated().exactly(4).collect::<String>()
+                        ).try_map(|hex: String, span| {
+                            u32::from_str_radix(&hex, 16)
+                                .ok()
+                                .and_then(char::from_u32)
+                                .ok_or_else(|| Rich::custom(span, format!("Invalid unicode escape: \\u{}", hex)))
+                        })
                     )))
                 )
                 .repeated()
@@ -90,7 +100,7 @@ pub fn string_literal_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, e
 /// Parser for integer and decimal numbers (with optional units for quantities)
 pub fn number_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     // Handle both regular integers and leading-zero decimals properly
-    choice((
+    let base_number = choice((
         // Handle decimals with leading zeros like 0.0034
         just("0.").ignore_then(one_of("0123456789").repeated().at_least(1).collect::<String>())
             .map(|frac_part| format!("0.{}", frac_part)),
@@ -104,6 +114,12 @@ pub fn number_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Er
                     int_part
                 }
             })
+    ));
+
+    // Allow optional leading '+' for polarity (but not '-')
+    choice((
+        just('+').ignore_then(base_number.clone()),
+        base_number,
     ))
     .then(
         // Enhanced unit specification - supports both quoted ('mg') and unquoted units (days, hours, etc.)
@@ -196,12 +212,10 @@ pub fn datetime_literal_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode,
     just('@')
         .ignore_then(
             choice((
-                // Time only: @T15:30:00 (must be first to avoid conflicts)
+                // Time only: @T15:30:00
                 time_only_parser(),
-                // Full DateTime with timezone: @2021-01-01T15:30:00Z (must come before date_only)
-                datetime_full_parser(),
-                // Date only: @2021-01-01 or @2015-02 or @2021 (must be last)
-                date_only_parser(),  
+                // Unified date/datetime parser (also handles date-only)
+                datetime_date_or_full_parser(),
             ))
         )
 }
@@ -250,10 +264,19 @@ fn time_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a,
             ).or_not()
         )
         .then(
-            just('.').ignore_then(
-                // Parse 1-3 digits for milliseconds (s, ss, or sss)
-                one_of("0123456789").repeated().at_least(1).at_most(3).collect::<String>()
-            ).or_not()
+            // Only consume '.' if it is followed by 1-3 digits, otherwise leave it for method/property access
+            just('.')
+                .then(
+                    one_of("0123456789")
+                        .then(one_of("0123456789").repeated().at_most(2).collect::<String>())
+                )
+                .map(|(_, (first, rest_str))| {
+                    let mut s = String::new();
+                    s.push(first);
+                    for c in rest_str.chars() { s.push(c); }
+                    s
+                })
+                .or_not()
         )
         .map(|(((hour, minute), second), millis)| {
             let mut time_str = format!("{}", hour);
@@ -291,10 +314,9 @@ fn timezone_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich
 
 /// Parse full datetime format: 2021-01-01T15:30:00Z
 fn datetime_full_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
-    // Use date format parser followed by T separator and time
+    // Parse date, then require 'T' immediately followed by a valid time
     date_format_str()
-        .then_ignore(just('T'))
-        .then(time_format_str())
+        .then(just('T').ignore_then(time_format_str()))
         .then(timezone_format_str().or_not())
         .try_map(|((date_str, time_str), tz_opt), span| {
             let full_str = if let Some(tz) = tz_opt {
@@ -313,12 +335,147 @@ fn datetime_full_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra:
         })
 }
 
+/// Parse a date-only value marked as DateTime using trailing 'T': 2021-01-01T, 2021-01T, or 2021T
+fn datetime_date_shorthand_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
+    date_format_str()
+        .then_ignore(just('T'))
+        // Ensure no time component follows (prevent ambiguity with full datetime)
+        .then_ignore(one_of("0123456789").not())
+        .try_map(|date_str, span| {
+            // Parse as date and then lift to DateTime at midnight with corresponding precision
+            if let Some(pdate) = PrecisionDate::parse(&date_str) {
+                use chrono::{NaiveTime, FixedOffset, DateTime};
+                let ndt = pdate.date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                let offset = FixedOffset::east_opt(0).ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                let dt: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(ndt, offset);
+                let precision = match pdate.precision {
+                    crate::core::temporal::TemporalPrecision::Year => crate::core::temporal::TemporalPrecision::Year,
+                    crate::core::temporal::TemporalPrecision::Month => crate::core::temporal::TemporalPrecision::Month,
+                    _ => crate::core::temporal::TemporalPrecision::Day,
+                };
+                Ok(ExpressionNode::Literal(LiteralNode {
+                    value: LiteralValue::DateTime(PrecisionDateTime::new(dt, precision)),
+                    location: None,
+                }))
+            } else {
+                Err(Rich::custom(span, format!("Invalid date format: {}", date_str)))
+            }
+        })
+}
+
+/// Combined parser: parses a date followed by either a full time (DateTime) or a shorthand trailing 'T'
+fn datetime_date_or_full_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
+    use chumsky::prelude::empty;
+    date_format_str()
+        .then(
+            // Optionally parse 'T' followed by either a time(+tz) or nothing (shorthand)
+            just('T')
+                .ignore_then(
+                    // Prefer a real time if present
+                    time_format_str()
+                        .then(timezone_format_str().or_not())
+                        .map(|(time_str, tz_opt)| Some((time_str, tz_opt)))
+                        .or(empty().to(None))
+                )
+                .or_not()
+        )
+        .try_map(|(date_str, t_opt), span| {
+            match t_opt {
+                None => {
+                    // No 'T' – this is a pure Date literal
+                    if let Some(pdate) = PrecisionDate::parse(&date_str) {
+                        Ok(ExpressionNode::Literal(LiteralNode {
+                            value: LiteralValue::Date(pdate),
+                            location: None,
+                        }))
+                    } else {
+                        Err(Rich::custom(span, format!("Invalid date format: {}", date_str)))
+                    }
+                }
+                Some(None) => {
+                    // Shorthand: date with trailing 'T'
+                    if let Some(pdate) = PrecisionDate::parse(&date_str) {
+                        use chrono::{NaiveTime, FixedOffset, DateTime};
+                        let ndt = pdate.date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+                        let offset = FixedOffset::east_opt(0).ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                        let dt: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(ndt, offset);
+                        let precision = match pdate.precision {
+                            crate::core::temporal::TemporalPrecision::Year => crate::core::temporal::TemporalPrecision::Year,
+                            crate::core::temporal::TemporalPrecision::Month => crate::core::temporal::TemporalPrecision::Month,
+                            _ => crate::core::temporal::TemporalPrecision::Day,
+                        };
+                        Ok(ExpressionNode::Literal(LiteralNode {
+                            value: LiteralValue::DateTime(PrecisionDateTime::new(dt, precision)),
+                            location: None,
+                        }))
+                    } else {
+                        Err(Rich::custom(span, format!("Invalid date format: {}", date_str)))
+                    }
+                }
+                Some(Some((time_str, tz_opt))) => {
+                    // Full datetime (with or without timezone)
+                    if let Some(tz) = tz_opt {
+                        // Delegate to precision parser for timezone cases
+                        let full_str = format!("{}T{}{}", date_str, time_str, tz);
+                        PrecisionDateTime::parse(&full_str)
+                            .ok_or_else(|| Rich::custom(span, format!("Invalid datetime format: {}", full_str)))
+                            .map(|precision_dt| ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::DateTime(precision_dt),
+                                location: None,
+                            }))
+                    } else {
+                        // No timezone: construct from date + time manually to better control precision
+                        use chrono::{NaiveTime, FixedOffset, DateTime};
+                        // Parse date
+                        let pdate = PrecisionDate::parse(&date_str)
+                            .ok_or_else(|| Rich::custom(span.clone(), format!("Invalid date format: {}", date_str)))?;
+
+                        // Determine time precision and parse
+                        let (ntime, precision) = if time_str.len() == 2 {
+                            // HH
+                            let hour: u32 = time_str.parse().map_err(|_| Rich::custom(span.clone(), format!("Invalid hour: {}", time_str)))?;
+                            let t = NaiveTime::from_hms_opt(hour, 0, 0)
+                                .ok_or_else(|| Rich::custom(span.clone(), format!("Invalid hour value: {}", time_str)))?;
+                            (t, crate::core::temporal::TemporalPrecision::Hour)
+                        } else if time_str.len() == 5 && time_str.chars().nth(2) == Some(':') {
+                            // HH:MM
+                            let t = NaiveTime::parse_from_str(&time_str, "%H:%M")
+                                .map_err(|_| Rich::custom(span.clone(), format!("Invalid time (minute) format: {}", time_str)))?;
+                            (t, crate::core::temporal::TemporalPrecision::Minute)
+                        } else if time_str.len() == 8 {
+                            // HH:MM:SS
+                            let t = NaiveTime::parse_from_str(&time_str, "%H:%M:%S")
+                                .map_err(|_| Rich::custom(span.clone(), format!("Invalid time (second) format: {}", time_str)))?;
+                            (t, crate::core::temporal::TemporalPrecision::Second)
+                        } else if time_str.len() == 12 && time_str.chars().nth(8) == Some('.') {
+                            // HH:MM:SS.sss
+                            let t = NaiveTime::parse_from_str(&time_str, "%H:%M:%S%.3f")
+                                .map_err(|_| Rich::custom(span.clone(), format!("Invalid time (millisecond) format: {}", time_str)))?;
+                            (t, crate::core::temporal::TemporalPrecision::Millisecond)
+                        } else {
+                            return Err(Rich::custom(span, format!("Unrecognized time format: {}", time_str)));
+                        };
+
+                        // Build fixed-offset datetime (UTC)
+                        let ndt = pdate.date.and_time(ntime);
+                        let offset = FixedOffset::east_opt(0).ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                        let dt: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(ndt, offset);
+                        Ok(ExpressionNode::Literal(LiteralNode {
+                            value: LiteralValue::DateTime(PrecisionDateTime::new(dt, precision)),
+                            location: None,
+                        }))
+                    }
+                }
+            }
+        })
+}
+
 /// Parse date only format: 2021-01-01, 2021-01, or 2021 (only if not followed by T)
 fn date_only_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
+    // Kept for potential future use, but not referenced anymore since
+    // `datetime_date_or_full_parser` handles date-only as well.
     date_format_str()
-        .then_ignore(just('T').not()) // Ensure we don't have a T after (would be a datetime)
         .try_map(|date_str, span| {
-            // Use temporal module for precision-aware parsing
             PrecisionDate::parse(&date_str)
                 .ok_or_else(|| Rich::custom(span, format!("Invalid date format: {}", date_str)))
                 .map(|precision_date| ExpressionNode::Literal(LiteralNode {

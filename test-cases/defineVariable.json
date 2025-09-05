@@ -78,7 +78,7 @@
     },
     {
       "name": "defineVariable6",
-      "expression": "defineVariable('n1', name.first()).select(id &amp; '-' &amp; %n1.given.join('|')) | defineVariable('n2', name.skip(1).first()).select(%n2.given)",
+      "expression": "defineVariable('n1', name.first()).select(id & '-' & %n1.given.join('|')) | defineVariable('n2', name.skip(1).first()).select(%n2.given)",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -108,7 +108,7 @@
     },
     {
       "name": "defineVariable8",
-      "expression": "defineVariable('v1', 'value1').select(%v1).trace('data').defineVariable('v2', 'value2').select($this &amp; ':' &amp; %v1 &amp; '-' &amp; %v2) | defineVariable('v3', 'value3').select(%v3)",
+      "expression": "defineVariable('v1', 'value1').select(%v1).trace('data').defineVariable('v2', 'value2').select($this & ':' & %v1 & '-' & %v2) | defineVariable('v3', 'value3').select(%v3)",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -209,7 +209,7 @@
     },
     {
       "name": "defineVariable15",
-      "expression": "defineVariable('root', 'r1-').select(defineVariable('v1', 'v1').defineVariable('v2', 'v2').select(%v1 | %v2)).select(%root &amp; $this)",
+      "expression": "defineVariable('root', 'r1-').select(defineVariable('v1', 'v1').defineVariable('v2', 'v2').select(%v1 | %v2)).select(%root & $this)",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -224,7 +224,7 @@
     },
     {
       "name": "defineVariable16",
-      "expression": "defineVariable('root', 'r1-').select(defineVariable('v1', 'v1').defineVariable('v2', 'v2').select(%v1 | %v2)).select(%root &amp; $this &amp; %v1)",
+      "expression": "defineVariable('root', 'r1-').select(defineVariable('v1', 'v1').defineVariable('v2', 'v2').select(%v1 | %v2)).select(%root & $this & %v1)",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -251,7 +251,7 @@
     },
     {
       "name": "dvConceptMapExample",
-      "expression": "group.select(\n\t\t\t\tdefineVariable('grp')\n\t\t\t\t.element\n\t\t\t\t.select(\n\t\t\t\t\tdefineVariable('ele')\n\t\t\t\t\t.target\n\t\t\t\t\t.select(%grp.source &amp; '|' &amp; %ele.code &amp; ' ' &amp; relationship &amp; ' ' &amp; %grp.target &amp; '|' &amp; code)\n\t\t\t\t)\n\t\t\t)\n\t\t\t.trace('all')\n\t\t\t.isDistinct()",
+      "expression": "group.select(\n\t\t\t\tdefineVariable('grp')\n\t\t\t\t.element\n\t\t\t\t.select(\n\t\t\t\t\tdefineVariable('ele')\n\t\t\t\t\t.target\n\t\t\t\t\t.select(%grp.source & '|' & %ele.code & ' ' & relationship & ' ' & %grp.target & '|' & code)\n\t\t\t\t)\n\t\t\t)\n\t\t\t.trace('all')\n\t\t\t.isDistinct()",
       "input": null,
       "inputfile": "conceptmap-example.json",
       "expected": [

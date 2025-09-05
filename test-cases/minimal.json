@@ -1,0 +1,11 @@
+{
+  "name": "Minimal",
+  "description": "Quick sanity",
+  "tests": [
+    {
+      "name": "trivial",
+      "expression": "1+1",
+      "expected": 2
+    }
+  ]
+}

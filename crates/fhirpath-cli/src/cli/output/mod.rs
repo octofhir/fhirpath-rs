@@ -20,10 +20,8 @@ mod raw;
 mod table;
 
 use clap::ValueEnum;
-use octofhir_fhirpath_analyzer::{AnalysisResult, ValidationError};
-use octofhir_fhirpath_ast::ExpressionNode;
-use octofhir_fhirpath_core::FhirPathError;
-use octofhir_fhir_model::FhirPathValue;
+use octofhir_fhirpath::{ExpressionNode, FhirPathError, FhirPathValue};
+use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -32,7 +30,7 @@ pub use pretty::PrettyFormatter;
 pub use raw::RawFormatter;
 pub use table::TableFormatter;
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
 pub enum OutputFormat {
     /// JSON structured output
     Json,
@@ -122,6 +120,41 @@ impl FormatterFactory {
             OutputFormat::Pretty => Box::new(PrettyFormatter::new(!self.no_color)),
         }
     }
+}
+
+// -------- Minimal analyzer-friendly types for CLI formatting --------
+
+#[derive(Debug, Clone, Default)]
+pub struct AnalysisResult {
+    pub type_annotations: HashMap<String, SemanticInfo>,
+    pub function_calls: Vec<FunctionAnalysis>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SemanticInfo {
+    pub fhir_path_type: Option<String>,
+    pub model_type: Option<String>,
+    pub cardinality: String,
+    pub confidence: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FunctionSignature {
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FunctionAnalysis {
+    pub function_name: String,
+    pub signature: FunctionSignature,
+    pub validation_errors: Vec<ValidationError>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ValidationError {
+    pub error_type: String,
+    pub message: String,
+    pub suggestions: Vec<String>,
 }
 
 impl Default for FormatterFactory {

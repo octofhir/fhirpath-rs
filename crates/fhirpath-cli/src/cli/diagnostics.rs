@@ -69,15 +69,15 @@ impl CliDiagnosticHandler {
                 Ok(())
             }
             OutputFormat::Pretty => {
-                let output = DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            let output = DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", output)?;
                 Ok(())
             }
             OutputFormat::Table => {
                 // Table mode shows diagnostics above the table
                 let output = DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", output)?;
                 Ok(())
             }
@@ -116,7 +116,7 @@ impl CliDiagnosticHandler {
             _ => {
                 // All other modes: Show beautiful batch diagnostics
                 let output = DiagnosticFormatter::format_batch_pretty(&self.engine, diagnostics, source_id)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", output)?;
                 Ok(())
             }
@@ -239,12 +239,12 @@ impl CliDiagnosticHandler {
             }
             OutputFormat::Pretty => {
                 let pretty_output = BatchFormatter::format_comprehensive_report(&self.engine, &result.diagnostics)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", pretty_output)?;
             }
             OutputFormat::Table => {
                 let table_output = BatchFormatter::format_table_report(&result.diagnostics)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", table_output)?;
             }
             OutputFormat::Raw => {

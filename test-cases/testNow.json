@@ -5,7 +5,7 @@
   "tests": [
     {
       "name": "testNow1",
-      "expression": "Patient.birthDate &lt; now()",
+      "expression": "Patient.birthDate < now()",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [

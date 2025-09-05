@@ -74,13 +74,7 @@ impl OutputFormatter for RawFormatter {
         if !output.validation_errors.is_empty() {
             result.push_str("❌ Validation Errors:\n");
             for error in &output.validation_errors {
-                let icon = match error.error_type {
-                    octofhir_fhirpath_analyzer::ValidationErrorType::InvalidField => "🔍",
-                    octofhir_fhirpath_analyzer::ValidationErrorType::DeprecatedField => "⚠️",
-                    octofhir_fhirpath_analyzer::ValidationErrorType::InvalidResourceType => "🏥",
-                    octofhir_fhirpath_analyzer::ValidationErrorType::InvalidFunction => "🔧",
-                    _ => "❗",
-                };
+                let icon = "❗";
                 result.push_str(&format!("  {} {}\n", icon, error.message));
                 if !error.suggestions.is_empty() {
                     result.push_str(&format!(

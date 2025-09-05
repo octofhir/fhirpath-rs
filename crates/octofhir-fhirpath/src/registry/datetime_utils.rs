@@ -119,72 +119,128 @@ pub struct DateTimeDuration {
     pub hours: i64,
     pub minutes: i64,
     pub seconds: i64,
+    pub milliseconds: i64,
 }
 
 impl DateTimeDuration {
     /// Parse a duration from a quantity value
     pub fn from_quantity(value: &Decimal, unit: &str) -> Result<Self> {
-        let amount = value.to_i64().ok_or_else(|| {
-            FhirPathError::evaluation_error(FP0058, "Duration value too large")
-        })?;
-
         match unit.to_lowercase().as_str() {
-            "year" | "years" | "yr" => Ok(Self {
-                years: amount as i32,
-                months: 0,
-                days: 0,
-                hours: 0,
-                minutes: 0,
-                seconds: 0,
-            }),
-            "month" | "months" | "mo" => Ok(Self {
-                years: 0,
-                months: amount as i32,
-                days: 0,
-                hours: 0,
-                minutes: 0,
-                seconds: 0,
-            }),
-            "week" | "weeks" | "wk" => Ok(Self {
-                years: 0,
-                months: 0,
-                days: amount * 7,
-                hours: 0,
-                minutes: 0,
-                seconds: 0,
-            }),
-            "day" | "days" | "d" => Ok(Self {
-                years: 0,
-                months: 0,
-                days: amount,
-                hours: 0,
-                minutes: 0,
-                seconds: 0,
-            }),
-            "hour" | "hours" | "hr" | "h" => Ok(Self {
-                years: 0,
-                months: 0,
-                days: 0,
-                hours: amount,
-                minutes: 0,
-                seconds: 0,
-            }),
-            "minute" | "minutes" | "min" => Ok(Self {
-                years: 0,
-                months: 0,
-                days: 0,
-                hours: 0,
-                minutes: amount,
-                seconds: 0,
-            }),
-            "second" | "seconds" | "sec" | "s" => Ok(Self {
-                years: 0,
-                months: 0,
-                days: 0,
-                hours: 0,
-                minutes: 0,
-                seconds: amount,
-            }),
+            "year" | "years" | "yr" => {
+                let amount = value.to_i32().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Year value too large")
+                })?;
+                Ok(Self {
+                    years: amount,
+                    months: 0,
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "month" | "months" | "mo" => {
+                let amount = value.to_i32().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Month value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: amount,
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "week" | "weeks" | "wk" => {
+                let amount = value.to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Week value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: amount * 7,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "day" | "days" | "d" => {
+                let amount = value.to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Day value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: amount,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "hour" | "hours" | "hr" | "h" => {
+                let amount = value.to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Hour value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: 0,
+                    hours: amount,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "minute" | "minutes" | "min" => {
+                let amount = value.to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Minute value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: 0,
+                    hours: 0,
+                    minutes: amount,
+                    seconds: 0,
+                    milliseconds: 0,
+                })
+            },
+            "second" | "seconds" | "sec" | "s" => {
+                // Handle fractional seconds by converting to milliseconds
+                let total_ms = (value * Decimal::from(1000)).to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Second value too large")
+                })?;
+                let seconds = total_ms / 1000;
+                let milliseconds = total_ms % 1000;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds,
+                    milliseconds,
+                })
+            },
+            "millisecond" | "milliseconds" | "ms" => {
+                let amount = value.to_i64().ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Millisecond value too large")
+                })?;
+                Ok(Self {
+                    years: 0,
+                    months: 0,
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    milliseconds: amount,
+                })
+            },
             _ => Err(FhirPathError::evaluation_error(
                 FP0058,
                 &format!("Unsupported duration unit: '{}'", unit)
@@ -226,7 +282,8 @@ impl DateTimeDuration {
         let duration = Duration::days(self.days) +
                       Duration::hours(self.hours) +
                       Duration::minutes(self.minutes) +
-                      Duration::seconds(self.seconds);
+                      Duration::seconds(self.seconds) +
+                      Duration::milliseconds(self.milliseconds);
 
         result.checked_add_signed(duration)
             .ok_or_else(|| FhirPathError::evaluation_error(
@@ -244,6 +301,7 @@ impl DateTimeDuration {
             hours: -self.hours,
             minutes: -self.minutes,
             seconds: -self.seconds,
+            milliseconds: -self.milliseconds,
         };
         
         negative_duration.add_to_datetime(datetime)

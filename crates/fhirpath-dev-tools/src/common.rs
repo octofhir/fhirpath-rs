@@ -15,6 +15,7 @@
 //! Common utilities for development tools
 
 use octofhir_fhirpath::ModelProvider;
+use octofhir_fhirpath::MockModelProvider;
 use octofhir_fhirschema::provider::FhirSchemaModelProvider;
 use std::env;
 use std::sync::Arc;
@@ -23,6 +24,17 @@ use std::sync::Arc;
 /// This always uses FhirSchemaModelProvider for production-quality testing
 /// Exits the process if FhirSchemaModelProvider cannot be initialized
 pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
+    // Allow opting into the lightweight MockModelProvider for offline/sandboxed testing
+    let use_mock = env::var("FHIRPATH_USE_MOCK_PROVIDER")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true") )
+        .unwrap_or(false)
+        || env::var("FHIRPATH_MODEL").map(|v| v.eq_ignore_ascii_case("mock")).unwrap_or(false);
+
+    if use_mock {
+        log::info!("Using MockModelProvider for development tools (env override)");
+        return Arc::new(MockModelProvider::default());
+    }
+
     let fhir_version = env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
 
     log::info!(

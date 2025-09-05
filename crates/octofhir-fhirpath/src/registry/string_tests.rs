@@ -8,21 +8,32 @@ mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    fn create_test_context<'a>(
+    fn create_test_context_with_globals<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],
     ) -> FunctionContext<'a> {
-        let model_provider = MockModelProvider::default();
-        let variables = HashMap::new();
-
+        use std::sync::OnceLock;
+        
+        static MODEL_PROVIDER: OnceLock<MockModelProvider> = OnceLock::new();
+        static VARIABLES: OnceLock<HashMap<String, FhirPathValue>> = OnceLock::new();
+        
+        let mp = MODEL_PROVIDER.get_or_init(|| MockModelProvider::default());
+        let vars = VARIABLES.get_or_init(|| HashMap::new());
+        
         FunctionContext {
             input,
             arguments,
-            model_provider: &model_provider,
-            variables: &variables,
+            model_provider: mp,
+            variables: vars,
             resource_context: None,
             terminology: None,
         }
+    }
+    
+    macro_rules! create_test_context {
+        ($input:expr, $args:expr) => {
+            create_test_context_with_globals($input, $args)
+        };
     }
 
     #[test]
@@ -33,32 +44,32 @@ mod tests {
         // Test successful contains
         let input = vec![FhirPathValue::String("Hello World".to_string())];
         let arguments = vec![FhirPathValue::String("World".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("contains", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test unsuccessful contains
         let arguments = vec![FhirPathValue::String("Universe".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("contains", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
         // Test case sensitivity
         let arguments = vec![FhirPathValue::String("world".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("contains", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
         // Test empty substring
         let arguments = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("contains", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test error: non-string input
         let input = vec![FhirPathValue::Integer(123)];
         let arguments = vec![FhirPathValue::String("test".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("contains", &context);
         assert!(result.is_err());
     }
@@ -71,32 +82,32 @@ mod tests {
         // Test successful indexOf
         let input = vec![FhirPathValue::String("Hello World".to_string())];
         let arguments = vec![FhirPathValue::String("World".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("indexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(6));
 
         // Test unsuccessful indexOf
         let arguments = vec![FhirPathValue::String("Universe".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("indexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(-1));
 
         // Test indexOf at beginning
         let arguments = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("indexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(0));
 
         // Test empty substring
         let arguments = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("indexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(0));
 
         // Test Unicode strings
         let input = vec![FhirPathValue::String("Héllo Wörld".to_string())];
         let arguments = vec![FhirPathValue::String("Wörld".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("indexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(6));
     }
@@ -109,19 +120,19 @@ mod tests {
         // Test lastIndexOf with multiple occurrences
         let input = vec![FhirPathValue::String("Hello World World".to_string())];
         let arguments = vec![FhirPathValue::String("World".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("lastIndexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(12));
 
         // Test lastIndexOf with single occurrence
         let arguments = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("lastIndexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(0));
 
         // Test lastIndexOf not found
         let arguments = vec![FhirPathValue::String("Universe".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("lastIndexOf", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(-1));
     }
@@ -135,33 +146,33 @@ mod tests {
 
         // Test substring with start index only
         let arguments = vec![FhirPathValue::Integer(6)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("substring", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("World".to_string()));
 
         // Test substring with start and length
         let arguments = vec![FhirPathValue::Integer(0), FhirPathValue::Integer(5)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("substring", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello".to_string()));
 
         // Test substring with start beyond string length
         let arguments = vec![FhirPathValue::Integer(20)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("substring", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("".to_string()));
 
         // Test substring with Unicode
         let input = vec![FhirPathValue::String("Héllo Wörld".to_string())];
         let arguments = vec![FhirPathValue::Integer(6), FhirPathValue::Integer(5)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("substring", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Wörld".to_string()));
 
         // Test error: negative start index
         let input = vec![FhirPathValue::String("Hello".to_string())];
         let arguments = vec![FhirPathValue::Integer(-1)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("substring", &context);
         assert!(result.is_err());
     }
@@ -175,19 +186,19 @@ mod tests {
 
         // Test successful startsWith
         let arguments = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("startsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test unsuccessful startsWith
         let arguments = vec![FhirPathValue::String("World".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("startsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
         // Test empty prefix
         let arguments = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("startsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
     }
@@ -201,19 +212,19 @@ mod tests {
 
         // Test successful endsWith
         let arguments = vec![FhirPathValue::String("World".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("endsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test unsuccessful endsWith
         let arguments = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("endsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
         // Test empty suffix
         let arguments = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("endsWith", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
     }
@@ -224,7 +235,7 @@ mod tests {
         let dispatcher = dispatcher::FunctionDispatcher::new(registry);
 
         let input = vec![FhirPathValue::String("Hello World".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
 
         // Test upper
         let result = dispatcher.dispatch_sync("upper", &context).unwrap();
@@ -236,7 +247,7 @@ mod tests {
 
         // Test Unicode case conversion
         let input = vec![FhirPathValue::String("Héllo Wörld".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("upper", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("HÉLLO WÖRLD".to_string()));
     }
@@ -248,25 +259,25 @@ mod tests {
 
         // Test basic length
         let input = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("length", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(5));
 
         // Test empty string
         let input = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("length", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(0));
 
         // Test Unicode string length (character count, not byte count)
         let input = vec![FhirPathValue::String("Héllo".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("length", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(5));
 
         // Test with emojis
         let input = vec![FhirPathValue::String("Hello 👋 World 🌎".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("length", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(15)); // 15 Unicode code points
     }
@@ -278,19 +289,19 @@ mod tests {
 
         // Test basic trim
         let input = vec![FhirPathValue::String("  hello world  ".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("trim", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("hello world".to_string()));
 
         // Test trim with no whitespace
         let input = vec![FhirPathValue::String("hello".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("trim", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("hello".to_string()));
 
         // Test trim with only whitespace
         let input = vec![FhirPathValue::String("   ".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("trim", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("".to_string()));
     }
@@ -306,7 +317,7 @@ mod tests {
             FhirPathValue::String("World".to_string()),
             FhirPathValue::String("Universe".to_string())
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("replace", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello Universe Universe".to_string()));
 
@@ -315,7 +326,7 @@ mod tests {
             FhirPathValue::String("xyz".to_string()),
             FhirPathValue::String("abc".to_string())
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("replace", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello World World".to_string()));
 
@@ -324,7 +335,7 @@ mod tests {
             FhirPathValue::String("World".to_string()),
             FhirPathValue::String("".to_string())
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("replace", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello  ".to_string()));
     }
@@ -337,27 +348,27 @@ mod tests {
         // Test email regex match
         let input = vec![FhirPathValue::String("hello@example.com".to_string())];
         let arguments = vec![FhirPathValue::String(r"^[a-z]+@[a-z]+\.[a-z]+$".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("matches", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test non-matching pattern
         let arguments = vec![FhirPathValue::String(r"^[0-9]+$".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("matches", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
         // Test phone number regex
         let input = vec![FhirPathValue::String("+1-555-123-4567".to_string())];
         let arguments = vec![FhirPathValue::String(r"^\+1-[0-9]{3}-[0-9]{3}-[0-9]{4}$".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("matches", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test invalid regex (should error)
         let input = vec![FhirPathValue::String("test".to_string())];
         let arguments = vec![FhirPathValue::String("[invalid".to_string())]; // Invalid regex
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("matches", &context);
         assert!(result.is_err());
     }
@@ -373,7 +384,7 @@ mod tests {
             FhirPathValue::String(r"[0-9]+".to_string()),
             FhirPathValue::String("XXX".to_string())
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("replaceMatches", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello XXX World XXX".to_string()));
 
@@ -383,7 +394,7 @@ mod tests {
             FhirPathValue::String(r"\s+".to_string()),
             FhirPathValue::String(" ".to_string())
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("replaceMatches", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Hello World Test".to_string()));
     }
@@ -396,7 +407,7 @@ mod tests {
         // Test basic split
         let input = vec![FhirPathValue::String("a,b,c".to_string())];
         let arguments = vec![FhirPathValue::String(",".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("split", &context).unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], FhirPathValue::String("a".to_string()));
@@ -406,7 +417,7 @@ mod tests {
         // Test split by space
         let input = vec![FhirPathValue::String("Hello World Test".to_string())];
         let arguments = vec![FhirPathValue::String(" ".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("split", &context).unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], FhirPathValue::String("Hello".to_string()));
@@ -416,7 +427,7 @@ mod tests {
         // Test split by empty string (should split into characters)
         let input = vec![FhirPathValue::String("abc".to_string())];
         let arguments = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("split", &context).unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], FhirPathValue::String("a".to_string()));
@@ -436,13 +447,13 @@ mod tests {
             FhirPathValue::String("c".to_string()),
         ];
         let arguments = vec![FhirPathValue::String(",".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("join", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("a,b,c".to_string()));
 
         // Test join with space
         let arguments = vec![FhirPathValue::String(" ".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("join", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("a b c".to_string()));
 
@@ -453,14 +464,14 @@ mod tests {
             FhirPathValue::Boolean(true),
         ];
         let arguments = vec![FhirPathValue::String(" ".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("join", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("hello 123 true".to_string()));
 
         // Test join empty collection
         let input = vec![];
         let arguments = vec![FhirPathValue::String(",".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("join", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("".to_string()));
     }
@@ -472,7 +483,7 @@ mod tests {
 
         // Test basic toChars
         let input = vec![FhirPathValue::String("Hello".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("toChars", &context).unwrap();
         assert_eq!(result.len(), 5);
         assert_eq!(result[0], FhirPathValue::String("H".to_string()));
@@ -483,13 +494,13 @@ mod tests {
 
         // Test empty string
         let input = vec![FhirPathValue::String("".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("toChars", &context).unwrap();
         assert_eq!(result.len(), 0);
 
         // Test Unicode characters
         let input = vec![FhirPathValue::String("Hi👋".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("toChars", &context).unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], FhirPathValue::String("H".to_string()));
@@ -534,17 +545,17 @@ mod tests {
             FhirPathValue::String("hello".to_string()),
             FhirPathValue::String("world".to_string())
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         assert!(dispatcher.dispatch_sync("length", &context).is_err());
 
         // Test wrong argument count
         let input = vec![FhirPathValue::String("hello".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         assert!(dispatcher.dispatch_sync("contains", &context).is_err()); // Missing argument
 
         // Test wrong argument types
         let arguments = vec![FhirPathValue::Integer(123)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         assert!(dispatcher.dispatch_sync("contains", &context).is_err()); // Non-string argument
     }
 }

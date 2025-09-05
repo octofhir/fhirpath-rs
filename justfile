@@ -48,6 +48,10 @@ test-coverage:
 convert-r5-xml FILE="test-cases/tests-fhir-r5.xml":
     cargo run --package fhirpath-dev-tools --bin convert-r5-xml-to-json -- {{FILE}}
 
+# Convert a single FHIR XML resource to JSON
+convert-fhir-xml IN OUT:
+    cargo run --package fhirpath-dev-tools --bin convert-fhir-xml -- {{IN}} {{OUT}}
+
  
 
 # Run tests with specific FHIR versions
@@ -181,6 +185,10 @@ clean:
 # Run specific test case
 test-case CASE:
     cargo run --package fhirpath-dev-tools --bin test-runner test-cases/{{CASE}}.json
+
+# Run specific test case with MockModelProvider (fast)
+test-case-fast CASE:
+    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package fhirpath-dev-tools --bin test-runner test-cases/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":

@@ -96,22 +96,16 @@ pub fn demo_parse_with_diagnostics(expression: &str, output_format: &OutputForma
                 writeln!(stderr).ok();
                 writeln!(stderr, "🔧 Trying analysis parser for error recovery...").ok();
                 
-                match parse_with_analysis(expression) {
-                    Ok(result) => {
-                        if result.success {
-                            writeln!(stderr, "✅ Analysis parser succeeded with error recovery!").ok();
-                            if let Some(ast) = result.ast {
-                                writeln!(stderr, "Recovered AST: {:#?}", ast).ok();
-                            }
-                        } else {
-                            writeln!(stderr, "⚠️ Analysis parser also failed, but provided diagnostics:").ok();
-                            for (i, diag) in result.diagnostics.iter().enumerate() {
-                                writeln!(stderr, "  Diagnostic {}: {}", i + 1, diag.message).ok();
-                            }
-                        }
+                let result = parse_with_analysis(expression);
+                if result.success {
+                    writeln!(stderr, "✅ Analysis parser succeeded with error recovery!").ok();
+                    if let Some(ast) = result.ast {
+                        writeln!(stderr, "Recovered AST: {:#?}", ast).ok();
                     }
-                    Err(e) => {
-                        writeln!(stderr, "❌ Analysis parser also failed: {}", e).ok();
+                } else {
+                    writeln!(stderr, "⚠️ Analysis parser also failed, but provided diagnostics:").ok();
+                    for (i, diag) in result.diagnostics.iter().enumerate() {
+                        writeln!(stderr, "  Diagnostic {}: {}", i + 1, diag.message).ok();
                     }
                 }
             }

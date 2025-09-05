@@ -83,7 +83,7 @@
     },
     {
       "name": "testQuantity7",
-      "expression": "6 days &lt; 1 week",
+      "expression": "6 days < 1 week",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -96,7 +96,7 @@
     },
     {
       "name": "testQuantity8",
-      "expression": "8 days &gt; 1 week",
+      "expression": "8 days > 1 week",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [

@@ -564,7 +564,7 @@
     },
     {
       "name": "testLiteralIntegerGreaterThan",
-      "expression": "Patient.name.given.count() &gt; -3",
+      "expression": "Patient.name.given.count() > -3",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -590,7 +590,7 @@
     },
     {
       "name": "testLiteralIntegerLessThanTrue",
-      "expression": "1 &lt; 2",
+      "expression": "1 < 2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -603,7 +603,7 @@
     },
     {
       "name": "testLiteralIntegerLessThanFalse",
-      "expression": "1 &lt; -2",
+      "expression": "1 < -2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -616,7 +616,7 @@
     },
     {
       "name": "testLiteralIntegerLessThanPolarityTrue",
-      "expression": "+1 &lt; +2",
+      "expression": "+1 < +2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -629,7 +629,7 @@
     },
     {
       "name": "testLiteralIntegerLessThanPolarityFalse",
-      "expression": "-1 &lt; 2",
+      "expression": "-1 < 2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -642,7 +642,7 @@
     },
     {
       "name": "testLiteralDecimalGreaterThanNonZeroTrue",
-      "expression": "Observation.value.value &gt; 180.0",
+      "expression": "Observation.value.value > 180.0",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
@@ -655,7 +655,7 @@
     },
     {
       "name": "testLiteralDecimalGreaterThanZeroTrue",
-      "expression": "Observation.value.value &gt; 0.0",
+      "expression": "Observation.value.value > 0.0",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
@@ -668,7 +668,7 @@
     },
     {
       "name": "testLiteralDecimalGreaterThanIntegerTrue",
-      "expression": "Observation.value.value &gt; 0",
+      "expression": "Observation.value.value > 0",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
@@ -681,7 +681,7 @@
     },
     {
       "name": "testLiteralDecimalLessThanInteger",
-      "expression": "Observation.value.value &lt; 190",
+      "expression": "Observation.value.value < 190",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
@@ -694,7 +694,7 @@
     },
     {
       "name": "testLiteralDecimalLessThanInvalid",
-      "expression": "Observation.value.value &lt; 'test'",
+      "expression": "Observation.value.value < 'test'",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [],
@@ -790,7 +790,7 @@
     },
     {
       "name": "testDateNotEqualToday",
-      "expression": "Patient.birthDate &lt; today()",
+      "expression": "Patient.birthDate < today()",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -803,7 +803,7 @@
     },
     {
       "name": "testDateTimeGreaterThanDate1",
-      "expression": "now() &gt; Patient.birthDate",
+      "expression": "now() > Patient.birthDate",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -816,7 +816,7 @@
     },
     {
       "name": "testDateGreaterThanDate",
-      "expression": "today() &gt; Patient.birthDate",
+      "expression": "today() > Patient.birthDate",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -829,7 +829,7 @@
     },
     {
       "name": "testDateTimeGreaterThanDate2",
-      "expression": "now() &gt; today()",
+      "expression": "now() > today()",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -853,7 +853,7 @@
     },
     {
       "name": "testLiteralDateTimeTZLess",
-      "expression": "@2017-11-05T01:30:00.0-04:00 &lt; @2017-11-05T01:15:00.0-05:00",
+      "expression": "@2017-11-05T01:30:00.0-04:00 < @2017-11-05T01:15:00.0-05:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [

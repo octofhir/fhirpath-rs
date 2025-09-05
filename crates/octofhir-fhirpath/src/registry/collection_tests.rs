@@ -7,21 +7,32 @@ mod tests {
     use crate::mock_provider::MockModelProvider;
     use std::collections::HashMap;
 
-    fn create_test_context<'a>(
+    fn create_test_context_with_globals<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],
     ) -> FunctionContext<'a> {
-        let model_provider = MockModelProvider::default();
-        let variables = HashMap::new();
-
+        use std::sync::OnceLock;
+        
+        static MODEL_PROVIDER: OnceLock<MockModelProvider> = OnceLock::new();
+        static VARIABLES: OnceLock<HashMap<String, FhirPathValue>> = OnceLock::new();
+        
+        let mp = MODEL_PROVIDER.get_or_init(|| MockModelProvider::default());
+        let vars = VARIABLES.get_or_init(|| HashMap::new());
+        
         FunctionContext {
             input,
             arguments,
-            model_provider: &model_provider,
-            variables: &variables,
+            model_provider: mp,
+            variables: vars,
             resource_context: None,
             terminology: None,
         }
+    }
+    
+    macro_rules! create_test_context {
+        ($input:expr, $args:expr) => {
+            create_test_context_with_globals($input, $args)
+        };
     }
 
     #[test]
@@ -35,7 +46,7 @@ mod tests {
             FhirPathValue::String("second".to_string()),
             FhirPathValue::String("third".to_string()),
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("first", &context).unwrap();
         
         assert_eq!(result.len(), 1);
@@ -43,7 +54,7 @@ mod tests {
 
         // Test with empty collection
         let empty_input = vec![];
-        let context = create_test_context(&empty_input, &[]);
+        let context = create_test_context!(&empty_input, &[]);
         let result = dispatcher.dispatch_sync("first", &context).unwrap();
         assert_eq!(result.len(), 0);
     }
@@ -58,7 +69,7 @@ mod tests {
             FhirPathValue::String("second".to_string()),
             FhirPathValue::String("third".to_string()),
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("last", &context).unwrap();
         
         assert_eq!(result.len(), 1);
@@ -75,7 +86,7 @@ mod tests {
             FhirPathValue::String("second".to_string()),
             FhirPathValue::String("third".to_string()),
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("tail", &context).unwrap();
         
         assert_eq!(result.len(), 2);
@@ -84,13 +95,13 @@ mod tests {
 
         // Test with empty collection
         let empty_input = vec![];
-        let context = create_test_context(&empty_input, &[]);
+        let context = create_test_context!(&empty_input, &[]);
         let result = dispatcher.dispatch_sync("tail", &context).unwrap();
         assert_eq!(result.len(), 0);
 
         // Test with single item
         let single_input = vec![FhirPathValue::String("only".to_string())];
-        let context = create_test_context(&single_input, &[]);
+        let context = create_test_context!(&single_input, &[]);
         let result = dispatcher.dispatch_sync("tail", &context).unwrap();
         assert_eq!(result.len(), 0);
     }
@@ -105,7 +116,7 @@ mod tests {
             FhirPathValue::String("b".to_string()),
             FhirPathValue::String("c".to_string()),
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("count", &context).unwrap();
         
         assert_eq!(result.len(), 1);
@@ -113,7 +124,7 @@ mod tests {
 
         // Test with empty collection
         let empty_input = vec![];
-        let context = create_test_context(&empty_input, &[]);
+        let context = create_test_context!(&empty_input, &[]);
         let result = dispatcher.dispatch_sync("count", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(0));
     }
@@ -131,7 +142,7 @@ mod tests {
 
         // Test skip(1)
         let arguments = vec![FhirPathValue::Integer(1)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("skip", &context).unwrap();
         
         assert_eq!(result.len(), 2);
@@ -140,24 +151,24 @@ mod tests {
 
         // Test skip(0)
         let arguments = vec![FhirPathValue::Integer(0)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("skip", &context).unwrap();
         assert_eq!(result.len(), 3);
 
         // Test skip(10) - more than collection size
         let arguments = vec![FhirPathValue::Integer(10)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("skip", &context).unwrap();
         assert_eq!(result.len(), 0);
 
         // Test skip with no arguments (should error)
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("skip", &context);
         assert!(result.is_err());
 
         // Test skip with negative argument (should error)
         let arguments = vec![FhirPathValue::Integer(-1)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("skip", &context);
         assert!(result.is_err());
     }
@@ -175,7 +186,7 @@ mod tests {
 
         // Test take(2)
         let arguments = vec![FhirPathValue::Integer(2)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("take", &context).unwrap();
         
         assert_eq!(result.len(), 2);
@@ -184,13 +195,13 @@ mod tests {
 
         // Test take(0)
         let arguments = vec![FhirPathValue::Integer(0)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("take", &context).unwrap();
         assert_eq!(result.len(), 0);
 
         // Test take(10) - more than collection size
         let arguments = vec![FhirPathValue::Integer(10)];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("take", &context).unwrap();
         assert_eq!(result.len(), 3);
     }
@@ -207,7 +218,7 @@ mod tests {
             FhirPathValue::String("c".to_string()),
             FhirPathValue::String("b".to_string()), // duplicate
         ];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("distinct", &context).unwrap();
         
         assert_eq!(result.len(), 3);
@@ -223,7 +234,7 @@ mod tests {
             FhirPathValue::Boolean(true),
             FhirPathValue::String("test".to_string()), // duplicate
         ];
-        let context = create_test_context(&mixed_input, &[]);
+        let context = create_test_context!(&mixed_input, &[]);
         let result = dispatcher.dispatch_sync("distinct", &context).unwrap();
         assert_eq!(result.len(), 3);
     }
@@ -235,14 +246,14 @@ mod tests {
 
         // Test with single item
         let single_input = vec![FhirPathValue::String("only".to_string())];
-        let context = create_test_context(&single_input, &[]);
+        let context = create_test_context!(&single_input, &[]);
         let result = dispatcher.dispatch_sync("single", &context).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], FhirPathValue::String("only".to_string()));
 
         // Test with empty collection
         let empty_input = vec![];
-        let context = create_test_context(&empty_input, &[]);
+        let context = create_test_context!(&empty_input, &[]);
         let result = dispatcher.dispatch_sync("single", &context).unwrap();
         assert_eq!(result.len(), 0);
 
@@ -251,7 +262,7 @@ mod tests {
             FhirPathValue::String("first".to_string()),
             FhirPathValue::String("second".to_string()),
         ];
-        let context = create_test_context(&multi_input, &[]);
+        let context = create_test_context!(&multi_input, &[]);
         let result = dispatcher.dispatch_sync("single", &context);
         assert!(result.is_err());
     }
@@ -269,7 +280,7 @@ mod tests {
             FhirPathValue::String("b".to_string()), // duplicate
             FhirPathValue::String("c".to_string()),
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("union", &context).unwrap();
         
         assert_eq!(result.len(), 3);
@@ -279,12 +290,12 @@ mod tests {
 
         // Test union with empty collections
         let empty_input = vec![];
-        let context = create_test_context(&empty_input, &arguments);
+        let context = create_test_context!(&empty_input, &arguments);
         let result = dispatcher.dispatch_sync("union", &context).unwrap();
         assert_eq!(result.len(), 2);
 
         // Test union without arguments (should error)
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("union", &context);
         assert!(result.is_err());
     }
@@ -304,7 +315,7 @@ mod tests {
             FhirPathValue::String("c".to_string()),
             FhirPathValue::String("d".to_string()),
         ];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("intersect", &context).unwrap();
         
         assert_eq!(result.len(), 2);
@@ -316,7 +327,7 @@ mod tests {
             FhirPathValue::String("x".to_string()),
             FhirPathValue::String("y".to_string()),
         ];
-        let context = create_test_context(&no_common_input, &arguments);
+        let context = create_test_context!(&no_common_input, &arguments);
         let result = dispatcher.dispatch_sync("intersect", &context).unwrap();
         assert_eq!(result.len(), 0);
     }

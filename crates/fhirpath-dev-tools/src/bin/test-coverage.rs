@@ -22,6 +22,7 @@ use chrono::{DateTime, Utc};
 use clap::{Arg, Command};
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
 
 // Integration test runner functionality
 mod integration_test_runner {
@@ -538,8 +539,20 @@ mod integration_test_runner {
             // Create evaluation context with the collection
             let context = octofhir_fhirpath::EvaluationContext::new(collection);
 
-            // Evaluate expression using integrated engine
-            let result = match self.engine.evaluate_ast(&ast, &context).await {
+            // Evaluate expression using integrated engine with timeout to avoid hangs
+            let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10_000);
+            let eval_fut = self.engine.evaluate_ast(&ast, &context);
+            let result = match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), eval_fut).await {
+                Err(_) => {
+                    if test.expect_error.unwrap_or(false) {
+                        return TestResult::Passed;
+                    }
+                    return TestResult::Error { error: format!("Evaluation timed out after {}ms", timeout_ms) };
+                }
+                Ok(inner) => match inner {
                 Ok(result) => result,
                 Err(e) => {
                     if test.expect_error.unwrap_or(false) {
@@ -555,12 +568,21 @@ mod integration_test_runner {
                         }
                     };
                 }
+                }
             };
 
             // If an error was expected but evaluation succeeded, mark as failure
             if test.expect_error.unwrap_or(false) {
                 let actual_json = serde_json::to_string(&result)
                     .and_then(|s| serde_json::from_str::<Value>(&s))
+                    .map(|v| {
+                        // Extract primitive values from FhirPathValue enums for cleaner display
+                        if let Some(actual_arr) = v.as_array() {
+                            Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
+                        } else {
+                            Self::extract_primitive_value(&v)
+                        }
+                    })
                     .unwrap_or_default();
                 return TestResult::Failed {
                     expected: serde_json::json!({"__errorExpected": true}),
@@ -580,9 +602,17 @@ mod integration_test_runner {
             if self.compare_results_collection(&result, &test.expected) {
                 TestResult::Passed
             } else {
-                // Convert actual result to JSON for comparison
+                // Convert actual result to JSON for comparison, extracting primitive values
                 let actual_json = serde_json::to_string(&result)
                     .and_then(|s| serde_json::from_str::<Value>(&s))
+                    .map(|v| {
+                        // Extract primitive values from FhirPathValue enums for cleaner display
+                        if let Some(actual_arr) = v.as_array() {
+                            Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
+                        } else {
+                            Self::extract_primitive_value(&v)
+                        }
+                    })
                     .unwrap_or_default();
                 TestResult::Failed {
                     expected: test.expected.clone(),

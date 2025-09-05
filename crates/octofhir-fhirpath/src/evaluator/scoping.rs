@@ -150,6 +150,32 @@ impl ScopeManager {
             global_context,
         }
     }
+
+    /// Create a reusable base evaluation context for lambda execution.
+    /// Inherits built-ins and server context and merges captured variables once.
+    pub fn create_lambda_base_context(&self) -> EvaluationContext {
+        let mut ctx = EvaluationContext::new(Collection::empty());
+        // Inherit environment
+        ctx.builtin_variables = self.global_context.builtin_variables.clone();
+        ctx.server_context = self.global_context.server_context.clone();
+        // Merge variables from all scopes (outermost to innermost)
+        for scope in &self.scope_stack {
+            for (name, value) in &scope.variables {
+                ctx.set_variable(name.clone(), value.clone());
+            }
+        }
+        ctx
+    }
+
+    /// Update the reusable lambda context with the current item and index.
+    /// Sets start_context, $this and $index.
+    pub fn update_lambda_item(&self, ctx: &mut EvaluationContext, item: &FhirPathValue, index: usize) {
+        // Replace start context with current item
+        ctx.start_context = Collection::single(item.clone());
+        // Update special variables
+        ctx.set_variable("this".to_string(), item.clone());
+        ctx.set_variable("index".to_string(), FhirPathValue::Integer(index as i64));
+    }
     
     /// Push new variable scope
     ///
@@ -347,24 +373,47 @@ impl ScopeManager {
     /// # Returns
     /// New evaluation context with merged variables
     pub async fn create_lambda_evaluation_context(&self) -> EvaluationContext {
-        let mut lambda_context = self.global_context.as_ref().clone();
-        
+        // Determine the current item from the innermost scope that has it
+        let current_item_opt = self
+            .scope_stack
+            .iter()
+            .rev()
+            .find_map(|s| s.current_item.as_ref());
+
+        // Build a fresh context using the current item as the start context
+        let start_collection = if let Some(current_item) = current_item_opt {
+            match current_item {
+                FhirPathValue::Collection(items) => Collection::from_values(items.clone()),
+                single => Collection::single(single.clone()),
+            }
+        } else {
+            Collection::empty()
+        };
+
+        // Important: avoid cloning the entire global start_context (can be a large Bundle)
+        // Instead, create a lightweight context and inherit only environment/built-ins.
+        let mut lambda_context = EvaluationContext::new(start_collection);
+
+        // Inherit built-in environment and server context from the global context
+        lambda_context.builtin_variables = self.global_context.builtin_variables.clone();
+        lambda_context.server_context = self.global_context.server_context.clone();
+
         // Merge variables from all scopes (outermost to innermost for proper shadowing)
         for scope in &self.scope_stack {
             for (name, value) in &scope.variables {
                 lambda_context.set_variable(name.clone(), value.clone());
             }
-            
+
             // Set $this and $index if available
             if let Some(current_item) = &scope.current_item {
                 lambda_context.set_variable("this".to_string(), current_item.clone());
             }
-            
+
             if let Some(current_index) = scope.current_index {
                 lambda_context.set_variable("index".to_string(), FhirPathValue::Integer(current_index));
             }
         }
-        
+
         lambda_context
     }
 }
@@ -514,11 +563,11 @@ mod tests {
     
     #[tokio::test]
     async fn test_variable_shadowing() {
-        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        // Create context with a variable already set
+        let mut global_context = EvaluationContext::new(Collection::empty());
+        global_context.set_variable("var".to_string(), FhirPathValue::String("global".to_string()));
+        let global_context = Arc::new(global_context);
         let mut scope_manager = ScopeManager::new(global_context);
-        
-        // Set variable in global context
-        scope_manager.global_context.set_variable("var".to_string(), FhirPathValue::String("global".to_string()));
         
         // Push scope and shadow the variable
         scope_manager.push_scope(ScopeType::Lambda);

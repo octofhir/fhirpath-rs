@@ -5,7 +5,7 @@
   "tests": [
     {
       "name": "testConcatenate1",
-      "expression": "'a' &amp; 'b' = 'ab'",
+      "expression": "'a' & 'b' = 'ab'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "testConcatenate2",
-      "expression": "'1' &amp; {} = '1'",
+      "expression": "'1' & {} = '1'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -31,7 +31,7 @@
     },
     {
       "name": "testConcatenate3",
-      "expression": "{} &amp; 'b' = 'b'",
+      "expression": "{} & 'b' = 'b'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -44,7 +44,7 @@
     },
     {
       "name": "testConcatenate4",
-      "expression": "(1 | 2 | 3) &amp; 'b' = '1,2,3b'",
+      "expression": "(1 | 2 | 3) & 'b' = '1,2,3b'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],

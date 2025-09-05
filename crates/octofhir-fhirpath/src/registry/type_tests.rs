@@ -13,21 +13,32 @@ mod tests {
     use std::collections::HashMap;
     use serde_json::json;
 
-    fn create_test_context<'a>(
+    fn create_test_context_with_globals<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],
     ) -> FunctionContext<'a> {
-        let model_provider = MockModelProvider::new();
-        let variables = HashMap::new();
-
+        use std::sync::OnceLock;
+        
+        static MODEL_PROVIDER: OnceLock<MockModelProvider> = OnceLock::new();
+        static VARIABLES: OnceLock<HashMap<String, FhirPathValue>> = OnceLock::new();
+        
+        let mp = MODEL_PROVIDER.get_or_init(|| MockModelProvider::default());
+        let vars = VARIABLES.get_or_init(|| HashMap::new());
+        
         FunctionContext {
             input,
             arguments,
-            model_provider: &model_provider,
-            variables: &variables,
+            model_provider: mp,
+            variables: vars,
             resource_context: None,
             terminology: None,
         }
+    }
+    
+    macro_rules! create_test_context {
+        ($input:expr, $args:expr) => {
+            create_test_context_with_globals($input, $args)
+        };
     }
 
     fn create_test_registry() -> FunctionRegistry {
@@ -170,14 +181,14 @@ mod tests {
         // Test integer type checking
         let input = vec![FhirPathValue::Integer(42)];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         
         let result = dispatcher.dispatch_sync("is", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test wrong type
         let arguments = vec![FhirPathValue::String("String".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("is", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(false));
 
@@ -189,13 +200,13 @@ mod tests {
         let patient = FhirPathValue::Resource(patient_json);
         let input = vec![patient];
         let arguments = vec![FhirPathValue::String("Resource".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("is", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
         // Test DomainResource subtype
         let arguments = vec![FhirPathValue::String("DomainResource".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("is", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
     }
@@ -208,19 +219,19 @@ mod tests {
         // Test error on multiple values
         let input = vec![FhirPathValue::Integer(1), FhirPathValue::Integer(2)];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("is", &context);
         assert!(result.is_err());
 
         // Test error on no arguments
         let input = vec![FhirPathValue::Integer(42)];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("is", &context);
         assert!(result.is_err());
 
         // Test error on invalid type name
         let arguments = vec![FhirPathValue::String("NonExistentType".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("is", &context);
         assert!(result.is_err());
     }
@@ -233,7 +244,7 @@ mod tests {
         // Test successful cast
         let input = vec![FhirPathValue::String("123".to_string())];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         
         let result = dispatcher.dispatch_sync("as", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(123));
@@ -241,7 +252,7 @@ mod tests {
         // Test failed cast (should return empty)
         let input = vec![FhirPathValue::String("not_a_number".to_string())];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("as", &context).unwrap();
         assert_eq!(result.len(), 0);
 
@@ -250,7 +261,7 @@ mod tests {
         let patient = FhirPathValue::Resource(patient_json);
         let input = vec![patient.clone()];
         let arguments = vec![FhirPathValue::String("Resource".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("as", &context).unwrap();
         assert_eq!(result[0], patient);
     }
@@ -269,7 +280,7 @@ mod tests {
             FhirPathValue::Decimal(rust_decimal::Decimal::new(314, 2)),
         ];
         let arguments = vec![FhirPathValue::String("String".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 2);
@@ -278,14 +289,14 @@ mod tests {
 
         // Test with Integer type
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], FhirPathValue::Integer(42));
 
         // Test empty result
         let arguments = vec![FhirPathValue::String("Patient".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 0);
     }
@@ -309,19 +320,19 @@ mod tests {
 
         // Filter by Resource type (should get all resources)
         let arguments = vec![FhirPathValue::String("Resource".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 3); // Patient, Observation, Bundle are all Resources
 
         // Filter by DomainResource (should get Patient and Observation)
         let arguments = vec![FhirPathValue::String("DomainResource".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 2); // Patient and Observation are DomainResources
 
         // Filter by specific type
         let arguments = vec![FhirPathValue::String("Patient".to_string())];
-        let context = create_test_context(&input, &arguments);
+        let context = create_test_context!(&input, &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 1);
     }
@@ -333,7 +344,7 @@ mod tests {
 
         // Test getting type of integer
         let input = vec![FhirPathValue::Integer(42)];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         if let FhirPathValue::JsonValue(type_info) = &result[0] {
@@ -345,7 +356,7 @@ mod tests {
 
         // Test getting type of string
         let input = vec![FhirPathValue::String("hello".to_string())];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         if let FhirPathValue::JsonValue(type_info) = &result[0] {
             assert_eq!(type_info["namespace"], "System");
@@ -358,7 +369,7 @@ mod tests {
         let patient_json = json!({"resourceType": "Patient", "id": "example"});
         let patient = FhirPathValue::Resource(patient_json);
         let input = vec![patient];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         if let FhirPathValue::JsonValue(type_info) = &result[0] {
             assert_eq!(type_info["namespace"], "FHIR");
@@ -371,7 +382,7 @@ mod tests {
         let coding_json = json!({"system": "http://example.com", "code": "test"});
         let coding = FhirPathValue::JsonValue(coding_json);
         let input = vec![coding];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         if let FhirPathValue::JsonValue(type_info) = &result[0] {
             assert_eq!(type_info["namespace"], "FHIR");
@@ -465,7 +476,8 @@ mod tests {
         let dispatcher = FunctionDispatcher::new(registry);
 
         // Test with empty collection for ofType
-        let context = create_test_context(&[], &[FhirPathValue::String("Integer".to_string())]);
+        let arguments = [FhirPathValue::String("Integer".to_string())];
+        let context = create_test_context!(&[], &arguments);
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 0);
 
@@ -477,7 +489,7 @@ mod tests {
             calendar_unit: None,
         };
         let input = vec![quantity];
-        let context = create_test_context(&input, &[]);
+        let context = create_test_context!(&input, &[]);
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::String("Quantity".to_string()));
     }

@@ -5,7 +5,7 @@
   "tests": [
     {
       "name": "testLessOrEqual1",
-      "expression": "1 &lt;= 2",
+      "expression": "1 <= 2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "testLessOrEqual2",
-      "expression": "1.0 &lt;= 1.2",
+      "expression": "1.0 <= 1.2",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -31,7 +31,7 @@
     },
     {
       "name": "testLessOrEqual3",
-      "expression": "'a' &lt;= 'b'",
+      "expression": "'a' <= 'b'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -44,7 +44,7 @@
     },
     {
       "name": "testLessOrEqual4",
-      "expression": "'A' &lt;= 'a'",
+      "expression": "'A' <= 'a'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -57,7 +57,7 @@
     },
     {
       "name": "testLessOrEqual5",
-      "expression": "@2014-12-12 &lt;= @2014-12-13",
+      "expression": "@2014-12-12 <= @2014-12-13",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -70,7 +70,7 @@
     },
     {
       "name": "testLessOrEqual6",
-      "expression": "@2014-12-13T12:00:00 &lt;= @2014-12-13T12:00:01",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:01",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -83,7 +83,7 @@
     },
     {
       "name": "testLessOrEqual7",
-      "expression": "@T12:00:00 &lt;= @T14:00:00",
+      "expression": "@T12:00:00 <= @T14:00:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -96,7 +96,7 @@
     },
     {
       "name": "testLessOrEqual8",
-      "expression": "1 &lt;= 1",
+      "expression": "1 <= 1",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -109,7 +109,7 @@
     },
     {
       "name": "testLessOrEqual9",
-      "expression": "1.0 &lt;= 1.0",
+      "expression": "1.0 <= 1.0",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -122,7 +122,7 @@
     },
     {
       "name": "testLessOrEqual10",
-      "expression": "'a' &lt;= 'a'",
+      "expression": "'a' <= 'a'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -135,7 +135,7 @@
     },
     {
       "name": "testLessOrEqual11",
-      "expression": "'A' &lt;= 'A'",
+      "expression": "'A' <= 'A'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -148,7 +148,7 @@
     },
     {
       "name": "testLessOrEqual12",
-      "expression": "@2014-12-12 &lt;= @2014-12-12",
+      "expression": "@2014-12-12 <= @2014-12-12",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -161,7 +161,7 @@
     },
     {
       "name": "testLessOrEqual13",
-      "expression": "@2014-12-13T12:00:00 &lt;= @2014-12-13T12:00:00",
+      "expression": "@2014-12-13T12:00:00 <= @2014-12-13T12:00:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -174,7 +174,7 @@
     },
     {
       "name": "testLessOrEqual14",
-      "expression": "@T12:00:00 &lt;= @T12:00:00",
+      "expression": "@T12:00:00 <= @T12:00:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -187,7 +187,7 @@
     },
     {
       "name": "testLessOrEqual15",
-      "expression": "2 &lt;= 1",
+      "expression": "2 <= 1",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -200,7 +200,7 @@
     },
     {
       "name": "testLessOrEqual16",
-      "expression": "1.1 &lt;= 1.0",
+      "expression": "1.1 <= 1.0",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -213,7 +213,7 @@
     },
     {
       "name": "testLessOrEqual17",
-      "expression": "'b' &lt;= 'a'",
+      "expression": "'b' <= 'a'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -226,7 +226,7 @@
     },
     {
       "name": "testLessOrEqual18",
-      "expression": "'B' &lt;= 'A'",
+      "expression": "'B' <= 'A'",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -239,7 +239,7 @@
     },
     {
       "name": "testLessOrEqual19",
-      "expression": "@2014-12-13 &lt;= @2014-12-12",
+      "expression": "@2014-12-13 <= @2014-12-12",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -252,7 +252,7 @@
     },
     {
       "name": "testLessOrEqual20",
-      "expression": "@2014-12-13T12:00:01 &lt;= @2014-12-13T12:00:00",
+      "expression": "@2014-12-13T12:00:01 <= @2014-12-13T12:00:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -265,7 +265,7 @@
     },
     {
       "name": "testLessOrEqual21",
-      "expression": "@T12:00:01 &lt;= @T12:00:00",
+      "expression": "@T12:00:01 <= @T12:00:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -278,7 +278,7 @@
     },
     {
       "name": "testLessOrEqual22",
-      "expression": "Observation.value &lt;= 200 '[lb_av]'",
+      "expression": "Observation.value <= 200 '[lb_av]'",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
@@ -291,7 +291,7 @@
     },
     {
       "name": "testLessOrEqual23",
-      "expression": "@2018-03 &lt;= @2018-03-01",
+      "expression": "@2018-03 <= @2018-03-01",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -302,7 +302,7 @@
     },
     {
       "name": "testLessOrEqual24",
-      "expression": "@2018-03-01T10:30 &lt;= @2018-03-01T10:30:00",
+      "expression": "@2018-03-01T10:30 <= @2018-03-01T10:30:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -313,7 +313,7 @@
     },
     {
       "name": "testLessOrEqual25",
-      "expression": "@T10:30 &lt;= @T10:30:00",
+      "expression": "@T10:30 <= @T10:30:00",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -324,7 +324,7 @@
     },
     {
       "name": "testLessOrEqual26",
-      "expression": "@2018-03-01T10:30:00  &lt;= @2018-03-01T10:30:00.0",
+      "expression": "@2018-03-01T10:30:00  <= @2018-03-01T10:30:00.0",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -337,7 +337,7 @@
     },
     {
       "name": "testLessOrEqual27",
-      "expression": "@T10:30:00 &lt;= @T10:30:00.0",
+      "expression": "@T10:30:00 <= @T10:30:00.0",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -350,7 +350,7 @@
     },
     {
       "name": "testLessOrEqualEmpty1",
-      "expression": "1 &lt;= {}",
+      "expression": "1 <= {}",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -361,7 +361,7 @@
     },
     {
       "name": "testLessOrEqualEmpty2",
-      "expression": "{} &lt;= 1",
+      "expression": "{} <= 1",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],
@@ -372,7 +372,7 @@
     },
     {
       "name": "testLessOrEqualEmpty3",
-      "expression": "{} &lt;= {}",
+      "expression": "{} <= {}",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [],

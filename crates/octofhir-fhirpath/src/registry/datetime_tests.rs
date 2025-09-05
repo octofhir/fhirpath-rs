@@ -166,6 +166,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         // Test hourOf with Time
@@ -217,6 +218,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         // Test timezoneOffsetOf
@@ -264,6 +266,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         let (year_func, _) = registry.get_sync_function("yearOf").unwrap();
@@ -278,6 +281,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         let result = year_func(&context).unwrap();
@@ -291,6 +295,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         let result = year_func(&context).unwrap();
@@ -316,6 +321,7 @@ mod tests {
             model_provider: &model_provider,
             variables: &variables,
             resource_context: None,
+            terminology: None,
         };
         
         // Test dayOfWeek (Monday = 1 in FHIRPath)

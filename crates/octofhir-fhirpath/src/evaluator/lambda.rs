@@ -18,6 +18,110 @@ use crate::core::{Collection, FhirPathValue};
 use crate::evaluator::{ScopeManager, ScopeType, EvaluationContext};
 use crate::ast::ExpressionNode;
 
+// Simple AST matcher to detect predicates like: identifier = 'string'
+fn extract_simple_literal_compare(expr: &ExpressionNode) -> Option<(Vec<String>, SimpleLiteral, SimpleOp)> {
+    use crate::ast::{ExpressionNode as EN, BinaryOperator, LiteralValue};
+    let (left, right, op) = match expr {
+        EN::BinaryOperation(bin) if matches!(bin.operator, BinaryOperator::Equal | BinaryOperator::NotEqual) => {
+            (&*bin.left, &*bin.right, bin.operator)
+        }
+        _ => return None,
+    };
+    // PropertyPath <op> literal
+    if let Some(path) = extract_property_path(left) {
+        if let EN::Literal(lit) = right {
+            return match &lit.value {
+                LiteralValue::String(s) => Some((path, SimpleLiteral::String(s.clone()), op.into())),
+                LiteralValue::Integer(i) => Some((path, SimpleLiteral::Integer(*i), op.into())),
+                LiteralValue::Boolean(b) => Some((path, SimpleLiteral::Boolean(*b), op.into())),
+                _ => None,
+            };
+        }
+    }
+    // literal <op> PropertyPath
+    if let EN::Literal(lit) = left {
+        if let Some(path) = extract_property_path(right) {
+            return match &lit.value {
+                LiteralValue::String(s) => Some((path, SimpleLiteral::String(s.clone()), op.into())),
+                LiteralValue::Integer(i) => Some((path, SimpleLiteral::Integer(*i), op.into())),
+                LiteralValue::Boolean(b) => Some((path, SimpleLiteral::Boolean(*b), op.into())),
+                _ => None,
+            };
+        }
+    }
+    None
+}
+
+#[derive(Clone)]
+enum SimpleLiteral { String(String), Integer(i64), Boolean(bool) }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SimpleOp { Eq, Ne }
+
+impl From<crate::ast::BinaryOperator> for SimpleOp {
+    fn from(op: crate::ast::BinaryOperator) -> Self {
+        match op { crate::ast::BinaryOperator::NotEqual => SimpleOp::Ne, _ => SimpleOp::Eq }
+    }
+}
+
+fn extract_exists_on_path(expr: &ExpressionNode) -> Option<Vec<String>> {
+    use crate::ast::ExpressionNode as EN;
+    if let EN::MethodCall(mc) = expr {
+        if mc.method == "exists" && mc.arguments.is_empty() {
+            return extract_property_path(&mc.object);
+        }
+    }
+    extract_property_path(expr) // bare identifier/chain truthiness
+}
+
+fn property_exists_truthy(obj: &serde_json::Value, name: &str) -> bool {
+    match obj.get(name) {
+        None => false,
+        Some(v) if v.is_null() => false,
+        Some(v) if v.is_array() => v.as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        Some(v) if v.is_string() => v.as_str().map(|s| !s.is_empty()).unwrap_or(false),
+        Some(_) => true,
+    }
+}
+
+#[inline]
+fn cmp_eq_ne(eq: bool, op: SimpleOp) -> bool { if op == SimpleOp::Eq { eq } else { !eq } }
+
+fn extract_property_path(expr: &ExpressionNode) -> Option<Vec<String>> {
+    use crate::ast::ExpressionNode as EN;
+    fn collect(node: &ExpressionNode, acc: &mut Vec<String>) -> bool {
+        match node {
+            EN::Identifier(id) => { acc.push(id.name.clone()); true }
+            EN::PropertyAccess(p) => {
+                if !collect(&p.object, acc) { return false; }
+                acc.push(p.property.clone());
+                true
+            }
+            _ => false,
+        }
+    }
+    let mut parts = Vec::new();
+    if collect(expr, &mut parts) { Some(parts) } else { None }
+}
+
+fn get_json_at_path<'a>(mut obj: &'a serde_json::Value, path: &[String]) -> Option<&'a serde_json::Value> {
+    for key in path {
+        obj = obj.get(key.as_str())?;
+    }
+    Some(obj)
+}
+
+fn json_to_fhirpath_value(v: &serde_json::Value) -> Option<FhirPathValue> {
+    match v {
+        serde_json::Value::Null => None,
+        serde_json::Value::Bool(b) => Some(FhirPathValue::Boolean(*b)),
+        serde_json::Value::Number(n) => n.as_i64().map(FhirPathValue::Integer)
+            .or_else(|| n.as_f64().map(|f| FhirPathValue::String(f.to_string()))),
+        serde_json::Value::String(s) => Some(FhirPathValue::String(s.clone())),
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => Some(FhirPathValue::Resource(v.clone())),
+    }
+}
+
 /// Sort criterion for multi-criteria sorting
 ///
 /// Represents a single sort criterion with expression and direction.
@@ -127,18 +231,53 @@ impl LambdaEvaluator {
         evaluator: &dyn LambdaExpressionEvaluator,
     ) -> crate::core::Result<Collection> {
         let mut filtered_items = Vec::new();
+
+        // Fast path: exists() on property path, or bare property path truthiness
+        if let Some(path) = extract_exists_on_path(lambda_expr) {
+            for item in collection.iter() {
+                let exists = match item {
+                    FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                        get_json_at_path(j, &path).map(|v| match v {
+                            serde_json::Value::Null => false,
+                            serde_json::Value::String(s) => !s.is_empty(),
+                            serde_json::Value::Array(a) => !a.is_empty(),
+                            _ => true,
+                        }).unwrap_or(false)
+                    }
+                    _ => false,
+                };
+                if exists { filtered_items.push(item.clone()); }
+            }
+            return Ok(Collection::from_values(filtered_items));
+        }
+
+        // Fast path: simple predicate property ==/!= literal (string/int/bool)
+        if let Some((prop_path, expected, op)) = extract_simple_literal_compare(lambda_expr) {
+            for item in collection.iter() {
+                let matches = match item {
+                    FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                        let val = get_json_at_path(j, &prop_path);
+                        match expected {
+                            SimpleLiteral::String(ref s) => val.and_then(|v| v.as_str()).map(|x| cmp_eq_ne(x == s, op)).unwrap_or(false),
+                            SimpleLiteral::Integer(i) => val.and_then(|v| v.as_i64()).map(|x| cmp_eq_ne(x == i, op)).unwrap_or(false),
+                            SimpleLiteral::Boolean(b) => val.and_then(|v| v.as_bool()).map(|x| cmp_eq_ne(x == b, op)).unwrap_or(false),
+                        }
+                    }
+                    _ => false,
+                };
+                if matches {
+                    filtered_items.push(item.clone());
+                }
+            }
+            return Ok(Collection::from_values(filtered_items));
+        }
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        // Reusable lambda context: inherit built-ins and captured variables once
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
         for (index, item) in collection.iter().enumerate() {
-            // Set current item and index for lambda evaluation
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
-            
-            // Create evaluation context for this lambda invocation
-            let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
-            
+            // Update context for item and index
+            self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
             // Evaluate lambda expression
             let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
             
@@ -147,9 +286,6 @@ impl LambdaEvaluator {
                 filtered_items.push(item.clone());
             }
         }
-        
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
         
         Ok(Collection::from_values(filtered_items))
     }
@@ -179,27 +315,32 @@ impl LambdaEvaluator {
         evaluator: &dyn LambdaExpressionEvaluator,
     ) -> crate::core::Result<Collection> {
         let mut transformed_items = Vec::new();
+
+        // Fast path: simple projection of a property path
+        if let Some(path) = extract_property_path(lambda_expr) {
+            for item in collection.iter() {
+                if let FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) = item {
+                    if let Some(val) = get_json_at_path(j, &path) {
+                        if let Some(fp) = json_to_fhirpath_value(val) {
+                            transformed_items.push(fp);
+                        }
+                    }
+                }
+            }
+            return Ok(Collection::from_values(transformed_items));
+        }
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        // Reusable lambda context
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
         for (index, item) in collection.iter().enumerate() {
-            // Set current item and index for lambda evaluation
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
-            
-            // Create evaluation context for this lambda invocation
-            let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
-            
+            self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
             // Evaluate lambda expression
             let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
             
             // Add all result items to transformed collection
             transformed_items.extend(result.into_vec());
         }
-        
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
         
         Ok(Collection::from_values(transformed_items))
     }
@@ -233,90 +374,227 @@ impl LambdaEvaluator {
         if collection.is_empty() {
             return Ok(true);
         }
+
+        // Fast path: exists() on property path or bare property path
+        if let Some(path) = extract_exists_on_path(lambda_expr) {
+            for item in collection.iter() {
+                let ok = match item {
+                    FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                        get_json_at_path(j, &path).map(|v| match v {
+                            serde_json::Value::Null => false,
+                            serde_json::Value::String(s) => !s.is_empty(),
+                            serde_json::Value::Array(a) => !a.is_empty(),
+                            _ => true,
+                        }).unwrap_or(false)
+                    }
+                    _ => false,
+                };
+                if !ok { return Ok(false); }
+            }
+            return Ok(true);
+        }
+
+        // Fast path: simple literal compare across all items
+        if let Some((path, expected, op)) = extract_simple_literal_compare(lambda_expr) {
+            for item in collection.iter() {
+                let ok = match item {
+                    FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                        let val = get_json_at_path(j, &path);
+                        match expected {
+                            SimpleLiteral::String(ref s) => val.and_then(|v| v.as_str()).map(|x| cmp_eq_ne(x == s, op)).unwrap_or(false),
+                            SimpleLiteral::Integer(i) => val.and_then(|v| v.as_i64()).map(|x| cmp_eq_ne(x == i, op)).unwrap_or(false),
+                            SimpleLiteral::Boolean(b) => val.and_then(|v| v.as_bool()).map(|x| cmp_eq_ne(x == b, op)).unwrap_or(false),
+                        }
+                    }
+                    _ => false,
+                };
+                if !ok { return Ok(false); }
+            }
+            return Ok(true);
+        }
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        // Reusable lambda context
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
         for (index, item) in collection.iter().enumerate() {
-            // Set current item and index for lambda evaluation
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
-            
-            // Create evaluation context for this lambda invocation
-            let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
-            
+            self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
             // Evaluate lambda expression
             let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
             
             // If any item is falsy, return false immediately
             if !is_truthy(&result) {
-                self.scope_manager.pop_scope();
                 return Ok(false);
             }
         }
         
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
-        
         Ok(true)
     }
     
-    /// Evaluate repeat() lambda for collection projection without duplicates
+    /// Evaluate repeat() lambda for recursive projection with cycle detection
     ///
-    /// Similar to select() but avoids duplicates in the result collection.
-    /// Transforms a collection by evaluating a lambda expression for each item
-    /// and collecting unique results.
+    /// Implements the FHIRPath repeat() function according to the specification:
+    /// - Recursively evaluates the projection expression starting with the input collection
+    /// - Adds unique nodes to the result (prevents infinite loops)
+    /// - Continues until no new unique nodes are found
+    /// - Uses a queue-based approach to process items iteratively
+    /// - Includes cycle detection and stack overflow protection
     ///
     /// # Arguments
-    /// * `collection` - Input collection to transform
+    /// * `collection` - Input collection to start projection from
     /// * `lambda_expr` - Lambda expression to evaluate for each item
+    /// * `evaluator` - Expression evaluator for lambda execution
+    /// * `max_iterations` - Optional maximum iterations (defaults to 10,000 for safety)
+    /// * `max_unique_items` - Optional maximum unique items limit (defaults to 100,000)
     ///
     /// # Returns
-    /// Transformed collection with unique results of lambda expressions
+    /// Collection containing all unique nodes found through recursive projection
+    ///
+    /// # Infinite Loop Prevention
+    /// - Uses unique node tracking via hash set
+    /// - Implements maximum iteration limits
+    /// - Implements maximum unique items limits
+    /// - Stops when input queue becomes empty (no new nodes)
     ///
     /// # Examples
     ///
     /// ```rust,no_run
-    /// // For expression: Bundle.entry.repeat(resource.resourceType)
-    /// // Would extract unique resource types from bundle entries
+    /// // For expression: ValueSet.expansion.repeat(contains)
+    /// // Would recursively find all 'contains' nodes in nested structure
+    /// 
+    /// // For expression: Questionnaire.repeat(item)
+    /// // Would recursively find all nested 'item' elements
     /// ```
     pub async fn evaluate_repeat(
         &mut self,
         collection: &Collection,
         lambda_expr: &ExpressionNode,
         evaluator: &dyn LambdaExpressionEvaluator,
+        max_iterations: Option<usize>,
+        max_unique_items: Option<usize>,
     ) -> crate::core::Result<Collection> {
-        let mut seen_values = std::collections::HashSet::new();
-        let mut unique_items = Vec::new();
+        use std::collections::{HashMap, VecDeque};
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        let max_iterations = max_iterations.unwrap_or(10_000);
+        let max_unique_items = max_unique_items.unwrap_or(100_000);
         
-        for (index, item) in collection.iter().enumerate() {
-            // Set current item and index for lambda evaluation
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
+        // Unique node tracking using more robust key generation
+        let mut seen_nodes = HashMap::new();
+        let mut result_items = Vec::new();
+        
+        // Input queue for iterative processing (prevents stack overflow)
+        // Store indices into the original collection to avoid cloning large items unnecessarily
+        let mut input_queue: VecDeque<FhirPathValue> = VecDeque::new();
+        for item in collection.iter() { input_queue.push_back(item.clone()); }
+        
+        let mut iteration_count = 0;
+        
+        // Reusable lambda context: inherit built-ins and captured variables once
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
+        
+        // Process until queue is empty or limits reached
+        while !input_queue.is_empty() && iteration_count < max_iterations && result_items.len() < max_unique_items {
+            iteration_count += 1;
             
-            // Create evaluation context for this lambda invocation
-            let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
+            // Take the next item from queue
+            let current_item = input_queue.pop_front().unwrap();
             
-            // Evaluate lambda expression
-            let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
+            // Generate unique key for this node (more robust than Debug format)
+            let item_key = self.generate_unique_node_key(&current_item);
             
-            // Add unique result items to collection
-            for result_item in result.into_vec() {
-                // Use string representation for uniqueness check
-                let item_key = format!("{:?}", result_item);
-                if seen_values.insert(item_key) {
-                    unique_items.push(result_item);
+            // Skip if we've already seen this exact node
+            if seen_nodes.contains_key(&item_key) {
+                continue;
+            }
+            
+            // Mark this node as seen and add to results
+            seen_nodes.insert(item_key, true);
+            result_items.push(current_item.clone());
+            
+            // Update context for current item (index doesn't apply to repeat)
+            self.scope_manager.update_lambda_item(&mut lambda_context, &current_item, 0);
+            
+            // Evaluate lambda expression on current item
+            let projection_result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
+            
+            // Add projection results to input queue for further processing
+            for new_item in projection_result.into_vec() {
+                let new_item_key = self.generate_unique_node_key(&new_item);
+                
+                // Only add to queue if we haven't seen this node before
+                if !seen_nodes.contains_key(&new_item_key) {
+                    input_queue.push_back(new_item);
                 }
+            }
+            
+            // Safety check for memory usage
+            if result_items.len() >= max_unique_items {
+                // Log warning but don't fail - truncate results
+                eprintln!("repeat() function reached maximum unique items limit ({}). Results truncated for safety.", max_unique_items);
+                break;
             }
         }
         
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
+        // Report if we hit iteration limit (potential infinite loop detected)
+        if iteration_count >= max_iterations {
+            eprintln!("repeat() function reached maximum iteration limit ({}). Potential infinite loop detected and prevented.", max_iterations);
+        }
         
-        Ok(Collection::from_values(unique_items))
+        Ok(Collection::from_values(result_items))
+    }
+    
+    /// Generate a unique key for a FhirPathValue for cycle detection
+    ///
+    /// This creates a more robust unique identifier than Debug formatting,
+    /// taking into account the structure and content of complex values.
+    ///
+    /// # Arguments
+    /// * `value` - FhirPathValue to generate key for
+    ///
+    /// # Returns
+    /// String key that uniquely identifies the value
+    fn generate_unique_node_key(&self, value: &FhirPathValue) -> String {
+        match value {
+            FhirPathValue::String(s) => format!("string:{}", s),
+            FhirPathValue::Integer(i) => format!("integer:{}", i),
+            FhirPathValue::Decimal(d) => format!("decimal:{}", d),
+            FhirPathValue::Boolean(b) => format!("boolean:{}", b),
+            FhirPathValue::Date(d) => format!("date:{}", d),
+            FhirPathValue::DateTime(dt) => format!("datetime:{}", dt),
+            FhirPathValue::Time(t) => format!("time:{}", t),
+            FhirPathValue::Quantity { value, unit, .. } => format!("quantity:{}:{}", value, unit.as_deref().unwrap_or("none")),
+            FhirPathValue::Id(id) => format!("id:{}", id),
+            FhirPathValue::Base64Binary(b64) => format!("base64:{}bytes", b64.len()),
+            FhirPathValue::Uri(uri) => format!("uri:{}", uri),
+            FhirPathValue::Url(url) => format!("url:{}", url),
+            FhirPathValue::Resource(resource) => {
+                // For resources, include resourceType and id for uniqueness
+                let resource_type = resource.get("resourceType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let id = resource.get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("no-id");
+                format!("resource:{}:{}", resource_type, id)
+            },
+            FhirPathValue::JsonValue(json) => {
+                // For JSON values, create hash of the content
+                let content = serde_json::to_string(json).unwrap_or_default();
+                format!("json:{}", content)
+            },
+            FhirPathValue::Collection(items) => {
+                // For collections, hash the combination of all items
+                let mut combined = String::from("collection:");
+                for item in items {
+                    combined.push_str(&self.generate_unique_node_key(item));
+                    combined.push(':');
+                }
+                combined
+            },
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                format!("typeinfo:{}:{}", namespace, name)
+            },
+            FhirPathValue::Empty => "empty:".to_string(),
+        }
     }
     
     /// Evaluate aggregate() lambda for collection reduction
@@ -348,17 +626,13 @@ impl LambdaEvaluator {
         // Start with initial value or empty collection
         let mut total = initial_value.unwrap_or(FhirPathValue::Collection(Vec::new()));
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        // Reusable lambda context: inherit built-ins and captured variables once
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
         for (index, item) in collection.iter().enumerate() {
-            // Set current item, index, and total for lambda evaluation
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
-            self.scope_manager.set_variable("total".to_string(), total.clone());
-            
-            // Create evaluation context for this lambda invocation
-            let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
+            // Update context for item, index, and total
+            self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
+            lambda_context.set_variable("total".to_string(), total.clone());
             
             // Evaluate lambda expression
             let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;
@@ -370,9 +644,6 @@ impl LambdaEvaluator {
                 result.first().unwrap().clone()
             };
         }
-        
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
         
         Ok(total)
     }
@@ -447,21 +718,17 @@ impl LambdaEvaluator {
         // Create sort keys for each item
         let mut sort_items = Vec::new();
         
-        // Push lambda scope
-        let _scope_id = self.scope_manager.push_scope(ScopeType::Lambda);
+        // Reusable lambda context: inherit built-ins and captured variables once
+        let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
         for (index, item) in collection.iter().enumerate() {
-            // Set current item and index
-            self.scope_manager.set_current_item(item.clone());
-            self.scope_manager.set_current_index(index as i64);
+            // Update context for current item and index
+            self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
             
             // Evaluate all sort criteria for this item
             let mut sort_keys = Vec::new();
             
             for criterion in &sort_criteria {
-                // Create evaluation context for this lambda invocation
-                let lambda_context = self.scope_manager.create_lambda_evaluation_context().await;
-                
                 // Evaluate the sort expression
                 let result = evaluator.evaluate_expression(&criterion.expression, &lambda_context).await?;
                 
@@ -480,9 +747,6 @@ impl LambdaEvaluator {
                 sort_keys,
             });
         }
-        
-        // Pop lambda scope
-        self.scope_manager.pop_scope();
         
         // Sort items by their sort keys
         sort_items.sort_by(|a, b| self.compare_sort_items(a, b));
@@ -649,7 +913,7 @@ impl LambdaEvaluator {
 ///
 /// This trait abstracts the expression evaluation to allow the LambdaEvaluator
 /// to work with different evaluation engines while maintaining proper scoping.
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 pub trait LambdaExpressionEvaluator {
     /// Evaluate an expression in the given context
     ///
@@ -713,6 +977,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
     use crate::core::{Collection, FhirPathValue};
@@ -878,18 +1143,201 @@ mod tests {
         assert!(result.is_empty());
     }
     
+    #[tokio::test]
+    async fn test_repeat_simple_projection() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let mut lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test simple repeat that finds no additional items
+        let collection = Collection::from_values(vec![
+            FhirPathValue::String("item1".to_string()),
+            FhirPathValue::String("item2".to_string()),
+        ]);
+        
+        let lambda_expr = ExpressionNode::Literal(LiteralNode {
+            value: LiteralValue::String("no-match".to_string()),
+            location: None,
+        });
+        
+        // Mock evaluator that returns empty for all evaluations (no projection results)
+        let mock_evaluator = MockExpressionEvaluator {
+            result: Collection::empty(),
+        };
+        
+        let result = lambda_evaluator.evaluate_repeat(
+            &collection, 
+            &lambda_expr, 
+            &mock_evaluator,
+            Some(100), // Small max iterations for testing
+            Some(50)   // Small max unique items for testing
+        ).await.unwrap();
+        
+        // Should return original items since no projection results were found
+        assert_eq!(result.len(), 2);
+    }
+    
+    #[tokio::test]
+    async fn test_repeat_with_cycle_detection() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let mut lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test repeat with cyclical projection (A -> B -> A)
+        let collection = Collection::from_values(vec![
+            FhirPathValue::String("A".to_string()),
+        ]);
+        
+        let lambda_expr = ExpressionNode::Literal(LiteralNode {
+            value: LiteralValue::String("B".to_string()),
+            location: None,
+        });
+        
+        // Mock evaluator that creates a cycle: A -> B, B -> A
+        let mock_evaluator = MockCyclicalEvaluator::new();
+        
+        let result = lambda_evaluator.evaluate_repeat(
+            &collection, 
+            &lambda_expr, 
+            &mock_evaluator,
+            Some(10),  // Low iteration limit to test cycle detection
+            Some(10)   // Low unique items limit
+        ).await.unwrap();
+        
+        // Should detect cycle and stop, returning both A and B
+        assert!(result.len() >= 1);
+        assert!(result.len() <= 3); // Original A, projected B, and possibly cycle detection
+    }
+    
+    #[tokio::test]
+    async fn test_repeat_iteration_limit() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let mut lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test repeat with iteration limit hit
+        let collection = Collection::from_values(vec![
+            FhirPathValue::Integer(1),
+        ]);
+        
+        let lambda_expr = ExpressionNode::Literal(LiteralNode {
+            value: LiteralValue::Integer(2),
+            location: None,
+        });
+        
+        // Mock evaluator that always produces new items (would cause infinite loop)
+        let mock_evaluator = MockInfiniteEvaluator::new();
+        
+        let result = lambda_evaluator.evaluate_repeat(
+            &collection, 
+            &lambda_expr, 
+            &mock_evaluator,
+            Some(5),  // Very low iteration limit
+            Some(100) // Higher unique items limit
+        ).await.unwrap();
+        
+        // Should hit iteration limit and stop
+        assert!(result.len() <= 10); // Should be limited by max iterations
+    }
+    
+    #[tokio::test]
+    async fn test_repeat_unique_items_limit() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let mut lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test repeat with unique items limit hit
+        let collection = Collection::from_values(vec![
+            FhirPathValue::Integer(1),
+        ]);
+        
+        let lambda_expr = ExpressionNode::Literal(LiteralNode {
+            value: LiteralValue::Integer(2),
+            location: None,
+        });
+        
+        // Mock evaluator that produces many unique items
+        let mock_evaluator = MockUniqueItemsEvaluator::new();
+        
+        let result = lambda_evaluator.evaluate_repeat(
+            &collection, 
+            &lambda_expr, 
+            &mock_evaluator,
+            Some(1000), // High iteration limit
+            Some(3)     // Very low unique items limit
+        ).await.unwrap();
+        
+        // Should hit unique items limit and stop
+        assert!(result.len() <= 3); // Should be limited by max unique items
+    }
+    
+    #[tokio::test]
+    async fn test_repeat_empty_collection() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let mut lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test repeat with empty input collection
+        let empty_collection = Collection::empty();
+        
+        let lambda_expr = ExpressionNode::Literal(LiteralNode {
+            value: LiteralValue::String("test".to_string()),
+            location: None,
+        });
+        
+        let mock_evaluator = MockExpressionEvaluator {
+            result: Collection::empty(),
+        };
+        
+        let result = lambda_evaluator.evaluate_repeat(
+            &empty_collection, 
+            &lambda_expr, 
+            &mock_evaluator,
+            None, // Use defaults
+            None  // Use defaults
+        ).await.unwrap();
+        
+        // Empty input should return empty result
+        assert!(result.is_empty());
+    }
+    
+    #[tokio::test]
+    async fn test_generate_unique_node_key() {
+        let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        let lambda_evaluator = LambdaEvaluator::new(global_context);
+        
+        // Test unique key generation for different value types
+        let string_val = FhirPathValue::String("test".to_string());
+        let int_val = FhirPathValue::Integer(42);
+        let bool_val = FhirPathValue::Boolean(true);
+        
+        let string_key = lambda_evaluator.generate_unique_node_key(&string_val);
+        let int_key = lambda_evaluator.generate_unique_node_key(&int_val);
+        let bool_key = lambda_evaluator.generate_unique_node_key(&bool_val);
+        
+        // Keys should be different for different values
+        assert_ne!(string_key, int_key);
+        assert_ne!(string_key, bool_key);
+        assert_ne!(int_key, bool_key);
+        
+        // Same values should produce same keys
+        let string_val2 = FhirPathValue::String("test".to_string());
+        let string_key2 = lambda_evaluator.generate_unique_node_key(&string_val2);
+        assert_eq!(string_key, string_key2);
+    }
+    
     // Mock evaluator for sort testing
+    #[derive(Debug)]
     struct MockExpressionEvaluatorForSort {
-        call_count: std::cell::RefCell<usize>,
+        call_count: std::sync::Mutex<usize>,
     }
     
     impl MockExpressionEvaluatorForSort {
         fn new() -> Self {
             Self {
-                call_count: std::cell::RefCell::new(0),
+                call_count: std::sync::Mutex::new(0),
             }
         }
     }
+    
+    // Safe Send + Sync since Mutex provides synchronization
+    unsafe impl Send for MockExpressionEvaluatorForSort {}
+    unsafe impl Sync for MockExpressionEvaluatorForSort {}
     
     #[async_trait::async_trait]
     impl LambdaExpressionEvaluator for MockExpressionEvaluatorForSort {
@@ -898,15 +1346,130 @@ mod tests {
             _expr: &ExpressionNode,
             context: &EvaluationContext,
         ) -> crate::core::Result<Collection> {
-            let mut count = self.call_count.borrow_mut();
+            let mut count = self.call_count.lock().unwrap();
             *count += 1;
             
             // Return the current $this value from context for sorting
             if let Some(this_value) = context.get_variable("this") {
-                Ok(Collection::single(this_value))
+                Ok(Collection::single(this_value.clone()))
             } else {
                 Ok(Collection::empty())
             }
+        }
+    }
+    
+    // Mock evaluator that creates cyclical projections for testing cycle detection  
+    #[derive(Debug)]
+    struct MockCyclicalEvaluator {
+        call_count: std::sync::Mutex<usize>,
+    }
+    
+    impl MockCyclicalEvaluator {
+        fn new() -> Self {
+            Self {
+                call_count: std::sync::Mutex::new(0),
+            }
+        }
+    }
+    
+    // Safe to send across threads
+    unsafe impl Send for MockCyclicalEvaluator {}
+    unsafe impl Sync for MockCyclicalEvaluator {}
+    
+    #[async_trait::async_trait]
+    impl LambdaExpressionEvaluator for MockCyclicalEvaluator {
+        async fn evaluate_expression(
+            &self,
+            _expr: &ExpressionNode,
+            context: &EvaluationContext,
+        ) -> crate::core::Result<Collection> {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+            
+            // Create a cycle: A -> B, B -> A, anything else -> empty
+            if let Some(this_value) = context.get_variable("this") {
+                match this_value {
+                    FhirPathValue::String(s) => {
+                        if s == "A" {
+                            Ok(Collection::single(FhirPathValue::String("B".to_string())))
+                        } else if s == "B" {
+                            Ok(Collection::single(FhirPathValue::String("A".to_string())))
+                        } else {
+                            Ok(Collection::empty())
+                        }
+                    },
+                    _ => Ok(Collection::empty())
+                }
+            } else {
+                Ok(Collection::empty())
+            }
+        }
+    }
+    
+    // Mock evaluator that always produces new items (for testing infinite loop prevention)
+    #[derive(Debug)]
+    struct MockInfiniteEvaluator {
+        call_count: std::sync::Mutex<usize>,
+    }
+    
+    impl MockInfiniteEvaluator {
+        fn new() -> Self {
+            Self {
+                call_count: std::sync::Mutex::new(0),
+            }
+        }
+    }
+    
+    unsafe impl Send for MockInfiniteEvaluator {}
+    unsafe impl Sync for MockInfiniteEvaluator {}
+    
+    #[async_trait::async_trait]
+    impl LambdaExpressionEvaluator for MockInfiniteEvaluator {
+        async fn evaluate_expression(
+            &self,
+            _expr: &ExpressionNode,
+            _context: &EvaluationContext,
+        ) -> crate::core::Result<Collection> {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+            
+            // Always produce a new unique item based on call count
+            Ok(Collection::single(FhirPathValue::Integer(*count as i64)))
+        }
+    }
+    
+    // Mock evaluator that produces many unique items (for testing unique items limit)
+    #[derive(Debug)]
+    struct MockUniqueItemsEvaluator {
+        call_count: std::sync::Mutex<usize>,
+    }
+    
+    impl MockUniqueItemsEvaluator {
+        fn new() -> Self {
+            Self {
+                call_count: std::sync::Mutex::new(0),
+            }
+        }
+    }
+    
+    unsafe impl Send for MockUniqueItemsEvaluator {}
+    unsafe impl Sync for MockUniqueItemsEvaluator {}
+    
+    #[async_trait::async_trait]
+    impl LambdaExpressionEvaluator for MockUniqueItemsEvaluator {
+        async fn evaluate_expression(
+            &self,
+            _expr: &ExpressionNode,
+            _context: &EvaluationContext,
+        ) -> crate::core::Result<Collection> {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+            
+            // Produce two new unique items per call
+            Ok(Collection::from_values(vec![
+                FhirPathValue::String(format!("item_{}", *count)),
+                FhirPathValue::String(format!("extra_{}", *count)),
+            ]))
         }
     }
 

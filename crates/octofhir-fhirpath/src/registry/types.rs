@@ -121,6 +121,8 @@ impl FhirPathType {
 
     /// Parse a type name from a string
     pub fn from_type_name(name: &str) -> Option<FhirPathType> {
+        // Allow namespaced System.* type names
+        let name = if let Some(stripped) = name.strip_prefix("System.") { stripped } else { name };
         match name {
             "Boolean" => Some(FhirPathType::Boolean),
             "Integer" => Some(FhirPathType::Integer),

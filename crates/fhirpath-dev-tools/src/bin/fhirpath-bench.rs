@@ -262,7 +262,8 @@ async fn profile_expression(
             println!("Completed {} iterations", i);
         }
         let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
-        let _ = engine.evaluate(expression, &collection).await;
+        let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
+        let _ = engine.evaluate(expression, &ctx).await;
     }
     let duration = start.elapsed();
 
@@ -410,7 +411,8 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
 
             for _ in 0..iterations {
                 let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
-                let _ = engine.evaluate(expr, &collection).await;
+                let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
+                let _ = engine.evaluate(expr, &ctx).await;
             }
 
             let elapsed = start_time.elapsed();

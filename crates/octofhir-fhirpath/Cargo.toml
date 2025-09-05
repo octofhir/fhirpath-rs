@@ -65,6 +65,7 @@ typed-arena = { workspace = true }
 bumpalo = { workspace = true }
 unicode-xid = { workspace = true }
 once_cell = { workspace = true }
+urlencoding = "2.1"
 
 # Async dependencies
 async-trait = { workspace = true }

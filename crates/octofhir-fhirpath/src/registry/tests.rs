@@ -118,18 +118,23 @@ mod tests {
         }
     }
 
+    fn create_test_context_parts() -> (MockModelProvider, HashMap<String, FhirPathValue>) {
+        let model_provider = MockModelProvider::default();
+        let variables = HashMap::new();
+        (model_provider, variables)
+    }
+    
     fn create_test_context<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],
+        model_provider: &'a MockModelProvider,
+        variables: &'a HashMap<String, FhirPathValue>,
     ) -> FunctionContext<'a> {
-        let model_provider = MockModelProvider::default();
-        let variables = HashMap::new();
-
         FunctionContext {
             input,
             arguments,
-            model_provider: &model_provider,
-            variables: &variables,
+            model_provider,
+            variables,
             resource_context: None,
             terminology: None,
         }

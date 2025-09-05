@@ -278,7 +278,7 @@
     },
     {
       "name": "testGreaterThan22",
-      "expression": "Observation.value &gt; 100 '[lb_av]'",
+      "expression": "Observation.value > 100 '[lb_av]'",
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [

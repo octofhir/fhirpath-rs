@@ -14,7 +14,7 @@
 
 //! Precision-aware temporal types for FHIRPath
 
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -171,16 +171,49 @@ impl PrecisionDateTime {
 
     /// Parse from ISO 8601 datetime string with timezone
     pub fn parse(s: &str) -> Option<Self> {
-        // Try different datetime formats with timezone
-        let formats = [
+        // Support trailing 'Z' (UTC) by normalizing to +00:00
+        let s_norm: std::borrow::Cow<str> = if s.ends_with('Z') {
+            let mut owned = s.to_string();
+            owned.pop();
+            owned.push_str("+00:00");
+            std::borrow::Cow::Owned(owned)
+        } else {
+            std::borrow::Cow::Borrowed(s)
+        };
+
+        // Try different datetime formats with timezone first
+        let tz_formats = [
             "%Y-%m-%dT%H:%M:%S%:z",         // YYYY-MM-DDTHH:MM:SS+TZ
             "%Y-%m-%dT%H:%M:%S%.3f%:z",     // YYYY-MM-DDTHH:MM:SS.sss+TZ
             "%Y-%m-%dT%H:%M%:z",            // YYYY-MM-DDTHH:MM+TZ
             "%Y-%m-%dT%H%:z",               // YYYY-MM-DDTHH+TZ
         ];
 
-        for (i, format) in formats.iter().enumerate() {
-            if let Ok(dt) = DateTime::parse_from_str(s, format) {
+        for (i, format) in tz_formats.iter().enumerate() {
+            if let Ok(dt) = DateTime::parse_from_str(&s_norm, format) {
+                let precision = match i {
+                    0 => TemporalPrecision::Second,
+                    1 => TemporalPrecision::Millisecond,
+                    2 => TemporalPrecision::Minute,
+                    3 => TemporalPrecision::Hour,
+                    _ => TemporalPrecision::Second,
+                };
+                return Some(Self::new(dt, precision));
+            }
+        }
+
+        // Fallback: accept datetimes without timezone by assuming UTC offset
+        let naive_formats = [
+            "%Y-%m-%dT%H:%M:%S",         // YYYY-MM-DDTHH:MM:SS
+            "%Y-%m-%dT%H:%M:%S%.3f",     // YYYY-MM-DDTHH:MM:SS.sss
+            "%Y-%m-%dT%H:%M",            // YYYY-MM-DDTHH:MM
+            "%Y-%m-%dT%H",               // YYYY-MM-DDTHH
+        ];
+
+        for (i, format) in naive_formats.iter().enumerate() {
+            if let Ok(ndt) = NaiveDateTime::parse_from_str(&s_norm, format) {
+                let offset = FixedOffset::east_opt(0)?;
+                let dt: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(ndt, offset);
                 let precision = match i {
                     0 => TemporalPrecision::Second,
                     1 => TemporalPrecision::Millisecond,

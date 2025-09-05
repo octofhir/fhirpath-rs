@@ -4,7 +4,7 @@
 //! toDecimal(), toBoolean(), toDate(), toDateTime(), toTime(), and toQuantity().
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{FhirPathError, FhirPathValue, Result, CalendarUnit};
 use crate::core::error_code::{FP0053, FP0058};
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
 use crate::register_function;
@@ -22,6 +22,17 @@ impl FunctionRegistry {
         self.register_toDateTime_function()?;
         self.register_toTime_function()?;
         self.register_toQuantity_function()?;
+        
+        // Register conversion testing functions
+        self.register_convertsToBoolean_function()?;
+        self.register_convertsToInteger_function()?;
+        self.register_convertsToDecimal_function()?;
+        self.register_convertsToString_function()?;
+        self.register_convertsToDate_function()?;
+        self.register_convertsToDateTime_function()?;
+        self.register_convertsToTime_function()?;
+        self.register_convertsToQuantity_function()?;
+        
         Ok(())
     }
 
@@ -54,10 +65,14 @@ impl FunctionRegistry {
                     FhirPathValue::Date(d) => d.to_string(),
                     FhirPathValue::DateTime(dt) => dt.to_string(),
                     FhirPathValue::Time(t) => t.to_string(),
-                    FhirPathValue::Quantity { value, unit, .. } => {
-                        match unit {
-                            Some(u) if !u.is_empty() => format!("{} {}", value, u),
-                            _ => value.to_string(),
+                    FhirPathValue::Quantity { value, unit, calendar_unit, .. } => {
+                        if let Some(cu) = calendar_unit {
+                            format!("{} {}", value, cu)
+                        } else {
+                            match unit {
+                                Some(u) if !u.is_empty() => format!("{} '{}'", value, u),
+                                _ => value.to_string(),
+                            }
                         }
                     }
                     FhirPathValue::Uri(uri) => uri.clone(),
@@ -208,8 +223,12 @@ impl FunctionRegistry {
                             }
                         }
                     }
-                    FhirPathValue::Integer(i) => *i != 0,
-                    FhirPathValue::Decimal(d) => !d.is_zero(),
+                    FhirPathValue::Integer(i) => {
+                        if *i == 0 { false } else if *i == 1 { true } else { return Ok(vec![]) }
+                    }
+                    FhirPathValue::Decimal(d) => {
+                        if d.is_zero() { false } else if *d == Decimal::ONE { true } else { return Ok(vec![]) }
+                    }
                     _ => {
                         return Err(FhirPathError::evaluation_error(
                             FP0058,
@@ -390,29 +409,25 @@ impl FunctionRegistry {
 
     fn parse_datetime_string(input: &str) -> Result<PrecisionDateTime> {
         let trimmed = input.trim();
-        
-        // Try RFC3339/ISO 8601 format
-        if let Ok(dt) = DateTime::parse_from_rfc3339(trimmed) {
-            return Ok(PrecisionDateTime::new(dt, TemporalPrecision::Second));
+        // Use unified precision-aware parser that supports partial precisions and timezones
+        if let Some(pdt) = PrecisionDateTime::parse(trimmed) {
+            return Ok(pdt);
         }
-        
-        // Try various ISO formats
-        let formats = [
-            "%Y-%m-%dT%H:%M:%SZ",
-            "%Y-%m-%dT%H:%M:%S%.3fZ",
-            "%Y-%m-%dT%H:%M:%S%z",
-            "%Y-%m-%dT%H:%M:%S%.3f%z",
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%dT%H:%M:%S",
-        ];
-
-        for fmt in &formats {
-            if let Ok(dt) = DateTime::parse_from_str(trimmed, fmt) {
-                return Ok(PrecisionDateTime::new(dt, TemporalPrecision::Second));
+        // Fallback: handle partial datetime without timezone explicitly (e.g., YYYY-MM-DDTHH)
+        if trimmed.len() == 13 && trimmed.chars().nth(10) == Some('T') {
+            let date_part = &trimmed[..10];
+            let hour_part = &trimmed[11..13];
+            if let Some(pdate) = PrecisionDate::parse(date_part) {
+                if let Ok(hour) = hour_part.parse::<u32>() {
+                    if let Some(nt) = NaiveTime::from_hms_opt(hour, 0, 0) {
+                        let ndt = pdate.date.and_time(nt);
+                        let dt = DateTime::from_naive_utc_and_offset(ndt, FixedOffset::east_opt(0).unwrap());
+                        return Ok(PrecisionDateTime::new(dt, TemporalPrecision::Hour));
+                    }
+                }
             }
         }
-
-        // Try parsing just as a date and convert to datetime
+        // Try parsing just as a date and convert to datetime at midnight
         if let Ok(date) = Self::parse_date_string(trimmed) {
             let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
                 date.date.and_hms_opt(0, 0, 0).unwrap(),
@@ -423,7 +438,6 @@ impl FunctionRegistry {
                 date.precision
             ));
         }
-
         Err(FhirPathError::evaluation_error(
             FP0058,
             &format!("Unable to parse '{}' as a datetime", input)
@@ -496,7 +510,7 @@ impl FunctionRegistry {
                     FhirPathValue::Integer(i) => {
                         FhirPathValue::Quantity {
                             value: Decimal::from(*i),
-                            unit: None,
+                            unit: Some("1".to_string()),
                             ucum_unit: None,
                             calendar_unit: None,
                         }
@@ -504,7 +518,7 @@ impl FunctionRegistry {
                     FhirPathValue::Decimal(d) => {
                         FhirPathValue::Quantity {
                             value: *d,
-                            unit: None,
+                            unit: Some("1".to_string()),
                             ucum_unit: None,
                             calendar_unit: None,
                         }
@@ -534,9 +548,10 @@ impl FunctionRegistry {
 
         // Try to parse as just a number first
         if let Ok(decimal_value) = Decimal::from_str(trimmed) {
+            // Numeric-only strings are treated as UCUM dimensionless with unit '1'
             return Ok(FhirPathValue::Quantity {
                 value: decimal_value,
-                unit: None,
+                unit: Some("1".to_string()),
                 ucum_unit: None,
                 calendar_unit: None,
             });
@@ -549,11 +564,37 @@ impl FunctionRegistry {
             let unit_str = trimmed[space_pos + 1..].trim();
 
             if let Ok(value) = Decimal::from_str(value_str) {
+                // Handle calendar unit keywords
+                let unit_lc = unit_str.to_lowercase();
+                let (unit_opt, cal_unit_opt) = match unit_lc.as_str() {
+                    "day" | "days" => (Some("d".to_string()), CalendarUnit::from_str("day")),
+                    "week" | "weeks" => (Some("wk".to_string()), CalendarUnit::from_str("week")),
+                    "month" | "months" => (Some("mo".to_string()), CalendarUnit::from_str("month")),
+                    "year" | "years" => (Some("a".to_string()), CalendarUnit::from_str("year")),
+                    // Reject bare UCUM abbreviations without quotes for certain units
+                    "wk" | "mo" | "a" | "d" => {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0058,
+                            &format!("Unit '{}' must be quoted as a UCUM unit", unit_str)
+                        ));
+                    }
+                    _ => {
+                        // Handle quoted UCUM units like 'wk'
+                        if (unit_str.starts_with('\'') && unit_str.ends_with('\'')) || (unit_str.starts_with('"') && unit_str.ends_with('"')) {
+                            let inner = unit_str[1..unit_str.len()-1].to_string();
+                            let cal = match inner.as_str() { "wk" => CalendarUnit::from_str("week"), "mo" => CalendarUnit::from_str("month"), "a" => CalendarUnit::from_str("year"), "d" => CalendarUnit::from_str("day"), _ => None };
+                            (Some(inner), cal)
+                        } else {
+                            // Generic unit
+                            if unit_str.is_empty() { (None, None) } else { (Some(unit_str.to_string()), None) }
+                        }
+                    }
+                };
                 return Ok(FhirPathValue::Quantity {
                     value,
-                    unit: if unit_str.is_empty() { None } else { Some(unit_str.to_string()) },
+                    unit: unit_opt,
                     ucum_unit: None, // Will be populated later by UCUM parsing if needed
-                    calendar_unit: None, // Will be populated for time units like 'year', 'month'
+                    calendar_unit: cal_unit_opt,
                 });
             }
         }
@@ -588,6 +629,239 @@ impl FunctionRegistry {
             FP0058,
             &format!("Unable to parse '{}' as a quantity", input)
         ))
+    }
+
+    fn register_convertsToBoolean_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToBoolean",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a boolean",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'true'.convertsToBoolean()", "'false'.convertsToBoolean()", "'invalid'.convertsToBoolean()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Boolean(_) => true,
+                    FhirPathValue::String(s) => {
+                        matches!(s.to_lowercase().as_str(), "true" | "false")
+                    },
+                    FhirPathValue::Integer(i) => *i == 0 || *i == 1,
+                    FhirPathValue::Decimal(d) => *d == Decimal::ZERO || *d == Decimal::ONE,
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToInteger_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToInteger",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to an integer",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'123'.convertsToInteger()", "'abc'.convertsToInteger()", "true.convertsToInteger()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Integer(_) => true,
+                    FhirPathValue::String(s) => s.parse::<i64>().is_ok(),
+                    FhirPathValue::Boolean(b) => true, // Booleans can be converted to 0/1
+                    FhirPathValue::Decimal(d) => {
+                        // Check if decimal is a whole number
+                        d.fract() == rust_decimal::Decimal::ZERO
+                    },
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToDecimal_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToDecimal",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a decimal",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'123.45'.convertsToDecimal()", "'abc'.convertsToDecimal()", "123.convertsToDecimal()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Decimal(_) => true,
+                    FhirPathValue::Integer(_) => true,
+                    FhirPathValue::Boolean(_) => true,
+                    FhirPathValue::String(s) => s.parse::<rust_decimal::Decimal>().is_ok() || matches!(s.trim(), "true" | "false" | "True" | "False"),
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToString_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToString",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a string",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["123.convertsToString()", "true.convertsToString()", "{}.convertsToString()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                // Most primitive types can be converted to string
+                let can_convert = matches!(&context.input[0],
+                    FhirPathValue::String(_) |
+                    FhirPathValue::Integer(_) |
+                    FhirPathValue::Decimal(_) |
+                    FhirPathValue::Boolean(_) |
+                    FhirPathValue::Date(_) |
+                    FhirPathValue::DateTime(_) |
+                    FhirPathValue::Time(_) |
+                    FhirPathValue::Uri(_) |
+                    FhirPathValue::Url(_) |
+                    FhirPathValue::Id(_) |
+                    FhirPathValue::Base64Binary(_)
+                );
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToDate_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToDate",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a date",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'2023-12-25'.convertsToDate()", "'invalid-date'.convertsToDate()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Date(_) => true,
+                    FhirPathValue::DateTime(_) => true,
+                    FhirPathValue::String(s) => {
+                        Self::parse_date_string(s).is_ok()
+                    },
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToDateTime_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToDateTime",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a datetime",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'2023-12-25T10:30:00'.convertsToDateTime()", "'invalid'.convertsToDateTime()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::DateTime(_) => true,
+                    FhirPathValue::Date(_) => true,
+                    FhirPathValue::String(s) => {
+                        Self::parse_datetime_string(s).is_ok()
+                    },
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToTime_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToTime",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a time",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'10:30:00'.convertsToTime()", "'invalid'.convertsToTime()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Time(_) => true,
+                    FhirPathValue::DateTime(_) => true,
+                    FhirPathValue::String(s) => {
+                        Self::parse_time_string(s).is_ok()
+                    },
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
+    }
+
+    fn register_convertsToQuantity_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "convertsToQuantity",
+            category: FunctionCategory::Conversion,
+            description: "Returns true if the input can be converted to a quantity",
+            parameters: [],
+            return_type: "Boolean",
+            examples: ["'10 kg'.convertsToQuantity()", "'123'.convertsToQuantity()", "'abc'.convertsToQuantity()"],
+            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+                if context.input.len() != 1 {
+                    return Ok(vec![FhirPathValue::Boolean(false)]);
+                }
+
+                let can_convert = match &context.input[0] {
+                    FhirPathValue::Quantity { .. } => true,
+                    FhirPathValue::Integer(_) => true,
+                    FhirPathValue::Decimal(_) => true,
+                    FhirPathValue::String(s) => {
+                        Self::parse_quantity_string(s).is_ok()
+                    },
+                    _ => false,
+                };
+
+                Ok(vec![FhirPathValue::Boolean(can_convert)])
+            }
+        )
     }
 }
 

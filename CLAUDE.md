@@ -310,6 +310,13 @@ Starting from v0.3.0, ModelProvider is mandatory:
 - Use established patterns and avoid premature optimization
 - Ensure all code is production-ready and enterprise-grade
 
+**Documentation Standards:**
+- Use professional, factual language in all documentation
+- Avoid marketing terms like "ultra-fast", "high-performance", "blazing", etc.
+- Focus on technical accuracy and implementation details
+- Document the "what" and "why" rather than subjective performance claims
+- Use reliable, measurable descriptions (e.g., "O(1) lookup", "thread-local caching", "linear scan for <50 entries")
+
 ## Integration Notes
 
 This codebase integrates with broader healthcare ecosystem:

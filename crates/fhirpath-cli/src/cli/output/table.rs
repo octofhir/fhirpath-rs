@@ -15,7 +15,7 @@
 //! Table output formatter
 
 use super::{AnalysisOutput, EvaluationOutput, FormatError, OutputFormatter, ParseOutput};
-use octofhir_fhir_model::FhirPathValue;
+use octofhir_fhirpath::FhirPathValue;
 use tabled::{Table, Tabled};
 
 pub struct TableFormatter {
@@ -223,12 +223,16 @@ fn get_fhir_type_name(value: &FhirPathValue) -> String {
         FhirPathValue::Date(_) => "Date".to_string(),
         FhirPathValue::DateTime(_) => "DateTime".to_string(),
         FhirPathValue::Time(_) => "Time".to_string(),
-        FhirPathValue::Quantity(_) => "Quantity".to_string(),
+        FhirPathValue::Quantity { .. } => "Quantity".to_string(),
         FhirPathValue::Collection(_) => "Collection".to_string(),
         FhirPathValue::Resource(_) => "Resource".to_string(),
         FhirPathValue::JsonValue(_) => "JsonValue".to_string(),
         FhirPathValue::TypeInfoObject { .. } => "TypeInfo".to_string(),
         FhirPathValue::Empty => "Empty".to_string(),
+        FhirPathValue::Id(_) => "Id".to_string(),
+        FhirPathValue::Base64Binary(_) => "Base64Binary".to_string(),
+        FhirPathValue::Uri(_) => "Uri".to_string(),
+        FhirPathValue::Url(_) => "Url".to_string(),
     }
 }
 

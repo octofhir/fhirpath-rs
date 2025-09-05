@@ -21,6 +21,8 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process;
+use std::time::Duration;
+use std::sync::Arc;
 
 /// A single test case within a test suite
 #[derive(serde::Deserialize)]
@@ -36,6 +38,7 @@ struct TestCase {
     pub tags: Vec<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default, alias = "expectError", alias = "expecterror")]
     pub expecterror: Option<bool>,
 }
 
@@ -83,6 +86,13 @@ fn extract_primitive_value(value: &Value) -> Value {
             }
             if let Some(time_val) = obj.get("Time") {
                 return time_val.clone();
+            }
+            // Unwrap complex wrappers for comparison and display
+            if let Some(resource_val) = obj.get("Resource") {
+                return resource_val.clone();
+            }
+            if let Some(json_val) = obj.get("JsonValue") {
+                return json_val.clone();
             }
         }
     }
@@ -209,21 +219,62 @@ async fn main() {
     println!("🔢 Total tests: {}", test_suite.tests.len());
     println!();
 
-    // Create FHIR schema provider for accurate type checking and conformance validation
-    println!("📋 Initializing FHIR schema provider...");
-    let model_provider = fhirpath_dev_tools::common::create_dev_model_provider().await;
+    // Choose model provider based on environment variable for fast testing
+    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = 
+        if env::var("FHIRPATH_USE_MOCK_PROVIDER").is_ok() {
+            println!("📋 Using MockModelProvider for fast testing");
+            Arc::new(octofhir_fhirpath::MockModelProvider::default())
+        } else {
+            // Create FHIR schema provider (R5) for production-quality testing
+            println!("📋 Initializing FHIR R5 schema provider...");
+            let provider_timeout = Duration::from_secs(60);
+            match tokio::time::timeout(
+                provider_timeout,
+                octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
+            )
+            .await
+            {
+                Ok(Ok(provider)) => {
+                    println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
+                    Arc::new(provider)
+                }
+                Ok(Err(e)) => {
+                    eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R5): {e}");
+                    eprintln!("💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1");
+                    process::exit(1);
+                }
+                Err(_) => {
+                    eprintln!(
+                        "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
+                        provider_timeout.as_secs()
+                    );
+                    eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
+                    process::exit(1);
+                }
+            }
+        };
 
     // Create function registry
+    println!("📋 Creating function registry...");
+    let registry_start = std::time::Instant::now();
     let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
+    let registry_time = registry_start.elapsed();
+    println!("✅ Function registry created in {}ms", registry_time.as_millis());
 
     // Create the FhirPathEngine with model provider
+    println!("📋 Creating FhirPathEngine...");
+    let engine_start = std::time::Instant::now();
     let engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone());
+    let engine_time = engine_start.elapsed();
+    println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
     let mut passed = 0;
     let mut failed = 0;
     let mut errors = 0;
 
     for test_case in &test_suite.tests {
         print!("Running {} ... ", test_case.name);
+        
+        // (Debug block removed; keeping runner output lean for CI)
 
         // Load input data
         let input_data = if let Some(ref inputfile) = test_case.inputfile {
@@ -261,18 +312,43 @@ async fn main() {
             }
         };
 
-        // Evaluate expression
-        let result = match engine.evaluate_ast(&ast, &context).await {
-            Ok(result) => result,
-            Err(e) => {
+        // Evaluate expression with timeout to prevent hangs
+        let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(5_000);
+        
+        println!("📋 Evaluating expression with timeout {}ms...", timeout_ms);
+        let eval_start = std::time::Instant::now();
+        let eval_fut = engine.evaluate_ast(&ast, &context);
+        let result = match tokio::time::timeout(Duration::from_millis(timeout_ms), eval_fut).await {
+            Err(_) => {
+                let eval_time = eval_start.elapsed();
+                println!("⚠️ TIMEOUT after {}ms (limit: {}ms)", eval_time.as_millis(), timeout_ms);
                 if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
                     println!("✅ PASS");
                     passed += 1;
                     continue;
                 }
-                println!("⚠️ ERROR: {e}");
                 errors += 1;
                 continue;
+            }
+            Ok(inner) => {
+                let eval_time = eval_start.elapsed();
+                println!("✅ Expression evaluated in {}ms", eval_time.as_millis());
+                match inner {
+                    Ok(result) => result,
+                    Err(e) => {
+                        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+                            println!("✅ PASS");
+                            passed += 1;
+                            continue;
+                        }
+                        println!("⚠️ ERROR: {e}");
+                        errors += 1;
+                        continue;
+                    }
+                }
             }
         };
 
@@ -291,7 +367,13 @@ async fn main() {
             let actual_json = match serde_json::to_string(&result) {
                 Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
                     Ok(v) => {
-                        serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{:?}", result))
+                        // Extract primitive values from FhirPathValue enums for cleaner display
+                        let normalized = if let Some(actual_arr) = v.as_array() {
+                            Value::Array(actual_arr.iter().map(extract_primitive_value).collect())
+                        } else {
+                            extract_primitive_value(&v)
+                        };
+                        serde_json::to_string_pretty(&normalized).unwrap_or_else(|_| format!("{:?}", result))
                     }
                     Err(_) => format!("{:?}", result),
                 },

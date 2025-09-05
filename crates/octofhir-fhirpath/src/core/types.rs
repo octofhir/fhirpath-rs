@@ -48,6 +48,11 @@ impl Collection {
         self.0.first()
     }
 
+    /// Get item at index
+    pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
+        self.0.get(index)
+    }
+
     /// Iterate over values
     pub fn iter(&self) -> std::slice::Iter<FhirPathValue> {
         self.0.iter()
@@ -73,6 +78,14 @@ impl From<Vec<FhirPathValue>> for Collection {
 impl From<FhirPathValue> for Collection {
     fn from(value: FhirPathValue) -> Self {
         Self::single(value)
+    }
+}
+
+impl std::ops::Index<usize> for Collection {
+    type Output = FhirPathValue;
+    
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
 }
 

@@ -5,7 +5,7 @@
   "tests": [
     {
       "name": "testPeriodInvariantOld",
-      "expression": "Patient.identifier.period.all(start.hasValue().not() or end.hasValue().not() or (start &lt;= end))",
+      "expression": "Patient.identifier.period.all(start.hasValue().not() or end.hasValue().not() or (start <= end))",
       "input": null,
       "inputfile": "patient-example-period.json",
       "expected": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "testPeriodInvariantNew",
-      "expression": "Patient.identifier.period.all(start.empty() or end.empty() or (start.lowBoundary() &lt; end.highBoundary()))",
+      "expression": "Patient.identifier.period.all(start.empty() or end.empty() or (start.lowBoundary() < end.highBoundary()))",
       "input": null,
       "inputfile": "patient-example-period.json",
       "expected": [

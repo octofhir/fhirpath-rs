@@ -35,6 +35,8 @@ pub mod fhir;
 pub mod fhir_utils;
 pub mod terminology;
 pub mod terminology_utils;
+pub mod logic;
+pub mod numeric;
 
 pub use collection::CollectionUtils;
 pub use math::ArithmeticOperations;

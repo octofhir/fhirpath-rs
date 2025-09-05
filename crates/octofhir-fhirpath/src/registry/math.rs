@@ -3,6 +3,7 @@
 //! Implements mathematical functions including basic operations (abs, ceiling, floor),
 //! advanced functions (sqrt, ln, log, exp, power), and arithmetic operations.
 
+use std::sync::Arc;
 use super::{FunctionRegistry, FunctionCategory, FunctionContext};
 use crate::core::{FhirPathValue, Result, error_code::{FP0053}};
 use crate::{register_function};
@@ -575,6 +576,10 @@ pub struct ArithmeticOperations;
 
 impl ArithmeticOperations {
     pub fn add(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        use crate::registry::datetime_utils::DateTimeDuration;
+        use crate::core::types::CalendarUnit;
+        use chrono::{DateTime, Utc, NaiveTime, Timelike};
+
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 Ok(FhirPathValue::Integer(a + b))
@@ -608,6 +613,156 @@ impl ArithmeticOperations {
                     calendar_unit: cal_a.or(*cal_b),
                 })
             }
+
+            // Number + String unit -> convert to Quantity and add
+            (FhirPathValue::Integer(val), FhirPathValue::String(unit)) => {
+                let decimal_val = Decimal::from(*val);
+                
+                // Parse calendar unit
+                let calendar_unit = match unit.as_str() {
+                    "year" | "years" | "yr" | "a" => Some(CalendarUnit::Year),
+                    "month" | "months" | "mo" => Some(CalendarUnit::Month), 
+                    "week" | "weeks" | "wk" => Some(CalendarUnit::Week),
+                    "day" | "days" | "d" => Some(CalendarUnit::Day),
+                    "1" => None, // Unitless quantity
+                    _ => None,
+                };
+                
+                Ok(FhirPathValue::Quantity {
+                    value: decimal_val,
+                    unit: Some(unit.clone()),
+                    ucum_unit: None,
+                    calendar_unit,
+                })
+            }
+            (FhirPathValue::Decimal(val), FhirPathValue::String(unit)) => {
+                // Parse calendar unit
+                let calendar_unit = match unit.as_str() {
+                    "year" | "years" | "yr" | "a" => Some(CalendarUnit::Year),
+                    "month" | "months" | "mo" => Some(CalendarUnit::Month), 
+                    "week" | "weeks" | "wk" => Some(CalendarUnit::Week),
+                    "day" | "days" | "d" => Some(CalendarUnit::Day),
+                    "1" => None, // Unitless quantity
+                    _ => None,
+                };
+                
+                Ok(FhirPathValue::Quantity {
+                    value: *val,
+                    unit: Some(unit.clone()),
+                    ucum_unit: None,
+                    calendar_unit,
+                })
+            }
+
+            // Date + Quantity -> date arithmetic
+            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    let duration = DateTimeDuration::from_quantity(value, unit_str)?;
+                    
+                    // Convert date to datetime at midnight UTC for arithmetic
+                    let naive_datetime = date.date.and_hms_opt(0, 0, 0)
+                        .ok_or_else(|| crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "Invalid date for arithmetic".to_string()
+                        ))?;
+                    let datetime = DateTime::from_naive_utc_and_offset(naive_datetime, Utc);
+                    
+                    let result_datetime = duration.add_to_datetime(datetime)?;
+                    
+                    // Convert back to date (preserving precision)
+                    let result_date = result_datetime.naive_utc().date();
+                    Ok(FhirPathValue::Date(crate::core::temporal::PrecisionDate::from_date(result_date)))
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot add quantity without unit to date".to_string()
+                    ))
+                }
+            }
+
+            // DateTime + Quantity -> datetime arithmetic  
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity { value, unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    let duration = DateTimeDuration::from_quantity(value, unit_str)?;
+                    let result_datetime = duration.add_to_datetime(datetime.datetime.with_timezone(&Utc))?;
+                    
+                    // Preserve original timezone if possible
+                    let result_with_tz = result_datetime.with_timezone(&datetime.datetime.timezone());
+                    
+                    Ok(FhirPathValue::DateTime(crate::core::temporal::PrecisionDateTime::new(
+                        result_with_tz,
+                        datetime.precision
+                    )))
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot add quantity without unit to datetime".to_string()
+                    ))
+                }
+            }
+
+            // Time + Quantity -> time arithmetic with wrap-around
+            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    match unit_str.to_lowercase().as_str() {
+                        "hour" | "hours" | "h" => {
+                            let hours = value.to_i64().unwrap_or(0) % 24;
+                            let new_hour = (time.time.hour() as i64 + hours) % 24;
+                            let result_time = time.time.with_hour(new_hour as u32)
+                                .ok_or_else(|| crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid hour in time arithmetic".to_string()
+                                ))?;
+                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                                result_time,
+                                time.precision
+                            )))
+                        }
+                        "minute" | "minutes" | "min" => {
+                            let total_minutes = time.time.hour() as i64 * 60 + time.time.minute() as i64 + value.to_i64().unwrap_or(0);
+                            let wrapped_minutes = total_minutes % (24 * 60);
+                            let new_hour = (wrapped_minutes / 60) as u32;
+                            let new_minute = (wrapped_minutes % 60) as u32;
+                            let result_time = NaiveTime::from_hms_opt(new_hour, new_minute, time.time.second())
+                                .ok_or_else(|| crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid time in time arithmetic".to_string()
+                                ))?;
+                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                                result_time,
+                                time.precision
+                            )))
+                        }
+                        "second" | "seconds" | "s" => {
+                            let total_seconds = time.time.hour() as i64 * 3600 + time.time.minute() as i64 * 60 + time.time.second() as i64;
+                            let add_seconds = value.to_i64().unwrap_or(0);
+                            let result_seconds = (total_seconds + add_seconds) % (24 * 3600);
+                            let new_hour = (result_seconds / 3600) as u32;
+                            let new_minute = ((result_seconds % 3600) / 60) as u32;
+                            let new_second = (result_seconds % 60) as u32;
+                            let result_time = NaiveTime::from_hms_opt(new_hour, new_minute, new_second)
+                                .ok_or_else(|| crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid time in time arithmetic".to_string()
+                                ))?;
+                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                                result_time,
+                                time.precision
+                            )))
+                        }
+                        _ => Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Unsupported time unit for time arithmetic: '{}'", unit_str)
+                        ))
+                    }
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot add quantity without unit to time".to_string()
+                    ))
+                }
+            }
+
             _ => Err(crate::core::FhirPathError::evaluation_error(
                 FP0053,
                 "Cannot add values of these types".to_string()
@@ -863,6 +1018,26 @@ impl ArithmeticOperations {
                 })
             }
             _ => None // Invalid types for integer division return empty collection
+        }
+    }
+
+    /// Negate a numeric value (unary minus)
+    pub fn negate(value: &FhirPathValue) -> Result<FhirPathValue> {
+        match value {
+            FhirPathValue::Integer(i) => Ok(FhirPathValue::Integer(-i)),
+            FhirPathValue::Decimal(d) => Ok(FhirPathValue::Decimal(-d)),
+            FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit } => {
+                Ok(FhirPathValue::Quantity {
+                    value: -value,
+                    unit: unit.clone(),
+                    ucum_unit: ucum_unit.clone(),
+                    calendar_unit: *calendar_unit,
+                })
+            }
+            _ => Err(crate::core::FhirPathError::evaluation_error(
+                FP0053,
+                "Cannot negate non-numeric values".to_string()
+            ))
         }
     }
 }

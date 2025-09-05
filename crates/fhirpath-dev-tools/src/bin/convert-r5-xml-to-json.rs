@@ -50,6 +50,14 @@ struct JsonTestSuite {
     tests: Vec<JsonTestCase>,
 }
 
+fn unescape_html_entities(text: &str) -> String {
+    text.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+}
+
 fn xml_text_to_value(ty: &str, text: &str) -> Value {
     let trimmed = text.trim();
     match ty {
@@ -63,9 +71,9 @@ fn xml_text_to_value(ty: &str, text: &str) -> Value {
             .map(Value::Number)
             .unwrap_or(Value::Null),
         // Strip '@' leading for date types
-        "date" | "dateTime" | "time" => Value::String(trimmed.strip_prefix('@').unwrap_or(trimmed).to_string()),
-        "code" | "string" => Value::String(trimmed.to_string()),
-        _ => Value::String(trimmed.to_string()),
+        "date" | "dateTime" | "time" => Value::String(unescape_html_entities(trimmed.strip_prefix('@').unwrap_or(trimmed))),
+        "code" | "string" => Value::String(unescape_html_entities(trimmed)),
+        _ => Value::String(unescape_html_entities(trimmed)),
     }
 }
 
@@ -197,7 +205,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                             .read_text(QName(b"expression"))
                             .unwrap_or_default()
                             .into_owned();
-                        current_expression = expr_text.trim().to_string();
+                        current_expression = unescape_html_entities(expr_text.trim());
                     }
                     "output" => {
                         // Capture output type

@@ -337,9 +337,9 @@ impl FunctionRegistry {
             self,
             sync "timezoneOffsetOf",
             category: FunctionCategory::DateTime,
-            description: "Returns the timezone offset component of a DateTime",
+            description: "Returns the timezone offset component of a DateTime in minutes",
             parameters: [],
-            return_type: "Decimal",
+            return_type: "Integer",
             examples: ["now().timezoneOffsetOf()", "@2023-05-15T14:30:45-05:00.timezoneOffsetOf()"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
                 if context.input.is_empty() {
@@ -351,8 +351,8 @@ impl FunctionRegistry {
                     match item {
                         FhirPathValue::DateTime(datetime) => {
                             let offset_seconds = datetime.datetime.offset().local_minus_utc();
-                            let offset_hours = offset_seconds as f64 / 3600.0;
-                            results.push(FhirPathValue::decimal(Decimal::from_f64(offset_hours).unwrap_or_default()));
+                            let offset_minutes = offset_seconds / 60;  // Convert seconds to minutes
+                            results.push(FhirPathValue::integer(offset_minutes as i64));
                         }
                         _ => {
                             // For non-datetime values, skip them (don't add to results)
