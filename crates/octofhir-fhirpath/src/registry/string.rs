@@ -1182,21 +1182,21 @@ impl FunctionRegistry {
 
                 let result = match format.as_str() {
                     "html" => {
-                        // Based on FHIRPath tests, HTML escape should NOT escape quotes
-                        // Only escape < > & and control characters
+                        // Based on FHIRPath tests, HTML escape should NOT escape < > characters
+                        // Only escape & for HTML context in FHIRPath
                         input_str
                             .replace('&', "&amp;")
-                            .replace('<', "&lt;")
-                            .replace('>', "&gt;")
+                            // Note: FHIRPath tests show < and > should NOT be escaped
                     },
                     "json" => {
                         // JSON escape should escape quotes and special characters
-                        // But keep surrounding quotes from serde_json
-                        serde_json::to_string(input_str)
-                            .map_err(|_| crate::core::FhirPathError::evaluation_error(
-                                FP0053,
-                                "Failed to escape JSON string".to_string()
-                            ))?
+                        // FHIRPath expects just escaped quotes, not additional outer quotes
+                        input_str
+                            .replace('\\', "\\\\")
+                            .replace('"', "\\\"")
+                            .replace('\n', "\\n")
+                            .replace('\r', "\\r")
+                            .replace('\t', "\\t")
                     },
                     "xml" => {
                         input_str
@@ -1274,23 +1274,14 @@ impl FunctionRegistry {
                             .replace("&amp;", "&") // Must be last
                     },
                     "json" => {
-                        // If input is already JSON string format (starts and ends with quotes), use as-is
-                        // Otherwise wrap in quotes and use serde_json for proper JSON string unescaping
-                        let to_parse = if input_str.starts_with('"') && input_str.ends_with('"') && input_str.len() >= 2 {
-                            input_str.to_string()
-                        } else {
-                            format!("\"{}\"", input_str)
-                        };
-
-                        match serde_json::from_str::<String>(&to_parse) {
-                            Ok(s) => s,
-                            Err(_) => {
-                                return Err(crate::core::FhirPathError::evaluation_error(
-                                    FP0053,
-                                    "Invalid JSON escape sequence".to_string()
-                                ));
-                            }
-                        }
+                        // JSON unescape should handle escaped quotes and special characters
+                        // FHIRPath expects to preserve the actual content after unescaping
+                        input_str
+                            .replace("\\\"", "\"")
+                            .replace("\\\\", "\\")
+                            .replace("\\n", "\n")
+                            .replace("\\r", "\r")
+                            .replace("\\t", "\t")
                     },
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(

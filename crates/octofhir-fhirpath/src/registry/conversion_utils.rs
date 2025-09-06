@@ -95,7 +95,6 @@ impl ConversionUtils {
     /// Check if a value can be converted to the target type
     pub fn can_convert_to_type(value: &FhirPathValue, target_type: &str) -> bool {
         match (value, target_type) {
-            (_, "String") => true, // Most values can be converted to string
             (FhirPathValue::String(s), "Integer") => Self::can_convert_to_integer(s),
             (FhirPathValue::String(s), "Decimal") => Self::can_convert_to_decimal(s),
             (FhirPathValue::String(s), "Boolean") => Self::can_convert_to_boolean(s),
@@ -121,6 +120,7 @@ impl ConversionUtils {
             (FhirPathValue::Decimal(_), "Quantity") => true,
             (FhirPathValue::Quantity { .. }, "String") => true,
             (FhirPathValue::Quantity { .. }, "Quantity") => true,
+            (_, "String") => true, // Most values can be converted to string
             _ => false,
         }
     }

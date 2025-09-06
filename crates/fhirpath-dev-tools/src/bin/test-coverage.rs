@@ -28,7 +28,6 @@ use std::time::Duration;
 mod integration_test_runner {
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
-    use octofhir_fhirpath::ast::ExpressionNode;
     use octofhir_fhirpath::{FhirPathEngine, create_standard_registry};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
@@ -153,28 +152,28 @@ mod integration_test_runner {
     }
 
     impl IntegrationTestRunner {
-        /// Create a new integration test runner with FHIR R5 ModelProvider
+        /// Create a new integration test runner with FHIR R4 ModelProvider (same as test-runner)
         pub async fn new() -> Self {
-            println!("🔄 Loading FHIR R5 ModelProvider (using schema packages)...");
+            println!("🔄 Loading FHIR R4 ModelProvider (using schema packages)...");
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
                 // Add timeout to prevent hanging
                 let timeout_duration = std::time::Duration::from_secs(60);
                 match tokio::time::timeout(
                     timeout_duration,
-                    octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
+                    octofhir_fhirschema::provider::FhirSchemaModelProvider::r4(),
                 )
                 .await
                 {
                     Ok(Ok(provider)) => {
-                        println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
+                        println!("✅ FhirSchemaModelProvider (R4) loaded successfully");
                         std::sync::Arc::new(provider)
                     }
                     Ok(Err(e)) => {
-                        panic!("❌ Failed to load FhirSchemaModelProvider (R5): {e}");
+                        panic!("❌ Failed to load FhirSchemaModelProvider (R4): {e}");
                     }
                     Err(_) => {
                         panic!(
-                            "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
+                            "❌ FhirSchemaModelProvider (R4) initialization timed out ({}s)",
                             timeout_duration.as_secs()
                         );
                     }
@@ -279,11 +278,6 @@ mod integration_test_runner {
             Ok(json_value)
         }
 
-        /// Parse a FHIRPath expression using the integrated parser
-        fn parse_expression(&mut self, expression: &str) -> Result<ExpressionNode, String> {
-            octofhir_fhirpath::parse_expression(expression)
-                .map_err(|e| format!("Parser error in '{expression}': {e}"))
-        }
 
         /// Convert expected JSON value to FhirPathValue for comparison
         fn convert_expected_value(&self, expected: &Value) -> FhirPathValue {
@@ -442,7 +436,7 @@ mod integration_test_runner {
             // Load input data - use same logic as test-runner.rs
             let input_data = if let Some(ref filename) = test.inputfile {
                 match self.load_input_data(filename) {
-                    Ok(json_data) => FhirPathValue::JsonValue(json_data),
+                    Ok(json_data) => json_data,
                     Err(e) => {
                         return TestResult::Error {
                             error: format!("Failed to load input from {filename}: {e}"),
@@ -450,78 +444,52 @@ mod integration_test_runner {
                     }
                 }
             } else if let Some(ref input_val) = test.input {
-                if input_val.is_null() {
-                    // null input means evaluate without context data
-                    FhirPathValue::Empty
-                } else {
-                    FhirPathValue::JsonValue(input_val.clone())
-                }
+                input_val.clone()
             } else {
-                return TestResult::Error {
-                    error: "No input data provided (neither inputfile nor input)".to_string(),
-                };
+                serde_json::Value::Null
             };
 
-            // Parse expression using integrated parser
-            let ast = match self.parse_expression(&test.expression) {
-                Ok(ast) => ast,
-                Err(e) => {
-                    // If an error was expected, treat as pass
-                    if test.expect_error.unwrap_or(false) {
-                        return TestResult::Passed;
-                    }
-                    // Legacy behavior: expected empty means error acceptable
-                    let expected = self.convert_expected_value(&test.expected);
-                    return if expected.is_empty() {
-                        TestResult::Passed
-                    } else {
-                        TestResult::Error { error: e }
-                    };
-                }
-            };
-
-            // Convert input_data to Collection for evaluation
-            let collection = octofhir_fhirpath::Collection::single(input_data.clone());
+            // Convert input_data to FhirPathValue and create collection - same as test-runner
+            let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
+            let collection = octofhir_fhirpath::Collection::single(input_value);
 
             // Create evaluation context with the collection
             let context = octofhir_fhirpath::EvaluationContext::new(collection);
 
-            // Evaluate expression using integrated engine with timeout to avoid hangs
+            // Use single root evaluation method (parse + evaluate in one call) - same as test-runner
             let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(10_000);
-            let eval_fut = self.engine.evaluate_ast(&ast, &context);
-            let result =
-                match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), eval_fut)
-                    .await
-                {
-                    Err(_) => {
+
+            let eval_fut = self.engine.evaluate(&test.expression, &context);
+            let result = match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), eval_fut).await {
+                Err(_) => {
+                    if test.expect_error.unwrap_or(false) {
+                        return TestResult::Passed;
+                    }
+                    return TestResult::Error {
+                        error: format!("Evaluation timed out after {}ms", timeout_ms),
+                    };
+                }
+                Ok(inner) => match inner {
+                    Ok(eval_result) => eval_result.value, // Extract collection from EvaluationResult
+                    Err(e) => {
                         if test.expect_error.unwrap_or(false) {
                             return TestResult::Passed;
                         }
-                        return TestResult::Error {
-                            error: format!("Evaluation timed out after {}ms", timeout_ms),
+                        // Legacy: empty expected means error acceptable
+                        let expected = self.convert_expected_value(&test.expected);
+                        return if expected.is_empty() {
+                            TestResult::Passed
+                        } else {
+                            TestResult::Error {
+                                error: format!("Evaluation error: {e}"),
+                            }
                         };
                     }
-                    Ok(inner) => match inner {
-                        Ok(result) => result,
-                        Err(e) => {
-                            if test.expect_error.unwrap_or(false) {
-                                return TestResult::Passed;
-                            }
-                            // Legacy: empty expected means error acceptable
-                            let expected = self.convert_expected_value(&test.expected);
-                            return if expected.is_empty() {
-                                TestResult::Passed
-                            } else {
-                                TestResult::Error {
-                                    error: format!("Evaluation error: {e}"),
-                                }
-                            };
-                        }
-                    },
-                };
+                },
+            };
 
             // For expectError tests, we only expect errors during parsing/evaluation
             // If evaluation succeeds, we should compare results normally
@@ -541,6 +509,7 @@ mod integration_test_runner {
             } else {
                 // Convert actual result to JSON for display
                 let actual_json = serde_json::to_value(&result).unwrap_or_default();
+                
                 TestResult::Failed {
                     expected: test.expected.clone(),
                     actual: actual_json,

@@ -28,7 +28,7 @@ use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
 use octofhir_fhirpath::analyzer::StaticAnalyzer;
 use octofhir_fhirpath::core::JsonValueExt;
-use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
+use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine, DiagnosticSeverity};
 use octofhir_fhirpath::parser::{parse, parse_with_analysis};
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 
@@ -689,6 +689,38 @@ impl ReplSession {
                     let ariadne_output =
                         self.format_analyzer_diagnostics(expression, &analysis.diagnostics);
                     result.push(ariadne_output);
+                }
+
+                // Show analysis warnings (including resource type validation)
+                if !analysis.warnings.is_empty() {
+                    if self.config.color_output {
+                        result.push(format!("\n{} Analysis Warnings:", "⚠️".bright_yellow()));
+                    } else {
+                        result.push("\nAnalysis Warnings:".to_string());
+                    }
+
+                    for warning in &analysis.warnings {
+                        let severity_icon = match warning.severity {
+                            DiagnosticSeverity::Error => {
+                                if self.config.color_output { "❌".bright_red() } else { "✗".normal() }
+                            }
+                            DiagnosticSeverity::Warning => {
+                                if self.config.color_output { "⚠️".bright_yellow() } else { "⚠".normal() }
+                            }
+                            DiagnosticSeverity::Info => {
+                                if self.config.color_output { "ℹ️".bright_blue() } else { "i".normal() }
+                            }
+                            DiagnosticSeverity::Hint => {
+                                if self.config.color_output { "💡".bright_cyan() } else { "»".normal() }
+                            }
+                        };
+
+                        result.push(format!("  {} [{}] {}", severity_icon, warning.code, warning.message));
+                        
+                        if let Some(suggestion) = &warning.suggestion {
+                            result.push(format!("      {}", suggestion));
+                        }
+                    }
                 }
 
                 // Show optimization suggestions

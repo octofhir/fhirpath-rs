@@ -459,24 +459,15 @@ impl FunctionRegistry {
             self,
             sync "combine",
             category: FunctionCategory::Collection,
-            description: "Combines two collections into a single collection with duplicates removed",
+            description: "Merge the input and other collections into a single collection without eliminating duplicate values",
             parameters: ["other": Some("collection".to_string()) => "Collection to combine with"],
             return_type: "collection",
             examples: ["(1 | 2).combine(2 | 3)", "Patient.name.combine(Patient.address)"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.arguments.len() != 1 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "combine() requires exactly one argument".to_string()
-                    ));
-                }
-
-                let second_collection = match &context.arguments[0] {
-                    FhirPathValue::Collection(items) => items.clone(),
-                    single_item => vec![single_item.clone()],
-                };
-
-                let result = CollectionUtils::union_collections(context.input, &second_collection);
+                // Combine collections preserving duplicates (unlike union which removes them)
+                // The arguments slice contains all the values from the argument expression
+                let mut result = context.input.to_vec();
+                result.extend(context.arguments.iter().cloned());
                 Ok(result)
             }
         )
@@ -516,21 +507,9 @@ impl FunctionRegistry {
             return_type: "collection",
             examples: ["(1 | 2 | 3).exclude(2)", "Patient.telecom.exclude(Patient.telecom.where(system = 'email'))"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.arguments.len() != 1 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "exclude() requires exactly one argument".to_string()
-                    ));
-                }
-
-                let exclude_items = match &context.arguments[0] {
-                    FhirPathValue::Collection(items) => items.clone(),
-                    single_item => vec![single_item.clone()],
-                };
-
-                // Build set of items to exclude
+                // Build set of items to exclude from all arguments
                 let mut exclude_set = HashSet::new();
-                for item in &exclude_items {
+                for item in context.arguments {
                     exclude_set.insert(CollectionUtils::value_hash_key(item));
                 }
 

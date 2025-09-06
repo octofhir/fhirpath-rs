@@ -7,10 +7,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Crates.io publishing job (runs once)
-  publish-crates:
+  # Crates.io publishing job (only octofhir-fhirpath)
+  publish-crate:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     steps:
       - name: Checkout code
@@ -44,7 +43,7 @@ jobs:
           # Use a more stable cache key that will match across commits
           prefix-key: "canary-publish"
           # Share cache with other jobs
-          shared-key: "publish-crates"
+          shared-key: "publish-crate"
           # Cache all target dirs, registry, and git repos
           cache-targets: true
           cache-on-failure: true
@@ -55,15 +54,10 @@ jobs:
           cargo clippy --workspace --all-targets --all-features
           cargo test --workspace --all-features
 
-      - name: Install cargo-workspaces
-        run: cargo install cargo-workspaces
-
-      - name: Configure git early
+      - name: Configure git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git config --global http.sslVerify false
-          git config --global http.version HTTP/1.1
 
       - name: Bump patch version
         id: version
@@ -72,62 +66,45 @@ jobs:
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "Current version: $CURRENT_VERSION"
 
-          # Use cargo-workspaces to bump patch version (force for canary)
-          cargo workspaces version --no-git-commit --force "*" patch -y
+          # Calculate new patch version
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
 
-          # Get new version after bumping
-          NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          # Update version in workspace Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          
           echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
 
-      - name: Prepare dependencies for publishing
+      - name: Build octofhir-fhirpath crate
+        run: cargo build --release --package octofhir-fhirpath
+
+      - name: Test publishing octofhir-fhirpath (dry run)
         run: |
-          echo "🔧 Preparing workspace dependencies for publishing..."
-          chmod +x ./scripts/prepare-canary-release.sh
-          # Always run the script to ensure dependencies have version specifications
-          ./scripts/prepare-canary-release.sh ${{ steps.version.outputs.version }}
+          echo "🧪 Testing publishing octofhir-fhirpath with dry run..."
+          cd crates/octofhir-fhirpath
+          cargo publish --dry-run
 
-      - name: Build release
-        run: cargo build --release --workspace
-
-      - name: Test publishing (dry run)
-        run: |
-          echo "🧪 Testing publishing with dry run..."
-
-          if output=$(cargo workspaces publish --dry-run 2>&1); then
-            echo "✅ Dry run completed successfully"
-            echo "$output"
-          else
-            exit_code=$?
-            echo "❌ Dry run failed with exit code: $exit_code"
-            echo "📋 Full dry run output:"
-            echo "$output"
-            exit 1
-          fi
-
-      - name: Publish to crates.io
-        if: github.ref == 'refs/heads/main'
+      - name: Publish octofhir-fhirpath to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          echo "🚀 Publishing workspace to crates.io..."
+          echo "🚀 Publishing octofhir-fhirpath to crates.io..."
           echo "Version: ${{ steps.version.outputs.version }}"
           echo "Current commit: $(git rev-parse HEAD)"
           echo "Current branch: $(git branch --show-current)"
 
-          # Publish to crates.io (force for canary)
-          cargo workspaces publish --token $CARGO_REGISTRY_TOKEN --force "*" -y --publish-as-is  --allow-dirty
+          # Publish octofhir-fhirpath crate only (allow dirty since we modified version)
+          cd crates/octofhir-fhirpath
+          cargo publish --token $CARGO_REGISTRY_TOKEN --allow-dirty
 
           echo "✅ Publishing successful!"
 
-      - name: Restore development dependencies
-        run: |
-          echo "🔄 Restoring development dependencies..."
-          chmod +x ./scripts/restore-dev-dependencies.sh
-          ./scripts/restore-dev-dependencies.sh
-
       - name: Commit and push version bump
-        if: github.ref == 'refs/heads/main'
         run: |
           echo "📝 Committing version bump to ${{ steps.version.outputs.version }}"
           git add -A
@@ -136,8 +113,8 @@ jobs:
           echo "📤 Pushing version bump to remote"
           git push origin main
 
-      # Export version for binary jobs
-      - name: Export version for binary jobs
+      # Export version for CLI release job
+      - name: Export version for CLI release job
         run: |
           echo "${{ steps.version.outputs.version }}" > release-version.txt
 
@@ -147,9 +124,9 @@ jobs:
           name: release-version
           path: release-version.txt
 
-  # Binary release job (matrix for multiple targets)
-  release-binaries:
-    needs: publish-crates
+  # CLI binary release job (matrix for multiple targets)
+  release-cli-binaries:
+    needs: publish-crate
     strategy:
       matrix:
         include:
@@ -220,9 +197,9 @@ jobs:
           sudo apt-get install -y pkg-config
 
 
-      - name: Build octofhir-fhirpath binary
+      - name: Build fhirpath-cli binary
         run: |
-          cargo build --release --target ${{ matrix.target }} --package octofhir-fhirpath --bin octofhir-fhirpath --features cli
+          cargo build --release --target ${{ matrix.target }} --package fhirpath-cli
 
       - name: Prepare binary for release (Unix)
         if: runner.os != 'Windows'
@@ -243,9 +220,9 @@ jobs:
           name: binary-${{ matrix.postfix }}
           path: release-artifacts/*
 
-  # Create GitHub release with all binaries
+  # Create GitHub release with CLI binaries
   create-release:
-    needs: [publish-crates, release-binaries]
+    needs: [publish-crate, release-cli-binaries]
     runs-on: ubuntu-latest
 
     steps:
@@ -296,7 +273,7 @@ jobs:
             - `octofhir-fhirpath-windows-x64.exe` - Windows x86_64
 
             ## Crates.io
-            All workspace crates are also published to crates.io with version `${{ steps.version.outputs.version }}`
+            The `octofhir-fhirpath` crate is published to crates.io with version `${{ steps.version.outputs.version }}`
           prerelease: false
           generate_release_notes: false
           files: |

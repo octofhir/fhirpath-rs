@@ -67,7 +67,7 @@ jobs:
         run: cargo build --verbose --workspace
 
       - name: Build CLI binary
-        run: cargo build --verbose --package octofhir-fhirpath --features cli
+        run: cargo build --verbose --package fhirpath-cli
 
       - name: Run tests
         run: cargo test --verbose --workspace --all-features
@@ -79,7 +79,7 @@ jobs:
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
         run: |
           echo "🚀 Running quick benchmark check..."
-          timeout 300 cargo bench --package fhirpath-benchmarks || echo "⚠️ Benchmark timed out after 5 minutes"
+          timeout 300 cargo run --package fhirpath-dev-tools --bin octofhir-fhirpath-bench list || echo "⚠️ Benchmark timed out after 5 minutes"
 
   coverage:
     name: Code Coverage

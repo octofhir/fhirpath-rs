@@ -18,10 +18,10 @@ impl FunctionRegistry {
         self.register_toInteger_function()?;
         self.register_toDecimal_function()?;
         self.register_toBoolean_function()?;
-        self.register_toDate_function()?;
-        self.register_toDateTime_function()?;
-        self.register_toTime_function()?;
-        self.register_toQuantity_function()?;
+        self.register_to_date_function()?;
+        self.register_to_date_time_function()?;
+        self.register_to_time_function()?;
+        self.register_to_quantity_function()?;
 
         // Register conversion testing functions
         self.register_convertsToBoolean_function()?;
@@ -242,7 +242,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toDate_function(&self) -> Result<()> {
+    fn register_to_date_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toDate",
@@ -261,7 +261,6 @@ impl FunctionRegistry {
                         "toDate() can only be called on a single value"
                     ));
                 }
-
                 let result = match &context.input[0] {
                     FhirPathValue::Date(d) => d.clone(),
                     FhirPathValue::DateTime(dt) => {
@@ -284,7 +283,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toDateTime_function(&self) -> Result<()> {
+    fn register_to_date_time_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toDateTime",
@@ -333,7 +332,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toTime_function(&self) -> Result<()> {
+    fn register_to_time_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toTime",
@@ -381,6 +380,10 @@ impl FunctionRegistry {
     // Helper functions for parsing
     fn parse_date_string(input: &str) -> Result<PrecisionDate> {
         let trimmed = input.trim();
+
+        if let Some(pdt) = PrecisionDateTime::parse(trimmed) {
+            return Ok(PrecisionDate::from_date(pdt.datetime.naive_utc().date()));
+        }
 
         // Try to parse as ISO date
         if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
@@ -481,7 +484,7 @@ impl FunctionRegistry {
         ))
     }
 
-    fn register_toQuantity_function(&self) -> Result<()> {
+    fn register_to_quantity_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toQuantity",
@@ -693,7 +696,7 @@ impl FunctionRegistry {
                 let can_convert = match &context.input[0] {
                     FhirPathValue::Integer(_) => true,
                     FhirPathValue::String(s) => s.parse::<i64>().is_ok(),
-                    FhirPathValue::Boolean(b) => true, // Booleans can be converted to 0/1
+                    FhirPathValue::Boolean(_b) => true, // Booleans can be converted to 0/1
                     FhirPathValue::Decimal(d) => {
                         // Check if decimal is a whole number
                         d.fract() == rust_decimal::Decimal::ZERO

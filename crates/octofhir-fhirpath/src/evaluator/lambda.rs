@@ -1097,7 +1097,7 @@ fn is_truthy(result: &Collection) -> bool {
 /// with a closure for expression evaluation.
 pub fn create_lambda_evaluator_adapter<F>(
     global_context: Arc<EvaluationContext>,
-    evaluator_fn: F,
+    _evaluator_fn: F,
 ) -> LambdaEvaluator
 where
     F: Fn(&ExpressionNode, &EvaluationContext) -> crate::core::Result<Collection>

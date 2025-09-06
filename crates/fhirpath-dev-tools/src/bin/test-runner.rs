@@ -181,21 +181,21 @@ async fn main() {
         println!("📋 Using MockModelProvider for fast testing");
         Arc::new(octofhir_fhirpath::MockModelProvider::default())
     } else {
-        // Create FHIR schema provider (R5) for production-quality testing
-        println!("📋 Initializing FHIR R5 schema provider...");
+        // Create FHIR schema provider (R4) to match CLI behavior
+        println!("📋 Initializing FHIR R4 schema provider...");
         let provider_timeout = Duration::from_secs(60);
         match tokio::time::timeout(
             provider_timeout,
-            octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
+            octofhir_fhirschema::provider::FhirSchemaModelProvider::r4(),
         )
         .await
         {
             Ok(Ok(provider)) => {
-                println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
+                println!("✅ FhirSchemaModelProvider (R4) loaded successfully");
                 Arc::new(provider)
             }
             Ok(Err(e)) => {
-                eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R5): {e}");
+                eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R4): {e}");
                 eprintln!(
                     "💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1"
                 );
@@ -203,7 +203,7 @@ async fn main() {
             }
             Err(_) => {
                 eprintln!(
-                    "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
+                    "❌ FhirSchemaModelProvider (R4) initialization timed out ({}s)",
                     provider_timeout.as_secs()
                 );
                 eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
@@ -254,26 +254,11 @@ async fn main() {
         };
 
         // Convert input to FhirPathValue and create evaluation context
-        let input_value = octofhir_fhirpath::FhirPathValue::JsonValue(input_data);
+        let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
         let collection = octofhir_fhirpath::Collection::single(input_value);
         let context = octofhir_fhirpath::EvaluationContext::new(collection);
 
-        // Parse expression
-        let ast = match octofhir_fhirpath::parse_expression(&test_case.expression) {
-            Ok(ast) => ast,
-            Err(e) => {
-                if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
-                    println!("✅ PASS");
-                    passed += 1;
-                    continue;
-                }
-                println!("⚠️ PARSE ERROR: {e}");
-                errors += 1;
-                continue;
-            }
-        };
-
-        // Evaluate expression with timeout to prevent hangs
+        // Use single root evaluation method (parse + evaluate in one call)
         let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -281,7 +266,7 @@ async fn main() {
 
         println!("📋 Evaluating expression with timeout {}ms...", timeout_ms);
         let eval_start = std::time::Instant::now();
-        let eval_fut = engine.evaluate_ast(&ast, &context);
+        let eval_fut = engine.evaluate(&test_case.expression, &context);
         let result = match tokio::time::timeout(Duration::from_millis(timeout_ms), eval_fut).await {
             Err(_) => {
                 let eval_time = eval_start.elapsed();
@@ -302,7 +287,7 @@ async fn main() {
                 let eval_time = eval_start.elapsed();
                 println!("✅ Expression evaluated in {}ms", eval_time.as_millis());
                 match inner {
-                    Ok(result) => result,
+                    Ok(eval_result) => eval_result.value, // Extract collection from EvaluationResult
                     Err(e) => {
                         if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
                             println!("✅ PASS");

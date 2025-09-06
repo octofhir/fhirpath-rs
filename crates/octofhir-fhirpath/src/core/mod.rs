@@ -12,3 +12,7 @@ pub use model_provider::*;
 pub use temporal::*;
 pub use types::*;
 pub use value::*;
+
+// Re-export utils modules with qualified names to avoid conflicts
+pub use model_provider::utils as model_provider_utils;
+pub use value::utils as value_utils;

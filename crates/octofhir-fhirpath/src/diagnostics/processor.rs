@@ -273,7 +273,7 @@ impl DiagnosticProcessor {
         &self,
         diagnostic: &crate::diagnostics::Diagnostic,
         source: &str,
-        source_id: usize,
+        _source_id: usize,
     ) -> Option<ProcessedDiagnostic> {
         // Convert to AriadneDiagnostic
         let ariadne_diag = self.convert_to_ariadne_diagnostic(diagnostic)?;

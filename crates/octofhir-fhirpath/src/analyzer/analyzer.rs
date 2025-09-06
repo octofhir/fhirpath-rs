@@ -111,7 +111,7 @@ impl StaticAnalyzer {
         Self {
             function_registry: function_registry.clone(),
             type_checker: TypeChecker::new(function_registry.clone(), model_provider.clone()),
-            property_validator: PropertyValidator::with_model_provider(model_provider),
+            property_validator: PropertyValidator::new(model_provider.clone(), function_registry.clone()),
             max_depth: 50,
             max_complexity: 100,
         }

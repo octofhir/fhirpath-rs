@@ -279,12 +279,12 @@ impl TypeInfo {
             },
             Multiply | Divide => match (left, right) {
                 (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
                 (TypeInfo::Quantity, TypeInfo::Integer) => TypeInfo::Quantity,
                 (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
                 (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
                 (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
                 (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
                 _ => TypeInfo::Any,
             },
             Modulo => match (left, right) {
@@ -736,7 +736,7 @@ impl TypeChecker {
     /// Get property type for FHIR resources and elements using ModelProvider
     pub fn get_property_type(&self, base_type: &TypeInfo, property: &str) -> TypeInfo {
         match base_type {
-            TypeInfo::Resource { resource_type } => {
+            TypeInfo::Resource { resource_type: _ } => {
                 // Try to use ModelProvider for navigation if possible
                 // For now, fallback to essential property mapping
                 match property {
@@ -1839,8 +1839,6 @@ impl<'a> TypeInferenceVisitor<'a> {
                     // Numeric addition
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal)
-                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
 
                     // Quantity arithmetic
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
@@ -1867,8 +1865,6 @@ impl<'a> TypeInferenceVisitor<'a> {
                     // Numeric subtraction
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal)
-                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
 
                     // Quantity arithmetic
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
@@ -1889,15 +1885,13 @@ impl<'a> TypeInferenceVisitor<'a> {
                 match (left, right) {
                     // Numeric multiplication
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal)
-                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-
-                    // Quantity multiplication
+                    // Quantity multiplication (before general decimal match)
                     (TypeInfo::Quantity, TypeInfo::Integer)
                     | (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
                     (TypeInfo::Quantity, TypeInfo::Decimal)
                     | (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
+                    
+                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
 
                     _ => TypeInfo::Unknown,
                 }
@@ -1907,13 +1901,12 @@ impl<'a> TypeInferenceVisitor<'a> {
                 match (left, right) {
                     // Numeric division - always results in decimal for precision
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Decimal,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal)
-                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-
-                    // Quantity division
+                    
+                    // Quantity division (before general decimal match)
                     (TypeInfo::Quantity, TypeInfo::Integer)
                     | (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
+                    
+                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Decimal, // Ratio
 
                     _ => TypeInfo::Unknown,

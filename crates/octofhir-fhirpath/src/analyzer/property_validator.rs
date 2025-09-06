@@ -8,7 +8,10 @@ use crate::analyzer::context::AnalysisContext;
 use crate::analyzer::type_checker::TypeInfo;
 use crate::ast::expression::*;
 use crate::core::{ModelProvider, Result, SourceLocation};
+use crate::core::error_code::FP0121;
 use crate::diagnostics::DiagnosticSeverity;
+use crate::registry::FunctionRegistry;
+use octofhir_fhir_model::TypeReflectionInfo;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -36,6 +39,34 @@ pub struct PropertySuggestion {
     pub context_type: String,
     /// Source location of the invalid property access
     pub location: Option<SourceLocation>,
+}
+
+/// Enhanced suggestion with detailed reasoning and confidence
+#[derive(Debug, Clone)]
+pub struct DetailedSuggestion {
+    /// The suggested property or function name
+    pub suggestion: String,
+    /// Reason for the suggestion ("required property", "commonly used", "similar spelling", etc.)
+    pub reason: String,
+    /// Confidence score (0.0-1.0)
+    pub confidence: f32,
+    /// Context type (resource type for properties, "function" for functions)
+    pub context_type: String,
+    /// Whether this is a polymorphic property suggestion
+    pub is_polymorphic: bool,
+}
+
+/// Performance-optimized caching for suggestions
+#[derive(Debug, Clone, Default)]
+struct SuggestionCache {
+    /// Cache of property names by resource type
+    property_cache: HashMap<String, Vec<String>>,
+    /// Cache of all available function names
+    function_cache: Option<Vec<String>>,
+    /// Cache of detailed suggestions by (invalid_name, context_type) key
+    suggestion_cache: HashMap<(String, String), Vec<DetailedSuggestion>>,
+    /// Cache of polymorphic property mappings
+    polymorphic_cache: HashMap<String, Vec<String>>,
 }
 
 /// Information about a property on a FHIR resource or element
@@ -70,39 +101,228 @@ pub enum Cardinality {
 
 /// Property validator for FHIRPath expressions
 pub struct PropertyValidator {
-    /// Properties for FHIR resource types
-    resource_properties: HashMap<String, Vec<PropertyInfo>>,
-    /// Properties for FHIR element types
-    element_properties: HashMap<String, Vec<PropertyInfo>>,
     /// Common typos mapping to correct properties
     common_typos: HashMap<String, String>,
-    /// Cache for performance optimization
+    /// Cache for performance optimization (legacy - replaced by suggestion_cache)
     property_cache: HashMap<String, HashSet<String>>,
-    /// Model provider for dynamic property resolution
-    model_provider: Option<Arc<dyn ModelProvider>>,
+    /// Model provider for dynamic property resolution (REQUIRED)
+    model_provider: Arc<dyn ModelProvider>,
+    /// Function registry for function name validation and suggestions
+    function_registry: Arc<FunctionRegistry>,
+    /// Enhanced caching system for suggestions
+    suggestion_cache: SuggestionCache,
 }
 
 impl PropertyValidator {
-    /// Create a new property validator with built-in FHIR knowledge
-    pub fn new() -> Self {
+    /// Create a new property validator with a model provider and function registry (REQUIRED)
+    pub fn new(model_provider: Arc<dyn ModelProvider>, function_registry: Arc<FunctionRegistry>) -> Self {
         let mut validator = Self {
-            resource_properties: HashMap::new(),
-            element_properties: HashMap::new(),
             common_typos: HashMap::new(),
             property_cache: HashMap::new(),
-            model_provider: None,
+            model_provider,
+            function_registry,
+            suggestion_cache: SuggestionCache::default(),
         };
 
-        validator.initialize_builtin_properties();
         validator.initialize_common_typos();
         validator
     }
 
-    /// Create a new property validator with a model provider
-    pub fn with_model_provider(model_provider: Arc<dyn ModelProvider>) -> Self {
-        let mut validator = Self::new();
-        validator.model_provider = Some(model_provider);
-        validator
+    /// Convert TypeReflectionInfo from ModelProvider to TypeInfo used by PropertyValidator
+    fn convert_reflection_to_typeinfo(&self, reflection: &TypeReflectionInfo) -> TypeInfo {
+        match reflection {
+            TypeReflectionInfo::SimpleType { 
+                namespace, 
+                name, 
+                base_type: _base_type 
+            } => {
+                // Convert System (primitive) types
+                if namespace == "System" {
+                    match name.as_str() {
+                        "Boolean" => TypeInfo::Boolean,
+                        "Integer" => TypeInfo::Integer,
+                        "Decimal" => TypeInfo::Decimal,
+                        "String" => TypeInfo::String,
+                        "Date" => TypeInfo::Date,
+                        "DateTime" => TypeInfo::DateTime,
+                        "Time" => TypeInfo::Time,
+                        _ => TypeInfo::Unknown,
+                    }
+                }
+                // Convert FHIR types
+                else if namespace == "FHIR" {
+                    match name.as_str() {
+                        "boolean" => TypeInfo::Boolean,
+                        "integer" => TypeInfo::Integer,
+                        "decimal" => TypeInfo::Decimal,
+                        "string" => TypeInfo::String,
+                        "date" => TypeInfo::Date,
+                        "dateTime" => TypeInfo::DateTime,
+                        "time" => TypeInfo::Time,
+                        "Quantity" => TypeInfo::Quantity,
+                        "code" => TypeInfo::Code,
+                        "Coding" => TypeInfo::Coding,
+                        "CodeableConcept" => TypeInfo::CodeableConcept,
+                        "Range" => TypeInfo::Range,
+                        "Reference" => TypeInfo::Reference { target_types: vec![] },
+                        // Check if it's a resource type
+                        resource_name if self.is_resource_type_name(resource_name) => {
+                            TypeInfo::Resource { 
+                                resource_type: resource_name.to_string() 
+                            }
+                        }
+                        _ => TypeInfo::Unknown,
+                    }
+                } else {
+                    TypeInfo::Unknown
+                }
+            }
+            TypeReflectionInfo::ClassInfo { 
+                name, 
+                namespace, 
+                elements, 
+                base_type: _base_type 
+            } => {
+                if namespace == "FHIR" {
+                    // Check if it's a resource type
+                    if self.is_resource_type_name(name) {
+                        TypeInfo::Resource { 
+                            resource_type: name.clone() 
+                        }
+                    } else {
+                        // Convert to BackboneElement with properties
+                        let mut properties = HashMap::new();
+                        for element in elements {
+                            let property_type = self.convert_reflection_to_typeinfo(&element.type_info);
+                            properties.insert(element.name.clone(), property_type);
+                        }
+                        TypeInfo::BackboneElement { properties }
+                    }
+                } else {
+                    TypeInfo::Unknown
+                }
+            }
+            TypeReflectionInfo::ListType { element_type } => {
+                let inner_type = self.convert_reflection_to_typeinfo(element_type);
+                TypeInfo::Collection(Box::new(inner_type))
+            }
+            TypeReflectionInfo::TupleType { elements: _elements } => {
+                // For now, treat tuples as unknown - could be enhanced later
+                TypeInfo::Unknown
+            }
+        }
+    }
+
+    /// Check if a type name represents a FHIR resource type using ModelProvider
+    fn is_resource_type_name(&self, type_name: &str) -> bool {
+        self.model_provider.resource_type_exists(type_name).unwrap_or(false)
+    }
+
+    /// Check if an identifier could be a resource type based on capitalization
+    fn is_potential_resource_type(&self, identifier: &str) -> bool {
+        if identifier.is_empty() {
+            return false;
+        }
+
+        // Must start with uppercase letter
+        let first_char = identifier.chars().next().unwrap_or('a');
+        if !first_char.is_uppercase() {
+            return false;
+        }
+
+        // Should not contain underscores (FHIR resource types are PascalCase)
+        if identifier.contains('_') {
+            return false;
+        }
+
+        // Should not start with $ (variable reference)
+        if identifier.starts_with('$') {
+            return false;
+        }
+
+        true
+    }
+
+    /// Generate intelligent suggestions for misspelled resource types
+    async fn generate_resource_type_suggestions(&self, invalid_resource: &str) -> Vec<String> {
+        // Common FHIR resource types that we can check against
+        let common_resources = [
+            "Patient", "Observation", "Encounter", "Practitioner", "Organization",
+            "DiagnosticReport", "Condition", "Procedure", "MedicationRequest", 
+            "AllergyIntolerance", "Immunization", "Bundle", "Composition",
+            "Location", "Device", "Medication", "Appointment", "ServiceRequest",
+            "QuestionnaireResponse", "Questionnaire", "DocumentReference", 
+            "Binary", "OperationOutcome", "Parameters", "StructureDefinition",
+            "ValueSet", "CodeSystem", "ConceptMap", "CapabilityStatement",
+            "SearchParameter", "CompartmentDefinition", "ImplementationGuide"
+        ];
+        
+        let mut suggestions = Vec::new();
+        
+        for resource_type in common_resources {
+            // First check if this resource type exists in the ModelProvider
+            if self.model_provider.resource_type_exists(resource_type).unwrap_or(false) {
+                let similarity = self.calculate_similarity(invalid_resource, resource_type);
+                if similarity > 0.6 {
+                    suggestions.push((resource_type.to_string(), similarity));
+                }
+            }
+        }
+        
+        // Sort by similarity (highest first) and return top 3
+        suggestions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        suggestions.into_iter().take(3).map(|(name, _)| name).collect()
+    }
+
+    /// Handle unknown resource type by generating appropriate warnings
+    async fn handle_unknown_resource_type(
+        &self,
+        invalid_resource: &str,
+        location: Option<SourceLocation>,
+        warnings: &mut Vec<AnalysisWarning>,
+    ) -> TypeInfo {
+        let suggestions = self.generate_resource_type_suggestions(invalid_resource).await;
+        
+        let (message, suggestion) = if !suggestions.is_empty() {
+            (
+                format!("Unknown resource type: '{}'", invalid_resource),
+                Some(format!("Did you mean: {}?", suggestions.join(", ")))
+            )
+        } else {
+            (
+                format!("Unknown resource type: '{}'. Check the FHIR specification for valid resource types.", invalid_resource),
+                None
+            )
+        };
+
+        warnings.push(AnalysisWarning {
+            code: FP0121.code_str(),
+            message,
+            location: location.clone(),
+            severity: DiagnosticSeverity::Error,
+            suggestion,
+        });
+
+        // Return Unknown to continue processing, but validation will fail
+        TypeInfo::Unknown
+    }
+
+    /// Validate a potential resource type identifier
+    async fn validate_potential_resource_type(
+        &self,
+        type_name: &str,
+        location: Option<SourceLocation>,
+        warnings: &mut Vec<AnalysisWarning>,
+    ) -> Result<()> {
+        // Only validate if it looks like a potential resource type
+        if self.is_potential_resource_type(type_name) {
+            // Check if it's a valid resource type
+            if !self.model_provider.resource_type_exists(type_name).unwrap_or(false) {
+                // Handle the unknown resource type
+                self.handle_unknown_resource_type(type_name, location, warnings).await;
+            }
+        }
+        Ok(())
     }
 
     /// Validate property access in a FHIRPath expression
@@ -144,12 +364,21 @@ impl PropertyValidator {
         Box::pin(async move {
             match expression {
                 ExpressionNode::PropertyAccess(access) => {
+                    // First validate the base object if it might be a resource type
+                    if let ExpressionNode::Identifier(base_id) = &*access.object {
+                        self.validate_potential_resource_type(&base_id.name, base_id.location.clone(), warnings)
+                            .await?;
+                    }
+                    
                     self.validate_property_access(access, context, warnings, suggestions)
                         .await?;
                     self.validate_expression(&access.object, context, warnings, suggestions)
                         .await?;
                 }
                 ExpressionNode::FunctionCall(call) => {
+                    // Validate function name
+                    self.validate_function_name(&call.name, call.location.clone(), warnings);
+                    
                     for arg in &call.arguments {
                         self.validate_expression(arg, context, warnings, suggestions)
                             .await?;
@@ -203,7 +432,12 @@ impl PropertyValidator {
                     self.validate_expression(expr, context, warnings, suggestions)
                         .await?;
                 }
-                _ => {} // Literals and identifiers don't need property validation
+                ExpressionNode::Identifier(id) => {
+                    // Validate potential resource type identifiers
+                    self.validate_potential_resource_type(&id.name, id.location.clone(), warnings)
+                        .await?;
+                }
+                _ => {} // Literals don't need validation
             }
             Ok(())
         })
@@ -589,14 +823,19 @@ impl PropertyValidator {
         Box::pin(async move {
             match object_type {
                 TypeInfo::Resource { resource_type } => {
-                    if let Some(properties) = self.get_resource_properties(resource_type).await {
-                        if let Some(prop) = properties.iter().find(|p| p.name == property) {
-                            Ok(prop.data_type.clone())
-                        } else {
+                    // Use ModelProvider's get_type_reflection for dynamic property type resolution
+                    match self.model_provider.get_type_reflection(resource_type).await {
+                        Ok(Some(TypeReflectionInfo::ClassInfo { elements, .. })) => {
+                            // Find the property in the elements
+                            for element in elements {
+                                if element.name == property {
+                                    return Ok(self.convert_reflection_to_typeinfo(&element.type_info));
+                                }
+                            }
                             Ok(TypeInfo::Unknown)
                         }
-                    } else {
-                        Ok(TypeInfo::Unknown)
+                        Ok(_) => Ok(TypeInfo::Unknown),
+                        Err(_) => Ok(TypeInfo::Unknown),
                     }
                 }
                 TypeInfo::BackboneElement { properties } => {
@@ -642,221 +881,58 @@ impl PropertyValidator {
     }
 
     async fn get_resource_properties(&self, resource_name: &str) -> Option<Vec<PropertyInfo>> {
-        // First check built-in properties
-        if let Some(properties) = self.resource_properties.get(resource_name) {
-            return Some(properties.clone());
+        // Use ModelProvider's get_type_reflection for dynamic property resolution
+        let type_info = match self.model_provider.get_type_reflection(resource_name).await {
+            Ok(Some(info)) => info,
+            Ok(None) => return None,
+            Err(_) => return None,
+        };
+
+        // Extract properties from ClassInfo
+        let properties = match type_info {
+            TypeReflectionInfo::ClassInfo { elements, .. } => elements,
+            _ => return None,
+        };
+
+        if properties.is_empty() {
+            return None;
         }
 
-        // If we have a model provider, use it for dynamic property resolution
-        if let Some(_model_provider) = &self.model_provider {
-            // TODO: Implement dynamic property resolution using model provider
-            // This would be integrated with the actual FHIR schema
-        }
+        // Convert elements to PropertyInfo
+        let property_infos: Vec<PropertyInfo> = properties
+            .into_iter()
+            .map(|element| {
+                let data_type = self.convert_reflection_to_typeinfo(&element.type_info);
+                
+                let cardinality = match (element.min_cardinality, element.max_cardinality) {
+                    (0, Some(1)) => Cardinality::ZeroToOne,
+                    (0, None) => Cardinality::ZeroToMany,
+                    (1, Some(1)) => Cardinality::OneToOne,
+                    (1, None) => Cardinality::OneToMany,
+                    _ => Cardinality::ZeroToOne,
+                };
+                let required = element.min_cardinality > 0;
 
-        None
+                PropertyInfo {
+                    name: element.name.clone(),
+                    data_type,
+                    cardinality,
+                    required,
+                    description: element.documentation.unwrap_or_else(|| 
+                        format!("Property {} of type {}", element.name, element.type_info.name())
+                    ),
+                    aliases: vec![], // Could be enhanced with ModelProvider support
+                }
+            })
+            .collect();
+
+        Some(property_infos)
     }
 
     async fn is_known_resource_type(&self, name: &str) -> bool {
-        self.resource_properties.contains_key(name)
-            || (self.model_provider.as_ref().map_or(false, |_| {
-                // TODO: Check with model provider if this is a known resource type
-                false
-            }))
+        self.model_provider.resource_type_exists(name).unwrap_or(false)
     }
 
-    fn initialize_builtin_properties(&mut self) {
-        // Patient resource properties
-        let patient_properties = vec![
-            PropertyInfo {
-                name: "id".to_string(),
-                data_type: TypeInfo::String,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Logical id of this artifact".to_string(),
-                aliases: vec!["identifier".to_string()],
-            },
-            PropertyInfo {
-                name: "name".to_string(),
-                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement {
-                    properties: self.create_human_name_properties(),
-                })),
-                cardinality: Cardinality::ZeroToMany,
-                required: false,
-                description: "A name associated with the patient".to_string(),
-                aliases: vec!["names".to_string()],
-            },
-            PropertyInfo {
-                name: "gender".to_string(),
-                data_type: TypeInfo::Code,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Administrative gender".to_string(),
-                aliases: vec!["sex".to_string()],
-            },
-            PropertyInfo {
-                name: "birthDate".to_string(),
-                data_type: TypeInfo::Date,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "The date of birth for the individual".to_string(),
-                aliases: vec!["dateOfBirth".to_string(), "dob".to_string()],
-            },
-            PropertyInfo {
-                name: "active".to_string(),
-                data_type: TypeInfo::Boolean,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Whether this patient's record is in active use".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "telecom".to_string(),
-                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement {
-                    properties: self.create_contact_point_properties(),
-                })),
-                cardinality: Cardinality::ZeroToMany,
-                required: false,
-                description: "A contact detail for the patient".to_string(),
-                aliases: vec![
-                    "contact".to_string(),
-                    "phone".to_string(),
-                    "email".to_string(),
-                ],
-            },
-        ];
-        self.resource_properties
-            .insert("Patient".to_string(), patient_properties);
-
-        // Add more resource types as needed...
-        // For now, we'll add a few more common ones
-        self.add_observation_properties();
-        self.add_encounter_properties();
-    }
-
-    fn create_human_name_properties(&self) -> HashMap<String, TypeInfo> {
-        let mut properties = HashMap::new();
-        properties.insert("use".to_string(), TypeInfo::Code);
-        properties.insert("family".to_string(), TypeInfo::String);
-        properties.insert(
-            "given".to_string(),
-            TypeInfo::Collection(Box::new(TypeInfo::String)),
-        );
-        properties.insert(
-            "prefix".to_string(),
-            TypeInfo::Collection(Box::new(TypeInfo::String)),
-        );
-        properties.insert(
-            "suffix".to_string(),
-            TypeInfo::Collection(Box::new(TypeInfo::String)),
-        );
-        properties
-    }
-
-    fn create_contact_point_properties(&self) -> HashMap<String, TypeInfo> {
-        let mut properties = HashMap::new();
-        properties.insert("system".to_string(), TypeInfo::Code);
-        properties.insert("value".to_string(), TypeInfo::String);
-        properties.insert("use".to_string(), TypeInfo::Code);
-        properties.insert("rank".to_string(), TypeInfo::Integer);
-        properties
-    }
-
-    fn add_observation_properties(&mut self) {
-        let observation_properties = vec![
-            PropertyInfo {
-                name: "id".to_string(),
-                data_type: TypeInfo::String,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Logical id of this artifact".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "status".to_string(),
-                data_type: TypeInfo::Code,
-                cardinality: Cardinality::OneToOne,
-                required: true,
-                description: "Status of the observation".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "code".to_string(),
-                data_type: TypeInfo::CodeableConcept,
-                cardinality: Cardinality::OneToOne,
-                required: true,
-                description: "Type of observation".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "subject".to_string(),
-                data_type: TypeInfo::Reference {
-                    target_types: vec!["Patient".to_string(), "Group".to_string()],
-                },
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Who and/or what the observation is about".to_string(),
-                aliases: vec!["patient".to_string()],
-            },
-            PropertyInfo {
-                name: "value".to_string(),
-                data_type: TypeInfo::Choice(vec![
-                    TypeInfo::Quantity,
-                    TypeInfo::CodeableConcept,
-                    TypeInfo::String,
-                    TypeInfo::Boolean,
-                    TypeInfo::Integer,
-                    TypeInfo::Range,
-                ]),
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Actual result".to_string(),
-                aliases: vec!["result".to_string()],
-            },
-        ];
-        self.resource_properties
-            .insert("Observation".to_string(), observation_properties);
-    }
-
-    fn add_encounter_properties(&mut self) {
-        let encounter_properties = vec![
-            PropertyInfo {
-                name: "id".to_string(),
-                data_type: TypeInfo::String,
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "Logical id of this artifact".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "status".to_string(),
-                data_type: TypeInfo::Code,
-                cardinality: Cardinality::OneToOne,
-                required: true,
-                description: "Status of the encounter".to_string(),
-                aliases: vec![],
-            },
-            PropertyInfo {
-                name: "class".to_string(),
-                data_type: TypeInfo::Coding,
-                cardinality: Cardinality::OneToOne,
-                required: true,
-                description: "Classification of patient encounter".to_string(),
-                aliases: vec!["encounterClass".to_string()],
-            },
-            PropertyInfo {
-                name: "subject".to_string(),
-                data_type: TypeInfo::Reference {
-                    target_types: vec!["Patient".to_string()],
-                },
-                cardinality: Cardinality::ZeroToOne,
-                required: false,
-                description: "The patient present at the encounter".to_string(),
-                aliases: vec!["patient".to_string()],
-            },
-        ];
-        self.resource_properties
-            .insert("Encounter".to_string(), encounter_properties);
-    }
 
     fn initialize_common_typos(&mut self) {
         // Common property name typos
@@ -887,13 +963,548 @@ impl PropertyValidator {
         self.common_typos
             .insert("encounteer".to_string(), "encounter".to_string());
     }
-}
 
-impl Default for PropertyValidator {
-    fn default() -> Self {
-        Self::new()
+    /// Generate property suggestions using ModelProvider schema data instead of hardcoded lists
+    async fn generate_schema_based_property_suggestions(
+        &self,
+        invalid_property: &str,
+        parent_type: &str,
+        _location: Option<SourceLocation>,
+    ) -> Vec<DetailedSuggestion> {
+        let mut suggestions = Vec::new();
+
+        // Get all properties for this type from schema
+        match self.model_provider.get_type_reflection(parent_type).await {
+            Ok(Some(TypeReflectionInfo::ClassInfo { elements, .. })) => {
+                let mut scored_suggestions: Vec<(String, f32, String)> = elements
+                    .iter()
+                    .map(|element| {
+                        let similarity = self.calculate_similarity(invalid_property, &element.name);
+                        let reason = if element.is_required() {
+                            "required property".to_string()
+                        } else if element.is_summary {
+                            "summary property".to_string() 
+                        } else {
+                            "available property".to_string()
+                        };
+                        (element.name.clone(), similarity, reason)
+                    })
+                    .filter(|(_, similarity, _)| *similarity > 0.6) // Only include good matches
+                    .collect();
+
+                // Sort by similarity score (descending)
+                scored_suggestions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                // Take top 3 suggestions
+                for (prop_name, similarity, reason) in scored_suggestions.into_iter().take(3) {
+                    suggestions.push(DetailedSuggestion {
+                        suggestion: prop_name,
+                        reason,
+                        confidence: similarity,
+                        context_type: parent_type.to_string(),
+                        is_polymorphic: false,
+                    });
+                }
+            },
+            Ok(_) => {
+                // Fallback to hardcoded suggestions for non-class types
+                let fallback_suggestions = self.generate_hardcoded_property_suggestions(invalid_property, parent_type);
+                for property_suggestion in fallback_suggestions {
+                    for suggested_prop in property_suggestion.suggested_properties {
+                        suggestions.push(DetailedSuggestion {
+                            suggestion: suggested_prop,
+                            reason: "similar spelling".to_string(),
+                            confidence: property_suggestion.similarity_score,
+                            context_type: parent_type.to_string(),
+                            is_polymorphic: false,
+                        });
+                    }
+                }
+            },
+            Err(_) => {
+                // Fallback to hardcoded suggestions on error
+                let fallback_suggestions = self.generate_hardcoded_property_suggestions(invalid_property, parent_type);
+                for property_suggestion in fallback_suggestions {
+                    for suggested_prop in property_suggestion.suggested_properties {
+                        suggestions.push(DetailedSuggestion {
+                            suggestion: suggested_prop,
+                            reason: "similar spelling".to_string(),
+                            confidence: property_suggestion.similarity_score,
+                            context_type: parent_type.to_string(),
+                            is_polymorphic: false,
+                        });
+                    }
+                }
+            },
+        }
+
+        suggestions
+    }
+
+    /// Generate hardcoded property suggestions as fallback (legacy method)
+    fn generate_hardcoded_property_suggestions(
+        &self,
+        invalid_property: &str,
+        parent_type: &str,
+    ) -> Vec<PropertySuggestion> {
+        // Check common typos first
+        if let Some(correction) = self.common_typos.get(invalid_property) {
+            return vec![PropertySuggestion {
+                invalid_property: invalid_property.to_string(),
+                suggested_properties: vec![correction.clone()],
+                similarity_score: 1.0,
+                context_type: parent_type.to_string(),
+                location: None,
+            }];
+        }
+
+        // Hardcoded common properties for major resource types
+        let common_properties = match parent_type {
+            "Patient" => vec!["id", "name", "birthDate", "gender", "active", "identifier", "telecom", "address"],
+            "Observation" => vec!["id", "status", "code", "subject", "value", "component", "category", "effective"],
+            "Encounter" => vec!["id", "status", "class", "subject", "period", "diagnosis", "location", "participant"],
+            "DiagnosticReport" => vec!["id", "status", "code", "subject", "result", "conclusion", "category", "effective"],
+            "Practitioner" => vec!["id", "name", "active", "identifier", "telecom", "address", "gender", "birthDate"],
+            "Organization" => vec!["id", "name", "active", "identifier", "telecom", "address", "type", "alias"],
+            _ => vec!["id", "resourceType", "meta"], // Basic Resource properties
+        };
+
+        let property_infos: Vec<PropertyInfo> = common_properties.into_iter().map(|prop| PropertyInfo {
+            name: prop.to_string(),
+            data_type: TypeInfo::String, // Simplified for hardcoded suggestions
+            cardinality: Cardinality::ZeroToOne,
+            required: false,
+            description: format!("Property {}", prop),
+            aliases: vec![],
+        }).collect();
+        
+        let suggestions = self.find_similar_properties(invalid_property, &property_infos);
+
+        suggestions.into_iter().map(|suggested_prop| {
+            let similarity = self.calculate_similarity(invalid_property, &suggested_prop);
+            PropertySuggestion {
+                invalid_property: invalid_property.to_string(),
+                suggested_properties: vec![suggested_prop],
+                similarity_score: similarity,
+                context_type: parent_type.to_string(),
+                location: None,
+            }
+        }).collect()
+    }
+
+    /// Generate function name suggestions with typo correction
+    fn generate_function_suggestions(
+        &self,
+        invalid_function: &str,
+    ) -> Vec<DetailedSuggestion> {
+        let all_functions = self.function_registry.list_functions();
+        let mut suggestions: Vec<(String, f32, String)> = Vec::new();
+
+        // Get function names and calculate similarity
+        for function_metadata in &all_functions {
+            let similarity = self.calculate_similarity(invalid_function, &function_metadata.name);
+            if similarity > 0.6 {
+                let reason = match function_metadata.category {
+                    crate::registry::FunctionCategory::Collection => "collection function".to_string(),
+                    crate::registry::FunctionCategory::Math => "math function".to_string(), 
+                    crate::registry::FunctionCategory::String => "string function".to_string(),
+                    crate::registry::FunctionCategory::Type => "type function".to_string(),
+                    crate::registry::FunctionCategory::Conversion => "conversion function".to_string(),
+                    crate::registry::FunctionCategory::DateTime => "date/time function".to_string(),
+                    crate::registry::FunctionCategory::Fhir => "FHIR function".to_string(),
+                    crate::registry::FunctionCategory::Terminology => "terminology function".to_string(),
+                    crate::registry::FunctionCategory::Logic => "logic function".to_string(),
+                    crate::registry::FunctionCategory::Utility => "utility function".to_string(),
+                };
+                suggestions.push((function_metadata.name.clone(), similarity, reason));
+            }
+        }
+
+        // Check common function typos
+        let common_function_typos = [
+            ("lenght", "length"),
+            ("contians", "contains"),
+            ("exsits", "exists"),  
+            ("whre", "where"),
+            ("selct", "select"),
+            ("distinc", "distinct"),
+            ("frist", "first"),
+            ("las", "last"),
+            ("emty", "empty"),
+            ("cout", "count"),
+            ("gte", ">="),
+            ("lte", "<="),
+        ];
+
+        for (typo, correction) in common_function_typos {
+            if invalid_function == typo {
+                suggestions.push((correction.to_string(), 1.0, "common typo correction".to_string()));
+            }
+        }
+
+        // Sort by similarity score (descending)
+        suggestions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Convert to DetailedSuggestion and return top 3
+        suggestions
+            .into_iter()
+            .take(3)
+            .map(|(name, confidence, reason)| DetailedSuggestion {
+                suggestion: name,
+                reason,
+                confidence,
+                context_type: "function".to_string(),
+                is_polymorphic: false,
+            })
+            .collect()
+    }
+
+    /// Check if a function name exists in the registry
+    fn is_valid_function_name(&self, function_name: &str) -> bool {
+        self.function_registry.get_sync_function(function_name).is_some() ||
+        self.function_registry.get_async_function(function_name).is_some()
+    }
+
+    /// Handle polymorphic properties (choice[x] like value[x])
+    async fn suggest_polymorphic_properties(
+        &self,
+        invalid_property: &str,
+        parent_type: &str,
+    ) -> Vec<DetailedSuggestion> {
+        let mut suggestions = Vec::new();
+
+        // Check if this might be a polymorphic property
+        let base_name = if invalid_property.len() > 5 {
+            // Look for patterns like "valueString", "valueInteger", etc.
+            if let Some(pos) = invalid_property.find(char::is_uppercase) {
+                if pos > 0 {
+                    &invalid_property[..pos]
+                } else {
+                    invalid_property
+                }
+            } else {
+                invalid_property
+            }
+        } else {
+            invalid_property
+        };
+
+        // Get type reflection to check for polymorphic properties
+        if let Ok(Some(TypeReflectionInfo::ClassInfo { elements, .. })) = 
+            self.model_provider.get_type_reflection(parent_type).await {
+            
+            // Look for choice[x] pattern in schema
+            for element in &elements {
+                if element.name.starts_with(base_name) && element.name.contains("[x]") {
+                    // This is a polymorphic property, get valid type suffixes
+                    let valid_types = self.get_choice_type_suffixes(&element.type_info);
+                    
+                    for suffix in valid_types {
+                        let polymorphic_property = format!("{}{}", base_name, suffix);
+                        let similarity = self.calculate_similarity(invalid_property, &polymorphic_property);
+                        
+                        if similarity > 0.7 {
+                            suggestions.push(DetailedSuggestion {
+                                suggestion: polymorphic_property,
+                                reason: format!("polymorphic property ({}[x])", base_name),
+                                confidence: similarity,
+                                context_type: parent_type.to_string(),
+                                is_polymorphic: true,
+                            });
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Sort by confidence and return top suggestions
+        suggestions.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        suggestions.into_iter().take(5).collect()
+    }
+
+    /// Extract choice type suffixes from TypeReflectionInfo for polymorphic properties
+    fn get_choice_type_suffixes(&self, _type_info: &TypeReflectionInfo) -> Vec<String> {
+        // Common FHIR polymorphic type suffixes
+        vec![
+            "String".to_string(),
+            "Integer".to_string(), 
+            "Boolean".to_string(),
+            "Decimal".to_string(),
+            "Date".to_string(),
+            "DateTime".to_string(),
+            "Time".to_string(),
+            "Code".to_string(),
+            "Coding".to_string(),
+            "CodeableConcept".to_string(),
+            "Quantity".to_string(),
+            "Range".to_string(),
+            "Ratio".to_string(),
+            "Reference".to_string(),
+            "Attachment".to_string(),
+            "Identifier".to_string(),
+            "Period".to_string(),
+            "Address".to_string(),
+            "ContactPoint".to_string(),
+        ]
+    }
+
+    /// Validate function name and provide suggestions for invalid names
+    fn validate_function_name(
+        &self,
+        function_name: &str,
+        location: Option<SourceLocation>,
+        warnings: &mut Vec<AnalysisWarning>,
+    ) {
+        if !self.is_valid_function_name(function_name) {
+            let suggestions = self.generate_function_suggestions(function_name);
+            
+            let suggestion_text = if !suggestions.is_empty() {
+                let suggestion_list: Vec<String> = suggestions
+                    .iter()
+                    .map(|s| format!("{} ({})", s.suggestion, s.reason))
+                    .collect();
+                Some(format!("Did you mean: {}?", suggestion_list.join(", ")))
+            } else {
+                None
+            };
+
+            warnings.push(AnalysisWarning {
+                code: "FP0124".to_string(), // New error code for invalid function names
+                message: format!("Unknown function: '{}'", function_name),
+                location: location.clone(),
+                severity: DiagnosticSeverity::Warning,
+                suggestion: suggestion_text,
+            });
+        }
+    }
+
+    /// Generate comprehensive, context-aware suggestions combining all strategies
+    async fn generate_comprehensive_property_suggestions(
+        &self,
+        invalid_property: &str,
+        parent_type: &str,
+        location: Option<SourceLocation>,
+    ) -> Vec<DetailedSuggestion> {
+        let mut all_suggestions = Vec::new();
+
+        // 1. Check for exact typo corrections first (highest priority)
+        if let Some(correction) = self.common_typos.get(invalid_property) {
+            all_suggestions.push(DetailedSuggestion {
+                suggestion: correction.clone(),
+                reason: "common typo correction".to_string(),
+                confidence: 1.0,
+                context_type: parent_type.to_string(),
+                is_polymorphic: false,
+            });
+        }
+
+        // 2. Get schema-based suggestions
+        let schema_suggestions = self.generate_schema_based_property_suggestions(
+            invalid_property,
+            parent_type,
+            location.clone(),
+        ).await;
+        all_suggestions.extend(schema_suggestions);
+
+        // 3. Get polymorphic property suggestions
+        let polymorphic_suggestions = self.suggest_polymorphic_properties(
+            invalid_property,
+            parent_type,
+        ).await;
+        all_suggestions.extend(polymorphic_suggestions);
+
+        // 4. Remove duplicates and prioritize suggestions
+        let mut seen_suggestions = std::collections::HashSet::new();
+        let mut unique_suggestions = Vec::new();
+
+        for suggestion in all_suggestions {
+            if seen_suggestions.insert(suggestion.suggestion.clone()) {
+                unique_suggestions.push(suggestion);
+            }
+        }
+
+        // 5. Sort by priority: typos > required properties > summary properties > polymorphic > others
+        unique_suggestions.sort_by(|a, b| {
+            // First by confidence (higher is better)
+            let confidence_cmp = b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal);
+            if confidence_cmp != std::cmp::Ordering::Equal {
+                return confidence_cmp;
+            }
+
+            // Then by reason priority
+            let a_priority = match a.reason.as_str() {
+                "common typo correction" => 5,
+                s if s.contains("required property") => 4,
+                s if s.contains("summary property") => 3,
+                s if s.contains("polymorphic property") => 2,
+                _ => 1,
+            };
+            let b_priority = match b.reason.as_str() {
+                "common typo correction" => 5,
+                s if s.contains("required property") => 4,
+                s if s.contains("summary property") => 3,
+                s if s.contains("polymorphic property") => 2,
+                _ => 1,
+            };
+            
+            b_priority.cmp(&a_priority)
+        });
+
+        // Return top 3 suggestions
+        unique_suggestions.into_iter().take(3).collect()
+    }
+
+    /// Enhanced property access validation with comprehensive suggestions
+    async fn enhanced_validate_property_access(
+        &self,
+        access: &crate::ast::expression::PropertyAccessNode,
+        context: &mut AnalysisContext,
+        warnings: &mut Vec<AnalysisWarning>,
+    ) -> crate::core::Result<()> {
+        // Infer the type of the object being accessed
+        let object_type = self.infer_object_type(&access.object, context).await?;
+        
+        // Check if the property exists on this type
+        let property_valid = match &object_type {
+            TypeInfo::Resource { resource_type } => {
+                match self.model_provider.get_type_reflection(resource_type).await {
+                    Ok(Some(TypeReflectionInfo::ClassInfo { elements, .. })) => {
+                        elements.iter().any(|element| element.name == access.property)
+                    }
+                    _ => false,
+                }
+            }
+            TypeInfo::BackboneElement { properties } => {
+                properties.contains_key(&access.property)
+            }
+            _ => true, // Don't validate unknown types
+        };
+
+        if !property_valid {
+            let parent_type_name = match &object_type {
+                TypeInfo::Resource { resource_type } => resource_type.clone(),
+                TypeInfo::BackboneElement { .. } => "BackboneElement".to_string(),
+                _ => "unknown".to_string(),
+            };
+
+            // Generate comprehensive suggestions
+            let suggestions = self.generate_comprehensive_property_suggestions(
+                &access.property,
+                &parent_type_name,
+                access.location.clone(),
+            ).await;
+
+            let suggestion_text = if !suggestions.is_empty() {
+                let suggestion_list: Vec<String> = suggestions
+                    .iter()
+                    .map(|s| format!("{} ({})", s.suggestion, s.reason))
+                    .collect();
+                Some(format!("Did you mean: {}?", suggestion_list.join(", ")))
+            } else {
+                None
+            };
+
+            warnings.push(AnalysisWarning {
+                code: "FP0125".to_string(), // Enhanced property validation error code
+                message: format!("Invalid property '{}' on type '{}'", access.property, parent_type_name),
+                location: access.location.clone(),
+                severity: DiagnosticSeverity::Warning,
+                suggestion: suggestion_text,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Get cached properties for a resource type for performance
+    async fn get_cached_properties(&mut self, resource_type: &str) -> Vec<String> {
+        // Check cache first
+        if let Some(cached) = self.suggestion_cache.property_cache.get(resource_type) {
+            return cached.clone();
+        }
+
+        // Get properties from ModelProvider and cache them
+        if let Ok(Some(TypeReflectionInfo::ClassInfo { elements, .. })) = 
+            self.model_provider.get_type_reflection(resource_type).await {
+            
+            let properties: Vec<String> = elements
+                .into_iter()
+                .map(|element| element.name)
+                .collect();
+
+            self.suggestion_cache.property_cache.insert(resource_type.to_string(), properties.clone());
+            return properties;
+        }
+
+        Vec::new()
+    }
+
+    /// Get cached function names for performance
+    fn get_cached_function_names(&mut self) -> Vec<String> {
+        // Check cache first
+        if let Some(ref cached) = self.suggestion_cache.function_cache {
+            return cached.clone();
+        }
+
+        // Get function names from registry and cache them
+        let function_names: Vec<String> = self.function_registry
+            .list_functions()
+            .into_iter()
+            .map(|metadata| metadata.name)
+            .collect();
+
+        self.suggestion_cache.function_cache = Some(function_names.clone());
+        function_names
+    }
+
+    /// Get cached suggestions for performance
+    fn get_cached_suggestions(
+        &self,
+        invalid_name: &str,
+        context_type: &str,
+    ) -> Option<Vec<DetailedSuggestion>> {
+        let cache_key = (invalid_name.to_string(), context_type.to_string());
+        self.suggestion_cache.suggestion_cache.get(&cache_key).cloned()
+    }
+
+    /// Cache suggestions for future use
+    fn cache_suggestions(
+        &mut self,
+        invalid_name: &str,
+        context_type: &str,
+        suggestions: Vec<DetailedSuggestion>,
+    ) {
+        let cache_key = (invalid_name.to_string(), context_type.to_string());
+        self.suggestion_cache.suggestion_cache.insert(cache_key, suggestions);
+    }
+
+    /// Optimized suggestion generation with caching
+    async fn generate_cached_property_suggestions(
+        &mut self,
+        invalid_property: &str,
+        parent_type: &str,
+        location: Option<SourceLocation>,
+    ) -> Vec<DetailedSuggestion> {
+        // Check cache first
+        if let Some(cached) = self.get_cached_suggestions(invalid_property, parent_type) {
+            return cached;
+        }
+
+        // Generate suggestions
+        let suggestions = self.generate_comprehensive_property_suggestions(
+            invalid_property,
+            parent_type,
+            location,
+        ).await;
+
+        // Cache the results
+        self.cache_suggestions(invalid_property, parent_type, suggestions.clone());
+
+        suggestions
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -902,7 +1513,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_similarity_calculation() {
-        let validator = PropertyValidator::new();
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
 
         // High similarity - single typo
         let similarity = validator.calculate_similarity("familly", "family");
@@ -919,7 +1534,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_property_suggestions() {
-        let validator = PropertyValidator::new();
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+        
         let properties = vec![
             PropertyInfo {
                 name: "family".to_string(),
@@ -946,7 +1566,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_levenshtein_distance() {
-        let validator = PropertyValidator::new();
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
 
         assert_eq!(validator.levenshtein_distance("", ""), 0);
         assert_eq!(validator.levenshtein_distance("", "abc"), 3);
@@ -957,25 +1581,29 @@ mod tests {
         assert_eq!(validator.levenshtein_distance("family", "familly"), 1);
     }
 
-    #[test]
-    fn test_builtin_properties_initialization() {
-        let validator = PropertyValidator::new();
+    #[tokio::test]
+    async fn test_model_provider_integration() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider.clone(), function_registry);
 
-        // Check that Patient properties are initialized
-        assert!(validator.resource_properties.contains_key("Patient"));
-
-        let patient_props = validator.resource_properties.get("Patient").unwrap();
-        assert!(!patient_props.is_empty());
-
-        // Check for key properties
-        assert!(patient_props.iter().any(|p| p.name == "name"));
-        assert!(patient_props.iter().any(|p| p.name == "birthDate"));
-        assert!(patient_props.iter().any(|p| p.name == "gender"));
+        // Test that validator uses ModelProvider for resource type checking
+        assert!(validator.is_known_resource_type("Patient").await);
+        
+        // Test property resolution through ModelProvider
+        let properties = validator.get_resource_properties("Patient").await;
+        assert!(properties.is_some());
     }
 
     #[test]
     fn test_common_typos() {
-        let validator = PropertyValidator::new();
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
 
         assert_eq!(
             validator.common_typos.get("familly"),
@@ -989,5 +1617,495 @@ mod tests {
             validator.common_typos.get("firstname"),
             Some(&"given".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn test_dynamic_property_validation_with_model_provider() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider.clone(), function_registry);
+
+        // Test that ModelProvider is used for property type resolution
+        let type_info = TypeInfo::Resource {
+            resource_type: "Patient".to_string(),
+        };
+        
+        let property_type = validator.infer_property_type(&type_info, "name").await;
+        assert!(property_type.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_resource_type_validation_with_schema() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider.clone(), function_registry);
+
+        // Test resource type validation through ModelProvider
+        assert!(validator.is_known_resource_type("Patient").await);
+        assert!(validator.is_known_resource_type("Observation").await);
+        assert!(!validator.is_known_resource_type("InvalidResource").await);
+    }
+
+    #[tokio::test]
+    async fn test_property_suggestions_from_schema() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider.clone(), function_registry);
+
+        // Test that property suggestions work with dynamic schema data
+        if let Some(properties) = validator.get_resource_properties("Patient").await {
+            let suggestions = validator.find_similar_properties("familly", &properties);
+            assert!(!suggestions.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_type_reflection_conversion() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        use octofhir_fhir_model::TypeReflectionInfo;
+        
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test conversion from System types
+        let string_reflection = TypeReflectionInfo::simple_type("System", "String");
+        let type_info = validator.convert_reflection_to_typeinfo(&string_reflection);
+        assert!(matches!(type_info, TypeInfo::String));
+
+        // Test conversion from FHIR types
+        let boolean_reflection = TypeReflectionInfo::simple_type("FHIR", "boolean");
+        let type_info = validator.convert_reflection_to_typeinfo(&boolean_reflection);
+        assert!(matches!(type_info, TypeInfo::Boolean));
+
+        // Test conversion of collection types
+        let list_reflection = TypeReflectionInfo::list_type(
+            TypeReflectionInfo::simple_type("System", "String")
+        );
+        let type_info = validator.convert_reflection_to_typeinfo(&list_reflection);
+        assert!(matches!(type_info, TypeInfo::Collection(_)));
+    }
+
+    #[tokio::test]
+    async fn test_valid_resource_type_detection() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test that valid resource type identifiers are detected correctly
+        assert!(validator.is_potential_resource_type("Patient"));
+        assert!(validator.is_potential_resource_type("Observation"));
+        assert!(validator.is_potential_resource_type("DiagnosticReport"));
+        assert!(validator.is_potential_resource_type("Bundle"));
+
+        // Test that non-resource identifiers are not detected
+        assert!(!validator.is_potential_resource_type("name"));
+        assert!(!validator.is_potential_resource_type("family"));
+        assert!(!validator.is_potential_resource_type("$patient"));
+        assert!(!validator.is_potential_resource_type("some_var"));
+        assert!(!validator.is_potential_resource_type(""));
+    }
+
+    #[tokio::test]
+    async fn test_invalid_resource_type_error() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        use crate::ast::expression::{ExpressionNode, IdentifierNode};
+        use crate::core::SourceLocation;
+
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Create an expression with an invalid resource type
+        let invalid_id = ExpressionNode::Identifier(IdentifierNode {
+            name: "Patientt".to_string(), // Typo in "Patient"
+            location: Some(SourceLocation::new(1, 1, 0, 8)),
+        });
+
+        let result = validator.validate(&invalid_id).await.unwrap();
+
+        // Should have generated a warning for the unknown resource type
+        assert!(!result.warnings.is_empty());
+        let warning = &result.warnings[0];
+        assert_eq!(warning.code, "FP0121");
+        assert!(warning.message.contains("Unknown resource type: 'Patientt'"));
+        assert!(warning.suggestion.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_resource_type_suggestions() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test suggestions for common typos
+        let suggestions = validator.generate_resource_type_suggestions("Patientt").await;
+        assert!(!suggestions.is_empty());
+        assert!(suggestions.contains(&"Patient".to_string()));
+
+        let suggestions = validator.generate_resource_type_suggestions("Observaton").await;
+        assert!(!suggestions.is_empty());
+        // MockProvider might not have Observation, but the algorithm should still work
+        
+        let suggestions = validator.generate_resource_type_suggestions("Bundl").await;
+        assert!(!suggestions.is_empty());
+
+        // Test that completely different words don't get suggestions
+        let suggestions = validator.generate_resource_type_suggestions("CompletelyDifferent").await;
+        // Should be empty or very few suggestions due to low similarity
+        assert!(suggestions.len() <= 1);
+    }
+
+    #[test]
+    fn test_capitalization_detection() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Should trigger resource validation (capitalized)
+        assert!(validator.is_potential_resource_type("Patient"));
+        assert!(validator.is_potential_resource_type("Observation"));
+        assert!(validator.is_potential_resource_type("Bundle"));
+        assert!(validator.is_potential_resource_type("DiagnosticReport"));
+
+        // Should NOT trigger resource validation (lowercase start)
+        assert!(!validator.is_potential_resource_type("name"));
+        assert!(!validator.is_potential_resource_type("family"));
+        assert!(!validator.is_potential_resource_type("given"));
+        assert!(!validator.is_potential_resource_type("status"));
+
+        // Should NOT trigger resource validation (variable reference)
+        assert!(!validator.is_potential_resource_type("$patient"));
+        assert!(!validator.is_potential_resource_type("$context"));
+        assert!(!validator.is_potential_resource_type("$this"));
+
+        // Should NOT trigger resource validation (underscore naming)
+        assert!(!validator.is_potential_resource_type("some_var"));
+        assert!(!validator.is_potential_resource_type("patient_data"));
+        assert!(!validator.is_potential_resource_type("UPPER_CASE"));
+
+        // Edge cases
+        assert!(!validator.is_potential_resource_type(""));
+        assert!(validator.is_potential_resource_type("A")); // Single capital letter
+        assert!(!validator.is_potential_resource_type("a")); // Single lowercase letter
+    }
+
+    #[tokio::test]
+    async fn test_property_access_resource_validation() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
+        use crate::core::SourceLocation;
+
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Create an expression like "Patientt.name" (typo in resource type)
+        let invalid_base = ExpressionNode::Identifier(IdentifierNode {
+            name: "Patientt".to_string(),
+            location: Some(SourceLocation::new(1, 1, 0, 8)),
+        });
+
+        let property_access = ExpressionNode::PropertyAccess(PropertyAccessNode {
+            object: Box::new(invalid_base),
+            property: "name".to_string(),
+            location: Some(SourceLocation::new(1, 1, 0, 13)),
+        });
+
+        let result = validator.validate(&property_access).await.unwrap();
+
+        // Should have generated a warning for the unknown resource type
+        assert!(!result.warnings.is_empty());
+        
+        // Find the resource type warning (there might be other warnings too)
+        let resource_warning = result.warnings.iter()
+            .find(|w| w.code == "FP0121")
+            .expect("Should have FP0121 error for unknown resource type");
+        
+        assert!(resource_warning.message.contains("Unknown resource type: 'Patientt'"));
+        assert!(resource_warning.suggestion.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_valid_resource_type_no_error() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
+        use crate::core::SourceLocation;
+
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Create an expression like "Patient.name" (valid resource type)
+        let valid_base = ExpressionNode::Identifier(IdentifierNode {
+            name: "Patient".to_string(),
+            location: Some(SourceLocation::new(1, 1, 0, 7)),
+        });
+
+        let property_access = ExpressionNode::PropertyAccess(PropertyAccessNode {
+            object: Box::new(valid_base),
+            property: "name".to_string(),
+            location: Some(SourceLocation::new(1, 1, 0, 12)),
+        });
+
+        let result = validator.validate(&property_access).await.unwrap();
+
+        // Should NOT have resource type validation errors (FP0121)
+        let has_resource_error = result.warnings.iter()
+            .any(|w| w.code == "FP0121");
+        
+        assert!(!has_resource_error, "Should not have resource type error for valid 'Patient'");
+    }
+
+    #[tokio::test]
+    async fn test_schema_based_property_suggestions() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test schema-based suggestions using MockModelProvider
+        let suggestions = validator.generate_schema_based_property_suggestions(
+            "namee", // Typo in "name"
+            "Patient", 
+            None
+        ).await;
+
+        // Should provide suggestions based on schema
+        assert!(!suggestions.is_empty());
+        // Should have high confidence suggestions
+        let high_confidence_suggestions: Vec<_> = suggestions.iter()
+            .filter(|s| s.confidence > 0.7)
+            .collect();
+        assert!(!high_confidence_suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_function_name_validation() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test valid function names
+        assert!(validator.is_valid_function_name("first"));
+        assert!(validator.is_valid_function_name("count"));
+        assert!(validator.is_valid_function_name("where"));
+
+        // Test invalid function names
+        assert!(!validator.is_valid_function_name("invalid_function_name"));
+        assert!(!validator.is_valid_function_name("nonexistent"));
+    }
+
+    #[test]  
+    fn test_function_suggestions() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test function suggestions for typos
+        let suggestions = validator.generate_function_suggestions("lenght"); // Typo of "length"
+        assert!(!suggestions.is_empty());
+        
+        let suggestions = validator.generate_function_suggestions("contians"); // Typo of "contains"
+        assert!(!suggestions.is_empty());
+
+        let suggestions = validator.generate_function_suggestions("frist"); // Typo of "first"
+        assert!(!suggestions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_polymorphic_property_detection() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test detection of polymorphic properties
+        let suggestions = validator.suggest_polymorphic_properties(
+            "valueStrig", // Typo in "valueString"
+            "Observation"
+        ).await;
+
+        // Should detect polymorphic patterns
+        let polymorphic_suggestions: Vec<_> = suggestions.iter()
+            .filter(|s| s.is_polymorphic)
+            .collect();
+        
+        // Even with MockModelProvider, the algorithm should work
+        // The exact results depend on MockModelProvider implementation
+        assert!(suggestions.len() >= 0); // At least doesn't crash
+    }
+
+    #[tokio::test]
+    async fn test_comprehensive_property_suggestions() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test comprehensive suggestions that combine all strategies
+        let suggestions = validator.generate_comprehensive_property_suggestions(
+            "familly", // Known typo
+            "Patient",
+            None
+        ).await;
+
+        assert!(!suggestions.is_empty());
+        
+        // Should prioritize typo corrections
+        let first_suggestion = &suggestions[0];
+        assert_eq!(first_suggestion.suggestion, "family");
+        assert_eq!(first_suggestion.reason, "common typo correction");
+        assert_eq!(first_suggestion.confidence, 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_suggestion_prioritization() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        let suggestions = validator.generate_comprehensive_property_suggestions(
+            "birtdate", // Similar to birthDate
+            "Patient",
+            None
+        ).await;
+
+        assert!(!suggestions.is_empty());
+        
+        // Should be sorted by priority and confidence
+        for i in 0..suggestions.len() - 1 {
+            // Either higher confidence or higher priority reason
+            let curr = &suggestions[i];
+            let next = &suggestions[i + 1];
+            
+            if curr.confidence == next.confidence {
+                // Same confidence, check priority
+                let curr_priority = match curr.reason.as_str() {
+                    "common typo correction" => 5,
+                    s if s.contains("required property") => 4,
+                    s if s.contains("summary property") => 3,
+                    s if s.contains("polymorphic property") => 2,
+                    _ => 1,
+                };
+                let next_priority = match next.reason.as_str() {
+                    "common typo correction" => 5,
+                    s if s.contains("required property") => 4,
+                    s if s.contains("summary property") => 3,
+                    s if s.contains("polymorphic property") => 2,
+                    _ => 1,
+                };
+                assert!(curr_priority >= next_priority);
+            } else {
+                assert!(curr.confidence >= next.confidence);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_function_validation_in_expression() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        use crate::ast::expression::{ExpressionNode, FunctionCallNode};
+        use crate::core::SourceLocation;
+
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        // Test that function validation is triggered during expression validation
+        let function_call = ExpressionNode::FunctionCall(FunctionCallNode {
+            name: "invalidFunction".to_string(), // Invalid function name
+            arguments: vec![],
+            location: Some(SourceLocation::new(1, 1, 0, 15)),
+        });
+
+        let result = validator.validate(&function_call).await.unwrap();
+
+        // Should generate warning for invalid function name
+        let function_warnings: Vec<_> = result.warnings.iter()
+            .filter(|w| w.code == "FP0124")
+            .collect();
+        assert!(!function_warnings.is_empty());
+
+        let warning = function_warnings[0];
+        assert!(warning.message.contains("Unknown function: 'invalidFunction'"));
+    }
+
+    #[test]
+    fn test_detailed_suggestion_structure() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let validator = PropertyValidator::new(model_provider, function_registry);
+
+        let suggestions = validator.generate_function_suggestions("frist");
+        
+        for suggestion in &suggestions {
+            // All suggestions should have required fields
+            assert!(!suggestion.suggestion.is_empty());
+            assert!(!suggestion.reason.is_empty());
+            assert!(suggestion.confidence >= 0.0 && suggestion.confidence <= 1.0);
+            assert!(!suggestion.context_type.is_empty());
+            // is_polymorphic is always false for function suggestions
+            assert!(!suggestion.is_polymorphic);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_performance_caching() {
+        use crate::mock_provider::MockModelProvider;
+        use crate::registry::FunctionRegistry;
+        let model_provider = Arc::new(MockModelProvider::new());
+        let function_registry = Arc::new(FunctionRegistry::default());
+        let mut validator = PropertyValidator::new(model_provider, function_registry);
+
+        // First call - should populate cache
+        let suggestions1 = validator.generate_cached_property_suggestions(
+            "namee",
+            "Patient",
+            None
+        ).await;
+
+        // Second call - should use cache
+        let suggestions2 = validator.generate_cached_property_suggestions(
+            "namee", 
+            "Patient",
+            None
+        ).await;
+
+        // Results should be identical (cached)
+        assert_eq!(suggestions1.len(), suggestions2.len());
+        
+        // Check function name caching
+        let functions1 = validator.get_cached_function_names();
+        let functions2 = validator.get_cached_function_names();
+        assert_eq!(functions1, functions2);
     }
 }

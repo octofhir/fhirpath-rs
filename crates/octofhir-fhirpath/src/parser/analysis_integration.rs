@@ -147,7 +147,7 @@ impl ComprehensiveAnalyzer {
                 }
             }
             crate::diagnostics::DiagnosticSeverity::Hint => {
-                if let Some(help_text) = help {
+                if let Some(_help_text) = help {
                     self.collector
                         .note(error_code, diagnostic.message.clone(), span);
                 } else {
@@ -245,7 +245,7 @@ impl ComprehensiveAnalyzer {
     }
 
     /// Perform static analysis on AST
-    fn analyze_ast(&mut self, ast: &ExpressionNode, _expression: &str) -> bool {
+    fn analyze_ast(&mut self, _ast: &ExpressionNode, _expression: &str) -> bool {
         // TODO: Implement comprehensive static analysis
         // This will be expanded in later tasks with:
         // - Type checking

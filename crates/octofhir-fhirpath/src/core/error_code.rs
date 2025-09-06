@@ -163,6 +163,11 @@ impl ErrorRegistry {
             108 => &FP0108_INFO,
             109 => &FP0109_INFO,
             110 => &FP0110_INFO,
+            121 => &FP0121_INFO,
+            122 => &FP0122_INFO,
+            123 => &FP0123_INFO,
+            124 => &FP0124_INFO,
+            125 => &FP0125_INFO,
 
             // Analysis Errors (FP0151-FP0200)
             151 => &FP0151_INFO,
@@ -236,6 +241,11 @@ pub const FP0107: ErrorCode = ErrorCode::new(107); // Invalid FHIR resource
 pub const FP0108: ErrorCode = ErrorCode::new(108); // Unsupported FHIR version
 pub const FP0109: ErrorCode = ErrorCode::new(109); // Missing required property
 pub const FP0110: ErrorCode = ErrorCode::new(110); // Invalid reference format
+pub const FP0121: ErrorCode = ErrorCode::new(121); // Unknown resource type
+pub const FP0122: ErrorCode = ErrorCode::new(122); // Resource type suggestion available
+pub const FP0123: ErrorCode = ErrorCode::new(123); // Invalid resource type format
+pub const FP0124: ErrorCode = ErrorCode::new(124); // Unknown function name
+pub const FP0125: ErrorCode = ErrorCode::new(125); // Enhanced property validation
 
 // Analysis Error Codes (FP0151-FP0200)
 pub const FP0151: ErrorCode = ErrorCode::new(151); // Type inference failed
@@ -543,6 +553,41 @@ static FP0110_INFO: ErrorInfo = ErrorInfo::new(
     "Invalid reference format",
     "A reference has invalid syntax or format.",
     "Check that references follow the correct FHIR reference format (e.g., 'ResourceType/id').",
+);
+
+static FP0121_INFO: ErrorInfo = ErrorInfo::new(
+    121,
+    "Unknown resource type",
+    "The specified resource type is not recognized in the current FHIR schema.",
+    "Check the FHIR specification for valid resource types. Consider using a spell checker for typos.",
+);
+
+static FP0122_INFO: ErrorInfo = ErrorInfo::new(
+    122,
+    "Resource type suggestion available",
+    "A similar resource type was found that might be what you intended.",
+    "Consider using the suggested resource type if it matches your intent.",
+);
+
+static FP0123_INFO: ErrorInfo = ErrorInfo::new(
+    123,
+    "Invalid resource type format",
+    "The resource type name does not follow FHIR naming conventions.",
+    "Resource types should be PascalCase without underscores (e.g., 'Patient', 'DiagnosticReport').",
+);
+
+static FP0124_INFO: ErrorInfo = ErrorInfo::new(
+    124,
+    "Unknown function name",
+    "The specified function is not recognized in the FHIRPath function registry.",
+    "Check the FHIRPath specification for valid function names. Consider checking for typos or using the suggested alternatives.",
+);
+
+static FP0125_INFO: ErrorInfo = ErrorInfo::new(
+    125,
+    "Invalid property access",
+    "The specified property does not exist on the given type according to the FHIR schema.",
+    "Check the FHIR specification for valid properties on this type. Consider using the suggested alternatives or checking for typos.",
 );
 
 // Analysis Error Information (FP0151-FP0200)

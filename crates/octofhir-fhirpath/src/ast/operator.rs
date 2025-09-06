@@ -86,31 +86,31 @@ impl BinaryOperator {
     pub fn precedence(self) -> u8 {
         match self {
             // Highest precedence: Type operators
-            Self::Is | Self::As => 12,
+            Self::Is | Self::As => 13,
 
             // Multiplicative operators
-            Self::Multiply | Self::Divide | Self::IntegerDivide | Self::Modulo => 11,
+            Self::Multiply | Self::Divide | Self::IntegerDivide | Self::Modulo => 12,
 
             // Additive operators
-            Self::Add | Self::Subtract => 10,
+            Self::Add | Self::Subtract => 11,
 
             // Collection operators
-            Self::Union => 9,
+            Self::Union => 10,
 
             // Relational operators
             Self::LessThan
             | Self::LessThanOrEqual
             | Self::GreaterThan
-            | Self::GreaterThanOrEqual => 8,
+            | Self::GreaterThanOrEqual => 9,
+
+            // String concatenation (should bind tighter than comparisons)
+            Self::Concatenate => 8,
 
             // Equality operators
             Self::Equal | Self::NotEqual | Self::Equivalent | Self::NotEquivalent => 7,
 
             // Membership operators
             Self::In | Self::Contains => 6,
-
-            // String concatenation
-            Self::Concatenate => 5,
 
             // Logical AND
             Self::And => 4,
@@ -275,7 +275,7 @@ impl BinaryOperator {
 impl UnaryOperator {
     /// Get the precedence level of unary operators (always high)
     pub fn precedence() -> u8 {
-        13 // Higher than all binary operators
+        14 // Higher than all binary operators
     }
 
     /// Get the symbol representation of this operator

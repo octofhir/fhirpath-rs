@@ -13,6 +13,52 @@ use crate::parser::parse_ast;
 use crate::registry::FunctionRegistry;
 
 use super::context::EvaluationContext;
+
+/// Helper function to convert FhirPathValue to Collection for backward compatibility
+fn value_to_collection(value: FhirPathValue) -> Collection {
+    match value {
+        FhirPathValue::Collection(vec) => Collection::from_values(vec),
+        single_value => Collection::single(single_value),
+    }
+}
+
+/// Helper function to get the length of a FhirPathValue (treating single values as length 1)
+fn value_len(value: &FhirPathValue) -> usize {
+    match value {
+        FhirPathValue::Collection(vec) => vec.len(),
+        _ => 1,
+    }
+}
+
+/// Helper function to get an item at index from FhirPathValue
+fn value_get(value: &FhirPathValue, index: usize) -> Option<&FhirPathValue> {
+    match value {
+        FhirPathValue::Collection(vec) => vec.get(index),
+        single_value if index == 0 => Some(single_value),
+        _ => None,
+    }
+}
+
+/// Helper function to get the first item from FhirPathValue
+fn value_first(value: &FhirPathValue) -> Option<&FhirPathValue> {
+    value_get(value, 0)
+}
+
+/// Helper function to iterate over FhirPathValue items
+fn value_iter(value: &FhirPathValue) -> Box<dyn Iterator<Item = &FhirPathValue> + '_> {
+    match value {
+        FhirPathValue::Collection(vec) => Box::new(vec.iter()),
+        single_value => Box::new(std::iter::once(single_value)),
+    }
+}
+
+/// Helper function to convert FhirPathValue to Vec<FhirPathValue>
+fn value_into_vec(value: FhirPathValue) -> Vec<FhirPathValue> {
+    match value {
+        FhirPathValue::Collection(vec) => vec,
+        single_value => vec![single_value],
+    }
+}
 use super::{cache::CacheStats, config::EngineConfig, metrics::EvaluationMetrics};
 
 /// Result of expression evaluation with metrics and warnings
@@ -189,7 +235,7 @@ impl FhirPathEngine {
         let total_time = start_time.elapsed();
 
         Ok(EvaluationResult {
-            value: result.value,
+            value: value_to_collection(result.value),
             metrics: EvaluationMetrics {
                 total_time_us: total_time.as_micros() as u64,
                 parse_time_us: parse_time.as_micros() as u64,
@@ -358,7 +404,7 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<Collection> {
         let result = self.evaluate_ast_internal(ast, context).await?;
-        Ok(result.value)
+        Ok(value_to_collection(result.value))
     }
 
     /// Parse expression with optional caching
@@ -500,8 +546,8 @@ struct ExpressionEvaluator {
 
 /// Internal evaluation result with comprehensive metrics
 struct InternalEvaluationResult {
-    /// Resulting collection from evaluation
-    value: Collection,
+    /// Resulting value from evaluation (can be single value or collection)
+    value: FhirPathValue,
     /// Number of function calls made
     function_calls: usize,
     /// Number of model provider operations
@@ -567,6 +613,7 @@ impl ExpressionEvaluator {
         })
     }
 
+
     /// Evaluate expression node with recursion protection
     ///
     /// This method handles the core evaluation logic with recursion depth checking
@@ -583,12 +630,12 @@ impl ExpressionEvaluator {
     /// * `context` - Evaluation context with variables and services
     ///
     /// # Returns
-    /// * `Collection` - Evaluation result
+    /// * `FhirPathValue` - Evaluation result (single value or collection)
     fn evaluate_expression<'a>(
         &'a mut self,
         node: &'a ExpressionNode,
         context: &'a EvaluationContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Collection>> + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + 'a>> {
         Box::pin(async move {
             // Enhanced recursion depth checking with detailed error information
             if self.recursion_depth > self.config.max_recursion_depth {
@@ -617,56 +664,77 @@ impl ExpressionEvaluator {
 
             self.recursion_depth += 1;
 
-            let result = match node {
-                ExpressionNode::Literal(literal_node) => self.evaluate_literal(&literal_node.value),
+            // Use internal evaluation that works with Vec<FhirPathValue>
+            let values = self.evaluate_expression_internal(node, context).await?;
+            self.recursion_depth -= 1;
+            
+            // Return appropriate FhirPathValue based on result size
+            match values.len() {
+                0 => Ok(FhirPathValue::Collection(vec![])), // Empty collection
+                1 => Ok(values.into_iter().next().unwrap()), // Single value - return directly
+                _ => Ok(FhirPathValue::Collection(values)),   // Multiple values - wrap in collection
+            }
+        })
+    }
+
+    /// Internal evaluation method that works with Vec<FhirPathValue> to avoid unnecessary collection wrapping
+    fn evaluate_expression_internal<'a>(
+        &'a mut self,
+        node: &'a ExpressionNode,
+        context: &'a EvaluationContext,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + 'a>> {
+        Box::pin(async move {
+
+            match node {
+                ExpressionNode::Literal(literal_node) => self.evaluate_literal_internal(&literal_node.value),
                 ExpressionNode::Identifier(identifier_node) => {
-                    self.evaluate_identifier(&identifier_node.name, context)
+                    self.evaluate_identifier_internal(&identifier_node.name, context)
                         .await
                 }
                 ExpressionNode::BinaryOperation(binary_node) => {
-                    self.evaluate_binary_operation(binary_node, context).await
+                    self.evaluate_binary_operation_internal(binary_node, context).await
                 }
                 ExpressionNode::MethodCall(method_node) => {
-                    self.evaluate_method_call(method_node, context).await
+                    self.evaluate_method_call_internal(method_node, context).await
                 }
                 ExpressionNode::PropertyAccess(property_node) => {
-                    self.evaluate_property_access(property_node, context).await
+                    self.evaluate_property_access_internal(property_node, context).await
                 }
                 ExpressionNode::IndexAccess(index_node) => {
-                    self.evaluate_index_access(index_node, context).await
+                    self.evaluate_index_access_internal(index_node, context).await
                 }
                 ExpressionNode::FunctionCall(function_node) => {
-                    self.evaluate_function_call(function_node, context).await
+                    self.evaluate_function_call_internal(function_node, context).await
                 }
                 ExpressionNode::Lambda(lambda_node) => {
-                    self.evaluate_lambda_expression(lambda_node, context).await
+                    self.evaluate_lambda_expression_internal(lambda_node, context).await
                 }
                 ExpressionNode::Variable(variable_node) => {
-                    self.evaluate_variable(&variable_node.name, context)
+                    self.evaluate_variable_internal(&variable_node.name, context)
                 }
                 ExpressionNode::Collection(collection_node) => {
-                    self.evaluate_collection_literal(collection_node, context)
+                    self.evaluate_collection_literal_internal(collection_node, context)
                         .await
                 }
                 ExpressionNode::Filter(filter_node) => {
-                    self.evaluate_filter_expression(filter_node, context).await
+                    self.evaluate_filter_expression_internal(filter_node, context).await
                 }
-                ExpressionNode::Union(union_node) => self.evaluate_union(union_node, context).await,
+                ExpressionNode::Union(union_node) => self.evaluate_union_internal(union_node, context).await,
                 ExpressionNode::Parenthesized(inner) => {
                     // Handle parenthesized expressions by evaluating the inner expression
-                    self.evaluate_expression(inner, context).await
+                    self.evaluate_expression_internal(inner, context).await
                 }
                 ExpressionNode::UnaryOperation(unary_node) => {
-                    self.evaluate_unary_operation(unary_node, context).await
+                    self.evaluate_unary_operation_internal(unary_node, context).await
                 }
                 ExpressionNode::TypeCast(typecast_node) => {
-                    self.evaluate_type_cast(typecast_node, context).await
+                    self.evaluate_type_cast_internal(typecast_node, context).await
                 }
                 ExpressionNode::TypeCheck(typecheck_node) => {
-                    self.evaluate_type_check(typecheck_node, context).await
+                    self.evaluate_type_check_internal(typecheck_node, context).await
                 }
                 _ => {
-                    // Return empty collection for remaining unsupported AST nodes
+                    // Return empty vector for remaining unsupported AST nodes
                     // TODO: Implement evaluation for: Path
                     self.warnings.push(EvaluationWarning {
                         code: "W002".to_string(),
@@ -678,23 +746,20 @@ impl ExpressionEvaluator {
                             .location()
                             .map(|loc| loc.offset..(loc.offset + loc.length)),
                     });
-                    Ok(Collection::empty())
+                    Ok(vec![])
                 }
-            };
-
-            self.recursion_depth -= 1;
-            result
+            }
         })
     }
 
-    /// Evaluate literal expression
+    /// Evaluate literal expression (internal version that returns Vec<FhirPathValue>)
     ///
     /// # Arguments
     /// * `literal` - Literal node to evaluate
     ///
     /// # Returns
-    /// * `Collection` - Single-item collection with literal value
-    fn evaluate_literal(&mut self, literal: &crate::ast::LiteralValue) -> Result<Collection> {
+    /// * `Vec<FhirPathValue>` - Single-item vector with literal value
+    fn evaluate_literal_internal(&mut self, literal: &crate::ast::LiteralValue) -> Result<Vec<FhirPathValue>> {
         let value = match literal {
             crate::ast::LiteralValue::String(s) => FhirPathValue::String(s.clone()),
             crate::ast::LiteralValue::Integer(i) => FhirPathValue::Integer(*i),
@@ -719,7 +784,96 @@ impl ExpressionEvaluator {
         };
 
         self.memory_allocations += 1;
-        Ok(Collection::single(value))
+        Ok(vec![value])
+    }
+
+    /// Evaluate literal expression
+    ///
+    /// # Arguments
+    /// * `literal` - Literal node to evaluate
+    ///
+    /// # Returns
+    /// * `Collection` - Single-item collection with literal value
+    fn evaluate_literal(&mut self, literal: &crate::ast::LiteralValue) -> Result<Collection> {
+        // Use internal method and wrap result
+        let values = self.evaluate_literal_internal(literal)?;
+        Ok(Collection::from_values(values))
+    }
+
+    /// Evaluate identifier expression (internal version)
+    ///
+    /// # Arguments
+    /// * `name` - Identifier name
+    /// * `context` - Evaluation context
+    ///
+    /// # Returns
+    /// * `Vec<FhirPathValue>` - Evaluation result
+    async fn evaluate_identifier_internal(
+        &mut self,
+        name: &str,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let current_context = &context.start_context;
+
+        if name == "$this" {
+            // Special $this identifier - check if it's set as a variable first
+            if let Some(variable_value) = context.get_variable("$this") {
+                return Ok(vec![variable_value.clone()]);
+            }
+            // Otherwise equivalent to %context (root resource)
+            // Use the same logic as %context to ensure consistency
+            if let Some(context_value) = context.builtin_variables.context.as_ref() {
+                return Ok(vec![context_value.clone()]);
+            } else {
+                // Fallback to root context if builtin context is not set
+                return Ok(context.root_context.clone().into_vec());
+            }
+        }
+
+        // Check for variables first
+        if let Some(variable_value) = context.get_variable(name) {
+            return Ok(vec![variable_value.clone()]);
+        }
+
+        // Check for environment variables
+        if name.starts_with('%') {
+            if let Some(env_value) = context.builtin_variables.get_environment_variable(name) {
+                return Ok(vec![env_value.clone()]);
+            }
+        }
+
+        // Check if the identifier matches a resource type in the current context
+        // This supports expressions like "Patient.name" when the input resourceType is Patient
+        let mut type_matched = Vec::new();
+        for item in current_context.iter() {
+            match item {
+                FhirPathValue::Resource(resource) => {
+                    if let Some(resource_type) = resource.get("resourceType")
+                        .and_then(|rt| rt.as_str()) 
+                    {
+                        if resource_type == name {
+                            type_matched.push(item.clone());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        if !type_matched.is_empty() {
+            return Ok(type_matched);
+        }
+
+        // Try to access property from current context
+        let mut result = Vec::new();
+
+        for item in current_context.iter() {
+            if let Some(property_values) = self.get_property(item, name).await? {
+                result.extend(property_values.into_vec());
+            }
+        }
+
+        Ok(result)
     }
 
     /// Evaluate identifier expression
@@ -735,68 +889,9 @@ impl ExpressionEvaluator {
         name: &str,
         context: &EvaluationContext,
     ) -> Result<Collection> {
-        let current_context = &context.start_context;
-
-        if name == "$this" {
-            // Special $this identifier - check if it's set as a variable first
-            if let Some(variable_value) = context.get_variable("$this") {
-                return Ok(Collection::single(variable_value.clone()));
-            }
-            // Otherwise equivalent to %context (root resource)
-            // Use the same logic as %context to ensure consistency
-            if let Some(context_value) = context.builtin_variables.context.as_ref() {
-                return Ok(Collection::single(context_value.clone()));
-            } else {
-                // Fallback to root context if builtin context is not set
-                return Ok(context.root_context.clone());
-            }
-        }
-
-        // Check for variables first
-        if let Some(variable_value) = context.get_variable(name) {
-            return Ok(Collection::single(variable_value.clone()));
-        }
-
-        // Check for environment variables (identifiers starting with %)
-        if name.starts_with('%') {
-            if let Some(env_value) = context.builtin_variables.get_environment_variable(name) {
-                return Ok(Collection::single(env_value.clone()));
-            }
-        }
-
-        // If identifier matches the resourceType of current items, return those items
-        // This supports expressions like "Patient.name" when the input resourceType is Patient
-        let mut type_matched = Collection::empty();
-        for item in current_context.iter() {
-            let resource_type_opt = match item {
-                FhirPathValue::Resource(map) | FhirPathValue::JsonValue(map) => map
-                    .get("resourceType")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()),
-                _ => None,
-            };
-            if let Some(rt) = resource_type_opt {
-                if rt == name {
-                    type_matched.push(item.clone());
-                }
-            }
-        }
-        if !type_matched.is_empty() {
-            return Ok(type_matched);
-        }
-
-        // Try to access property from current context
-        let mut result = Collection::empty();
-
-        for item in current_context.iter() {
-            if let Some(property_value) = self.get_property(item, name).await? {
-                for value in property_value.into_vec() {
-                    result.push(value);
-                }
-            }
-        }
-
-        Ok(result)
+        // Use internal method and wrap result
+        let values = self.evaluate_identifier_internal(name, context).await?;
+        Ok(Collection::from_values(values))
     }
 
     /// Evaluate binary operation
@@ -807,65 +902,64 @@ impl ExpressionEvaluator {
     ///
     /// # Returns
     /// * `Collection` - Evaluation result
-    async fn evaluate_binary_operation(
+    /// Internal binary operation evaluation that works with Vec<FhirPathValue>
+    async fn evaluate_binary_operation_internal(
         &mut self,
         binary_node: &crate::ast::BinaryOperationNode,
         context: &EvaluationContext,
-    ) -> Result<Collection> {
+    ) -> Result<Vec<FhirPathValue>> {
         use crate::ast::BinaryOperator;
         use crate::registry::math::ArithmeticOperations;
 
         // Evaluate left and right operands
-        let left_result = self.evaluate_expression(&binary_node.left, context).await?;
-        let right_result = self
-            .evaluate_expression(&binary_node.right, context)
-            .await?;
+        let left_values = self.evaluate_expression_internal(&binary_node.left, context).await?;
+        let right_values = self.evaluate_expression_internal(&binary_node.right, context).await?;
 
         // Handle binary operations according to FHIRPath spec
         match binary_node.operator {
             // Arithmetic operations that can fail with Results
             BinaryOperator::Add => {
-                self.apply_binary_result_op(left_result, right_result, ArithmeticOperations::add)
+                self.apply_binary_result_op_internal(left_values, right_values, ArithmeticOperations::add)
             }
-            BinaryOperator::Subtract => self.apply_binary_result_op(
-                left_result,
-                right_result,
+            BinaryOperator::Subtract => self.apply_binary_result_op_internal(
+                left_values,
+                right_values,
                 ArithmeticOperations::subtract,
             ),
-            BinaryOperator::Multiply => self.apply_binary_result_op(
-                left_result,
-                right_result,
+            BinaryOperator::Multiply => self.apply_binary_result_op_internal(
+                left_values,
+                right_values,
                 ArithmeticOperations::multiply,
             ),
             // Division operations that return Options (can be zero or invalid types)
             BinaryOperator::Divide => {
-                self.apply_binary_option_op(left_result, right_result, ArithmeticOperations::divide)
+                self.apply_binary_option_op_internal(left_values, right_values, ArithmeticOperations::divide)
             }
-            BinaryOperator::IntegerDivide => self.apply_binary_option_op(
-                left_result,
-                right_result,
+            BinaryOperator::IntegerDivide => self.apply_binary_option_op_internal(
+                left_values,
+                right_values,
                 ArithmeticOperations::integer_divide,
             ),
             BinaryOperator::Modulo => {
-                self.apply_binary_option_op(left_result, right_result, ArithmeticOperations::modulo)
+                self.apply_binary_option_op_internal(left_values, right_values, ArithmeticOperations::modulo)
             }
             // Comparison operations
-            BinaryOperator::Equal => self.apply_binary_comparison_op(left_result, right_result),
+            BinaryOperator::Equal => self.apply_binary_comparison_op_internal(left_values, right_values),
             BinaryOperator::NotEqual => {
                 // Try equality comparison first
-                let left = left_result.clone();
-                let right = right_result.clone();
-                let eq = self.apply_binary_comparison_op(left, right)?;
-                if eq.len() == 1 {
-                    if let FhirPathValue::Boolean(b) = eq.first().unwrap() {
-                        return Ok(Collection::single(FhirPathValue::Boolean(!b)));
+                let left = left_values.clone();
+                let right = right_values.clone();
+                let eq_result = self.apply_binary_comparison_op_internal(left, right)?;
+                if eq_result.len() == 1 {
+                    if let FhirPathValue::Boolean(b) = eq_result.first().unwrap() {
+                        return Ok(vec![FhirPathValue::Boolean(!b)]);
                     }
                 }
 
                 // If equality returned empty (incomparable), handle specific cases
-                if left_result.len() == 1 && right_result.len() == 1 {
-                    let l = left_result.first().unwrap();
-                    let r = right_result.first().unwrap();
+                if left_values.len() == 1 && right_values.len() == 1 {
+                    let l = left_values.first().unwrap();
+                    let r = right_values.first().unwrap();
                     let incomparable_not_equal = matches!(
                         (l, r),
                         (FhirPathValue::Date(_), FhirPathValue::Time(_))
@@ -880,60 +974,278 @@ impl ExpressionEvaluator {
                         && matches!(l, FhirPathValue::Time(_)));
                     if incomparable_not_equal {
                         self.memory_allocations += 1;
-                        return Ok(Collection::single(FhirPathValue::Boolean(true)));
+                        return Ok(vec![FhirPathValue::Boolean(true)]);
                     }
                 }
 
-                Ok(Collection::empty())
+                Ok(vec![])
             }
+            // Ordering comparison operations
             BinaryOperator::LessThan => {
-                self.apply_binary_ordering_op(left_result, right_result, |ord| {
+                self.apply_binary_ordering_op_internal(left_values, right_values, |ord| {
                     ord == std::cmp::Ordering::Less
                 })
             }
             BinaryOperator::GreaterThan => {
-                self.apply_binary_ordering_op(left_result, right_result, |ord| {
+                self.apply_binary_ordering_op_internal(left_values, right_values, |ord| {
                     ord == std::cmp::Ordering::Greater
                 })
             }
             BinaryOperator::LessThanOrEqual => {
-                self.apply_binary_ordering_op(left_result, right_result, |ord| {
+                self.apply_binary_ordering_op_internal(left_values, right_values, |ord| {
                     ord != std::cmp::Ordering::Greater
                 })
             }
             BinaryOperator::GreaterThanOrEqual => {
-                self.apply_binary_ordering_op(left_result, right_result, |ord| {
+                self.apply_binary_ordering_op_internal(left_values, right_values, |ord| {
                     ord != std::cmp::Ordering::Less
                 })
             }
-            BinaryOperator::Equivalent => {
-                self.apply_binary_equivalent_op(left_result, right_result, false)
+            // Collection operators
+            BinaryOperator::In => {
+                self.apply_in_operator_internal(left_values, right_values)
             }
-            BinaryOperator::NotEquivalent => {
-                self.apply_binary_equivalent_op(left_result, right_result, true)
-            }
-            BinaryOperator::In => self.apply_in_operator(left_result, right_result),
             BinaryOperator::Contains => {
-                // Contains is the reverse of In: collection contains value
-                self.apply_in_operator(right_result, left_result)
+                // "contains" is reverse of "in"
+                self.apply_in_operator_internal(right_values, left_values)
             }
-            // Type operators
-            BinaryOperator::Is => self.apply_is_operator(left_result, right_result).await,
-            BinaryOperator::As => self.apply_as_operator(left_result, right_result).await,
             // Logical operators
-            BinaryOperator::And => self.apply_logical_and_operator(left_result, right_result),
-            BinaryOperator::Or => self.apply_logical_or_operator(left_result, right_result),
-            BinaryOperator::Xor => self.apply_logical_xor_operator(left_result, right_result),
+            BinaryOperator::And => {
+                self.apply_logical_and_internal(left_values, right_values)
+            }
+            BinaryOperator::Or => {
+                self.apply_logical_or_internal(left_values, right_values)
+            }
+            BinaryOperator::Xor => {
+                self.apply_logical_xor_internal(left_values, right_values)
+            }
             BinaryOperator::Implies => {
-                self.apply_logical_implies_operator(left_result, right_result)
+                self.apply_logical_implies_internal(left_values, right_values)
             }
             // String operators
             BinaryOperator::Concatenate => {
-                self.apply_string_concatenate_operator(left_result, right_result)
+                self.apply_string_concatenate_internal(left_values, right_values)
             }
-            // Unsupported operators
-            _ => Ok(Collection::empty()),
+            // Equivalence operators (~ and !~)
+            BinaryOperator::Equivalent => {
+                self.apply_equivalence_operator_internal(left_values, right_values, false)
+            }
+            BinaryOperator::NotEquivalent => {
+                self.apply_equivalence_operator_internal(left_values, right_values, true)
+            }
+            // For now, return empty for other operators - we'll implement them as needed
+            _ => Ok(vec![]),
         }
+    }
+
+    /// Internal delegating implementations for other binary operators
+    fn apply_in_operator_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath 'in' operator: check if any value from left collection is in right collection
+        if left_values.is_empty() || right_values.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Check if any left value equals any right value
+        for left_val in &left_values {
+            for right_val in &right_values {
+                if let Some(true) = self.fhirpath_values_equal(left_val, right_val) {
+                    self.memory_allocations += 1;
+                    return Ok(vec![FhirPathValue::Boolean(true)]);
+                }
+            }
+        }
+
+        // No matches found
+        self.memory_allocations += 1;
+        Ok(vec![FhirPathValue::Boolean(false)])
+    }
+
+    fn apply_logical_and_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath logical AND: both sides must be single boolean values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
+        }
+
+        match (&left_values[0], &right_values[0]) {
+            (FhirPathValue::Boolean(left), FhirPathValue::Boolean(right)) => {
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(*left && *right)])
+            }
+            // FHIRPath: false AND anything = false
+            (FhirPathValue::Boolean(false), _) | (_, FhirPathValue::Boolean(false)) => {
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(false)])
+            }
+            // If either side is not boolean or empty, result is empty
+            _ => Ok(vec![]),
+        }
+    }
+
+    fn apply_logical_or_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath logical OR: both sides must be single boolean values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
+        }
+
+        match (&left_values[0], &right_values[0]) {
+            (FhirPathValue::Boolean(left), FhirPathValue::Boolean(right)) => {
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(*left || *right)])
+            }
+            // FHIRPath: true OR anything = true
+            (FhirPathValue::Boolean(true), _) | (_, FhirPathValue::Boolean(true)) => {
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(true)])
+            }
+            // If either side is not boolean, result is empty
+            _ => Ok(vec![]),
+        }
+    }
+
+    fn apply_logical_xor_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath logical XOR: both sides must be single boolean values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
+        }
+
+        match (&left_values[0], &right_values[0]) {
+            (FhirPathValue::Boolean(left), FhirPathValue::Boolean(right)) => {
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(*left ^ *right)])
+            }
+            // If either side is not boolean, result is empty
+            _ => Ok(vec![]),
+        }
+    }
+
+    fn apply_logical_implies_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath logical implies: both sides must be single boolean values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
+        }
+
+        match (&left_values[0], &right_values[0]) {
+            (FhirPathValue::Boolean(left), FhirPathValue::Boolean(right)) => {
+                // implies: A implies B = !A || B
+                self.memory_allocations += 1;
+                Ok(vec![FhirPathValue::Boolean(!left || *right)])
+            }
+            // If either side is not boolean, result is empty
+            _ => Ok(vec![]),
+        }
+    }
+
+    fn apply_string_concatenate_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath string concatenation: both sides must be single values that can be converted to strings
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
+        }
+
+        let left_str = match &left_values[0] {
+            FhirPathValue::String(s) => s.clone(),
+            FhirPathValue::Integer(i) => i.to_string(),
+            FhirPathValue::Decimal(d) => d.to_string(),
+            FhirPathValue::Boolean(b) => b.to_string(),
+            _ => return Ok(vec![]), // Can't concatenate other types
+        };
+
+        let right_str = match &right_values[0] {
+            FhirPathValue::String(s) => s.clone(),
+            FhirPathValue::Integer(i) => i.to_string(),
+            FhirPathValue::Decimal(d) => d.to_string(),
+            FhirPathValue::Boolean(b) => b.to_string(),
+            _ => return Ok(vec![]), // Can't concatenate other types
+        };
+
+        self.memory_allocations += 1;
+        Ok(vec![FhirPathValue::String(format!("{}{}", left_str, right_str))])
+    }
+
+    fn apply_equivalence_operator_internal(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+        negate: bool,
+    ) -> Result<Vec<FhirPathValue>> {
+        // FHIRPath equivalence (~) and non-equivalence (!~) operators
+        // According to FHIRPath spec, these handle fuzzy comparison with type coercion
+        
+        // Empty collections handling
+        if left_values.is_empty() && right_values.is_empty() {
+            self.memory_allocations += 1;
+            return Ok(vec![FhirPathValue::Boolean(!negate)]); // {} ~ {} = true, {} !~ {} = false
+        }
+        if left_values.is_empty() || right_values.is_empty() {
+            self.memory_allocations += 1;
+            return Ok(vec![FhirPathValue::Boolean(negate)]); // empty != non-empty
+        }
+        
+        // For collections, compare element-wise (order doesn't matter for equivalence)
+        if left_values.len() != right_values.len() {
+            self.memory_allocations += 1;
+            return Ok(vec![FhirPathValue::Boolean(negate)]); // different sizes = not equivalent
+        }
+        
+        // Single value comparison
+        if left_values.len() == 1 && right_values.len() == 1 {
+            match self.fhirpath_values_equivalent(&left_values[0], &right_values[0]) {
+                Some(is_equivalent) => {
+                    self.memory_allocations += 1;
+                    Ok(vec![FhirPathValue::Boolean(if negate { !is_equivalent } else { is_equivalent })])
+                }
+                None => Ok(vec![]), // Incomparable types return empty
+            }
+        } else {
+            // For multi-element collections, all elements must be equivalent
+            // Convert both sides to sorted collections for comparison
+            let mut left_sorted = left_values.clone();
+            let mut right_sorted = right_values.clone();
+            
+            // Sort using a deterministic ordering based on string representation
+            left_sorted.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
+            right_sorted.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
+            
+            // Compare all pairs
+            let all_equivalent = left_sorted.iter().zip(right_sorted.iter())
+                .all(|(l, r)| self.fhirpath_values_equivalent(l, r).unwrap_or(false));
+                
+            self.memory_allocations += 1;
+            Ok(vec![FhirPathValue::Boolean(if negate { !all_equivalent } else { all_equivalent })])
+        }
+    }
+
+    async fn evaluate_binary_operation(
+        &mut self,
+        binary_node: &crate::ast::BinaryOperationNode,
+        context: &EvaluationContext,
+    ) -> Result<Collection> {
+        // Use internal method and wrap result
+        let values = self.evaluate_binary_operation_internal(binary_node, context).await?;
+        Ok(Collection::from_values(values))
     }
 
     /// Apply binary arithmetic operation that returns Result
@@ -946,21 +1258,9 @@ impl ExpressionEvaluator {
     where
         F: Fn(&FhirPathValue, &FhirPathValue) -> Result<FhirPathValue>,
     {
-        // FHIRPath binary operations work on single values
-        if left_result.len() != 1 || right_result.len() != 1 {
-            return Ok(Collection::empty()); // Returns empty if operands are not single values
-        }
-
-        let left_value = left_result.first().unwrap();
-        let right_value = right_result.first().unwrap();
-
-        match op(left_value, right_value) {
-            Ok(result) => {
-                self.memory_allocations += 1;
-                Ok(Collection::single(result))
-            }
-            Err(_) => Ok(Collection::empty()), // Error in operation returns empty collection
-        }
+        // Use internal method and wrap result
+        let values = self.apply_binary_result_op_internal(left_result.into_vec(), right_result.into_vec(), op)?;
+        Ok(Collection::from_values(values))
     }
 
     /// Apply binary arithmetic operation that returns Option
@@ -973,41 +1273,83 @@ impl ExpressionEvaluator {
     where
         F: Fn(&FhirPathValue, &FhirPathValue) -> Option<FhirPathValue>,
     {
+        // Use internal method and wrap result
+        let values = self.apply_binary_option_op_internal(left_result.into_vec(), right_result.into_vec(), op)?;
+        Ok(Collection::from_values(values))
+    }
+
+    /// Internal version: Apply binary arithmetic operation that returns Result
+    fn apply_binary_result_op_internal<F>(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+        op: F,
+    ) -> Result<Vec<FhirPathValue>>
+    where
+        F: Fn(&FhirPathValue, &FhirPathValue) -> Result<FhirPathValue>,
+    {
         // FHIRPath binary operations work on single values
-        if left_result.len() != 1 || right_result.len() != 1 {
-            return Ok(Collection::empty()); // Returns empty if operands are not single values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]); // Returns empty if operands are not single values
         }
 
-        let left_value = left_result.first().unwrap();
-        let right_value = right_result.first().unwrap();
+        let left_value = left_values.first().unwrap();
+        let right_value = right_values.first().unwrap();
+
+        match op(left_value, right_value) {
+            Ok(result) => {
+                self.memory_allocations += 1;
+                Ok(vec![result])
+            }
+            Err(_) => Ok(vec![]), // Error in operation returns empty collection
+        }
+    }
+
+    /// Internal version: Apply binary arithmetic operation that returns Option
+    fn apply_binary_option_op_internal<F>(
+        &mut self,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+        op: F,
+    ) -> Result<Vec<FhirPathValue>>
+    where
+        F: Fn(&FhirPathValue, &FhirPathValue) -> Option<FhirPathValue>,
+    {
+        // FHIRPath binary operations work on single values
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]); // Returns empty if operands are not single values
+        }
+
+        let left_value = left_values.first().unwrap();
+        let right_value = right_values.first().unwrap();
 
         match op(left_value, right_value) {
             Some(result) => {
                 self.memory_allocations += 1;
-                Ok(Collection::single(result))
+                Ok(vec![result])
             }
-            None => Ok(Collection::empty()), // Error in operation returns empty collection
+            None => Ok(vec![]), // Error in operation returns empty collection
         }
     }
 
-    /// Apply binary comparison operation
-    fn apply_binary_comparison_op(
+    /// Internal version: Apply binary comparison operation
+    fn apply_binary_comparison_op_internal(
         &mut self,
-        left_result: Collection,
-        right_result: Collection,
-    ) -> Result<Collection> {
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
+    ) -> Result<Vec<FhirPathValue>> {
         // If either collection is empty, return empty
-        if left_result.is_empty() || right_result.is_empty() {
-            return Ok(Collection::empty());
+        if left_values.is_empty() || right_values.is_empty() {
+            return Ok(vec![]);
         }
 
         // For FHIRPath equality: check if any value from left equals any value from right
-        for left_value in left_result.iter() {
-            for right_value in right_result.iter() {
+        for left_value in &left_values {
+            for right_value in &right_values {
                 match self.fhirpath_values_equal(left_value, right_value) {
                     Some(true) => {
                         self.memory_allocations += 1;
-                        return Ok(Collection::single(FhirPathValue::Boolean(true)));
+                        return Ok(vec![FhirPathValue::Boolean(true)]);
                     }
                     Some(false) => continue, // Keep checking other combinations
                     None => continue,        // Incomparable values, keep checking
@@ -1016,7 +1358,18 @@ impl ExpressionEvaluator {
         }
 
         // If no matches found, return false
-        Ok(Collection::single(FhirPathValue::Boolean(false)))
+        Ok(vec![FhirPathValue::Boolean(false)])
+    }
+
+    /// Apply binary comparison operation
+    fn apply_binary_comparison_op(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // Use internal method and wrap result
+        let values = self.apply_binary_comparison_op_internal(left_result.into_vec(), right_result.into_vec())?;
+        Ok(Collection::from_values(values))
     }
 
     /// Apply the "in" operator: check if left value exists in right collection
@@ -1047,24 +1400,24 @@ impl ExpressionEvaluator {
         Ok(Collection::single(FhirPathValue::Boolean(false)))
     }
 
-    /// Apply binary ordering operation (<, >, <=, >=) with basic type support
-    fn apply_binary_ordering_op<F>(
+    /// Internal version: Apply binary ordering operations
+    fn apply_binary_ordering_op_internal<F>(
         &mut self,
-        left_result: Collection,
-        right_result: Collection,
+        left_values: Vec<FhirPathValue>,
+        right_values: Vec<FhirPathValue>,
         predicate: F,
-    ) -> Result<Collection>
+    ) -> Result<Vec<FhirPathValue>>
     where
         F: Fn(std::cmp::Ordering) -> bool,
     {
         use rust_decimal::Decimal;
 
-        if left_result.len() != 1 || right_result.len() != 1 {
-            return Ok(Collection::empty());
+        if left_values.len() != 1 || right_values.len() != 1 {
+            return Ok(vec![]);
         }
 
-        let left = left_result.first().unwrap();
-        let right = right_result.first().unwrap();
+        let left = left_values.first().unwrap();
+        let right = right_values.first().unwrap();
 
         let ord_opt: Option<std::cmp::Ordering> = match (left, right) {
             // Numeric comparisons with coercion
@@ -1085,6 +1438,8 @@ impl ExpressionEvaluator {
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
                 Some(a.datetime.cmp(&b.datetime))
             }
+            // Time comparisons
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a.cmp(b)),
             // Mixed precision temporal comparisons between DateTime and Date are indeterminate in FHIRPath
             // Return None to produce empty collection rather than false
             (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => None,
@@ -1133,35 +1488,26 @@ impl ExpressionEvaluator {
         if let Some(ord) = ord_opt {
             let res = predicate(ord);
             self.memory_allocations += 1;
-            Ok(Collection::single(FhirPathValue::Boolean(res)))
+            Ok(vec![FhirPathValue::Boolean(res)])
         } else {
-            Ok(Collection::empty())
+            Ok(vec![])
         }
     }
 
-    /// Apply binary equivalent/not-equivalent operation with type coercion
-    fn apply_binary_equivalent_op(
+    /// Apply binary ordering operation (<, >, <=, >=) with basic type support
+    fn apply_binary_ordering_op<F>(
         &mut self,
         left_result: Collection,
         right_result: Collection,
-        negate: bool,
-    ) -> Result<Collection> {
-        // FHIRPath equivalent operations work on single values
-        if left_result.len() != 1 || right_result.len() != 1 {
-            return Ok(Collection::empty()); // Returns empty if operands are not single values
-        }
+        predicate: F,
+    ) -> Result<Collection>
+    where
+        F: Fn(std::cmp::Ordering) -> bool,
+    {
+        // Use internal method and wrap result
+        let values = self.apply_binary_ordering_op_internal(left_result.into_vec(), right_result.into_vec(), predicate)?;
+        Ok(Collection::from_values(values))
 
-        let left_value = left_result.first().unwrap();
-        let right_value = right_result.first().unwrap();
-
-        match self.fhirpath_values_equivalent(left_value, right_value) {
-            Some(result) => {
-                self.memory_allocations += 1;
-                let final_result = if negate { !result } else { result };
-                Ok(Collection::single(FhirPathValue::Boolean(final_result)))
-            }
-            None => Ok(Collection::empty()),
-        }
     }
 
     /// FHIRPath equality comparison with proper numeric type coercion
@@ -1233,9 +1579,12 @@ impl ExpressionEvaluator {
         use std::str::FromStr;
 
         match (left, right) {
-            // Same type - direct comparison (same as equality)
+            // Same type - direct comparison with special handling for strings
             (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => Some(a == b),
-            (FhirPathValue::String(a), FhirPathValue::String(b)) => Some(a == b),
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+                // FHIRPath ~ operator is case-insensitive for string comparison
+                Some(a.to_lowercase() == b.to_lowercase())
+            },
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => Some(a == b),
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => Some(a == b),
 
@@ -1279,14 +1628,14 @@ impl ExpressionEvaluator {
                 }
             }
 
-            // Boolean to string coercion
+            // Boolean to string coercion (case-insensitive)
             (FhirPathValue::Boolean(a), FhirPathValue::String(b)) => {
                 let a_str = if *a { "true" } else { "false" };
-                Some(a_str == b)
+                Some(a_str.to_lowercase() == b.to_lowercase())
             }
             (FhirPathValue::String(a), FhirPathValue::Boolean(b)) => {
                 let b_str = if *b { "true" } else { "false" };
-                Some(a == b_str)
+                Some(a.to_lowercase() == b_str.to_lowercase())
             }
 
             // Date/Time comparisons (same as equality for now)
@@ -1582,9 +1931,11 @@ impl ExpressionEvaluator {
         use crate::registry::math::ArithmeticOperations;
 
         // Evaluate the operand
-        let operand_result = self
+        let operand_value = self
             .evaluate_expression(&unary_node.operand, context)
             .await?;
+        
+        let operand_result = value_to_collection(operand_value);
 
         // Unary operations work on single values
         if operand_result.len() != 1 {
@@ -1634,6 +1985,16 @@ impl ExpressionEvaluator {
     ///
     /// # Returns
     /// * `Collection` - Evaluation result
+    /// Internal method call evaluation stub
+    async fn evaluate_method_call_internal(
+        &mut self,
+        method_node: &crate::ast::MethodCallNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_method_call(method_node, context).await?;
+        Ok(result.into_vec())
+    }
+
     async fn evaluate_method_call(
         &mut self,
         method_node: &crate::ast::MethodCallNode,
@@ -1662,7 +2023,7 @@ impl ExpressionEvaluator {
             }
 
             // iif as a method: allow empty input, but not multiple items
-            if object_result.len() > 1 {
+            if value_len(&object_result) > 1 {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0053,
                     "iif() method requires a single input item".to_string(),
@@ -1670,10 +2031,10 @@ impl ExpressionEvaluator {
             }
 
             // Child context uses the object as the start context
-            let mut child_context = context.create_child_context(object_result.clone());
+            let mut child_context = context.create_child_context(value_to_collection(object_result.clone()));
             // Provide $this bound to the single input item for convenience inside expressions
-            if object_result.len() == 1 {
-                let item = object_result.first().unwrap();
+            if value_len(&object_result) == 1 {
+                let item = value_first(&object_result).unwrap();
                 child_context.set_variable("$this".to_string(), item.clone());
             }
 
@@ -1709,7 +2070,7 @@ impl ExpressionEvaluator {
 
         // Generic method dispatch to registry functions using the object_result as input
         // Evaluate arguments (with a small convenience for type-related identifiers)
-        let mut argument_results: Vec<crate::core::Collection> = Vec::new();
+        let mut argument_results: Vec<crate::core::FhirPathValue> = Vec::new();
         // Helper to flatten qualified type names like System.Integer into "System.Integer"
         fn extract_qualified_name(expr: &crate::ast::ExpressionNode) -> Option<String> {
             match expr {
@@ -1728,9 +2089,7 @@ impl ExpressionEvaluator {
                 matches!(method_node.method.as_str(), "is" | "as" | "ofType");
             if needs_type_shorthand {
                 if let Some(qname) = extract_qualified_name(arg) {
-                    argument_results.push(crate::core::Collection::single(
-                        crate::core::FhirPathValue::String(qname),
-                    ));
+                    argument_results.push(crate::core::FhirPathValue::String(qname));
                     continue;
                 }
             }
@@ -1738,15 +2097,17 @@ impl ExpressionEvaluator {
         }
 
         // Build function context with object_result as input
-        let input_values: Vec<crate::core::FhirPathValue> = object_result.iter().cloned().collect();
+        let input_values: Vec<crate::core::FhirPathValue> = value_iter(&object_result).cloned().collect();
         let mut argument_value_vecs: Vec<Vec<crate::core::FhirPathValue>> = Vec::new();
-        for arg_collection in &argument_results {
-            let arg_values: Vec<crate::core::FhirPathValue> =
-                arg_collection.iter().cloned().collect();
+        for arg_value in &argument_results {
+            let arg_values: Vec<crate::core::FhirPathValue> = match arg_value {
+                crate::core::FhirPathValue::Collection(vec) => vec.clone(),
+                single_value => vec![single_value.clone()],
+            };
             argument_value_vecs.push(arg_values);
         }
 
-        let function_context = FunctionContext {
+        let _function_context = FunctionContext {
             input: &input_values,
             arguments: if argument_value_vecs.is_empty() {
                 &[]
@@ -1767,10 +2128,13 @@ impl ExpressionEvaluator {
         }
 
         // Convert collection to Vec<FhirPathValue> for FunctionContext
-        let input_values: Vec<FhirPathValue> = object_result.iter().cloned().collect();
+        let input_values: Vec<FhirPathValue> = value_iter(&object_result).cloned().collect();
         let mut argument_value_vecs: Vec<Vec<FhirPathValue>> = Vec::new();
-        for arg_collection in &argument_results {
-            let arg_values: Vec<FhirPathValue> = arg_collection.iter().cloned().collect();
+        for arg_value in &argument_results {
+            let arg_values: Vec<FhirPathValue> = match arg_value {
+                FhirPathValue::Collection(vec) => vec.clone(),
+                single_value => vec![single_value.clone()],
+            };
             argument_value_vecs.push(arg_values);
         }
 
@@ -1846,7 +2210,7 @@ impl ExpressionEvaluator {
         method_node: &crate::ast::MethodCallNode,
         context: &EvaluationContext,
     ) -> Result<Collection> {
-        use crate::evaluator::{LambdaEvaluator, LambdaExpressionEvaluator};
+        use crate::evaluator::LambdaEvaluator;
         use std::sync::Arc;
 
         // Evaluate the object on which the method is called
@@ -1902,20 +2266,23 @@ impl ExpressionEvaluator {
         match method_node.method.as_str() {
             "select" => {
                 self.memory_allocations += 1;
+                let object_collection = value_to_collection(object_result);
                 lambda_evaluator
-                    .evaluate_select(&object_result, lambda_expr, &adapter)
+                    .evaluate_select(&object_collection, lambda_expr, &adapter)
                     .await
             }
             "where" => {
                 self.memory_allocations += 1;
+                let object_collection = value_to_collection(object_result);
                 lambda_evaluator
-                    .evaluate_where(&object_result, lambda_expr, &adapter)
+                    .evaluate_where(&object_collection, lambda_expr, &adapter)
                     .await
             }
             "all" => {
                 self.memory_allocations += 1;
+                let object_collection = value_to_collection(object_result);
                 let result = lambda_evaluator
-                    .evaluate_all(&object_result, lambda_expr, &adapter)
+                    .evaluate_all(&object_collection, lambda_expr, &adapter)
                     .await?;
                 Ok(Collection::single(crate::core::FhirPathValue::Boolean(
                     result,
@@ -1923,8 +2290,9 @@ impl ExpressionEvaluator {
             }
             "repeat" => {
                 self.memory_allocations += 1;
+                let object_collection = value_to_collection(object_result);
                 lambda_evaluator
-                    .evaluate_repeat(&object_result, lambda_expr, &adapter, None, None)
+                    .evaluate_repeat(&object_collection, lambda_expr, &adapter, None, None)
                     .await
             }
             "aggregate" => {
@@ -1936,17 +2304,18 @@ impl ExpressionEvaluator {
                     let init_result = self
                         .evaluate_expression(&method_node.arguments[1], context)
                         .await?;
-                    if init_result.is_empty() {
+                    if value_len(&init_result) == 0 {
                         None
                     } else {
-                        Some(init_result.first().unwrap().clone())
+                        Some(value_first(&init_result).unwrap().clone())
                     }
                 } else {
                     None
                 };
 
+                let object_collection = value_to_collection(object_result);
                 lambda_evaluator
-                    .evaluate_aggregate(&object_result, lambda_expr, initial_value, &adapter)
+                    .evaluate_aggregate(&object_collection, lambda_expr, initial_value, &adapter)
                     .await
                     .map(|v| Collection::single(v))
             }
@@ -1972,8 +2341,9 @@ impl ExpressionEvaluator {
                     });
                 }
 
+                let object_collection = value_to_collection(object_result);
                 lambda_evaluator
-                    .evaluate_sort(&object_result, criteria, &adapter)
+                    .evaluate_sort(&object_collection, criteria, &adapter)
                     .await
             }
             _ => {
@@ -1994,27 +2364,118 @@ impl ExpressionEvaluator {
     ///
     /// # Returns
     /// * `Collection` - Evaluation result
+    /// Optimized internal property access evaluation
+    async fn evaluate_property_access_internal(
+        &mut self,
+        property_node: &crate::ast::PropertyAccessNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        // Evaluate the object on which the property is accessed
+        let object_values = self
+            .evaluate_expression_internal(&property_node.object, context)
+            .await?;
+
+        let mut result = Vec::new();
+
+        for item in &object_values {
+            if let Some(property_value) = self.get_property(item, &property_node.property).await? {
+                result.extend(property_value.into_vec());
+            }
+        }
+
+        Ok(result)
+    }
+
     async fn evaluate_property_access(
         &mut self,
         property_node: &crate::ast::PropertyAccessNode,
         context: &EvaluationContext,
     ) -> Result<Collection> {
-        // Evaluate the object on which the property is accessed
-        let object_result = self
-            .evaluate_expression(&property_node.object, context)
-            .await?;
+        // Use internal method and wrap result
+        let values = self.evaluate_property_access_internal(property_node, context).await?;
+        Ok(Collection::from_values(values))
+    }
 
-        let mut result = Collection::empty();
+    /// Delegating internal implementations for remaining methods
+    async fn evaluate_index_access_internal(
+        &mut self,
+        index_node: &crate::ast::IndexAccessNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_index_access(index_node, context).await?;
+        Ok(result.into_vec())
+    }
 
-        for item in object_result.iter() {
-            if let Some(property_value) = self.get_property(item, &property_node.property).await? {
-                for value in property_value.into_vec() {
-                    result.push(value);
-                }
-            }
-        }
+    async fn evaluate_function_call_internal(
+        &mut self,
+        function_node: &crate::ast::FunctionCallNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_function_call(function_node, context).await?;
+        Ok(result.into_vec())
+    }
 
-        Ok(result)
+    async fn evaluate_lambda_expression_internal(
+        &mut self,
+        lambda_node: &crate::ast::LambdaNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_lambda_expression(lambda_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_collection_literal_internal(
+        &mut self,
+        collection_node: &crate::ast::CollectionNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_collection_literal(collection_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_filter_expression_internal(
+        &mut self,
+        filter_node: &crate::ast::FilterNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_filter_expression(filter_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_union_internal(
+        &mut self,
+        union_node: &crate::ast::UnionNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_union(union_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_unary_operation_internal(
+        &mut self,
+        unary_node: &crate::ast::UnaryOperationNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_unary_operation(unary_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_type_cast_internal(
+        &mut self,
+        typecast_node: &crate::ast::TypeCastNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_type_cast(typecast_node, context).await?;
+        Ok(result.into_vec())
+    }
+
+    async fn evaluate_type_check_internal(
+        &mut self,
+        typecheck_node: &crate::ast::TypeCheckNode,
+        context: &EvaluationContext,
+    ) -> Result<Vec<FhirPathValue>> {
+        let result = self.evaluate_type_check(typecheck_node, context).await?;
+        Ok(result.into_vec())
     }
 
     /// Evaluate index access expression (e.g., name[0], telecom[1])
@@ -2039,11 +2500,11 @@ impl ExpressionEvaluator {
         let index_result = self.evaluate_expression(&index_node.index, context).await?;
 
         // The index should be a single integer
-        if index_result.len() != 1 {
+        if value_len(&index_result) != 1 {
             return Ok(Collection::empty()); // Invalid index count
         }
 
-        let index_value = index_result.get(0).unwrap();
+        let index_value = value_get(&index_result, 0).unwrap();
         let index_num = match index_value {
             FhirPathValue::Integer(i) => *i as usize,
             _ => return Ok(Collection::empty()), // Index must be integer
@@ -2051,8 +2512,8 @@ impl ExpressionEvaluator {
 
         // IndexAccess works on collections, not individual items
         // For example, Patient.name[0] gets the first item from Patient.name collection
-        if index_num < object_result.len() {
-            let item = object_result.get(index_num).unwrap();
+        if index_num < value_len(&object_result) {
+            let item = value_get(&object_result, index_num).unwrap();
             let mut result = Collection::empty();
             result.push(item.clone());
             Ok(result)
@@ -2081,12 +2542,12 @@ impl ExpressionEvaluator {
         let mut result = Collection::empty();
 
         // Add all items from left side
-        for item in left_result.iter() {
+        for item in value_iter(&left_result) {
             result.push(item.clone());
         }
 
         // Add all items from right side
-        for item in right_result.iter() {
+        for item in value_iter(&right_result) {
             result.push(item.clone());
         }
 
@@ -2111,7 +2572,7 @@ impl ExpressionEvaluator {
             .await?;
         let mut result = Collection::empty();
 
-        for item in expression_result.iter() {
+        for item in value_iter(&expression_result) {
             // Attempt to cast the item to the target type
             if let Some(casted_value) = self.cast_value(item, &typecast_node.target_type)? {
                 result.push(casted_value);
@@ -2139,7 +2600,7 @@ impl ExpressionEvaluator {
             .await?;
         let mut result = Collection::empty();
 
-        for item in expression_result.iter() {
+        for item in value_iter(&expression_result) {
             let is_type = self.is_of_type(item, &typecheck_node.target_type);
             result.push(FhirPathValue::Boolean(is_type));
         }
@@ -2203,7 +2664,7 @@ impl ExpressionEvaluator {
         // Handle lambda-style functions when used in function form (implicit input)
         match function_node.name.as_str() {
             "select" | "where" | "all" | "repeat" | "aggregate" | "sort" => {
-                use crate::evaluator::{LambdaEvaluator, LambdaExpressionEvaluator};
+                use crate::evaluator::LambdaEvaluator;
                 use std::sync::Arc;
 
                 // Prepare adapter and lambda evaluator bound to current context
@@ -2295,10 +2756,10 @@ impl ExpressionEvaluator {
                             let init_res = self
                                 .evaluate_expression(&function_node.arguments[1], context)
                                 .await?;
-                            if init_res.is_empty() {
+                            if value_len(&init_res) == 0 {
                                 None
                             } else {
-                                Some(init_res.first().unwrap().clone())
+                                Some(value_first(&init_res).unwrap().clone())
                             }
                         } else {
                             None
@@ -2352,8 +2813,11 @@ impl ExpressionEvaluator {
         // For standalone function calls, input context is the current context
         let input_values: Vec<FhirPathValue> = context.start_context.iter().cloned().collect();
         let mut argument_value_vecs: Vec<Vec<FhirPathValue>> = Vec::new();
-        for arg_collection in &argument_results {
-            let arg_values: Vec<FhirPathValue> = arg_collection.iter().cloned().collect();
+        for arg_value in &argument_results {
+            let arg_values: Vec<FhirPathValue> = match arg_value {
+                FhirPathValue::Collection(vec) => vec.clone(),
+                single_value => vec![single_value.clone()],
+            };
             argument_value_vecs.push(arg_values);
         }
 
@@ -2428,7 +2892,8 @@ impl ExpressionEvaluator {
     ) -> Result<Collection> {
         // Lambda expressions are typically evaluated within collection functions
         // For standalone lambda, evaluate the body with current context
-        self.evaluate_expression(&lambda_node.body, context).await
+        let result = self.evaluate_expression(&lambda_node.body, context).await?;
+        Ok(value_to_collection(result))
     }
 
     /// Evaluate variable reference
@@ -2439,46 +2904,53 @@ impl ExpressionEvaluator {
     ///
     /// # Returns
     /// * `Collection` - Evaluation result
-    fn evaluate_variable(&mut self, name: &str, context: &EvaluationContext) -> Result<Collection> {
+    /// Optimized internal variable evaluation
+    fn evaluate_variable_internal(&mut self, name: &str, context: &EvaluationContext) -> Result<Vec<FhirPathValue>> {
         // Handle special $this variable (parser strips the $ prefix, so name is just "this")
         if name == "this" {
             // In lambda contexts, check if $this variable is set (current element)
             // Note: We store it with the $ prefix but receive it without
             if let Some(variable_value) = context.get_variable("$this") {
-                return Ok(Collection::single(variable_value.clone()));
+                return Ok(vec![variable_value.clone()]);
             }
             // Otherwise, equivalent to %context (root resource) - use same logic
             if let Some(context_value) = context.builtin_variables.context.as_ref() {
-                return Ok(Collection::single(context_value.clone()));
+                return Ok(vec![context_value.clone()]);
             } else {
-                // Final fallback to root context if builtin context is not set
-                return Ok(context.root_context.clone());
+                // Return empty if context is not set
+                return Ok(vec![]);
             }
         }
 
-        // Handle special $index variable (parser strips the $ prefix, so name is just "index")
+        // Handle $index variable
         if name == "index" {
-            // Note: We store it with the $ prefix but receive it without
+            // Check if $index variable is set (current index in lambda context)
             if let Some(variable_value) = context.get_variable("$index") {
-                return Ok(Collection::single(variable_value.clone()));
+                return Ok(vec![variable_value.clone()]);
             } else {
                 // Return empty if $index is not set (not in lambda context)
-                return Ok(Collection::empty());
+                return Ok(vec![]);
             }
         }
 
-        // Try to find the variable with $ prefix (parser strips it, but we store with it)
-        let var_name = format!("${}", name);
+        // Handle other variables with $ prefix
+        let var_name = if name.starts_with('$') { name.to_string() } else { format!("${}", name) };
         if let Some(variable_value) = context.get_variable(&var_name) {
-            return Ok(Collection::single(variable_value.clone()));
+            return Ok(vec![variable_value.clone()]);
         }
 
-        // Also try without the prefix for compatibility
+        // Standard variable lookup
         if let Some(variable_value) = context.get_variable(name) {
-            Ok(Collection::single(variable_value.clone()))
+            Ok(vec![variable_value.clone()])
         } else {
-            Ok(Collection::empty())
+            Ok(vec![])
         }
+    }
+
+    fn evaluate_variable(&mut self, name: &str, context: &EvaluationContext) -> Result<Collection> {
+        // Use internal method and wrap result
+        let values = self.evaluate_variable_internal(name, context)?;
+        Ok(Collection::from_values(values))
     }
 
     /// Evaluate collection literal
@@ -2498,7 +2970,7 @@ impl ExpressionEvaluator {
 
         for element in &collection_node.elements {
             let element_result = self.evaluate_expression(element, context).await?;
-            result_items.extend(element_result.into_vec());
+            result_items.extend(value_into_vec(element_result));
         }
 
         Ok(Collection::from_values(result_items))
@@ -2522,7 +2994,7 @@ impl ExpressionEvaluator {
 
         let mut filtered_items = Vec::new();
 
-        for (index, item) in base_result.iter().enumerate() {
+        for (index, item) in value_iter(&base_result).enumerate() {
             // Create new context for each item with $this set to the current item
             let mut filter_context = context.clone();
             filter_context.start_context = Collection::single(item.clone());
@@ -2535,7 +3007,8 @@ impl ExpressionEvaluator {
                 .await?;
 
             // Check if condition is truthy
-            if self.is_truthy_collection(&condition_result) {
+            let condition_collection = value_to_collection(condition_result);
+            if self.is_truthy_collection(&condition_collection) {
                 filtered_items.push(item.clone());
             }
         }
@@ -2561,8 +3034,8 @@ impl ExpressionEvaluator {
         let right_result = self.evaluate_expression(&union_node.right, context).await?;
 
         // Combine collections, preserving order and removing duplicates
-        let left_items = left_result.into_vec();
-        let right_items = right_result.into_vec();
+        let left_items = value_into_vec(left_result);
+        let right_items = value_into_vec(right_result);
 
         let union_items = crate::registry::collection::CollectionUtils::union_collections(
             &left_items,
@@ -2740,14 +3213,14 @@ impl ExpressionEvaluator {
     ) -> Result<Option<FhirPathValue>> {
         match target_type.to_lowercase().as_str() {
             "string" => match value {
-                FhirPathValue::String(s) => Ok(Some(value.clone())),
+                FhirPathValue::String(_s) => Ok(Some(value.clone())),
                 FhirPathValue::Integer(i) => Ok(Some(FhirPathValue::String(i.to_string()))),
                 FhirPathValue::Boolean(b) => Ok(Some(FhirPathValue::String(b.to_string()))),
                 FhirPathValue::Decimal(d) => Ok(Some(FhirPathValue::String(d.to_string()))),
                 _ => Ok(None),
             },
             "integer" => match value {
-                FhirPathValue::Integer(i) => Ok(Some(value.clone())),
+                FhirPathValue::Integer(_i) => Ok(Some(value.clone())),
                 FhirPathValue::String(s) => {
                     if let Ok(i) = s.parse::<i64>() {
                         Ok(Some(FhirPathValue::Integer(i)))
@@ -2758,7 +3231,7 @@ impl ExpressionEvaluator {
                 _ => Ok(None),
             },
             "boolean" => match value {
-                FhirPathValue::Boolean(b) => Ok(Some(value.clone())),
+                FhirPathValue::Boolean(_b) => Ok(Some(value.clone())),
                 FhirPathValue::String(s) => match s.to_lowercase().as_str() {
                     "true" => Ok(Some(FhirPathValue::Boolean(true))),
                     "false" => Ok(Some(FhirPathValue::Boolean(false))),
@@ -2767,7 +3240,7 @@ impl ExpressionEvaluator {
                 _ => Ok(None),
             },
             "decimal" => match value {
-                FhirPathValue::Decimal(d) => Ok(Some(value.clone())),
+                FhirPathValue::Decimal(_d) => Ok(Some(value.clone())),
                 FhirPathValue::Integer(i) => Ok(Some(FhirPathValue::decimal(
                     rust_decimal::Decimal::from(*i),
                 ))),
@@ -3008,18 +3481,23 @@ impl ExpressionEvaluator {
         left_result: Collection,
         right_result: Collection,
     ) -> Result<Collection> {
-        if left_result.len() != 1 || right_result.len() != 1 {
-            return Ok(Collection::empty());
-        }
-
-        let left_str = match left_result.first().unwrap() {
-            FhirPathValue::String(s) => s.clone(),
-            _ => return Ok(Collection::empty()),
+        // Handle concatenation with empty collections - treat empty as empty string
+        let left_str = match left_result.len() {
+            0 => String::new(), // Empty collection becomes empty string
+            1 => match left_result.first().unwrap() {
+                FhirPathValue::String(s) => s.clone(),
+                _ => return Ok(Collection::empty()), // Non-string values can't be concatenated
+            },
+            _ => return Ok(Collection::empty()), // Multiple values can't be concatenated
         };
 
-        let right_str = match right_result.first().unwrap() {
-            FhirPathValue::String(s) => s.clone(),
-            _ => return Ok(Collection::empty()),
+        let right_str = match right_result.len() {
+            0 => String::new(), // Empty collection becomes empty string  
+            1 => match right_result.first().unwrap() {
+                FhirPathValue::String(s) => s.clone(),
+                _ => return Ok(Collection::empty()), // Non-string values can't be concatenated
+            },
+            _ => return Ok(Collection::empty()), // Multiple values can't be concatenated
         };
 
         self.memory_allocations += 1;
