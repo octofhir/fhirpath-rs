@@ -21,8 +21,8 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process;
-use std::time::Duration;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A single test case within a test suite
 #[derive(serde::Deserialize)]
@@ -61,7 +61,6 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
     let data: Value = serde_json::from_str(&content)?;
     Ok(data)
 }
-
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
@@ -174,46 +173,54 @@ async fn main() {
     println!();
 
     // Choose model provider based on environment variable for fast testing
-    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = 
-        if env::var("FHIRPATH_USE_MOCK_PROVIDER").is_ok() {
-            println!("📋 Using MockModelProvider for fast testing");
-            Arc::new(octofhir_fhirpath::MockModelProvider::default())
-        } else {
-            // Create FHIR schema provider (R5) for production-quality testing
-            println!("📋 Initializing FHIR R5 schema provider...");
-            let provider_timeout = Duration::from_secs(60);
-            match tokio::time::timeout(
-                provider_timeout,
-                octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
-            )
-            .await
-            {
-                Ok(Ok(provider)) => {
-                    println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
-                    Arc::new(provider)
-                }
-                Ok(Err(e)) => {
-                    eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R5): {e}");
-                    eprintln!("💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1");
-                    process::exit(1);
-                }
-                Err(_) => {
-                    eprintln!(
-                        "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
-                        provider_timeout.as_secs()
-                    );
-                    eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
-                    process::exit(1);
-                }
+    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = if env::var(
+        "FHIRPATH_USE_MOCK_PROVIDER",
+    )
+    .is_ok()
+    {
+        println!("📋 Using MockModelProvider for fast testing");
+        Arc::new(octofhir_fhirpath::MockModelProvider::default())
+    } else {
+        // Create FHIR schema provider (R5) for production-quality testing
+        println!("📋 Initializing FHIR R5 schema provider...");
+        let provider_timeout = Duration::from_secs(60);
+        match tokio::time::timeout(
+            provider_timeout,
+            octofhir_fhirschema::provider::FhirSchemaModelProvider::r5(),
+        )
+        .await
+        {
+            Ok(Ok(provider)) => {
+                println!("✅ FhirSchemaModelProvider (R5) loaded successfully");
+                Arc::new(provider)
             }
-        };
+            Ok(Err(e)) => {
+                eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R5): {e}");
+                eprintln!(
+                    "💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1"
+                );
+                process::exit(1);
+            }
+            Err(_) => {
+                eprintln!(
+                    "❌ FhirSchemaModelProvider (R5) initialization timed out ({}s)",
+                    provider_timeout.as_secs()
+                );
+                eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
+                process::exit(1);
+            }
+        }
+    };
 
     // Create function registry
     println!("📋 Creating function registry...");
     let registry_start = std::time::Instant::now();
     let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
     let registry_time = registry_start.elapsed();
-    println!("✅ Function registry created in {}ms", registry_time.as_millis());
+    println!(
+        "✅ Function registry created in {}ms",
+        registry_time.as_millis()
+    );
 
     // Create the FhirPathEngine with model provider
     println!("📋 Creating FhirPathEngine...");
@@ -227,7 +234,7 @@ async fn main() {
 
     for test_case in &test_suite.tests {
         print!("Running {} ... ", test_case.name);
-        
+
         // (Debug block removed; keeping runner output lean for CI)
 
         // Load input data
@@ -271,14 +278,18 @@ async fn main() {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(5_000);
-        
+
         println!("📋 Evaluating expression with timeout {}ms...", timeout_ms);
         let eval_start = std::time::Instant::now();
         let eval_fut = engine.evaluate_ast(&ast, &context);
         let result = match tokio::time::timeout(Duration::from_millis(timeout_ms), eval_fut).await {
             Err(_) => {
                 let eval_time = eval_start.elapsed();
-                println!("⚠️ TIMEOUT after {}ms (limit: {}ms)", eval_time.as_millis(), timeout_ms);
+                println!(
+                    "⚠️ TIMEOUT after {}ms (limit: {}ms)",
+                    eval_time.as_millis(),
+                    timeout_ms
+                );
                 if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
                     println!("✅ PASS");
                     passed += 1;

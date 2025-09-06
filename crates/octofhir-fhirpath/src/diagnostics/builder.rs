@@ -1,7 +1,7 @@
 //! Diagnostic builder for fluent diagnostic creation
 
-use crate::diagnostics::{Diagnostic, DiagnosticSeverity, DiagnosticCode};
 use crate::core::SourceLocation;
+use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 
 /// Builder for creating diagnostics with fluent API
 #[derive(Debug)]
@@ -12,7 +12,11 @@ pub struct DiagnosticBuilder {
 
 impl DiagnosticBuilder {
     /// Create a new diagnostic builder with the given severity
-    pub fn new(severity: DiagnosticSeverity, code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(
+        severity: DiagnosticSeverity,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             diagnostic: Diagnostic {
                 severity,

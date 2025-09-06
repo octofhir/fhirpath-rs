@@ -1,11 +1,11 @@
 //! Collection functions implementation for FHIRPath
-//! 
+//!
 //! Implements core collection manipulation functions including navigation,
 //! aggregation, set operations, and logic functions.
 
-use super::{FunctionRegistry, FunctionCategory, FunctionContext};
-use crate::core::{FhirPathValue, Result, error_code::{FP0053}};
-use crate::{register_function};
+use super::{FunctionCategory, FunctionContext, FunctionRegistry};
+use crate::core::{FhirPathValue, Result, error_code::FP0053};
+use crate::register_function;
 use std::collections::HashSet;
 
 /// Utility functions for collection operations
@@ -101,12 +101,12 @@ impl FunctionRegistry {
         self.register_distinct_function()?;
         self.register_union_function()?;
         self.register_intersect_function()?;
-        
+
         // Register lambda functions with metadata (deferred implementation)
         self.register_where_function_metadata()?;
         self.register_select_function_metadata()?;
         self.register_all_function_metadata()?;
-        
+
         // Register missing collection functions
         self.register_alltrue_function()?;
         self.register_combine_function()?;
@@ -118,7 +118,7 @@ impl FunctionRegistry {
         self.register_supersetof_function()?;
         self.register_trace_function()?;
         self.register_repeat_function()?;
-        
+
         Ok(())
     }
 
@@ -338,7 +338,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                // Arguments are the second collection 
+                // Arguments are the second collection
                 Ok(CollectionUtils::union_collections(context.input, context.arguments))
             }
         )
@@ -368,7 +368,7 @@ impl FunctionRegistry {
 
     // Lambda functions with metadata registration but deferred implementation
     // These require lambda expression evaluation system to be built first
-    
+
     fn register_where_function_metadata(&self) -> Result<()> {
         register_function!(
             self,
@@ -436,7 +436,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![FhirPathValue::Boolean(true)]); // Empty collection is vacuously true
                 }
-                
+
                 for value in context.input {
                     match value {
                         FhirPathValue::Boolean(false) => return Ok(vec![FhirPathValue::Boolean(false)]),
@@ -448,7 +448,7 @@ impl FunctionRegistry {
                         ))
                     }
                 }
-                
+
                 Ok(vec![FhirPathValue::Boolean(true)])
             }
         )
@@ -493,14 +493,14 @@ impl FunctionRegistry {
             examples: ["(1 | 2 | 3).isDistinct()", "Patient.name.given.isDistinct()"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
                 let mut seen = HashSet::new();
-                
+
                 for value in context.input {
                     let hash_key = CollectionUtils::value_hash_key(value);
                     if !seen.insert(hash_key) {
                         return Ok(vec![FhirPathValue::Boolean(false)]);
                     }
                 }
-                
+
                 Ok(vec![FhirPathValue::Boolean(true)])
             }
         )
@@ -706,16 +706,16 @@ impl FunctionRegistry {
                 // For now, we'll return an error indicating lambda support is required
                 // The actual implementation should be handled by the evaluator engine
                 // with proper lambda expression evaluation and cycle detection
-                
+
                 if context.arguments.is_empty() {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "repeat() requires exactly one lambda expression argument".to_string()
                     ));
                 }
-                
+
                 // This is a placeholder - the real implementation needs:
-                // 1. Lambda expression parsing from arguments 
+                // 1. Lambda expression parsing from arguments
                 // 2. Recursive evaluation with cycle detection
                 // 3. Queue-based processing to prevent stack overflow
                 // 4. Integration with the evaluator's lambda support
@@ -726,7 +726,6 @@ impl FunctionRegistry {
             }
         )
     }
-
 }
 
 // mod collection_tests;

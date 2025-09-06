@@ -1,16 +1,16 @@
 //! FHIR-specific function registrations
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
+use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::register_function;
 
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use std::sync::Arc;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 #[derive(Debug, Default)]
 struct PerformanceMetrics {
@@ -62,8 +62,8 @@ impl FunctionRegistry {
             implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
                 Box::pin(async move {
                     let total_start = std::time::Instant::now();
-                    use crate::core::error_code::{FP0053, FP0051};
                     
+
                     // Performance profiling structure
                     let mut metrics = PerformanceMetrics {
                         input_processing_us: 0,
@@ -73,7 +73,7 @@ impl FunctionRegistry {
                         resolution_us: 0,
                         total_us: 0,
                     };
-                    
+
 
                     // Phase 1: Input processing
                     let phase_start = std::time::Instant::now();
@@ -82,7 +82,7 @@ impl FunctionRegistry {
                     }
                     let input_len = context.input.len();
                     metrics.input_processing_us = phase_start.elapsed().as_micros() as u64;
-                    
+
                     let mut resolved_resources = Vec::new();
 
                     // Phase 2: Context access and Bundle detection
@@ -92,12 +92,12 @@ impl FunctionRegistry {
                             if let Some(obj) = j.as_object() {
                                 if obj.get("resourceType").and_then(|v| v.as_str()) == Some("Bundle") {
                                     metrics.context_access_us = phase_start.elapsed().as_micros() as u64;
-                                    
+
                                     // Phase 3: Batch optimization
                                     let phase_start = std::time::Instant::now();
                                     let result = resolve_batch_optimized_with_metrics(context.input, obj, &mut metrics);
                                     metrics.batch_optimization_us = phase_start.elapsed().as_micros() as u64;
-                                    
+
                                     // Final metrics
                                     metrics.total_us = total_start.elapsed().as_micros() as u64;
                                     print_performance_metrics(&metrics, input_len);
@@ -107,7 +107,7 @@ impl FunctionRegistry {
                         }
                     }
                     metrics.context_access_us = phase_start.elapsed().as_micros() as u64;
-                    
+
                     // Fallback: process each input reference individually
                     for input_value in context.input.iter() {
                         // Extract reference string or Reference object
@@ -497,12 +497,12 @@ fn resolve_in_bundle_indexed(ctx: &FhirPathValue, reference: &str) -> Option<Fhi
     }
 
     let entries = obj.get("entry")?.as_array()?;
-    
+
     // Use linear scan for small bundles to avoid indexing overhead
     if entries.len() < 50 {
         return resolve_linear_scan(entries, reference);
     }
-    
+
     // Use indexed lookup for larger bundles to improve O(n) to O(1) access
     resolve_with_index(entries, reference)
 }
@@ -513,7 +513,7 @@ fn resolve_in_bundle_indexed(ctx: &FhirPathValue, reference: &str) -> Option<Fhi
 fn resolve_linear_scan(entries: &[JsonValue], reference: &str) -> Option<FhirPathValue> {
     // Split reference once upfront
     let (rt_opt, id_opt) = split_ref(reference);
-    
+
     for entry in entries {
         // Check fullUrl first (most common case)
         if let Some(full_url) = entry.get("fullUrl").and_then(|v| v.as_str()) {
@@ -521,7 +521,7 @@ fn resolve_linear_scan(entries: &[JsonValue], reference: &str) -> Option<FhirPat
                 return entry.get("resource").cloned().map(FhirPathValue::Resource);
             }
         }
-        
+
         // Check ResourceType/ID pattern
         if let (Some(rt), Some(id)) = (&rt_opt, &id_opt) {
             if let Some(resource) = entry.get("resource") {
@@ -536,12 +536,12 @@ fn resolve_linear_scan(entries: &[JsonValue], reference: &str) -> Option<FhirPat
             }
         }
     }
-    
+
     None
 }
 
 /// Global cache with better performance characteristics for index storage
-static BUNDLE_CACHE: Lazy<RwLock<HashMap<u64, Arc<BundleIndex>>>> = 
+static BUNDLE_CACHE: Lazy<RwLock<HashMap<u64, Arc<BundleIndex>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 /// Index structure for Bundle entry lookup by URL and ResourceType/ID
@@ -566,25 +566,25 @@ fn resolve_with_index(entries: &[JsonValue], reference: &str) -> Option<FhirPath
         }
     }
     let cache_key = hasher.finish();
-    
+
     // Try to get cached index
     let index = {
         let cache = BUNDLE_CACHE.read();
         cache.get(&cache_key).cloned()
     };
-    
+
     let index = if let Some(cached_index) = index {
         cached_index
     } else {
         // Build new index
         let mut by_full_url = HashMap::with_capacity(entries.len());
         let mut by_type_id = HashMap::with_capacity(entries.len());
-        
+
         for (i, entry) in entries.iter().enumerate() {
             if let Some(full_url) = entry.get("fullUrl").and_then(|v| v.as_str()) {
                 by_full_url.insert(full_url.into(), i);
             }
-            
+
             if let Some(resource) = entry.get("resource") {
                 if let (Some(rt), Some(id)) = (
                     resource.get("resourceType").and_then(|v| v.as_str()),
@@ -594,9 +594,12 @@ fn resolve_with_index(entries: &[JsonValue], reference: &str) -> Option<FhirPath
                 }
             }
         }
-        
-        let new_index = Arc::new(BundleIndex { by_full_url, by_type_id });
-        
+
+        let new_index = Arc::new(BundleIndex {
+            by_full_url,
+            by_type_id,
+        });
+
         // Cache the index
         {
             let mut cache = BUNDLE_CACHE.write();
@@ -605,38 +608,46 @@ fn resolve_with_index(entries: &[JsonValue], reference: &str) -> Option<FhirPath
             }
             cache.insert(cache_key, new_index.clone());
         }
-        
+
         new_index
     };
-    
+
     // Perform lookup
     if let Some(&entry_idx) = index.by_full_url.get(reference) {
-        return entries.get(entry_idx)
+        return entries
+            .get(entry_idx)
             .and_then(|e| e.get("resource"))
             .cloned()
             .map(FhirPathValue::Resource);
     }
-    
+
     if let (Some(rt), Some(id)) = split_ref(reference) {
-        if let Some(&entry_idx) = index.by_type_id.get(&(rt.as_str().into(), id.as_str().into())) {
-            return entries.get(entry_idx)
+        if let Some(&entry_idx) = index
+            .by_type_id
+            .get(&(rt.as_str().into(), id.as_str().into()))
+        {
+            return entries
+                .get(entry_idx)
                 .and_then(|e| e.get("resource"))
                 .cloned()
                 .map(FhirPathValue::Resource);
         }
     }
-    
+
     None
 }
 
 /// Batch resolver that processes multiple references in a single pass.
 /// Avoids repeated JSON traversals and index building for multiple resolve operations.
-fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json::Map<String, serde_json::Value>) -> Vec<FhirPathValue> {
+fn resolve_batch_optimized(
+    input_refs: &[FhirPathValue],
+    bundle_obj: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<FhirPathValue> {
     let entries = match bundle_obj.get("entry").and_then(|v| v.as_array()) {
         Some(entries) => entries,
         None => return Vec::new(),
     };
-    
+
     // Extract all reference strings first
     let mut references = Vec::with_capacity(input_refs.len());
     for input_value in input_refs {
@@ -644,13 +655,13 @@ fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json
             references.push(reference);
         }
     }
-    
+
     if references.is_empty() {
         return Vec::new();
     }
-    
+
     let mut resolved = Vec::with_capacity(references.len());
-    
+
     // For small bundles or small reference counts: use linear scan
     if entries.len() < 100 || references.len() < 10 {
         for reference in references {
@@ -660,17 +671,17 @@ fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json
         }
         return resolved;
     }
-    
+
     // For larger operations: build index once and resolve all
     let mut by_full_url = HashMap::with_capacity(entries.len());
     let mut by_type_id = HashMap::with_capacity(entries.len());
-    
+
     // Build index by iterating through all entries
     for (i, entry) in entries.iter().enumerate() {
         if let Some(full_url) = entry.get("fullUrl").and_then(|v| v.as_str()) {
             by_full_url.insert(full_url, i);
         }
-        
+
         if let Some(resource) = entry.get("resource") {
             if let (Some(rt), Some(id)) = (
                 resource.get("resourceType").and_then(|v| v.as_str()),
@@ -680,7 +691,7 @@ fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json
             }
         }
     }
-    
+
     // Resolve all references using the index
     for reference in references {
         let entry_idx = if let Some(&idx) = by_full_url.get(reference.as_str()) {
@@ -690,14 +701,14 @@ fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json
         } else {
             None
         };
-        
+
         if let Some(idx) = entry_idx {
             if let Some(resource) = entries.get(idx).and_then(|e| e.get("resource")) {
                 resolved.push(FhirPathValue::Resource(resource.clone()));
             }
         }
     }
-    
+
     resolved
 }
 
@@ -705,30 +716,45 @@ fn resolve_batch_optimized(input_refs: &[FhirPathValue], bundle_obj: &serde_json
 fn print_performance_metrics(metrics: &PerformanceMetrics, input_count: usize) {
     // Only print metrics for slow operations (>5ms) or when debugging
     if metrics.total_us > 5000 || std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
-        eprintln!("🔍 RESOLVE PERFORMANCE METRICS ({} references):", input_count);
-        eprintln!("  Input Processing:    {:>6}μs", metrics.input_processing_us);
+        eprintln!(
+            "🔍 RESOLVE PERFORMANCE METRICS ({} references):",
+            input_count
+        );
+        eprintln!(
+            "  Input Processing:    {:>6}μs",
+            metrics.input_processing_us
+        );
         eprintln!("  Context Access:      {:>6}μs", metrics.context_access_us);
-        eprintln!("  Reference Extraction:{:>6}μs", metrics.reference_extraction_us);
+        eprintln!(
+            "  Reference Extraction:{:>6}μs",
+            metrics.reference_extraction_us
+        );
         eprintln!("  Bundle Resolution:   {:>6}μs", metrics.resolution_us);
-        eprintln!("  Batch Optimization:  {:>6}μs", metrics.batch_optimization_us);
+        eprintln!(
+            "  Batch Optimization:  {:>6}μs",
+            metrics.batch_optimization_us
+        );
         eprintln!("  TOTAL TIME:          {:>6}μs", metrics.total_us);
-        eprintln!("  Per Reference:       {:>6}μs", metrics.total_us / (input_count as u64).max(1));
+        eprintln!(
+            "  Per Reference:       {:>6}μs",
+            metrics.total_us / (input_count as u64).max(1)
+        );
         eprintln!();
     }
 }
 
 /// Performance-instrumented batch resolver with detailed metrics
 fn resolve_batch_optimized_with_metrics(
-    input_refs: &[FhirPathValue], 
+    input_refs: &[FhirPathValue],
     bundle_obj: &serde_json::Map<String, serde_json::Value>,
-    metrics: &mut PerformanceMetrics
+    metrics: &mut PerformanceMetrics,
 ) -> Vec<FhirPathValue> {
     let phase_start = std::time::Instant::now();
     let entries = match bundle_obj.get("entry").and_then(|v| v.as_array()) {
         Some(entries) => entries,
         None => return Vec::new(),
     };
-    
+
     // Extract all reference strings first
     let mut references = Vec::with_capacity(input_refs.len());
     for input_value in input_refs {
@@ -737,19 +763,23 @@ fn resolve_batch_optimized_with_metrics(
         }
     }
     metrics.reference_extraction_us = phase_start.elapsed().as_micros() as u64;
-    
+
     if references.is_empty() {
         return Vec::new();
     }
-    
+
     // Resolution phase with detailed timing
     let phase_start = std::time::Instant::now();
     let mut resolved = Vec::with_capacity(references.len());
-    
+
     // For small bundles or small reference counts: use linear scan
     if entries.len() < 100 || references.len() < 10 {
         if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
-            eprintln!("🔍 Using LINEAR SCAN: {} entries, {} references", entries.len(), references.len());
+            eprintln!(
+                "🔍 Using LINEAR SCAN: {} entries, {} references",
+                entries.len(),
+                references.len()
+            );
         }
         for reference in references {
             if let Some(resource) = resolve_linear_scan(entries, &reference) {
@@ -759,9 +789,13 @@ fn resolve_batch_optimized_with_metrics(
     } else {
         let debug_perf = std::env::var("FHIRPATH_DEBUG_PERF").is_ok();
         if debug_perf {
-            eprintln!("🔍 Using INDEXED LOOKUP: {} entries, {} references", entries.len(), references.len());
+            eprintln!(
+                "🔍 Using INDEXED LOOKUP: {} entries, {} references",
+                entries.len(),
+                references.len()
+            );
         }
-        
+
         // Create hash of bundle entries for caching
         let cache_start = std::time::Instant::now();
         let mut hasher = DefaultHasher::new();
@@ -777,19 +811,19 @@ fn resolve_batch_optimized_with_metrics(
         }
         entries.len().hash(&mut hasher);
         let cache_key = hasher.finish();
-        
+
         if debug_perf {
             let cache_time = cache_start.elapsed().as_micros();
             eprintln!("🔍 Cache key generation: {}μs", cache_time);
         }
-        
+
         // Try to get cached index first
         let index_lookup_start = std::time::Instant::now();
         let index = {
             let cache = BUNDLE_CACHE.read();
             cache.get(&cache_key).cloned()
         };
-        
+
         let index = if let Some(cached_index) = index {
             if debug_perf {
                 let lookup_time = index_lookup_start.elapsed().as_micros();
@@ -801,16 +835,16 @@ fn resolve_batch_optimized_with_metrics(
                 eprintln!("🔍 Cache MISS - Building index...");
             }
             let index_build_start = std::time::Instant::now();
-            
+
             let mut by_full_url = HashMap::with_capacity(entries.len());
             let mut by_type_id = HashMap::with_capacity(entries.len());
-            
+
             // Build index by iterating through all entries
             for (i, entry) in entries.iter().enumerate() {
                 if let Some(full_url) = entry.get("fullUrl").and_then(|v| v.as_str()) {
                     by_full_url.insert(full_url.to_string(), i);
                 }
-                
+
                 if let Some(resource) = entry.get("resource") {
                     if let (Some(rt), Some(id)) = (
                         resource.get("resourceType").and_then(|v| v.as_str()),
@@ -820,51 +854,61 @@ fn resolve_batch_optimized_with_metrics(
                     }
                 }
             }
-            
+
             let new_index = Arc::new(BundleIndex {
-                by_full_url: by_full_url.into_iter().map(|(k, v)| (k.into_boxed_str(), v)).collect(),
-                by_type_id: by_type_id.into_iter().map(|((rt, id), v)| ((rt.into_boxed_str(), id.into_boxed_str()), v)).collect(),
+                by_full_url: by_full_url
+                    .into_iter()
+                    .map(|(k, v)| (k.into_boxed_str(), v))
+                    .collect(),
+                by_type_id: by_type_id
+                    .into_iter()
+                    .map(|((rt, id), v)| ((rt.into_boxed_str(), id.into_boxed_str()), v))
+                    .collect(),
             });
-            
+
             if debug_perf {
                 let index_time = index_build_start.elapsed().as_micros();
                 eprintln!("🔍 Index build time: {}μs", index_time);
             }
-            
+
             // Cache the new index
             let mut cache = BUNDLE_CACHE.write();
-            if cache.len() > 20 { // Limit cache size
+            if cache.len() > 20 {
+                // Limit cache size
                 cache.clear();
             }
             cache.insert(cache_key, new_index.clone());
-            
+
             new_index
         };
-        
+
         // Resolve all references using the cached index
         let lookup_start = std::time::Instant::now();
         for reference in references {
             let entry_idx = if let Some(&idx) = index.by_full_url.get(reference.as_str()) {
                 Some(idx)
             } else if let (Some(rt), Some(id)) = split_ref(&reference) {
-                index.by_type_id.get(&(rt.as_str().into(), id.as_str().into())).copied()
+                index
+                    .by_type_id
+                    .get(&(rt.as_str().into(), id.as_str().into()))
+                    .copied()
             } else {
                 None
             };
-            
+
             if let Some(idx) = entry_idx {
                 if let Some(resource) = entries.get(idx).and_then(|e| e.get("resource")) {
                     resolved.push(FhirPathValue::Resource(resource.clone()));
                 }
             }
         }
-        
+
         if debug_perf {
             let lookup_time = lookup_start.elapsed().as_micros();
             eprintln!("🔍 Lookup time: {}μs", lookup_time);
         }
     }
-    
+
     metrics.resolution_us = phase_start.elapsed().as_micros() as u64;
     resolved
 }
@@ -874,16 +918,14 @@ fn resolve_batch_optimized_with_metrics(
 fn extract_reference_string(input_value: &FhirPathValue) -> Option<String> {
     match input_value {
         FhirPathValue::String(s) => Some(s.clone()),
-        FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
-            j.as_object()
-                .and_then(|obj| obj.get("reference"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-        }
+        FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => j
+            .as_object()
+            .and_then(|obj| obj.get("reference"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         _ => None,
     }
 }
-
 
 impl FunctionRegistry {
     fn register_hasTemplateIdOf_function(&self) -> Result<()> {
@@ -957,7 +999,7 @@ impl FunctionRegistry {
                                         if target_extension.is_none() {
                                             return Ok(vec![FhirPathValue::Boolean(true)]);
                                         }
-                                        
+
                                         // Check extension if required
                                         let extension_matches = template_obj
                                             .get("extension")

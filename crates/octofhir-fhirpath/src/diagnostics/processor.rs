@@ -3,11 +3,13 @@
 //! This module provides intelligent diagnostic processing that transforms raw analysis
 //! results into actionable, contextual error messages with suggestions and rich formatting.
 
-use crate::analyzer::{StaticAnalysisResult, AnalysisWarning, OptimizationSuggestion, OptimizationKind};
-use crate::diagnostics::{
-    AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity, RelatedDiagnostic
+use crate::analyzer::{
+    AnalysisWarning, OptimizationKind, OptimizationSuggestion, StaticAnalysisResult,
 };
-use crate::core::{error_code::{ErrorCode, FP0001, FP0055, FP0101, FP0010}, SourceLocation};
+use crate::core::error_code::{ErrorCode, FP0001, FP0010, FP0055, FP0101};
+use crate::diagnostics::{
+    AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity, RelatedDiagnostic,
+};
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -150,17 +152,17 @@ pub struct TextReplacement {
 /// Confidence level for suggestions
 #[derive(Debug, Clone, PartialEq)]
 pub enum SuggestionConfidence {
-    High,    // Almost certainly correct
-    Medium,  // Likely correct
-    Low,     // Possible alternative
+    High,   // Almost certainly correct
+    Medium, // Likely correct
+    Low,    // Possible alternative
 }
 
 /// Category of suggestion
 #[derive(Debug, Clone)]
 pub enum SuggestionCategory {
-    Fix,          // Fix a definite error
-    Improvement,  // Performance or style improvement
-    Alternative,  // Different way to achieve same result
+    Fix,           // Fix a definite error
+    Improvement,   // Performance or style improvement
+    Alternative,   // Different way to achieve same result
     Clarification, // Make intent clearer
 }
 
@@ -217,7 +219,9 @@ impl DiagnosticProcessor {
     /// Create processor with custom configuration
     pub fn with_config(config: DiagnosticConfig) -> Self {
         let mut processor = Self::new();
-        processor.help_system.set_max_suggestions(config.max_suggestions);
+        processor
+            .help_system
+            .set_max_suggestions(config.max_suggestions);
         processor
     }
 
@@ -231,10 +235,9 @@ impl DiagnosticProcessor {
         let mut processed = Vec::new();
 
         // Add source to engine
-        let source_id = self.engine.add_source(
-            filename.unwrap_or("<input>"),
-            source
-        );
+        let source_id = self
+            .engine
+            .add_source(filename.unwrap_or("<input>"), source);
 
         // Process regular diagnostics
         for diagnostic in &result.diagnostics {
@@ -279,11 +282,15 @@ impl DiagnosticProcessor {
         let context = self.build_context(&ariadne_diag, source);
 
         // Generate suggestions
-        let suggestions = self.suggestion_engine.generate_suggestions(&ariadne_diag, source, &context);
+        let suggestions =
+            self.suggestion_engine
+                .generate_suggestions(&ariadne_diag, source, &context);
 
         // Get help text
         let help_text = self.help_system.get_help_text(&ariadne_diag.error_code);
-        let documentation_url = self.help_system.get_documentation_url(&ariadne_diag.error_code);
+        let documentation_url = self
+            .help_system
+            .get_documentation_url(&ariadne_diag.error_code);
 
         Some(ProcessedDiagnostic {
             diagnostic: ariadne_diag,
@@ -351,18 +358,32 @@ impl DiagnosticProcessor {
     }
 
     /// Extract context lines around the error
-    fn extract_context_lines(&self, source: &str, span: &Range<usize>, context_lines: usize) -> Vec<ContextLine> {
+    fn extract_context_lines(
+        &self,
+        source: &str,
+        span: &Range<usize>,
+        context_lines: usize,
+    ) -> Vec<ContextLine> {
         let lines: Vec<&str> = source.lines().collect();
         let error_line_idx = self.find_line_index(source, span.start);
-        
+
         let start_line = error_line_idx.saturating_sub(context_lines);
         let end_line = (error_line_idx + context_lines).min(lines.len().saturating_sub(1));
 
         let mut result = Vec::new();
-        for (line_idx, line_content) in lines.iter().enumerate().skip(start_line).take(end_line - start_line + 1) {
+        for (line_idx, line_content) in lines
+            .iter()
+            .enumerate()
+            .skip(start_line)
+            .take(end_line - start_line + 1)
+        {
             let is_error_line = line_idx == error_line_idx;
             let highlights = if is_error_line {
-                self.calculate_line_highlights(line_content, span, self.get_line_start_offset(source, line_idx))
+                self.calculate_line_highlights(
+                    line_content,
+                    span,
+                    self.get_line_start_offset(source, line_idx),
+                )
             } else {
                 Vec::new()
             };
@@ -379,9 +400,14 @@ impl DiagnosticProcessor {
     }
 
     /// Calculate highlights for a specific line
-    fn calculate_line_highlights(&self, line: &str, span: &Range<usize>, line_start: usize) -> Vec<Highlight> {
+    fn calculate_line_highlights(
+        &self,
+        line: &str,
+        span: &Range<usize>,
+        line_start: usize,
+    ) -> Vec<Highlight> {
         let line_end = line_start + line.len();
-        
+
         // Check if the span intersects with this line
         if span.start >= line_end || span.end <= line_start {
             return Vec::new();
@@ -432,47 +458,63 @@ impl DiagnosticProcessor {
     /// Infer resource type context from the source
     fn infer_resource_context(&self, source: &str, span: &Range<usize>) -> Option<String> {
         let before_error = &source[..span.start.min(source.len())];
-        
+
         // Look for common resource types
-        for resource_type in &["Patient", "Observation", "Practitioner", "Organization", "Bundle", "Encounter"] {
+        for resource_type in &[
+            "Patient",
+            "Observation",
+            "Practitioner",
+            "Organization",
+            "Bundle",
+            "Encounter",
+        ] {
             if before_error.contains(resource_type) {
                 return Some(resource_type.to_string());
             }
         }
-        
+
         None
     }
 
     /// Infer function context from the source
     fn infer_function_context(&self, source: &str, span: &Range<usize>) -> Option<String> {
         let before_error = &source[..span.start.min(source.len())];
-        
+
         // Find the last function call before the error
         if let Some(paren_pos) = before_error.rfind('(') {
             // Find function name before the parenthesis
             let before_paren = &before_error[..paren_pos];
-            if let Some(func_start) = before_paren.rfind(|c: char| !c.is_alphanumeric() && c != '_') {
+            if let Some(func_start) = before_paren.rfind(|c: char| !c.is_alphanumeric() && c != '_')
+            {
                 let function_name = &before_paren[func_start + 1..];
-                if !function_name.is_empty() && function_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if !function_name.is_empty()
+                    && function_name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                {
                     return Some(function_name.to_string());
                 }
             }
         }
-        
+
         None
     }
 
     /// Build expression path context
     fn build_expression_path(&self, source: &str, span: &Range<usize>) -> Vec<String> {
         let before_error = &source[..span.start.min(source.len())];
-        before_error.split('.')
+        before_error
+            .split('.')
             .filter(|s| !s.trim().is_empty())
             .map(|s| s.trim().to_string())
             .collect()
     }
 
     /// Convert analysis warning to diagnostic
-    fn convert_warning_to_diagnostic(&self, warning: &AnalysisWarning) -> crate::diagnostics::Diagnostic {
+    fn convert_warning_to_diagnostic(
+        &self,
+        warning: &AnalysisWarning,
+    ) -> crate::diagnostics::Diagnostic {
         let mut diagnostic = crate::diagnostics::Diagnostic::new(
             warning.severity.clone(),
             warning.code.clone(),
@@ -487,7 +529,10 @@ impl DiagnosticProcessor {
     }
 
     /// Convert optimization suggestion to diagnostic
-    fn convert_optimization_to_diagnostic(&self, suggestion: &OptimizationSuggestion) -> crate::diagnostics::Diagnostic {
+    fn convert_optimization_to_diagnostic(
+        &self,
+        suggestion: &OptimizationSuggestion,
+    ) -> crate::diagnostics::Diagnostic {
         let code = match suggestion.kind {
             OptimizationKind::ExpensiveOperation => "FP0200",
             OptimizationKind::RedundantCondition => "FP0201",
@@ -521,10 +566,9 @@ impl DiagnosticProcessor {
         filename: Option<&str>,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
-        let source_id = self.engine.add_source(
-            filename.unwrap_or("<input>"),
-            source
-        );
+        let source_id = self
+            .engine
+            .add_source(filename.unwrap_or("<input>"), source);
 
         for (i, processed) in diagnostics.iter().enumerate() {
             if i > 0 {
@@ -532,7 +576,9 @@ impl DiagnosticProcessor {
             }
 
             // Render main diagnostic
-            let diagnostic_output = self.engine.format_diagnostic(&processed.diagnostic, source_id)?;
+            let diagnostic_output = self
+                .engine
+                .format_diagnostic(&processed.diagnostic, source_id)?;
             output.push_str(&diagnostic_output);
 
             // Add suggestions if any
@@ -562,7 +608,7 @@ impl DiagnosticProcessor {
     /// Render suggestions as formatted text
     fn render_suggestions(&self, suggestions: &[DiagnosticSuggestion]) -> String {
         let mut output = String::new();
-        
+
         if suggestions.is_empty() {
             return output;
         }
@@ -593,10 +639,7 @@ impl DiagnosticProcessor {
 
             // Show replacements if any
             for replacement in &suggestion.replacements {
-                output.push_str(&format!(
-                    "\n    Replace with: '{}'",
-                    replacement.text
-                ));
+                output.push_str(&format!("\n    Replace with: '{}'", replacement.text));
             }
         }
 
@@ -606,7 +649,7 @@ impl DiagnosticProcessor {
     /// Render related diagnostics
     fn render_related_diagnostics(&self, related: &[RelatedDiagnostic]) -> String {
         let mut output = String::new();
-        
+
         if related.is_empty() {
             return output;
         }
@@ -614,10 +657,7 @@ impl DiagnosticProcessor {
         output.push_str("\n\n🔗 Related:");
 
         for related_diag in related {
-            output.push_str(&format!(
-                "\n  • {}",
-                related_diag.message
-            ));
+            output.push_str(&format!("\n  • {}", related_diag.message));
         }
 
         output
@@ -665,7 +705,7 @@ impl HelpSystem {
 
         self.help_texts.insert(
             FP0001,
-            "This is a general syntax error. Check the FHIRPath expression syntax.".to_string()
+            "This is a general syntax error. Check the FHIRPath expression syntax.".to_string(),
         );
 
         self.help_texts.insert(
@@ -673,14 +713,12 @@ impl HelpSystem {
             "The property does not exist on this resource type. Check the FHIR specification for valid properties.".to_string()
         );
 
-        self.documentation_urls.insert(
-            FP0001,
-            "https://hl7.org/fhirpath/#grammar".to_string()
-        );
+        self.documentation_urls
+            .insert(FP0001, "https://hl7.org/fhirpath/#grammar".to_string());
 
         self.documentation_urls.insert(
             FP0055,
-            "https://hl7.org/fhir/elementdefinition.html".to_string()
+            "https://hl7.org/fhir/elementdefinition.html".to_string(),
         );
     }
 }
@@ -716,37 +754,48 @@ impl SuggestionEngine {
         suggestions
     }
 
-    fn suggest_property_fixes(&self, _source: &str, _span: &Range<usize>, _context: &DiagnosticContext) -> Vec<DiagnosticSuggestion> {
-        vec![
-            DiagnosticSuggestion {
-                message: "Check the property name spelling".to_string(),
-                replacements: Vec::new(),
-                confidence: SuggestionConfidence::Medium,
-                category: SuggestionCategory::Fix,
-                improvement_estimate: None,
-            }
-        ]
+    fn suggest_property_fixes(
+        &self,
+        _source: &str,
+        _span: &Range<usize>,
+        _context: &DiagnosticContext,
+    ) -> Vec<DiagnosticSuggestion> {
+        vec![DiagnosticSuggestion {
+            message: "Check the property name spelling".to_string(),
+            replacements: Vec::new(),
+            confidence: SuggestionConfidence::Medium,
+            category: SuggestionCategory::Fix,
+            improvement_estimate: None,
+        }]
     }
 
-    fn suggest_function_fixes(&self, _source: &str, _span: &Range<usize>, _context: &DiagnosticContext) -> Vec<DiagnosticSuggestion> {
-        vec![
-            DiagnosticSuggestion {
-                message: "Check the function name spelling or availability".to_string(),
-                replacements: Vec::new(),
-                confidence: SuggestionConfidence::Medium,
-                category: SuggestionCategory::Fix,
-                improvement_estimate: None,
-            }
-        ]
+    fn suggest_function_fixes(
+        &self,
+        _source: &str,
+        _span: &Range<usize>,
+        _context: &DiagnosticContext,
+    ) -> Vec<DiagnosticSuggestion> {
+        vec![DiagnosticSuggestion {
+            message: "Check the function name spelling or availability".to_string(),
+            replacements: Vec::new(),
+            confidence: SuggestionConfidence::Medium,
+            category: SuggestionCategory::Fix,
+            improvement_estimate: None,
+        }]
     }
 
-    fn suggest_generic_improvements(&self, source: &str, _context: &DiagnosticContext) -> Vec<DiagnosticSuggestion> {
+    fn suggest_generic_improvements(
+        &self,
+        source: &str,
+        _context: &DiagnosticContext,
+    ) -> Vec<DiagnosticSuggestion> {
         let mut suggestions = Vec::new();
 
         // Suggest performance improvements
         if source.contains("count()") && source.contains("> 0") {
             suggestions.push(DiagnosticSuggestion {
-                message: "Consider using exists() instead of count() > 0 for better performance".to_string(),
+                message: "Consider using exists() instead of count() > 0 for better performance"
+                    .to_string(),
                 replacements: Vec::new(),
                 confidence: SuggestionConfidence::Low,
                 category: SuggestionCategory::Improvement,
@@ -770,12 +819,12 @@ impl RelationshipDetector {
         // Find related diagnostics based on various criteria
         for i in 0..diagnostics.len() {
             let mut related = Vec::new();
-            
+
             for j in 0..diagnostics.len() {
                 if i == j {
                     continue;
                 }
-                
+
                 let relationship = self.analyze_relationship(&diagnostics[i], &diagnostics[j]);
                 if let Some(rel) = relationship {
                     related.push(RelatedDiagnostic {
@@ -785,12 +834,16 @@ impl RelationshipDetector {
                     });
                 }
             }
-            
+
             diagnostics[i].related.extend(related);
         }
     }
-    
-    fn analyze_relationship(&self, primary: &ProcessedDiagnostic, candidate: &ProcessedDiagnostic) -> Option<DiagnosticRelationship> {
+
+    fn analyze_relationship(
+        &self,
+        primary: &ProcessedDiagnostic,
+        candidate: &ProcessedDiagnostic,
+    ) -> Option<DiagnosticRelationship> {
         // Check for overlapping spans (potential duplicates)
         if self.spans_overlap(&primary.diagnostic.span, &candidate.diagnostic.span) {
             return Some(DiagnosticRelationship {
@@ -800,9 +853,12 @@ impl RelationshipDetector {
                 confidence: 0.8,
             });
         }
-        
+
         // Check for causal relationships based on error codes
-        if self.is_causal_relationship(&primary.diagnostic.error_code, &candidate.diagnostic.error_code) {
+        if self.is_causal_relationship(
+            &primary.diagnostic.error_code,
+            &candidate.diagnostic.error_code,
+        ) {
             return Some(DiagnosticRelationship {
                 kind: RelationshipKind::CauseEffect,
                 description: "This error may be caused by the issue above".to_string(),
@@ -810,10 +866,11 @@ impl RelationshipDetector {
                 confidence: 0.6,
             });
         }
-        
+
         // Check for context relationships
-        if primary.context.resource_context == candidate.context.resource_context &&
-           primary.context.resource_context.is_some() {
+        if primary.context.resource_context == candidate.context.resource_context
+            && primary.context.resource_context.is_some()
+        {
             return Some(DiagnosticRelationship {
                 kind: RelationshipKind::ContextRelated,
                 description: "Related issue in same resource type".to_string(),
@@ -821,26 +878,26 @@ impl RelationshipDetector {
                 confidence: 0.4,
             });
         }
-        
+
         None
     }
-    
+
     fn spans_overlap(&self, span1: &Range<usize>, span2: &Range<usize>) -> bool {
         span1.start < span2.end && span2.start < span1.end
     }
-    
+
     fn is_causal_relationship(&self, primary: &ErrorCode, secondary: &ErrorCode) -> bool {
         // Define some known causal relationships
         (*primary == FP0001 && *secondary == FP0055) ||  // Syntax error may cause property access error
-        (*primary == FP0010 && *secondary == FP0101)     // Type error may cause function error
+        (*primary == FP0010 && *secondary == FP0101) // Type error may cause function error
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::error_code::*;
     use crate::analyzer::ComplexityMetrics;
+    use crate::core::error_code::*;
 
     #[test]
     fn test_diagnostic_processor_creation() {
@@ -909,7 +966,7 @@ mod tests {
         let source = "Patient.name\n.family\n.where(invalid)";
         let span = 21..28; // "invalid"
         let lines = processor.extract_context_lines(source, &span, 1);
-        
+
         assert_eq!(lines.len(), 2); // Should include line with error and one before
         assert!(lines.iter().any(|line| line.is_error_line));
     }
@@ -935,7 +992,11 @@ mod tests {
             source_lines: Vec::new(),
         };
 
-        let suggestions = processor.suggestion_engine.generate_suggestions(&diagnostic, "Patient.invalid", &context);
+        let suggestions = processor.suggestion_engine.generate_suggestions(
+            &diagnostic,
+            "Patient.invalid",
+            &context,
+        );
         assert!(!suggestions.is_empty());
         assert!(suggestions[0].category == SuggestionCategory::Fix);
     }
@@ -943,7 +1004,7 @@ mod tests {
     #[test]
     fn test_relationship_detection() {
         let detector = RelationshipDetector::new();
-        
+
         let diagnostic1 = ProcessedDiagnostic {
             diagnostic: AriadneDiagnostic {
                 severity: DiagnosticSeverity::Error,
@@ -992,7 +1053,7 @@ mod tests {
 
         let relationship = detector.analyze_relationship(&diagnostic1, &diagnostic2);
         assert!(relationship.is_some());
-        
+
         let rel = relationship.unwrap();
         assert_eq!(rel.kind, RelationshipKind::CauseEffect);
     }
@@ -1000,15 +1061,15 @@ mod tests {
     #[test]
     fn test_span_overlap_detection() {
         let detector = RelationshipDetector::new();
-        
+
         // Overlapping spans
         assert!(detector.spans_overlap(&(5..10), &(8..15)));
         assert!(detector.spans_overlap(&(8..15), &(5..10)));
-        
+
         // Non-overlapping spans
         assert!(!detector.spans_overlap(&(5..10), &(15..20)));
         assert!(!detector.spans_overlap(&(15..20), &(5..10)));
-        
+
         // Adjacent spans (should not overlap)
         assert!(!detector.spans_overlap(&(5..10), &(10..15)));
     }
@@ -1057,25 +1118,30 @@ mod tests {
         let analysis_result = StaticAnalysisResult {
             diagnostics: vec![
                 crate::diagnostics::Diagnostic::error("FP0055", "Property not found: 'invalid'")
-                    .with_location(SourceLocation { offset: 8, length: 7 }),
+                    .with_location(SourceLocation {
+                        offset: 8,
+                        length: 7,
+                    }),
             ],
-            warnings: vec![
-                AnalysisWarning {
-                    code: "W001".to_string(),
-                    message: "Deep nesting detected".to_string(),
-                    location: Some(SourceLocation { offset: 5, length: 10 }),
-                    severity: DiagnosticSeverity::Warning,
-                    suggestion: Some("Consider simplifying".to_string()),
-                }
-            ],
-            suggestions: vec![
-                OptimizationSuggestion {
-                    kind: OptimizationKind::PropertyCorrection,
-                    message: "Did you mean 'name'?".to_string(),
-                    location: Some(SourceLocation { offset: 8, length: 7 }),
-                    estimated_improvement: 0.0,
-                }
-            ],
+            warnings: vec![AnalysisWarning {
+                code: "W001".to_string(),
+                message: "Deep nesting detected".to_string(),
+                location: Some(SourceLocation {
+                    offset: 5,
+                    length: 10,
+                }),
+                severity: DiagnosticSeverity::Warning,
+                suggestion: Some("Consider simplifying".to_string()),
+            }],
+            suggestions: vec![OptimizationSuggestion {
+                kind: OptimizationKind::PropertyCorrection,
+                message: "Did you mean 'name'?".to_string(),
+                location: Some(SourceLocation {
+                    offset: 8,
+                    length: 7,
+                }),
+                estimated_improvement: 0.0,
+            }],
             type_info: HashMap::new(),
             complexity_metrics: ComplexityMetrics {
                 cyclomatic_complexity: 1,
@@ -1090,15 +1156,21 @@ mod tests {
 
         let source = "Patient.invalid.name";
         let processed = processor.process_analysis(&analysis_result, source, Some("test.fhirpath"));
-        
+
         assert!(!processed.is_empty());
         assert_eq!(processed.len(), 3); // 1 diagnostic + 1 warning + 1 suggestion
-        
+
         // Check that the main error was processed
         let main_diagnostic = &processed[0];
-        assert_eq!(main_diagnostic.diagnostic.severity, DiagnosticSeverity::Error);
+        assert_eq!(
+            main_diagnostic.diagnostic.severity,
+            DiagnosticSeverity::Error
+        );
         assert_eq!(main_diagnostic.context.source_snippet, "invalid");
-        assert_eq!(main_diagnostic.context.resource_context, Some("Patient".to_string()));
+        assert_eq!(
+            main_diagnostic.context.resource_context,
+            Some("Patient".to_string())
+        );
         assert!(!main_diagnostic.suggestions.is_empty());
     }
 }

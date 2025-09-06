@@ -3,17 +3,16 @@
 //! This module provides comprehensive type checking capabilities for FHIRPath expressions,
 //! including type inference, validation, and compatibility checking.
 
-use crate::ast::expression::*;
-use crate::ast::operator::{BinaryOperator, UnaryOperator};
-use crate::ast::literal::LiteralValue;
-use crate::analyzer::visitor::ExpressionVisitor;
 use crate::analyzer::context::AnalysisContext;
-use crate::core::{Result, ModelProvider};
+use crate::analyzer::visitor::ExpressionVisitor;
+use crate::ast::expression::*;
+use crate::ast::literal::LiteralValue;
+use crate::ast::operator::{BinaryOperator, UnaryOperator};
+use crate::core::{ModelProvider, Result};
 use crate::registry::FunctionRegistry;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::fmt;
-use async_trait::async_trait;
+use std::sync::Arc;
 
 /// Comprehensive type information for FHIRPath values
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +48,9 @@ pub enum TypeInfo {
     /// FHIR Resource type
     Resource { resource_type: String },
     /// FHIR BackboneElement or nested object
-    BackboneElement { properties: HashMap<String, TypeInfo> },
+    BackboneElement {
+        properties: HashMap<String, TypeInfo>,
+    },
     /// Collection of a specific type
     Collection(Box<TypeInfo>),
     /// Union of multiple possible types
@@ -94,42 +95,53 @@ impl fmt::Display for TypeInfo {
                 } else {
                     write!(f, "Reference<{}>", target_types.join(" | "))
                 }
-            },
+            }
             TypeInfo::Resource { resource_type } => write!(f, "{}", resource_type),
             TypeInfo::BackboneElement { .. } => write!(f, "BackboneElement"),
             TypeInfo::Collection(inner) => write!(f, "Collection<{}>", inner),
             TypeInfo::Union(types) => {
                 write!(f, "(")?;
                 for (i, t) in types.iter().enumerate() {
-                    if i > 0 { write!(f, " | ")?; }
+                    if i > 0 {
+                        write!(f, " | ")?;
+                    }
                     write!(f, "{}", t)?;
                 }
                 write!(f, ")")
-            },
+            }
             TypeInfo::Empty => write!(f, "Empty"),
             TypeInfo::Choice(choices) => {
                 write!(f, "Choice<")?;
                 for (i, t) in choices.iter().enumerate() {
-                    if i > 0 { write!(f, " | ")?; }
+                    if i > 0 {
+                        write!(f, " | ")?;
+                    }
                     write!(f, "{}", t)?;
                 }
                 write!(f, ">")
-            },
-            TypeInfo::Function { parameters, return_type } => {
+            }
+            TypeInfo::Function {
+                parameters,
+                return_type,
+            } => {
                 write!(f, "(")?;
                 for (i, param) in parameters.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", param)?;
                 }
                 write!(f, ") -> {}", return_type)
-            },
+            }
             TypeInfo::Any => write!(f, "Any"),
             TypeInfo::Range => write!(f, "Range"),
-            TypeInfo::Constrained { base_type, min_cardinality, max_cardinality } => {
-                match max_cardinality {
-                    Some(max) => write!(f, "{}[{}..{}]", base_type, min_cardinality, max),
-                    None => write!(f, "{}[{}..*]", base_type, min_cardinality),
-                }
+            TypeInfo::Constrained {
+                base_type,
+                min_cardinality,
+                max_cardinality,
+            } => match max_cardinality {
+                Some(max) => write!(f, "{}[{}..{}]", base_type, min_cardinality, max),
+                None => write!(f, "{}[{}..*]", base_type, min_cardinality),
             },
         }
     }
@@ -138,10 +150,17 @@ impl fmt::Display for TypeInfo {
 impl TypeInfo {
     /// Check if this type is a primitive type
     pub fn is_primitive(&self) -> bool {
-        matches!(self, 
-            TypeInfo::Boolean | TypeInfo::Integer | TypeInfo::Decimal | 
-            TypeInfo::String | TypeInfo::Date | TypeInfo::DateTime | 
-            TypeInfo::Time | TypeInfo::Quantity | TypeInfo::Code
+        matches!(
+            self,
+            TypeInfo::Boolean
+                | TypeInfo::Integer
+                | TypeInfo::Decimal
+                | TypeInfo::String
+                | TypeInfo::Date
+                | TypeInfo::DateTime
+                | TypeInfo::Time
+                | TypeInfo::Quantity
+                | TypeInfo::Code
         )
     }
 
@@ -170,132 +189,129 @@ impl TypeInfo {
         match (self, other) {
             // Exact matches
             (a, b) if a == b => true,
-            
+
             // Any is compatible with everything
             (TypeInfo::Any, _) | (_, TypeInfo::Any) => true,
-            
+
             // Empty is compatible with collections
-            (TypeInfo::Empty, TypeInfo::Collection(_)) | (TypeInfo::Collection(_), TypeInfo::Empty) => true,
-            
+            (TypeInfo::Empty, TypeInfo::Collection(_))
+            | (TypeInfo::Collection(_), TypeInfo::Empty) => true,
+
             // Unknown requires explicit handling
             (TypeInfo::Unknown, _) | (_, TypeInfo::Unknown) => false,
-            
+
             // Numeric compatibility
             (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => true,
-            
+
             // String conversion compatibility
-            (TypeInfo::Boolean | TypeInfo::Integer | TypeInfo::Decimal | TypeInfo::Date | 
-             TypeInfo::DateTime | TypeInfo::Time | TypeInfo::Code | TypeInfo::Quantity, TypeInfo::String) => true,
-            
+            (
+                TypeInfo::Boolean
+                | TypeInfo::Integer
+                | TypeInfo::Decimal
+                | TypeInfo::Date
+                | TypeInfo::DateTime
+                | TypeInfo::Time
+                | TypeInfo::Code
+                | TypeInfo::Quantity,
+                TypeInfo::String,
+            ) => true,
+
             // Collection compatibility
             (TypeInfo::Collection(a), TypeInfo::Collection(b)) => a.is_compatible_with(b),
             (TypeInfo::Collection(inner), other) | (other, TypeInfo::Collection(inner)) => {
                 inner.as_ref().is_compatible_with(other)
-            },
-            
+            }
+
             // Union compatibility
-            (TypeInfo::Union(types), other) => {
-                types.iter().any(|t| t.is_compatible_with(other))
-            },
-            (other, TypeInfo::Union(types)) => {
-                types.iter().any(|t| other.is_compatible_with(t))
-            },
-            
+            (TypeInfo::Union(types), other) => types.iter().any(|t| t.is_compatible_with(other)),
+            (other, TypeInfo::Union(types)) => types.iter().any(|t| other.is_compatible_with(t)),
+
             // Choice compatibility
             (TypeInfo::Choice(choices), other) => {
                 choices.iter().any(|c| c.is_compatible_with(other))
-            },
+            }
             (other, TypeInfo::Choice(choices)) => {
                 choices.iter().any(|c| other.is_compatible_with(c))
-            },
-            
+            }
+
             // Coding hierarchy
             (TypeInfo::Code, TypeInfo::Coding) => true,
             (TypeInfo::Coding, TypeInfo::CodeableConcept) => true,
             (TypeInfo::Code, TypeInfo::CodeableConcept) => true,
-            
+
             // Reference compatibility
             (TypeInfo::Reference { target_types }, TypeInfo::Resource { resource_type }) => {
                 target_types.is_empty() || target_types.contains(resource_type)
-            },
-            
+            }
+
             // Constrained type compatibility
-            (TypeInfo::Constrained { base_type, .. }, other) => {
-                base_type.is_compatible_with(other)
-            },
-            (other, TypeInfo::Constrained { base_type, .. }) => {
-                other.is_compatible_with(base_type)
-            },
-            
+            (TypeInfo::Constrained { base_type, .. }, other) => base_type.is_compatible_with(other),
+            (other, TypeInfo::Constrained { base_type, .. }) => other.is_compatible_with(base_type),
+
             _ => false,
         }
     }
 
     /// Infer the result type of a binary operation
-    pub fn infer_binary_result(operator: &BinaryOperator, left: &TypeInfo, right: &TypeInfo) -> TypeInfo {
+    pub fn infer_binary_result(
+        operator: &BinaryOperator,
+        left: &TypeInfo,
+        right: &TypeInfo,
+    ) -> TypeInfo {
         use BinaryOperator::*;
         match operator {
-            Add => {
-                match (left, right) {
-                    (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::String, _) | (_, TypeInfo::String) => TypeInfo::String,
-                    (TypeInfo::DateTime, TypeInfo::Quantity) => TypeInfo::DateTime,
-                    (TypeInfo::Quantity, TypeInfo::DateTime) => TypeInfo::DateTime,
-                    (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    _ => TypeInfo::Any,
-                }
+            Add => match (left, right) {
+                (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
+                (TypeInfo::String, _) | (_, TypeInfo::String) => TypeInfo::String,
+                (TypeInfo::DateTime, TypeInfo::Quantity) => TypeInfo::DateTime,
+                (TypeInfo::Quantity, TypeInfo::DateTime) => TypeInfo::DateTime,
+                (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
+                _ => TypeInfo::Any,
             },
-            Subtract => {
-                match (left, right) {
-                    (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::DateTime, TypeInfo::DateTime) => TypeInfo::Quantity,
-                    (TypeInfo::DateTime, TypeInfo::Quantity) => TypeInfo::DateTime,
-                    (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    _ => TypeInfo::Any,
-                }
+            Subtract => match (left, right) {
+                (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
+                (TypeInfo::DateTime, TypeInfo::DateTime) => TypeInfo::Quantity,
+                (TypeInfo::DateTime, TypeInfo::Quantity) => TypeInfo::DateTime,
+                (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
+                _ => TypeInfo::Any,
             },
-            Multiply | Divide => {
-                match (left, right) {
-                    (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Quantity, TypeInfo::Integer) => TypeInfo::Quantity,
-                    (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
-                    (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    _ => TypeInfo::Any,
-                }
+            Multiply | Divide => match (left, right) {
+                (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
+                (TypeInfo::Quantity, TypeInfo::Integer) => TypeInfo::Quantity,
+                (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
+                (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
+                (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
+                (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
+                _ => TypeInfo::Any,
             },
-            Modulo => {
-                match (left, right) {
-                    (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    _ => TypeInfo::Any,
-                }
+            Modulo => match (left, right) {
+                (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
+                _ => TypeInfo::Any,
             },
-            IntegerDivide => {
-                match (left, right) {
-                    (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
-                    (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Integer,
-                    _ => TypeInfo::Any,
-                }
+            IntegerDivide => match (left, right) {
+                (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
+                (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Integer,
+                _ => TypeInfo::Any,
             },
-            Equal | NotEqual | Equivalent | NotEquivalent | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual => TypeInfo::Boolean,
+            Equal | NotEqual | Equivalent | NotEquivalent | LessThan | LessThanOrEqual
+            | GreaterThan | GreaterThanOrEqual => TypeInfo::Boolean,
             And | Or | Xor | Implies => {
                 match (left, right) {
                     (TypeInfo::Boolean, TypeInfo::Boolean) => TypeInfo::Boolean,
                     _ => TypeInfo::Boolean, // FHIRPath coerces to boolean
                 }
-            },
+            }
             In | Contains => TypeInfo::Boolean,
             Is => TypeInfo::Boolean,
             As => TypeInfo::Any, // Type depends on the cast target
             Concatenate => TypeInfo::String,
             Union => {
                 TypeInfo::Collection(Box::new(TypeInfo::Union(vec![left.clone(), right.clone()])))
-            },
+            }
         }
     }
 
@@ -304,13 +320,11 @@ impl TypeInfo {
         use UnaryOperator::*;
         match operator {
             Not => TypeInfo::Boolean,
-            Negate => {
-                match operand {
-                    TypeInfo::Integer => TypeInfo::Integer,
-                    TypeInfo::Decimal => TypeInfo::Decimal,
-                    TypeInfo::Quantity => TypeInfo::Quantity,
-                    _ => TypeInfo::Any,
-                }
+            Negate => match operand {
+                TypeInfo::Integer => TypeInfo::Integer,
+                TypeInfo::Decimal => TypeInfo::Decimal,
+                TypeInfo::Quantity => TypeInfo::Quantity,
+                _ => TypeInfo::Any,
             },
             Positive => operand.clone(), // Unary plus returns the same type
         }
@@ -326,15 +340,17 @@ impl TypeInfo {
             (TypeInfo::Any, _) | (_, TypeInfo::Any) => TypeInfo::Any,
             (TypeInfo::Empty, other) | (other, TypeInfo::Empty) => other.clone(),
             (TypeInfo::Unknown, _) | (_, TypeInfo::Unknown) => TypeInfo::Unknown,
-            
+
             // Numeric types
-            (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-            
+            (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => {
+                TypeInfo::Decimal
+            }
+
             // Collections
             (TypeInfo::Collection(a), TypeInfo::Collection(b)) => {
                 TypeInfo::Collection(Box::new(a.common_type(b)))
-            },
-            
+            }
+
             // Create union type for incompatible types
             _ => TypeInfo::Union(vec![self.clone(), other.clone()]),
         }
@@ -368,7 +384,10 @@ pub struct TypeChecker {
 
 impl TypeChecker {
     /// Create a new type checker with function registry and model provider
-    pub fn new(function_registry: Arc<FunctionRegistry>, model_provider: Arc<dyn ModelProvider>) -> Self {
+    pub fn new(
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Self {
         let mut checker = Self {
             function_registry,
             model_provider,
@@ -376,7 +395,7 @@ impl TypeChecker {
             type_cache: HashMap::new(),
             node_counter: std::cell::RefCell::new(0),
         };
-        
+
         checker.initialize_builtin_function_signatures();
         checker
     }
@@ -386,16 +405,19 @@ impl TypeChecker {
         let mut context = AnalysisContext::new();
         let mut type_info = HashMap::new();
         let mut warnings = Vec::new();
-        
+
         // Initialize with built-in variables
         context.define_global_variable("this".to_string(), TypeInfo::Unknown);
-        context.define_global_variable("context".to_string(), TypeInfo::Resource { 
-            resource_type: "Resource".to_string() 
-        });
+        context.define_global_variable(
+            "context".to_string(),
+            TypeInfo::Resource {
+                resource_type: "Resource".to_string(),
+            },
+        );
         context.define_global_variable("resource".to_string(), TypeInfo::Unknown);
         context.define_global_variable("rootResource".to_string(), TypeInfo::Unknown);
         context.define_global_variable("ucum".to_string(), TypeInfo::String);
-        
+
         let mut visitor = TypeInferenceVisitor::new(
             self,
             &mut context,
@@ -403,9 +425,9 @@ impl TypeChecker {
             &mut warnings,
             &self.node_counter,
         );
-        
+
         let return_type = visitor.visit_expression(expression)?;
-        
+
         Ok(TypeAnalysisResult {
             type_info,
             warnings,
@@ -417,44 +439,49 @@ impl TypeChecker {
     /// Check type compatibility between two types
     pub fn is_compatible(&self, from: &TypeInfo, to: &TypeInfo) -> bool {
         use TypeInfo::*;
-        
+
         match (from, to) {
             // Same types are always compatible
             (a, b) if a == b => true,
-            
+
             // Unknown is compatible with anything
             (Unknown, _) | (_, Unknown) => true,
-            
+
             // Empty is compatible with any collection
             (Empty, Collection(_)) | (Collection(_), Empty) => true,
-            
+
             // Numeric compatibility
             (Integer, Decimal) | (Decimal, Integer) => true,
-            
+
             // String compatibility (many things can convert to string)
-            (Boolean, String) | (Integer, String) | (Decimal, String) |
-            (Date, String) | (DateTime, String) | (Time, String) |
-            (Code, String) | (Quantity, String) => true,
-            
+            (Boolean, String)
+            | (Integer, String)
+            | (Decimal, String)
+            | (Date, String)
+            | (DateTime, String)
+            | (Time, String)
+            | (Code, String)
+            | (Quantity, String) => true,
+
             // Collection compatibility
             (Collection(a), Collection(b)) => self.is_compatible(a, b),
-            
+
             // Union compatibility
             (Union(types), target) => types.iter().any(|t| self.is_compatible(t, target)),
             (source, Union(types)) => types.iter().any(|t| self.is_compatible(source, t)),
-            
+
             // Choice compatibility
             (Choice(choices), target) => choices.iter().any(|c| self.is_compatible(c, target)),
             (source, Choice(choices)) => choices.iter().any(|c| self.is_compatible(source, c)),
-            
+
             // Coding hierarchy
             (Coding, CodeableConcept) => true,
             (Code, Coding) => true,
             (Code, CodeableConcept) => true,
-            
+
             // Resource hierarchy
             (Resource { .. }, BackboneElement { .. }) => true,
-            
+
             _ => false,
         }
     }
@@ -462,11 +489,11 @@ impl TypeChecker {
     /// Get the most specific common type between two types
     pub fn common_type(&self, a: &TypeInfo, b: &TypeInfo) -> TypeInfo {
         use TypeInfo::*;
-        
+
         if a == b {
             return a.clone();
         }
-        
+
         match (a, b) {
             (Unknown, t) | (t, Unknown) => t.clone(),
             (Empty, Collection(t)) | (Collection(t), Empty) => Collection(t.clone()),
@@ -487,186 +514,223 @@ impl TypeChecker {
     /// Initialize builtin function signatures with proper type constraints
     fn initialize_builtin_function_signatures(&mut self) {
         // Collection functions
-        self.function_signatures.insert("first".to_string(), FunctionSignature {
-            name: "first".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Any, // Returns first element of collection
-            description: "Returns the first element of a collection".to_string(),
-        });
+        self.function_signatures.insert(
+            "first".to_string(),
+            FunctionSignature {
+                name: "first".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Any, // Returns first element of collection
+                description: "Returns the first element of a collection".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("last".to_string(), FunctionSignature {
-            name: "last".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Any, // Returns last element of collection
-            description: "Returns the last element of a collection".to_string(),
-        });
+        self.function_signatures.insert(
+            "last".to_string(),
+            FunctionSignature {
+                name: "last".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Any, // Returns last element of collection
+                description: "Returns the last element of a collection".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("count".to_string(), FunctionSignature {
-            name: "count".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Integer,
-            description: "Returns the count of elements in a collection".to_string(),
-        });
+        self.function_signatures.insert(
+            "count".to_string(),
+            FunctionSignature {
+                name: "count".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Integer,
+                description: "Returns the count of elements in a collection".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("empty".to_string(), FunctionSignature {
-            name: "empty".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Boolean,
-            description: "Returns true if the collection is empty".to_string(),
-        });
+        self.function_signatures.insert(
+            "empty".to_string(),
+            FunctionSignature {
+                name: "empty".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Boolean,
+                description: "Returns true if the collection is empty".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("exists".to_string(), FunctionSignature {
-            name: "exists".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "exists".to_string(),
+            FunctionSignature {
+                name: "exists".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::Function {
                         parameters: vec![TypeInfo::Any],
                         return_type: Box::new(TypeInfo::Boolean),
                     },
                     optional: true,
                     description: "Optional condition function".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Boolean,
-            description: "Returns true if any element exists (optionally matching condition)".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Boolean,
+                description: "Returns true if any element exists (optionally matching condition)"
+                    .to_string(),
+            },
+        );
 
-        self.function_signatures.insert("all".to_string(), FunctionSignature {
-            name: "all".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "all".to_string(),
+            FunctionSignature {
+                name: "all".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::Function {
                         parameters: vec![TypeInfo::Any],
                         return_type: Box::new(TypeInfo::Boolean),
                     },
                     optional: false,
                     description: "Condition function".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Boolean,
-            description: "Returns true if all elements match the condition".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Boolean,
+                description: "Returns true if all elements match the condition".to_string(),
+            },
+        );
 
         // String functions
-        self.function_signatures.insert("length".to_string(), FunctionSignature {
-            name: "length".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Integer,
-            description: "Returns the length of a string".to_string(),
-        });
+        self.function_signatures.insert(
+            "length".to_string(),
+            FunctionSignature {
+                name: "length".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Integer,
+                description: "Returns the length of a string".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("substring".to_string(), FunctionSignature {
-            name: "substring".to_string(),
-            parameters: vec![
-                TypeConstraint {
-                    required_type: TypeInfo::Integer,
-                    optional: false,
-                    description: "Start index (0-based)".to_string(),
-                },
-                TypeConstraint {
-                    required_type: TypeInfo::Integer,
-                    optional: true,
-                    description: "Length of substring".to_string(),
-                },
-            ],
-            return_type: TypeInfo::String,
-            description: "Returns a substring starting at the given index".to_string(),
-        });
+        self.function_signatures.insert(
+            "substring".to_string(),
+            FunctionSignature {
+                name: "substring".to_string(),
+                parameters: vec![
+                    TypeConstraint {
+                        required_type: TypeInfo::Integer,
+                        optional: false,
+                        description: "Start index (0-based)".to_string(),
+                    },
+                    TypeConstraint {
+                        required_type: TypeInfo::Integer,
+                        optional: true,
+                        description: "Length of substring".to_string(),
+                    },
+                ],
+                return_type: TypeInfo::String,
+                description: "Returns a substring starting at the given index".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("contains".to_string(), FunctionSignature {
-            name: "contains".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "contains".to_string(),
+            FunctionSignature {
+                name: "contains".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::String,
                     optional: false,
                     description: "Substring to search for".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Boolean,
-            description: "Returns true if string contains the given substring".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Boolean,
+                description: "Returns true if string contains the given substring".to_string(),
+            },
+        );
 
         // Math functions
-        self.function_signatures.insert("abs".to_string(), FunctionSignature {
-            name: "abs".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Union(vec![TypeInfo::Integer, TypeInfo::Decimal]),
-            description: "Returns the absolute value of a number".to_string(),
-        });
+        self.function_signatures.insert(
+            "abs".to_string(),
+            FunctionSignature {
+                name: "abs".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Union(vec![TypeInfo::Integer, TypeInfo::Decimal]),
+                description: "Returns the absolute value of a number".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("ceiling".to_string(), FunctionSignature {
-            name: "ceiling".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Integer,
-            description: "Returns the smallest integer greater than or equal to the input".to_string(),
-        });
+        self.function_signatures.insert(
+            "ceiling".to_string(),
+            FunctionSignature {
+                name: "ceiling".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Integer,
+                description: "Returns the smallest integer greater than or equal to the input"
+                    .to_string(),
+            },
+        );
 
-        self.function_signatures.insert("floor".to_string(), FunctionSignature {
-            name: "floor".to_string(),
-            parameters: vec![],
-            return_type: TypeInfo::Integer,
-            description: "Returns the largest integer less than or equal to the input".to_string(),
-        });
+        self.function_signatures.insert(
+            "floor".to_string(),
+            FunctionSignature {
+                name: "floor".to_string(),
+                parameters: vec![],
+                return_type: TypeInfo::Integer,
+                description: "Returns the largest integer less than or equal to the input"
+                    .to_string(),
+            },
+        );
 
         // Type functions
-        self.function_signatures.insert("is".to_string(), FunctionSignature {
-            name: "is".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "is".to_string(),
+            FunctionSignature {
+                name: "is".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::String,
                     optional: false,
                     description: "Type name to check".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Boolean,
-            description: "Tests if the input is of the specified type".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Boolean,
+                description: "Tests if the input is of the specified type".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("as".to_string(), FunctionSignature {
-            name: "as".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "as".to_string(),
+            FunctionSignature {
+                name: "as".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::String,
                     optional: false,
                     description: "Type to cast to".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Any,
-            description: "Casts the input to the specified type".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Any,
+                description: "Casts the input to the specified type".to_string(),
+            },
+        );
 
         // Filtering functions
-        self.function_signatures.insert("where".to_string(), FunctionSignature {
-            name: "where".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "where".to_string(),
+            FunctionSignature {
+                name: "where".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::Function {
                         parameters: vec![TypeInfo::Any],
                         return_type: Box::new(TypeInfo::Boolean),
                     },
                     optional: false,
                     description: "Filter condition".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Collection(Box::new(TypeInfo::Any)),
-            description: "Filters collection elements based on condition".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Collection(Box::new(TypeInfo::Any)),
+                description: "Filters collection elements based on condition".to_string(),
+            },
+        );
 
-        self.function_signatures.insert("select".to_string(), FunctionSignature {
-            name: "select".to_string(),
-            parameters: vec![
-                TypeConstraint {
+        self.function_signatures.insert(
+            "select".to_string(),
+            FunctionSignature {
+                name: "select".to_string(),
+                parameters: vec![TypeConstraint {
                     required_type: TypeInfo::Function {
                         parameters: vec![TypeInfo::Any],
                         return_type: Box::new(TypeInfo::Any),
                     },
                     optional: false,
                     description: "Transformation function".to_string(),
-                }
-            ],
-            return_type: TypeInfo::Collection(Box::new(TypeInfo::Any)),
-            description: "Transforms collection elements using the given function".to_string(),
-        });
+                }],
+                return_type: TypeInfo::Collection(Box::new(TypeInfo::Any)),
+                description: "Transforms collection elements using the given function".to_string(),
+            },
+        );
     }
 
     /// Get property type for FHIR resources and elements using ModelProvider
@@ -677,7 +741,9 @@ impl TypeChecker {
                 // For now, fallback to essential property mapping
                 match property {
                     "id" => TypeInfo::String,
-                    "meta" => TypeInfo::BackboneElement { properties: HashMap::new() },
+                    "meta" => TypeInfo::BackboneElement {
+                        properties: HashMap::new(),
+                    },
                     "resourceType" => TypeInfo::String,
                     _ => {
                         // In future, could use a sync ModelProvider method here
@@ -685,14 +751,15 @@ impl TypeChecker {
                         TypeInfo::Any
                     }
                 }
-            },
-            TypeInfo::BackboneElement { properties } => {
-                properties.get(property).cloned().unwrap_or(TypeInfo::Unknown)
-            },
+            }
+            TypeInfo::BackboneElement { properties } => properties
+                .get(property)
+                .cloned()
+                .unwrap_or(TypeInfo::Unknown),
             TypeInfo::Collection(inner) => {
                 // Property access on collection returns collection of property type
                 TypeInfo::Collection(Box::new(self.get_property_type(inner, property)))
-            },
+            }
             _ => TypeInfo::Unknown,
         }
     }
@@ -701,71 +768,89 @@ impl TypeChecker {
     pub async fn get_property_type_async(&self, base_type: &TypeInfo, property: &str) -> TypeInfo {
         match base_type {
             TypeInfo::Resource { resource_type } => {
-                self.get_property_type_from_model(resource_type, property).await
-            },
-            TypeInfo::BackboneElement { properties } => {
-                properties.get(property).cloned().unwrap_or(TypeInfo::Unknown)
-            },
+                self.get_property_type_from_model(resource_type, property)
+                    .await
+            }
+            TypeInfo::BackboneElement { properties } => properties
+                .get(property)
+                .cloned()
+                .unwrap_or(TypeInfo::Unknown),
             TypeInfo::Collection(inner) => {
                 // Property access on collection returns collection of property type
                 let inner_type = Box::pin(self.get_property_type_async(inner, property)).await;
                 TypeInfo::Collection(Box::new(inner_type))
-            },
+            }
             _ => TypeInfo::Unknown,
         }
     }
 
     /// Get property type for FHIR resources using ModelProvider
-    async fn get_resource_property_type_from_model(&self, resource_type: &str, property: &str) -> TypeInfo {
+    async fn get_resource_property_type_from_model(
+        &self,
+        resource_type: &str,
+        property: &str,
+    ) -> TypeInfo {
         // Cache key for property lookup
         let cache_key = format!("{}.{}", resource_type, property);
-        
+
         if let Some(cached_type) = self.type_cache.get(&cache_key) {
             return cached_type.clone();
         }
 
         // Use async ModelProvider to get property type information
-        match self.model_provider.get_navigation_result_type(resource_type, property).await {
+        match self
+            .model_provider
+            .get_navigation_result_type(resource_type, property)
+            .await
+        {
             Ok(Some(type_reflection)) => {
                 let type_info = self.convert_type_reflection_to_type_info(type_reflection);
                 // Note: We can't mutate the cache from &self, but that's okay for now
                 type_info
-            },
+            }
             Ok(None) => {
                 // Fallback to essential system properties only
                 match property {
                     "id" => TypeInfo::String,
-                    "resourceType" => TypeInfo::String, 
-                    "meta" => TypeInfo::BackboneElement { properties: HashMap::new() },
+                    "resourceType" => TypeInfo::String,
+                    "meta" => TypeInfo::BackboneElement {
+                        properties: HashMap::new(),
+                    },
                     _ => TypeInfo::Unknown,
                 }
-            },
+            }
             Err(_) => {
                 // On error, fallback to essential system properties only
                 match property {
                     "id" => TypeInfo::String,
-                    "resourceType" => TypeInfo::String, 
-                    "meta" => TypeInfo::BackboneElement { properties: HashMap::new() },
+                    "resourceType" => TypeInfo::String,
+                    "meta" => TypeInfo::BackboneElement {
+                        properties: HashMap::new(),
+                    },
                     _ => TypeInfo::Unknown,
                 }
             }
         }
     }
-    
+
     /// Get property type using ModelProvider instead of hardcoded logic
     async fn get_property_type_from_model(&self, resource_type: &str, property: &str) -> TypeInfo {
         // Use ModelProvider to get navigation result type
-        match self.model_provider.get_navigation_result_type(resource_type, property).await {
-            Ok(Some(type_reflection)) => {
-                self.convert_type_reflection_to_type_info(type_reflection)
-            }
+        match self
+            .model_provider
+            .get_navigation_result_type(resource_type, property)
+            .await
+        {
+            Ok(Some(type_reflection)) => self.convert_type_reflection_to_type_info(type_reflection),
             Ok(None) => TypeInfo::Unknown,
             Err(_) => {
                 // Fallback to basic inference for critical system properties only
                 match property {
                     "id" => TypeInfo::String,
-                    "resourceType" => TypeInfo::String, 
-                    "meta" => TypeInfo::BackboneElement { properties: HashMap::new() },
+                    "resourceType" => TypeInfo::String,
+                    "meta" => TypeInfo::BackboneElement {
+                        properties: HashMap::new(),
+                    },
                     _ => TypeInfo::Unknown,
                 }
             }
@@ -773,11 +858,16 @@ impl TypeChecker {
     }
 
     /// Convert TypeReflectionInfo from ModelProvider to our TypeInfo
-    fn convert_type_reflection_to_type_info(&self, type_reflection: octofhir_fhir_model::reflection::TypeReflectionInfo) -> TypeInfo {
+    fn convert_type_reflection_to_type_info(
+        &self,
+        type_reflection: octofhir_fhir_model::reflection::TypeReflectionInfo,
+    ) -> TypeInfo {
         use octofhir_fhir_model::reflection::TypeReflectionInfo as TRI;
-        
+
         match &type_reflection {
-            TRI::SimpleType { namespace, name, .. } => {
+            TRI::SimpleType {
+                namespace, name, ..
+            } => {
                 match (namespace.as_str(), name.as_str()) {
                     // System primitive types
                     ("System", "Boolean") => TypeInfo::Boolean,
@@ -787,7 +877,7 @@ impl TypeChecker {
                     ("System", "Date") => TypeInfo::Date,
                     ("System", "DateTime") => TypeInfo::DateTime,
                     ("System", "Time") => TypeInfo::Time,
-                    
+
                     // FHIR primitive types
                     ("FHIR", "boolean") => TypeInfo::Boolean,
                     ("FHIR", "integer") => TypeInfo::Integer,
@@ -797,51 +887,63 @@ impl TypeChecker {
                     ("FHIR", "dateTime") => TypeInfo::DateTime,
                     ("FHIR", "time") => TypeInfo::Time,
                     ("FHIR", "code") => TypeInfo::Code,
-                    
+
                     // FHIR complex types
                     ("FHIR", "Quantity") => TypeInfo::Quantity,
                     ("FHIR", "Coding") => TypeInfo::Coding,
                     ("FHIR", "CodeableConcept") => TypeInfo::CodeableConcept,
                     ("FHIR", "Range") => TypeInfo::Range,
-                    ("FHIR", "Reference") => TypeInfo::Reference { target_types: vec![] },
-                    
-                    // Resource types
-                    ("FHIR", resource_type) => TypeInfo::Resource { 
-                        resource_type: resource_type.to_string() 
+                    ("FHIR", "Reference") => TypeInfo::Reference {
+                        target_types: vec![],
                     },
-                    
+
+                    // Resource types
+                    ("FHIR", resource_type) => TypeInfo::Resource {
+                        resource_type: resource_type.to_string(),
+                    },
+
                     // Unknown types
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
-            TRI::ClassInfo { namespace, name, elements, .. } => {
+            }
+
+            TRI::ClassInfo {
+                namespace,
+                name,
+                elements,
+                ..
+            } => {
                 match (namespace.as_str(), name.as_str()) {
                     // FHIR Resource types
-                    ("FHIR", resource_type) => TypeInfo::Resource { 
-                        resource_type: resource_type.to_string() 
+                    ("FHIR", resource_type) => TypeInfo::Resource {
+                        resource_type: resource_type.to_string(),
                     },
-                    
+
                     // BackboneElements or complex types
                     _ => {
                         let mut property_map = HashMap::new();
                         for element in elements {
-                            let element_type = self.convert_type_reflection_to_type_info(element.type_info.clone());
+                            let element_type = self
+                                .convert_type_reflection_to_type_info(element.type_info.clone());
                             property_map.insert(element.name.clone(), element_type);
                         }
-                        TypeInfo::BackboneElement { properties: property_map }
+                        TypeInfo::BackboneElement {
+                            properties: property_map,
+                        }
                     }
                 }
-            },
-            
+            }
+
             TRI::ListType { element_type } => {
-                let inner_type = self.convert_type_reflection_to_type_info((**element_type).clone());
+                let inner_type =
+                    self.convert_type_reflection_to_type_info((**element_type).clone());
                 TypeInfo::Collection(Box::new(inner_type))
-            },
-            
+            }
+
             TRI::TupleType { elements } => {
                 // Convert tuple to union of element types for now
-                let type_infos: Vec<TypeInfo> = elements.iter()
+                let type_infos: Vec<TypeInfo> = elements
+                    .iter()
                     .map(|elem| self.convert_type_reflection_to_type_info(elem.type_info.clone()))
                     .collect();
                 if type_infos.len() == 1 {
@@ -866,14 +968,23 @@ impl TypeChecker {
         if self.is_standard_fhir_resource_type(type_name) {
             return true;
         }
-        
+
         // Use async ModelProvider to get type reflection information
         match self.model_provider.get_type_reflection(type_name).await {
             Ok(Some(type_reflection)) => {
                 // Check if this type is a resource (it should inherit from Resource or be a known resource type)
                 match &type_reflection {
-                    octofhir_fhir_model::reflection::TypeReflectionInfo::SimpleType { namespace, name, base_type }
-                    | octofhir_fhir_model::reflection::TypeReflectionInfo::ClassInfo { namespace, name, base_type, .. } => {
+                    octofhir_fhir_model::reflection::TypeReflectionInfo::SimpleType {
+                        namespace,
+                        name,
+                        base_type,
+                    }
+                    | octofhir_fhir_model::reflection::TypeReflectionInfo::ClassInfo {
+                        namespace,
+                        name,
+                        base_type,
+                        ..
+                    } => {
                         // FHIR namespace resource types
                         if namespace == "FHIR" {
                             // Check if it's Resource or inherits from Resource
@@ -887,14 +998,14 @@ impl TypeChecker {
                             }
                         }
                         false
-                    },
+                    }
                     _ => false,
                 }
-            },
+            }
             Ok(None) | Err(_) => false,
         }
     }
-    
+
     /// Check if a type is a standard FHIR resource type using ModelProvider
     fn is_standard_fhir_resource_type(&self, type_name: &str) -> bool {
         // Use ModelProvider's synchronous resource type check if available
@@ -902,7 +1013,8 @@ impl TypeChecker {
             Ok(exists) => exists,
             Err(_) => {
                 // Fallback to basic type checking only for essential types
-                matches!(type_name, 
+                matches!(
+                    type_name,
                     "Resource" | "DomainResource" | "Bundle" | "Patient" | "Observation"
                 )
             }
@@ -910,29 +1022,39 @@ impl TypeChecker {
     }
 
     /// Advanced type inference for choice types (e.g., value[x] in FHIR)
-    pub async fn resolve_choice_type(&self, base_type: &TypeInfo, property_name: &str) -> Result<TypeInfo> {
+    pub async fn resolve_choice_type(
+        &self,
+        base_type: &TypeInfo,
+        property_name: &str,
+    ) -> Result<TypeInfo> {
         match base_type {
             TypeInfo::Resource { resource_type } => {
                 // Use ModelProvider to resolve choice types
                 match self.model_provider.get_type_reflection(resource_type).await {
                     Ok(Some(type_reflection)) => {
                         // Check if this property is a choice type
-                        if let Some(property_type) = self.extract_property_type_from_reflection(&type_reflection, property_name) {
+                        if let Some(property_type) = self
+                            .extract_property_type_from_reflection(&type_reflection, property_name)
+                        {
                             // If it's a choice type, return the choice options
                             Ok(property_type)
                         } else {
                             Ok(TypeInfo::Any)
                         }
-                    },
+                    }
                     _ => Ok(TypeInfo::Any),
                 }
-            },
+            }
             _ => Ok(TypeInfo::Any),
         }
     }
 
     /// Extract property type information from type reflection
-    fn extract_property_type_from_reflection(&self, _type_reflection: &octofhir_fhir_model::reflection::TypeReflectionInfo, property_name: &str) -> Option<TypeInfo> {
+    fn extract_property_type_from_reflection(
+        &self,
+        _type_reflection: &octofhir_fhir_model::reflection::TypeReflectionInfo,
+        property_name: &str,
+    ) -> Option<TypeInfo> {
         // This is a simplified implementation
         // In production, this would parse the type reflection to find choice types
         if property_name.ends_with("[x]") || property_name.contains("value") {
@@ -951,18 +1073,28 @@ impl TypeChecker {
     }
 
     /// Validate reference types
-    pub async fn validate_reference_type(&self, reference_type: &TypeInfo, target_resource: &str) -> Result<bool> {
+    pub async fn validate_reference_type(
+        &self,
+        reference_type: &TypeInfo,
+        target_resource: &str,
+    ) -> Result<bool> {
         match reference_type {
             TypeInfo::Reference { target_types } => {
                 // Check if the target resource is in the allowed list
-                Ok(target_types.contains(&target_resource.to_string()) || target_types.contains(&"*".to_string()))
-            },
+                Ok(target_types.contains(&target_resource.to_string())
+                    || target_types.contains(&"*".to_string()))
+            }
             _ => Ok(false),
         }
     }
 
     /// Apply cardinality constraints to a type
-    pub fn apply_cardinality_constraints(&self, base_type: TypeInfo, min: u32, max: Option<u32>) -> TypeInfo {
+    pub fn apply_cardinality_constraints(
+        &self,
+        base_type: TypeInfo,
+        min: u32,
+        max: Option<u32>,
+    ) -> TypeInfo {
         TypeInfo::Constrained {
             base_type: Box::new(base_type),
             min_cardinality: min,
@@ -973,7 +1105,11 @@ impl TypeChecker {
     /// Validate cardinality constraints
     pub fn validate_cardinality(&self, type_info: &TypeInfo, actual_count: u32) -> bool {
         match type_info {
-            TypeInfo::Constrained { min_cardinality, max_cardinality, .. } => {
+            TypeInfo::Constrained {
+                min_cardinality,
+                max_cardinality,
+                ..
+            } => {
                 if actual_count < *min_cardinality {
                     return false;
                 }
@@ -983,14 +1119,18 @@ impl TypeChecker {
                     }
                 }
                 true
-            },
+            }
             TypeInfo::Collection(_) => actual_count >= 0, // Collections can be empty
-            _ => actual_count == 1, // Single values must have exactly 1 item
+            _ => actual_count == 1,                       // Single values must have exactly 1 item
         }
     }
 
     /// Resolve polymorphic types based on context
-    pub async fn resolve_polymorphic_type(&self, union_type: &TypeInfo, context: &AnalysisContext) -> Result<TypeInfo> {
+    pub async fn resolve_polymorphic_type(
+        &self,
+        union_type: &TypeInfo,
+        context: &AnalysisContext,
+    ) -> Result<TypeInfo> {
         match union_type {
             TypeInfo::Union(types) => {
                 // Try to narrow down based on context
@@ -1003,7 +1143,7 @@ impl TypeChecker {
                 }
                 // If we can't narrow down, return the union as-is
                 Ok(union_type.clone())
-            },
+            }
             TypeInfo::Choice(types) => {
                 // Similar logic for choice types
                 if let Some(expected_type) = context.variables.get("this") {
@@ -1014,7 +1154,7 @@ impl TypeChecker {
                     }
                 }
                 Ok(TypeInfo::Choice(types.clone()))
-            },
+            }
             _ => Ok(union_type.clone()),
         }
     }
@@ -1025,27 +1165,36 @@ impl TypeChecker {
             // Handle constrained types
             (TypeInfo::Constrained { base_type, .. }, to_type) => {
                 self.is_compatible_advanced(base_type, to_type)
-            },
+            }
             (from_type, TypeInfo::Constrained { base_type, .. }) => {
                 self.is_compatible_advanced(from_type, base_type)
-            },
-            
+            }
+
             // Handle choice types
-            (from_type, TypeInfo::Choice(choice_types)) => {
-                choice_types.iter().any(|choice_type| self.is_compatible_advanced(from_type, choice_type))
-            },
-            (TypeInfo::Choice(choice_types), to_type) => {
-                choice_types.iter().any(|choice_type| self.is_compatible_advanced(choice_type, to_type))
-            },
-            
+            (from_type, TypeInfo::Choice(choice_types)) => choice_types
+                .iter()
+                .any(|choice_type| self.is_compatible_advanced(from_type, choice_type)),
+            (TypeInfo::Choice(choice_types), to_type) => choice_types
+                .iter()
+                .any(|choice_type| self.is_compatible_advanced(choice_type, to_type)),
+
             // Handle reference types
-            (TypeInfo::Reference { target_types: from_targets }, TypeInfo::Reference { target_types: to_targets }) => {
+            (
+                TypeInfo::Reference {
+                    target_types: from_targets,
+                },
+                TypeInfo::Reference {
+                    target_types: to_targets,
+                },
+            ) => {
                 // References are compatible if target types overlap or either accepts any
                 from_targets.iter().any(|from_target| {
-                    to_targets.contains(from_target) || to_targets.contains(&"*".to_string()) || from_target == "*"
+                    to_targets.contains(from_target)
+                        || to_targets.contains(&"*".to_string())
+                        || from_target == "*"
                 })
-            },
-            
+            }
+
             // Fallback to basic compatibility
             _ => self.is_compatible(from, to),
         }
@@ -1101,8 +1250,11 @@ pub struct TypeMismatch {
 
 impl fmt::Display for TypeMismatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Type mismatch in {}: expected {}, got {}", 
-               self.context, self.expected, self.actual)
+        write!(
+            f,
+            "Type mismatch in {}: expected {}, got {}",
+            self.context, self.expected, self.actual
+        )
     }
 }
 
@@ -1116,8 +1268,10 @@ impl FunctionSignature {
                 crate::core::error_code::FP0157,
                 format!(
                     "Function '{}' requires at least {} arguments, got {}",
-                    self.name, required_count, arg_types.len()
-                )
+                    self.name,
+                    required_count,
+                    arg_types.len()
+                ),
             ));
         }
 
@@ -1127,8 +1281,10 @@ impl FunctionSignature {
                 crate::core::error_code::FP0157,
                 format!(
                     "Function '{}' accepts at most {} arguments, got {}",
-                    self.name, self.parameters.len(), arg_types.len()
-                )
+                    self.name,
+                    self.parameters.len(),
+                    arg_types.len()
+                ),
             ));
         }
 
@@ -1139,7 +1295,10 @@ impl FunctionSignature {
                     error_code: crate::core::error_code::FP0156,
                     message: format!(
                         "Function '{}' argument {} type mismatch: expected {}, got {}",
-                        self.name, i + 1, param.required_type, arg_type
+                        self.name,
+                        i + 1,
+                        param.required_type,
+                        arg_type
                     ),
                     expected_type: Some(param.required_type.to_string()),
                     actual_type: Some(arg_type.to_string()),
@@ -1200,7 +1359,6 @@ impl<'a> TypeInferenceVisitor<'a> {
     }
 }
 
-
 impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
     type Output = Result<TypeInfo>;
 
@@ -1216,28 +1374,35 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
             LiteralValue::Time(_) => TypeInfo::Time,
             LiteralValue::Quantity { .. } => TypeInfo::Quantity,
         };
-        
+
         self.record_type(node_id, type_info.clone());
         Ok(type_info)
     }
 
     fn visit_identifier(&mut self, identifier: &IdentifierNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         // Check if it's a known resource type or resolve within context
         let type_info = if self.type_checker.is_known_resource_type(&identifier.name) {
-            TypeInfo::Resource { resource_type: identifier.name.clone() }
+            TypeInfo::Resource {
+                resource_type: identifier.name.clone(),
+            }
         } else if let Some(resource_type) = &self.context.resource_type {
             // Use ModelProvider-based property type inference where possible
             match identifier.name.as_str() {
                 "id" => TypeInfo::String,
-                "meta" => TypeInfo::BackboneElement { properties: HashMap::new() },
+                "meta" => TypeInfo::BackboneElement {
+                    properties: HashMap::new(),
+                },
                 "resourceType" => TypeInfo::String,
                 "true" | "false" => TypeInfo::Boolean,
                 _ => {
                     // Use sync ModelProvider property lookup if available
-                    let base_type = TypeInfo::Resource { resource_type: resource_type.clone() };
-                    self.type_checker.get_property_type(&base_type, &identifier.name)
+                    let base_type = TypeInfo::Resource {
+                        resource_type: resource_type.clone(),
+                    };
+                    self.type_checker
+                        .get_property_type(&base_type, &identifier.name)
                 }
             }
         } else {
@@ -1246,84 +1411,92 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
                 _ => TypeInfo::Any,
             }
         };
-        
+
         self.record_type(node_id, type_info.clone());
         Ok(type_info)
     }
 
     fn visit_function_call(&mut self, call: &FunctionCallNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         // Infer types of arguments
         let mut arg_types = Vec::new();
         for arg in &call.arguments {
             arg_types.push(self.visit_expression(arg)?);
         }
-        
+
         // Look up function signature and infer return type
-        let return_type = if let Some(signature) = self.type_checker.function_signatures.get(&call.name) {
-            signature.accepts_args(&arg_types).unwrap_or_else(|err| {
-                self.add_warning("W003", err.to_string(), Some(node_id));
-                TypeInfo::Any
-            })
-        } else {
-            self.add_warning("W004", format!("Unknown function '{}'", call.name), Some(node_id));
-            self.infer_function_return_type(&call.name, &arg_types)
-        };
-        
+        let return_type =
+            if let Some(signature) = self.type_checker.function_signatures.get(&call.name) {
+                signature.accepts_args(&arg_types).unwrap_or_else(|err| {
+                    self.add_warning("W003", err.to_string(), Some(node_id));
+                    TypeInfo::Any
+                })
+            } else {
+                self.add_warning(
+                    "W004",
+                    format!("Unknown function '{}'", call.name),
+                    Some(node_id),
+                );
+                self.infer_function_return_type(&call.name, &arg_types)
+            };
+
         self.record_type(node_id, return_type.clone());
         Ok(return_type)
     }
 
     fn visit_method_call(&mut self, call: &MethodCallNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         // Infer object type first
         let object_type = self.visit_expression(&call.object)?;
-        
+
         // Infer argument types
         let mut arg_types = Vec::new();
         for arg in &call.arguments {
             arg_types.push(self.visit_expression(arg)?);
         }
-        
-        let return_type = if let Some(signature) = self.type_checker.function_signatures.get(&call.method) {
-            // Method calls are similar to function calls but with implicit first argument
-            let mut all_arg_types = vec![object_type.clone()];
-            all_arg_types.extend(arg_types.clone());
-            signature.accepts_args(&all_arg_types).unwrap_or_else(|err| {
-                self.add_warning("W003", err.to_string(), Some(node_id));
-                TypeInfo::Any
-            })
-        } else {
-            // Handle built-in collection methods and other method calls
-            self.infer_method_return_type(&call.method, &object_type, &arg_types)
-        };
-        
+
+        let return_type =
+            if let Some(signature) = self.type_checker.function_signatures.get(&call.method) {
+                // Method calls are similar to function calls but with implicit first argument
+                let mut all_arg_types = vec![object_type.clone()];
+                all_arg_types.extend(arg_types.clone());
+                signature
+                    .accepts_args(&all_arg_types)
+                    .unwrap_or_else(|err| {
+                        self.add_warning("W003", err.to_string(), Some(node_id));
+                        TypeInfo::Any
+                    })
+            } else {
+                // Handle built-in collection methods and other method calls
+                self.infer_method_return_type(&call.method, &object_type, &arg_types)
+            };
+
         self.record_type(node_id, return_type.clone());
         Ok(return_type)
     }
 
     fn visit_property_access(&mut self, access: &PropertyAccessNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let object_type = self.visit_expression(&access.object)?;
-        
+
         // Track path for nested property access
         self.context.push_path(access.property.clone());
         let property_type = self.infer_property_type(&object_type, &access.property);
         self.context.pop_path();
-        
+
         self.record_type(node_id, property_type.clone());
         Ok(property_type)
     }
 
     fn visit_index_access(&mut self, access: &IndexAccessNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let object_type = self.visit_expression(&access.object)?;
         let index_type = self.visit_expression(&access.index)?;
-        
+
         // Index should be integer
         if !matches!(index_type, TypeInfo::Integer) {
             self.add_warning(
@@ -1332,7 +1505,7 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
                 Some(node_id),
             );
         }
-        
+
         // Return element type of collection
         let element_type = match object_type {
             TypeInfo::Collection(inner) => *inner,
@@ -1346,69 +1519,71 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
                 TypeInfo::Unknown
             }
         };
-        
+
         self.record_type(node_id, element_type.clone());
         Ok(element_type)
     }
 
     fn visit_binary_operation(&mut self, binary: &BinaryOperationNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let left_type = self.visit_expression(&binary.left)?;
         let right_type = self.visit_expression(&binary.right)?;
-        
+
         let result_type = TypeInfo::infer_binary_result(&binary.operator, &left_type, &right_type);
-        
+
         self.record_type(node_id, result_type.clone());
         Ok(result_type)
     }
 
     fn visit_unary_operation(&mut self, unary: &UnaryOperationNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let operand_type = self.visit_expression(&unary.operand)?;
         let result_type = TypeInfo::infer_unary_result(&unary.operator, &operand_type);
-        
+
         self.record_type(node_id, result_type.clone());
         Ok(result_type)
     }
 
     fn visit_lambda(&mut self, lambda: &LambdaNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         // Push lambda scope
-        self.context.push_scope(crate::analyzer::context::ScopeType::Lambda { 
-            parameter: lambda.parameter.clone()
-        });
-        
+        self.context
+            .push_scope(crate::analyzer::context::ScopeType::Lambda {
+                parameter: lambda.parameter.clone(),
+            });
+
         // Define lambda parameter if provided
         if let Some(param) = &lambda.parameter {
-            self.context.define_variable(param.clone(), TypeInfo::Unknown);
+            self.context
+                .define_variable(param.clone(), TypeInfo::Unknown);
         }
-        
+
         let body_type = self.visit_expression(&lambda.body)?;
-        
+
         // Pop lambda scope
         self.context.pop_scope();
-        
+
         self.record_type(node_id, body_type.clone());
         Ok(body_type)
     }
 
     fn visit_collection(&mut self, collection: &CollectionNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         if collection.elements.is_empty() {
             self.record_type(node_id, TypeInfo::Empty);
             return Ok(TypeInfo::Empty);
         }
-        
+
         // Infer element types
         let mut element_types = Vec::new();
         for element in &collection.elements {
             element_types.push(self.visit_expression(element)?);
         }
-        
+
         // Find common type
         let mut common_type = element_types[0].clone();
         for element_type in &element_types[1..] {
@@ -1418,7 +1593,7 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
                 break;
             }
         }
-        
+
         let collection_type = TypeInfo::Collection(Box::new(common_type));
         self.record_type(node_id, collection_type.clone());
         Ok(collection_type)
@@ -1431,24 +1606,25 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
 
     fn visit_type_cast(&mut self, cast: &TypeCastNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let _source_type = self.visit_expression(&cast.expression)?;
         let target_type = self.parse_type_string(&cast.target_type);
-        
+
         self.record_type(node_id, target_type.clone());
         Ok(target_type)
     }
 
     fn visit_filter(&mut self, filter: &FilterNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let base_type = self.visit_expression(&filter.base)?;
-        
+
         // Push filter scope
-        self.context.push_scope(crate::analyzer::context::ScopeType::Filter);
-        
+        self.context
+            .push_scope(crate::analyzer::context::ScopeType::Filter);
+
         let condition_type = self.visit_expression(&filter.condition)?;
-        
+
         // Condition should be boolean
         if !matches!(condition_type, TypeInfo::Boolean) {
             self.add_warning(
@@ -1457,10 +1633,10 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
                 Some(node_id),
             );
         }
-        
+
         // Pop filter scope
         self.context.pop_scope();
-        
+
         // Filter preserves the collection structure
         self.record_type(node_id, base_type.clone());
         Ok(base_type)
@@ -1468,14 +1644,17 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
 
     fn visit_union(&mut self, union: &UnionNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let left_type = self.visit_expression(&union.left)?;
         let right_type = self.visit_expression(&union.right)?;
-        
+
         // Union creates a collection containing both types
         let result_type = match (&left_type, &right_type) {
             (TypeInfo::Collection(a), TypeInfo::Collection(b)) => {
-                TypeInfo::Collection(Box::new(TypeInfo::Union(vec![(**a).clone(), (**b).clone()])))
+                TypeInfo::Collection(Box::new(TypeInfo::Union(vec![
+                    (**a).clone(),
+                    (**b).clone(),
+                ])))
             }
             (TypeInfo::Collection(a), b) => {
                 TypeInfo::Collection(Box::new(TypeInfo::Union(vec![(**a).clone(), b.clone()])))
@@ -1483,18 +1662,18 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
             (a, TypeInfo::Collection(b)) => {
                 TypeInfo::Collection(Box::new(TypeInfo::Union(vec![a.clone(), (**b).clone()])))
             }
-            (a, b) => TypeInfo::Collection(Box::new(TypeInfo::Union(vec![a.clone(), b.clone()])))
+            (a, b) => TypeInfo::Collection(Box::new(TypeInfo::Union(vec![a.clone(), b.clone()]))),
         };
-        
+
         self.record_type(node_id, result_type.clone());
         Ok(result_type)
     }
 
     fn visit_type_check(&mut self, check: &TypeCheckNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         let _expr_type = self.visit_expression(&check.expression)?;
-        
+
         // Type check always returns boolean
         self.record_type(node_id, TypeInfo::Boolean);
         Ok(TypeInfo::Boolean)
@@ -1502,47 +1681,52 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
 
     fn visit_variable(&mut self, variable: &VariableNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
-        let var_type = self.context.lookup_variable(&variable.name)
+
+        let var_type = self
+            .context
+            .lookup_variable(&variable.name)
             .cloned()
             .unwrap_or(TypeInfo::Unknown);
-        
+
         self.record_type(node_id, var_type.clone());
         Ok(var_type)
     }
 
     fn visit_path(&mut self, _path: &PathNode) -> Self::Output {
         let node_id = self.next_node_id();
-        
+
         // For now, treat path as property access chain
         // This would need more sophisticated implementation
         let path_type = TypeInfo::Unknown;
-        
+
         self.record_type(node_id, path_type.clone());
         Ok(path_type)
     }
 }
 
 impl<'a> TypeInferenceVisitor<'a> {
-    fn infer_method_return_type(&mut self, method_name: &str, object_type: &TypeInfo, _arg_types: &[TypeInfo]) -> TypeInfo {
+    fn infer_method_return_type(
+        &mut self,
+        method_name: &str,
+        object_type: &TypeInfo,
+        _arg_types: &[TypeInfo],
+    ) -> TypeInfo {
         match method_name {
             // Collection methods
-            "where" | "select" | "all" | "any" | "exists" => {
-                match object_type {
-                    TypeInfo::Collection(_) => TypeInfo::Collection(Box::new(TypeInfo::Any)),
-                    _ => {
-                        self.add_warning("W005", 
-                            format!("Method '{}' can only be called on collections", method_name), 
-                            None);
-                        TypeInfo::Any
-                    }
+            "where" | "select" | "all" | "any" | "exists" => match object_type {
+                TypeInfo::Collection(_) => TypeInfo::Collection(Box::new(TypeInfo::Any)),
+                _ => {
+                    self.add_warning(
+                        "W005",
+                        format!("Method '{}' can only be called on collections", method_name),
+                        None,
+                    );
+                    TypeInfo::Any
                 }
             },
-            "first" | "last" | "single" => {
-                match object_type {
-                    TypeInfo::Collection(inner_type) => inner_type.as_ref().clone(),
-                    _ => object_type.clone(),
-                }
+            "first" | "last" | "single" => match object_type {
+                TypeInfo::Collection(inner_type) => inner_type.as_ref().clone(),
+                _ => object_type.clone(),
             },
             "count" => TypeInfo::Integer,
             "empty" => TypeInfo::Boolean,
@@ -1553,74 +1737,89 @@ impl<'a> TypeInferenceVisitor<'a> {
         }
     }
 
-    fn infer_function_return_type(&mut self, function_name: &str, _arg_types: &[TypeInfo]) -> TypeInfo {
+    fn infer_function_return_type(
+        &mut self,
+        function_name: &str,
+        _arg_types: &[TypeInfo],
+    ) -> TypeInfo {
         match function_name {
             // Boolean-returning functions
-            "exists" | "empty" | "all" | "any" | "contains" | "startsWith" | "endsWith" |
-            "matches" | "hasValue" => TypeInfo::Boolean,
-            
+            "exists" | "empty" | "all" | "any" | "contains" | "startsWith" | "endsWith"
+            | "matches" | "hasValue" => TypeInfo::Boolean,
+
             // String-returning functions
             "toString" | "substring" | "replace" | "trim" | "lower" | "upper" => TypeInfo::String,
-            
+
             // Numeric functions
             "count" | "length" => TypeInfo::Integer,
             "sum" | "avg" | "min" | "max" => TypeInfo::Decimal,
-            
+
             // Collection functions
             "first" | "last" | "single" => {
                 // These would need to analyze the input collection type
                 TypeInfo::Unknown
             }
-            
+
             "where" | "select" => {
                 // These preserve collection structure but may change element type
                 TypeInfo::Unknown
             }
-            
+
             _ => TypeInfo::Unknown,
         }
     }
-    
+
     fn infer_property_type(&self, _object_type: &TypeInfo, _property: &str) -> TypeInfo {
         // This would require FHIR schema integration
         // For now, return Unknown
         TypeInfo::Unknown
     }
-    
-    fn infer_binary_operation_type(&self, operator: &BinaryOperator, left: &TypeInfo, right: &TypeInfo) -> TypeInfo {
+
+    fn infer_binary_operation_type(
+        &self,
+        operator: &BinaryOperator,
+        left: &TypeInfo,
+        right: &TypeInfo,
+    ) -> TypeInfo {
         match operator {
             // Equality operators - can compare most types
             BinaryOperator::Equal | BinaryOperator::NotEqual => {
                 // These operators return boolean and work on most type combinations
                 TypeInfo::Boolean
-            },
-            
+            }
+
             // Equivalence operators - stricter than equality
             BinaryOperator::Equivalent | BinaryOperator::NotEquivalent => {
                 // For now, treat same as equality, but could be stricter
                 TypeInfo::Boolean
-            },
-            
+            }
+
             // Comparison operators - require ordered types
-            BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual | 
-            BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual => {
+            BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual => {
                 // Check if both operands are orderable types
                 let orderable_types = [
-                    TypeInfo::Integer, TypeInfo::Decimal, TypeInfo::String,
-                    TypeInfo::Date, TypeInfo::DateTime, TypeInfo::Time
+                    TypeInfo::Integer,
+                    TypeInfo::Decimal,
+                    TypeInfo::String,
+                    TypeInfo::Date,
+                    TypeInfo::DateTime,
+                    TypeInfo::Time,
                 ];
-                
+
                 let left_orderable = orderable_types.iter().any(|t| left.is_compatible_with(t));
                 let right_orderable = orderable_types.iter().any(|t| right.is_compatible_with(t));
-                
+
                 if left_orderable && right_orderable {
                     TypeInfo::Boolean
                 } else {
                     // Add warning about incompatible comparison
                     TypeInfo::Boolean // Still return boolean but might be runtime error
                 }
-            },
-            
+            }
+
             // Logical operators - require boolean operands
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor => {
                 // These should work on boolean types
@@ -1632,41 +1831,48 @@ impl<'a> TypeInferenceVisitor<'a> {
                         TypeInfo::Boolean
                     }
                 }
-            },
-            
+            }
+
             // Arithmetic operators
             BinaryOperator::Add => {
                 match (left, right) {
                     // Numeric addition
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-                    
+                    (TypeInfo::Integer, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
+
                     // Quantity arithmetic
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    
+
                     // String concatenation (if + is used for concatenation)
                     (TypeInfo::String, _) | (_, TypeInfo::String) => TypeInfo::String,
-                    
+
                     // Date/time arithmetic
-                    (TypeInfo::DateTime, TypeInfo::Quantity) | (TypeInfo::Quantity, TypeInfo::DateTime) => TypeInfo::DateTime,
-                    (TypeInfo::Date, TypeInfo::Quantity) | (TypeInfo::Quantity, TypeInfo::Date) => TypeInfo::Date,
-                    (TypeInfo::Time, TypeInfo::Quantity) | (TypeInfo::Quantity, TypeInfo::Time) => TypeInfo::Time,
-                    
+                    (TypeInfo::DateTime, TypeInfo::Quantity)
+                    | (TypeInfo::Quantity, TypeInfo::DateTime) => TypeInfo::DateTime,
+                    (TypeInfo::Date, TypeInfo::Quantity) | (TypeInfo::Quantity, TypeInfo::Date) => {
+                        TypeInfo::Date
+                    }
+                    (TypeInfo::Time, TypeInfo::Quantity) | (TypeInfo::Quantity, TypeInfo::Time) => {
+                        TypeInfo::Time
+                    }
+
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             BinaryOperator::Subtract => {
                 match (left, right) {
                     // Numeric subtraction
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-                    
+                    (TypeInfo::Integer, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
+
                     // Quantity arithmetic
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    
+
                     // Date/time arithmetic
                     (TypeInfo::DateTime, TypeInfo::Quantity) => TypeInfo::DateTime,
                     (TypeInfo::Date, TypeInfo::Quantity) => TypeInfo::Date,
@@ -1674,51 +1880,57 @@ impl<'a> TypeInferenceVisitor<'a> {
                     (TypeInfo::DateTime, TypeInfo::DateTime) => TypeInfo::Quantity, // Duration
                     (TypeInfo::Date, TypeInfo::Date) => TypeInfo::Quantity,
                     (TypeInfo::Time, TypeInfo::Time) => TypeInfo::Quantity,
-                    
+
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             BinaryOperator::Multiply => {
                 match (left, right) {
                     // Numeric multiplication
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-                    
+                    (TypeInfo::Integer, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
+
                     // Quantity multiplication
-                    (TypeInfo::Quantity, TypeInfo::Integer) | (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    (TypeInfo::Quantity, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    
+                    (TypeInfo::Quantity, TypeInfo::Integer)
+                    | (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
+                    (TypeInfo::Quantity, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
+
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             BinaryOperator::Divide => {
                 match (left, right) {
                     // Numeric division - always results in decimal for precision
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Decimal,
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
-                    (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
-                    
+                    (TypeInfo::Integer, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Decimal,
+
                     // Quantity division
-                    (TypeInfo::Quantity, TypeInfo::Integer) | (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
+                    (TypeInfo::Quantity, TypeInfo::Integer)
+                    | (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Decimal, // Ratio
-                    
+
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             BinaryOperator::IntegerDivide => {
                 match (left, right) {
                     // Integer division always returns integer
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Integer,
                     (TypeInfo::Decimal, TypeInfo::Decimal) => TypeInfo::Integer,
-                    (TypeInfo::Integer, TypeInfo::Decimal) | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Integer,
+                    (TypeInfo::Integer, TypeInfo::Decimal)
+                    | (TypeInfo::Decimal, TypeInfo::Integer) => TypeInfo::Integer,
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             BinaryOperator::Modulo => {
                 match (left, right) {
                     // Modulo preserves the type of the left operand
@@ -1726,28 +1938,28 @@ impl<'a> TypeInferenceVisitor<'a> {
                     (TypeInfo::Decimal, _) => TypeInfo::Decimal,
                     _ => TypeInfo::Unknown,
                 }
-            },
-            
+            }
+
             // Collection operations
             BinaryOperator::Union => {
                 // Union of two collections or values creates a collection
                 let union_type = left.common_type(right);
                 TypeInfo::Collection(Box::new(union_type))
-            },
-            
+            }
+
             // Any other operators
             _ => TypeInfo::Unknown,
         }
     }
-    
+
     fn infer_unary_operation_type(&self, operator: &UnaryOperator, operand: &TypeInfo) -> TypeInfo {
         match operator {
             UnaryOperator::Not => {
                 // Logical NOT always returns boolean
                 // In FHIRPath, any value can be converted to boolean for NOT operation
                 TypeInfo::Boolean
-            },
-            
+            }
+
             UnaryOperator::Negate => {
                 // Numeric negation - preserves numeric type
                 match operand {
@@ -1760,8 +1972,8 @@ impl<'a> TypeInferenceVisitor<'a> {
                         TypeInfo::Unknown
                     }
                 }
-            },
-            
+            }
+
             UnaryOperator::Positive => {
                 // Unary plus - preserves numeric type (essentially a no-op)
                 match operand {
@@ -1774,10 +1986,10 @@ impl<'a> TypeInferenceVisitor<'a> {
                         TypeInfo::Unknown
                     }
                 }
-            },
+            }
         }
     }
-    
+
     fn parse_type_string(&self, type_str: &str) -> TypeInfo {
         match type_str.to_lowercase().as_str() {
             "boolean" => TypeInfo::Boolean,
@@ -1801,4 +2013,3 @@ impl Default for TypeInfo {
         Self::Unknown
     }
 }
-

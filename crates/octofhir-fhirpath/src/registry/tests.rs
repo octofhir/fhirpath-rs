@@ -5,15 +5,15 @@ mod tests {
     use super::super::*;
     use crate::core::{FhirPathValue, ModelProvider};
     use crate::mock_provider::MockModelProvider;
-    use std::sync::Arc;
     use std::collections::HashMap;
-    use std::pin::Pin;
     use std::future::Future;
+    use std::pin::Pin;
+    use std::sync::Arc;
 
     #[test]
     fn test_function_registration() {
         let mut registry = FunctionRegistry::new();
-        
+
         let test_function = Arc::new(|_context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
             Ok(vec![FhirPathValue::boolean(true)])
         });
@@ -28,7 +28,11 @@ mod tests {
             examples: vec![],
         };
 
-        assert!(registry.register_sync_function("test", test_function, metadata).is_ok());
+        assert!(
+            registry
+                .register_sync_function("test", test_function, metadata)
+                .is_ok()
+        );
         assert!(registry.get_sync_function("test").is_some());
         assert_eq!(registry.is_function_async("test"), Some(false));
     }
@@ -36,11 +40,11 @@ mod tests {
     #[test]
     fn test_duplicate_function_registration() {
         let mut registry = FunctionRegistry::new();
-        
+
         let test_function1 = Arc::new(|_: &FunctionContext| -> Result<Vec<FhirPathValue>> {
             Ok(vec![FhirPathValue::boolean(true)])
         });
-        
+
         let test_function2 = Arc::new(|_: &FunctionContext| -> Result<Vec<FhirPathValue>> {
             Ok(vec![FhirPathValue::boolean(false)])
         });
@@ -55,14 +59,22 @@ mod tests {
             examples: vec![],
         };
 
-        assert!(registry.register_sync_function("test", test_function1, metadata.clone()).is_ok());
-        assert!(registry.register_sync_function("test", test_function2, metadata).is_err());
+        assert!(
+            registry
+                .register_sync_function("test", test_function1, metadata.clone())
+                .is_ok()
+        );
+        assert!(
+            registry
+                .register_sync_function("test", test_function2, metadata)
+                .is_err()
+        );
     }
 
     #[tokio::test]
     async fn test_async_function_registration() {
         let mut registry = FunctionRegistry::new();
-        
+
         let async_function: AsyncFunction = Arc::new(|_context| {
             Box::pin(async { Ok(vec![FhirPathValue::string("async_result".to_string())]) })
         });
@@ -77,7 +89,11 @@ mod tests {
             examples: vec![],
         };
 
-        assert!(registry.register_async_function("async_test", async_function, metadata).is_ok());
+        assert!(
+            registry
+                .register_async_function("async_test", async_function, metadata)
+                .is_ok()
+        );
         assert!(registry.get_async_function("async_test").is_some());
         assert_eq!(registry.is_function_async("async_test"), Some(true));
     }
@@ -85,10 +101,10 @@ mod tests {
     #[test]
     fn test_function_metadata() {
         let registry = FunctionRegistry::default();
-        
+
         let metadata = registry.get_function_metadata("empty");
         assert!(metadata.is_some());
-        
+
         let metadata = metadata.unwrap();
         assert_eq!(metadata.name, "empty");
         assert_eq!(metadata.category, FunctionCategory::Utility);
@@ -98,10 +114,10 @@ mod tests {
     #[test]
     fn test_list_functions() {
         let registry = FunctionRegistry::default();
-        
+
         let functions = registry.list_functions();
         assert!(!functions.is_empty());
-        
+
         // Should have at least the default functions (empty, exists)
         assert!(functions.len() >= 2);
     }
@@ -109,10 +125,10 @@ mod tests {
     #[test]
     fn test_list_functions_by_category() {
         let registry = FunctionRegistry::default();
-        
+
         let utility_functions = registry.list_functions_by_category(FunctionCategory::Utility);
         assert!(!utility_functions.is_empty());
-        
+
         for func in utility_functions {
             assert_eq!(func.category, FunctionCategory::Utility);
         }
@@ -123,7 +139,7 @@ mod tests {
         let variables = HashMap::new();
         (model_provider, variables)
     }
-    
+
     fn create_test_context<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],

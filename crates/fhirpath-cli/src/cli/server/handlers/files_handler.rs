@@ -222,7 +222,7 @@ async fn create_file_info(path: &PathBuf, storage_root: &PathBuf) -> Option<File
         .ok()?;
 
     let modified_iso = chrono::DateTime::from_timestamp(modified.as_secs() as i64, 0)
-        .map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+        .map(|dt| dt.to_rfc3339())
         .unwrap_or_else(|| "unknown".to_string());
 
     // Determine file type by attempting to parse as JSON

@@ -4,32 +4,34 @@
 //! Rust compiler-style error reports using Ariadne. It includes error code integration,
 //! source span highlighting, and rich diagnostic information.
 
-pub mod diagnostic;
+pub mod batch_formatter;
 pub mod builder;
+pub mod collector;
+pub mod diagnostic;
 pub mod engine;
 pub mod formatter;
-pub mod source;
-pub mod collector;
-pub mod batch_formatter;
 pub mod processor;
+pub mod source;
 
 // Re-export main types for backward compatibility
-pub use diagnostic::{Diagnostic, DiagnosticSeverity, DiagnosticCode};
 pub use builder::DiagnosticBuilder;
+pub use diagnostic::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
 
 // Re-export new Ariadne-based types
-pub use engine::{DiagnosticEngine, ColorScheme};
+pub use engine::{ColorScheme, DiagnosticEngine};
 pub use formatter::DiagnosticFormatter;
-pub use source::{SourceManager, SourceInfo};
-pub use processor::{DiagnosticProcessor, ProcessedDiagnostic, ContextualSuggestion, DiagnosticRelationship};
+pub use processor::{
+    ContextualSuggestion, DiagnosticProcessor, DiagnosticRelationship, ProcessedDiagnostic,
+};
+pub use source::{SourceInfo, SourceManager};
 
 // Re-export multi-diagnostic collection types
-pub use collector::{MultiDiagnosticCollector, DiagnosticBatch, DiagnosticStatistics};
 pub use batch_formatter::BatchFormatter;
+pub use collector::{DiagnosticBatch, DiagnosticStatistics, MultiDiagnosticCollector};
 
 // Enhanced diagnostics with Ariadne support
-use ariadne::{Color, ReportKind};
 use crate::core::error_code::ErrorCode;
+use ariadne::{Color, ReportKind};
 use std::ops::Range;
 
 /// Enhanced diagnostic with Ariadne integration
@@ -77,7 +79,7 @@ impl DiagnosticSeverity {
     pub fn color(&self) -> Color {
         match self {
             DiagnosticSeverity::Error => Color::Red,
-            DiagnosticSeverity::Warning => Color::Yellow, 
+            DiagnosticSeverity::Warning => Color::Yellow,
             DiagnosticSeverity::Info => Color::Cyan,
             DiagnosticSeverity::Hint => Color::Blue,
         }

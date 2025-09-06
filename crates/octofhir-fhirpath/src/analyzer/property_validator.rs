@@ -3,11 +3,11 @@
 //! This module implements comprehensive property validation for FHIRPath expressions,
 //! including detection of invalid properties, typo suggestions, and FHIR compliance checking.
 
-use crate::ast::expression::*;
-use crate::analyzer::type_checker::TypeInfo;
-use crate::analyzer::context::AnalysisContext;
 use crate::analyzer::AnalysisWarning;
-use crate::core::{Result, SourceLocation, ModelProvider};
+use crate::analyzer::context::AnalysisContext;
+use crate::analyzer::type_checker::TypeInfo;
+use crate::ast::expression::*;
+use crate::core::{ModelProvider, Result, SourceLocation};
 use crate::diagnostics::DiagnosticSeverity;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -92,7 +92,7 @@ impl PropertyValidator {
             property_cache: HashMap::new(),
             model_provider: None,
         };
-        
+
         validator.initialize_builtin_properties();
         validator.initialize_common_typos();
         validator
@@ -112,7 +112,8 @@ impl PropertyValidator {
         let mut suggestions = Vec::new();
         let mut context = AnalysisContext::new();
 
-        self.validate_expression(expression, &mut context, &mut warnings, &mut suggestions).await?;
+        self.validate_expression(expression, &mut context, &mut warnings, &mut suggestions)
+            .await?;
 
         // Collect valid properties for all encountered types
         for scope in &context.scopes {
@@ -120,7 +121,7 @@ impl PropertyValidator {
                 if let Some(properties) = self.get_properties_for_type(type_info).await {
                     valid_properties.insert(
                         type_info.to_string(),
-                        properties.iter().map(|p| p.name.clone()).collect()
+                        properties.iter().map(|p| p.name.clone()).collect(),
                     );
                 }
             }
@@ -141,53 +142,70 @@ impl PropertyValidator {
         suggestions: &'a mut Vec<PropertySuggestion>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
         Box::pin(async move {
-        match expression {
-            ExpressionNode::PropertyAccess(access) => {
-                self.validate_property_access(access, context, warnings, suggestions).await?;
-                self.validate_expression(&access.object, context, warnings, suggestions).await?;
-            },
-            ExpressionNode::FunctionCall(call) => {
-                for arg in &call.arguments {
-                    self.validate_expression(arg, context, warnings, suggestions).await?;
+            match expression {
+                ExpressionNode::PropertyAccess(access) => {
+                    self.validate_property_access(access, context, warnings, suggestions)
+                        .await?;
+                    self.validate_expression(&access.object, context, warnings, suggestions)
+                        .await?;
                 }
-            },
-            ExpressionNode::MethodCall(method) => {
-                self.validate_expression(&method.object, context, warnings, suggestions).await?;
-                for arg in &method.arguments {
-                    self.validate_expression(arg, context, warnings, suggestions).await?;
+                ExpressionNode::FunctionCall(call) => {
+                    for arg in &call.arguments {
+                        self.validate_expression(arg, context, warnings, suggestions)
+                            .await?;
+                    }
                 }
-            },
-            ExpressionNode::BinaryOperation(binary) => {
-                self.validate_expression(&binary.left, context, warnings, suggestions).await?;
-                self.validate_expression(&binary.right, context, warnings, suggestions).await?;
-            },
-            ExpressionNode::UnaryOperation(unary) => {
-                self.validate_expression(&unary.operand, context, warnings, suggestions).await?;
-            },
-            ExpressionNode::Filter(filter) => {
-                self.validate_expression(&filter.base, context, warnings, suggestions).await?;
-                self.validate_expression(&filter.condition, context, warnings, suggestions).await?;
-            },
-            ExpressionNode::IndexAccess(index) => {
-                self.validate_expression(&index.object, context, warnings, suggestions).await?;
-                self.validate_expression(&index.index, context, warnings, suggestions).await?;
-            },
-            ExpressionNode::Lambda(lambda) => {
-                context.push_scope(crate::analyzer::context::ScopeType::Lambda { parameter: Some("item".to_string()) });
-                self.validate_expression(&lambda.body, context, warnings, suggestions).await?;
-                context.pop_scope();
-            },
-            ExpressionNode::Collection(coll) => {
-                for element in &coll.elements {
-                    self.validate_expression(element, context, warnings, suggestions).await?;
+                ExpressionNode::MethodCall(method) => {
+                    self.validate_expression(&method.object, context, warnings, suggestions)
+                        .await?;
+                    for arg in &method.arguments {
+                        self.validate_expression(arg, context, warnings, suggestions)
+                            .await?;
+                    }
                 }
-            },
-            ExpressionNode::Parenthesized(expr) => {
-                self.validate_expression(expr, context, warnings, suggestions).await?;
-            },
-            _ => {}, // Literals and identifiers don't need property validation
-        }
-        Ok(())
+                ExpressionNode::BinaryOperation(binary) => {
+                    self.validate_expression(&binary.left, context, warnings, suggestions)
+                        .await?;
+                    self.validate_expression(&binary.right, context, warnings, suggestions)
+                        .await?;
+                }
+                ExpressionNode::UnaryOperation(unary) => {
+                    self.validate_expression(&unary.operand, context, warnings, suggestions)
+                        .await?;
+                }
+                ExpressionNode::Filter(filter) => {
+                    self.validate_expression(&filter.base, context, warnings, suggestions)
+                        .await?;
+                    self.validate_expression(&filter.condition, context, warnings, suggestions)
+                        .await?;
+                }
+                ExpressionNode::IndexAccess(index) => {
+                    self.validate_expression(&index.object, context, warnings, suggestions)
+                        .await?;
+                    self.validate_expression(&index.index, context, warnings, suggestions)
+                        .await?;
+                }
+                ExpressionNode::Lambda(lambda) => {
+                    context.push_scope(crate::analyzer::context::ScopeType::Lambda {
+                        parameter: Some("item".to_string()),
+                    });
+                    self.validate_expression(&lambda.body, context, warnings, suggestions)
+                        .await?;
+                    context.pop_scope();
+                }
+                ExpressionNode::Collection(coll) => {
+                    for element in &coll.elements {
+                        self.validate_expression(element, context, warnings, suggestions)
+                            .await?;
+                    }
+                }
+                ExpressionNode::Parenthesized(expr) => {
+                    self.validate_expression(expr, context, warnings, suggestions)
+                        .await?;
+                }
+                _ => {} // Literals and identifiers don't need property validation
+            }
+            Ok(())
         })
     }
 
@@ -200,50 +218,88 @@ impl PropertyValidator {
     ) -> Result<()> {
         // Determine the type of the object being accessed
         let object_type = self.infer_object_type(&access.object, context).await?;
-        
+
         match &object_type {
             TypeInfo::Resource { resource_type } => {
-                self.validate_resource_property(resource_type, &access.property, access.location.clone(), warnings, suggestions).await;
-            },
+                self.validate_resource_property(
+                    resource_type,
+                    &access.property,
+                    access.location.clone(),
+                    warnings,
+                    suggestions,
+                )
+                .await;
+            }
             TypeInfo::BackboneElement { properties } => {
-                self.validate_backbone_property(&access.property, properties, access.location.clone(), warnings, suggestions);
-            },
+                self.validate_backbone_property(
+                    &access.property,
+                    properties,
+                    access.location.clone(),
+                    warnings,
+                    suggestions,
+                );
+            }
             TypeInfo::Collection(inner_type) => {
                 // Validate property access on collection elements
                 match inner_type.as_ref() {
                     TypeInfo::Resource { resource_type } => {
-                        self.validate_resource_property(resource_type, &access.property, access.location.clone(), warnings, suggestions).await;
-                    },
+                        self.validate_resource_property(
+                            resource_type,
+                            &access.property,
+                            access.location.clone(),
+                            warnings,
+                            suggestions,
+                        )
+                        .await;
+                    }
                     TypeInfo::BackboneElement { properties } => {
-                        self.validate_backbone_property(&access.property, properties, access.location.clone(), warnings, suggestions);
-                    },
+                        self.validate_backbone_property(
+                            &access.property,
+                            properties,
+                            access.location.clone(),
+                            warnings,
+                            suggestions,
+                        );
+                    }
                     _ => {
                         warnings.push(AnalysisWarning {
                             code: "FP0114".to_string(),
-                            message: format!("Property access '{}' on collection of non-object type: {}", 
-                                           access.property, inner_type),
+                            message: format!(
+                                "Property access '{}' on collection of non-object type: {}",
+                                access.property, inner_type
+                            ),
                             location: access.location.clone(),
                             severity: DiagnosticSeverity::Warning,
-                            suggestion: Some("Property access is only valid on resources and elements".to_string()),
+                            suggestion: Some(
+                                "Property access is only valid on resources and elements"
+                                    .to_string(),
+                            ),
                         });
                     }
                 }
-            },
+            }
             TypeInfo::Any | TypeInfo::Unknown => {
                 // Cannot validate - might be valid
                 warnings.push(AnalysisWarning {
                     code: "FP0115".to_string(),
-                    message: format!("Cannot validate property '{}' on unknown type", access.property),
+                    message: format!(
+                        "Cannot validate property '{}' on unknown type",
+                        access.property
+                    ),
                     location: access.location.clone(),
                     severity: DiagnosticSeverity::Info,
-                    suggestion: Some("Consider providing type information for better validation".to_string()),
+                    suggestion: Some(
+                        "Consider providing type information for better validation".to_string(),
+                    ),
                 });
-            },
+            }
             _ => {
                 warnings.push(AnalysisWarning {
                     code: "FP0116".to_string(),
-                    message: format!("Invalid property access '{}' on primitive type: {}", 
-                                   access.property, object_type),
+                    message: format!(
+                        "Invalid property access '{}' on primitive type: {}",
+                        access.property, object_type
+                    ),
                     location: access.location.clone(),
                     severity: DiagnosticSeverity::Error,
                     suggestion: Some("Property access is only valid on complex types".to_string()),
@@ -264,21 +320,35 @@ impl PropertyValidator {
     ) {
         if let Some(properties) = self.get_resource_properties(resource_name).await {
             // Check if property exists
-            if !properties.iter().any(|p| p.name == property || p.aliases.contains(&property.to_string())) {
+            if !properties
+                .iter()
+                .any(|p| p.name == property || p.aliases.contains(&property.to_string()))
+            {
                 // Property not found - generate suggestions
                 let similar_properties = self.find_similar_properties(property, &properties);
-                
+
                 warnings.push(AnalysisWarning {
                     code: "FP0117".to_string(),
-                    message: format!("Unknown property '{}' on resource '{}'", property, resource_name),
+                    message: format!(
+                        "Unknown property '{}' on resource '{}'",
+                        property, resource_name
+                    ),
                     location: location.clone(),
                     severity: DiagnosticSeverity::Error,
                     suggestion: if !similar_properties.is_empty() {
                         Some(format!("Did you mean: {}?", similar_properties.join(", ")))
                     } else {
-                        Some(format!("Valid properties for {}: {}", 
-                                   resource_name, 
-                                   properties.iter().map(|p| &p.name).take(5).cloned().collect::<Vec<_>>().join(", ")))
+                        Some(format!(
+                            "Valid properties for {}: {}",
+                            resource_name,
+                            properties
+                                .iter()
+                                .map(|p| &p.name)
+                                .take(5)
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ))
                     },
                 });
 
@@ -319,7 +389,7 @@ impl PropertyValidator {
         if !properties.contains_key(property) {
             let property_names: Vec<String> = properties.keys().cloned().collect();
             let similar_properties = self.find_similar_property_names(property, &property_names);
-            
+
             warnings.push(AnalysisWarning {
                 code: "FP0119".to_string(),
                 message: format!("Unknown property '{}' on backbone element", property),
@@ -344,12 +414,17 @@ impl PropertyValidator {
         }
     }
 
-    fn validate_property_usage(&self, prop_info: &PropertyInfo, location: Option<SourceLocation>, warnings: &mut Vec<AnalysisWarning>) {
+    fn validate_property_usage(
+        &self,
+        prop_info: &PropertyInfo,
+        location: Option<SourceLocation>,
+        warnings: &mut Vec<AnalysisWarning>,
+    ) {
         // Additional validation rules based on cardinality and usage patterns
         match prop_info.cardinality {
             Cardinality::ZeroToOne | Cardinality::OneToOne => {
                 // Single-valued properties - no special validation needed here
-            },
+            }
             Cardinality::ZeroToMany | Cardinality::OneToMany => {
                 // Multi-valued properties - could warn about performance for large collections
                 if prop_info.name == "extension" || prop_info.name == "modifierExtension" {
@@ -361,7 +436,7 @@ impl PropertyValidator {
                         suggestion: Some("Consider using filters or specific indexes if accessing large collections".to_string()),
                     });
                 }
-            },
+            }
         }
     }
 
@@ -438,8 +513,12 @@ impl PropertyValidator {
         let a_len = a_chars.len();
         let b_len = b_chars.len();
 
-        if a_len == 0 { return b_len; }
-        if b_len == 0 { return a_len; }
+        if a_len == 0 {
+            return b_len;
+        }
+        if b_len == 0 {
+            return a_len;
+        }
 
         let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
 
@@ -454,88 +533,110 @@ impl PropertyValidator {
         // Fill the matrix
         for i in 1..=a_len {
             for j in 1..=b_len {
-                let cost = if a_chars[i-1] == b_chars[j-1] { 0 } else { 1 };
-                matrix[i][j] = (matrix[i-1][j] + 1)
-                    .min(matrix[i][j-1] + 1)
-                    .min(matrix[i-1][j-1] + cost);
+                let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
+                matrix[i][j] = (matrix[i - 1][j] + 1)
+                    .min(matrix[i][j - 1] + 1)
+                    .min(matrix[i - 1][j - 1] + cost);
             }
         }
 
         matrix[a_len][b_len]
     }
 
-    fn infer_object_type<'a>(&'a self, object: &'a ExpressionNode, context: &'a AnalysisContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TypeInfo>> + 'a>> {
+    fn infer_object_type<'a>(
+        &'a self,
+        object: &'a ExpressionNode,
+        context: &'a AnalysisContext,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TypeInfo>> + 'a>> {
         Box::pin(async move {
-        // Simplified type inference for property validation
-        match object {
-            ExpressionNode::Identifier(id) => {
-                if let Some(var_type) = context.lookup_variable(&id.name) {
-                    Ok(var_type.clone())
-                } else if self.is_known_resource_type(&id.name).await {
-                    Ok(TypeInfo::Resource { resource_type: id.name.clone() })
-                } else {
-                    Ok(TypeInfo::Unknown)
-                }
-            },
-            ExpressionNode::PropertyAccess(access) => {
-                let parent_type = self.infer_object_type(&access.object, context).await?;
-                self.infer_property_type(&parent_type, &access.property).await
-            },
-            ExpressionNode::FunctionCall(_) => Ok(TypeInfo::Any), // Would need full type inference
-            ExpressionNode::MethodCall(_) => Ok(TypeInfo::Any), // Would need full type inference
-            ExpressionNode::Filter(filter) => self.infer_object_type(&filter.base, context).await,
-            _ => Ok(TypeInfo::Unknown),
-        }
-        })
-    }
-
-    fn infer_property_type<'a>(&'a self, object_type: &'a TypeInfo, property: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TypeInfo>> + 'a>> {
-        Box::pin(async move {
-        match object_type {
-            TypeInfo::Resource { resource_type } => {
-                if let Some(properties) = self.get_resource_properties(resource_type).await {
-                    if let Some(prop) = properties.iter().find(|p| p.name == property) {
-                        Ok(prop.data_type.clone())
+            // Simplified type inference for property validation
+            match object {
+                ExpressionNode::Identifier(id) => {
+                    if let Some(var_type) = context.lookup_variable(&id.name) {
+                        Ok(var_type.clone())
+                    } else if self.is_known_resource_type(&id.name).await {
+                        Ok(TypeInfo::Resource {
+                            resource_type: id.name.clone(),
+                        })
                     } else {
                         Ok(TypeInfo::Unknown)
                     }
-                } else {
-                    Ok(TypeInfo::Unknown)
                 }
-            },
-            TypeInfo::BackboneElement { properties } => {
-                if let Some(prop_type) = properties.get(property) {
-                    Ok(prop_type.clone())
-                } else {
-                    Ok(TypeInfo::Unknown)
+                ExpressionNode::PropertyAccess(access) => {
+                    let parent_type = self.infer_object_type(&access.object, context).await?;
+                    self.infer_property_type(&parent_type, &access.property)
+                        .await
                 }
-            },
-            TypeInfo::Collection(inner) => {
-                let inner_property_type = self.infer_property_type(inner, property).await?;
-                Ok(TypeInfo::Collection(Box::new(inner_property_type)))
-            },
-            _ => Ok(TypeInfo::Unknown),
-        }
+                ExpressionNode::FunctionCall(_) => Ok(TypeInfo::Any), // Would need full type inference
+                ExpressionNode::MethodCall(_) => Ok(TypeInfo::Any), // Would need full type inference
+                ExpressionNode::Filter(filter) => {
+                    self.infer_object_type(&filter.base, context).await
+                }
+                _ => Ok(TypeInfo::Unknown),
+            }
+        })
+    }
+
+    fn infer_property_type<'a>(
+        &'a self,
+        object_type: &'a TypeInfo,
+        property: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TypeInfo>> + 'a>> {
+        Box::pin(async move {
+            match object_type {
+                TypeInfo::Resource { resource_type } => {
+                    if let Some(properties) = self.get_resource_properties(resource_type).await {
+                        if let Some(prop) = properties.iter().find(|p| p.name == property) {
+                            Ok(prop.data_type.clone())
+                        } else {
+                            Ok(TypeInfo::Unknown)
+                        }
+                    } else {
+                        Ok(TypeInfo::Unknown)
+                    }
+                }
+                TypeInfo::BackboneElement { properties } => {
+                    if let Some(prop_type) = properties.get(property) {
+                        Ok(prop_type.clone())
+                    } else {
+                        Ok(TypeInfo::Unknown)
+                    }
+                }
+                TypeInfo::Collection(inner) => {
+                    let inner_property_type = self.infer_property_type(inner, property).await?;
+                    Ok(TypeInfo::Collection(Box::new(inner_property_type)))
+                }
+                _ => Ok(TypeInfo::Unknown),
+            }
         })
     }
 
     async fn get_properties_for_type(&self, type_info: &TypeInfo) -> Option<Vec<PropertyInfo>> {
         match type_info {
-            TypeInfo::Resource { resource_type } => self.get_resource_properties(resource_type).await,
+            TypeInfo::Resource { resource_type } => {
+                self.get_resource_properties(resource_type).await
+            }
             TypeInfo::BackboneElement { properties } => {
                 // Convert HashMap<String, TypeInfo> to Vec<PropertyInfo>
-                let prop_infos: Vec<PropertyInfo> = properties.iter().map(|(name, type_info)| {
-                    PropertyInfo {
-                        name: name.clone(),
-                        data_type: type_info.clone(),
-                        cardinality: Cardinality::ZeroToOne, // Default assumption
-                        required: false,
-                        description: format!("Property {} of type {}", name, type_info),
-                        aliases: vec![],
-                    }
-                }).collect();
+                let prop_infos: Vec<PropertyInfo> = properties
+                    .iter()
+                    .map(|(name, type_info)| {
+                        PropertyInfo {
+                            name: name.clone(),
+                            data_type: type_info.clone(),
+                            cardinality: Cardinality::ZeroToOne, // Default assumption
+                            required: false,
+                            description: format!("Property {} of type {}", name, type_info),
+                            aliases: vec![],
+                        }
+                    })
+                    .collect();
                 Some(prop_infos)
-            },
+            }
             _ => None,
         }
     }
@@ -556,8 +657,8 @@ impl PropertyValidator {
     }
 
     async fn is_known_resource_type(&self, name: &str) -> bool {
-        self.resource_properties.contains_key(name) ||
-            (self.model_provider.as_ref().map_or(false, |_| {
+        self.resource_properties.contains_key(name)
+            || (self.model_provider.as_ref().map_or(false, |_| {
                 // TODO: Check with model provider if this is a known resource type
                 false
             }))
@@ -576,8 +677,8 @@ impl PropertyValidator {
             },
             PropertyInfo {
                 name: "name".to_string(),
-                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement { 
-                    properties: self.create_human_name_properties() 
+                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement {
+                    properties: self.create_human_name_properties(),
                 })),
                 cardinality: Cardinality::ZeroToMany,
                 required: false,
@@ -610,16 +711,21 @@ impl PropertyValidator {
             },
             PropertyInfo {
                 name: "telecom".to_string(),
-                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement { 
-                    properties: self.create_contact_point_properties() 
+                data_type: TypeInfo::Collection(Box::new(TypeInfo::BackboneElement {
+                    properties: self.create_contact_point_properties(),
                 })),
                 cardinality: Cardinality::ZeroToMany,
                 required: false,
                 description: "A contact detail for the patient".to_string(),
-                aliases: vec!["contact".to_string(), "phone".to_string(), "email".to_string()],
+                aliases: vec![
+                    "contact".to_string(),
+                    "phone".to_string(),
+                    "email".to_string(),
+                ],
             },
         ];
-        self.resource_properties.insert("Patient".to_string(), patient_properties);
+        self.resource_properties
+            .insert("Patient".to_string(), patient_properties);
 
         // Add more resource types as needed...
         // For now, we'll add a few more common ones
@@ -631,9 +737,18 @@ impl PropertyValidator {
         let mut properties = HashMap::new();
         properties.insert("use".to_string(), TypeInfo::Code);
         properties.insert("family".to_string(), TypeInfo::String);
-        properties.insert("given".to_string(), TypeInfo::Collection(Box::new(TypeInfo::String)));
-        properties.insert("prefix".to_string(), TypeInfo::Collection(Box::new(TypeInfo::String)));
-        properties.insert("suffix".to_string(), TypeInfo::Collection(Box::new(TypeInfo::String)));
+        properties.insert(
+            "given".to_string(),
+            TypeInfo::Collection(Box::new(TypeInfo::String)),
+        );
+        properties.insert(
+            "prefix".to_string(),
+            TypeInfo::Collection(Box::new(TypeInfo::String)),
+        );
+        properties.insert(
+            "suffix".to_string(),
+            TypeInfo::Collection(Box::new(TypeInfo::String)),
+        );
         properties
     }
 
@@ -674,7 +789,9 @@ impl PropertyValidator {
             },
             PropertyInfo {
                 name: "subject".to_string(),
-                data_type: TypeInfo::Reference { target_types: vec!["Patient".to_string(), "Group".to_string()] },
+                data_type: TypeInfo::Reference {
+                    target_types: vec!["Patient".to_string(), "Group".to_string()],
+                },
                 cardinality: Cardinality::ZeroToOne,
                 required: false,
                 description: "Who and/or what the observation is about".to_string(),
@@ -696,7 +813,8 @@ impl PropertyValidator {
                 aliases: vec!["result".to_string()],
             },
         ];
-        self.resource_properties.insert("Observation".to_string(), observation_properties);
+        self.resource_properties
+            .insert("Observation".to_string(), observation_properties);
     }
 
     fn add_encounter_properties(&mut self) {
@@ -727,33 +845,47 @@ impl PropertyValidator {
             },
             PropertyInfo {
                 name: "subject".to_string(),
-                data_type: TypeInfo::Reference { target_types: vec!["Patient".to_string()] },
+                data_type: TypeInfo::Reference {
+                    target_types: vec!["Patient".to_string()],
+                },
                 cardinality: Cardinality::ZeroToOne,
                 required: false,
                 description: "The patient present at the encounter".to_string(),
                 aliases: vec!["patient".to_string()],
             },
         ];
-        self.resource_properties.insert("Encounter".to_string(), encounter_properties);
+        self.resource_properties
+            .insert("Encounter".to_string(), encounter_properties);
     }
 
     fn initialize_common_typos(&mut self) {
         // Common property name typos
-        self.common_typos.insert("familly".to_string(), "family".to_string());
-        self.common_typos.insert("givne".to_string(), "given".to_string());
-        self.common_typos.insert("birthdate".to_string(), "birthDate".to_string());
-        self.common_typos.insert("identfier".to_string(), "identifier".to_string());
-        self.common_typos.insert("telecome".to_string(), "telecom".to_string());
-        
+        self.common_typos
+            .insert("familly".to_string(), "family".to_string());
+        self.common_typos
+            .insert("givne".to_string(), "given".to_string());
+        self.common_typos
+            .insert("birthdate".to_string(), "birthDate".to_string());
+        self.common_typos
+            .insert("identfier".to_string(), "identifier".to_string());
+        self.common_typos
+            .insert("telecome".to_string(), "telecom".to_string());
+
         // Case variations
-        self.common_typos.insert("firstname".to_string(), "given".to_string());
-        self.common_typos.insert("lastname".to_string(), "family".to_string());
-        self.common_typos.insert("patientid".to_string(), "id".to_string());
+        self.common_typos
+            .insert("firstname".to_string(), "given".to_string());
+        self.common_typos
+            .insert("lastname".to_string(), "family".to_string());
+        self.common_typos
+            .insert("patientid".to_string(), "id".to_string());
 
         // Common FHIR-specific typos
-        self.common_typos.insert("ressource".to_string(), "resource".to_string());
-        self.common_typos.insert("observaton".to_string(), "observation".to_string());
-        self.common_typos.insert("encounteer".to_string(), "encounter".to_string());
+        self.common_typos
+            .insert("ressource".to_string(), "resource".to_string());
+        self.common_typos
+            .insert("observaton".to_string(), "observation".to_string());
+        self.common_typos
+            .insert("encounteer".to_string(), "encounter".to_string());
     }
 }
 
@@ -766,20 +898,20 @@ impl Default for PropertyValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::expression::{ExpressionNode, PropertyAccessNode, IdentifierNode};
+    use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
 
     #[tokio::test]
     async fn test_similarity_calculation() {
         let validator = PropertyValidator::new();
-        
+
         // High similarity - single typo
         let similarity = validator.calculate_similarity("familly", "family");
         assert!(similarity > 0.8);
-        
+
         // Medium similarity - multiple changes
         let similarity = validator.calculate_similarity("birthdate", "birthDate");
         assert!(similarity > 0.9); // Just case difference
-        
+
         // Low similarity - completely different
         let similarity = validator.calculate_similarity("completely_different", "family");
         assert!(similarity < 0.3);
@@ -815,7 +947,7 @@ mod tests {
     #[tokio::test]
     async fn test_levenshtein_distance() {
         let validator = PropertyValidator::new();
-        
+
         assert_eq!(validator.levenshtein_distance("", ""), 0);
         assert_eq!(validator.levenshtein_distance("", "abc"), 3);
         assert_eq!(validator.levenshtein_distance("abc", ""), 3);
@@ -828,13 +960,13 @@ mod tests {
     #[test]
     fn test_builtin_properties_initialization() {
         let validator = PropertyValidator::new();
-        
+
         // Check that Patient properties are initialized
         assert!(validator.resource_properties.contains_key("Patient"));
-        
+
         let patient_props = validator.resource_properties.get("Patient").unwrap();
         assert!(!patient_props.is_empty());
-        
+
         // Check for key properties
         assert!(patient_props.iter().any(|p| p.name == "name"));
         assert!(patient_props.iter().any(|p| p.name == "birthDate"));
@@ -844,9 +976,18 @@ mod tests {
     #[test]
     fn test_common_typos() {
         let validator = PropertyValidator::new();
-        
-        assert_eq!(validator.common_typos.get("familly"), Some(&"family".to_string()));
-        assert_eq!(validator.common_typos.get("birthdate"), Some(&"birthDate".to_string()));
-        assert_eq!(validator.common_typos.get("firstname"), Some(&"given".to_string()));
+
+        assert_eq!(
+            validator.common_typos.get("familly"),
+            Some(&"family".to_string())
+        );
+        assert_eq!(
+            validator.common_typos.get("birthdate"),
+            Some(&"birthDate".to_string())
+        );
+        assert_eq!(
+            validator.common_typos.get("firstname"),
+            Some(&"given".to_string())
+        );
     }
 }

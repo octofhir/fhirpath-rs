@@ -16,16 +16,12 @@ pub struct Validator {
 impl Validator {
     /// Create a new validator with default settings
     pub fn new() -> Self {
-        Self {
-            strict: false,
-        }
+        Self { strict: false }
     }
 
     /// Create a new strict validator
     pub fn strict() -> Self {
-        Self {
-            strict: true,
-        }
+        Self { strict: true }
     }
 
     /// Validate a FHIRPath expression
@@ -34,7 +30,9 @@ impl Validator {
 
         // Perform basic AST validation
         if let Err(err) = expression.validate() {
-            result.errors.push(format!("AST validation failed: {}", err));
+            result
+                .errors
+                .push(format!("AST validation failed: {}", err));
             result.is_valid = false;
         }
 

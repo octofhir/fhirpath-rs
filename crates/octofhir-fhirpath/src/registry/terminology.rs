@@ -1,11 +1,11 @@
 //! Terminology-related FHIRPath functions (async)
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
-use crate::core::error_code::{FP0051, FP0053, FP0200};
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
+use crate::core::error_code::{FP0051, FP0053, FP0200};
+use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::register_function;
 
-use super::terminology_utils::{TerminologyUtils, Coding};
+use super::terminology_utils::{Coding, TerminologyUtils};
 
 impl FunctionRegistry {
     /// Register terminology functions. These functions depend on a TerminologyService
@@ -422,4 +422,3 @@ impl FunctionRegistry {
         )
     }
 }
-

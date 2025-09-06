@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value as JsonValue};
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{FhirPathValue, Result};
 
 /// Utilities for FHIR-specific operations on JSON-backed values
 pub struct FhirUtils;
@@ -28,7 +28,12 @@ impl FhirUtils {
 
     /// Return true if key is a FHIR valueX selection, e.g., valueString, valueCodeableConcept
     fn is_value_x_key(key: &str) -> bool {
-        key.starts_with("value") && key.chars().nth(5).map(|c| c.is_uppercase()).unwrap_or(false)
+        key.starts_with("value")
+            && key
+                .chars()
+                .nth(5)
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
     }
 
     /// Collect all descendant elements recursively
@@ -93,10 +98,7 @@ impl FhirUtils {
                     res.push(json_to_value(e));
                 }
             }
-            if let Some(ext) = obj
-                .get("modifierExtension")
-                .and_then(|v| v.as_array())
-            {
+            if let Some(ext) = obj.get("modifierExtension").and_then(|v| v.as_array()) {
                 for e in ext.iter().cloned() {
                     res.push(json_to_value(e));
                 }
@@ -142,4 +144,3 @@ fn json_to_value(v: JsonValue) -> FhirPathValue {
         JsonValue::Null => FhirPathValue::Empty,
     }
 }
-

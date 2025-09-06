@@ -3,38 +3,38 @@
 //! This module defines all the literal value types that can appear directly
 //! in FHIRPath expressions, with proper parsing and validation.
 
-use std::fmt;
-use serde::{Deserialize, Serialize};
-use rust_decimal::Decimal;
 use chrono::NaiveDate;
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
-use crate::core::{FhirPathError, FP0006, FP0001};
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use crate::core::{FP0001, FP0006, FhirPathError};
 
 /// Literal values that can appear directly in FHIRPath expressions
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LiteralValue {
     /// String literal (e.g., 'hello', "world")
     String(String),
-    
+
     /// Integer literal (e.g., 42, -17)
     Integer(i64),
-    
+
     /// Decimal literal (e.g., 3.14, -0.5)
     Decimal(Decimal),
-    
+
     /// Boolean literal (true, false)
     Boolean(bool),
-    
+
     /// Date literal (e.g., @2023-12-25)
     Date(PrecisionDate),
-    
+
     /// DateTime literal (e.g., @2023-12-25T10:30:00Z)
     DateTime(PrecisionDateTime),
-    
+
     /// Time literal (e.g., @T10:30:00)
     Time(PrecisionTime),
-    
+
     /// Quantity literal (e.g., 5 'mg', 10.5 'kg')
     Quantity {
         value: Decimal,
@@ -53,32 +53,32 @@ impl LiteralValue {
             .replace("\\r", "\r")
             .replace("\\n", "\n")
             .replace("\\t", "\t");
-        
+
         Ok(Self::String(unescaped))
     }
 
     /// Parse an integer literal
     pub fn parse_integer(input: &str) -> Result<Self, FhirPathError> {
-        input.parse::<i64>()
-            .map(Self::Integer)
-            .map_err(|_| FhirPathError::parse_error(
+        input.parse::<i64>().map(Self::Integer).map_err(|_| {
+            FhirPathError::parse_error(
                 FP0006,
                 format!("Invalid integer literal: {}", input),
                 input.to_string(),
                 None,
-            ))
+            )
+        })
     }
 
     /// Parse a decimal literal
     pub fn parse_decimal(input: &str) -> Result<Self, FhirPathError> {
-        input.parse::<Decimal>()
-            .map(Self::Decimal)
-            .map_err(|_| FhirPathError::parse_error(
+        input.parse::<Decimal>().map(Self::Decimal).map_err(|_| {
+            FhirPathError::parse_error(
                 FP0006,
                 format!("Invalid decimal literal: {}", input),
                 input.to_string(),
                 None,
-            ))
+            )
+        })
     }
 
     /// Parse a date literal from @YYYY-MM-DD format
@@ -93,7 +93,7 @@ impl LiteralValue {
         }
 
         let date_str = &input[1..]; // Remove @ prefix
-        
+
         if let Some(date) = PrecisionDate::parse(date_str) {
             Ok(Self::Date(date))
         } else {
@@ -118,7 +118,7 @@ impl LiteralValue {
         }
 
         let datetime_str = &input[1..]; // Remove @ prefix
-        
+
         if let Some(datetime) = PrecisionDateTime::parse(datetime_str) {
             Ok(Self::DateTime(datetime))
         } else {
@@ -143,7 +143,7 @@ impl LiteralValue {
         }
 
         let time_str = &input[2..]; // Remove @T prefix
-        
+
         if let Some(time) = PrecisionTime::parse(time_str) {
             Ok(Self::Time(time))
         } else {
@@ -158,26 +158,29 @@ impl LiteralValue {
 
     /// Parse a quantity literal (number followed by unit in quotes)
     pub fn parse_quantity(value_str: &str, unit_str: Option<&str>) -> Result<Self, FhirPathError> {
-        let value = value_str.parse::<Decimal>()
-            .map_err(|_| FhirPathError::parse_error(
+        let value = value_str.parse::<Decimal>().map_err(|_| {
+            FhirPathError::parse_error(
                 FP0006,
                 format!("Invalid quantity value: {}", value_str),
                 value_str.to_string(),
                 None,
-            ))?;
+            )
+        })?;
 
         let unit = unit_str.map(|u| {
             // Remove quotes from unit if present
-            let clean_unit = if (u.starts_with('\'') && u.ends_with('\'')) || (u.starts_with('"') && u.ends_with('"')) {
-                &u[1..u.len()-1]
+            let clean_unit = if (u.starts_with('\'') && u.ends_with('\''))
+                || (u.starts_with('"') && u.ends_with('"'))
+            {
+                &u[1..u.len() - 1]
             } else {
                 u
             };
-            
+
             // Normalize common unit names to UCUM codes
             let normalized_unit = match clean_unit {
                 "day" | "days" => "d",
-                "week" | "weeks" => "wk", 
+                "week" | "weeks" => "wk",
                 "month" | "months" => "mo",
                 "year" | "years" => "a",
                 "hour" | "hours" => "h",
@@ -193,7 +196,7 @@ impl LiteralValue {
                 "foot" | "feet" => "[ft_i]",
                 _ => clean_unit, // Keep original for valid UCUM codes
             };
-            
+
             normalized_unit.to_string()
         });
 
@@ -224,7 +227,9 @@ impl LiteralValue {
             Self::Date(d) => crate::core::FhirPathValue::date(d.clone()),
             Self::DateTime(dt) => crate::core::FhirPathValue::datetime(dt.clone()),
             Self::Time(t) => crate::core::FhirPathValue::time(t.clone()),
-            Self::Quantity { value, unit } => crate::core::FhirPathValue::quantity(*value, unit.clone()),
+            Self::Quantity { value, unit } => {
+                crate::core::FhirPathValue::quantity(*value, unit.clone())
+            }
         }
     }
 }
@@ -241,7 +246,7 @@ impl fmt::Display for LiteralValue {
                     .replace('\n', "\\n")
                     .replace('\t', "\\t");
                 write!(f, "'{}'", escaped)
-            },
+            }
             Self::Integer(i) => write!(f, "{}", i),
             Self::Decimal(d) => write!(f, "{}", d),
             Self::Boolean(b) => write!(f, "{}", b),
@@ -254,7 +259,7 @@ impl fmt::Display for LiteralValue {
                 } else {
                     write!(f, "{}", value)
                 }
-            },
+            }
         }
     }
 }
@@ -283,14 +288,15 @@ impl LiteralValue {
 
     /// Create a simple date literal (YYYY-MM-DD)
     pub fn date(year: i32, month: u32, day: u32) -> Result<Self, FhirPathError> {
-        let naive_date = NaiveDate::from_ymd_opt(year, month, day)
-            .ok_or_else(|| FhirPathError::parse_error(
+        let naive_date = NaiveDate::from_ymd_opt(year, month, day).ok_or_else(|| {
+            FhirPathError::parse_error(
                 FP0001,
                 format!("Invalid date: {}-{:02}-{:02}", year, month, day),
                 format!("{}-{:02}-{:02}", year, month, day),
                 None,
-            ))?;
-        
+            )
+        })?;
+
         Ok(Self::Date(PrecisionDate::from_date(naive_date)))
     }
 
@@ -340,7 +346,7 @@ mod tests {
         match literal {
             LiteralValue::Date(date) => {
                 assert_eq!(date.precision, TemporalPrecision::Day);
-            },
+            }
             _ => panic!("Expected date literal"),
         }
     }
@@ -352,7 +358,7 @@ mod tests {
             LiteralValue::Quantity { value, unit } => {
                 assert_eq!(value, Decimal::from(5));
                 assert_eq!(unit, Some("mg".to_string()));
-            },
+            }
             _ => panic!("Expected quantity literal"),
         }
     }

@@ -42,7 +42,10 @@ impl ErrorCode {
 
     /// Get documentation URL for this error code
     pub fn docs_url(&self) -> String {
-        format!("https://octofhir.github.io/fhirpath-rs/errors/FP{:04}", self.code)
+        format!(
+            "https://octofhir.github.io/fhirpath-rs/errors/FP{:04}",
+            self.code
+        )
     }
 
     /// Get error category for this error code
@@ -85,7 +88,7 @@ impl ErrorInfo {
     pub const fn new(
         code: u16,
         title: &'static str,
-        description: &'static str, 
+        description: &'static str,
         help: &'static str,
     ) -> Self {
         Self {
@@ -98,7 +101,10 @@ impl ErrorInfo {
 
     /// Get documentation URL for this error
     pub fn docs_url(&self) -> String {
-        format!("https://octofhir.github.io/fhirpath-rs/errors/FP{:04}", self.code)
+        format!(
+            "https://octofhir.github.io/fhirpath-rs/errors/FP{:04}",
+            self.code
+        )
     }
 }
 
@@ -121,7 +127,7 @@ impl ErrorRegistry {
             9 => &FP0009_INFO,
             10 => &FP0010_INFO,
 
-            // Evaluation Errors (FP0051-FP0100)  
+            // Evaluation Errors (FP0051-FP0100)
             51 => &FP0051_INFO,
             52 => &FP0052_INFO,
             53 => &FP0053_INFO,
@@ -183,41 +189,41 @@ pub static ERROR_REGISTRY: ErrorRegistry = ErrorRegistry;
 // ========== Error Code Definitions (Rust Compiler Style) ==========
 
 // Parser Error Codes (FP0001-FP0050)
-pub const FP0001: ErrorCode = ErrorCode::new(1);   // Invalid FHIRPath syntax
-pub const FP0002: ErrorCode = ErrorCode::new(2);   // Unexpected token in expression
-pub const FP0003: ErrorCode = ErrorCode::new(3);   // Missing closing parenthesis
-pub const FP0004: ErrorCode = ErrorCode::new(4);   // Missing closing bracket
-pub const FP0005: ErrorCode = ErrorCode::new(5);   // Invalid string literal
-pub const FP0006: ErrorCode = ErrorCode::new(6);   // Invalid number literal
-pub const FP0007: ErrorCode = ErrorCode::new(7);   // Invalid identifier
-pub const FP0008: ErrorCode = ErrorCode::new(8);   // Unexpected end of input
-pub const FP0009: ErrorCode = ErrorCode::new(9);   // Invalid operator
-pub const FP0010: ErrorCode = ErrorCode::new(10);  // Invalid function call syntax
+pub const FP0001: ErrorCode = ErrorCode::new(1); // Invalid FHIRPath syntax
+pub const FP0002: ErrorCode = ErrorCode::new(2); // Unexpected token in expression
+pub const FP0003: ErrorCode = ErrorCode::new(3); // Missing closing parenthesis
+pub const FP0004: ErrorCode = ErrorCode::new(4); // Missing closing bracket
+pub const FP0005: ErrorCode = ErrorCode::new(5); // Invalid string literal
+pub const FP0006: ErrorCode = ErrorCode::new(6); // Invalid number literal
+pub const FP0007: ErrorCode = ErrorCode::new(7); // Invalid identifier
+pub const FP0008: ErrorCode = ErrorCode::new(8); // Unexpected end of input
+pub const FP0009: ErrorCode = ErrorCode::new(9); // Invalid operator
+pub const FP0010: ErrorCode = ErrorCode::new(10); // Invalid function call syntax
 
 // Evaluation Error Codes (FP0051-FP0100)
-pub const FP0051: ErrorCode = ErrorCode::new(51);  // Type mismatch in operation
-pub const FP0052: ErrorCode = ErrorCode::new(52);  // Division by zero
-pub const FP0053: ErrorCode = ErrorCode::new(53);  // Invalid function arguments
-pub const FP0054: ErrorCode = ErrorCode::new(54);  // Unknown function
-pub const FP0055: ErrorCode = ErrorCode::new(55);  // Property not found
-pub const FP0056: ErrorCode = ErrorCode::new(56);  // Invalid property access
-pub const FP0057: ErrorCode = ErrorCode::new(57);  // Reference resolution failed
-pub const FP0058: ErrorCode = ErrorCode::new(58);  // Invalid type conversion
-pub const FP0059: ErrorCode = ErrorCode::new(59);  // Collection index out of bounds
-pub const FP0060: ErrorCode = ErrorCode::new(60);  // Variable not defined
+pub const FP0051: ErrorCode = ErrorCode::new(51); // Type mismatch in operation
+pub const FP0052: ErrorCode = ErrorCode::new(52); // Division by zero
+pub const FP0053: ErrorCode = ErrorCode::new(53); // Invalid function arguments
+pub const FP0054: ErrorCode = ErrorCode::new(54); // Unknown function
+pub const FP0055: ErrorCode = ErrorCode::new(55); // Property not found
+pub const FP0056: ErrorCode = ErrorCode::new(56); // Invalid property access
+pub const FP0057: ErrorCode = ErrorCode::new(57); // Reference resolution failed
+pub const FP0058: ErrorCode = ErrorCode::new(58); // Invalid type conversion
+pub const FP0059: ErrorCode = ErrorCode::new(59); // Collection index out of bounds
+pub const FP0060: ErrorCode = ErrorCode::new(60); // Variable not defined
 
 // Temporal/Date validation errors (FP0070-FP0080)
-pub const FP0070: ErrorCode = ErrorCode::new(70);  // Invalid date format
-pub const FP0071: ErrorCode = ErrorCode::new(71);  // Invalid date value (day > 31)
-pub const FP0072: ErrorCode = ErrorCode::new(72);  // Invalid month value (month > 12)
-pub const FP0073: ErrorCode = ErrorCode::new(73);  // Invalid year value
-pub const FP0074: ErrorCode = ErrorCode::new(74);  // Invalid time format
-pub const FP0075: ErrorCode = ErrorCode::new(75);  // Invalid datetime format
-pub const FP0076: ErrorCode = ErrorCode::new(76);  // Date out of valid range
-pub const FP0077: ErrorCode = ErrorCode::new(77);  // Invalid timezone format
-pub const FP0078: ErrorCode = ErrorCode::new(78);  // Temporal precision mismatch
-pub const FP0079: ErrorCode = ErrorCode::new(79);  // Invalid leap year date
-pub const FP0080: ErrorCode = ErrorCode::new(80);  // Temporal parsing error
+pub const FP0070: ErrorCode = ErrorCode::new(70); // Invalid date format
+pub const FP0071: ErrorCode = ErrorCode::new(71); // Invalid date value (day > 31)
+pub const FP0072: ErrorCode = ErrorCode::new(72); // Invalid month value (month > 12)
+pub const FP0073: ErrorCode = ErrorCode::new(73); // Invalid year value
+pub const FP0074: ErrorCode = ErrorCode::new(74); // Invalid time format
+pub const FP0075: ErrorCode = ErrorCode::new(75); // Invalid datetime format
+pub const FP0076: ErrorCode = ErrorCode::new(76); // Date out of valid range
+pub const FP0077: ErrorCode = ErrorCode::new(77); // Invalid timezone format
+pub const FP0078: ErrorCode = ErrorCode::new(78); // Temporal precision mismatch
+pub const FP0079: ErrorCode = ErrorCode::new(79); // Invalid leap year date
+pub const FP0080: ErrorCode = ErrorCode::new(80); // Temporal parsing error
 
 // Model Provider Error Codes (FP0101-FP0150)
 pub const FP0101: ErrorCode = ErrorCode::new(101); // Resource not found
@@ -244,7 +250,7 @@ pub const FP0159: ErrorCode = ErrorCode::new(159); // Inefficient expression pat
 pub const FP0160: ErrorCode = ErrorCode::new(160); // Missing type annotation
 
 // Additional error codes for system errors
-pub const FP0200: ErrorCode = ErrorCode::new(200);  // System external error
+pub const FP0200: ErrorCode = ErrorCode::new(200); // System external error
 
 // ========== Error Information Definitions ==========
 
@@ -646,16 +652,31 @@ mod tests {
 
     #[test]
     fn test_docs_url() {
-        assert_eq!(FP0001.docs_url(), "https://octofhir.github.io/fhirpath-rs/errors/FP0001");
-        assert_eq!(FP0051.docs_url(), "https://octofhir.github.io/fhirpath-rs/errors/FP0051");
-        assert_eq!(FP0101.docs_url(), "https://octofhir.github.io/fhirpath-rs/errors/FP0101");
-        assert_eq!(FP0151.docs_url(), "https://octofhir.github.io/fhirpath-rs/errors/FP0151");
+        assert_eq!(
+            FP0001.docs_url(),
+            "https://octofhir.github.io/fhirpath-rs/errors/FP0001"
+        );
+        assert_eq!(
+            FP0051.docs_url(),
+            "https://octofhir.github.io/fhirpath-rs/errors/FP0051"
+        );
+        assert_eq!(
+            FP0101.docs_url(),
+            "https://octofhir.github.io/fhirpath-rs/errors/FP0101"
+        );
+        assert_eq!(
+            FP0151.docs_url(),
+            "https://octofhir.github.io/fhirpath-rs/errors/FP0151"
+        );
     }
 
     #[test]
     fn test_error_info_docs_url() {
         let info = FP0002.info();
-        assert_eq!(info.docs_url(), "https://octofhir.github.io/fhirpath-rs/errors/FP0002");
+        assert_eq!(
+            info.docs_url(),
+            "https://octofhir.github.io/fhirpath-rs/errors/FP0002"
+        );
     }
 
     #[test]

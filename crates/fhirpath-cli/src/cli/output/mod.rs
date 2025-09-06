@@ -19,7 +19,7 @@ mod pretty;
 mod raw;
 
 use clap::ValueEnum;
-use octofhir_fhirpath::{ExpressionNode, FhirPathError, Collection};
+use octofhir_fhirpath::{Collection, ExpressionNode, FhirPathError};
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;

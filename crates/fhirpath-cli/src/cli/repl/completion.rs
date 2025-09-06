@@ -22,8 +22,8 @@ use rustyline::validate::Validator;
 use rustyline::{Context, Result as RlResult};
 use std::sync::Arc;
 
-use crate::model::provider::ModelProvider;
-use crate::registry::FunctionRegistry;
+use octofhir_fhirpath::FunctionRegistry;
+use octofhir_fhirpath::ModelProvider;
 
 /// FHIRPath completer for rustyline
 pub struct FhirPathCompleter {
@@ -279,7 +279,11 @@ impl FhirPathCompleter {
     fn get_functions_from_registry(&self) -> Vec<String> {
         if let Ok(registry_guard) = self.registry.read() {
             if let Some(ref registry) = *registry_guard {
-                return registry.get_all_function_names();
+                return registry
+                    .list_functions()
+                    .iter()
+                    .map(|f| f.name.clone())
+                    .collect();
             }
         }
         Vec::new()

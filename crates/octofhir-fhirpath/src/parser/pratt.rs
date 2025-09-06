@@ -9,7 +9,7 @@
 //!
 //! To support all 21 binary operators within Chumsky's 26-operator tuple limit,
 //! this parser uses a layered approach with 4 parsing layers:
-//! 
+//!
 //! 1. **Postfix/Prefix Layer**: Unary operators, method calls, property access, indexing
 //! 2. **High Precedence Layer**: Type operators (is/as), multiplicative, additive, union
 //! 3. **Medium Precedence Layer**: Relational, equality, membership, concatenation
@@ -18,25 +18,20 @@
 //! This ensures full FHIRPath specification compliance including support for
 //! `xor` and `implies` operators which were previously missing due to parser limits.
 
-use chumsky::prelude::*;
-use chumsky::pratt::{left, right, infix, prefix, postfix};
 use chumsky::extra;
+use chumsky::pratt::{infix, left, postfix, prefix, right};
+use chumsky::prelude::*;
 
-use crate::ast::{
-    ExpressionNode, LiteralNode, IdentifierNode, FunctionCallNode,
-    BinaryOperationNode, UnaryOperationNode, PropertyAccessNode, IndexAccessNode,
-    MethodCallNode, VariableNode, UnionNode,
-    TypeCastNode, TypeCheckNode, CollectionNode,
-    BinaryOperator, UnaryOperator, LiteralValue
-};
-use rust_decimal::Decimal;
-use crate::core::{FhirPathError, FP0001};
 use super::combinators::{
-    string_literal_parser, number_parser, boolean_parser, datetime_literal_parser,
-    identifier_parser, variable_parser, equals_parser, not_equals_parser,
-    less_equal_parser, greater_equal_parser, keyword_parser, backtick_identifier_parser,
-    comment_parser, comment_or_whitespace
+    boolean_parser,
+    datetime_literal_parser, identifier_parser, number_parser, string_literal_parser,
+    variable_parser,
 };
+use crate::ast::{
+    BinaryOperationNode, BinaryOperator, CollectionNode, ExpressionNode, FunctionCallNode, IndexAccessNode, MethodCallNode, PropertyAccessNode,
+    TypeCastNode, TypeCheckNode, UnaryOperationNode, UnaryOperator, UnionNode,
+};
+use crate::core::{FP0001, FhirPathError};
 
 /// Strip comments, decode HTML entities, and normalize whitespace from input
 fn preprocess_input(input: &str) -> String {
@@ -44,7 +39,7 @@ fn preprocess_input(input: &str) -> String {
     let mut chars = input.chars().peekable();
     let mut in_string = false;
     let mut string_char = '\0';
-    
+
     while let Some(ch) = chars.next() {
         match ch {
             '\'' | '"' if !in_string => {
@@ -95,23 +90,38 @@ fn preprocess_input(input: &str) -> String {
                 let remaining: String = chars.clone().collect();
                 if remaining.starts_with("lt;") {
                     // Consume "lt;"
-                    chars.next(); chars.next(); chars.next(); // l, t, ;
+                    chars.next();
+                    chars.next();
+                    chars.next(); // l, t, ;
                     result.push('<');
                 } else if remaining.starts_with("gt;") {
                     // Consume "gt;"
-                    chars.next(); chars.next(); chars.next(); // g, t, ;
+                    chars.next();
+                    chars.next();
+                    chars.next(); // g, t, ;
                     result.push('>');
                 } else if remaining.starts_with("amp;") {
                     // Consume "amp;"
-                    chars.next(); chars.next(); chars.next(); chars.next(); // a, m, p, ;
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    chars.next(); // a, m, p, ;
                     result.push('&');
                 } else if remaining.starts_with("quot;") {
                     // Consume "quot;"
-                    chars.next(); chars.next(); chars.next(); chars.next(); chars.next(); // q, u, o, t, ;
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    chars.next(); // q, u, o, t, ;
                     result.push('"');
                 } else if remaining.starts_with("apos;") {
                     // Consume "apos;"
-                    chars.next(); chars.next(); chars.next(); chars.next(); chars.next(); // a, p, o, s, ;
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    chars.next(); // a, p, o, s, ;
                     result.push('\'');
                 } else {
                     result.push(ch);
@@ -120,7 +130,7 @@ fn preprocess_input(input: &str) -> String {
             _ => result.push(ch),
         }
     }
-    
+
     result
 }
 
@@ -129,9 +139,9 @@ pub fn parse(input: &str) -> Result<ExpressionNode, FhirPathError> {
     // Preprocess to remove comments
     let cleaned_input = preprocess_input(input);
     let parser = fhirpath_parser();
-    
+
     let result = parser.parse(&cleaned_input).into_result();
-    
+
     match result {
         Ok(ast) => Ok(ast),
         Err(errors) => {
@@ -142,7 +152,7 @@ pub fn parse(input: &str) -> Result<ExpressionNode, FhirPathError> {
             } else {
                 "Parse error".to_string()
             };
-            
+
             Err(FhirPathError::parse_error(FP0001, &error_msg, input, None))
         }
     }
@@ -154,7 +164,8 @@ pub fn parser() -> impl Fn(&str) -> Result<ExpressionNode, FhirPathError> {
 }
 
 /// Main FHIRPath parser using Chumsky's Pratt parsing - fail fast, no error recovery
-fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
+fn fhirpath_parser<'a>()
+-> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> + Clone {
     recursive(|expr| {
         // Atom parsers - the building blocks using shared combinators
         let atom = choice((
@@ -163,10 +174,8 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
             number_parser(),
             boolean_parser(),
             datetime_literal_parser(),
-            
             // Variable references
             variable_parser(),
-
             // Function calls and identifiers using shared combinators
             identifier_parser()
                 .then(
@@ -174,7 +183,7 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                         .separated_by(just(',').padded())
                         .collect::<Vec<_>>()
                         .delimited_by(just('(').padded(), just(')').padded())
-                        .or_not()
+                        .or_not(),
                 )
                 .map(|(identifier, args)| {
                     if let ExpressionNode::Identifier(id_node) = identifier {
@@ -191,26 +200,26 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                         identifier // Fallback, shouldn't happen
                     }
                 }),
-
             // Parenthesized expressions
             expr.clone()
                 .delimited_by(just('(').padded(), just(')').padded())
                 .map(|e| ExpressionNode::Parenthesized(Box::new(e))),
-
             // Collection literals
             expr.clone()
                 .separated_by(just(',').padded())
                 .collect::<Vec<_>>()
                 .delimited_by(just('{').padded(), just('}').padded())
-                .map(|elements| ExpressionNode::Collection(CollectionNode {
-                    elements,
-                    location: None,
-                })),
+                .map(|elements| {
+                    ExpressionNode::Collection(CollectionNode {
+                        elements,
+                        location: None,
+                    })
+                }),
         ));
 
         // Layered Pratt parsing to support all operators within Chumsky's limits
         // We parse operators in groups to avoid the 26-operator tuple limit
-        
+
         // Layer 1: Postfix and prefix operators (highest precedence)
         let with_postfix = atom.pratt((
             // Unary operators - precedence 11
@@ -228,9 +237,9 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Postfix operators - highest precedence (12)
-            postfix(12, 
+            postfix(
+                12,
                 expr.clone()
                     .delimited_by(just('[').padded(), just(']').padded()),
                 |expr, index, _| {
@@ -239,18 +248,17 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                         index: Box::new(index),
                         location: None,
                     })
-                }
+                },
             ),
-            postfix(12,
-                just('.')
-                    .ignore_then(identifier_parser())
-                    .then(
-                        expr.clone()
-                            .separated_by(just(',').padded())
-                            .collect::<Vec<_>>()
-                            .delimited_by(just('(').padded(), just(')').padded())
-                            .or_not()
-                    ),
+            postfix(
+                12,
+                just('.').ignore_then(identifier_parser()).then(
+                    expr.clone()
+                        .separated_by(just(',').padded())
+                        .collect::<Vec<_>>()
+                        .delimited_by(just('(').padded(), just(')').padded())
+                        .or_not(),
+                ),
                 |expr, (identifier, args): (ExpressionNode, Option<Vec<ExpressionNode>>), _| {
                     let name = if let ExpressionNode::Identifier(id) = identifier {
                         id.name
@@ -273,10 +281,10 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                             location: None,
                         })
                     }
-                }
+                },
             ),
         ));
-        
+
         // Layer 2: High precedence operators (type, multiplicative, additive, union)
         let with_high_precedence = with_postfix.pratt((
             // Type operators - precedence 12 (same as postfix but infix)
@@ -312,7 +320,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     })
                 }
             }),
-            
             // Multiplicative operators - precedence 11
             infix(left(11), just('*').padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -346,7 +353,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Additive operators - precedence 10
             infix(left(10), just('+').padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -364,7 +370,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Union operator - precedence 9
             infix(left(9), just('|').padded(), |left, _, right, _| {
                 ExpressionNode::Union(UnionNode {
@@ -374,7 +379,7 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                 })
             }),
         ));
-        
+
         // Layer 3: Medium precedence operators (relational, equality, membership, concatenation)
         let with_medium_precedence = with_high_precedence.pratt((
             // Relational operators - precedence 8
@@ -410,7 +415,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Equality operators - precedence 7
             infix(left(7), just("=").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -444,7 +448,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Membership operators - precedence 6
             infix(left(6), just("in").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -462,7 +465,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // String concatenation - precedence 5
             infix(left(5), just('&').padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -473,7 +475,7 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                 })
             }),
         ));
-        
+
         // Layer 4: Low precedence logical operators (and, xor, or, implies)
         with_medium_precedence.pratt((
             // Logical AND - precedence 4
@@ -485,7 +487,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Logical XOR - precedence 3 (NOW SUPPORTED!)
             infix(left(3), just("xor").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -495,7 +496,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Logical OR - precedence 2
             infix(left(2), just("or").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -505,7 +505,6 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                     location: None,
                 })
             }),
-            
             // Logical implies - precedence 1 (NOW SUPPORTED! Right-associative)
             infix(right(1), just("implies").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -516,7 +515,8 @@ fn fhirpath_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<
                 })
             }),
         ))
-    }).then_ignore(end())
+    })
+    .then_ignore(end())
 }
 
 // String literal parser is now provided by shared combinators module
@@ -535,7 +535,7 @@ mod tests {
     fn test_property_access() {
         let result = parse("Patient.name").unwrap();
         assert!(matches!(result, ExpressionNode::PropertyAccess(_)));
-        
+
         if let ExpressionNode::PropertyAccess(node) = result {
             assert!(matches!(*node.object, ExpressionNode::Identifier(_)));
             assert_eq!(node.property, "name");
@@ -546,7 +546,7 @@ mod tests {
     fn test_method_call() {
         let result = parse("Patient.name.first()").unwrap();
         assert!(matches!(result, ExpressionNode::MethodCall(_)));
-        
+
         if let ExpressionNode::MethodCall(node) = result {
             assert_eq!(node.method, "first");
             assert!(node.arguments.is_empty());
@@ -565,12 +565,12 @@ mod tests {
     fn test_binary_operations() {
         let result = parse("age > 18").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
-        
+
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::GreaterThan);
         }
     }
-    
+
     #[test]
     fn test_all_logical_operators() {
         // Test AND
@@ -579,21 +579,21 @@ mod tests {
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::And);
         }
-        
+
         // Test OR
         let result = parse("true or false").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::Or);
         }
-        
+
         // Test XOR - this should now work!
         let result = parse("true xor false").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::Xor);
         }
-        
+
         // Test IMPLIES - this should now work!
         let result = parse("true implies false").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
@@ -601,13 +601,13 @@ mod tests {
             assert_eq!(node.operator, BinaryOperator::Implies);
         }
     }
-    
-    #[test] 
+
+    #[test]
     fn test_logical_operator_precedence() {
         // Test: implies < or < xor < and
         let result = parse("a and b or c xor d implies e").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
-        
+
         // Should parse as: ((a and b) or c) xor d) implies e
         if let ExpressionNode::BinaryOperation(node) = result {
             assert_eq!(node.operator, BinaryOperator::Implies);
@@ -637,7 +637,7 @@ mod tests {
 
         let result = parse("substring(1, 3)").unwrap();
         assert!(matches!(result, ExpressionNode::FunctionCall(_)));
-        
+
         if let ExpressionNode::FunctionCall(node) = result {
             assert_eq!(node.name, "substring");
             assert_eq!(node.arguments.len(), 2);
@@ -648,7 +648,7 @@ mod tests {
     fn test_variables() {
         let result = parse("$this").unwrap();
         assert!(matches!(result, ExpressionNode::Variable(_)));
-        
+
         if let ExpressionNode::Variable(node) = result {
             assert_eq!(node.name, "this");
         }
@@ -693,7 +693,7 @@ mod tests {
         // Test single quotes
         let result = parse("name = 'test'").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
-        
+
         // Test double quotes
         let result = parse("name = \"test\"").unwrap();
         assert!(matches!(result, ExpressionNode::BinaryOperation(_)));
@@ -707,7 +707,7 @@ mod tests {
     fn test_indexing() {
         let result = parse("name[0]").unwrap();
         assert!(matches!(result, ExpressionNode::IndexAccess(_)));
-        
+
         if let ExpressionNode::IndexAccess(node) = result {
             assert!(matches!(*node.object, ExpressionNode::Identifier(_)));
             assert!(matches!(*node.index, ExpressionNode::Literal(_)));
@@ -722,7 +722,7 @@ mod tests {
         let result = parse("value as string").unwrap();
         assert!(matches!(result, ExpressionNode::TypeCast(_)));
     }
-    
+
     #[test]
     fn test_all_binary_operators() {
         // Test all 21 binary operators are supported
@@ -743,26 +743,33 @@ mod tests {
             ("1 >= 2", BinaryOperator::GreaterThanOrEqual),
             ("true and false", BinaryOperator::And),
             ("true or false", BinaryOperator::Or),
-            ("true xor false", BinaryOperator::Xor),  // Now supported!
-            ("true implies false", BinaryOperator::Implies),  // Now supported!
+            ("true xor false", BinaryOperator::Xor), // Now supported!
+            ("true implies false", BinaryOperator::Implies), // Now supported!
             ("'a' & 'b'", BinaryOperator::Concatenate),
-            ("a | b", BinaryOperator::Union),  // Union is handled specially
+            ("a | b", BinaryOperator::Union), // Union is handled specially
             ("1 in collection", BinaryOperator::In),
             ("collection contains 1", BinaryOperator::Contains),
         ];
-        
+
         for (expression, expected_op) in test_cases {
             let result = parse(expression);
             assert!(result.is_ok(), "Failed to parse: {}", expression);
-            
+
             match result.unwrap() {
                 ExpressionNode::BinaryOperation(node) => {
-                    assert_eq!(node.operator, expected_op, "Wrong operator for: {}", expression);
-                },
+                    assert_eq!(
+                        node.operator, expected_op,
+                        "Wrong operator for: {}",
+                        expression
+                    );
+                }
                 ExpressionNode::Union(_) if expected_op == BinaryOperator::Union => {
                     // Union is handled specially with its own node type
-                },
-                other => panic!("Expected binary operation for '{}', got: {:?}", expression, other),
+                }
+                other => panic!(
+                    "Expected binary operation for '{}', got: {:?}",
+                    expression, other
+                ),
             }
         }
     }

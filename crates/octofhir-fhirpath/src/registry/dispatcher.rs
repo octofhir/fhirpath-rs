@@ -1,8 +1,8 @@
 //! Function dispatch system for executing registered functions
 
-use super::{FunctionRegistry, FunctionContext, FunctionMetadata};
-use crate::core::{FhirPathValue, FhirPathError, Result};
+use super::{FunctionContext, FunctionMetadata, FunctionRegistry};
 use crate::core::error_code::{FP0053, FP0054};
+use crate::core::{FhirPathError, FhirPathValue, Result};
 
 pub struct FunctionDispatcher {
     registry: FunctionRegistry,
@@ -63,7 +63,9 @@ impl FunctionDispatcher {
                 (function)(context).await
             }
             None => {
-                if let Some((sync_function, metadata)) = self.registry.get_sync_function(function_name) {
+                if let Some((sync_function, metadata)) =
+                    self.registry.get_sync_function(function_name)
+                {
                     // Validate parameters
                     if let Err(err) = self.validate_parameters(context, &metadata) {
                         return Err(err);
@@ -86,7 +88,11 @@ impl FunctionDispatcher {
         context: &FunctionContext,
         metadata: &FunctionMetadata,
     ) -> Result<()> {
-        let required_params = metadata.parameters.iter().filter(|p| !p.is_optional).count();
+        let required_params = metadata
+            .parameters
+            .iter()
+            .filter(|p| !p.is_optional)
+            .count();
         let provided_params = context.arguments.len();
 
         if provided_params < required_params {
@@ -104,7 +110,9 @@ impl FunctionDispatcher {
                 FP0053,
                 format!(
                     "Function '{}' accepts at most {} parameters but {} were provided",
-                    metadata.name, metadata.parameters.len(), provided_params
+                    metadata.name,
+                    metadata.parameters.len(),
+                    provided_params
                 ),
             ));
         }
@@ -118,44 +126,46 @@ impl FunctionDispatcher {
     }
 
     pub fn get_function_help(&self, function_name: &str) -> Option<String> {
-        self.registry.get_function_metadata(function_name).map(|metadata| {
-            let mut help = format!("{}(", metadata.name);
-            
-            for (i, param) in metadata.parameters.iter().enumerate() {
-                if i > 0 {
-                    help.push_str(", ");
+        self.registry
+            .get_function_metadata(function_name)
+            .map(|metadata| {
+                let mut help = format!("{}(", metadata.name);
+
+                for (i, param) in metadata.parameters.iter().enumerate() {
+                    if i > 0 {
+                        help.push_str(", ");
+                    }
+                    help.push_str(&param.name);
+                    if let Some(ref type_constraint) = param.type_constraint {
+                        help.push_str(": ");
+                        help.push_str(type_constraint);
+                    }
+                    if param.is_optional {
+                        help.push('?');
+                    }
                 }
-                help.push_str(&param.name);
-                if let Some(ref type_constraint) = param.type_constraint {
-                    help.push_str(": ");
-                    help.push_str(type_constraint);
+
+                help.push(')');
+
+                if let Some(ref return_type) = metadata.return_type {
+                    help.push_str(" -> ");
+                    help.push_str(return_type);
                 }
-                if param.is_optional {
-                    help.push('?');
+
+                help.push_str("\n\n");
+                help.push_str(&metadata.description);
+
+                if !metadata.examples.is_empty() {
+                    help.push_str("\n\nExamples:\n");
+                    for example in &metadata.examples {
+                        help.push_str("  ");
+                        help.push_str(example);
+                        help.push('\n');
+                    }
                 }
-            }
-            
-            help.push(')');
-            
-            if let Some(ref return_type) = metadata.return_type {
-                help.push_str(" -> ");
-                help.push_str(return_type);
-            }
-            
-            help.push_str("\n\n");
-            help.push_str(&metadata.description);
-            
-            if !metadata.examples.is_empty() {
-                help.push_str("\n\nExamples:\n");
-                for example in &metadata.examples {
-                    help.push_str("  ");
-                    help.push_str(example);
-                    help.push('\n');
-                }
-            }
-            
-            help
-        })
+
+                help
+            })
     }
 }
 
@@ -171,12 +181,12 @@ mod tests {
     async fn test_sync_function_dispatch() {
         let registry = FunctionRegistry::default();
         let dispatcher = FunctionDispatcher::new(registry);
-        
+
         let model_provider = MockModelProvider::default();
         let variables = HashMap::new();
         let input = vec![];
         let arguments = vec![];
-        
+
         let context = FunctionContext {
             input: &input,
             arguments: &arguments,
@@ -185,7 +195,7 @@ mod tests {
             resource_context: None,
             terminology: None,
         };
-        
+
         // Test empty function
         let result = dispatcher.dispatch_sync("empty", &context);
         assert!(result.is_ok());
@@ -198,10 +208,10 @@ mod tests {
     fn test_function_help() {
         let registry = FunctionRegistry::default();
         let dispatcher = FunctionDispatcher::new(registry);
-        
+
         let help = dispatcher.get_function_help("empty");
         assert!(help.is_some());
-        
+
         let help_text = help.unwrap();
         assert!(help_text.contains("empty()"));
         assert!(help_text.contains("Returns true if the input collection is empty"));

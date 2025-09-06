@@ -71,7 +71,10 @@ mod tests {
             "id": "123"
         });
 
-        assert_eq!(utils::extract_resource_type(&patient), Some("Patient".to_string()));
+        assert_eq!(
+            utils::extract_resource_type(&patient),
+            Some("Patient".to_string())
+        );
         assert!(utils::is_fhir_resource(&patient));
     }
 }

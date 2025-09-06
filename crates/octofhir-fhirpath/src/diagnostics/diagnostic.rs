@@ -3,8 +3,8 @@
 //! This module defines the core diagnostic system used throughout the FHIRPath
 //! implementation for error reporting, warnings, and informational messages.
 
-use serde::{Deserialize, Serialize};
 use crate::core::SourceLocation;
+use serde::{Deserialize, Serialize};
 
 /// Severity level for diagnostics
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

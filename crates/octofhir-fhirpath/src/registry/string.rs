@@ -3,13 +3,13 @@
 //! Implements comprehensive string manipulation functions including search, transformation,
 //! pattern matching, and advanced operations with proper Unicode support.
 
-use super::{FunctionRegistry, FunctionCategory, FunctionContext};
-use crate::core::{FhirPathValue, Result, error_code::{FP0053}};
-use crate::{register_function};
+use super::{FunctionCategory, FunctionContext, FunctionRegistry};
+use crate::core::{FhirPathValue, Result, error_code::FP0053};
+use crate::register_function;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
 
 /// Thread-safe regex cache for performance optimization
 pub struct RegexCache {
@@ -27,18 +27,18 @@ impl RegexCache {
 
     pub fn get_regex(&self, pattern: &str) -> std::result::Result<Regex, regex::Error> {
         let mut cache = self.cache.lock().unwrap();
-        
+
         if let Some(regex) = cache.get(pattern) {
             return Ok(regex.clone());
         }
 
         let regex = Regex::new(pattern)?;
-        
+
         // Simple cache eviction: clear cache when it gets too large
         if cache.len() >= self.max_size {
             cache.clear();
         }
-        
+
         cache.insert(pattern.to_string(), regex.clone());
         Ok(regex)
     }
@@ -69,15 +69,15 @@ impl StringUtils {
             FhirPathValue::Time(t) => Ok(t.to_string()),
             _ => Err(crate::core::FhirPathError::evaluation_error(
                 FP0053,
-                "Cannot convert value to string".to_string()
-            ))
+                "Cannot convert value to string".to_string(),
+            )),
         }
     }
 
     /// Perform safe substring operation respecting Unicode boundaries
     pub fn safe_substring(input: &str, start: usize, length: Option<usize>) -> String {
         let chars: Vec<char> = input.chars().collect();
-        
+
         if start >= chars.len() {
             return String::new();
         }
@@ -229,7 +229,7 @@ impl FunctionRegistry {
                 // Use char-based indexing for proper Unicode support
                 let input_chars: Vec<char> = input_str.chars().collect();
                 let substring_chars: Vec<char> = substring.chars().collect();
-                
+
                 if substring_chars.is_empty() {
                     return Ok(vec![FhirPathValue::Integer(0)]);
                 }
@@ -292,7 +292,7 @@ impl FunctionRegistry {
                 // Use char-based indexing for proper Unicode support
                 let input_chars: Vec<char> = input_str.chars().collect();
                 let substring_chars: Vec<char> = substring.chars().collect();
-                
+
                 if substring_chars.is_empty() {
                     return Ok(vec![FhirPathValue::Integer(input_chars.len() as i64)]);
                 }
@@ -1098,7 +1098,7 @@ impl FunctionRegistry {
                     "hex" => {
                         let mut bytes = Vec::new();
                         let mut chars = input_str.chars();
-                        
+
                         while let (Some(high), Some(low)) = (chars.next(), chars.next()) {
                             if let (Some(h), Some(l)) = (high.to_digit(16), low.to_digit(16)) {
                                 bytes.push(((h << 4) | l) as u8);
@@ -1109,7 +1109,7 @@ impl FunctionRegistry {
                                 ));
                             }
                         }
-                        
+
                         String::from_utf8_lossy(&bytes).to_string()
                     },
                     "url" => {
@@ -1281,7 +1281,7 @@ impl FunctionRegistry {
                         } else {
                             format!("\"{}\"", input_str)
                         };
-                        
+
                         match serde_json::from_str::<String>(&to_parse) {
                             Ok(s) => s,
                             Err(_) => {

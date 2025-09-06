@@ -290,7 +290,6 @@ mod integration_test_runner {
             FhirPathValue::JsonValue(expected.clone())
         }
 
-
         /// Compare actual collection result with expected result
         /// Matches the test-runner comparison logic exactly  
         fn compare_results_collection(
@@ -459,8 +458,7 @@ mod integration_test_runner {
                 }
             } else {
                 return TestResult::Error {
-                    error: "No input data provided (neither inputfile nor input)"
-                        .to_string(),
+                    error: "No input data provided (neither inputfile nor input)".to_string(),
                 };
             };
 
@@ -494,31 +492,36 @@ mod integration_test_runner {
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(10_000);
             let eval_fut = self.engine.evaluate_ast(&ast, &context);
-            let result = match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), eval_fut).await {
-                Err(_) => {
-                    if test.expect_error.unwrap_or(false) {
-                        return TestResult::Passed;
-                    }
-                    return TestResult::Error { error: format!("Evaluation timed out after {}ms", timeout_ms) };
-                }
-                Ok(inner) => match inner {
-                Ok(result) => result,
-                Err(e) => {
-                    if test.expect_error.unwrap_or(false) {
-                        return TestResult::Passed;
-                    }
-                    // Legacy: empty expected means error acceptable
-                    let expected = self.convert_expected_value(&test.expected);
-                    return if expected.is_empty() {
-                        TestResult::Passed
-                    } else {
-                        TestResult::Error {
-                            error: format!("Evaluation error: {e}"),
+            let result =
+                match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), eval_fut)
+                    .await
+                {
+                    Err(_) => {
+                        if test.expect_error.unwrap_or(false) {
+                            return TestResult::Passed;
                         }
-                    };
-                }
-                }
-            };
+                        return TestResult::Error {
+                            error: format!("Evaluation timed out after {}ms", timeout_ms),
+                        };
+                    }
+                    Ok(inner) => match inner {
+                        Ok(result) => result,
+                        Err(e) => {
+                            if test.expect_error.unwrap_or(false) {
+                                return TestResult::Passed;
+                            }
+                            // Legacy: empty expected means error acceptable
+                            let expected = self.convert_expected_value(&test.expected);
+                            return if expected.is_empty() {
+                                TestResult::Passed
+                            } else {
+                                TestResult::Error {
+                                    error: format!("Evaluation error: {e}"),
+                                }
+                            };
+                        }
+                    },
+                };
 
             // For expectError tests, we only expect errors during parsing/evaluation
             // If evaluation succeeds, we should compare results normally
@@ -769,11 +772,9 @@ fn get_all_test_files(specs_path: &PathBuf) -> Vec<PathBuf> {
                 let path = entry.path();
                 if path.is_dir() {
                     // Skip input data directories — they contain JSON resources, not test suites
-                    if path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.eq_ignore_ascii_case("input") || n.eq_ignore_ascii_case("inputs"))
-                    {
+                    if path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+                        n.eq_ignore_ascii_case("input") || n.eq_ignore_ascii_case("inputs")
+                    }) {
                         continue;
                     }
                     collect(&path, out);

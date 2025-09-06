@@ -3,15 +3,12 @@
 //! This module implements date/time functions following the official FHIRPath specification.
 //! Reference: https://build.fhir.org/ig/HL7/FHIRPath/index.html#datetime-functions
 
-use super::{FunctionRegistry, FunctionCategory, FunctionContext};
-use crate::core::{FhirPathValue, FhirPathError, Result};
-use crate::core::error_code::{FP0053, FP0058};
+use super::{FunctionCategory, FunctionContext, FunctionRegistry};
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use crate::core::{FhirPathValue, Result};
 use crate::register_function;
-use crate::registry::datetime_utils::{DateTimeUtils, DateTimeDuration};
-use chrono::{DateTime, Utc, Datelike, Timelike, FixedOffset, Local};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::FromPrimitive;
+use crate::registry::datetime_utils::DateTimeUtils;
+use chrono::{Datelike, Local, Timelike};
 
 impl FunctionRegistry {
     pub fn register_datetime_functions(&self) -> Result<()> {
@@ -19,7 +16,7 @@ impl FunctionRegistry {
         self.register_now_function()?;
         self.register_today_function()?;
         self.register_timeOfDay_function()?;
-        
+
         // Date/time component extraction functions (official FHIRPath naming)
         self.register_yearOf_function()?;
         self.register_monthOf_function()?;
@@ -29,11 +26,11 @@ impl FunctionRegistry {
         self.register_secondOf_function()?;
         self.register_millisecondOf_function()?;
         self.register_timezoneOffsetOf_function()?;
-        
+
         // Additional datetime functions (implementation-specific)
         self.register_dayOfWeek_function()?;
         self.register_dayOfYear_function()?;
-        
+
         Ok(())
     }
 
@@ -49,7 +46,7 @@ impl FunctionRegistry {
             implementation: |_context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
                 let current_time = Local::now();
                 let precision_datetime = PrecisionDateTime::new(
-                    current_time.into(), 
+                    current_time.into(),
                     TemporalPrecision::Second
                 );
                 Ok(vec![FhirPathValue::DateTime(precision_datetime)])
@@ -104,7 +101,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -117,7 +114,7 @@ impl FunctionRegistry {
                         FhirPathValue::String(s) => {
                             // Use the new temporal parsing utilities with proper validation
                             use crate::core::temporal::parsing::parse_date_or_datetime_string;
-                            
+
                             match parse_date_or_datetime_string(s) {
                                 Ok(precision_date) => {
                                     results.push(FhirPathValue::integer(precision_date.date.year() as i64));
@@ -154,7 +151,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -167,7 +164,7 @@ impl FunctionRegistry {
                         FhirPathValue::String(s) => {
                             // Use the new temporal parsing utilities with proper validation
                             use crate::core::temporal::parsing::parse_date_or_datetime_string;
-                            
+
                             match parse_date_or_datetime_string(s) {
                                 Ok(precision_date) => {
                                     results.push(FhirPathValue::integer(precision_date.date.month() as i64));
@@ -204,7 +201,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -217,7 +214,7 @@ impl FunctionRegistry {
                         FhirPathValue::String(s) => {
                             // Use the new temporal parsing utilities with proper validation
                             use crate::core::temporal::parsing::parse_date_or_datetime_string;
-                            
+
                             match parse_date_or_datetime_string(s) {
                                 Ok(precision_date) => {
                                     results.push(FhirPathValue::integer(precision_date.date.day() as i64));
@@ -254,7 +251,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -288,7 +285,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -322,7 +319,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -356,7 +353,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -393,7 +390,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -427,7 +424,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {
@@ -465,7 +462,7 @@ impl FunctionRegistry {
                 if context.input.is_empty() {
                     return Ok(vec![]);
                 }
-                
+
                 let mut results = Vec::new();
                 for item in context.input {
                     match item {

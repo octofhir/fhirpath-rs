@@ -98,10 +98,7 @@ impl OutputFormatter for PrettyFormatter {
                 if values.len() > 10 {
                     result.push_str(&format!(
                         "   ... and {} more items\n",
-                        self.colorize(
-                            &(values.len() - 10).to_string(),
-                            colored::Color::Yellow
-                        )
+                        self.colorize(&(values.len() - 10).to_string(), colored::Color::Yellow)
                     ));
                 }
             } else {

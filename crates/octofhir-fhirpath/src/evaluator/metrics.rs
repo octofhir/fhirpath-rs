@@ -3,8 +3,8 @@
 //! This module provides comprehensive performance metrics collection and reporting
 //! for FHIRPath expression evaluation, including timing, operation counts, and memory usage.
 
-use std::time::{Duration, Instant};
 use std::fmt;
+use std::time::{Duration, Instant};
 
 /// Performance metrics for FHIRPath expression evaluation
 ///
@@ -321,15 +321,15 @@ impl fmt::Display for PerformanceLevel {
 /// use octofhir_fhirpath::evaluator::MetricsCollector;
 ///
 /// let mut collector = MetricsCollector::new();
-/// 
+///
 /// collector.start_timing();
 /// // ... perform parsing ...
 /// collector.record_parse_time();
-/// 
+///
 /// // ... perform evaluation ...
 /// collector.increment_function_calls();
 /// collector.increment_model_provider_calls();
-/// 
+///
 /// collector.finish_timing();
 /// let metrics = collector.into_metrics();
 /// ```
@@ -375,7 +375,10 @@ impl MetricsCollector {
         if let Some(start) = self.start_time.take() {
             let total_elapsed = start.elapsed();
             self.metrics.total_time_us = total_elapsed.as_micros() as u64;
-            self.metrics.eval_time_us = self.metrics.total_time_us.saturating_sub(self.metrics.parse_time_us);
+            self.metrics.eval_time_us = self
+                .metrics
+                .total_time_us
+                .saturating_sub(self.metrics.parse_time_us);
         }
     }
 
@@ -582,7 +585,7 @@ mod tests {
 
         collector.start_timing();
         thread::sleep(Duration::from_millis(1)); // Small delay for timing
-        
+
         collector.start_parse_timing();
         thread::sleep(Duration::from_millis(1));
         collector.record_parse_time();

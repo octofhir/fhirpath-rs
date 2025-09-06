@@ -10,7 +10,7 @@
 //! This implementation provides:
 //!
 //! - **Complete FHIRPath 3.0 specification compliance**
-//! - **High-performance evaluation engine** 
+//! - **High-performance evaluation engine**
 //! - **Comprehensive error handling and diagnostics**
 //! - **Integration with FHIR model providers**
 //! - **Rich type system with precision temporal types**
@@ -68,77 +68,121 @@
 pub mod ast;
 pub mod core;
 
-// Engine modules  
-pub mod parser;
+// Engine modules
 pub mod evaluator;
+pub mod parser;
 pub mod registry;
 
 // Support modules
-pub mod diagnostics;
 pub mod analyzer;
+pub mod diagnostics;
 
 // Additional modules
 pub mod mock_provider;
 
 // Re-export core types for convenience
-pub use crate::core::{
-    Collection, FhirPathValue, FhirPathError, Result, ModelProvider,
-};
+pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
 
 // Re-export main engine types
 pub use crate::evaluator::{
-    FhirPathEngine, EngineConfig,
+    BuiltinVariables,
+    CacheEfficiency,
+    CacheMetrics,
+    CacheStats,
+    EngineConfig,
     // Enhanced context system
-    EvaluationContext, EvaluationContextBuilder, BuiltinVariables, ServerContext,
-    TypeFactory, TypeDefinition, TypeKind, PropertyDefinition,
-    TerminologyService, ServerApi,
+    EvaluationContext,
+    EvaluationContextBuilder,
+    EvaluationMetrics,
     // Performance and caching types
-    EvaluationResult, EvaluationWarning, EvaluationMetrics, MetricsCollector, PerformanceLevel,
-    CacheStats, CacheMetrics, CacheEfficiency,
+    EvaluationResult,
+    EvaluationWarning,
+    FhirPathEngine,
+    MetricsCollector,
+    PerformanceLevel,
+    PropertyDefinition,
+    ServerApi,
+    ServerContext,
+    TerminologyService,
+    TypeDefinition,
+    TypeFactory,
+    TypeKind,
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
-    // Main parsing functions with clean names
-    parse, parse_with_analysis, parse_with_mode, parse_ast, parse_ast_with_mode, parse_with_config,
-    
-    // Convenience functions
-    is_valid, validate, parse_multiple, parse_multiple_ast,
-    recommend_mode, get_errors, get_warnings,
-    
+    ParseResult,
+    ParserConfig,
+    ParserUseCase,
+
     // Types
-    ParsingMode, ParseResult, ParserConfig, ParserUseCase,
-    
+    ParsingMode,
+    get_errors,
+    get_warnings,
+
+    // Convenience functions
+    is_valid,
+    // Main parsing functions with clean names
+    parse,
+    parse_ast,
+    parse_ast_with_mode,
     // Backward compatibility (legacy names)
     parse_expression,
+    parse_multiple,
+    parse_multiple_ast,
+    parse_with_analysis,
+    parse_with_config,
+
+    parse_with_mode,
+    recommend_mode,
+    validate,
 };
 pub use crate::registry::{
-    FunctionRegistry, create_standard_registry,
-    FunctionMetadata, ParameterMetadata, FunctionCategory, FunctionContext,
-    SyncFunction, AsyncFunction,
-    builder::FunctionBuilder,
-    dispatcher::FunctionDispatcher,
+    AsyncFunction,
     // Terminology types and providers
-    Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils,
-    TerminologyProvider, DefaultTerminologyProvider, MockTerminologyProvider, ConceptDetails,
+    Coding,
+    ConceptDesignation,
+    ConceptDetails,
+    ConceptProperty,
+    ConceptTranslation,
+    DefaultTerminologyProvider,
+    FunctionCategory,
+    FunctionContext,
+    FunctionMetadata,
+    FunctionRegistry,
+    MockTerminologyProvider,
+    ParameterMetadata,
+    PropertyValue,
+    SyncFunction,
+    TerminologyProvider,
+    TerminologyUtils,
+    builder::FunctionBuilder,
+    create_standard_registry,
+    dispatcher::FunctionDispatcher,
 };
 
 // Re-export AST types
-pub use crate::ast::{ExpressionNode, LiteralValue, BinaryOperator, UnaryOperator};
+pub use crate::ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
 
 // Re-export diagnostic types
 pub use crate::diagnostics::{
-    Diagnostic, DiagnosticSeverity, DiagnosticCode,
     // New Ariadne-based diagnostic types
-    AriadneDiagnostic, RelatedDiagnostic, 
-    DiagnosticEngine, DiagnosticFormatter,
-    ColorScheme, SourceManager, SourceInfo,
+    AriadneDiagnostic,
+    ColorScheme,
+    Diagnostic,
+    DiagnosticCode,
+    DiagnosticEngine,
+    DiagnosticFormatter,
+    DiagnosticSeverity,
+    RelatedDiagnostic,
+    SourceInfo,
+    SourceManager,
 };
 
 // Re-export MockModelProvider for testing and development
 pub use crate::mock_provider::MockModelProvider;
 
 /// Create a FhirPathEngine with MockModelProvider for testing and development
-/// 
+///
 /// This is a convenience function for getting started quickly with FHIRPath
 /// evaluation when you don't need full FHIR schema support.
 ///
@@ -147,17 +191,17 @@ pub use crate::mock_provider::MockModelProvider;
 ///
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
 /// let engine = create_engine_with_mock_provider().await?;
-/// 
+///
 /// let result = engine.evaluate("1 + 2", &octofhir_fhirpath::Collection::empty()).await?;
 /// # Ok(())
 /// # }
 /// ```
 pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
     use std::sync::Arc;
-    
+
     let registry = create_standard_registry().await;
     let model_provider = Arc::new(octofhir_fhir_model::EmptyModelProvider);
-    
+
     Ok(FhirPathEngine::new(Arc::new(registry), model_provider))
 }
 
@@ -175,7 +219,7 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 ///     "resourceType": "Patient",
 ///     "name": [{"family": "Doe", "given": ["John"]}]
 /// });
-/// 
+///
 /// let context = Collection::single(octofhir_fhirpath::FhirPathValue::resource(patient));
 /// let result = evaluate("Patient.name.family", &context).await?;
 /// # Ok(())

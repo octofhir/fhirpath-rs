@@ -1,8 +1,8 @@
 //! Core error types with rich error code system
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
-use serde::{Deserialize, Serialize};
 
 pub use super::error_code::*;
 
@@ -21,7 +21,12 @@ pub struct SourceLocation {
 
 impl SourceLocation {
     pub fn new(line: usize, column: usize, offset: usize, length: usize) -> Self {
-        Self { line, column, offset, length }
+        Self {
+            line,
+            column,
+            offset,
+            length,
+        }
     }
 
     pub fn point(line: usize, column: usize, offset: usize) -> Self {
@@ -113,10 +118,7 @@ impl FhirPathError {
     }
 
     /// Create an evaluation error
-    pub fn evaluation_error(
-        error_code: ErrorCode,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn evaluation_error(error_code: ErrorCode, message: impl Into<String>) -> Self {
         Self::EvaluationError {
             error_code,
             message: message.into(),
@@ -127,10 +129,7 @@ impl FhirPathError {
     }
 
     /// Create a model error
-    pub fn model_error(
-        error_code: ErrorCode,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn model_error(error_code: ErrorCode, message: impl Into<String>) -> Self {
         Self::ModelError {
             error_code,
             message: message.into(),
@@ -169,7 +168,7 @@ pub enum EvaluationError {
 }
 
 // Additional error codes for system errors (using new FP0001-style codes)
-pub const FP0200: ErrorCode = ErrorCode::new(200);  // System external error
+pub const FP0200: ErrorCode = ErrorCode::new(200); // System external error
 
 /// Result type for FHIRPath operations
 pub type Result<T> = std::result::Result<T, FhirPathError>;

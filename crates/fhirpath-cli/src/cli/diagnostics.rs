@@ -3,12 +3,12 @@
 //! This module integrates the diagnostic engine with CLI commands,
 //! providing consistent error reporting across all CLI interfaces.
 
+use octofhir_fhirpath::core::error_code::ErrorCode;
+use octofhir_fhirpath::diagnostics::batch_formatter::BatchFormatter;
 use octofhir_fhirpath::diagnostics::{
     AriadneDiagnostic, DiagnosticEngine, DiagnosticFormatter, DiagnosticSeverity,
 };
-use octofhir_fhirpath::diagnostics::batch_formatter::BatchFormatter;
-use octofhir_fhirpath::core::error_code::ErrorCode;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{self, Write};
 use std::ops::Range;
 
@@ -69,8 +69,9 @@ impl CliDiagnosticHandler {
                 Ok(())
             }
             OutputFormat::Pretty => {
-            let output = DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                let output =
+                    DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", output)?;
                 Ok(())
             }
@@ -109,7 +110,8 @@ impl CliDiagnosticHandler {
             _ => {
                 // All other modes: Show unified diagnostics report
                 if !diagnostics.is_empty() {
-                    self.engine.emit_unified_report(diagnostics, source_id, writer)
+                    self.engine
+                        .emit_unified_report(diagnostics, source_id, writer)
                         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 }
                 Ok(())
@@ -125,7 +127,8 @@ impl CliDiagnosticHandler {
         span: Range<usize>,
         help: Option<String>,
     ) -> AriadneDiagnostic {
-        self.engine.builder()
+        self.engine
+            .builder()
             .with_error_code(error_code)
             .with_severity(DiagnosticSeverity::Error)
             .with_message(message)
@@ -142,7 +145,8 @@ impl CliDiagnosticHandler {
         span: Range<usize>,
         help: Option<String>,
     ) -> AriadneDiagnostic {
-        self.engine.builder()
+        self.engine
+            .builder()
             .with_error_code(error_code)
             .with_severity(DiagnosticSeverity::Warning)
             .with_message(message)
@@ -159,7 +163,8 @@ impl CliDiagnosticHandler {
         span: Range<usize>,
         help: Option<String>,
     ) -> AriadneDiagnostic {
-        self.engine.builder()
+        self.engine
+            .builder()
             .with_error_code(error_code)
             .with_severity(DiagnosticSeverity::Info)
             .with_message(message)
@@ -232,17 +237,24 @@ impl CliDiagnosticHandler {
                 writeln!(writer, "{}", serde_json::to_string_pretty(&json_output)?)?;
             }
             OutputFormat::Pretty => {
-                let pretty_output = BatchFormatter::format_comprehensive_report(&self.engine, &result.diagnostics)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                let pretty_output =
+                    BatchFormatter::format_comprehensive_report(&self.engine, &result.diagnostics)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", pretty_output)?;
             }
             OutputFormat::Raw => {
                 // Raw format shows compact list
                 for (i, diagnostic) in result.diagnostics.diagnostics.iter().enumerate() {
-                    writeln!(writer, "{}. {}", i + 1, DiagnosticFormatter::format_raw(diagnostic))?;
+                    writeln!(
+                        writer,
+                        "{}. {}",
+                        i + 1,
+                        DiagnosticFormatter::format_raw(diagnostic)
+                    )?;
                 }
-                
-                let summary = BatchFormatter::format_compact_summary(&result.diagnostics.statistics);
+
+                let summary =
+                    BatchFormatter::format_compact_summary(&result.diagnostics.statistics);
                 writeln!(writer, "\n{}", summary)?;
             }
         }
@@ -277,7 +289,7 @@ pub fn error_to_diagnostic(error: &octofhir_fhirpath::core::FhirPathError) -> Ar
     let error_code = error.error_code();
     let message = error.to_string();
     let span = 0..0; // TODO: Extract actual span from error when available
-    
+
     AriadneDiagnostic {
         severity: DiagnosticSeverity::Error,
         error_code: error_code.clone(),
@@ -308,7 +320,7 @@ mod tests {
         let handler = CliDiagnosticHandler::new(OutputFormat::Raw)
             .with_quiet(true)
             .with_verbose(false);
-        
+
         assert!(handler.is_quiet());
         assert!(!handler.is_verbose());
     }
@@ -322,7 +334,7 @@ mod tests {
             0..5,
             Some("Test help".to_string()),
         );
-        
+
         assert_eq!(diagnostic.error_code, FP0001);
         assert_eq!(diagnostic.message, "Test error");
         assert_eq!(diagnostic.span, 0..5);
@@ -333,20 +345,16 @@ mod tests {
     #[test]
     fn test_diagnostic_types() {
         let handler = CliDiagnosticHandler::new(OutputFormat::Pretty);
-        
-        let error_diag = handler.create_diagnostic_from_error(
-            FP0001, "Error".to_string(), 0..5, None
-        );
+
+        let error_diag =
+            handler.create_diagnostic_from_error(FP0001, "Error".to_string(), 0..5, None);
         assert_eq!(error_diag.severity, DiagnosticSeverity::Error);
-        
-        let warning_diag = handler.create_warning_diagnostic(
-            FP0153, "Warning".to_string(), 0..5, None
-        );
+
+        let warning_diag =
+            handler.create_warning_diagnostic(FP0153, "Warning".to_string(), 0..5, None);
         assert_eq!(warning_diag.severity, DiagnosticSeverity::Warning);
-        
-        let info_diag = handler.create_info_diagnostic(
-            FP0153, "Info".to_string(), 0..5, None
-        );
+
+        let info_diag = handler.create_info_diagnostic(FP0153, "Info".to_string(), 0..5, None);
         assert_eq!(info_diag.severity, DiagnosticSeverity::Info);
     }
 
@@ -354,10 +362,10 @@ mod tests {
     fn test_quiet_mode() {
         let handler = CliDiagnosticHandler::new(OutputFormat::Pretty).with_quiet(true);
         let mut buffer = Cursor::new(Vec::new());
-        
+
         handler.info("Test info message", &mut buffer).unwrap();
         assert!(buffer.get_ref().is_empty());
-        
+
         handler.warning("Test warning", &mut buffer).unwrap();
         assert!(!buffer.get_ref().is_empty());
     }
@@ -371,10 +379,12 @@ mod tests {
             0..5,
             Some("Test help".to_string()),
         );
-        
+
         let mut buffer = Cursor::new(Vec::new());
-        handler.report_diagnostic(&diagnostic, 0, &mut buffer).unwrap();
-        
+        handler
+            .report_diagnostic(&diagnostic, 0, &mut buffer)
+            .unwrap();
+
         // JSON mode should not output diagnostics to stderr
         assert!(buffer.get_ref().is_empty());
     }
@@ -383,11 +393,15 @@ mod tests {
     fn test_source_management() {
         let mut handler = CliDiagnosticHandler::new(OutputFormat::Pretty);
         let source_id = handler.add_source("test.fhirpath".to_string(), "Patient.name".to_string());
-        
+
         assert_eq!(source_id, 0);
-        
+
         // Verify source is stored in the engine
-        let source_info = handler.engine().source_manager().get_source(source_id).unwrap();
+        let source_info = handler
+            .engine()
+            .source_manager()
+            .get_source(source_id)
+            .unwrap();
         assert_eq!(source_info.name, "test.fhirpath");
         assert_eq!(source_info.content, "Patient.name");
     }

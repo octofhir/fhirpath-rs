@@ -43,10 +43,10 @@ use crate::evaluator::context::EvaluationContext;
 ///
 /// // Push lambda scope
 /// let scope_id = scope_manager.push_scope(ScopeType::Lambda);
-/// 
+///
 /// // Set current item ($this)
 /// scope_manager.set_current_item(FhirPathValue::Integer(42));
-/// 
+///
 /// // Get $this variable
 /// let this_value = scope_manager.get_variable("this").await;
 /// assert_eq!(this_value, Some(FhirPathValue::Integer(42)));
@@ -173,14 +173,19 @@ impl ScopeManager {
 
     /// Update the reusable lambda context with the current item and index.
     /// Sets start_context, $this and $index.
-    pub fn update_lambda_item(&self, ctx: &mut EvaluationContext, item: &FhirPathValue, index: usize) {
+    pub fn update_lambda_item(
+        &self,
+        ctx: &mut EvaluationContext,
+        item: &FhirPathValue,
+        index: usize,
+    ) {
         // Replace start context with current item
         ctx.start_context = Collection::single(item.clone());
         // Update special variables
         ctx.set_variable("$this".to_string(), item.clone());
         ctx.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
     }
-    
+
     /// Push new variable scope
     ///
     /// Creates a new scope on top of the scope stack. The new scope can access
@@ -194,8 +199,12 @@ impl ScopeManager {
     /// Scope identifier for the new scope
     pub fn push_scope(&mut self, scope_type: ScopeType) -> ScopeId {
         let scope_id = self.scope_stack.len();
-        let parent_scope_id = if scope_id > 0 { Some(scope_id - 1) } else { None };
-        
+        let parent_scope_id = if scope_id > 0 {
+            Some(scope_id - 1)
+        } else {
+            None
+        };
+
         let scope = VariableScope {
             variables: HashMap::new(),
             current_item: None,
@@ -203,11 +212,11 @@ impl ScopeManager {
             parent_scope_id,
             scope_type,
         };
-        
+
         self.scope_stack.push(scope);
         ScopeId(scope_id)
     }
-    
+
     /// Pop variable scope
     ///
     /// Removes the top scope from the scope stack. Returns the popped scope
@@ -218,7 +227,7 @@ impl ScopeManager {
     pub fn pop_scope(&mut self) -> Option<VariableScope> {
         self.scope_stack.pop()
     }
-    
+
     /// Set current item in top scope ($this)
     ///
     /// Sets the $this variable for the current scope. This is used in lambda
@@ -231,7 +240,7 @@ impl ScopeManager {
             scope.current_item = Some(item);
         }
     }
-    
+
     /// Set current index in top scope ($index)
     ///
     /// Sets the $index variable for the current scope. This is used in lambda
@@ -244,7 +253,7 @@ impl ScopeManager {
             scope.current_index = Some(index);
         }
     }
-    
+
     /// Set variable in current scope
     ///
     /// Adds or updates a variable in the current (top) scope. This variable
@@ -258,7 +267,7 @@ impl ScopeManager {
             scope.variables.insert(name, value);
         }
     }
-    
+
     /// Get variable value with proper scoping rules
     ///
     /// Resolves variables according to FHIRPath scoping rules:
@@ -279,7 +288,7 @@ impl ScopeManager {
         } else {
             name
         };
-        
+
         // Special variables - search from innermost scope
         match clean_name {
             "this" => {
@@ -291,10 +300,12 @@ impl ScopeManager {
                 }
                 // Fall back to global context start context
                 if !self.global_context.start_context.is_empty() {
-                    return Some(FhirPathValue::Collection(self.global_context.start_context.clone().into_vec()));
+                    return Some(FhirPathValue::Collection(
+                        self.global_context.start_context.clone().into_vec(),
+                    ));
                 }
                 return None;
-            },
+            }
             "index" => {
                 // Find $index from innermost scope that has it
                 for scope in self.scope_stack.iter().rev() {
@@ -303,21 +314,21 @@ impl ScopeManager {
                     }
                 }
                 return None;
-            },
+            }
             _ => {}
         }
-        
+
         // Search through scope stack (innermost to outermost)
         for scope in self.scope_stack.iter().rev() {
             if let Some(value) = scope.variables.get(clean_name) {
                 return Some(value.clone());
             }
         }
-        
+
         // Check global context variables (both user and built-in)
         self.global_context.get_variable(clean_name).cloned()
     }
-    
+
     /// Create lambda context for collection iteration
     ///
     /// Creates a new lambda evaluation context for evaluating lambda expressions
@@ -335,7 +346,7 @@ impl ScopeManager {
         &self,
         current_item: FhirPathValue,
         current_index: Option<i64>,
-        captured_variables: HashMap<String, FhirPathValue>
+        captured_variables: HashMap<String, FhirPathValue>,
     ) -> LambdaContext {
         LambdaContext {
             current_item,
@@ -344,7 +355,7 @@ impl ScopeManager {
             parent_context: self.global_context.clone(),
         }
     }
-    
+
     /// Get current scope depth
     ///
     /// Returns the number of scopes currently on the stack.
@@ -352,23 +363,25 @@ impl ScopeManager {
     pub fn scope_depth(&self) -> usize {
         self.scope_stack.len()
     }
-    
+
     /// Get scope information for debugging
     ///
     /// Returns information about all scopes on the stack for debugging
     /// and introspection purposes.
     pub fn get_scope_info(&self) -> Vec<ScopeInfo> {
-        self.scope_stack.iter().enumerate().map(|(id, scope)| {
-            ScopeInfo {
+        self.scope_stack
+            .iter()
+            .enumerate()
+            .map(|(id, scope)| ScopeInfo {
                 id,
                 scope_type: scope.scope_type.clone(),
                 variable_count: scope.variables.len(),
                 has_current_item: scope.current_item.is_some(),
                 has_current_index: scope.current_index.is_some(),
-            }
-        }).collect()
+            })
+            .collect()
     }
-    
+
     /// Create child context for lambda evaluation
     ///
     /// Creates a new EvaluationContext with variables from all current scopes
@@ -414,7 +427,8 @@ impl ScopeManager {
             }
 
             if let Some(current_index) = scope.current_index {
-                lambda_context.set_variable("index".to_string(), FhirPathValue::Integer(current_index));
+                lambda_context
+                    .set_variable("index".to_string(), FhirPathValue::Integer(current_index));
             }
         }
 
@@ -434,26 +448,26 @@ impl LambdaContext {
             FhirPathValue::Collection(items) => Collection::from_values(items.clone()),
             single_item => Collection::single(single_item.clone()),
         };
-        
+
         let mut context = EvaluationContext::new(current_collection);
-        
+
         // Add captured variables
         for (name, value) in &self.captured_variables {
             context.set_variable(name.clone(), value.clone());
         }
-        
+
         // Add current item as $this
         context.set_variable("this".to_string(), self.current_item.clone());
-        
+
         // Add current index as $index if available
         if let Some(index) = self.current_index {
             context.set_variable("index".to_string(), FhirPathValue::Integer(index));
         }
-        
+
         // Inherit built-in variables from parent
         context.builtin_variables = self.parent_context.builtin_variables.clone();
         context.server_context = self.parent_context.server_context.clone();
-        
+
         context
     }
 }
@@ -478,129 +492,166 @@ impl std::fmt::Display for ScopeType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_scope_management() {
         let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
         let mut scope_manager = ScopeManager::new(global_context);
-        
+
         // Test scope creation and destruction
         assert_eq!(scope_manager.scope_depth(), 0);
-        
+
         let scope_id = scope_manager.push_scope(ScopeType::Lambda);
         assert_eq!(scope_manager.scope_depth(), 1);
-        
+
         scope_manager.set_variable("test".to_string(), FhirPathValue::Integer(42));
-        
+
         let value = scope_manager.get_variable("test").await;
         assert_eq!(value, Some(FhirPathValue::Integer(42)));
-        
+
         scope_manager.pop_scope();
         assert_eq!(scope_manager.scope_depth(), 0);
-        
+
         // Variable should no longer be accessible
         let value = scope_manager.get_variable("test").await;
         assert_eq!(value, None);
     }
-    
+
     #[tokio::test]
     async fn test_this_variable_scoping() {
-        let global_context = Arc::new(EvaluationContext::new(
-            Collection::single(FhirPathValue::String("global".to_string()))
-        ));
+        let global_context = Arc::new(EvaluationContext::new(Collection::single(
+            FhirPathValue::String("global".to_string()),
+        )));
         let mut scope_manager = ScopeManager::new(global_context);
-        
+
         // $this should resolve to global context initially
         let this_value = scope_manager.get_variable("this").await;
         assert!(this_value.is_some());
-        
+
         // Push lambda scope with different $this
         scope_manager.push_scope(ScopeType::Lambda);
         scope_manager.set_current_item(FhirPathValue::String("local".to_string()));
-        
+
         let this_value = scope_manager.get_variable("this").await;
         assert_eq!(this_value, Some(FhirPathValue::String("local".to_string())));
-        
+
         // Pop scope - should revert to global
         scope_manager.pop_scope();
         let this_value = scope_manager.get_variable("this").await;
         assert!(this_value.is_some()); // Should be global context
     }
-    
+
     #[tokio::test]
     async fn test_nested_scope_variable_resolution() {
         let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
         let mut scope_manager = ScopeManager::new(global_context.clone());
-        
+
         // Set global variable
         {
-            let mut context = Arc::try_unwrap(global_context.clone()).unwrap_or_else(|arc| (*arc).clone());
-            context.set_variable("global_var".to_string(), FhirPathValue::String("global".to_string()));
+            let mut context =
+                Arc::try_unwrap(global_context.clone()).unwrap_or_else(|arc| (*arc).clone());
+            context.set_variable(
+                "global_var".to_string(),
+                FhirPathValue::String("global".to_string()),
+            );
         }
-        
+
         // Push outer lambda scope
         scope_manager.push_scope(ScopeType::Lambda);
-        scope_manager.set_variable("outer_var".to_string(), FhirPathValue::String("outer".to_string()));
-        
+        scope_manager.set_variable(
+            "outer_var".to_string(),
+            FhirPathValue::String("outer".to_string()),
+        );
+
         // Push inner lambda scope
         scope_manager.push_scope(ScopeType::Lambda);
-        scope_manager.set_variable("inner_var".to_string(), FhirPathValue::String("inner".to_string()));
-        
+        scope_manager.set_variable(
+            "inner_var".to_string(),
+            FhirPathValue::String("inner".to_string()),
+        );
+
         // Test variable resolution from inner scope
-        assert_eq!(scope_manager.get_variable("inner_var").await, Some(FhirPathValue::String("inner".to_string())));
-        assert_eq!(scope_manager.get_variable("outer_var").await, Some(FhirPathValue::String("outer".to_string())));
-        
+        assert_eq!(
+            scope_manager.get_variable("inner_var").await,
+            Some(FhirPathValue::String("inner".to_string()))
+        );
+        assert_eq!(
+            scope_manager.get_variable("outer_var").await,
+            Some(FhirPathValue::String("outer".to_string()))
+        );
+
         // Pop inner scope
         scope_manager.pop_scope();
-        
+
         // inner_var should no longer be accessible
         assert_eq!(scope_manager.get_variable("inner_var").await, None);
-        assert_eq!(scope_manager.get_variable("outer_var").await, Some(FhirPathValue::String("outer".to_string())));
-        
+        assert_eq!(
+            scope_manager.get_variable("outer_var").await,
+            Some(FhirPathValue::String("outer".to_string()))
+        );
+
         // Pop outer scope
         scope_manager.pop_scope();
-        
+
         // Only global should be accessible
         assert_eq!(scope_manager.get_variable("inner_var").await, None);
         assert_eq!(scope_manager.get_variable("outer_var").await, None);
     }
-    
+
     #[tokio::test]
     async fn test_variable_shadowing() {
         // Create context with a variable already set
         let mut global_context = EvaluationContext::new(Collection::empty());
-        global_context.set_variable("var".to_string(), FhirPathValue::String("global".to_string()));
+        global_context.set_variable(
+            "var".to_string(),
+            FhirPathValue::String("global".to_string()),
+        );
         let global_context = Arc::new(global_context);
         let mut scope_manager = ScopeManager::new(global_context);
-        
+
         // Push scope and shadow the variable
         scope_manager.push_scope(ScopeType::Lambda);
-        scope_manager.set_variable("var".to_string(), FhirPathValue::String("local".to_string()));
-        
+        scope_manager.set_variable(
+            "var".to_string(),
+            FhirPathValue::String("local".to_string()),
+        );
+
         // Should get the local (shadowed) value
-        assert_eq!(scope_manager.get_variable("var").await, Some(FhirPathValue::String("local".to_string())));
-        
+        assert_eq!(
+            scope_manager.get_variable("var").await,
+            Some(FhirPathValue::String("local".to_string()))
+        );
+
         // Pop scope - should revert to global value
         scope_manager.pop_scope();
-        assert_eq!(scope_manager.get_variable("var").await, Some(FhirPathValue::String("global".to_string())));
+        assert_eq!(
+            scope_manager.get_variable("var").await,
+            Some(FhirPathValue::String("global".to_string()))
+        );
     }
-    
+
     #[tokio::test]
     async fn test_index_variable() {
         let global_context = Arc::new(EvaluationContext::new(Collection::empty()));
         let mut scope_manager = ScopeManager::new(global_context);
-        
+
         // $index should be None initially
         assert_eq!(scope_manager.get_variable("index").await, None);
-        
+
         // Push scope and set index
         scope_manager.push_scope(ScopeType::Lambda);
         scope_manager.set_current_index(5);
-        
+
         // Should get the index value
-        assert_eq!(scope_manager.get_variable("index").await, Some(FhirPathValue::Integer(5)));
-        assert_eq!(scope_manager.get_variable("$index").await, Some(FhirPathValue::Integer(5)));
-        
+        assert_eq!(
+            scope_manager.get_variable("index").await,
+            Some(FhirPathValue::Integer(5))
+        );
+        assert_eq!(
+            scope_manager.get_variable("$index").await,
+            Some(FhirPathValue::Integer(5))
+        );
+
         // Pop scope - should revert to None
         scope_manager.pop_scope();
         assert_eq!(scope_manager.get_variable("index").await, None);

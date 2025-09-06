@@ -1,11 +1,11 @@
 //! Utilities and lightweight types for terminology-oriented functions
 
-use serde_json::{Map, Value as JsonValue};
 use rust_decimal::Decimal;
+use serde_json::{Map, Value as JsonValue};
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::core::error_code::FP0051;
 use crate::core::temporal::PrecisionDateTime;
+use crate::core::{FhirPathError, FhirPathValue, Result};
 
 /// Minimal Coding representation used by terminology functions
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,7 +18,12 @@ pub struct Coding {
 
 impl Coding {
     pub fn new(system: impl Into<String>, code: impl Into<String>) -> Self {
-        Self { system: system.into(), code: code.into(), version: None, display: None }
+        Self {
+            system: system.into(),
+            code: code.into(),
+            version: None,
+            display: None,
+        }
     }
 
     pub fn with_display(mut self, display: impl Into<String>) -> Self {
@@ -73,7 +78,9 @@ impl TerminologyUtils {
     /// Extract a Coding from a FhirPathValue. Supports Coding objects, and CodeableConcept (takes first coding).
     pub fn extract_coding(value: &FhirPathValue) -> Result<Coding> {
         match value {
-            FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => Self::extract_coding_from_json(j),
+            FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                Self::extract_coding_from_json(j)
+            }
             _ => Err(FhirPathError::evaluation_error(
                 FP0051,
                 "Expected Coding or CodeableConcept value".to_string(),
@@ -84,17 +91,30 @@ impl TerminologyUtils {
     pub fn extract_coding_from_json(j: &JsonValue) -> Result<Coding> {
         if let Some(obj) = j.as_object() {
             // Direct Coding
-            if let (Some(system), Some(code)) = (obj.get("system").and_then(|v| v.as_str()), obj.get("code").and_then(|v| v.as_str())) {
+            if let (Some(system), Some(code)) = (
+                obj.get("system").and_then(|v| v.as_str()),
+                obj.get("code").and_then(|v| v.as_str()),
+            ) {
                 return Ok(Coding {
                     system: system.to_string(),
                     code: code.to_string(),
-                    version: obj.get("version").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                    display: obj.get("display").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    version: obj
+                        .get("version")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    display: obj
+                        .get("display")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                 });
             }
 
             // CodeableConcept (take first coding)
-            if let Some(coding) = obj.get("coding").and_then(|v| v.as_array()).and_then(|arr| arr.first()) {
+            if let Some(coding) = obj
+                .get("coding")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.first())
+            {
                 return Self::extract_coding_from_json(coding);
             }
         }
@@ -109,8 +129,12 @@ impl TerminologyUtils {
         let mut m = Map::new();
         m.insert("system".to_string(), JsonValue::String(c.system.clone()));
         m.insert("code".to_string(), JsonValue::String(c.code.clone()));
-        if let Some(v) = &c.version { m.insert("version".to_string(), JsonValue::String(v.clone())); }
-        if let Some(d) = &c.display { m.insert("display".to_string(), JsonValue::String(d.clone())); }
+        if let Some(v) = &c.version {
+            m.insert("version".to_string(), JsonValue::String(v.clone()));
+        }
+        if let Some(d) = &c.display {
+            m.insert("display".to_string(), JsonValue::String(d.clone()));
+        }
         FhirPathValue::Resource(JsonValue::Object(m))
     }
 
@@ -126,9 +150,9 @@ impl TerminologyUtils {
 
     /// Check if two codings are equivalent
     pub fn codings_equal(coding1: &Coding, coding2: &Coding) -> bool {
-        coding1.system == coding2.system && 
-        coding1.code == coding2.code &&
-        coding1.version == coding2.version
+        coding1.system == coding2.system
+            && coding1.code == coding2.code
+            && coding1.version == coding2.version
     }
 
     /// Validate that a coding has required fields
@@ -136,23 +160,25 @@ impl TerminologyUtils {
         if coding.system.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 FP0051,
-                "Coding system is required".to_string()
+                "Coding system is required".to_string(),
             ));
         }
 
         if coding.code.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 FP0051,
-                "Coding code is required".to_string()
+                "Coding code is required".to_string(),
             ));
         }
 
         // Validate system URL format (basic check)
-        if !coding.system.starts_with("http://") && !coding.system.starts_with("https://") && 
-           !coding.system.starts_with("urn:") {
+        if !coding.system.starts_with("http://")
+            && !coding.system.starts_with("https://")
+            && !coding.system.starts_with("urn:")
+        {
             return Err(FhirPathError::evaluation_error(
                 FP0051,
-                "Coding system should be a valid URI".to_string()
+                "Coding system should be a valid URI".to_string(),
             ));
         }
 
@@ -162,9 +188,14 @@ impl TerminologyUtils {
     /// Convert ConceptTranslation to FhirPathValue
     pub fn translation_to_fhir_value(translation: &ConceptTranslation) -> FhirPathValue {
         let mut translation_obj = Map::new();
-        translation_obj.insert("equivalence".to_string(), JsonValue::String(translation.equivalence.clone()));
-        
-        if let FhirPathValue::Resource(JsonValue::Object(concept_obj)) = Self::coding_to_value(&translation.concept) {
+        translation_obj.insert(
+            "equivalence".to_string(),
+            JsonValue::String(translation.equivalence.clone()),
+        );
+
+        if let FhirPathValue::Resource(JsonValue::Object(concept_obj)) =
+            Self::coding_to_value(&translation.concept)
+        {
             translation_obj.insert("concept".to_string(), JsonValue::Object(concept_obj));
         }
 
@@ -178,14 +209,19 @@ impl TerminologyUtils {
     /// Convert ConceptDesignation to FhirPathValue
     pub fn designation_to_fhir_value(designation: &ConceptDesignation) -> FhirPathValue {
         let mut designation_obj = Map::new();
-        designation_obj.insert("value".to_string(), JsonValue::String(designation.value.clone()));
+        designation_obj.insert(
+            "value".to_string(),
+            JsonValue::String(designation.value.clone()),
+        );
 
         if let Some(ref language) = designation.language {
             designation_obj.insert("language".to_string(), JsonValue::String(language.clone()));
         }
 
         if let Some(ref use_coding) = designation.use_coding {
-            if let FhirPathValue::Resource(JsonValue::Object(use_obj)) = Self::coding_to_value(use_coding) {
+            if let FhirPathValue::Resource(JsonValue::Object(use_obj)) =
+                Self::coding_to_value(use_coding)
+            {
                 designation_obj.insert("use".to_string(), JsonValue::Object(use_obj));
             }
         }
@@ -217,7 +253,8 @@ impl TerminologyUtils {
                         codings.push(Self::extract_coding(value)?);
                     }
                     // CodeableConcept with multiple codings
-                    else if let Some(coding_array) = obj.get("coding").and_then(|v| v.as_array()) {
+                    else if let Some(coding_array) = obj.get("coding").and_then(|v| v.as_array())
+                    {
                         for coding_value in coding_array {
                             if let Ok(coding) = Self::extract_coding_from_json(coding_value) {
                                 codings.push(coding);
@@ -229,7 +266,7 @@ impl TerminologyUtils {
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     FP0051,
-                    "Cannot extract codings from this value type".to_string()
+                    "Cannot extract codings from this value type".to_string(),
                 ));
             }
         }
@@ -237,4 +274,3 @@ impl TerminologyUtils {
         Ok(codings)
     }
 }
-

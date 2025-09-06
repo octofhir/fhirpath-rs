@@ -3,10 +3,10 @@
 //! This module connects the Chumsky analysis parser with the diagnostic
 //! collection system to provide comprehensive error reporting.
 
-use crate::diagnostics::collector::{MultiDiagnosticCollector, DiagnosticBatch};
-use crate::diagnostics::{DiagnosticSeverity, AriadneDiagnostic};
-use crate::core::error_code::*;
 use crate::ast::ExpressionNode;
+use crate::core::error_code::*;
+use crate::diagnostics::collector::{DiagnosticBatch, MultiDiagnosticCollector};
+use crate::diagnostics::DiagnosticSeverity;
 use std::ops::Range;
 
 /// Result of comprehensive FHIRPath analysis
@@ -52,7 +52,7 @@ impl ComprehensiveAnalyzer {
 
         // Phase 3: Build diagnostic batch
         let mut diagnostics_batch = self.collector.build_batch(0, source_name);
-        
+
         // Sort diagnostics by severity and position
         self.collector.sort_by_severity();
         diagnostics_batch.diagnostics = self.collector.diagnostics().to_vec();
@@ -75,7 +75,7 @@ impl ComprehensiveAnalyzer {
                 for diagnostic in &result.diagnostics {
                     self.convert_diagnostic_to_ariadne(diagnostic, expression);
                 }
-                
+
                 // Attempt partial parsing for what we can recover
                 let partial_ast = self.attempt_partial_parse(expression);
                 (partial_ast, false)
@@ -84,7 +84,11 @@ impl ComprehensiveAnalyzer {
     }
 
     /// Convert parser diagnostic to AriadneDiagnostic
-    fn convert_diagnostic_to_ariadne(&mut self, diagnostic: &crate::diagnostics::Diagnostic, expression: &str) {
+    fn convert_diagnostic_to_ariadne(
+        &mut self,
+        diagnostic: &crate::diagnostics::Diagnostic,
+        expression: &str,
+    ) {
         // Extract span from location if available
         let span = if let Some(location) = &diagnostic.location {
             location.offset..(location.offset + location.length)
@@ -105,30 +109,50 @@ impl ComprehensiveAnalyzer {
         match diagnostic.severity {
             crate::diagnostics::DiagnosticSeverity::Error => {
                 if let Some(help_text) = help {
-                    self.collector.error_with_help(error_code, diagnostic.message.clone(), span, help_text);
+                    self.collector.error_with_help(
+                        error_code,
+                        diagnostic.message.clone(),
+                        span,
+                        help_text,
+                    );
                 } else {
-                    self.collector.error(error_code, diagnostic.message.clone(), span);
+                    self.collector
+                        .error(error_code, diagnostic.message.clone(), span);
                 }
             }
             crate::diagnostics::DiagnosticSeverity::Warning => {
                 if let Some(help_text) = help {
-                    self.collector.warning_with_help(error_code, diagnostic.message.clone(), span, help_text);
+                    self.collector.warning_with_help(
+                        error_code,
+                        diagnostic.message.clone(),
+                        span,
+                        help_text,
+                    );
                 } else {
-                    self.collector.warning(error_code, diagnostic.message.clone(), span);
+                    self.collector
+                        .warning(error_code, diagnostic.message.clone(), span);
                 }
             }
             crate::diagnostics::DiagnosticSeverity::Info => {
                 if let Some(help_text) = help {
-                    self.collector.suggestion_with_help(error_code, diagnostic.message.clone(), span, help_text);
+                    self.collector.suggestion_with_help(
+                        error_code,
+                        diagnostic.message.clone(),
+                        span,
+                        help_text,
+                    );
                 } else {
-                    self.collector.suggestion(error_code, diagnostic.message.clone(), span);
+                    self.collector
+                        .suggestion(error_code, diagnostic.message.clone(), span);
                 }
             }
             crate::diagnostics::DiagnosticSeverity::Hint => {
                 if let Some(help_text) = help {
-                    self.collector.note(error_code, diagnostic.message.clone(), span);
+                    self.collector
+                        .note(error_code, diagnostic.message.clone(), span);
                 } else {
-                    self.collector.note(error_code, diagnostic.message.clone(), span);
+                    self.collector
+                        .note(error_code, diagnostic.message.clone(), span);
                 }
             }
         }
@@ -148,23 +172,21 @@ impl ComprehensiveAnalyzer {
                 crate::diagnostics::DiagnosticSeverity::Hint => DiagnosticSeverity::Hint,
             };
 
-            self.collector.add_related(
-                related.message.clone(),
-                related_span,
-                related_severity
-            );
+            self.collector
+                .add_related(related.message.clone(), related_span, related_severity);
         }
     }
 
     /// Generate helpful suggestions for parse errors
     fn generate_error_help(&self, message: &str, expression: &str, span: &Range<usize>) -> String {
         let lowercase_message = message.to_lowercase();
-        
+
         if lowercase_message.contains("unexpected") && lowercase_message.contains("token") {
             if lowercase_message.contains("(") {
                 "Function calls require parentheses: functionName(arguments)".to_string()
             } else if lowercase_message.contains(")") {
-                "Check for missing closing parentheses in function calls or grouped expressions".to_string()
+                "Check for missing closing parentheses in function calls or grouped expressions"
+                    .to_string()
             } else if lowercase_message.contains(".") {
                 "Property access requires dot notation: resource.property".to_string()
             } else {
@@ -181,7 +203,8 @@ impl ComprehensiveAnalyzer {
                 "Add the appropriate closing delimiter".to_string()
             }
         } else if lowercase_message.contains("expected") {
-            "Review the FHIRPath grammar specification for valid syntax at this position".to_string()
+            "Review the FHIRPath grammar specification for valid syntax at this position"
+                .to_string()
         } else {
             format!(
                 "Error occurred at position {} in expression. Check syntax around: '{}'",
@@ -195,7 +218,7 @@ impl ComprehensiveAnalyzer {
     fn extract_error_context(&self, expression: &str, span: Range<usize>) -> String {
         let start = span.start.saturating_sub(10);
         let end = (span.end + 10).min(expression.len());
-        
+
         let context = &expression[start..end];
         format!("...{}...", context)
     }
@@ -204,7 +227,7 @@ impl ComprehensiveAnalyzer {
     fn attempt_partial_parse(&mut self, expression: &str) -> Option<ExpressionNode> {
         // Try parsing smaller parts of the expression
         // This is a simple recovery strategy - could be enhanced
-        
+
         // Try parsing just the first identifier or literal
         let tokens: Vec<&str> = expression.split_whitespace().collect();
         for token in &tokens {
@@ -212,12 +235,12 @@ impl ComprehensiveAnalyzer {
                 self.collector.note(
                     FP0154,
                     format!("Partial recovery: successfully parsed '{}'", token),
-                    0..token.len()
+                    0..token.len(),
                 );
                 return Some(result);
             }
         }
-        
+
         None
     }
 
@@ -230,14 +253,14 @@ impl ComprehensiveAnalyzer {
         // - Function signature validation
         // - Performance analysis
         // - Optimization suggestions
-        
+
         // For now, add a simple completeness check
         self.collector.note(
             FP0154,
             "Static analysis completed successfully".to_string(),
-            0..0
+            0..0,
         );
-        
+
         true // For now, assume analysis succeeds
     }
 }
@@ -256,9 +279,9 @@ mod tests {
     fn test_comprehensive_analysis_success() {
         let mut analyzer = ComprehensiveAnalyzer::new();
         let expression = "Patient.name.given.first()";
-        
+
         let result = analyzer.analyze(expression, "test.fhirpath".to_string());
-        
+
         assert!(result.parse_success);
         assert!(result.ast.is_some());
         assert_eq!(result.diagnostics.source_name, "test.fhirpath");
@@ -268,9 +291,9 @@ mod tests {
     fn test_comprehensive_analysis_with_errors() {
         let mut analyzer = ComprehensiveAnalyzer::new();
         let expression = "Patient.name[unclosed";
-        
+
         let result = analyzer.analyze(expression, "test.fhirpath".to_string());
-        
+
         assert!(!result.parse_success);
         assert!(result.diagnostics.statistics.error_count > 0);
         assert_eq!(result.diagnostics.source_name, "test.fhirpath");
@@ -279,19 +302,13 @@ mod tests {
     #[test]
     fn test_error_help_generation() {
         let analyzer = ComprehensiveAnalyzer::new();
-        
-        let help = analyzer.generate_error_help(
-            "Unexpected token '(' found",
-            "Patient.name[",
-            &(10..11)
-        );
+
+        let help =
+            analyzer.generate_error_help("Unexpected token '(' found", "Patient.name[", &(10..11));
         assert!(help.contains("parentheses"));
-        
-        let help = analyzer.generate_error_help(
-            "Unclosed bracket found",
-            "Patient.name[test",
-            &(12..17)
-        );
+
+        let help =
+            analyzer.generate_error_help("Unclosed bracket found", "Patient.name[test", &(12..17));
         assert!(help.contains("closing bracket"));
     }
 
@@ -299,7 +316,7 @@ mod tests {
     fn test_partial_parsing() {
         let mut analyzer = ComprehensiveAnalyzer::new();
         let expression = "Patient.name invalid syntax here";
-        
+
         let partial = analyzer.attempt_partial_parse(expression);
         // Should be able to parse at least "Patient.name"
         assert!(partial.is_some() || analyzer.collector.diagnostics().len() > 0);
@@ -310,7 +327,7 @@ mod tests {
         let analyzer = ComprehensiveAnalyzer::new();
         let expression = "Patient.name.given.where(use = 'official').family";
         let span = 20..25;
-        
+
         let context = analyzer.extract_error_context(expression, span);
         assert!(context.contains("where"));
         assert!(context.contains("..."));
@@ -321,12 +338,15 @@ mod tests {
         let mut analyzer = ComprehensiveAnalyzer::new();
         let expression = "Patient.name";
         let result = crate::parser::parse_ast(expression).unwrap();
-        
+
         let analysis_complete = analyzer.analyze_ast(&result, expression);
         assert!(analysis_complete);
-        
+
         // Should have added a note about static analysis
-        let notes = analyzer.collector.diagnostics().iter()
+        let notes = analyzer
+            .collector
+            .diagnostics()
+            .iter()
             .filter(|d| d.severity == DiagnosticSeverity::Info)
             .count();
         assert!(notes > 0);

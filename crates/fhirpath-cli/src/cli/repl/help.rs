@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::registry::FunctionRegistry;
+use octofhir_fhirpath::FunctionRegistry;
 
 /// Function help information
 pub struct FunctionHelp {
@@ -71,7 +71,11 @@ impl HelpSystem {
     /// Get function names from registry if available (async version)
     pub async fn get_available_functions(&self) -> Vec<String> {
         if let Some(registry) = &self.registry {
-            registry.function_names().await
+            registry
+                .list_functions()
+                .iter()
+                .map(|f| f.name.clone())
+                .collect()
         } else {
             self.function_help.keys().cloned().collect()
         }
@@ -84,7 +88,7 @@ impl HelpSystem {
         }
 
         if let Some(registry) = &self.registry {
-            registry.has_function(name).await
+            registry.get_function_metadata(name).is_some()
         } else {
             false
         }

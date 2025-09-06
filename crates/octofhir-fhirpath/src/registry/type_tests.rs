@@ -5,26 +5,26 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::{FhirPathType, TypeChecker};
     use super::super::type_utils::TypeUtils;
+    use super::super::types::{FhirPathType, TypeChecker};
     use crate::core::FhirPathValue;
-    use crate::registry::{FunctionRegistry, FunctionContext};
-    use crate::{MockModelProvider, FunctionDispatcher};
-    use std::collections::HashMap;
+    use crate::registry::{FunctionContext, FunctionRegistry};
+    use crate::{FunctionDispatcher, MockModelProvider};
     use serde_json::json;
+    use std::collections::HashMap;
 
     fn create_test_context_with_globals<'a>(
         input: &'a [FhirPathValue],
         arguments: &'a [FhirPathValue],
     ) -> FunctionContext<'a> {
         use std::sync::OnceLock;
-        
+
         static MODEL_PROVIDER: OnceLock<MockModelProvider> = OnceLock::new();
         static VARIABLES: OnceLock<HashMap<String, FhirPathValue>> = OnceLock::new();
-        
+
         let mp = MODEL_PROVIDER.get_or_init(|| MockModelProvider::default());
         let vars = VARIABLES.get_or_init(|| HashMap::new());
-        
+
         FunctionContext {
             input,
             arguments,
@@ -34,7 +34,7 @@ mod tests {
             terminology: None,
         }
     }
-    
+
     macro_rules! create_test_context {
         ($input:expr, $args:expr) => {
             create_test_context_with_globals($input, $args)
@@ -61,10 +61,22 @@ mod tests {
     #[test]
     fn test_type_name_parsing() {
         // Test parsing from strings
-        assert_eq!(FhirPathType::from_type_name("Boolean"), Some(FhirPathType::Boolean));
-        assert_eq!(FhirPathType::from_type_name("Integer"), Some(FhirPathType::Integer));
-        assert_eq!(FhirPathType::from_type_name("Patient"), Some(FhirPathType::Patient));
-        assert_eq!(FhirPathType::from_type_name("code"), Some(FhirPathType::Code));
+        assert_eq!(
+            FhirPathType::from_type_name("Boolean"),
+            Some(FhirPathType::Boolean)
+        );
+        assert_eq!(
+            FhirPathType::from_type_name("Integer"),
+            Some(FhirPathType::Integer)
+        );
+        assert_eq!(
+            FhirPathType::from_type_name("Patient"),
+            Some(FhirPathType::Patient)
+        );
+        assert_eq!(
+            FhirPathType::from_type_name("code"),
+            Some(FhirPathType::Code)
+        );
         assert_eq!(FhirPathType::from_type_name("NonExistent"), None);
     }
 
@@ -84,7 +96,7 @@ mod tests {
         // Test self-subtyping
         assert!(FhirPathType::Patient.is_subtype_of(&FhirPathType::Patient));
 
-        // Test Any type  
+        // Test Any type
         assert!(FhirPathType::String.is_subtype_of(&FhirPathType::Any));
         assert!(FhirPathType::Integer.is_subtype_of(&FhirPathType::Any));
 
@@ -96,9 +108,18 @@ mod tests {
     #[test]
     fn test_type_checker_get_type() {
         // Test primitive types
-        assert_eq!(TypeChecker::get_type(&FhirPathValue::Boolean(true)), FhirPathType::Boolean);
-        assert_eq!(TypeChecker::get_type(&FhirPathValue::Integer(42)), FhirPathType::Integer);
-        assert_eq!(TypeChecker::get_type(&FhirPathValue::String("test".to_string())), FhirPathType::String);
+        assert_eq!(
+            TypeChecker::get_type(&FhirPathValue::Boolean(true)),
+            FhirPathType::Boolean
+        );
+        assert_eq!(
+            TypeChecker::get_type(&FhirPathValue::Integer(42)),
+            FhirPathType::Integer
+        );
+        assert_eq!(
+            TypeChecker::get_type(&FhirPathValue::String("test".to_string())),
+            FhirPathType::String
+        );
 
         // Test FHIR resource object
         let patient_json = json!({
@@ -135,7 +156,10 @@ mod tests {
         let patient_json = json!({"resourceType": "Patient", "id": "example"});
         let patient = FhirPathValue::Resource(patient_json);
         assert!(TypeChecker::is_type(&patient, &FhirPathType::Patient));
-        assert!(TypeChecker::is_type(&patient, &FhirPathType::DomainResource));
+        assert!(TypeChecker::is_type(
+            &patient,
+            &FhirPathType::DomainResource
+        ));
         assert!(TypeChecker::is_type(&patient, &FhirPathType::Resource));
         assert!(TypeChecker::is_type(&patient, &FhirPathType::Any));
     }
@@ -145,14 +169,20 @@ mod tests {
         // Test successful casts
         let result = TypeChecker::cast_to_type(&FhirPathValue::Integer(42), &FhirPathType::Decimal);
         assert!(result.is_ok());
-        
-        let result = TypeChecker::cast_to_type(&FhirPathValue::String("123".to_string()), &FhirPathType::Integer);
+
+        let result = TypeChecker::cast_to_type(
+            &FhirPathValue::String("123".to_string()),
+            &FhirPathType::Integer,
+        );
         assert!(result.is_ok());
         if let Ok(FhirPathValue::Integer(i)) = result {
             assert_eq!(i, 123);
         }
 
-        let result = TypeChecker::cast_to_type(&FhirPathValue::String("true".to_string()), &FhirPathType::Boolean);
+        let result = TypeChecker::cast_to_type(
+            &FhirPathValue::String("true".to_string()),
+            &FhirPathType::Boolean,
+        );
         assert!(result.is_ok());
         if let Ok(FhirPathValue::Boolean(b)) = result {
             assert_eq!(b, true);
@@ -166,10 +196,16 @@ mod tests {
         }
 
         // Test failed casts
-        let result = TypeChecker::cast_to_type(&FhirPathValue::String("not_a_number".to_string()), &FhirPathType::Integer);
+        let result = TypeChecker::cast_to_type(
+            &FhirPathValue::String("not_a_number".to_string()),
+            &FhirPathType::Integer,
+        );
         assert!(result.is_err());
 
-        let result = TypeChecker::cast_to_type(&FhirPathValue::String("invalid".to_string()), &FhirPathType::Boolean);
+        let result = TypeChecker::cast_to_type(
+            &FhirPathValue::String("invalid".to_string()),
+            &FhirPathType::Boolean,
+        );
         assert!(result.is_err());
     }
 
@@ -182,7 +218,7 @@ mod tests {
         let input = vec![FhirPathValue::Integer(42)];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
         let context = create_test_context!(&input, &arguments);
-        
+
         let result = dispatcher.dispatch_sync("is", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Boolean(true));
 
@@ -245,7 +281,7 @@ mod tests {
         let input = vec![FhirPathValue::String("123".to_string())];
         let arguments = vec![FhirPathValue::String("Integer".to_string())];
         let context = create_test_context!(&input, &arguments);
-        
+
         let result = dispatcher.dispatch_sync("as", &context).unwrap();
         assert_eq!(result[0], FhirPathValue::Integer(123));
 
@@ -281,7 +317,7 @@ mod tests {
         ];
         let arguments = vec![FhirPathValue::String("String".to_string())];
         let context = create_test_context!(&input, &arguments);
-        
+
         let result = dispatcher.dispatch_sync("ofType", &context).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], FhirPathValue::String("hello".to_string()));
@@ -345,7 +381,7 @@ mod tests {
         // Test getting type of integer
         let input = vec![FhirPathValue::Integer(42)];
         let context = create_test_context!(&input, &[]);
-        
+
         let result = dispatcher.dispatch_sync("type", &context).unwrap();
         if let FhirPathValue::JsonValue(type_info) = &result[0] {
             assert_eq!(type_info["namespace"], "System");
@@ -398,17 +434,14 @@ mod tests {
         let patient_json = json!({"resourceType": "Patient", "id": "example"});
         let patient = FhirPathValue::Resource(patient_json);
         let compatible_types = TypeUtils::get_compatible_types(&patient);
-        
+
         assert!(compatible_types.contains(&FhirPathType::Patient));
         assert!(compatible_types.contains(&FhirPathType::DomainResource));
         assert!(compatible_types.contains(&FhirPathType::Resource));
         assert!(compatible_types.contains(&FhirPathType::Any));
 
         // Test common type finding
-        let values = vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-        ];
+        let values = vec![FhirPathValue::Integer(1), FhirPathValue::Integer(2)];
         let common_type = TypeUtils::find_common_type(&values);
         assert_eq!(common_type, FhirPathType::Integer);
 
@@ -420,9 +453,18 @@ mod tests {
         assert_eq!(common_type, FhirPathType::Any);
 
         // Test safe conversions
-        assert!(TypeUtils::is_safe_conversion(&FhirPathType::Integer, &FhirPathType::Decimal));
-        assert!(TypeUtils::is_safe_conversion(&FhirPathType::Integer, &FhirPathType::String));
-        assert!(!TypeUtils::is_safe_conversion(&FhirPathType::String, &FhirPathType::Integer));
+        assert!(TypeUtils::is_safe_conversion(
+            &FhirPathType::Integer,
+            &FhirPathType::Decimal
+        ));
+        assert!(TypeUtils::is_safe_conversion(
+            &FhirPathType::Integer,
+            &FhirPathType::String
+        ));
+        assert!(!TypeUtils::is_safe_conversion(
+            &FhirPathType::String,
+            &FhirPathType::Integer
+        ));
 
         // Test type categories
         assert!(TypeUtils::is_primitive_type(&FhirPathType::Integer));
@@ -443,20 +485,44 @@ mod tests {
     #[test]
     fn test_type_compatibility() {
         // Test numeric compatibility
-        assert!(TypeUtils::are_comparable(&FhirPathType::Integer, &FhirPathType::Decimal));
-        assert!(TypeUtils::are_comparable(&FhirPathType::Integer, &FhirPathType::Quantity));
-        
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::Integer,
+            &FhirPathType::Decimal
+        ));
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::Integer,
+            &FhirPathType::Quantity
+        ));
+
         // Test date/time compatibility
-        assert!(TypeUtils::are_comparable(&FhirPathType::Date, &FhirPathType::DateTime));
-        assert!(TypeUtils::are_comparable(&FhirPathType::DateTime, &FhirPathType::Instant));
-        
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::Date,
+            &FhirPathType::DateTime
+        ));
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::DateTime,
+            &FhirPathType::Instant
+        ));
+
         // Test subtype compatibility
-        assert!(TypeUtils::are_comparable(&FhirPathType::Patient, &FhirPathType::Resource));
-        assert!(TypeUtils::are_comparable(&FhirPathType::Code, &FhirPathType::String));
-        
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::Patient,
+            &FhirPathType::Resource
+        ));
+        assert!(TypeUtils::are_comparable(
+            &FhirPathType::Code,
+            &FhirPathType::String
+        ));
+
         // Test incompatible types
-        assert!(!TypeUtils::are_comparable(&FhirPathType::Integer, &FhirPathType::String));
-        assert!(!TypeUtils::are_comparable(&FhirPathType::Patient, &FhirPathType::Observation));
+        assert!(!TypeUtils::are_comparable(
+            &FhirPathType::Integer,
+            &FhirPathType::String
+        ));
+        assert!(!TypeUtils::are_comparable(
+            &FhirPathType::Patient,
+            &FhirPathType::Observation
+        ));
     }
 
     #[test]
@@ -464,7 +530,7 @@ mod tests {
         // Test type checking with Unicode strings
         let unicode_string = FhirPathValue::String("Héllo Wörld 🌍".to_string());
         assert_eq!(TypeChecker::get_type(&unicode_string), FhirPathType::String);
-        
+
         // Test casting with Unicode
         let result = TypeChecker::cast_to_type(&unicode_string, &FhirPathType::String);
         assert!(result.is_ok());
@@ -482,8 +548,8 @@ mod tests {
         assert_eq!(result.len(), 0);
 
         // Test type() with quantity
-        let quantity = FhirPathValue::Quantity { 
-            value: rust_decimal::Decimal::from(42), 
+        let quantity = FhirPathValue::Quantity {
+            value: rust_decimal::Decimal::from(42),
             unit: Some("kg".to_string()),
             ucum_unit: None,
             calendar_unit: None,

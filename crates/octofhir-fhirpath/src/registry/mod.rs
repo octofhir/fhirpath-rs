@@ -5,51 +5,52 @@
 //! validation, and dispatch capabilities.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, RwLock};
 
 use crate::core::{
-    FhirPathValue, FhirPathError, Result, ModelProvider, Collection,
-    error_code::{FP0051, FP0054},
+    FhirPathError, FhirPathValue, ModelProvider, Result,
+    error_code::FP0054,
 };
 use crate::evaluator::TerminologyService;
 
-pub use terminology_utils::{
-    Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils
-};
 pub use terminology_provider::{
-    TerminologyProvider, DefaultTerminologyProvider, MockTerminologyProvider, ConceptDetails
+    ConceptDetails, DefaultTerminologyProvider, MockTerminologyProvider, TerminologyProvider,
+};
+pub use terminology_utils::{
+    Coding, ConceptDesignation, ConceptProperty, ConceptTranslation, PropertyValue,
+    TerminologyUtils,
 };
 
 pub mod builder;
-pub mod dispatcher;
-pub mod defaults;
 pub mod collection;
-pub mod math;
-pub mod string;
-pub mod types;
-pub mod type_utils;
 pub mod conversion;
 pub mod conversion_utils;
 pub mod datetime;
 pub mod datetime_utils;
+pub mod defaults;
+pub mod dispatcher;
 pub mod fhir;
 pub mod fhir_utils;
-pub mod terminology;
-pub mod terminology_utils;
-pub mod terminology_provider;
 pub mod logic;
+pub mod math;
 pub mod numeric;
+pub mod string;
+pub mod terminology;
+pub mod terminology_provider;
+pub mod terminology_utils;
+pub mod type_utils;
+pub mod types;
 
 pub use collection::CollectionUtils;
-pub use math::ArithmeticOperations;
-pub use string::{StringUtils, RegexCache};
-pub use types::{FhirPathType, TypeChecker};
-pub use type_utils::TypeUtils;
 pub use conversion_utils::ConversionUtils;
-pub use datetime_utils::{DateTimeUtils, DateTimeDuration};
+pub use datetime_utils::{DateTimeDuration, DateTimeUtils};
 pub use fhir_utils::FhirUtils;
+pub use math::ArithmeticOperations;
+pub use string::{RegexCache, StringUtils};
+pub use type_utils::TypeUtils;
+pub use types::{FhirPathType, TypeChecker};
 
 #[cfg(test)]
 mod tests;
@@ -114,7 +115,13 @@ pub struct FunctionContext<'a> {
 pub type SyncFunction = Arc<dyn Fn(&FunctionContext) -> Result<Vec<FhirPathValue>> + Send + Sync>;
 
 /// Async function signature
-pub type AsyncFunction = Arc<dyn for<'a> Fn(&'a FunctionContext<'a>) -> Pin<Box<dyn Future<Output = Result<Vec<FhirPathValue>>> + Send + 'a>> + Send + Sync>;
+pub type AsyncFunction = Arc<
+    dyn for<'a> Fn(
+            &'a FunctionContext<'a>,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<FhirPathValue>>> + Send + 'a>>
+        + Send
+        + Sync,
+>;
 
 /// Thread-safe function registry with metadata support using RwLock for concurrent access
 pub struct FunctionRegistry {
@@ -137,7 +144,7 @@ impl FunctionRegistry {
         metadata: FunctionMetadata,
     ) -> Result<()> {
         let name = name.into();
-        
+
         // Check if function already exists
         {
             let sync_functions = self.sync_functions.read().unwrap();
@@ -149,7 +156,7 @@ impl FunctionRegistry {
                 ));
             }
         }
-        
+
         // Insert the function
         let mut sync_functions = self.sync_functions.write().unwrap();
         sync_functions.insert(name, (function, metadata));
@@ -163,7 +170,7 @@ impl FunctionRegistry {
         metadata: FunctionMetadata,
     ) -> Result<()> {
         let name = name.into();
-        
+
         // Check if function already exists
         {
             let sync_functions = self.sync_functions.read().unwrap();
@@ -175,7 +182,7 @@ impl FunctionRegistry {
                 ));
             }
         }
-        
+
         // Insert the function
         let mut async_functions = self.async_functions.write().unwrap();
         async_functions.insert(name, (function, metadata));
@@ -193,7 +200,7 @@ impl FunctionRegistry {
     pub fn is_function_async(&self, name: &str) -> Option<bool> {
         let sync_functions = self.sync_functions.read().unwrap();
         let async_functions = self.async_functions.read().unwrap();
-        
+
         if sync_functions.contains_key(name) {
             Some(false)
         } else if async_functions.contains_key(name) {
@@ -208,26 +215,28 @@ impl FunctionRegistry {
         if let Some((_, metadata)) = sync_functions.get(name) {
             return Some(metadata.clone());
         }
-        
+
         let async_functions = self.async_functions.read().unwrap();
-        async_functions.get(name).map(|(_, metadata)| metadata.clone())
+        async_functions
+            .get(name)
+            .map(|(_, metadata)| metadata.clone())
     }
 
     pub fn list_functions(&self) -> Vec<FunctionMetadata> {
         let mut functions = Vec::new();
-        
+
         // Collect sync functions
         let sync_functions = self.sync_functions.read().unwrap();
         for (_, metadata) in sync_functions.values() {
             functions.push(metadata.clone());
         }
-        
+
         // Collect async functions
         let async_functions = self.async_functions.read().unwrap();
         for (_, metadata) in async_functions.values() {
             functions.push(metadata.clone());
         }
-        
+
         functions
     }
 
@@ -242,7 +251,8 @@ impl FunctionRegistry {
 impl Default for FunctionRegistry {
     fn default() -> Self {
         let registry = Self::new();
-        registry.register_default_functions()
+        registry
+            .register_default_functions()
             .expect("Failed to register default functions");
         registry
     }

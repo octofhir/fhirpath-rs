@@ -4,13 +4,13 @@
 //! toDecimal(), toBoolean(), toDate(), toDateTime(), toTime(), and toQuantity().
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
-use crate::core::{FhirPathError, FhirPathValue, Result, CalendarUnit};
 use crate::core::error_code::{FP0053, FP0058};
 use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use crate::core::{CalendarUnit, FhirPathError, FhirPathValue, Result};
 use crate::register_function;
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc};
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc, TimeZone};
 
 impl FunctionRegistry {
     pub fn register_conversion_functions(&self) -> Result<()> {
@@ -22,7 +22,7 @@ impl FunctionRegistry {
         self.register_toDateTime_function()?;
         self.register_toTime_function()?;
         self.register_toQuantity_function()?;
-        
+
         // Register conversion testing functions
         self.register_convertsToBoolean_function()?;
         self.register_convertsToInteger_function()?;
@@ -32,7 +32,7 @@ impl FunctionRegistry {
         self.register_convertsToDateTime_function()?;
         self.register_convertsToTime_function()?;
         self.register_convertsToQuantity_function()?;
-        
+
         Ok(())
     }
 
@@ -381,19 +381,19 @@ impl FunctionRegistry {
     // Helper functions for parsing
     fn parse_date_string(input: &str) -> Result<PrecisionDate> {
         let trimmed = input.trim();
-        
+
         // Try to parse as ISO date
         if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
             return Ok(PrecisionDate::from_date(date));
         }
-        
+
         // Try year-month format
         if let Ok(date) = NaiveDate::parse_from_str(&format!("{}-01", trimmed), "%Y-%m-%d") {
             let mut precision_date = PrecisionDate::from_date(date);
             precision_date.precision = TemporalPrecision::Month;
             return Ok(precision_date);
         }
-        
+
         // Try year format
         if let Ok(year) = trimmed.parse::<i32>() {
             if let Some(precision_date) = PrecisionDate::from_year(year) {
@@ -403,7 +403,7 @@ impl FunctionRegistry {
 
         Err(FhirPathError::evaluation_error(
             FP0058,
-            &format!("Unable to parse '{}' as a date", input)
+            &format!("Unable to parse '{}' as a date", input),
         ))
     }
 
@@ -421,7 +421,10 @@ impl FunctionRegistry {
                 if let Ok(hour) = hour_part.parse::<u32>() {
                     if let Some(nt) = NaiveTime::from_hms_opt(hour, 0, 0) {
                         let ndt = pdate.date.and_time(nt);
-                        let dt = DateTime::from_naive_utc_and_offset(ndt, FixedOffset::east_opt(0).unwrap());
+                        let dt = DateTime::from_naive_utc_and_offset(
+                            ndt,
+                            FixedOffset::east_opt(0).unwrap(),
+                        );
                         return Ok(PrecisionDateTime::new(dt, TemporalPrecision::Hour));
                     }
                 }
@@ -429,30 +432,27 @@ impl FunctionRegistry {
         }
         // Try parsing just as a date and convert to datetime at midnight
         if let Ok(date) = Self::parse_date_string(trimmed) {
-            let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
-                date.date.and_hms_opt(0, 0, 0).unwrap(),
-                Utc
-            );
+            let dt: DateTime<Utc> =
+                DateTime::from_naive_utc_and_offset(date.date.and_hms_opt(0, 0, 0).unwrap(), Utc);
             return Ok(PrecisionDateTime::new(
-                DateTime::from_naive_utc_and_offset(dt.naive_utc(), FixedOffset::east_opt(0).unwrap()),
-                date.precision
+                DateTime::from_naive_utc_and_offset(
+                    dt.naive_utc(),
+                    FixedOffset::east_opt(0).unwrap(),
+                ),
+                date.precision,
             ));
         }
         Err(FhirPathError::evaluation_error(
             FP0058,
-            &format!("Unable to parse '{}' as a datetime", input)
+            &format!("Unable to parse '{}' as a datetime", input),
         ))
     }
 
     fn parse_time_string(input: &str) -> Result<PrecisionTime> {
         let trimmed = input.trim();
-        
+
         // Try standard time formats
-        let formats = [
-            "%H:%M:%S",
-            "%H:%M:%S%.3f",
-            "%H:%M",
-        ];
+        let formats = ["%H:%M:%S", "%H:%M:%S%.3f", "%H:%M"];
 
         for fmt in &formats {
             if let Ok(time) = NaiveTime::parse_from_str(trimmed, fmt) {
@@ -471,13 +471,13 @@ impl FunctionRegistry {
         if let Ok(datetime) = Self::parse_datetime_string(trimmed) {
             return Ok(PrecisionTime::new(
                 datetime.datetime.naive_local().time(),
-                TemporalPrecision::Second
+                TemporalPrecision::Second,
             ));
         }
 
         Err(FhirPathError::evaluation_error(
             FP0058,
-            &format!("Unable to parse '{}' as a time", input)
+            &format!("Unable to parse '{}' as a time", input),
         ))
     }
 
@@ -538,11 +538,11 @@ impl FunctionRegistry {
 
     fn parse_quantity_string(input: &str) -> Result<FhirPathValue> {
         let trimmed = input.trim();
-        
+
         if trimmed.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 FP0058,
-                "Cannot parse empty string as quantity"
+                "Cannot parse empty string as quantity",
             ));
         }
 
@@ -575,18 +575,30 @@ impl FunctionRegistry {
                     "wk" | "mo" | "a" | "d" => {
                         return Err(FhirPathError::evaluation_error(
                             FP0058,
-                            &format!("Unit '{}' must be quoted as a UCUM unit", unit_str)
+                            &format!("Unit '{}' must be quoted as a UCUM unit", unit_str),
                         ));
                     }
                     _ => {
                         // Handle quoted UCUM units like 'wk'
-                        if (unit_str.starts_with('\'') && unit_str.ends_with('\'')) || (unit_str.starts_with('"') && unit_str.ends_with('"')) {
-                            let inner = unit_str[1..unit_str.len()-1].to_string();
-                            let cal = match inner.as_str() { "wk" => CalendarUnit::from_str("week"), "mo" => CalendarUnit::from_str("month"), "a" => CalendarUnit::from_str("year"), "d" => CalendarUnit::from_str("day"), _ => None };
+                        if (unit_str.starts_with('\'') && unit_str.ends_with('\''))
+                            || (unit_str.starts_with('"') && unit_str.ends_with('"'))
+                        {
+                            let inner = unit_str[1..unit_str.len() - 1].to_string();
+                            let cal = match inner.as_str() {
+                                "wk" => CalendarUnit::from_str("week"),
+                                "mo" => CalendarUnit::from_str("month"),
+                                "a" => CalendarUnit::from_str("year"),
+                                "d" => CalendarUnit::from_str("day"),
+                                _ => None,
+                            };
                             (Some(inner), cal)
                         } else {
                             // Generic unit
-                            if unit_str.is_empty() { (None, None) } else { (Some(unit_str.to_string()), None) }
+                            if unit_str.is_empty() {
+                                (None, None)
+                            } else {
+                                (Some(unit_str.to_string()), None)
+                            }
                         }
                     }
                 };
@@ -602,7 +614,7 @@ impl FunctionRegistry {
         // Try common patterns like "10kg" (no space)
         let mut chars = trimmed.chars();
         let mut numeric_part = String::new();
-        
+
         // Extract numeric part
         for ch in &mut chars {
             if ch.is_ascii_digit() || ch == '.' || ch == '-' || ch == '+' {
@@ -611,14 +623,18 @@ impl FunctionRegistry {
                 break;
             }
         }
-        
+
         if !numeric_part.is_empty() {
             let unit_part: String = chars.collect();
-            
+
             if let Ok(value) = Decimal::from_str(&numeric_part) {
                 return Ok(FhirPathValue::Quantity {
                     value,
-                    unit: if unit_part.trim().is_empty() { None } else { Some(unit_part.trim().to_string()) },
+                    unit: if unit_part.trim().is_empty() {
+                        None
+                    } else {
+                        Some(unit_part.trim().to_string())
+                    },
                     ucum_unit: None,
                     calendar_unit: None,
                 });
@@ -627,7 +643,7 @@ impl FunctionRegistry {
 
         Err(FhirPathError::evaluation_error(
             FP0058,
-            &format!("Unable to parse '{}' as a quantity", input)
+            &format!("Unable to parse '{}' as a quantity", input),
         ))
     }
 
@@ -868,7 +884,9 @@ impl FunctionRegistry {
 #[cfg(test)]
 mod conversion_tests {
     use super::*;
-    use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+    use crate::core::temporal::{
+        PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision,
+    };
     use chrono::{NaiveDate, NaiveTime};
     use rust_decimal::Decimal;
     use std::str::FromStr;
@@ -876,27 +894,37 @@ mod conversion_tests {
     #[test]
     fn test_parse_date_string() {
         let date_result = FunctionRegistry::parse_date_string("2023-12-25").unwrap();
-        assert_eq!(date_result.date, NaiveDate::from_ymd_opt(2023, 12, 25).unwrap());
+        assert_eq!(
+            date_result.date,
+            NaiveDate::from_ymd_opt(2023, 12, 25).unwrap()
+        );
         assert_eq!(date_result.precision, TemporalPrecision::Day);
     }
 
     #[test]
     fn test_parse_date_string_year() {
         let date_result = FunctionRegistry::parse_date_string("2023").unwrap();
-        assert_eq!(date_result.date, NaiveDate::from_ymd_opt(2023, 1, 1).unwrap());
+        assert_eq!(
+            date_result.date,
+            NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()
+        );
         assert_eq!(date_result.precision, TemporalPrecision::Year);
     }
 
     #[test]
     fn test_parse_datetime_string() {
-        let datetime_result = FunctionRegistry::parse_datetime_string("2023-12-25T10:30:00Z").unwrap();
+        let datetime_result =
+            FunctionRegistry::parse_datetime_string("2023-12-25T10:30:00Z").unwrap();
         assert_eq!(datetime_result.precision, TemporalPrecision::Second);
     }
 
     #[test]
     fn test_parse_time_string() {
         let time_result = FunctionRegistry::parse_time_string("10:30:00").unwrap();
-        assert_eq!(time_result.time, NaiveTime::from_hms_opt(10, 30, 0).unwrap());
+        assert_eq!(
+            time_result.time,
+            NaiveTime::from_hms_opt(10, 30, 0).unwrap()
+        );
         assert_eq!(time_result.precision, TemporalPrecision::Second);
     }
 

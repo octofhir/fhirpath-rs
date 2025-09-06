@@ -4,11 +4,13 @@
 //! - Single Registry: Create ONE shared FhirPathEngine registry and reuse for all endpoints
 //! - Engine Reuse: Pre-initialize engines for each FHIR version and reuse them across HTTP calls
 
-use crate::FhirPathEngineWithAnalyzer;
-use crate::cli::server::{error::ServerResult, version::ServerFhirVersion};
-use octofhir_fhirpath_evaluator::FhirPathEngine;
-use octofhir_fhir_model::fhirschema_provider::FhirSchemaModelProvider;
-use octofhir_fhirpath_registry::create_standard_registry;
+use crate::FhirSchemaModelProvider;
+use crate::cli::server::{
+    error::{ServerError, ServerResult},
+    version::ServerFhirVersion,
+};
+use octofhir_fhirpath::evaluator::FhirPathEngine;
+use octofhir_fhirpath::{FunctionRegistry, create_standard_registry};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{error, info, warn};
@@ -18,18 +20,16 @@ use tracing::{error, info, warn};
 pub struct ServerRegistry {
     /// Engines for evaluation (without analyzer)
     evaluation_engines: HashMap<ServerFhirVersion, Arc<FhirPathEngine>>,
-    /// Engines with analyzer for analysis operations
-    analysis_engines: HashMap<ServerFhirVersion, Arc<FhirPathEngineWithAnalyzer>>,
+    // TODO: Add proper analysis engines when analyzer is integrated
 }
 
 impl ServerRegistry {
     /// Create a new server registry with engines for all FHIR versions
     pub async fn new() -> ServerResult<Self> {
         let mut evaluation_engines = HashMap::new();
-        let mut analysis_engines = HashMap::new();
 
         // Create shared function registry once
-        let function_registry = Arc::new(create_standard_registry().await);
+        let function_registry: Arc<FunctionRegistry> = Arc::new(create_standard_registry().await);
         info!("✅ Created shared function registry");
 
         // Initialize engines for all supported FHIR versions
@@ -46,40 +46,15 @@ impl ServerRegistry {
                 FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone());
             evaluation_engines.insert(version, Arc::new(eval_engine));
 
-            // Create analysis engine
-            match FhirPathEngineWithAnalyzer::with_full_analysis(
-                Box::new((*model_provider_arc).clone()),
-                function_registry.clone(),
-            )
-            .await
-            {
-                Ok(analyzer_engine) => {
-                    analysis_engines.insert(version, Arc::new(analyzer_engine));
-                    info!("✅ Engines initialized for FHIR {}", version);
-                }
-                Err(e) => {
-                    error!(
-                        "❌ Failed to create analyzer engine for FHIR {}: {}",
-                        version, e
-                    );
-                    warn!(
-                        "🔄 Analysis operations will be unavailable for FHIR {}",
-                        version
-                    );
-                }
-            }
+            info!("✅ Engine initialized for FHIR {}", version);
         }
 
         info!(
-            "🚀 Server registry initialized with {} evaluation engines and {} analysis engines",
-            evaluation_engines.len(),
-            analysis_engines.len()
+            "🚀 Server registry initialized with {} evaluation engines",
+            evaluation_engines.len()
         );
 
-        Ok(Self {
-            evaluation_engines,
-            analysis_engines,
-        })
+        Ok(Self { evaluation_engines })
     }
 
     /// Get the evaluation engine for a specific FHIR version
@@ -88,11 +63,10 @@ impl ServerRegistry {
     }
 
     /// Get the analysis engine for a specific FHIR version
-    pub fn get_analysis_engine(
-        &self,
-        version: ServerFhirVersion,
-    ) -> Option<Arc<FhirPathEngineWithAnalyzer>> {
-        self.analysis_engines.get(&version).cloned()
+    /// For now, returns None since proper analyzer is not integrated yet
+    pub fn get_analysis_engine(&self, _version: ServerFhirVersion) -> Option<Arc<FhirPathEngine>> {
+        // TODO: Return proper analysis engine when analyzer is integrated
+        None
     }
 
     /// Get the number of FHIR versions supported
@@ -111,8 +85,10 @@ impl ServerRegistry {
     }
 
     /// Check if analysis is available for a FHIR version
-    pub fn supports_analysis(&self, version: ServerFhirVersion) -> bool {
-        self.analysis_engines.contains_key(&version)
+    /// For now, returns false since proper analyzer is not integrated yet
+    pub fn supports_analysis(&self, _version: ServerFhirVersion) -> bool {
+        // TODO: Return true when proper analyzer is integrated
+        false
     }
 }
 
@@ -123,24 +99,24 @@ async fn create_model_provider_for_version(
     let _model_version = version.to_model_version();
 
     match version {
-        ServerFhirVersion::R4 => FhirSchemaModelProvider::r4().await.map_err(|e| {
+        ServerFhirVersion::R4 => crate::FhirSchemaModelProvider::r4().await.map_err(|e| {
             error!("Failed to create R4 model provider: {}", e);
-            e.into()
+            ServerError::Internal(e.into())
         }),
-        ServerFhirVersion::R4B => FhirSchemaModelProvider::r4b().await.map_err(|e| {
+        ServerFhirVersion::R4B => crate::FhirSchemaModelProvider::r4b().await.map_err(|e| {
             error!("Failed to create R4B model provider: {}", e);
-            e.into()
+            ServerError::Internal(e.into())
         }),
-        ServerFhirVersion::R5 => FhirSchemaModelProvider::r5().await.map_err(|e| {
+        ServerFhirVersion::R5 => crate::FhirSchemaModelProvider::r5().await.map_err(|e| {
             error!("Failed to create R5 model provider: {}", e);
-            e.into()
+            ServerError::Internal(e.into())
         }),
         ServerFhirVersion::R6 => {
             // R6 uses R5 schema for now since R6 is still in development
             warn!("FHIR R6 is using R5 schema as R6 is still in development");
-            FhirSchemaModelProvider::r5().await.map_err(|e| {
+            crate::FhirSchemaModelProvider::r5().await.map_err(|e| {
                 error!("Failed to create R6 (R5 schema) model provider: {}", e);
-                e.into()
+                ServerError::Internal(e.into())
             })
         }
     }

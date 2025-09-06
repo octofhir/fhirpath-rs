@@ -69,7 +69,6 @@ pub struct EngineConfig {
     /// FHIR version string used for terminology server URLs and type validation
     /// when not explicitly specified. Default: "r4"
     pub default_fhir_version: String,
-
 }
 
 impl EngineConfig {
@@ -136,7 +135,6 @@ impl EngineConfig {
         self
     }
 
-
     /// Create high-performance configuration
     ///
     /// Optimized for high-throughput scenarios with larger caches and timeouts.
@@ -186,13 +184,12 @@ impl EngineConfig {
         Self {
             max_recursion_depth: 20,
             operation_timeout_ms: 1000, // 1 second
-            enable_ast_cache: false, // Disable for predictable test behavior
+            enable_ast_cache: false,    // Disable for predictable test behavior
             max_cache_size: 10,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
         }
     }
-
 
     /// Validate configuration values
     ///
@@ -205,31 +202,52 @@ impl EngineConfig {
         let mut warnings = Vec::new();
 
         if self.max_recursion_depth > 1000 {
-            warnings.push("max_recursion_depth is very high (>1000) - may cause stack overflow".to_string());
+            warnings.push(
+                "max_recursion_depth is very high (>1000) - may cause stack overflow".to_string(),
+            );
         } else if self.max_recursion_depth < 10 {
-            warnings.push("max_recursion_depth is very low (<10) - may fail on complex expressions".to_string());
+            warnings.push(
+                "max_recursion_depth is very low (<10) - may fail on complex expressions"
+                    .to_string(),
+            );
         }
 
-        if self.operation_timeout_ms > 300000 { // 5 minutes
-            warnings.push("operation_timeout_ms is very high (>5min) - may cause poor user experience".to_string());
+        if self.operation_timeout_ms > 300000 {
+            // 5 minutes
+            warnings.push(
+                "operation_timeout_ms is very high (>5min) - may cause poor user experience"
+                    .to_string(),
+            );
         } else if self.operation_timeout_ms < 1000 {
-            warnings.push("operation_timeout_ms is very low (<1s) - may fail on complex operations".to_string());
+            warnings.push(
+                "operation_timeout_ms is very low (<1s) - may fail on complex operations"
+                    .to_string(),
+            );
         }
 
         if self.enable_ast_cache && self.max_cache_size > 50000 {
-            warnings.push("max_cache_size is very high (>50000) - may consume excessive memory".to_string());
+            warnings.push(
+                "max_cache_size is very high (>50000) - may consume excessive memory".to_string(),
+            );
         }
 
         if self.enable_ast_cache && self.max_cache_size == 0 {
-            warnings.push("AST cache is enabled but max_cache_size is 0 - cache will not be effective".to_string());
+            warnings.push(
+                "AST cache is enabled but max_cache_size is 0 - cache will not be effective"
+                    .to_string(),
+            );
         }
 
         if !self.default_terminology_server.starts_with("http") {
-            warnings.push("default_terminology_server does not appear to be a valid URL".to_string());
+            warnings
+                .push("default_terminology_server does not appear to be a valid URL".to_string());
         }
 
         if !["r4", "r4b", "r5"].contains(&self.default_fhir_version.as_str()) {
-            warnings.push(format!("default_fhir_version '{}' is not a recognized FHIR version", self.default_fhir_version));
+            warnings.push(format!(
+                "default_fhir_version '{}' is not a recognized FHIR version",
+                self.default_fhir_version
+            ));
         }
 
         warnings
@@ -277,8 +295,7 @@ mod tests {
 
     #[test]
     fn test_fhir_version_updates_terminology_server() {
-        let config = EngineConfig::default()
-            .with_fhir_version("r5".to_string());
+        let config = EngineConfig::default().with_fhir_version("r5".to_string());
 
         assert_eq!(config.default_fhir_version, "r5");
         assert_eq!(config.default_terminology_server, "https://tx.fhir.org/r5/");
@@ -323,7 +340,11 @@ mod tests {
         // Invalid FHIR version
         let config = EngineConfig::default().with_fhir_version("invalid".to_string());
         let warnings = config.validate();
-        assert!(warnings.iter().any(|w| w.contains("not a recognized FHIR version")));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("not a recognized FHIR version"))
+        );
     }
 
     #[test]
@@ -333,7 +354,11 @@ mod tests {
         config.enable_ast_cache = true;
         config.max_cache_size = 0;
         let warnings = config.validate();
-        assert!(warnings.iter().any(|w| w.contains("cache will not be effective")));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("cache will not be effective"))
+        );
 
         // Very large cache size
         let config = EngineConfig::default().with_cache_size(100000);

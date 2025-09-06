@@ -6,23 +6,23 @@
 
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::fmt;
+use std::sync::Arc;
 
-use crate::core::{Collection, FhirPathValue, FhirPathError, Result, ModelProvider};
+use crate::core::{Collection, FhirPathValue, Result};
 
 /// Comprehensive evaluation context with all FHIRPath requirements
 ///
 /// This context provides everything needed for FHIRPath expression evaluation:
 /// - Start context (initial resource collection)
-/// - User-defined variables from `defineVariable()` 
+/// - User-defined variables from `defineVariable()`
 /// - Built-in variables (%terminologies, %server, %factory, etc.)
 /// - Terminology server integration
 /// - FHIR server API integration  
 /// - Type factory for creating FHIR data types
 ///
 /// # Thread Safety
-/// 
+///
 /// All context types implement Send + Sync for multi-threaded use.
 ///
 /// # Examples
@@ -30,7 +30,7 @@ use crate::core::{Collection, FhirPathValue, FhirPathError, Result, ModelProvide
 /// ```rust,no_run
 /// use octofhir_fhirpath::evaluator::*;
 /// use std::collections::HashMap;
-/// 
+///
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
 /// // Create context with initial resource
 /// let patient = octofhir_fhirpath::Collection::single(
@@ -39,14 +39,14 @@ use crate::core::{Collection, FhirPathValue, FhirPathError, Result, ModelProvide
 ///         "name": [{"family": "Smith", "given": ["John"]}]
 ///     }))
 /// );
-/// 
+///
 /// let context = EvaluationContext::new(patient);
-/// 
+///
 /// // Add variables
 /// let mut variables = HashMap::new();
 /// variables.insert("threshold".to_string(), octofhir_fhirpath::FhirPathValue::Integer(25));
 /// let context = context.with_variables(variables);
-/// 
+///
 /// // Configure terminology server
 /// let context = context.with_terminology_server(
 ///     "https://tx.fhir.org/r4/".to_string(),
@@ -86,20 +86,20 @@ impl EvaluationContext {
     ///
     /// ```rust,no_run
     /// use octofhir_fhirpath::{Collection, FhirPathValue, evaluator::EvaluationContext};
-    /// 
+    ///
     /// let patient = Collection::single(FhirPathValue::resource(serde_json::json!({
     ///     "resourceType": "Patient",
     ///     "id": "example",
     ///     "name": [{"family": "Smith", "given": ["John"]}]
     /// })));
-    /// 
+    ///
     /// // Create context - the patient collection becomes the start context
     /// let context = EvaluationContext::new(patient);
     /// // Now expressions like "Patient.name.family" will evaluate against this Patient
     /// ```
     pub fn new(start_context: Collection) -> Self {
         let mut builtin_variables = BuiltinVariables::default();
-        
+
         // Set %context to the start context
         if !start_context.is_empty() {
             let context_value = if start_context.len() == 1 {
@@ -107,17 +107,17 @@ impl EvaluationContext {
             } else {
                 FhirPathValue::Collection(start_context.clone().into_vec())
             };
-            
+
             builtin_variables.set_context(context_value.clone());
-            
+
             // For now, assume %resource and %rootResource are the same as %context
             // This can be refined later based on contained resources
             builtin_variables.set_resource(context_value.clone());
             builtin_variables.set_root_resource(context_value);
         }
-        
+
         let variables = HashMap::new();
-        
+
         Self {
             start_context: start_context.clone(),
             root_context: start_context, // Root context is initially the same as start_context
@@ -127,7 +127,7 @@ impl EvaluationContext {
             depth: 0,
         }
     }
-    
+
     /// Create context with custom variables
     ///
     /// # Arguments
@@ -135,7 +135,7 @@ impl EvaluationContext {
     /// * `variables` - User-defined variables map
     pub fn with_variables(
         start_context: Collection,
-        variables: HashMap<String, FhirPathValue>
+        variables: HashMap<String, FhirPathValue>,
     ) -> Self {
         Self {
             start_context: start_context.clone(),
@@ -146,21 +146,21 @@ impl EvaluationContext {
             depth: 0,
         }
     }
-    
+
     /// Create context with terminology server configuration
     ///
     /// # Arguments
     /// * `start_context` - Initial resource collection
-    /// * `terminology_server` - Terminology server URL 
+    /// * `terminology_server` - Terminology server URL
     /// * `fhir_version` - FHIR version (r4, r4b, r5)
     pub fn with_terminology_server(
         start_context: Collection,
         terminology_server: String,
-        fhir_version: String
+        fhir_version: String,
     ) -> Self {
         let mut builtin_variables = BuiltinVariables::new(fhir_version);
         builtin_variables.terminology_server = terminology_server;
-        
+
         Self {
             start_context: start_context.clone(),
             root_context: start_context, // Root context is initially the same as start_context
@@ -170,9 +170,9 @@ impl EvaluationContext {
             depth: 0,
         }
     }
-    
+
     /// Get variable value by name
-    /// 
+    ///
     /// Searches user-defined variables first, then built-in environment variables.
     ///
     /// # Arguments
@@ -182,11 +182,11 @@ impl EvaluationContext {
         if let Some(value) = self.variables.get(name) {
             return Some(value);
         }
-        
+
         // Check built-in environment variables
         self.builtin_variables.get_environment_variable(name)
     }
-    
+
     /// Set variable value
     ///
     /// # Arguments
@@ -195,9 +195,9 @@ impl EvaluationContext {
     pub fn set_variable(&mut self, name: String, value: FhirPathValue) {
         self.variables.insert(name, value);
     }
-    
+
     /// Create child context for nested evaluation
-    /// 
+    ///
     /// Child contexts inherit all variables and built-ins from parent context
     /// but can have different start context and increased depth.
     ///
@@ -277,16 +277,25 @@ impl BuiltinVariables {
     pub fn new(fhir_version: String) -> Self {
         let terminology_server = format!("https://tx.fhir.org/{}/", fhir_version);
         let mut env_vars = HashMap::new();
-        
+
         // Add common SNOMED CT environment variable
-        env_vars.insert("%sct".to_string(), FhirPathValue::String("http://snomed.info/sct".to_string()));
-        
+        env_vars.insert(
+            "%sct".to_string(),
+            FhirPathValue::String("http://snomed.info/sct".to_string()),
+        );
+
         // Add common LOINC environment variable
-        env_vars.insert("%loinc".to_string(), FhirPathValue::String("http://loinc.org".to_string()));
-        
+        env_vars.insert(
+            "%loinc".to_string(),
+            FhirPathValue::String("http://loinc.org".to_string()),
+        );
+
         // Add UCUM environment variable
-        env_vars.insert("%ucum".to_string(), FhirPathValue::String("http://unitsofmeasure.org".to_string()));
-        
+        env_vars.insert(
+            "%ucum".to_string(),
+            FhirPathValue::String("http://unitsofmeasure.org".to_string()),
+        );
+
         Self {
             terminology_server,
             terminologies: None,
@@ -299,7 +308,7 @@ impl BuiltinVariables {
             fhir_version,
         }
     }
-    
+
     /// Get built-in variable value
     ///
     /// # Arguments  
@@ -311,7 +320,7 @@ impl BuiltinVariables {
         } else {
             name
         };
-        
+
         // Check context-specific variables first
         match clean_name {
             "resource" => self.resource.as_ref(),
@@ -328,7 +337,7 @@ impl BuiltinVariables {
             }
         }
     }
-    
+
     /// Set environment variable
     ///
     /// # Arguments
@@ -342,7 +351,7 @@ impl BuiltinVariables {
         };
         self.environment_variables.insert(var_name, value);
     }
-    
+
     /// Add value set variable (%vs-[name])
     ///
     /// # Arguments
@@ -350,9 +359,10 @@ impl BuiltinVariables {
     /// * `url` - Value set URL
     pub fn add_value_set(&mut self, name: &str, url: &str) {
         let var_name = format!("%vs-{}", name);
-        self.environment_variables.insert(var_name, FhirPathValue::String(url.to_string()));
+        self.environment_variables
+            .insert(var_name, FhirPathValue::String(url.to_string()));
     }
-    
+
     /// Add extension variable (%ext-[name])
     ///
     /// # Arguments
@@ -360,12 +370,13 @@ impl BuiltinVariables {
     /// * `url` - Extension URL
     pub fn add_extension(&mut self, name: &str, url: &str) {
         let var_name = format!("%ext-{}", name);
-        self.environment_variables.insert(var_name, FhirPathValue::String(url.to_string()));
+        self.environment_variables
+            .insert(var_name, FhirPathValue::String(url.to_string()));
     }
-    
+
     /// Set the current resource (%resource variable)
     ///
-    /// According to FHIRPath specification, %resource is "the resource that contains 
+    /// According to FHIRPath specification, %resource is "the resource that contains
     /// the original node that is in %context"
     ///
     /// # Arguments
@@ -373,10 +384,10 @@ impl BuiltinVariables {
     pub fn set_resource(&mut self, resource: FhirPathValue) {
         self.resource = Some(resource);
     }
-    
+
     /// Set the root resource (%rootResource variable)
     ///
-    /// According to FHIRPath specification, %rootResource is "the container resource 
+    /// According to FHIRPath specification, %rootResource is "the container resource
     /// for the resource identified by %resource". In most cases, this is the same as
     /// %resource unless the resource is contained within another resource.
     ///
@@ -385,7 +396,7 @@ impl BuiltinVariables {
     pub fn set_root_resource(&mut self, root_resource: FhirPathValue) {
         self.root_resource = Some(root_resource);
     }
-    
+
     /// Set the current context (%context variable)
     ///
     /// The %context variable represents the current focus node in FHIRPath evaluation.
@@ -396,17 +407,17 @@ impl BuiltinVariables {
     pub fn set_context(&mut self, context: FhirPathValue) {
         self.context = Some(context);
     }
-    
+
     /// Get the current resource (%resource variable)
     pub fn get_resource(&self) -> Option<&FhirPathValue> {
         self.resource.as_ref()
     }
-    
+
     /// Get the root resource (%rootResource variable)
     pub fn get_root_resource(&self) -> Option<&FhirPathValue> {
         self.root_resource.as_ref()
     }
-    
+
     /// Get the current context (%context variable)
     pub fn get_context(&self) -> Option<&FhirPathValue> {
         self.context.as_ref()
@@ -417,9 +428,18 @@ impl fmt::Debug for BuiltinVariables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BuiltinVariables")
             .field("terminology_server", &self.terminology_server)
-            .field("terminologies", &self.terminologies.as_ref().map(|_| "Some(TerminologyService)"))
+            .field(
+                "terminologies",
+                &self
+                    .terminologies
+                    .as_ref()
+                    .map(|_| "Some(TerminologyService)"),
+            )
             .field("server", &self.server.as_ref().map(|_| "Some(ServerApi)"))
-            .field("factory", &self.factory.as_ref().map(|_| "Some(TypeFactory)"))
+            .field(
+                "factory",
+                &self.factory.as_ref().map(|_| "Some(TypeFactory)"),
+            )
             .field("resource", &self.resource)
             .field("root_resource", &self.root_resource)
             .field("context", &self.context)
@@ -466,7 +486,7 @@ impl ServerContext {
             connection_pool_size: 5,
         }
     }
-    
+
     /// Add authentication header
     ///
     /// # Arguments
@@ -476,7 +496,7 @@ impl ServerContext {
         self.headers.insert(key, value);
         self
     }
-    
+
     /// Set timeout
     ///
     /// # Arguments
@@ -485,7 +505,7 @@ impl ServerContext {
         self.timeout_seconds = seconds;
         self
     }
-    
+
     /// Get authorization header value
     ///
     /// # Arguments
@@ -505,7 +525,7 @@ impl ServerContext {
 #[async_trait]
 pub trait TypeFactory: Send + Sync + std::fmt::Debug {
     /// Create primitive type dynamically
-    /// 
+    ///
     /// Examples:
     /// - %factory.string("test") : string  
     /// - %factory.integer(42) : integer
@@ -516,14 +536,14 @@ pub trait TypeFactory: Send + Sync + std::fmt::Debug {
     /// * `value` - Value to assign to the primitive
     /// * `extensions` - Optional extensions to add
     async fn create_primitive(
-        &self, 
-        type_name: &str, 
-        value: &FhirPathValue, 
-        extensions: Option<Collection>
+        &self,
+        type_name: &str,
+        value: &FhirPathValue,
+        extensions: Option<Collection>,
     ) -> Result<FhirPathValue>;
-    
+
     /// Create complex type dynamically
-    /// 
+    ///
     /// Examples:
     /// - %factory.Identifier({"system": "http://example.com", "value": "123"})
     /// - %factory.HumanName({"family": "Smith", "given": ["John"]})
@@ -533,12 +553,12 @@ pub trait TypeFactory: Send + Sync + std::fmt::Debug {
     /// * `properties` - Properties to set on the complex type
     /// * `extensions` - Optional extensions to add
     async fn create_complex(
-        &self, 
-        type_name: &str, 
-        properties: Collection, 
-        extensions: Option<Collection>
+        &self,
+        type_name: &str,
+        properties: Collection,
+        extensions: Option<Collection>,
     ) -> Result<FhirPathValue>;
-    
+
     /// Check if factory can create the specified type
     ///
     /// Used for dynamic type checking before creation attempts.
@@ -546,12 +566,12 @@ pub trait TypeFactory: Send + Sync + std::fmt::Debug {
     /// # Arguments
     /// * `type_name` - Type name to check
     async fn can_create(&self, type_name: &str) -> bool;
-    
+
     /// Get available type names from FHIR schema
     ///
     /// Returns all type names that this factory can create.
     async fn get_available_types(&self) -> Result<Vec<String>>;
-    
+
     /// Get type definition and constraints from ModelProvider
     ///
     /// # Arguments
@@ -609,22 +629,22 @@ pub trait TerminologyService: Send + Sync + std::fmt::Debug {
     /// * `value_set` - Value set URL or canonical reference
     /// * `params` - Optional parameters for expansion
     async fn expand(
-        &self, 
-        value_set: &str, 
-        params: Option<HashMap<String, String>>
+        &self,
+        value_set: &str,
+        params: Option<HashMap<String, String>>,
     ) -> Result<Collection>;
-    
+
     /// Look up properties of a coded value (lookup operation)
     ///
     /// # Arguments
     /// * `coded` - Coded value to look up
     /// * `params` - Optional parameters for lookup
     async fn lookup(
-        &self, 
-        coded: &FhirPathValue, 
-        params: Option<HashMap<String, String>>
+        &self,
+        coded: &FhirPathValue,
+        params: Option<HashMap<String, String>>,
     ) -> Result<Collection>;
-    
+
     /// Validate code against value set (validateVS operation)
     ///
     /// # Arguments
@@ -632,12 +652,12 @@ pub trait TerminologyService: Send + Sync + std::fmt::Debug {
     /// * `coded` - Coded value to validate
     /// * `params` - Optional parameters for validation
     async fn validate_vs(
-        &self, 
-        value_set: &str, 
-        coded: &FhirPathValue, 
-        params: Option<HashMap<String, String>>
+        &self,
+        value_set: &str,
+        coded: &FhirPathValue,
+        params: Option<HashMap<String, String>>,
     ) -> Result<Collection>;
-    
+
     /// Check subsumption relationship (subsumes operation)
     ///
     /// # Arguments  
@@ -646,13 +666,13 @@ pub trait TerminologyService: Send + Sync + std::fmt::Debug {
     /// * `coded2` - Second coded value
     /// * `params` - Optional parameters for subsumption check
     async fn subsumes(
-        &self, 
-        system: &str, 
-        coded1: &FhirPathValue, 
-        coded2: &FhirPathValue, 
-        params: Option<HashMap<String, String>>
+        &self,
+        system: &str,
+        coded1: &FhirPathValue,
+        coded2: &FhirPathValue,
+        params: Option<HashMap<String, String>>,
     ) -> Result<Collection>;
-    
+
     /// Translate using concept map (translate operation)
     ///
     /// # Arguments
@@ -660,15 +680,15 @@ pub trait TerminologyService: Send + Sync + std::fmt::Debug {
     /// * `coded` - Coded value to translate
     /// * `params` - Optional parameters for translation
     async fn translate(
-        &self, 
-        concept_map: &str, 
-        coded: &FhirPathValue, 
-        params: Option<HashMap<String, String>>
+        &self,
+        concept_map: &str,
+        coded: &FhirPathValue,
+        params: Option<HashMap<String, String>>,
     ) -> Result<Collection>;
-    
+
     /// Get terminology server base URL
     fn get_server_url(&self) -> &str;
-    
+
     /// Set authentication credentials
     ///
     /// # Arguments
@@ -688,48 +708,45 @@ pub trait ServerApi: Send + Sync + std::fmt::Debug {
     /// * `resource_type` - FHIR resource type (e.g., "Patient")
     /// * `id` - Resource id
     async fn read(&self, resource_type: &str, id: &str) -> Result<FhirPathValue>;
-    
+
     /// Create new resource
     ///
     /// # Arguments
     /// * `resource` - Resource to create
     async fn create(&self, resource: &FhirPathValue) -> Result<FhirPathValue>;
-    
+
     /// Update existing resource
     ///
     /// # Arguments  
     /// * `resource` - Resource to update
     async fn update(&self, resource: &FhirPathValue) -> Result<FhirPathValue>;
-    
+
     /// Delete resource by type and id
     ///
     /// # Arguments
     /// * `resource_type` - FHIR resource type
     /// * `id` - Resource id
     async fn delete(&self, resource_type: &str, id: &str) -> Result<FhirPathValue>;
-    
+
     /// Search for resources with parameters
     ///
     /// # Arguments
     /// * `resource_type` - FHIR resource type to search
     /// * `params` - Search parameters
     async fn search(
-        &self, 
-        resource_type: &str, 
-        params: HashMap<String, String>
+        &self,
+        resource_type: &str,
+        params: HashMap<String, String>,
     ) -> Result<Collection>;
-    
+
     /// Validate resource against profile
     ///
     /// # Arguments
     /// * `resource` - Resource to validate
     /// * `profile` - Optional profile URL to validate against
-    async fn validate(
-        &self, 
-        resource: &FhirPathValue, 
-        profile: Option<&str>
-    ) -> Result<Collection>;
-    
+    async fn validate(&self, resource: &FhirPathValue, profile: Option<&str>)
+    -> Result<Collection>;
+
     /// Execute custom operation
     ///
     /// # Arguments
@@ -737,21 +754,21 @@ pub trait ServerApi: Send + Sync + std::fmt::Debug {
     /// * `resource` - Optional resource for operation
     /// * `params` - Operation parameters
     async fn operation(
-        &self, 
-        operation_name: &str, 
-        resource: Option<&FhirPathValue>, 
-        params: HashMap<String, String>
+        &self,
+        operation_name: &str,
+        resource: Option<&FhirPathValue>,
+        params: HashMap<String, String>,
     ) -> Result<FhirPathValue>;
-    
+
     /// Get capability statement
     async fn capabilities(&self) -> Result<FhirPathValue>;
-    
+
     /// Get server metadata
     async fn metadata(&self) -> Result<FhirPathValue>;
-    
+
     /// Get server base URL
     fn get_base_url(&self) -> &str;
-    
+
     /// Set server context (auth, timeout, etc.)
     ///
     /// # Arguments
@@ -769,11 +786,11 @@ pub trait ServerApi: Send + Sync + std::fmt::Debug {
 /// ```rust,no_run
 /// use octofhir_fhirpath::evaluator::*;
 /// use std::collections::HashMap;
-/// 
+///
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
 /// let mut variables = HashMap::new();
 /// variables.insert("threshold".to_string(), octofhir_fhirpath::FhirPathValue::Integer(30));
-/// 
+///
 /// let context = EvaluationContextBuilder::new()
 ///     .with_start_context(octofhir_fhirpath::Collection::empty())
 ///     .with_variables(variables)
@@ -795,7 +812,7 @@ impl EvaluationContextBuilder {
             context: EvaluationContext::default(),
         }
     }
-    
+
     /// Set start context
     ///
     /// # Arguments
@@ -804,7 +821,7 @@ impl EvaluationContextBuilder {
         self.context.start_context = start_context;
         self
     }
-    
+
     /// Add single variable
     ///
     /// # Arguments
@@ -814,7 +831,7 @@ impl EvaluationContextBuilder {
         self.context.variables.insert(name, value);
         self
     }
-    
+
     /// Add multiple variables
     ///
     /// # Arguments
@@ -823,17 +840,18 @@ impl EvaluationContextBuilder {
         self.context.variables.extend(variables);
         self
     }
-    
+
     /// Set FHIR version
     ///
     /// # Arguments
     /// * `version` - FHIR version (r4, r4b, r5)
     pub fn with_fhir_version(mut self, version: String) -> Self {
         self.context.builtin_variables.fhir_version = version.clone();
-        self.context.builtin_variables.terminology_server = format!("https://tx.fhir.org/{}/", version);
+        self.context.builtin_variables.terminology_server =
+            format!("https://tx.fhir.org/{}/", version);
         self
     }
-    
+
     /// Set custom terminology server URL
     ///
     /// # Arguments
@@ -842,7 +860,7 @@ impl EvaluationContextBuilder {
         self.context.builtin_variables.terminology_server = url;
         self
     }
-    
+
     /// Set terminology service implementation
     ///
     /// # Arguments
@@ -851,7 +869,7 @@ impl EvaluationContextBuilder {
         self.context.builtin_variables.terminologies = Some(service);
         self
     }
-    
+
     /// Set server API implementation
     ///
     /// # Arguments
@@ -860,7 +878,7 @@ impl EvaluationContextBuilder {
         self.context.builtin_variables.server = Some(server);
         self
     }
-    
+
     /// Set type factory implementation
     ///
     /// # Arguments
@@ -869,7 +887,7 @@ impl EvaluationContextBuilder {
         self.context.builtin_variables.factory = Some(factory);
         self
     }
-    
+
     /// Set server context
     ///
     /// # Arguments
@@ -878,7 +896,7 @@ impl EvaluationContextBuilder {
         self.context.server_context = Some(server_context);
         self
     }
-    
+
     /// Build final context
     pub fn build(self) -> EvaluationContext {
         self.context
@@ -906,16 +924,22 @@ mod tests {
     #[test]
     fn test_context_builder() {
         let mut variables = HashMap::new();
-        variables.insert("test".to_string(), FhirPathValue::String("value".to_string()));
-        
+        variables.insert(
+            "test".to_string(),
+            FhirPathValue::String("value".to_string()),
+        );
+
         let context = EvaluationContextBuilder::new()
             .with_fhir_version("r5".to_string())
             .with_variables(variables)
             .with_terminology_server("https://custom.tx.server/".to_string())
             .build();
-        
+
         assert_eq!(context.builtin_variables.fhir_version, "r5");
-        assert_eq!(context.builtin_variables.terminology_server, "https://custom.tx.server/");
+        assert_eq!(
+            context.builtin_variables.terminology_server,
+            "https://custom.tx.server/"
+        );
         assert_eq!(context.variables.len(), 1);
     }
 
@@ -924,7 +948,7 @@ mod tests {
         let builtin = BuiltinVariables::default();
         assert_eq!(builtin.fhir_version, "r4");
         assert_eq!(builtin.terminology_server, "https://tx.fhir.org/r4/");
-        
+
         // Check default environment variables
         assert_eq!(
             builtin.get_environment_variable("%sct"),
@@ -939,13 +963,21 @@ mod tests {
     #[test]
     fn test_child_context_creation() {
         let mut parent = EvaluationContext::new(Collection::empty());
-        parent.set_variable("parent_var".to_string(), FhirPathValue::String("test".to_string()));
-        
-        let child = parent.create_child_context(Collection::single(FhirPathValue::String("child".to_string())));
-        
+        parent.set_variable(
+            "parent_var".to_string(),
+            FhirPathValue::String("test".to_string()),
+        );
+
+        let child = parent.create_child_context(Collection::single(FhirPathValue::String(
+            "child".to_string(),
+        )));
+
         assert_eq!(child.depth, 1);
         assert_eq!(child.variables.len(), 1);
-        assert_eq!(child.get_variable("parent_var"), Some(&FhirPathValue::String("test".to_string())));
+        assert_eq!(
+            child.get_variable("parent_var"),
+            Some(&FhirPathValue::String("test".to_string()))
+        );
     }
 
     #[test]
@@ -953,61 +985,98 @@ mod tests {
         let context = ServerContext::new("https://hapi.fhir.org/baseR4".to_string())
             .with_auth_header("Authorization".to_string(), "Bearer token123".to_string())
             .with_timeout(60);
-        
+
         assert_eq!(context.base_url, "https://hapi.fhir.org/baseR4");
         assert_eq!(context.timeout_seconds, 60);
-        assert_eq!(context.get_auth_header("Authorization"), Some(&"Bearer token123".to_string()));
+        assert_eq!(
+            context.get_auth_header("Authorization"),
+            Some(&"Bearer token123".to_string())
+        );
     }
 
     #[test]
     fn test_environment_variables() {
         let mut builtin = BuiltinVariables::default();
-        
+
         // Test value set addition
-        builtin.add_value_set("allergies", "http://hl7.org/fhir/ValueSet/allergyintolerance-code");
+        builtin.add_value_set(
+            "allergies",
+            "http://hl7.org/fhir/ValueSet/allergyintolerance-code",
+        );
         assert_eq!(
             builtin.get_environment_variable("%vs-allergies"),
-            Some(&FhirPathValue::String("http://hl7.org/fhir/ValueSet/allergyintolerance-code".to_string()))
+            Some(&FhirPathValue::String(
+                "http://hl7.org/fhir/ValueSet/allergyintolerance-code".to_string()
+            ))
         );
-        
-        // Test extension addition  
-        builtin.add_extension("birthPlace", "http://hl7.org/fhir/StructureDefinition/birthPlace");
+
+        // Test extension addition
+        builtin.add_extension(
+            "birthPlace",
+            "http://hl7.org/fhir/StructureDefinition/birthPlace",
+        );
         assert_eq!(
             builtin.get_environment_variable("%ext-birthPlace"),
-            Some(&FhirPathValue::String("http://hl7.org/fhir/StructureDefinition/birthPlace".to_string()))
+            Some(&FhirPathValue::String(
+                "http://hl7.org/fhir/StructureDefinition/birthPlace".to_string()
+            ))
         );
     }
 
     // Mock implementations for testing
     #[derive(Debug)]
     struct MockTerminologyService;
-    
+
     #[async_trait]
     impl TerminologyService for MockTerminologyService {
-        async fn expand(&self, _value_set: &str, _params: Option<HashMap<String, String>>) -> Result<Collection> {
+        async fn expand(
+            &self,
+            _value_set: &str,
+            _params: Option<HashMap<String, String>>,
+        ) -> Result<Collection> {
             Ok(Collection::empty())
         }
-        
-        async fn lookup(&self, _coded: &FhirPathValue, _params: Option<HashMap<String, String>>) -> Result<Collection> {
+
+        async fn lookup(
+            &self,
+            _coded: &FhirPathValue,
+            _params: Option<HashMap<String, String>>,
+        ) -> Result<Collection> {
             Ok(Collection::empty())
         }
-        
-        async fn validate_vs(&self, _value_set: &str, _coded: &FhirPathValue, _params: Option<HashMap<String, String>>) -> Result<Collection> {
+
+        async fn validate_vs(
+            &self,
+            _value_set: &str,
+            _coded: &FhirPathValue,
+            _params: Option<HashMap<String, String>>,
+        ) -> Result<Collection> {
             Ok(Collection::empty())
         }
-        
-        async fn subsumes(&self, _system: &str, _coded1: &FhirPathValue, _coded2: &FhirPathValue, _params: Option<HashMap<String, String>>) -> Result<Collection> {
+
+        async fn subsumes(
+            &self,
+            _system: &str,
+            _coded1: &FhirPathValue,
+            _coded2: &FhirPathValue,
+            _params: Option<HashMap<String, String>>,
+        ) -> Result<Collection> {
             Ok(Collection::empty())
         }
-        
-        async fn translate(&self, _concept_map: &str, _coded: &FhirPathValue, _params: Option<HashMap<String, String>>) -> Result<Collection> {
+
+        async fn translate(
+            &self,
+            _concept_map: &str,
+            _coded: &FhirPathValue,
+            _params: Option<HashMap<String, String>>,
+        ) -> Result<Collection> {
             Ok(Collection::empty())
         }
-        
+
         fn get_server_url(&self) -> &str {
             "https://tx.fhir.org/r4/"
         }
-        
+
         async fn set_credentials(&mut self, _credentials: HashMap<String, String>) -> Result<()> {
             Ok(())
         }
@@ -1019,7 +1088,7 @@ mod tests {
         let context = EvaluationContextBuilder::new()
             .with_terminology_service(service.clone())
             .build();
-        
+
         assert!(context.get_terminology_service().is_some());
     }
 }

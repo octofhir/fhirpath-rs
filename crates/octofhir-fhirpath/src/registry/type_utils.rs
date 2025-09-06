@@ -4,7 +4,7 @@
 //! checking, type inference, and advanced type analysis.
 
 use super::types::{FhirPathType, TypeChecker};
-use crate::core::{FhirPathValue, FhirPathError, Result};
+use crate::core::FhirPathValue;
 use std::collections::HashSet;
 
 /// Utilities for advanced type operations
@@ -45,9 +45,15 @@ impl TypeUtils {
                 types.push(FhirPathType::Any);
             }
             // FHIR primitive types that extend String
-            FhirPathType::Code | FhirPathType::Uri | FhirPathType::Url | 
-            FhirPathType::Canonical | FhirPathType::Oid | FhirPathType::Uuid |
-            FhirPathType::Id | FhirPathType::Markdown | FhirPathType::Base64Binary => {
+            FhirPathType::Code
+            | FhirPathType::Uri
+            | FhirPathType::Url
+            | FhirPathType::Canonical
+            | FhirPathType::Oid
+            | FhirPathType::Uuid
+            | FhirPathType::Id
+            | FhirPathType::Markdown
+            | FhirPathType::Base64Binary => {
                 types.push(FhirPathType::String);
                 types.push(FhirPathType::Any);
             }
@@ -96,7 +102,10 @@ impl TypeUtils {
             common_types_vec.sort_by(|a, b| {
                 Self::type_specificity_score(a).cmp(&Self::type_specificity_score(b))
             });
-            common_types_vec.into_iter().next().unwrap_or(FhirPathType::Any)
+            common_types_vec
+                .into_iter()
+                .next()
+                .unwrap_or(FhirPathType::Any)
         }
     }
 
@@ -109,21 +118,37 @@ impl TypeUtils {
             FhirPathType::DomainResource => 90,
             FhirPathType::Collection => 80,
             // Specific resource types are very specific
-            FhirPathType::Patient | FhirPathType::Observation | 
-            FhirPathType::Organization | FhirPathType::Practitioner |
-            FhirPathType::Bundle => 10,
+            FhirPathType::Patient
+            | FhirPathType::Observation
+            | FhirPathType::Organization
+            | FhirPathType::Practitioner
+            | FhirPathType::Bundle => 10,
             // Complex types are moderately specific
-            FhirPathType::CodeableConcept | FhirPathType::Coding | FhirPathType::Identifier |
-            FhirPathType::HumanName | FhirPathType::Address | FhirPathType::ContactPoint |
-            FhirPathType::Reference | FhirPathType::Attachment | FhirPathType::Period |
-            FhirPathType::Range | FhirPathType::Ratio | FhirPathType::SampledData |
-            FhirPathType::Signature => 15,
+            FhirPathType::CodeableConcept
+            | FhirPathType::Coding
+            | FhirPathType::Identifier
+            | FhirPathType::HumanName
+            | FhirPathType::Address
+            | FhirPathType::ContactPoint
+            | FhirPathType::Reference
+            | FhirPathType::Attachment
+            | FhirPathType::Period
+            | FhirPathType::Range
+            | FhirPathType::Ratio
+            | FhirPathType::SampledData
+            | FhirPathType::Signature => 15,
             // String is a base type but less specific than primitives
             FhirPathType::String => 50,
             // FHIR primitive types are more specific than String
-            FhirPathType::Code | FhirPathType::Uri | FhirPathType::Url |
-            FhirPathType::Canonical | FhirPathType::Oid | FhirPathType::Uuid |
-            FhirPathType::Id | FhirPathType::Markdown | FhirPathType::Base64Binary => 5,
+            FhirPathType::Code
+            | FhirPathType::Uri
+            | FhirPathType::Url
+            | FhirPathType::Canonical
+            | FhirPathType::Oid
+            | FhirPathType::Uuid
+            | FhirPathType::Id
+            | FhirPathType::Markdown
+            | FhirPathType::Base64Binary => 5,
             // DateTime base type
             FhirPathType::DateTime => 20,
             FhirPathType::Instant => 5,
@@ -177,85 +202,172 @@ impl TypeUtils {
     pub fn get_all_type_names() -> Vec<&'static str> {
         vec![
             // Primitive types
-            "Boolean", "Integer", "Decimal", "String", "Date", "DateTime", "Time", "Quantity",
+            "Boolean",
+            "Integer",
+            "Decimal",
+            "String",
+            "Date",
+            "DateTime",
+            "Time",
+            "Quantity",
             // FHIR primitive types
-            "code", "uri", "url", "canonical", "oid", "uuid", "id", "markdown", "base64Binary", "instant",
+            "code",
+            "uri",
+            "url",
+            "canonical",
+            "oid",
+            "uuid",
+            "id",
+            "markdown",
+            "base64Binary",
+            "instant",
             // Complex types
-            "CodeableConcept", "Coding", "Identifier", "HumanName", "Address", "ContactPoint",
-            "Reference", "Attachment", "Period", "Range", "Ratio", "SampledData", "Signature",
+            "CodeableConcept",
+            "Coding",
+            "Identifier",
+            "HumanName",
+            "Address",
+            "ContactPoint",
+            "Reference",
+            "Attachment",
+            "Period",
+            "Range",
+            "Ratio",
+            "SampledData",
+            "Signature",
             // Resource types
-            "Resource", "DomainResource", "Patient", "Observation", "Organization", "Practitioner", "Bundle",
+            "Resource",
+            "DomainResource",
+            "Patient",
+            "Observation",
+            "Organization",
+            "Practitioner",
+            "Bundle",
             // System types
-            "Collection", "Any", "System"
+            "Collection",
+            "Any",
+            "System",
         ]
     }
 
     /// Get all primitive type names
     pub fn get_primitive_type_names() -> Vec<&'static str> {
         vec![
-            "Boolean", "Integer", "Decimal", "String", "Date", "DateTime", "Time", "Quantity"
+            "Boolean", "Integer", "Decimal", "String", "Date", "DateTime", "Time", "Quantity",
         ]
     }
 
     /// Get all FHIR primitive type names  
     pub fn get_fhir_primitive_type_names() -> Vec<&'static str> {
         vec![
-            "code", "uri", "url", "canonical", "oid", "uuid", "id", "markdown", "base64Binary", "instant"
+            "code",
+            "uri",
+            "url",
+            "canonical",
+            "oid",
+            "uuid",
+            "id",
+            "markdown",
+            "base64Binary",
+            "instant",
         ]
     }
 
     /// Get all complex type names
     pub fn get_complex_type_names() -> Vec<&'static str> {
         vec![
-            "CodeableConcept", "Coding", "Identifier", "HumanName", "Address", "ContactPoint",
-            "Reference", "Attachment", "Period", "Range", "Ratio", "SampledData", "Signature"
+            "CodeableConcept",
+            "Coding",
+            "Identifier",
+            "HumanName",
+            "Address",
+            "ContactPoint",
+            "Reference",
+            "Attachment",
+            "Period",
+            "Range",
+            "Ratio",
+            "SampledData",
+            "Signature",
         ]
     }
 
     /// Get all resource type names
     pub fn get_resource_type_names() -> Vec<&'static str> {
         vec![
-            "Resource", "DomainResource", "Patient", "Observation", "Organization", "Practitioner", "Bundle"
+            "Resource",
+            "DomainResource",
+            "Patient",
+            "Observation",
+            "Organization",
+            "Practitioner",
+            "Bundle",
         ]
     }
 
     /// Check if a type is a primitive type
     pub fn is_primitive_type(fhir_type: &FhirPathType) -> bool {
-        matches!(fhir_type, 
-            FhirPathType::Boolean | FhirPathType::Integer | FhirPathType::Decimal |
-            FhirPathType::String | FhirPathType::Date | FhirPathType::DateTime |
-            FhirPathType::Time | FhirPathType::Quantity
+        matches!(
+            fhir_type,
+            FhirPathType::Boolean
+                | FhirPathType::Integer
+                | FhirPathType::Decimal
+                | FhirPathType::String
+                | FhirPathType::Date
+                | FhirPathType::DateTime
+                | FhirPathType::Time
+                | FhirPathType::Quantity
         )
     }
 
     /// Check if a type is a FHIR primitive type
     pub fn is_fhir_primitive_type(fhir_type: &FhirPathType) -> bool {
-        matches!(fhir_type,
-            FhirPathType::Code | FhirPathType::Uri | FhirPathType::Url |
-            FhirPathType::Canonical | FhirPathType::Oid | FhirPathType::Uuid |
-            FhirPathType::Id | FhirPathType::Markdown | FhirPathType::Base64Binary |
-            FhirPathType::Instant
+        matches!(
+            fhir_type,
+            FhirPathType::Code
+                | FhirPathType::Uri
+                | FhirPathType::Url
+                | FhirPathType::Canonical
+                | FhirPathType::Oid
+                | FhirPathType::Uuid
+                | FhirPathType::Id
+                | FhirPathType::Markdown
+                | FhirPathType::Base64Binary
+                | FhirPathType::Instant
         )
     }
 
     /// Check if a type is a complex type
     pub fn is_complex_type(fhir_type: &FhirPathType) -> bool {
-        matches!(fhir_type,
-            FhirPathType::CodeableConcept | FhirPathType::Coding | FhirPathType::Identifier |
-            FhirPathType::HumanName | FhirPathType::Address | FhirPathType::ContactPoint |
-            FhirPathType::Reference | FhirPathType::Attachment | FhirPathType::Period |
-            FhirPathType::Range | FhirPathType::Ratio | FhirPathType::SampledData |
-            FhirPathType::Signature
+        matches!(
+            fhir_type,
+            FhirPathType::CodeableConcept
+                | FhirPathType::Coding
+                | FhirPathType::Identifier
+                | FhirPathType::HumanName
+                | FhirPathType::Address
+                | FhirPathType::ContactPoint
+                | FhirPathType::Reference
+                | FhirPathType::Attachment
+                | FhirPathType::Period
+                | FhirPathType::Range
+                | FhirPathType::Ratio
+                | FhirPathType::SampledData
+                | FhirPathType::Signature
         )
     }
 
     /// Check if a type is a resource type
     pub fn is_resource_type(fhir_type: &FhirPathType) -> bool {
-        matches!(fhir_type,
-            FhirPathType::Resource | FhirPathType::DomainResource |
-            FhirPathType::Patient | FhirPathType::Observation |
-            FhirPathType::Organization | FhirPathType::Practitioner |
-            FhirPathType::Bundle
+        matches!(
+            fhir_type,
+            FhirPathType::Resource
+                | FhirPathType::DomainResource
+                | FhirPathType::Patient
+                | FhirPathType::Observation
+                | FhirPathType::Organization
+                | FhirPathType::Practitioner
+                | FhirPathType::Bundle
         )
     }
 
@@ -263,19 +375,27 @@ impl TypeUtils {
     pub fn get_base_type(fhir_type: &FhirPathType) -> FhirPathType {
         match fhir_type {
             // FHIR primitives that extend String
-            FhirPathType::Code | FhirPathType::Uri | FhirPathType::Url |
-            FhirPathType::Canonical | FhirPathType::Oid | FhirPathType::Uuid |
-            FhirPathType::Id | FhirPathType::Markdown | FhirPathType::Base64Binary => FhirPathType::String,
-            
+            FhirPathType::Code
+            | FhirPathType::Uri
+            | FhirPathType::Url
+            | FhirPathType::Canonical
+            | FhirPathType::Oid
+            | FhirPathType::Uuid
+            | FhirPathType::Id
+            | FhirPathType::Markdown
+            | FhirPathType::Base64Binary => FhirPathType::String,
+
             // Instant extends DateTime
             FhirPathType::Instant => FhirPathType::DateTime,
-            
+
             // Resources extend Resource
-            FhirPathType::Patient | FhirPathType::Observation |
-            FhirPathType::Organization | FhirPathType::Practitioner => FhirPathType::DomainResource,
-            
+            FhirPathType::Patient
+            | FhirPathType::Observation
+            | FhirPathType::Organization
+            | FhirPathType::Practitioner => FhirPathType::DomainResource,
+
             FhirPathType::DomainResource => FhirPathType::Resource,
-            
+
             // Everything else is its own base type
             _ => fhir_type.clone(),
         }
@@ -294,13 +414,22 @@ impl TypeUtils {
         }
 
         // Numeric types are comparable with each other
-        let numeric_types = [FhirPathType::Integer, FhirPathType::Decimal, FhirPathType::Quantity];
+        let numeric_types = [
+            FhirPathType::Integer,
+            FhirPathType::Decimal,
+            FhirPathType::Quantity,
+        ];
         if numeric_types.contains(type1) && numeric_types.contains(type2) {
             return true;
         }
 
         // Date/time types are comparable with each other
-        let datetime_types = [FhirPathType::Date, FhirPathType::DateTime, FhirPathType::Time, FhirPathType::Instant];
+        let datetime_types = [
+            FhirPathType::Date,
+            FhirPathType::DateTime,
+            FhirPathType::Time,
+            FhirPathType::Instant,
+        ];
         if datetime_types.contains(type1) && datetime_types.contains(type2) {
             return true;
         }

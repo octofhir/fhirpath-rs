@@ -33,7 +33,7 @@ impl SourceManager {
     pub fn add_source(&mut self, name: String, content: String) -> usize {
         let id = self.next_id;
         self.next_id += 1;
-        
+
         self.sources.insert(id, SourceInfo { name, content });
         id
     }
@@ -66,24 +66,24 @@ mod tests {
     #[test]
     fn test_source_manager_basic_operations() {
         let mut manager = SourceManager::new();
-        
+
         // Add first source
         let id1 = manager.add_source("test1.fhirpath".to_string(), "Patient.name".to_string());
         assert_eq!(id1, 0);
-        
+
         // Add second source
         let id2 = manager.add_source("test2.fhirpath".to_string(), "age > 18".to_string());
         assert_eq!(id2, 1);
-        
+
         // Verify sources can be retrieved
         let source1 = manager.get_source(id1).unwrap();
         assert_eq!(source1.name, "test1.fhirpath");
         assert_eq!(source1.content, "Patient.name");
-        
+
         let source2 = manager.get_source(id2).unwrap();
         assert_eq!(source2.name, "test2.fhirpath");
         assert_eq!(source2.content, "age > 18");
-        
+
         // Verify source count
         assert_eq!(manager.source_count(), 2);
         assert!(manager.has_source(id1));
@@ -94,13 +94,13 @@ mod tests {
     #[test]
     fn test_source_manager_iteration() {
         let mut manager = SourceManager::new();
-        
+
         manager.add_source("source1".to_string(), "content1".to_string());
         manager.add_source("source2".to_string(), "content2".to_string());
-        
+
         let sources: Vec<_> = manager.sources().collect();
         assert_eq!(sources.len(), 2);
-        
+
         // Check that all sources are present (order might vary due to HashMap)
         let names: Vec<&str> = sources.iter().map(|(_, info)| info.name.as_str()).collect();
         assert!(names.contains(&"source1"));

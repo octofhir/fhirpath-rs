@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::{FunctionRegistry, FunctionCategory};
-    use super::super::terminology_utils::{TerminologyUtils, Coding};
+    use super::super::terminology_utils::{Coding, TerminologyUtils};
+    use super::super::{FunctionCategory, FunctionRegistry};
     use crate::core::FhirPathValue;
     use serde_json::json;
 
@@ -18,10 +18,13 @@ mod tests {
 
         let fhir_value = FhirPathValue::Resource(coding_json);
         let coding = TerminologyUtils::extract_coding(&fhir_value).unwrap();
-        
+
         assert_eq!(coding.system, "http://loinc.org");
         assert_eq!(coding.code, "789-8");
-        assert_eq!(coding.display.as_ref().unwrap(), "Erythrocytes [#/volume] in Blood by Automated count");
+        assert_eq!(
+            coding.display.as_ref().unwrap(),
+            "Erythrocytes [#/volume] in Blood by Automated count"
+        );
     }
 
     #[test]
@@ -38,7 +41,7 @@ mod tests {
 
         let fhir_value = FhirPathValue::Resource(codeable_concept_json);
         let coding = TerminologyUtils::extract_coding(&fhir_value).unwrap();
-        
+
         assert_eq!(coding.system, "http://loinc.org");
         assert_eq!(coding.code, "789-8");
     }
@@ -63,7 +66,7 @@ mod tests {
         let coding1 = Coding::new("http://loinc.org", "789-8");
         let coding2 = Coding::new("http://loinc.org", "789-8");
         let coding3 = Coding::new("http://loinc.org", "123-4");
-        
+
         assert!(TerminologyUtils::codings_equal(&coding1, &coding2));
         assert!(!TerminologyUtils::codings_equal(&coding1, &coding3));
     }
@@ -88,7 +91,7 @@ mod tests {
 
         let fhir_value = FhirPathValue::Resource(codeable_concept_json);
         let codings = TerminologyUtils::extract_all_codings(&fhir_value).unwrap();
-        
+
         assert_eq!(codings.len(), 2);
         assert_eq!(codings[0].system, "http://loinc.org");
         assert_eq!(codings[0].code, "789-8");
@@ -104,7 +107,7 @@ mod tests {
         // Test that all terminology functions are registered with correct metadata
         let functions = registry.list_functions_by_category(FunctionCategory::Terminology);
         let function_names: Vec<&str> = functions.iter().map(|f| f.name.as_str()).collect();
-        
+
         assert!(function_names.contains(&"memberOf"));
         assert!(function_names.contains(&"translate"));
         assert!(function_names.contains(&"validateCode"));
@@ -114,16 +117,20 @@ mod tests {
 
         // Check that functions are marked as async
         for func in functions {
-            assert!(func.is_async, "Terminology function {} should be async", func.name);
+            assert!(
+                func.is_async,
+                "Terminology function {} should be async",
+                func.name
+            );
         }
     }
 
-    #[test]  
+    #[test]
     fn test_coding_builder_methods() {
         let coding = Coding::new("http://loinc.org", "789-8")
             .with_display("Red blood cell count")
             .with_version("2.74");
-            
+
         assert_eq!(coding.system, "http://loinc.org");
         assert_eq!(coding.code, "789-8");
         assert_eq!(coding.display.as_ref().unwrap(), "Red blood cell count");
@@ -132,16 +139,21 @@ mod tests {
 
     #[test]
     fn test_coding_to_fhir_value() {
-        let coding = Coding::new("http://loinc.org", "789-8")
-            .with_display("Red blood cell count");
-            
+        let coding = Coding::new("http://loinc.org", "789-8").with_display("Red blood cell count");
+
         let fhir_value = TerminologyUtils::coding_to_value(&coding);
-        
+
         if let FhirPathValue::Resource(json_val) = fhir_value {
             let obj = json_val.as_object().unwrap();
-            assert_eq!(obj.get("system").unwrap().as_str().unwrap(), "http://loinc.org");
+            assert_eq!(
+                obj.get("system").unwrap().as_str().unwrap(),
+                "http://loinc.org"
+            );
             assert_eq!(obj.get("code").unwrap().as_str().unwrap(), "789-8");
-            assert_eq!(obj.get("display").unwrap().as_str().unwrap(), "Red blood cell count");
+            assert_eq!(
+                obj.get("display").unwrap().as_str().unwrap(),
+                "Red blood cell count"
+            );
         } else {
             panic!("Expected Resource value");
         }

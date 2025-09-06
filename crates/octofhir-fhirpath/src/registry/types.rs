@@ -3,12 +3,11 @@
 //! This module implements comprehensive type system support including type checking,
 //! casting, and FHIR type hierarchy with proper subtype relationships.
 
-use super::{FunctionRegistry, FunctionCategory, FunctionContext};
 use super::type_utils::TypeUtils;
-use crate::core::{FhirPathValue, FhirPathError, Result};
-use crate::{register_function};
+use super::{FunctionCategory, FunctionContext, FunctionRegistry};
 use crate::core::error_code::FP0055;
-use serde_json::json;
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::register_function;
 
 /// Complete FHIRPath type system with proper FHIR type hierarchy
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -22,7 +21,7 @@ pub enum FhirPathType {
     DateTime,
     Time,
     Quantity,
-    
+
     // FHIR primitive types
     Code,
     Uri,
@@ -34,7 +33,7 @@ pub enum FhirPathType {
     Markdown,
     Base64Binary,
     Instant,
-    
+
     // Complex types
     CodeableConcept,
     Coding,
@@ -49,7 +48,7 @@ pub enum FhirPathType {
     Ratio,
     SampledData,
     Signature,
-    
+
     // Resource types
     Resource,
     DomainResource,
@@ -58,10 +57,10 @@ pub enum FhirPathType {
     Organization,
     Practitioner,
     Bundle,
-    
+
     // Collections
     Collection,
-    
+
     // System types
     Any,
     System,
@@ -75,7 +74,7 @@ impl FhirPathType {
         match self {
             FhirPathType::Boolean => "Boolean",
             FhirPathType::Integer => "Integer",
-            FhirPathType::Decimal => "Decimal", 
+            FhirPathType::Decimal => "Decimal",
             FhirPathType::String => "String",
             FhirPathType::Date => "Date",
             FhirPathType::DateTime => "DateTime",
@@ -122,7 +121,11 @@ impl FhirPathType {
     /// Parse a type name from a string
     pub fn from_type_name(name: &str) -> Option<FhirPathType> {
         // Allow namespaced System.* type names
-        let name = if let Some(stripped) = name.strip_prefix("System.") { stripped } else { name };
+        let name = if let Some(stripped) = name.strip_prefix("System.") {
+            stripped
+        } else {
+            name
+        };
         match name {
             "Boolean" => Some(FhirPathType::Boolean),
             "Integer" => Some(FhirPathType::Integer),
@@ -184,16 +187,16 @@ impl FhirPathType {
             (FhirPathType::Organization, FhirPathType::Resource) => true,
             (FhirPathType::Practitioner, FhirPathType::Resource) => true,
             (FhirPathType::Bundle, FhirPathType::Resource) => true,
-            
+
             // DomainResource is a subtype of Resource
             (FhirPathType::DomainResource, FhirPathType::Resource) => true,
-            
+
             // Most resources are subtypes of DomainResource
             (FhirPathType::Patient, FhirPathType::DomainResource) => true,
             (FhirPathType::Observation, FhirPathType::DomainResource) => true,
             (FhirPathType::Organization, FhirPathType::DomainResource) => true,
             (FhirPathType::Practitioner, FhirPathType::DomainResource) => true,
-            
+
             // FHIR primitive types are subtypes of their base types
             (FhirPathType::Code, FhirPathType::String) => true,
             (FhirPathType::Uri, FhirPathType::String) => true,
@@ -205,7 +208,7 @@ impl FhirPathType {
             (FhirPathType::Markdown, FhirPathType::String) => true,
             (FhirPathType::Base64Binary, FhirPathType::String) => true,
             (FhirPathType::Instant, FhirPathType::DateTime) => true,
-            
+
             _ => false,
         }
     }
@@ -234,7 +237,7 @@ impl TypeChecker {
                             .unwrap_or(FhirPathType::Resource);
                     }
                 }
-                
+
                 // Infer type from object structure if it's an object
                 if let Some(obj_map) = obj.as_object() {
                     Self::infer_complex_type(obj_map)
@@ -259,9 +262,12 @@ impl TypeChecker {
     }
 
     /// Attempt to cast a value to a specific type
-    pub fn cast_to_type(value: &FhirPathValue, target_type: &FhirPathType) -> Result<FhirPathValue> {
+    pub fn cast_to_type(
+        value: &FhirPathValue,
+        target_type: &FhirPathType,
+    ) -> Result<FhirPathValue> {
         let current_type = Self::get_type(value);
-        
+
         // If already compatible, return as-is
         if current_type.is_subtype_of(target_type) {
             return Ok(value.clone());
@@ -273,61 +279,62 @@ impl TypeChecker {
             (FhirPathValue::Integer(i), FhirPathType::Decimal) => {
                 Ok(FhirPathValue::Decimal(rust_decimal::Decimal::from(*i)))
             }
-            
+
             // String to numeric type conversions
             (FhirPathValue::String(s), FhirPathType::Integer) => {
-                s.parse::<i64>()
-                    .map(FhirPathValue::Integer)
-                    .map_err(|_| FhirPathError::evaluation_error(
+                s.parse::<i64>().map(FhirPathValue::Integer).map_err(|_| {
+                    FhirPathError::evaluation_error(
                         FP0055,
-                        format!("Cannot convert '{}' to Integer", s)
-                    ))
-            }
-            
-            (FhirPathValue::String(s), FhirPathType::Decimal) => {
-                s.parse::<rust_decimal::Decimal>()
-                    .map(FhirPathValue::Decimal)
-                    .map_err(|_| FhirPathError::evaluation_error(
-                        FP0055,
-                        format!("Cannot convert '{}' to Decimal", s)
-                    ))
-            }
-            
-            (FhirPathValue::String(s), FhirPathType::Boolean) => {
-                match s.to_lowercase().as_str() {
-                    "true" => Ok(FhirPathValue::Boolean(true)),
-                    "false" => Ok(FhirPathValue::Boolean(false)),
-                    _ => Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        format!("Cannot convert '{}' to Boolean", s)
-                    ))
-                }
+                        format!("Cannot convert '{}' to Integer", s),
+                    )
+                })
             }
 
-            // Any value to String conversion
-            (_, FhirPathType::String) => {
-                match value {
-                    FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string())),
-                    FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string())),
-                    FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string())),
-                    FhirPathValue::String(s) => Ok(FhirPathValue::String(s.clone())),
-                    FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.to_string())),
-                    FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_string())),
-                    FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.to_string())),
-                    FhirPathValue::Uri(u) => Ok(FhirPathValue::String(u.clone())),
-                    FhirPathValue::Url(u) => Ok(FhirPathValue::String(u.clone())),
-                    FhirPathValue::Id(id) => Ok(FhirPathValue::String(id.to_string())),
-                    _ => Err(FhirPathError::evaluation_error(
+            (FhirPathValue::String(s), FhirPathType::Decimal) => s
+                .parse::<rust_decimal::Decimal>()
+                .map(FhirPathValue::Decimal)
+                .map_err(|_| {
+                    FhirPathError::evaluation_error(
                         FP0055,
-                        format!("Cannot convert {} to String", current_type.type_name())
-                    ))
-                }
-            }
-            
+                        format!("Cannot convert '{}' to Decimal", s),
+                    )
+                }),
+
+            (FhirPathValue::String(s), FhirPathType::Boolean) => match s.to_lowercase().as_str() {
+                "true" => Ok(FhirPathValue::Boolean(true)),
+                "false" => Ok(FhirPathValue::Boolean(false)),
+                _ => Err(FhirPathError::evaluation_error(
+                    FP0055,
+                    format!("Cannot convert '{}' to Boolean", s),
+                )),
+            },
+
+            // Any value to String conversion
+            (_, FhirPathType::String) => match value {
+                FhirPathValue::Integer(i) => Ok(FhirPathValue::String(i.to_string())),
+                FhirPathValue::Decimal(d) => Ok(FhirPathValue::String(d.to_string())),
+                FhirPathValue::Boolean(b) => Ok(FhirPathValue::String(b.to_string())),
+                FhirPathValue::String(s) => Ok(FhirPathValue::String(s.clone())),
+                FhirPathValue::Date(d) => Ok(FhirPathValue::String(d.to_string())),
+                FhirPathValue::DateTime(dt) => Ok(FhirPathValue::String(dt.to_string())),
+                FhirPathValue::Time(t) => Ok(FhirPathValue::String(t.to_string())),
+                FhirPathValue::Uri(u) => Ok(FhirPathValue::String(u.clone())),
+                FhirPathValue::Url(u) => Ok(FhirPathValue::String(u.clone())),
+                FhirPathValue::Id(id) => Ok(FhirPathValue::String(id.to_string())),
+                _ => Err(FhirPathError::evaluation_error(
+                    FP0055,
+                    format!("Cannot convert {} to String", current_type.type_name()),
+                )),
+            },
+
             _ => Err(FhirPathError::evaluation_error(
                 FP0055,
-                format!("Cannot cast {} to {}", current_type.type_name(), target_type.type_name())
-            ))
+                format!(
+                    "Cannot cast {} to {}",
+                    current_type.type_name(),
+                    target_type.type_name()
+                ),
+            )),
         }
     }
 
@@ -406,7 +413,7 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: [
                 "Patient.name.is('HumanName')",
-                "Observation.value.is('Quantity')", 
+                "Observation.value.is('Quantity')",
                 "5.is('Integer')"
             ],
             implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
@@ -437,7 +444,7 @@ impl FunctionRegistry {
 
                     // Use ModelProvider instead of hardcoded type checking
                     let current_value_type = Self::get_value_type_name(&context.input[0]);
-                    
+
                     // Check type compatibility using ModelProvider
                     match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
                         Ok(is_compatible) => Ok(vec![FhirPathValue::Boolean(is_compatible)]),
@@ -493,7 +500,7 @@ impl FunctionRegistry {
 
                     // Use ModelProvider to check if casting is possible
                     let current_value_type = Self::get_value_type_name(&context.input[0]);
-                    
+
                     match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
                         Ok(true) => {
                             // Cast is possible, return the original value (most cases in FHIRPath)
@@ -551,10 +558,10 @@ impl FunctionRegistry {
 
                     // Filter collection using ModelProvider-based type checking
                     let mut result = Vec::new();
-                    
+
                     for value in context.input.iter() {
                         let current_value_type = Self::get_value_type_name(value);
-                        
+
                         let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
                             Ok(compatible) => compatible,
                             Err(_) => {
@@ -562,7 +569,7 @@ impl FunctionRegistry {
                                 Self::basic_type_compatibility(value, type_name)
                             }
                         };
-                        
+
                         if is_compatible {
                             result.push(value.clone());
                         }
@@ -597,9 +604,9 @@ impl FunctionRegistry {
 
                 let value_type = TypeChecker::get_type(&context.input[0]);
                 let type_name = value_type.type_name();
-                
+
                 // Create TypeInfo object with namespace and name properties
-                let namespace = if TypeUtils::is_primitive_type(&value_type) || 
+                let namespace = if TypeUtils::is_primitive_type(&value_type) ||
                                   TypeUtils::is_fhir_primitive_type(&value_type) {
                     "System"
                 } else {
@@ -642,7 +649,7 @@ impl FunctionRegistry {
             FhirPathValue::Collection(_) => "Collection".to_string(),
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 format!("{}.{}", namespace, name)
-            },
+            }
             FhirPathValue::Empty => "Empty".to_string(),
         }
     }
@@ -650,16 +657,19 @@ impl FunctionRegistry {
     /// Basic type compatibility check as fallback when ModelProvider is unavailable
     fn basic_type_compatibility(value: &FhirPathValue, target_type: &str) -> bool {
         let current_type = Self::get_value_type_name(value);
-        
+
         // Direct type match
         if current_type == target_type {
             return true;
         }
-        
+
         // Basic inheritance relationships for essential types
         match (current_type.as_str(), target_type) {
             // All FHIR resources are Resources
-            (_, "Resource") => matches!(value, FhirPathValue::Resource(_) | FhirPathValue::JsonValue(_)),
+            (_, "Resource") => matches!(
+                value,
+                FhirPathValue::Resource(_) | FhirPathValue::JsonValue(_)
+            ),
             // System type compatibility
             ("Boolean", "boolean") | ("boolean", "Boolean") => true,
             ("Integer", "integer") | ("integer", "Integer") => true,

@@ -26,7 +26,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 
-use crate::model::provider::ModelProvider;
+use octofhir_fhirpath::core::ModelProvider;
 
 pub use commands::ReplCommand;
 pub use session::ReplSession;
@@ -68,14 +68,14 @@ pub async fn start_repl(
     initial_resource: Option<JsonValue>,
     initial_variables: Vec<(String, String)>,
 ) -> Result<()> {
-    use crate::FhirPathEngine;
-    use crate::registry::create_standard_registry;
+    use octofhir_fhirpath::create_standard_registry;
+    use octofhir_fhirpath::evaluator::FhirPathEngine;
 
     // Create the engine asynchronously
     let registry = Arc::new(create_standard_registry().await);
     let engine = FhirPathEngine::new(registry, model_provider);
 
-    let mut session = ReplSession::with_engine(engine, config).await?;
+    let mut session = ReplSession::new(engine, config).await?;
 
     // Load initial resource if provided
     if let Some(resource) = initial_resource {

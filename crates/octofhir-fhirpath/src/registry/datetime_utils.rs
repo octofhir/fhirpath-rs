@@ -3,13 +3,11 @@
 //! This module provides utilities for date/time arithmetic, duration parsing,
 //! and common temporal operations for healthcare data processing.
 
-use crate::core::{FhirPathValue, FhirPathError, Result};
 use crate::core::error_code::{FP0052, FP0058};
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
-use chrono::{DateTime, Utc, Datelike, Timelike, Duration, NaiveDate, TimeZone};
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use chrono::{DateTime, Datelike, Duration, Utc};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use std::str::FromStr;
 
 /// Utility functions for date/time operations
 pub struct DateTimeUtils;
@@ -20,17 +18,15 @@ impl DateTimeUtils {
         match value {
             FhirPathValue::DateTime(dt) => Ok(dt.datetime.with_timezone(&Utc)),
             FhirPathValue::Date(date) => {
-                let naive_datetime = date.date.and_hms_opt(0, 0, 0)
-                    .ok_or_else(|| FhirPathError::evaluation_error(
-                        FP0058,
-                        "Invalid date for datetime conversion"
-                    ))?;
+                let naive_datetime = date.date.and_hms_opt(0, 0, 0).ok_or_else(|| {
+                    FhirPathError::evaluation_error(FP0058, "Invalid date for datetime conversion")
+                })?;
                 Ok(DateTime::from_naive_utc_and_offset(naive_datetime, Utc))
             }
             _ => Err(FhirPathError::evaluation_error(
                 FP0058,
-                "Value cannot be converted to datetime"
-            ))
+                "Value cannot be converted to datetime",
+            )),
         }
     }
 
@@ -53,31 +49,32 @@ impl DateTimeUtils {
                 let years_diff = end.year() - start.year();
                 let months_diff = end.month() as i32 - start.month() as i32;
                 let total_months = years_diff * 12 + months_diff;
-                
+
                 // Adjust for partial months based on day
                 let adjusted_months = if end.day() < start.day() {
                     total_months - 1
                 } else {
                     total_months
                 };
-                
+
                 Ok(adjusted_months as i64)
             }
             "years" | "year" => {
                 let mut years_diff = end.year() - start.year();
-                
+
                 // Adjust for partial years
-                if end.month() < start.month() || 
-                   (end.month() == start.month() && end.day() < start.day()) {
+                if end.month() < start.month()
+                    || (end.month() == start.month() && end.day() < start.day())
+                {
                     years_diff -= 1;
                 }
-                
+
                 Ok(years_diff as i64)
             }
             _ => Err(FhirPathError::evaluation_error(
                 FP0058,
-                &format!("Unsupported time unit: '{}'", unit)
-            ))
+                &format!("Unsupported time unit: '{}'", unit),
+            )),
         }
     }
 
@@ -91,7 +88,13 @@ impl DateTimeUtils {
         match month {
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
             4 | 6 | 9 | 11 => 30,
-            2 => if Self::is_leap_year(year) { 29 } else { 28 },
+            2 => {
+                if Self::is_leap_year(year) {
+                    29
+                } else {
+                    28
+                }
+            }
             _ => 0,
         }
     }
@@ -139,7 +142,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "month" | "months" | "mo" => {
                 let amount = value.to_i32().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Month value too large")
@@ -153,7 +156,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "week" | "weeks" | "wk" => {
                 let amount = value.to_i64().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Week value too large")
@@ -167,7 +170,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "day" | "days" | "d" => {
                 let amount = value.to_i64().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Day value too large")
@@ -181,7 +184,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "hour" | "hours" | "hr" | "h" => {
                 let amount = value.to_i64().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Hour value too large")
@@ -195,7 +198,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "minute" | "minutes" | "min" => {
                 let amount = value.to_i64().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Minute value too large")
@@ -209,7 +212,7 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: 0,
                 })
-            },
+            }
             "second" | "seconds" | "sec" | "s" => {
                 // Handle fractional seconds by converting to milliseconds
                 let total_ms = (value * Decimal::from(1000)).to_i64().ok_or_else(|| {
@@ -226,7 +229,7 @@ impl DateTimeDuration {
                     seconds,
                     milliseconds,
                 })
-            },
+            }
             "millisecond" | "milliseconds" | "ms" => {
                 let amount = value.to_i64().ok_or_else(|| {
                     FhirPathError::evaluation_error(FP0058, "Millisecond value too large")
@@ -240,11 +243,11 @@ impl DateTimeDuration {
                     seconds: 0,
                     milliseconds: amount,
                 })
-            },
+            }
             _ => Err(FhirPathError::evaluation_error(
                 FP0058,
-                &format!("Unsupported duration unit: '{}'", unit)
-            ))
+                &format!("Unsupported duration unit: '{}'", unit),
+            )),
         }
     }
 
@@ -257,9 +260,15 @@ impl DateTimeDuration {
             let new_year = result.year() + self.years;
             let total_months = result.month() as i32 + self.months;
             let (final_year, final_month) = if total_months > 12 {
-                (new_year + (total_months - 1) / 12, ((total_months - 1) % 12 + 1) as u32)
+                (
+                    new_year + (total_months - 1) / 12,
+                    ((total_months - 1) % 12 + 1) as u32,
+                )
             } else if total_months < 1 {
-                (new_year + (total_months - 12) / 12, (total_months + 11) as u32)
+                (
+                    new_year + (total_months - 12) / 12,
+                    (total_months + 11) as u32,
+                )
             } else {
                 (new_year, total_months as u32)
             };
@@ -272,24 +281,24 @@ impl DateTimeDuration {
                 .with_year(final_year)
                 .and_then(|dt| dt.with_month(final_month))
                 .and_then(|dt| dt.with_day(final_day))
-                .ok_or_else(|| FhirPathError::evaluation_error(
-                    FP0052,
-                    "Invalid date after year/month arithmetic"
-                ))?;
+                .ok_or_else(|| {
+                    FhirPathError::evaluation_error(
+                        FP0052,
+                        "Invalid date after year/month arithmetic",
+                    )
+                })?;
         }
 
         // Add the remaining duration components
-        let duration = Duration::days(self.days) +
-                      Duration::hours(self.hours) +
-                      Duration::minutes(self.minutes) +
-                      Duration::seconds(self.seconds) +
-                      Duration::milliseconds(self.milliseconds);
+        let duration = Duration::days(self.days)
+            + Duration::hours(self.hours)
+            + Duration::minutes(self.minutes)
+            + Duration::seconds(self.seconds)
+            + Duration::milliseconds(self.milliseconds);
 
-        result.checked_add_signed(duration)
-            .ok_or_else(|| FhirPathError::evaluation_error(
-                FP0052,
-                "DateTime overflow in arithmetic operation"
-            ))
+        result.checked_add_signed(duration).ok_or_else(|| {
+            FhirPathError::evaluation_error(FP0052, "DateTime overflow in arithmetic operation")
+        })
     }
 
     /// Subtract this duration from a datetime
@@ -303,7 +312,7 @@ impl DateTimeDuration {
             seconds: -self.seconds,
             milliseconds: -self.milliseconds,
         };
-        
+
         negative_duration.add_to_datetime(datetime)
     }
 }
@@ -339,24 +348,15 @@ mod tests {
 
     #[test]
     fn test_duration_parsing() {
-        let duration = DateTimeDuration::from_quantity(
-            &Decimal::from(2),
-            "months"
-        ).unwrap();
+        let duration = DateTimeDuration::from_quantity(&Decimal::from(2), "months").unwrap();
         assert_eq!(duration.months, 2);
         assert_eq!(duration.years, 0);
 
-        let duration = DateTimeDuration::from_quantity(
-            &Decimal::from(7),
-            "days"
-        ).unwrap();
+        let duration = DateTimeDuration::from_quantity(&Decimal::from(7), "days").unwrap();
         assert_eq!(duration.days, 7);
 
         // Test invalid unit
-        let result = DateTimeDuration::from_quantity(
-            &Decimal::from(1),
-            "invalid_unit"
-        );
+        let result = DateTimeDuration::from_quantity(&Decimal::from(1), "invalid_unit");
         assert!(result.is_err());
     }
 
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn test_duration_arithmetic() {
         let start = Utc.with_ymd_and_hms(2023, 1, 15, 10, 30, 0).unwrap();
-        
+
         // Test adding 1 month
         let duration = DateTimeDuration::from_quantity(&Decimal::from(1), "month").unwrap();
         let result = duration.add_to_datetime(start).unwrap();

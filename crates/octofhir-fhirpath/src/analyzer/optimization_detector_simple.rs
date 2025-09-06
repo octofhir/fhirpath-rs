@@ -1,7 +1,7 @@
 //! Simplified optimization detector for FHIRPath expressions
 
-use crate::analyzer::{OptimizationSuggestion, OptimizationKind};
-use crate::analyzer::type_checker::{TypeInfo, NodeId};
+use crate::analyzer::type_checker::{NodeId, TypeInfo};
+use crate::analyzer::OptimizationSuggestion;
 use crate::ast::expression::*;
 use crate::core::{Result, SourceLocation};
 use std::collections::HashMap;
@@ -130,7 +130,11 @@ impl OptimizationDetector {
         }
     }
 
-    pub fn analyze(&mut self, _expression: &ExpressionNode, _type_info: &HashMap<NodeId, TypeInfo>) -> Result<OptimizationAnalysisResult> {
+    pub fn analyze(
+        &mut self,
+        _expression: &ExpressionNode,
+        _type_info: &HashMap<NodeId, TypeInfo>,
+    ) -> Result<OptimizationAnalysisResult> {
         // Simplified implementation that returns empty results
         Ok(OptimizationAnalysisResult {
             suggestions: Vec::new(),

@@ -3,10 +3,10 @@
 //! This module implements FHIRPath boolean logic functions according to the specification.
 //! Reference: https://build.fhir.org/ig/HL7/FHIRPath/
 
-use super::{FunctionRegistry, FunctionCategory, FunctionContext};
-use crate::core::{FhirPathValue, FhirPathError, Result};
-use crate::{register_function};
+use super::{FunctionCategory, FunctionContext, FunctionRegistry};
 use crate::core::error_code::FP0053;
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::register_function;
 
 impl FunctionRegistry {
     pub fn register_logic_functions(&self) -> Result<()> {
@@ -137,7 +137,7 @@ impl FunctionRegistry {
                 // For now, just pass through the input unchanged
                 // In full implementation, this would store the input value in a variable scope
                 // that can be accessed later using %variableName
-                
+
                 Ok(context.input.to_vec())
             }
         )

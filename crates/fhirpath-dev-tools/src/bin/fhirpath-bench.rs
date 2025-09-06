@@ -261,7 +261,9 @@ async fn profile_expression(
         if i % 100 == 0 && i > 0 {
             println!("Completed {} iterations", i);
         }
-        let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
+        let collection = octofhir_fhirpath::Collection::single(
+            octofhir_fhirpath::FhirPathValue::resource(data.clone()),
+        );
         let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
         let _ = engine.evaluate(expression, &ctx).await;
     }
@@ -325,8 +327,8 @@ fn list_expressions() {
 
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
-    use octofhir_fhirschema::provider::FhirSchemaModelProvider;
     use octofhir_fhirpath::parse_expression;
+    use octofhir_fhirschema::provider::FhirSchemaModelProvider;
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -410,7 +412,9 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             let start_time = Instant::now();
 
             for _ in 0..iterations {
-                let collection = octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(data.clone()));
+                let collection = octofhir_fhirpath::Collection::single(
+                    octofhir_fhirpath::FhirPathValue::resource(data.clone()),
+                );
                 let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
                 let _ = engine.evaluate(expr, &ctx).await;
             }

@@ -1,13 +1,13 @@
 //! Core FHIRPath type definitions with comprehensive value system
 
-use std::fmt;
-use std::cmp::Ordering;
-use std::sync::Arc;
+use octofhir_ucum::{UnitRecord, find_unit};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use rust_decimal::Decimal;
+use std::cmp::Ordering;
+use std::fmt;
+use std::sync::Arc;
 use uuid::Uuid;
-use octofhir_ucum::{UnitRecord, find_unit};
 
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
@@ -67,7 +67,6 @@ impl Collection {
     pub fn into_vec(self) -> Vec<FhirPathValue> {
         self.0
     }
-
 }
 
 impl From<Vec<FhirPathValue>> for Collection {
@@ -84,7 +83,7 @@ impl From<FhirPathValue> for Collection {
 
 impl std::ops::Index<usize> for Collection {
     type Output = FhirPathValue;
-    
+
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
@@ -105,30 +104,30 @@ impl serde::Serialize for Collection {
 pub enum FhirPathValue {
     /// Boolean value
     Boolean(bool),
-    
+
     /// Integer value (64-bit signed)
     Integer(i64),
-    
+
     /// Decimal value (high-precision)
     Decimal(Decimal),
-    
+
     /// String value
     String(String),
-    
+
     /// Date value with precision tracking
     Date(PrecisionDate),
-    
+
     /// DateTime value with timezone and precision tracking
     DateTime(PrecisionDateTime),
-    
+
     /// Time value with precision tracking
     Time(PrecisionTime),
-    
+
     /// Quantity value with UCUM unit support
     Quantity {
         /// The numeric value of the quantity
         value: Decimal,
-        /// The unit of measurement (e.g., "mg", "kg/m2") 
+        /// The unit of measurement (e.g., "mg", "kg/m2")
         unit: Option<String>,
         /// Parsed UCUM unit for calculations (cached for performance)
         #[serde(skip)]
@@ -137,35 +136,32 @@ pub enum FhirPathValue {
         /// Calendar unit for non-UCUM time units (year, month, week, day)
         calendar_unit: Option<CalendarUnit>,
     },
-    
+
     /// Complex FHIR resource or element (JSON representation)
     /// This handles all complex FHIR types like Coding, CodeableConcept, etc.
     Resource(JsonValue),
-    
+
     /// Raw JSON value for compatibility (distinct from Resource for type operations)
     JsonValue(JsonValue),
-    
+
     /// UUID/identifier value
     Id(Uuid),
-    
+
     /// Binary data (base64 encoded)
     Base64Binary(Vec<u8>),
-    
+
     /// URI value
     Uri(String),
-    
+
     /// URL value (subset of URI)
     Url(String),
-    
+
     /// Collection of values (the fundamental FHIRPath concept)
     Collection(Vec<FhirPathValue>),
-    
+
     /// Type information object for type operations
-    TypeInfoObject {
-        namespace: String,
-        name: String,
-    },
-    
+    TypeInfoObject { namespace: String, name: String },
+
     /// Null/empty value (represents absence)
     Empty,
 }
@@ -185,7 +181,7 @@ impl serde::Serialize for FhirPathValue {
                 } else {
                     serializer.serialize_str(&d.to_string())
                 }
-            },
+            }
             Self::String(s) => serializer.serialize_str(s),
             Self::Date(date) => serializer.serialize_str(&date.to_string()),
             Self::DateTime(dt) => serializer.serialize_str(&dt.to_string()),
@@ -194,9 +190,12 @@ impl serde::Serialize for FhirPathValue {
                 let mut map = std::collections::BTreeMap::new();
                 // Convert decimal value to JSON number or string
                 if let Ok(f) = value.to_string().parse::<f64>() {
-                    map.insert("value", serde_json::Value::Number(
-                        serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0))
-                    ));
+                    map.insert(
+                        "value",
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
+                        ),
+                    );
                 } else {
                     map.insert("value", serde_json::Value::String(value.to_string()));
                 }
@@ -204,13 +203,13 @@ impl serde::Serialize for FhirPathValue {
                     map.insert("unit", serde_json::Value::String(unit.clone()));
                 }
                 map.serialize(serializer)
-            },
+            }
             Self::Resource(json) => json.serialize(serializer),
             Self::Id(id) => serializer.serialize_str(&id.to_string()),
             Self::Base64Binary(data) => {
                 // For now, serialize as string representation since we removed base64 dependency
                 serializer.serialize_str(&format!("base64({} bytes)", data.len()))
-            },
+            }
             Self::Uri(uri) => serializer.serialize_str(uri),
             Self::Url(url) => serializer.serialize_str(url),
             Self::Collection(values) => values.serialize(serializer),
@@ -219,7 +218,7 @@ impl serde::Serialize for FhirPathValue {
                 map.insert("namespace", namespace);
                 map.insert("name", name);
                 map.serialize(serializer)
-            },
+            }
             Self::JsonValue(json) => json.serialize(serializer),
             Self::Empty => serializer.serialize_unit(),
         }
@@ -244,7 +243,7 @@ impl CalendarUnit {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Year => "year",
-            Self::Month => "month", 
+            Self::Month => "month",
             Self::Week => "week",
             Self::Day => "day",
         }
@@ -283,7 +282,7 @@ impl FhirPathValue {
     pub fn type_name(&self) -> &'static str {
         match self {
             Self::Boolean(_) => "Boolean",
-            Self::Integer(_) => "Integer", 
+            Self::Integer(_) => "Integer",
             Self::Decimal(_) => "Decimal",
             Self::String(_) => "String",
             Self::Date(_) => "Date",
@@ -464,30 +463,40 @@ impl FhirPathValue {
     pub fn is_quantity_compatible(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                Self::Quantity { ucum_unit: Some(u1), .. },
-                Self::Quantity { ucum_unit: Some(u2), .. }
+                Self::Quantity {
+                    ucum_unit: Some(u1),
+                    ..
+                },
+                Self::Quantity {
+                    ucum_unit: Some(u2),
+                    ..
+                },
             ) => {
                 // Both have UCUM units - check if they're compatible (same dimension)
                 u1.dim == u2.dim
-            },
+            }
             (
-                Self::Quantity { calendar_unit: Some(c1), ucum_unit: None, .. },
-                Self::Quantity { calendar_unit: Some(c2), ucum_unit: None, .. }
+                Self::Quantity {
+                    calendar_unit: Some(c1),
+                    ucum_unit: None,
+                    ..
+                },
+                Self::Quantity {
+                    calendar_unit: Some(c2),
+                    ucum_unit: None,
+                    ..
+                },
             ) => {
                 // Both have calendar units - same type is compatible
                 c1 == c2
-            },
-            (
-                Self::Quantity { unit: None, .. },
-                Self::Quantity { unit: None, .. }
-            ) => {
+            }
+            (Self::Quantity { unit: None, .. }, Self::Quantity { unit: None, .. }) => {
                 // Both dimensionless quantities are compatible
                 true
-            },
+            }
             _ => false,
         }
     }
-
 }
 
 impl fmt::Display for FhirPathValue {
@@ -506,7 +515,7 @@ impl fmt::Display for FhirPathValue {
                 } else {
                     write!(f, "{}", value)
                 }
-            },
+            }
             Self::Resource(json) => {
                 // Try to extract resource type for better display
                 if let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str()) {
@@ -514,7 +523,7 @@ impl fmt::Display for FhirPathValue {
                 } else {
                     write!(f, "Resource({})", json)
                 }
-            },
+            }
             Self::Id(id) => write!(f, "{}", id),
             Self::Base64Binary(data) => write!(f, "base64({} bytes)", data.len()),
             Self::Uri(u) => write!(f, "{}", u),
@@ -522,18 +531,20 @@ impl fmt::Display for FhirPathValue {
             Self::Collection(values) => {
                 write!(f, "Collection[")?;
                 for (i, val) in values.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", val)?;
                 }
                 write!(f, "]")
-            },
+            }
             Self::TypeInfoObject { namespace, name } => {
                 if namespace.is_empty() {
                     write!(f, "TypeInfo({})", name)
                 } else {
                     write!(f, "TypeInfo({}.{})", namespace, name)
                 }
-            },
+            }
             Self::JsonValue(json) => write!(f, "JsonValue({})", json),
             Self::Empty => write!(f, "{{}}"),
         }
@@ -548,20 +559,20 @@ impl PartialOrd for FhirPathValue {
             (Self::Decimal(a), Self::Decimal(b)) => a.partial_cmp(b),
             (Self::Integer(a), Self::Decimal(b)) => Decimal::from(*a).partial_cmp(b),
             (Self::Decimal(a), Self::Integer(b)) => a.partial_cmp(&Decimal::from(*b)),
-            
+
             // String comparisons
             (Self::String(a), Self::String(b)) => a.partial_cmp(b),
             (Self::Uri(a), Self::Uri(b)) => a.partial_cmp(b),
             (Self::Url(a), Self::Url(b)) => a.partial_cmp(b),
-            
+
             // Boolean comparison
             (Self::Boolean(a), Self::Boolean(b)) => a.partial_cmp(b),
-            
-            // Temporal comparisons 
+
+            // Temporal comparisons
             (Self::Date(a), Self::Date(b)) => a.partial_cmp(b),
             (Self::DateTime(a), Self::DateTime(b)) => a.partial_cmp(b),
             (Self::Time(a), Self::Time(b)) => a.partial_cmp(b),
-            
+
             // Quantity comparisons (only if compatible units)
             (Self::Quantity { value: v1, .. }, Self::Quantity { value: v2, .. }) => {
                 if self.is_quantity_compatible(other) {
@@ -569,11 +580,11 @@ impl PartialOrd for FhirPathValue {
                 } else {
                     None // Incompatible units
                 }
-            },
-            
+            }
+
             // ID comparisons
             (Self::Id(a), Self::Id(b)) => a.partial_cmp(b),
-            
+
             _ => None, // Different types are not comparable
         }
     }

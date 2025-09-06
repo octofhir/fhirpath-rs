@@ -37,6 +37,10 @@ pub enum ReplCommand {
     Help { function: Option<String> },
     /// Show command history
     History,
+    /// Analyze expression with diagnostics
+    Analyze { expression: String },
+    /// Validate expression syntax
+    Validate { expression: String },
     /// Exit REPL
     Quit,
 }
@@ -119,6 +123,20 @@ impl ReplCommand {
                     return Err(anyhow!("Usage: :history"));
                 }
                 ReplCommand::History
+            }
+            "analyze" => {
+                if parts.len() < 2 {
+                    return Err(anyhow!("Usage: :analyze <expression>"));
+                }
+                let expression = parts[1..].join(" ");
+                ReplCommand::Analyze { expression }
+            }
+            "validate" => {
+                if parts.len() < 2 {
+                    return Err(anyhow!("Usage: :validate <expression>"));
+                }
+                let expression = parts[1..].join(" ");
+                ReplCommand::Validate { expression }
             }
             "quit" | "q" | "exit" => {
                 if parts.len() != 1 {

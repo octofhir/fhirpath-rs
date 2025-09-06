@@ -1,8 +1,10 @@
 //! Function builder pattern for easy registration
 
-use std::sync::Arc;
-use super::{FunctionRegistry, FunctionMetadata, ParameterMetadata, FunctionCategory, SyncFunction, AsyncFunction};
-use crate::core::{FhirPathError, Result};
+use super::{
+    AsyncFunction, FunctionCategory, FunctionMetadata, FunctionRegistry, ParameterMetadata,
+    SyncFunction,
+};
+use crate::core::Result;
 
 pub struct FunctionBuilder {
     name: String,
@@ -56,11 +58,7 @@ impl FunctionBuilder {
         self
     }
 
-    pub fn register_sync(
-        self,
-        registry: &FunctionRegistry,
-        function: SyncFunction,
-    ) -> Result<()> {
+    pub fn register_sync(self, registry: &FunctionRegistry, function: SyncFunction) -> Result<()> {
         let metadata = FunctionMetadata {
             name: self.name.clone(),
             category: self.category,
@@ -70,7 +68,7 @@ impl FunctionBuilder {
             is_async: false,
             examples: self.examples,
         };
-        
+
         registry.register_sync_function(self.name, function, metadata)
     }
 
@@ -88,7 +86,7 @@ impl FunctionBuilder {
             is_async: true,
             examples: self.examples,
         };
-        
+
         registry.register_async_function(self.name, function, metadata)
     }
 }
@@ -110,19 +108,19 @@ macro_rules! register_function {
             let mut builder = $crate::registry::builder::FunctionBuilder::new($name, $category)
                 .description($desc)
                 .return_type($return_type);
-            
+
             $(
                 builder = builder.parameter($param_name, $param_type, false, $param_desc);
             )*
-            
+
             $(
                 builder = builder.example($example);
             )*
-            
+
             builder.register_sync($registry, std::sync::Arc::new($impl))
         }
     };
-    
+
     (
         $registry:expr,
         async $name:literal,
@@ -137,15 +135,15 @@ macro_rules! register_function {
             let mut builder = $crate::registry::builder::FunctionBuilder::new($name, $category)
                 .description($desc)
                 .return_type($return_type);
-            
+
             $(
                 builder = builder.parameter($param_name, $param_type, false, $param_desc);
             )*
-            
+
             $(
                 builder = builder.example($example);
             )*
-            
+
             builder.register_async($registry, std::sync::Arc::new($impl))
         }
     };

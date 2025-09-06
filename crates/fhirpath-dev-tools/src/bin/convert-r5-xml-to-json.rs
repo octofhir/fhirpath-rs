@@ -2,9 +2,9 @@
 // Usage:
 //   cargo run --bin convert-r5-xml-to-json -- specs/fhirpath/tests/tests-fhir-r5.xml
 
+use quick_xml::Reader;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
-use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -17,26 +17,26 @@ struct JsonTestCase {
     expression: String,
     #[serde(default)]
     input: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     inputfile: Option<String>,
     expected: Value,
     #[serde(default)]
     tags: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     expecterror: Option<bool>,
-    #[serde(rename = "expectError", skip_serializing_if = "Option::is_none")] 
+    #[serde(rename = "expectError", skip_serializing_if = "Option::is_none")]
     expect_error_alias: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     disabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     predicate: Option<bool>,
-    #[serde(rename = "skipStaticCheck", skip_serializing_if = "Option::is_none")] 
+    #[serde(rename = "skipStaticCheck", skip_serializing_if = "Option::is_none")]
     skip_static_check: Option<bool>,
-    #[serde(rename = "invalidKind", skip_serializing_if = "Option::is_none")] 
+    #[serde(rename = "invalidKind", skip_serializing_if = "Option::is_none")]
     invalid_kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")] 
+    #[serde(skip_serializing_if = "Option::is_none")]
     mode: Option<String>,
 }
 
@@ -66,12 +66,17 @@ fn xml_text_to_value(ty: &str, text: &str) -> Value {
             "false" | "False" | "FALSE" => Value::Bool(false),
             _ => Value::Null,
         },
-        "integer" => trimmed.parse::<i64>().map(|v| Value::Number(v.into())).unwrap_or(Value::Null),
+        "integer" => trimmed
+            .parse::<i64>()
+            .map(|v| Value::Number(v.into()))
+            .unwrap_or(Value::Null),
         "decimal" => serde_json::Number::from_f64(trimmed.parse::<f64>().unwrap_or(0.0))
             .map(Value::Number)
             .unwrap_or(Value::Null),
         // Strip '@' leading for date types
-        "date" | "dateTime" | "time" => Value::String(unescape_html_entities(trimmed.strip_prefix('@').unwrap_or(trimmed))),
+        "date" | "dateTime" | "time" => Value::String(unescape_html_entities(
+            trimmed.strip_prefix('@').unwrap_or(trimmed),
+        )),
         "code" | "string" => Value::String(unescape_html_entities(trimmed)),
         _ => Value::String(unescape_html_entities(trimmed)),
     }
@@ -79,7 +84,10 @@ fn xml_text_to_value(ty: &str, text: &str) -> Value {
 
 fn map_inputfile(inputfile: &str) -> String {
     if inputfile.ends_with(".xml") {
-        format!("{}", inputfile.trim_end_matches(".xml").to_string() + ".json")
+        format!(
+            "{}",
+            inputfile.trim_end_matches(".xml").to_string() + ".json"
+        )
     } else {
         inputfile.to_string()
     }
@@ -189,13 +197,11 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
                                 if k == "invalid" {
                                     current_expect_error = true;
-                                    current_invalid_kind = Some(
-                                        a.unescape_value().unwrap_or_default().to_string(),
-                                    );
+                                    current_invalid_kind =
+                                        Some(a.unescape_value().unwrap_or_default().to_string());
                                 } else if k == "mode" {
-                                    current_expr_mode = Some(
-                                        a.unescape_value().unwrap_or_default().to_string(),
-                                    );
+                                    current_expr_mode =
+                                        Some(a.unescape_value().unwrap_or_default().to_string());
                                 }
                             }
                         }
@@ -213,9 +219,8 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         for a in e.attributes().flatten() {
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
                                 if k == "type" {
-                                    current_output_type = Some(
-                                        a.unescape_value().unwrap_or_default().to_string(),
-                                    );
+                                    current_output_type =
+                                        Some(a.unescape_value().unwrap_or_default().to_string());
                                 }
                             }
                         }
@@ -284,10 +289,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 2 {
-        eprintln!(
-            "Usage: {} <path-to-tests-fhir-r5.xml>",
-            args[0]
-        );
+        eprintln!("Usage: {} <path-to-tests-fhir-r5.xml>", args[0]);
         std::process::exit(1);
     }
     let xml_path = Path::new(&args[1]);

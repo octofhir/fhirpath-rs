@@ -3,13 +3,12 @@
 //! This module provides comprehensive reporting of optimization analysis results,
 //! including performance scores, suggestions, complexity issues, and pattern matches.
 
-use crate::analyzer::optimization_detector::{
-    OptimizationAnalysisResult, ComplexityIssue, PatternMatch, IssueSeverity, 
-    PatternType, ComplexityIssueType, FunctionCallStats, DepthAnalysis
-};
 use crate::analyzer::OptimizationKind;
+use crate::analyzer::optimization_detector::{
+    ComplexityIssueType, DepthAnalysis, FunctionCallStats, IssueSeverity,
+    OptimizationAnalysisResult, PatternType,
+};
 use crate::core::SourceLocation;
-use std::collections::HashMap;
 use std::fmt::Write;
 
 /// Configuration for optimization report generation
@@ -110,22 +109,38 @@ impl OptimizationReporter {
         let mut summary = String::new();
 
         let score_icon = self.get_performance_icon(result.performance_score);
-        let _ = writeln!(summary, "{} Performance Score: {:.1}/1.0", score_icon, result.performance_score);
+        let _ = writeln!(
+            summary,
+            "{} Performance Score: {:.1}/1.0",
+            score_icon, result.performance_score
+        );
 
-        let impact_suggestions = result.suggestions.iter()
+        let impact_suggestions = result
+            .suggestions
+            .iter()
             .filter(|s| s.estimated_improvement >= 0.2)
             .count();
 
         if impact_suggestions > 0 {
-            let _ = writeln!(summary, "⚠️  {} high-impact optimization opportunities", impact_suggestions);
+            let _ = writeln!(
+                summary,
+                "⚠️  {} high-impact optimization opportunities",
+                impact_suggestions
+            );
         }
 
         if !result.complexity_issues.is_empty() {
-            let critical_issues = result.complexity_issues.iter()
+            let critical_issues = result
+                .complexity_issues
+                .iter()
                 .filter(|i| matches!(i.severity, IssueSeverity::Critical | IssueSeverity::High))
                 .count();
             if critical_issues > 0 {
-                let _ = writeln!(summary, "🔥 {} critical performance issues", critical_issues);
+                let _ = writeln!(
+                    summary,
+                    "🔥 {} critical performance issues",
+                    critical_issues
+                );
             }
         }
 
@@ -180,9 +195,18 @@ impl OptimizationReporter {
     }
 
     fn write_header(&self, report: &mut String, filename: Option<&str>) {
-        let _ = writeln!(report, "╔══════════════════════════════════════════════════════════════╗");
-        let _ = writeln!(report, "║                  FHIRPath Optimization Analysis             ║");
-        let _ = writeln!(report, "╚══════════════════════════════════════════════════════════════╝");
+        let _ = writeln!(
+            report,
+            "╔══════════════════════════════════════════════════════════════╗"
+        );
+        let _ = writeln!(
+            report,
+            "║                  FHIRPath Optimization Analysis             ║"
+        );
+        let _ = writeln!(
+            report,
+            "╚══════════════════════════════════════════════════════════════╝"
+        );
         let _ = writeln!(report);
 
         if let Some(name) = filename {
@@ -197,16 +221,33 @@ impl OptimizationReporter {
 
         let score_icon = self.get_performance_icon(result.performance_score);
         let score_desc = self.get_performance_description(result.performance_score);
-        
-        let _ = writeln!(report, "{} Performance Score: {:.1}/1.0 ({})", 
-                      score_icon, result.performance_score, score_desc);
 
-        let _ = writeln!(report, "🔧 Optimization Opportunities: {}", result.suggestions.len());
-        let _ = writeln!(report, "⚠️  Complexity Issues: {}", result.complexity_issues.len());
-        let _ = writeln!(report, "✨ Pattern Matches: {}", result.pattern_matches.len());
+        let _ = writeln!(
+            report,
+            "{} Performance Score: {:.1}/1.0 ({})",
+            score_icon, result.performance_score, score_desc
+        );
+
+        let _ = writeln!(
+            report,
+            "🔧 Optimization Opportunities: {}",
+            result.suggestions.len()
+        );
+        let _ = writeln!(
+            report,
+            "⚠️  Complexity Issues: {}",
+            result.complexity_issues.len()
+        );
+        let _ = writeln!(
+            report,
+            "✨ Pattern Matches: {}",
+            result.pattern_matches.len()
+        );
 
         // High-impact suggestions count
-        let high_impact = result.suggestions.iter()
+        let high_impact = result
+            .suggestions
+            .iter()
             .filter(|s| s.estimated_improvement >= 0.3)
             .count();
         if high_impact > 0 {
@@ -216,11 +257,19 @@ impl OptimizationReporter {
         let _ = writeln!(report);
     }
 
-    fn write_optimization_suggestions(&self, report: &mut String, result: &OptimizationAnalysisResult, source_code: Option<&str>) {
+    fn write_optimization_suggestions(
+        &self,
+        report: &mut String,
+        result: &OptimizationAnalysisResult,
+        source_code: Option<&str>,
+    ) {
         if result.suggestions.is_empty() {
             let _ = writeln!(report, "✅ OPTIMIZATION SUGGESTIONS");
             let _ = writeln!(report, "{}", "═".repeat(50));
-            let _ = writeln!(report, "No optimization opportunities found! Your expression is well-optimized.");
+            let _ = writeln!(
+                report,
+                "No optimization opportunities found! Your expression is well-optimized."
+            );
             let _ = writeln!(report);
             return;
         }
@@ -230,7 +279,7 @@ impl OptimizationReporter {
 
         // Filter and sort suggestions
         let mut suggestions = result.suggestions.clone();
-        
+
         if self.config.high_impact_only {
             suggestions.retain(|s| s.estimated_improvement >= 0.2);
         }
@@ -240,24 +289,43 @@ impl OptimizationReporter {
         }
 
         // Sort by estimated improvement (descending)
-        suggestions.sort_by(|a, b| b.estimated_improvement.partial_cmp(&a.estimated_improvement).unwrap_or(std::cmp::Ordering::Equal));
+        suggestions.sort_by(|a, b| {
+            b.estimated_improvement
+                .partial_cmp(&a.estimated_improvement)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for (i, suggestion) in suggestions.iter().enumerate() {
             let impact_icon = self.get_impact_icon(suggestion.estimated_improvement);
             let impact_level = self.get_impact_level(suggestion.estimated_improvement);
             let kind_icon = self.get_optimization_kind_icon(&suggestion.kind);
 
-            let _ = writeln!(report, "{}. {} [{}] {:?}", 
-                          i + 1, kind_icon, impact_level, suggestion.kind);
+            let _ = writeln!(
+                report,
+                "{}. {} [{}] {:?}",
+                i + 1,
+                kind_icon,
+                impact_level,
+                suggestion.kind
+            );
             let _ = writeln!(report, "   {}", suggestion.message);
 
             if suggestion.estimated_improvement > 0.0 {
-                let _ = writeln!(report, "   {} Estimated improvement: {:.0}%", 
-                              impact_icon, suggestion.estimated_improvement * 100.0);
+                let _ = writeln!(
+                    report,
+                    "   {} Estimated improvement: {:.0}%",
+                    impact_icon,
+                    suggestion.estimated_improvement * 100.0
+                );
             }
 
             if let Some(location) = &suggestion.location {
-                let _ = writeln!(report, "   📍 Location: {}..{}", location.offset, location.offset + location.length);
+                let _ = writeln!(
+                    report,
+                    "   📍 Location: {}..{}",
+                    location.offset,
+                    location.offset + location.length
+                );
 
                 // Include source code snippet if available
                 if self.config.include_source_snippets {
@@ -285,20 +353,31 @@ impl OptimizationReporter {
             let severity_icon = self.get_severity_icon(&issue.severity);
             let issue_icon = self.get_complexity_issue_icon(&issue.issue_type);
 
-            let _ = writeln!(report, "{} {} {:?}: {}", 
-                          severity_icon, issue_icon, issue.issue_type, issue.description);
+            let _ = writeln!(
+                report,
+                "{} {} {:?}: {}",
+                severity_icon, issue_icon, issue.issue_type, issue.description
+            );
 
             if let Some(fix) = &issue.suggested_fix {
                 let _ = writeln!(report, "   🔧 Suggested fix: {}", fix);
             }
 
             if issue.performance_impact > 0.0 {
-                let _ = writeln!(report, "   📊 Performance impact: {:.0}%", 
-                              issue.performance_impact * 100.0);
+                let _ = writeln!(
+                    report,
+                    "   📊 Performance impact: {:.0}%",
+                    issue.performance_impact * 100.0
+                );
             }
 
             if let Some(location) = &issue.location {
-                let _ = writeln!(report, "   📍 Location: {}..{}", location.offset, location.offset + location.length);
+                let _ = writeln!(
+                    report,
+                    "   📍 Location: {}..{}",
+                    location.offset,
+                    location.offset + location.length
+                );
             }
 
             let _ = writeln!(report);
@@ -315,16 +394,28 @@ impl OptimizationReporter {
 
         for pattern in &result.pattern_matches {
             let pattern_icon = self.get_pattern_type_icon(&pattern.pattern_type);
-            let _ = writeln!(report, "{} {:?}: {}", pattern_icon, pattern.pattern_type, pattern.benefit);
+            let _ = writeln!(
+                report,
+                "{} {:?}: {}",
+                pattern_icon, pattern.pattern_type, pattern.benefit
+            );
             let _ = writeln!(report, "   {} → {}", pattern.original, pattern.suggested);
 
             if pattern.improvement_factor > 0.0 {
-                let _ = writeln!(report, "   ⚡ Expected speedup: {:.0}%", 
-                              pattern.improvement_factor * 100.0);
+                let _ = writeln!(
+                    report,
+                    "   ⚡ Expected speedup: {:.0}%",
+                    pattern.improvement_factor * 100.0
+                );
             }
 
             if let Some(location) = &pattern.location {
-                let _ = writeln!(report, "   📍 Location: {}..{}", location.offset, location.offset + location.length);
+                let _ = writeln!(
+                    report,
+                    "   📍 Location: {}..{}",
+                    location.offset,
+                    location.offset + location.length
+                );
             }
 
             let _ = writeln!(report);
@@ -336,16 +427,26 @@ impl OptimizationReporter {
         let _ = writeln!(report, "{}", "═".repeat(50));
 
         let _ = writeln!(report, "Total function calls: {}", stats.total_calls);
-        let _ = writeln!(report, "Expensive calls: {} ({:.1}%)", 
-                      stats.expensive_calls, 
-                      if stats.total_calls > 0 { 
-                          stats.expensive_calls as f32 / stats.total_calls as f32 * 100.0 
-                      } else { 0.0 });
-        let _ = writeln!(report, "Cacheable calls: {} ({:.1}%)", 
-                      stats.cacheable_calls,
-                      if stats.total_calls > 0 { 
-                          stats.cacheable_calls as f32 / stats.total_calls as f32 * 100.0 
-                      } else { 0.0 });
+        let _ = writeln!(
+            report,
+            "Expensive calls: {} ({:.1}%)",
+            stats.expensive_calls,
+            if stats.total_calls > 0 {
+                stats.expensive_calls as f32 / stats.total_calls as f32 * 100.0
+            } else {
+                0.0
+            }
+        );
+        let _ = writeln!(
+            report,
+            "Cacheable calls: {} ({:.1}%)",
+            stats.cacheable_calls,
+            if stats.total_calls > 0 {
+                stats.cacheable_calls as f32 / stats.total_calls as f32 * 100.0
+            } else {
+                0.0
+            }
+        );
 
         if !stats.frequent_functions.is_empty() {
             let _ = writeln!(report, "\n🔥 Most frequent functions:");
@@ -368,16 +469,31 @@ impl OptimizationReporter {
         let _ = writeln!(report, "📊 DEPTH ANALYSIS");
         let _ = writeln!(report, "{}", "═".repeat(50));
 
-        let _ = writeln!(report, "Max property access depth: {}", depth.max_property_depth);
-        let _ = writeln!(report, "Max expression nesting depth: {}", depth.max_expression_depth);
+        let _ = writeln!(
+            report,
+            "Max property access depth: {}",
+            depth.max_property_depth
+        );
+        let _ = writeln!(
+            report,
+            "Max expression nesting depth: {}",
+            depth.max_expression_depth
+        );
 
         if depth.deep_expressions > 0 {
-            let _ = writeln!(report, "⚠️  Deep expressions found: {}", depth.deep_expressions);
+            let _ = writeln!(
+                report,
+                "⚠️  Deep expressions found: {}",
+                depth.deep_expressions
+            );
         }
 
         if !depth.depth_reduction_opportunities.is_empty() {
-            let _ = writeln!(report, "🎯 Depth reduction opportunities: {}", 
-                          depth.depth_reduction_opportunities.len());
+            let _ = writeln!(
+                report,
+                "🎯 Depth reduction opportunities: {}",
+                depth.depth_reduction_opportunities.len()
+            );
         }
 
         let _ = writeln!(report);
@@ -391,41 +507,71 @@ impl OptimizationReporter {
         if result.performance_score >= 0.9 {
             let _ = writeln!(report, "🏆 Excellent! Your expression is highly optimized.");
         } else if result.performance_score >= 0.7 {
-            let _ = writeln!(report, "✅ Good performance. Consider the suggestions above for further optimization.");
+            let _ = writeln!(
+                report,
+                "✅ Good performance. Consider the suggestions above for further optimization."
+            );
         } else if result.performance_score >= 0.5 {
-            let _ = writeln!(report, "⚠️  Moderate performance. Multiple optimization opportunities exist.");
+            let _ = writeln!(
+                report,
+                "⚠️  Moderate performance. Multiple optimization opportunities exist."
+            );
         } else {
-            let _ = writeln!(report, "🔥 Performance concerns identified. Priority should be given to optimization.");
+            let _ = writeln!(
+                report,
+                "🔥 Performance concerns identified. Priority should be given to optimization."
+            );
         }
 
         // Priority recommendations
-        let high_impact_suggestions = result.suggestions.iter()
+        let high_impact_suggestions = result
+            .suggestions
+            .iter()
             .filter(|s| s.estimated_improvement >= 0.3)
             .count();
 
         if high_impact_suggestions > 0 {
             let _ = writeln!(report, "\n🎯 Priority Actions:");
-            let _ = writeln!(report, "   • Focus on {} high-impact suggestions first", high_impact_suggestions);
+            let _ = writeln!(
+                report,
+                "   • Focus on {} high-impact suggestions first",
+                high_impact_suggestions
+            );
         }
 
-        let critical_issues = result.complexity_issues.iter()
+        let critical_issues = result
+            .complexity_issues
+            .iter()
             .filter(|i| matches!(i.severity, IssueSeverity::Critical | IssueSeverity::High))
             .count();
 
         if critical_issues > 0 {
-            let _ = writeln!(report, "   • Address {} critical complexity issues", critical_issues);
+            let _ = writeln!(
+                report,
+                "   • Address {} critical complexity issues",
+                critical_issues
+            );
         }
 
         if result.function_call_stats.expensive_calls > 0 {
-            let _ = writeln!(report, "   • Consider alternatives to {} expensive function calls", 
-                          result.function_call_stats.expensive_calls);
+            let _ = writeln!(
+                report,
+                "   • Consider alternatives to {} expensive function calls",
+                result.function_call_stats.expensive_calls
+            );
         }
 
         if result.depth_analysis.max_expression_depth > 7 {
-            let _ = writeln!(report, "   • Break down deeply nested expressions for better readability");
+            let _ = writeln!(
+                report,
+                "   • Break down deeply nested expressions for better readability"
+            );
         }
 
-        let _ = writeln!(report, "\n💡 For more details, see the individual sections above.");
+        let _ = writeln!(
+            report,
+            "\n💡 For more details, see the individual sections above."
+        );
     }
 
     // Helper methods for formatting and icons
@@ -562,7 +708,9 @@ impl Default for OptimizationReporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyzer::optimization_detector::{OptimizationAnalysisResult, DepthAnalysis, FunctionCallStats};
+    use crate::analyzer::optimization_detector::{
+        DepthAnalysis, FunctionCallStats, OptimizationAnalysisResult,
+    };
 
     #[test]
     fn test_report_config_default() {
@@ -590,7 +738,7 @@ mod tests {
     #[test]
     fn test_performance_icon_selection() {
         let reporter = OptimizationReporter::new();
-        
+
         assert_eq!(reporter.get_performance_icon(0.95), "🟢");
         assert_eq!(reporter.get_performance_icon(0.75), "🟡");
         assert_eq!(reporter.get_performance_icon(0.55), "🟠");
@@ -600,7 +748,7 @@ mod tests {
     #[test]
     fn test_impact_level_categorization() {
         let reporter = OptimizationReporter::new();
-        
+
         assert_eq!(reporter.get_impact_level(0.5), "CRITICAL IMPACT");
         assert_eq!(reporter.get_impact_level(0.35), "HIGH IMPACT");
         assert_eq!(reporter.get_impact_level(0.15), "MEDIUM IMPACT");

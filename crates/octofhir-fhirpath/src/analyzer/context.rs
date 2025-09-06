@@ -189,41 +189,47 @@ impl AnalysisContext {
 
     /// Check if we're in a lambda scope
     pub fn is_in_lambda(&self) -> bool {
-        self.scopes.iter().any(|scope| {
-            matches!(scope.scope_type, ScopeType::Lambda { .. })
-        })
+        self.scopes
+            .iter()
+            .any(|scope| matches!(scope.scope_type, ScopeType::Lambda { .. }))
     }
 
     /// Check if we're in a function scope
     pub fn is_in_function(&self) -> bool {
-        self.scopes.iter().any(|scope| {
-            matches!(scope.scope_type, ScopeType::Function { .. })
-        })
+        self.scopes
+            .iter()
+            .any(|scope| matches!(scope.scope_type, ScopeType::Function { .. }))
     }
 
     /// Check if we're in an aggregate function scope
     pub fn is_in_aggregate_function(&self) -> bool {
         self.scopes.iter().any(|scope| {
-            matches!(scope.scope_type, ScopeType::Function { is_aggregate: true, .. })
+            matches!(
+                scope.scope_type,
+                ScopeType::Function {
+                    is_aggregate: true,
+                    ..
+                }
+            )
         })
     }
 
     /// Get all variables in the current context (including all scopes)
     pub fn all_variables(&self) -> HashMap<String, &TypeInfo> {
         let mut all_vars = HashMap::new();
-        
+
         // Add global variables
         for (name, type_info) in &self.variables {
             all_vars.insert(name.clone(), type_info);
         }
-        
+
         // Add variables from all scopes (current scope overrides outer scopes)
         for scope in &self.scopes {
             for (name, type_info) in &scope.variables {
                 all_vars.insert(name.clone(), type_info);
             }
         }
-        
+
         all_vars
     }
 
@@ -348,23 +354,23 @@ mod tests {
     #[test]
     fn test_scope_management() {
         let mut ctx = AnalysisContext::new();
-        
+
         ctx.push_scope(ScopeType::Function {
             name: "where".to_string(),
             is_aggregate: false,
         });
-        
+
         assert_eq!(ctx.scopes.len(), 2);
         assert!(matches!(
-            ctx.current_scope().scope_type, 
+            ctx.current_scope().scope_type,
             ScopeType::Function { ref name, .. } if name == "where"
         ));
-        
+
         let popped = ctx.pop_scope();
         assert!(popped.is_some());
         assert_eq!(ctx.scopes.len(), 1);
         assert!(matches!(ctx.current_scope().scope_type, ScopeType::Root));
-        
+
         // Can't pop the root scope
         let root_pop = ctx.pop_scope();
         assert!(root_pop.is_none());
@@ -374,32 +380,32 @@ mod tests {
     #[test]
     fn test_variable_management() {
         let mut ctx = AnalysisContext::new();
-        
+
         // Define global variable
         ctx.define_global_variable("global".to_string(), TypeInfo::String);
-        
+
         // Define variable in root scope
         ctx.define_variable("local".to_string(), TypeInfo::Integer);
-        
+
         // Create function scope and define variable
         ctx.push_scope(ScopeType::Function {
             name: "select".to_string(),
             is_aggregate: false,
         });
         ctx.define_variable("function_var".to_string(), TypeInfo::Boolean);
-        
+
         // Test lookups
         assert!(ctx.has_variable("global"));
         assert!(ctx.has_variable("local"));
         assert!(ctx.has_variable("function_var"));
         assert!(!ctx.has_variable("nonexistent"));
-        
+
         // Function scope variable should shadow global
         ctx.define_variable("global".to_string(), TypeInfo::Date);
         if let Some(var_type) = ctx.lookup_variable("global") {
             assert!(matches!(var_type, TypeInfo::Date));
         }
-        
+
         // Pop scope and check shadowing is gone
         ctx.pop_scope();
         if let Some(var_type) = ctx.lookup_variable("global") {
@@ -410,20 +416,19 @@ mod tests {
 
     #[test]
     fn test_path_management() {
-        let mut ctx = AnalysisContext::new()
-            .with_resource_type("Patient".to_string());
-        
+        let mut ctx = AnalysisContext::new().with_resource_type("Patient".to_string());
+
         assert_eq!(ctx.current_path_string(), "Patient");
         assert_eq!(ctx.depth(), 0);
-        
+
         ctx.push_path("name".to_string());
         assert_eq!(ctx.current_path_string(), "Patient.name");
         assert_eq!(ctx.depth(), 1);
-        
+
         ctx.push_path("given".to_string());
         assert_eq!(ctx.current_path_string(), "Patient.name.given");
         assert_eq!(ctx.depth(), 2);
-        
+
         let popped = ctx.pop_path();
         assert_eq!(popped, Some("given".to_string()));
         assert_eq!(ctx.current_path_string(), "Patient.name");
@@ -433,13 +438,13 @@ mod tests {
     #[test]
     fn test_depth_limits() {
         let mut ctx = AnalysisContext::new().with_max_depth(3);
-        
+
         ctx.push_path("level1".to_string());
         ctx.push_path("level2".to_string());
         ctx.push_path("level3".to_string());
-        
+
         assert!(ctx.is_at_max_depth());
-        
+
         ctx.push_path("level4".to_string()); // Should still work but exceed limit
         assert_eq!(ctx.depth(), 4);
         assert!(ctx.is_at_max_depth());
@@ -448,15 +453,17 @@ mod tests {
     #[test]
     fn test_scope_type_checks() {
         let mut ctx = AnalysisContext::new();
-        
+
         assert!(!ctx.is_in_lambda());
         assert!(!ctx.is_in_function());
         assert!(!ctx.is_in_aggregate_function());
-        
-        ctx.push_scope(ScopeType::Lambda { parameter: Some("$this".to_string()) });
+
+        ctx.push_scope(ScopeType::Lambda {
+            parameter: Some("$this".to_string()),
+        });
         assert!(ctx.is_in_lambda());
         assert!(!ctx.is_in_function());
-        
+
         ctx.push_scope(ScopeType::Function {
             name: "count".to_string(),
             is_aggregate: true,

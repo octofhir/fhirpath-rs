@@ -58,7 +58,12 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add an error diagnostic
-    pub fn error(&mut self, error_code: ErrorCode, message: String, span: Range<usize>) -> &mut Self {
+    pub fn error(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+    ) -> &mut Self {
         if self.error_count() < self.max_errors {
             self.diagnostics.push(AriadneDiagnostic {
                 severity: DiagnosticSeverity::Error,
@@ -74,7 +79,13 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add an error diagnostic with help text
-    pub fn error_with_help(&mut self, error_code: ErrorCode, message: String, span: Range<usize>, help: String) -> &mut Self {
+    pub fn error_with_help(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+        help: String,
+    ) -> &mut Self {
         if self.error_count() < self.max_errors {
             self.diagnostics.push(AriadneDiagnostic {
                 severity: DiagnosticSeverity::Error,
@@ -90,7 +101,12 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a warning diagnostic
-    pub fn warning(&mut self, error_code: ErrorCode, message: String, span: Range<usize>) -> &mut Self {
+    pub fn warning(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+    ) -> &mut Self {
         if self.warning_count() < self.max_warnings {
             self.diagnostics.push(AriadneDiagnostic {
                 severity: DiagnosticSeverity::Warning,
@@ -106,7 +122,13 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a warning diagnostic with help text
-    pub fn warning_with_help(&mut self, error_code: ErrorCode, message: String, span: Range<usize>, help: String) -> &mut Self {
+    pub fn warning_with_help(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+        help: String,
+    ) -> &mut Self {
         if self.warning_count() < self.max_warnings {
             self.diagnostics.push(AriadneDiagnostic {
                 severity: DiagnosticSeverity::Warning,
@@ -122,7 +144,12 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a suggestion diagnostic
-    pub fn suggestion(&mut self, error_code: ErrorCode, message: String, span: Range<usize>) -> &mut Self {
+    pub fn suggestion(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+    ) -> &mut Self {
         self.diagnostics.push(AriadneDiagnostic {
             severity: DiagnosticSeverity::Hint, // Map suggestion to hint in current system
             error_code,
@@ -136,7 +163,13 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a suggestion diagnostic with help text
-    pub fn suggestion_with_help(&mut self, error_code: ErrorCode, message: String, span: Range<usize>, help: String) -> &mut Self {
+    pub fn suggestion_with_help(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+        help: String,
+    ) -> &mut Self {
         self.diagnostics.push(AriadneDiagnostic {
             severity: DiagnosticSeverity::Hint, // Map suggestion to hint in current system
             error_code,
@@ -150,7 +183,12 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a note diagnostic
-    pub fn note(&mut self, error_code: ErrorCode, message: String, span: Range<usize>) -> &mut Self {
+    pub fn note(
+        &mut self,
+        error_code: ErrorCode,
+        message: String,
+        span: Range<usize>,
+    ) -> &mut Self {
         self.diagnostics.push(AriadneDiagnostic {
             severity: DiagnosticSeverity::Info, // Map note to info in current system
             error_code,
@@ -164,7 +202,12 @@ impl MultiDiagnosticCollector {
     }
 
     /// Add a related diagnostic to the last added diagnostic
-    pub fn add_related(&mut self, message: String, span: Range<usize>, severity: DiagnosticSeverity) -> &mut Self {
+    pub fn add_related(
+        &mut self,
+        message: String,
+        span: Range<usize>,
+        severity: DiagnosticSeverity,
+    ) -> &mut Self {
         if let Some(last_diagnostic) = self.diagnostics.last_mut() {
             last_diagnostic.related.push(RelatedDiagnostic {
                 message,
@@ -177,22 +220,34 @@ impl MultiDiagnosticCollector {
 
     /// Get count of errors
     pub fn error_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Error).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Error)
+            .count()
     }
 
     /// Get count of warnings  
     pub fn warning_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Warning).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Warning)
+            .count()
     }
 
     /// Get count of suggestions (mapped to hints)
     pub fn suggestion_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Hint).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Hint)
+            .count()
     }
 
     /// Get count of notes (mapped to info)
     pub fn note_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Info).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Info)
+            .count()
     }
 
     /// Check if there are any errors
@@ -267,11 +322,11 @@ mod tests {
     #[test]
     fn test_multi_diagnostic_collection() {
         let mut collector = MultiDiagnosticCollector::new();
-        
+
         collector.error(FP0001, "First error".to_string(), 0..5);
         collector.warning(FP0153, "Warning message".to_string(), 10..15);
         collector.suggestion(FP0154, "Suggestion message".to_string(), 20..25);
-        
+
         assert_eq!(collector.error_count(), 1);
         assert_eq!(collector.warning_count(), 1);
         assert_eq!(collector.suggestion_count(), 1);
@@ -282,15 +337,15 @@ mod tests {
     #[test]
     fn test_diagnostic_sorting_by_severity() {
         let mut collector = MultiDiagnosticCollector::new();
-        
+
         // Add in mixed order
         collector.suggestion(FP0154, "Suggestion".to_string(), 20..25);
         collector.error(FP0001, "Error".to_string(), 0..5);
         collector.warning(FP0153, "Warning".to_string(), 10..15);
-        
+
         collector.sort_by_severity();
         let diagnostics = collector.diagnostics();
-        
+
         // Should be sorted: Error, Warning, Suggestion (Hint)
         assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Error);
         assert_eq!(diagnostics[1].severity, DiagnosticSeverity::Warning);
@@ -300,13 +355,13 @@ mod tests {
     #[test]
     fn test_diagnostic_limits() {
         let mut collector = MultiDiagnosticCollector::with_limits(2, 3);
-        
+
         // Add more than the limits
         for i in 0..5 {
-            collector.error(FP0001, format!("Error {}", i), i*5..(i*5+3));
-            collector.warning(FP0153, format!("Warning {}", i), i*5..(i*5+3));
+            collector.error(FP0001, format!("Error {}", i), i * 5..(i * 5 + 3));
+            collector.warning(FP0153, format!("Warning {}", i), i * 5..(i * 5 + 3));
         }
-        
+
         // Should respect limits
         assert!(collector.error_count() <= 2);
         assert!(collector.warning_count() <= 3);
@@ -318,9 +373,9 @@ mod tests {
         let mut collector = MultiDiagnosticCollector::new();
         collector.error(FP0001, "Test error".to_string(), 0..5);
         collector.warning(FP0153, "Test warning".to_string(), 10..15);
-        
+
         let batch = collector.build_batch(0, "test.fhirpath".to_string());
-        
+
         assert_eq!(batch.statistics.total_count, 2);
         assert_eq!(batch.statistics.error_count, 1);
         assert_eq!(batch.statistics.warning_count, 1);

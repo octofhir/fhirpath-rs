@@ -179,7 +179,7 @@ pub trait CollectingVisitor<T> {
 
     fn visit_expression(&mut self, expr: &ExpressionNode) -> Result<Vec<T>> {
         let mut results = self.collect_from_node(expr)?;
-        
+
         match expr {
             ExpressionNode::FunctionCall(call) => {
                 for arg in &call.arguments {
@@ -235,9 +235,11 @@ pub trait CollectingVisitor<T> {
                 results.extend(self.visit_expression(&path.base)?);
             }
             // Leaf nodes don't have children to visit
-            ExpressionNode::Literal(_) | ExpressionNode::Identifier(_) | ExpressionNode::Variable(_) => {}
+            ExpressionNode::Literal(_)
+            | ExpressionNode::Identifier(_)
+            | ExpressionNode::Variable(_) => {}
         }
-        
+
         Ok(results)
     }
 }

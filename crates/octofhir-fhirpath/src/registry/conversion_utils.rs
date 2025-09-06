@@ -7,7 +7,6 @@
 use crate::core::error_code::FP0058;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use rust_decimal::Decimal;
-use std::str::FromStr;
 
 /// Utilities for safe type conversions
 pub struct ConversionUtils;

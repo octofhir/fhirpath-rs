@@ -26,14 +26,17 @@ use super::completion::FhirPathCompleter;
 use super::display::DisplayFormatter;
 use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
-use crate::FhirPathEngine;
-use crate::analyzer::{AnalyzerConfig, FhirPathAnalyzer};
-use crate::model::value::FhirPathValue;
+use octofhir_fhirpath::analyzer::StaticAnalyzer;
+use octofhir_fhirpath::core::JsonValueExt;
+use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
+use octofhir_fhirpath::parser::{parse, parse_with_analysis};
+use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 
 /// Main REPL session that handles user interaction
 pub struct ReplSession {
     engine: FhirPathEngine,
-    analyzer: FhirPathAnalyzer,
+    analyzer: StaticAnalyzer,
+    diagnostic_engine: DiagnosticEngine,
     editor: Editor<FhirPathCompleter, FileHistory>,
     current_resource: Option<FhirPathValue>,
     variables: HashMap<String, FhirPathValue>,
@@ -41,20 +44,14 @@ pub struct ReplSession {
     formatter: DisplayFormatter,
     help_system: HelpSystem,
     interrupt_count: u32,
-    // Multi-line expression support
-    multiline_buffer: String,
-    in_multiline_mode: bool,
 }
 
 impl ReplSession {
     /// Create a new REPL session with a pre-created engine
-    pub async fn with_engine(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
+    pub async fn new(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
         // Create analyzer
-        let analyzer_config = AnalyzerConfig::default();
         let analyzer =
-            FhirPathAnalyzer::with_config(engine.model_provider().clone(), analyzer_config)
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to create analyzer: {}", e))?;
+            StaticAnalyzer::new(engine.registry().clone(), engine.model_provider().clone());
 
         // Initialize editor with history
         let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()
@@ -77,9 +74,17 @@ impl ReplSession {
         let formatter = DisplayFormatter::new(config.color_output);
         let help_system = HelpSystem::with_registry(engine.registry().clone());
 
+        // Create diagnostic engine for beautiful error reports
+        let diagnostic_engine = if config.color_output {
+            DiagnosticEngine::with_colors(ColorScheme::default())
+        } else {
+            DiagnosticEngine::new()
+        };
+
         Ok(Self {
             engine,
             analyzer,
+            diagnostic_engine,
             editor,
             current_resource: None,
             variables: HashMap::new(),
@@ -87,8 +92,6 @@ impl ReplSession {
             formatter,
             help_system,
             interrupt_count: 0,
-            multiline_buffer: String::new(),
-            in_multiline_mode: false,
         })
     }
 
@@ -100,42 +103,12 @@ impl ReplSession {
         self.cache_function_names().await;
 
         loop {
-            // Use different prompt for multi-line mode
-            let current_prompt = if self.in_multiline_mode {
-                "... "
-            } else {
-                &self.config.prompt
-            };
-
-            match self.editor.readline(current_prompt) {
+            match self.editor.readline(&self.config.prompt) {
                 Ok(line) => {
                     let line = line.trim();
 
                     // Handle empty lines
                     if line.is_empty() {
-                        if self.in_multiline_mode {
-                            // Empty line in multi-line mode - try to evaluate the buffer
-                            self.try_evaluate_multiline().await;
-                        }
-                        continue;
-                    }
-
-                    // Handle multi-line continuation
-                    if self.in_multiline_mode {
-                        self.multiline_buffer.push(' ');
-                        self.multiline_buffer.push_str(line);
-
-                        // Check if this completes the expression
-                        if self.is_expression_complete(&self.multiline_buffer) {
-                            self.try_evaluate_multiline().await;
-                        }
-                        continue;
-                    }
-
-                    // Regular single line processing
-                    if self.needs_multiline(line) {
-                        // Start multi-line mode
-                        self.start_multiline(line);
                         continue;
                     }
 
@@ -147,6 +120,7 @@ impl ReplSession {
                     match self.process_input(line).await {
                         Ok(Some(output)) => {
                             println!("{}", output);
+                            self.interrupt_count = 0; // Reset interrupt count after successful command
                         }
                         Ok(None) => {
                             // Command handled, no output
@@ -157,17 +131,6 @@ impl ReplSession {
                     }
                 }
                 Err(ReadlineError::Interrupted) => {
-                    if self.in_multiline_mode {
-                        // Cancel multi-line mode
-                        if self.config.color_output {
-                            println!("\n🚫 Multi-line mode cancelled.");
-                        } else {
-                            println!("\nMulti-line mode cancelled.");
-                        }
-                        self.reset_multiline();
-                        continue;
-                    }
-
                     self.interrupt_count += 1;
                     if self.interrupt_count == 1 {
                         if self.config.color_output {
@@ -321,6 +284,14 @@ impl ReplSession {
                 Ok(Some(help_text))
             }
             ReplCommand::History => Ok(Some(self.show_history()?)),
+            ReplCommand::Analyze { expression } => {
+                let analysis = self.analyze_expression(&expression).await?;
+                Ok(Some(analysis))
+            }
+            ReplCommand::Validate { expression } => {
+                let validation = self.validate_expression(&expression).await?;
+                Ok(Some(validation))
+            }
             ReplCommand::Quit => {
                 std::process::exit(0);
             }
@@ -345,7 +316,7 @@ impl ReplSession {
 
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res) => res.as_json(),
+                FhirPathValue::Resource(res) => res.clone(),
                 FhirPathValue::JsonValue(json) => json.as_inner().clone(),
                 _ => serde_json::json!({}),
             }
@@ -364,34 +335,32 @@ impl ReplSession {
         // Add timing information for complex expressions
         let start = std::time::Instant::now();
 
-        let result = if self.variables.is_empty() {
-            self.engine
-                .evaluate(expression, input_json)
-                .await
-                .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?
-        } else {
-            // Convert our variables to the format expected by the engine
-            let variables: std::collections::HashMap<String, FhirPathValue> = self
-                .variables
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+        // For now, use a simple evaluation approach
+        // TODO: Integrate variables and full engine support properly
+        use octofhir_fhirpath::{Collection, FhirPathValue};
+        let input_collection = Collection::single(FhirPathValue::resource(input_json.clone()));
+        let result = self
+            .engine
+            .evaluate_simple(expression, &input_collection)
+            .await
+            .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
 
-            self.engine
-                .evaluate_with_variables(expression, input_json, variables)
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to evaluate expression with variables: '{}'",
-                        expression
-                    )
-                })?
+        // Convert Collection to Vec<FhirPathValue>
+        let values: Vec<FhirPathValue> = result.iter().cloned().collect();
+
+        // Convert back to single FhirPathValue for formatting
+        let result_value = if values.is_empty() {
+            FhirPathValue::Empty
+        } else if values.len() == 1 {
+            values.into_iter().next().unwrap()
+        } else {
+            FhirPathValue::Collection(values)
         };
 
         let duration = start.elapsed();
         let mut output = self
             .formatter
-            .format_result(&result, self.config.show_types);
+            .format_result(&result_value, self.config.show_types);
 
         // Add performance information for longer evaluations
         if duration.as_millis() > 100 {
@@ -422,7 +391,7 @@ impl ReplSession {
 
     /// Load resource from JSON value
     pub fn load_resource_from_json(&mut self, json: JsonValue) -> Result<()> {
-        let resource = FhirPathValue::resource_from_json(json);
+        let resource = FhirPathValue::resource(json);
         self.current_resource = Some(resource);
         Ok(())
     }
@@ -465,12 +434,12 @@ impl ReplSession {
                     if value.starts_with('"') && value.ends_with('"') {
                         // JSON string
                         let string_val = value[1..value.len() - 1].to_string();
-                        let fhir_val = FhirPathValue::from(string_val.clone());
+                        let fhir_val = FhirPathValue::string(string_val.clone());
                         Ok((fhir_val, format!("\"{}\"", string_val)))
                     } else if value.starts_with('\'') && value.ends_with('\'') {
                         // FHIRPath string
                         let string_val = value[1..value.len() - 1].to_string();
-                        let fhir_val = FhirPathValue::from(string_val.clone());
+                        let fhir_val = FhirPathValue::string(string_val.clone());
                         Ok((fhir_val, format!("'{}'", string_val)))
                     } else {
                         // Expression evaluation failed
@@ -485,13 +454,13 @@ impl ReplSession {
         } else {
             // Try to parse as JSON first
             if let Ok(json_val) = serde_json::from_str::<JsonValue>(value) {
-                let fhir_val = FhirPathValue::resource_from_json(json_val.clone());
+                let fhir_val = FhirPathValue::resource(json_val.clone());
                 let display =
                     serde_json::to_string(&json_val).unwrap_or_else(|_| value.to_string());
                 Ok((fhir_val, display))
             } else {
                 // Treat as string literal
-                let fhir_val = FhirPathValue::from(value);
+                let fhir_val = FhirPathValue::string(value.to_string());
                 Ok((fhir_val, format!("'{}'", value)))
             }
         }
@@ -501,7 +470,7 @@ impl ReplSession {
     async fn try_evaluate_as_expression(&self, expression: &str) -> Result<FhirPathValue> {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res) => res.as_json(),
+                FhirPathValue::Resource(res) => res.clone(),
                 FhirPathValue::JsonValue(json) => json.as_inner().clone(),
                 _ => serde_json::json!({}),
             }
@@ -510,22 +479,22 @@ impl ReplSession {
             serde_json::json!({})
         };
 
-        if self.variables.is_empty() {
-            self.engine
-                .evaluate(expression, input_json)
-                .await
-                .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))
-        } else {
-            let variables: std::collections::HashMap<String, FhirPathValue> = self
-                .variables
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+        // For now, use simple evaluation without variables
+        // TODO: Add variables support back
+        use octofhir_fhirpath::Collection;
+        let input_collection = Collection::single(FhirPathValue::resource(input_json.clone()));
+        let result = self
+            .engine
+            .evaluate_simple(expression, &input_collection)
+            .await
+            .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))?;
 
-            self.engine
-                .evaluate_with_variables(expression, input_json, variables)
-                .await
-                .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))
+        // Convert to the format expected by the rest of the function
+        let values: Vec<FhirPathValue> = result.iter().cloned().collect();
+        if let Some(first_value) = values.first() {
+            Ok(first_value.clone())
+        } else {
+            Ok(FhirPathValue::Empty)
         }
     }
 
@@ -575,18 +544,20 @@ impl ReplSession {
 
     /// Get type information for an expression
     async fn get_expression_type(&self, expression: &str) -> Result<String> {
-        match self.analyzer.analyze(expression).await {
+        let parse_result = parse(expression);
+        let parsed_expr = parse_result.into_result()?;
+        match self.analyzer.analyze(&parsed_expr).await {
             Ok(analysis) => {
-                if analysis.type_annotations.is_empty() {
+                if analysis.type_info.is_empty() {
                     Ok(format!(
                         "No type information available for '{}'",
                         expression
                     ))
                 } else {
                     let types: Vec<String> = analysis
-                        .type_annotations
+                        .type_info
                         .values()
-                        .filter_map(|info| info.fhir_path_type.clone())
+                        .map(|info| format!("{:?}", info))
                         .collect();
                     if types.is_empty() {
                         Ok(format!(
@@ -607,36 +578,41 @@ impl ReplSession {
     /// Explain expression evaluation steps
     async fn explain_expression(&self, expression: &str) -> Result<String> {
         // Try to parse and analyze the expression to provide insights
-        match self.analyzer.analyze(expression).await {
+        let parse_result = parse(expression);
+        let parsed_expr = match parse_result.into_result() {
+            Ok(expr) => expr,
+            Err(e) => return Ok(format!("Parse error: {}", e)),
+        };
+        match self.analyzer.analyze(&parsed_expr).await {
             Ok(analysis) => {
                 let mut explanation = vec![
                     format!("Expression analysis for: {}", expression),
                     "─".repeat(50),
                 ];
 
-                if !analysis.type_annotations.is_empty() {
+                if !analysis.type_info.is_empty() {
                     let types: Vec<String> = analysis
-                        .type_annotations
+                        .type_info
                         .values()
-                        .filter_map(|info| info.fhir_path_type.clone())
+                        .map(|info| format!("{:?}", info))
                         .collect();
                     if !types.is_empty() {
                         explanation.push(format!("Return type(s): {}", types.join(" | ")));
                     }
                 }
 
-                if !analysis.validation_errors.is_empty() {
+                if !analysis.diagnostics.is_empty() {
                     explanation.push("Validation issues:".to_string());
-                    for error in &analysis.validation_errors {
+                    for error in &analysis.diagnostics {
                         explanation.push(format!("  ⚠️  {}", error.message));
                     }
                 }
 
-                if !analysis.function_calls.is_empty() {
-                    explanation.push("Function calls found:".to_string());
-                    for func in &analysis.function_calls {
-                        explanation.push(format!("  📞  {}", func.function_name));
-                    }
+                if analysis.complexity_metrics.function_calls > 0 {
+                    explanation.push(format!(
+                        "Function calls: {}",
+                        analysis.complexity_metrics.function_calls
+                    ));
                 }
 
                 // Try to evaluate and show result
@@ -648,6 +624,138 @@ impl ReplSession {
                 Ok(explanation.join("\n"))
             }
             Err(e) => Ok(format!("Expression explanation failed: {}", e)),
+        }
+    }
+
+    /// Analyze expression with full diagnostics using Ariadne
+    async fn analyze_expression(&mut self, expression: &str) -> Result<String> {
+        // First parse with analysis to get detailed parser diagnostics
+        let parse_result = parse_with_analysis(expression);
+
+        if parse_result.has_errors() {
+            // If parse fails, show Ariadne parser diagnostics
+            return Ok(self.format_parser_diagnostics(expression, &parse_result.diagnostics));
+        }
+
+        // If parsing succeeds, continue with analyzer
+        let parsed_expr = parse_result.into_result().unwrap(); // Safe since we checked has_errors()
+        match self.analyzer.analyze(&parsed_expr).await {
+            Ok(analysis) => {
+                let mut result = Vec::new();
+
+                if self.config.color_output {
+                    result.push(format!(
+                        "🔍 {} Analysis for: {}",
+                        "Analyzing".bright_blue(),
+                        expression.yellow()
+                    ));
+                    result.push("━".repeat(60));
+                } else {
+                    result.push(format!("Analysis for: {}", expression));
+                    result.push("=".repeat(50));
+                }
+
+                // Show syntax validation
+                let parse_result = octofhir_fhirpath::parser::parse(expression);
+                if parse_result.has_errors() {
+                    if self.config.color_output {
+                        result.push(format!("{} Syntax: Invalid", "❌".bright_red()));
+                        if let Some(error) = parse_result.first_error() {
+                            result.push(format!("  Error: {}", error));
+                        }
+                    } else {
+                        result.push("✗ Syntax: Invalid".to_string());
+                        if let Some(error) = parse_result.first_error() {
+                            result.push(format!("  Error: {}", error));
+                        }
+                    }
+                } else {
+                    if self.config.color_output {
+                        result.push(format!("{} Syntax: Valid", "✅".bright_green()));
+                    } else {
+                        result.push("✓ Syntax: Valid".to_string());
+                    }
+                }
+
+                // Show diagnostics with Ariadne formatting
+                if !analysis.diagnostics.is_empty() {
+                    if self.config.color_output {
+                        result.push(format!("\n{} Diagnostics:", "🚨".bright_red()));
+                    } else {
+                        result.push("\nDiagnostics:".to_string());
+                    }
+
+                    // Add Ariadne-formatted diagnostics
+                    let ariadne_output =
+                        self.format_analyzer_diagnostics(expression, &analysis.diagnostics);
+                    result.push(ariadne_output);
+                }
+
+                // Show optimization suggestions
+                if !analysis.suggestions.is_empty() {
+                    if self.config.color_output {
+                        result.push(format!(
+                            "\n{} Optimization Suggestions:",
+                            "💡".bright_yellow()
+                        ));
+                    } else {
+                        result.push("\nOptimization Suggestions:".to_string());
+                    }
+
+                    for suggestion in &analysis.suggestions {
+                        result.push(format!(
+                            "  • {} (potential {:.0}% improvement)",
+                            suggestion.message,
+                            suggestion.estimated_improvement * 100.0
+                        ));
+                    }
+                }
+
+                // Show performance analysis
+                let perf = &analysis.complexity_metrics;
+                if self.config.color_output {
+                    result.push(format!("\n{} Performance Analysis:", "⚡".bright_cyan()));
+                } else {
+                    result.push("\nPerformance Analysis:".to_string());
+                }
+
+                result.push(format!("  Complexity: {}", perf.cyclomatic_complexity));
+                result.push(format!("  Expression depth: {}", perf.expression_depth));
+                result.push(format!("  Function calls: {}", perf.function_calls));
+                result.push(format!("  Property accesses: {}", perf.property_accesses));
+                result.push(format!(
+                    "  Est. runtime cost: {:.2}",
+                    perf.estimated_runtime_cost
+                ));
+
+                Ok(result.join("\n"))
+            }
+            Err(e) => {
+                if self.config.color_output {
+                    Ok(format!("{} Analysis failed: {}", "❌".bright_red(), e))
+                } else {
+                    Ok(format!("Analysis failed: {}", e))
+                }
+            }
+        }
+    }
+
+    /// Validate expression syntax only
+    async fn validate_expression(&mut self, expression: &str) -> Result<String> {
+        let parse_result = parse_with_analysis(expression);
+
+        if parse_result.has_errors() {
+            // Use Ariadne diagnostics for syntax errors
+            Ok(self.format_parser_diagnostics(expression, &parse_result.diagnostics))
+        } else {
+            if self.config.color_output {
+                Ok(format!(
+                    "{} Expression syntax is valid",
+                    "✅".bright_green()
+                ))
+            } else {
+                Ok("✓ Expression syntax is valid".to_string())
+            }
         }
     }
 
@@ -805,7 +913,13 @@ impl ReplSession {
 
     /// Cache function names from registry for autocomplete
     async fn cache_function_names(&mut self) {
-        let function_names = self.engine.registry().function_names().await;
+        let function_names: Vec<String> = self
+            .engine
+            .registry()
+            .list_functions()
+            .iter()
+            .map(|f| f.name.clone())
+            .collect();
         if let Some(helper) = self.editor.helper_mut() {
             helper.cache_function_names(function_names);
         }
@@ -908,58 +1022,86 @@ Examples:
         true
     }
 
-    /// Start multi-line mode with initial line
-    fn start_multiline(&mut self, initial_line: &str) {
-        self.in_multiline_mode = true;
-        self.multiline_buffer = if initial_line.ends_with('\\') {
-            initial_line[..initial_line.len() - 1].to_string()
-        } else {
-            initial_line.to_string()
-        };
+    /// Format an error with Ariadne diagnostics
+    fn format_error_with_ariadne(&mut self, expression: &str, error: &anyhow::Error) -> String {
+        // Check if we can parse the expression to get detailed diagnostics
+        let parse_result = parse_with_analysis(expression);
 
-        if self.config.color_output {
-            println!(
-                "📝 Multi-line mode started. Press Enter on empty line to evaluate, or Ctrl+C to cancel."
-            );
+        if !parse_result.diagnostics.is_empty() {
+            // Use parser diagnostics for better error reporting
+            self.format_parser_diagnostics(expression, &parse_result.diagnostics)
         } else {
-            println!(
-                "Multi-line mode started. Press Enter on empty line to evaluate, or Ctrl+C to cancel."
-            );
+            // Fallback to simple error formatting
+            self.formatter.format_error(&error)
         }
     }
 
-    /// Try to evaluate the multi-line buffer
-    async fn try_evaluate_multiline(&mut self) {
-        if !self.multiline_buffer.is_empty() {
-            let expression = self.multiline_buffer.clone();
-
-            // Add to history
-            if let Err(e) = self.editor.add_history_entry(&expression) {
-                eprintln!("Warning: Failed to add history entry: {}", e);
-            }
-
-            // Evaluate the expression
-            match self.process_input(&expression).await {
-                Ok(Some(output)) => {
-                    println!("{}", output);
-                }
-                Ok(None) => {
-                    // Command handled, no output
-                }
-                Err(e) => {
-                    println!("{}", self.formatter.format_error(&e));
-                }
-            }
-        }
-
-        // Reset multi-line state
-        self.reset_multiline();
+    /// Format analyzer diagnostics with Ariadne (unified with parser diagnostics)
+    fn format_analyzer_diagnostics(
+        &mut self,
+        expression: &str,
+        analyzer_diagnostics: &[octofhir_fhirpath::diagnostics::Diagnostic],
+    ) -> String {
+        // Reuse the same formatting logic as parser diagnostics
+        self.format_parser_diagnostics(expression, analyzer_diagnostics)
     }
 
-    /// Reset multi-line state
-    fn reset_multiline(&mut self) {
-        self.in_multiline_mode = false;
-        self.multiline_buffer.clear();
-        self.interrupt_count = 0; // Reset interrupt count when exiting multi-line
+    /// Format parser diagnostics with Ariadne
+    fn format_parser_diagnostics(
+        &mut self,
+        expression: &str,
+        diagnostics: &[octofhir_fhirpath::diagnostics::Diagnostic],
+    ) -> String {
+        use octofhir_fhirpath::core::error_code::ErrorCode;
+        
+
+        let mut output = Vec::new();
+
+        // Add the expression as a source
+        let source_id = self.diagnostic_engine.add_source("expression", expression);
+
+        let mut ariadne_diagnostics = Vec::new();
+
+        for diagnostic in diagnostics {
+            // Convert location to span range
+            let span = if let Some(location) = &diagnostic.location {
+                location.offset..(location.offset + location.length)
+            } else {
+                // If no location, highlight the entire expression
+                0..expression.len()
+            };
+
+            // Create AriadneDiagnostic using the engine's factory method
+            let ariadne_diagnostic = self.diagnostic_engine.create_diagnostic(
+                // Parse the error code or use a default
+                ErrorCode::new(
+                    diagnostic
+                        .code
+                        .code
+                        .strip_prefix("FP")
+                        .and_then(|s| s.parse::<u16>().ok())
+                        .unwrap_or(1), // Default to FP0001 if parsing fails
+                ),
+                diagnostic.severity.clone(),
+                span,
+                diagnostic.message.clone(),
+            );
+
+            ariadne_diagnostics.push(ariadne_diagnostic);
+        }
+
+        // Emit the unified report using the engine's method
+        match self.diagnostic_engine.emit_unified_report(
+            &ariadne_diagnostics,
+            source_id,
+            &mut output,
+        ) {
+            Ok(_) => String::from_utf8(output)
+                .unwrap_or_else(|_| format!("Encoding error in diagnostics")),
+            Err(_) => {
+                // Fallback to simple message
+                format!("Error: {}", diagnostics[0].message)
+            }
+        }
     }
 }

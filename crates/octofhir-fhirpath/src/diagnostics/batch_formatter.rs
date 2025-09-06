@@ -3,9 +3,11 @@
 //! This module provides comprehensive formatting for batches of diagnostics
 //! with different output formats and beautiful visual presentation.
 
-use super::{DiagnosticBatch, DiagnosticEngine, DiagnosticFormatter, DiagnosticSeverity, AriadneDiagnostic};
+use super::{
+    AriadneDiagnostic, DiagnosticBatch, DiagnosticEngine, DiagnosticFormatter, DiagnosticSeverity,
+};
 use crate::diagnostics::collector::DiagnosticStatistics;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Advanced formatter for batches of diagnostics
 pub struct BatchFormatter;
@@ -17,7 +19,7 @@ impl BatchFormatter {
         batch: &DiagnosticBatch,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
-        
+
         // Header with emoji and statistics
         output.push_str(&Self::format_header(&batch.statistics));
         output.push('\n');
@@ -28,62 +30,110 @@ impl BatchFormatter {
         }
 
         // Group diagnostics by severity for better organization
-        let errors: Vec<_> = batch.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Error).collect();
-        let warnings: Vec<_> = batch.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Warning).collect();
-        let suggestions: Vec<_> = batch.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Hint).collect(); // Mapped from suggestions
-        let notes: Vec<_> = batch.diagnostics.iter().filter(|d| d.severity == DiagnosticSeverity::Info).collect(); // Mapped from notes
+        let errors: Vec<_> = batch
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Error)
+            .collect();
+        let warnings: Vec<_> = batch
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Warning)
+            .collect();
+        let suggestions: Vec<_> = batch
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Hint)
+            .collect(); // Mapped from suggestions
+        let notes: Vec<_> = batch
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Info)
+            .collect(); // Mapped from notes
 
         // Display errors first (most critical)
         if !errors.is_empty() {
-            output.push_str(&format!("❌ {} Error{}\n", errors.len(), if errors.len() == 1 { "" } else { "s" }));
+            output.push_str(&format!(
+                "❌ {} Error{}\n",
+                errors.len(),
+                if errors.len() == 1 { "" } else { "s" }
+            ));
             output.push_str(&"═".repeat(50));
             output.push('\n');
             for (i, diagnostic) in errors.iter().enumerate() {
                 output.push_str(&format!("Error #{}\n", i + 1));
-                output.push_str(&Self::format_single_diagnostic(engine, diagnostic, batch.source_id)?);
+                output.push_str(&Self::format_single_diagnostic(
+                    engine,
+                    diagnostic,
+                    batch.source_id,
+                )?);
                 output.push('\n');
             }
         }
 
         // Display warnings next
         if !warnings.is_empty() {
-            output.push_str(&format!("⚠️  {} Warning{}\n", warnings.len(), if warnings.len() == 1 { "" } else { "s" }));
+            output.push_str(&format!(
+                "⚠️  {} Warning{}\n",
+                warnings.len(),
+                if warnings.len() == 1 { "" } else { "s" }
+            ));
             output.push_str(&"═".repeat(50));
             output.push('\n');
             for (i, diagnostic) in warnings.iter().enumerate() {
                 output.push_str(&format!("Warning #{}\n", i + 1));
-                output.push_str(&Self::format_single_diagnostic(engine, diagnostic, batch.source_id)?);
+                output.push_str(&Self::format_single_diagnostic(
+                    engine,
+                    diagnostic,
+                    batch.source_id,
+                )?);
                 output.push('\n');
             }
         }
 
         // Display suggestions last
         if !suggestions.is_empty() {
-            output.push_str(&format!("💡 {} Suggestion{}\n", suggestions.len(), if suggestions.len() == 1 { "" } else { "s" }));
+            output.push_str(&format!(
+                "💡 {} Suggestion{}\n",
+                suggestions.len(),
+                if suggestions.len() == 1 { "" } else { "s" }
+            ));
             output.push_str(&"═".repeat(50));
             output.push('\n');
             for (i, diagnostic) in suggestions.iter().enumerate() {
                 output.push_str(&format!("Suggestion #{}\n", i + 1));
-                output.push_str(&Self::format_single_diagnostic(engine, diagnostic, batch.source_id)?);
+                output.push_str(&Self::format_single_diagnostic(
+                    engine,
+                    diagnostic,
+                    batch.source_id,
+                )?);
                 output.push('\n');
             }
         }
 
         // Display notes if any
         if !notes.is_empty() {
-            output.push_str(&format!("ℹ️  {} Note{}\n", notes.len(), if notes.len() == 1 { "" } else { "s" }));
+            output.push_str(&format!(
+                "ℹ️  {} Note{}\n",
+                notes.len(),
+                if notes.len() == 1 { "" } else { "s" }
+            ));
             output.push_str(&"═".repeat(50));
             output.push('\n');
             for (i, diagnostic) in notes.iter().enumerate() {
                 output.push_str(&format!("Note #{}\n", i + 1));
-                output.push_str(&Self::format_single_diagnostic(engine, diagnostic, batch.source_id)?);
+                output.push_str(&Self::format_single_diagnostic(
+                    engine,
+                    diagnostic,
+                    batch.source_id,
+                )?);
                 output.push('\n');
             }
         }
 
         // Summary footer
         output.push_str(&Self::format_summary(&batch.statistics));
-        
+
         Ok(output)
     }
 
@@ -105,8 +155,10 @@ impl BatchFormatter {
             message: String,
         }
 
-        let rows: Vec<DiagnosticRow> = batch.diagnostics.iter().map(|d| {
-            DiagnosticRow {
+        let rows: Vec<DiagnosticRow> = batch
+            .diagnostics
+            .iter()
+            .map(|d| DiagnosticRow {
                 severity: match d.severity {
                     DiagnosticSeverity::Error => "❌ ERROR".to_string(),
                     DiagnosticSeverity::Warning => "⚠️  WARN".to_string(),
@@ -116,17 +168,15 @@ impl BatchFormatter {
                 error_code: d.error_code.code_str().to_string(),
                 span: format!("{}..{}", d.span.start, d.span.end),
                 message: d.message.clone(),
-            }
-        }).collect();
+            })
+            .collect();
 
         let mut output = String::new();
         output.push_str(&Self::format_header(&batch.statistics));
         output.push('\n');
 
         if !rows.is_empty() {
-            let table = Table::new(&rows)
-                .with(Style::modern())
-                .to_string();
+            let table = Table::new(&rows).with(Style::modern()).to_string();
             output.push_str(&table);
             output.push('\n');
         }
@@ -196,7 +246,9 @@ impl BatchFormatter {
         if stats.error_count > 0 {
             summary.push_str("🔴 Analysis failed due to errors. Please fix the errors above.\n");
         } else if stats.warning_count > 0 {
-            summary.push_str("🟡 Analysis completed with warnings. Consider addressing the warnings above.\n");
+            summary.push_str(
+                "🟡 Analysis completed with warnings. Consider addressing the warnings above.\n",
+            );
         } else if stats.suggestion_count > 0 {
             summary.push_str("🟢 Analysis completed successfully with optimization suggestions.\n");
         } else {
@@ -218,10 +270,7 @@ impl BatchFormatter {
 
         format!(
             "📊 {} total: {}❌ {}⚠️  {}💡",
-            stats.total_count,
-            stats.error_count,
-            stats.warning_count, 
-            stats.suggestion_count
+            stats.total_count, stats.error_count, stats.warning_count, stats.suggestion_count
         )
     }
 }
@@ -236,14 +285,14 @@ mod tests {
     fn test_comprehensive_report_formatting() {
         let engine = DiagnosticEngine::new();
         let mut collector = MultiDiagnosticCollector::new();
-        
+
         collector.error(FP0001, "Syntax error".to_string(), 0..5);
         collector.warning(FP0153, "Performance warning".to_string(), 10..15);
         collector.suggestion(FP0154, "Optimization suggestion".to_string(), 20..25);
-        
+
         let batch = collector.build_batch(0, "test".to_string());
         let formatted = BatchFormatter::format_comprehensive_report(&engine, &batch).unwrap();
-        
+
         assert!(formatted.contains("📋 FHIRPath Analysis Report"));
         assert!(formatted.contains("❌ 1 Error"));
         assert!(formatted.contains("⚠️  1 Warning"));
@@ -256,10 +305,10 @@ mod tests {
         let mut collector = MultiDiagnosticCollector::new();
         collector.error(FP0001, "Test error".to_string(), 0..5);
         collector.warning(FP0153, "Test warning".to_string(), 10..15);
-        
+
         let batch = collector.build_batch(0, "test.fhirpath".to_string());
         let json = BatchFormatter::format_json_report(&batch);
-        
+
         assert_eq!(json["source"]["name"], "test.fhirpath");
         assert_eq!(json["statistics"]["total"], 2);
         assert_eq!(json["statistics"]["errors"], 1);
@@ -277,7 +326,7 @@ mod tests {
             note_count: 1,
             total_count: 7,
         };
-        
+
         let summary = BatchFormatter::format_compact_summary(&stats);
         assert!(summary.contains("📊 7 total"));
         assert!(summary.contains("2❌"));
@@ -290,7 +339,7 @@ mod tests {
         let engine = DiagnosticEngine::new();
         let collector = MultiDiagnosticCollector::new();
         let batch = collector.build_batch(0, "test.fhirpath".to_string());
-        
+
         let formatted = BatchFormatter::format_comprehensive_report(&engine, &batch).unwrap();
         assert!(formatted.contains("✨ No issues found!"));
     }

@@ -1,7 +1,7 @@
 //! Diagnostic formatter for different output contexts and formats
 
 use super::{AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::Write;
 
 /// Formatter for diagnostic output in different contexts
@@ -63,7 +63,7 @@ impl DiagnosticFormatter {
                 },
                 "severity": match r.severity {
                     DiagnosticSeverity::Error => "error",
-                    DiagnosticSeverity::Warning => "warning", 
+                    DiagnosticSeverity::Warning => "warning",
                     DiagnosticSeverity::Info => "info",
                     DiagnosticSeverity::Hint => "hint",
                 }
@@ -78,7 +78,7 @@ impl DiagnosticFormatter {
         source_id: usize,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
-        
+
         // Output each diagnostic with pure Ariadne formatting
         for diagnostic in diagnostics {
             let ariadne_output = engine.format_diagnostic(diagnostic, source_id)?;
@@ -86,21 +86,28 @@ impl DiagnosticFormatter {
             // Add a blank line between diagnostics for readability
             output.push('\n');
         }
-        
+
         Ok(output)
     }
 
     /// Format multiple diagnostics as raw text
     pub fn format_batch_raw(diagnostics: &[AriadneDiagnostic]) -> String {
         let mut output = String::new();
-        
-        output.push_str(&format!("FHIRPath Analysis: {} issues found\n\n", diagnostics.len()));
-        
+
+        output.push_str(&format!(
+            "FHIRPath Analysis: {} issues found\n\n",
+            diagnostics.len()
+        ));
+
         for (i, diagnostic) in diagnostics.iter().enumerate() {
-            output.push_str(&format!("Issue {}: {}\n", i + 1, Self::format_raw(diagnostic)));
+            output.push_str(&format!(
+                "Issue {}: {}\n",
+                i + 1,
+                Self::format_raw(diagnostic)
+            ));
             output.push('\n');
         }
-        
+
         output
     }
 
@@ -125,12 +132,12 @@ impl DiagnosticFormatter {
         }
 
         let mut output = String::new();
-        
+
         // Header
         output.push_str("┌─────────┬─────────┬──────────┬─────────────────────────────────────────────────────────┐\n");
         output.push_str("│ Code    │ Level   │ Span     │ Message                                                 │\n");
         output.push_str("├─────────┼─────────┼──────────┼─────────────────────────────────────────────────────────┤\n");
-        
+
         // Rows
         for diagnostic in diagnostics {
             let code = diagnostic.error_code.code_str();
@@ -146,16 +153,16 @@ impl DiagnosticFormatter {
             } else {
                 diagnostic.message.clone()
             };
-            
+
             output.push_str(&format!(
                 "│ {:<7} │ {:<7} │ {:<8} │ {:<55} │\n",
                 code, level, span, message
             ));
         }
-        
+
         // Footer
         output.push_str("└─────────┴─────────┴──────────┴─────────────────────────────────────────────────────────┘\n");
-        
+
         output
     }
 
@@ -192,7 +199,7 @@ mod tests {
     fn test_format_raw() {
         let diagnostic = create_test_diagnostic();
         let raw = DiagnosticFormatter::format_raw(&diagnostic);
-        
+
         assert!(raw.contains("[FP0055]"));
         assert!(raw.contains("error"));
         assert!(raw.contains("Property 'invalid' not found"));
@@ -204,7 +211,7 @@ mod tests {
     fn test_format_json() {
         let diagnostic = create_test_diagnostic();
         let json = DiagnosticFormatter::format_json(&diagnostic);
-        
+
         assert_eq!(json["error_code"], "FP0055");
         assert_eq!(json["severity"], "error");
         assert_eq!(json["message"], "Property 'invalid' not found");
@@ -228,9 +235,9 @@ mod tests {
                 related: vec![],
             },
         ];
-        
+
         let table = DiagnosticFormatter::format_table(&diagnostics);
-        
+
         assert!(table.contains("FP0055"));
         assert!(table.contains("FP0002"));
         assert!(table.contains("ERROR"));
@@ -253,13 +260,13 @@ mod tests {
                 related: vec![],
             },
         ];
-        
+
         // Test raw batch formatting
         let raw_batch = DiagnosticFormatter::format_batch_raw(&diagnostics);
         assert!(raw_batch.contains("2 issues found"));
         assert!(raw_batch.contains("Issue 1"));
         assert!(raw_batch.contains("Issue 2"));
-        
+
         // Test JSON batch formatting
         let json_batch = DiagnosticFormatter::format_batch_json(&diagnostics);
         assert_eq!(json_batch["summary"]["total_count"], 2);
@@ -273,10 +280,10 @@ mod tests {
         let mut engine = DiagnosticEngine::new();
         let source_id = engine.add_source("test.fhirpath", "Patient.name.invalid");
         let diagnostic = create_test_diagnostic();
-        
+
         let pretty = DiagnosticFormatter::format_pretty(&engine, &diagnostic, source_id);
         assert!(pretty.is_ok());
-        
+
         let output = pretty.unwrap();
         assert!(output.contains("❌")); // Error emoji
         assert!(output.contains("FHIRPath Diagnostic Report"));
@@ -285,10 +292,10 @@ mod tests {
     #[test]
     fn test_empty_diagnostics() {
         let empty_diagnostics: Vec<AriadneDiagnostic> = vec![];
-        
+
         let table = DiagnosticFormatter::format_table(&empty_diagnostics);
         assert_eq!(table, "No diagnostics to display");
-        
+
         let json_batch = DiagnosticFormatter::format_batch_json(&empty_diagnostics);
         assert_eq!(json_batch["summary"]["total_count"], 0);
     }

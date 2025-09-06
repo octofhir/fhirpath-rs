@@ -1,6 +1,7 @@
 //! Request and response models for the FHIRPath HTTP server
 
-use crate::FhirPathValue;
+use base64::Engine;
+use octofhir_fhirpath::FhirPathValue;
 use octofhir_ucum::precision::NumericOps;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -347,28 +348,42 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
         FhirPathValue::DateTime(dt) => JsonValue::String(dt.to_string()),
         FhirPathValue::Date(d) => JsonValue::String(d.to_string()),
         FhirPathValue::Time(t) => JsonValue::String(t.to_string()),
-        FhirPathValue::Quantity(q) => {
+        FhirPathValue::Quantity {
+            value,
+            unit,
+            ucum_unit,
+            calendar_unit: _,
+        } => {
             // Serialize quantity as object
             serde_json::json!({
-                "value": q.value.to_f64(),
-                "unit": q.unit.as_ref().map(|u| u.to_string()),
+                "value": value.to_f64(),
+                "unit": unit.or(ucum_unit.map(|u| format!("{:?}", u))),
             })
         }
         FhirPathValue::Collection(collection) => {
-            let items: Vec<JsonValue> = collection.into_iter().map(fhir_value_to_json).collect();
+            let items: Vec<JsonValue> = collection
+                .iter()
+                .map(|v| fhir_value_to_json(v.clone()))
+                .collect();
             JsonValue::Array(items)
         }
         FhirPathValue::Resource(resource) => {
             // Convert FHIR resource back to JSON using Debug trait
             JsonValue::String(format!("{:?}", resource))
         }
-        FhirPathValue::JsonValue(json_val) => json_val.into_inner(),
+        FhirPathValue::JsonValue(json_val) => json_val,
         FhirPathValue::TypeInfoObject { namespace, name } => {
             serde_json::json!({
                 "namespace": namespace.to_string(),
                 "name": name.to_string()
             })
         }
+        FhirPathValue::Id(id) => JsonValue::String(id.to_string()),
+        FhirPathValue::Base64Binary(bytes) => {
+            JsonValue::String(base64::engine::general_purpose::STANDARD.encode(&bytes))
+        }
+        FhirPathValue::Uri(uri) => JsonValue::String(uri),
+        FhirPathValue::Url(url) => JsonValue::String(url),
         FhirPathValue::Empty => JsonValue::Array(vec![]), // Empty collection
     }
 }

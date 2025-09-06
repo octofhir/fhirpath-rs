@@ -113,10 +113,10 @@ impl CacheStats {
             match utilization {
                 0.0..=10.0 => "Very low utilization",
                 10.0..=30.0 => "Low utilization",
-                30.0..=60.0 => "Moderate utilization", 
+                30.0..=60.0 => "Moderate utilization",
                 60.0..=80.0 => "Good utilization",
                 80.0..=95.0 => "High utilization",
-                _ => "Near capacity"
+                _ => "Near capacity",
             }
         }
     }
@@ -134,14 +134,22 @@ impl CacheStats {
         }
 
         if self.max_size == 0 {
-            return Some("Cache size is 0 - increase max_cache_size for performance benefits".to_string());
+            return Some(
+                "Cache size is 0 - increase max_cache_size for performance benefits".to_string(),
+            );
         }
 
         let utilization = self.utilization_percentage();
         match utilization {
-            0.0..=5.0 => Some("Cache utilization is very low - consider reducing cache size to save memory".to_string()),
-            95.0..=100.0 => Some("Cache is near capacity - consider increasing max_cache_size for better hit rates".to_string()),
-            _ => None
+            0.0..=5.0 => Some(
+                "Cache utilization is very low - consider reducing cache size to save memory"
+                    .to_string(),
+            ),
+            95.0..=100.0 => Some(
+                "Cache is near capacity - consider increasing max_cache_size for better hit rates"
+                    .to_string(),
+            ),
+            _ => None,
         }
     }
 
@@ -287,7 +295,7 @@ impl CacheMetrics {
     pub fn efficiency_rating(&self) -> CacheEfficiency {
         let hit_rate = self.hit_rate_percentage();
         let total_accesses = self.total_accesses();
-        
+
         if total_accesses == 0 {
             return CacheEfficiency::Unknown;
         }
@@ -471,7 +479,7 @@ mod tests {
     #[test]
     fn test_cache_metrics() {
         let mut metrics = CacheMetrics::new();
-        
+
         metrics.record_hit(Some(100));
         metrics.record_hit(Some(150));
         metrics.record_miss();
@@ -485,7 +493,7 @@ mod tests {
 
         // Hit rate should be 2/3 = 66.67%
         assert!((metrics.hit_rate_percentage() - 66.67).abs() < 0.01);
-        
+
         // Miss rate should be 1/3 = 33.33%
         assert!((metrics.miss_rate_percentage() - 33.33).abs() < 0.01);
 

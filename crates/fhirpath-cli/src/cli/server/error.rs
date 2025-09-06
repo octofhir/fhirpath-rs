@@ -12,13 +12,13 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("FHIRPath evaluation error: {0}")]
-    Evaluation(#[from] octofhir_fhirpath_core::error::FhirPathError),
+    Evaluation(#[from] octofhir_fhirpath::FhirPathError),
 
     #[error("Analysis error: {0}")]
-    Analysis(#[from] octofhir_fhirpath_analyzer::error::AnalysisError),
+    Analysis(String),
 
     #[error("Model error: {0}")]
-    Model(#[from] octofhir_fhir_model::provider::ModelError),
+    Model(#[from] octofhir_fhir_model::ModelError),
 
     #[error("Invalid FHIR version: {version}")]
     InvalidFhirVersion { version: String },

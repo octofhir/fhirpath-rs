@@ -14,9 +14,10 @@
 
 //! Display formatting for REPL output
 
-use crate::model::value::{Collection, FhirPathValue};
 use anyhow::Error;
 use colored::*;
+use octofhir_fhirpath::core::JsonValueExt;
+use octofhir_fhirpath::FhirPathValue;
 
 /// Handles formatting of REPL output
 pub struct DisplayFormatter {
@@ -213,11 +214,16 @@ impl DisplayFormatter {
                     t.to_string()
                 }
             }
-            FhirPathValue::Quantity(q) => {
+            FhirPathValue::Quantity {
+                value,
+                unit: _,
+                ucum_unit: _,
+                calendar_unit: _,
+            } => {
                 if self.use_colors {
-                    self.cyan(&q.to_string())
+                    self.cyan(&value.to_string())
                 } else {
-                    q.to_string()
+                    value.to_string()
                 }
             }
             FhirPathValue::Collection(_) => {
@@ -272,19 +278,19 @@ impl DisplayFormatter {
             }
             FhirPathValue::Resource(resource) => {
                 // Format FHIR resources nicely
-                if let Ok(pretty) = serde_json::to_string_pretty(&resource.as_json()) {
+                if let Ok(pretty) = serde_json::to_string_pretty(resource) {
                     if self.use_colors {
                         self.cyan(&pretty)
                     } else {
                         pretty
                     }
                 } else {
-                    resource.as_json().to_string()
+                    resource.to_string()
                 }
             }
             _ => {
                 // Handle other value types with clean display
-                value.to_string()
+                format!("{:?}", value)
             }
         };
 
@@ -300,7 +306,7 @@ impl DisplayFormatter {
         }
     }
 
-    fn format_collection_items(&self, collection: &Collection, show_types: bool) -> String {
+    fn format_collection_items(&self, collection: &Vec<FhirPathValue>, show_types: bool) -> String {
         let items_str: Vec<String> = collection
             .iter()
             .map(|item| self.format_single_value(item, false))

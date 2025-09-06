@@ -33,14 +33,29 @@ use tracing::{info, warn};
 use crate::cli::server::{
     assets::{asset_count, serve_embedded_assets, serve_ui_root, ui_assets_available},
     config::ServerConfig,
-    handlers::{analyze_handler, evaluate_handler, files_handler, health_handler},
+    handlers::{analyze_handler, evaluate_handler, files_handler, health_handler, version_handler},
     registry::ServerRegistry,
 };
 
 /// Start the FHIRPath HTTP server
 pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
+    // Initialize tracing/logging subscriber
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    info!(
+        "🚀 Starting FHIRPath server on {}:{} with storage at {}",
+        config.host,
+        config.port,
+        config.storage_dir.display()
+    );
+
     // Initialize server registry with all FHIR versions
-    info!("🚀 Initializing FhirPathEngine registry for all FHIR versions...");
+    info!("🔧 Initializing FhirPathEngine registry for all FHIR versions...");
     let registry = ServerRegistry::new().await?;
     info!(
         "✅ Registry initialized with {} FHIR versions",
@@ -51,7 +66,7 @@ pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
     let app = create_app(registry, config.clone()).await?;
 
     // Create socket address
-    let addr = SocketAddr::from(([127, 0, 0, 1], config.port));
+    let addr = SocketAddr::from((config.host, config.port));
 
     info!("🌐 Starting FHIRPath server on http://{}", addr);
     info!(
@@ -109,16 +124,26 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
         .route("/", get(serve_ui_root))
         .route("/{*path}", get(serve_embedded_assets));
 
-    // Add versioned endpoints for each FHIR version
-    for version in ["r4", "r4b", "r5", "r6"] {
-        app = app
-            .route(&format!("/{}/evaluate", version), post(evaluate_handler))
-            .route(&format!("/{}/analyze", version), post(analyze_handler));
-    }
+    // Add health check and version endpoints (required by task)
+    app = app
+        .route("/healthz", get(health_handler))
+        .route("/version", get(version_handler));
+
+    // Add simplified test routes first
+    app = app
+        .route("/test/evaluate", post(evaluate_handler))
+        .route("/test/analyze", post(analyze_handler));
+
+    // TODO: Add versioned routes later
+    // for version in ["r4", "r4b", "r5", "r6"] {
+    //     app = app
+    //         .route(&format!("/{}/evaluate", version), post(evaluate_handler))
+    //         .route(&format!("/{}/analyze", version), post(analyze_handler));
+    // }
 
     // Apply middleware
     let app = app
-        .layer(DefaultBodyLimit::max(60 * 1024 * 1024)) // 60MB limit
+        .layer(DefaultBodyLimit::max(config.max_payload_size())) // Configurable limit
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .layer(CatchPanicLayer::new())

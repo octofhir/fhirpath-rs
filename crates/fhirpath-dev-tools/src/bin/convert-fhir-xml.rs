@@ -2,9 +2,9 @@
 // Usage:
 //   cargo run --package fhirpath-dev-tools --bin convert-fhir-xml -- <input.xml> <output.json>
 
+use quick_xml::Reader;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
-use quick_xml::Reader;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fs;
@@ -56,7 +56,8 @@ fn from_xml(input: &str) -> Result<Value, String> {
                 for attr in e.attributes().with_checks(false) {
                     if let Ok(a) = attr {
                         if a.key == QName(b"value") {
-                            node.value_attr = Some(unescape_html_entities(&String::from_utf8_lossy(&a.value)));
+                            node.value_attr =
+                                Some(unescape_html_entities(&String::from_utf8_lossy(&a.value)));
                         }
                     }
                 }
@@ -68,7 +69,8 @@ fn from_xml(input: &str) -> Result<Value, String> {
                 for attr in e.attributes().with_checks(false) {
                     if let Ok(a) = attr {
                         if a.key == QName(b"value") {
-                            node.value_attr = Some(unescape_html_entities(&String::from_utf8_lossy(&a.value)));
+                            node.value_attr =
+                                Some(unescape_html_entities(&String::from_utf8_lossy(&a.value)));
                         }
                     }
                 }
@@ -138,6 +140,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let xml = fs::read_to_string(&input_path)?;
     let json_value = from_xml(&xml).map_err(|e| format!("Conversion failed: {e}"))?;
     fs::write(&output_path, serde_json::to_string_pretty(&json_value)?)?;
-    println!("✅ Converted {} -> {}", input_path.display(), output_path.display());
+    println!(
+        "✅ Converted {} -> {}",
+        input_path.display(),
+        output_path.display()
+    );
     Ok(())
 }

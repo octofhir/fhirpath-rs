@@ -14,12 +14,10 @@
 
 //! CLI module for FHIRPath evaluation and analysis
 
-pub mod diagnostic_demo;
 pub mod diagnostics;
 pub mod output;
-// TODO: Re-enable after improving implementation
-// pub mod repl;
-// pub mod server;
+pub mod repl;
+pub mod server;
 
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
@@ -151,36 +149,43 @@ pub enum Commands {
         /// Error code to get documentation for (e.g., FP0001, FP0055)
         error_code: String,
     },
-    // TODO: Re-enable REPL subcommand after improving implementation
-    // /// Start interactive FHIRPath REPL
-    // Repl {
-    //     /// JSON file containing FHIR resource to load initially
-    //     #[arg(short, long)]
-    //     input: Option<String>,
-    //     /// Initial variables to set in format var=value (can be used multiple times)
-    //     #[arg(short, long = "variable")]
-    //     variables: Vec<String>,
-    //     /// History file to use (default: ~/.fhirpath_history)
-    //     #[arg(long)]
-    //     history_file: Option<String>,
-    //     /// Maximum number of history entries (default: 1000)
-    //     #[arg(long, default_value = "1000")]
-    //     history_size: usize,
-    // },
-    // TODO: Re-enable server subcommand after fixing dependencies
-    // /// Start HTTP server with web interface
-    // Server {
-    //     /// Port to bind the server to
-    //     #[arg(short, long, default_value = "8080")]
-    //     port: u16,
-    //     /// Directory for JSON file storage
-    //     #[arg(short, long, default_value = "./storage")]
-    //     storage: PathBuf,
-    //     /// Host to bind to
-    //     #[arg(long, default_value = "127.0.0.1")]
-    //     host: String,
-    //     /// Enable CORS for all origins (development mode)
-    //     #[arg(long)]
-    //     cors_all: bool,
-    // },
+    /// Start interactive FHIRPath REPL
+    Repl {
+        /// JSON file containing FHIR resource to load initially
+        #[arg(short, long)]
+        input: Option<String>,
+        /// Initial variables to set in format var=value (can be used multiple times)
+        #[arg(short, long = "variable")]
+        variables: Vec<String>,
+        /// History file to use (default: ~/.fhirpath_history)
+        #[arg(long)]
+        history_file: Option<String>,
+        /// Maximum number of history entries (default: 1000)
+        #[arg(long, default_value = "1000")]
+        history_size: usize,
+    },
+    /// Start HTTP server with web interface
+    Server {
+        /// Port to bind the server to
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+        /// Directory for JSON file storage
+        #[arg(short, long, default_value = "./storage")]
+        storage: std::path::PathBuf,
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Enable CORS for all origins (development mode)
+        #[arg(long)]
+        cors_all: bool,
+        /// Maximum request body size in MB
+        #[arg(long, default_value = "60")]
+        max_body_size: u64,
+        /// Expression execution timeout in seconds
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+        /// Rate limit: requests per minute per IP
+        #[arg(long, default_value = "100")]
+        rate_limit: u32,
+    },
 }

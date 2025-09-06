@@ -1,19 +1,18 @@
 //! Enhanced TerminologyProvider trait and DefaultTerminologyProvider implementation
-//! 
+//!
 //! This module provides a more sophisticated terminology provider interface that extends
 //! beyond the basic TerminologyService to provide comprehensive FHIR terminology operations
 //! with integration to external terminology servers like tx.fhir.org.
 
 use async_trait::async_trait;
-use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::sync::Arc;
+use serde_json::{Value, json};
 
-use crate::core::{FhirPathError, FhirPathValue, Result};
-use crate::core::error_code::FP0200;
 use super::terminology_utils::{
-    Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils
+    Coding, ConceptDesignation, ConceptProperty, ConceptTranslation,
+    TerminologyUtils,
 };
+use crate::core::error_code::FP0200;
+use crate::core::{FhirPathError, FhirPathValue, Result};
 
 /// Comprehensive details about a concept returned by terminology operations
 #[derive(Debug, Clone)]
@@ -100,7 +99,11 @@ pub trait TerminologyProvider: Send + Sync {
     ///
     /// # Returns
     /// * `Result<Vec<FhirPathValue>>` - Collection of property values
-    async fn get_concept_properties(&self, coding: &Coding, property: &str) -> Result<Vec<FhirPathValue>>;
+    async fn get_concept_properties(
+        &self,
+        coding: &Coding,
+        property: &str,
+    ) -> Result<Vec<FhirPathValue>>;
 
     /// Get the terminology server base URL
     async fn get_terminology_server_url(&self) -> Result<String>;
@@ -125,7 +128,7 @@ pub trait TerminologyProvider: Send + Sync {
 }
 
 /// Default terminology provider that integrates with tx.fhir.org
-/// 
+///
 /// This provider implements the FHIR Terminology Service specification using
 /// the public tx.fhir.org terminology server. It supports all standard operations
 /// including ValueSet validation, ConceptMap translation, code system validation,
@@ -178,13 +181,15 @@ impl DefaultTerminologyProvider {
                                 if let Some(cd) = concept.get("code").and_then(|v| v.as_str()) {
                                     code = cd.to_string();
                                 }
-                                if let Some(disp) = concept.get("display").and_then(|v| v.as_str()) {
+                                if let Some(disp) = concept.get("display").and_then(|v| v.as_str())
+                                {
                                     display = Some(disp.to_string());
                                 }
                             }
                         }
                         "comment" => {
-                            if let Some(comm) = part_obj.get("valueString").and_then(|v| v.as_str()) {
+                            if let Some(comm) = part_obj.get("valueString").and_then(|v| v.as_str())
+                            {
                                 comment = Some(comm.to_string());
                             }
                         }
@@ -230,13 +235,16 @@ impl DefaultTerminologyProvider {
                         }
                         "use" => {
                             if let Some(use_val) = part_obj.get("valueCoding") {
-                                if let Ok(coding_val) = TerminologyUtils::extract_coding_from_json(use_val) {
+                                if let Ok(coding_val) =
+                                    TerminologyUtils::extract_coding_from_json(use_val)
+                                {
                                     use_coding = Some(coding_val);
                                 }
                             }
                         }
                         "value" => {
-                            if let Some(val) = part_obj.get("valueString").and_then(|v| v.as_str()) {
+                            if let Some(val) = part_obj.get("valueString").and_then(|v| v.as_str())
+                            {
                                 value = val.to_string();
                             }
                         }
@@ -261,7 +269,11 @@ impl DefaultTerminologyProvider {
     }
 
     /// Helper method to parse property values from FHIR Parameters response
-    fn parse_property_part(&self, property_parts: &[Value], property_name: &str) -> Result<FhirPathValue> {
+    fn parse_property_part(
+        &self,
+        property_parts: &[Value],
+        property_name: &str,
+    ) -> Result<FhirPathValue> {
         for part in property_parts {
             if let Some(part_obj) = part.as_object() {
                 if let Some(name) = part_obj.get("name").and_then(|v| v.as_str()) {
@@ -271,25 +283,40 @@ impl DefaultTerminologyProvider {
                                 // Look for value in remaining parts
                                 for value_part in property_parts {
                                     if let Some(value_obj) = value_part.as_object() {
-                                        if let Some(value_name) = value_obj.get("name").and_then(|v| v.as_str()) {
+                                        if let Some(value_name) =
+                                            value_obj.get("name").and_then(|v| v.as_str())
+                                        {
                                             match value_name {
                                                 "valueString" => {
-                                                    if let Some(s) = value_obj.get("valueString").and_then(|v| v.as_str()) {
-                                                        return Ok(FhirPathValue::String(s.to_string()));
+                                                    if let Some(s) = value_obj
+                                                        .get("valueString")
+                                                        .and_then(|v| v.as_str())
+                                                    {
+                                                        return Ok(FhirPathValue::String(
+                                                            s.to_string(),
+                                                        ));
                                                     }
                                                 }
                                                 "valueBoolean" => {
-                                                    if let Some(b) = value_obj.get("valueBoolean").and_then(|v| v.as_bool()) {
+                                                    if let Some(b) = value_obj
+                                                        .get("valueBoolean")
+                                                        .and_then(|v| v.as_bool())
+                                                    {
                                                         return Ok(FhirPathValue::Boolean(b));
                                                     }
                                                 }
                                                 "valueInteger" => {
-                                                    if let Some(i) = value_obj.get("valueInteger").and_then(|v| v.as_i64()) {
+                                                    if let Some(i) = value_obj
+                                                        .get("valueInteger")
+                                                        .and_then(|v| v.as_i64())
+                                                    {
                                                         return Ok(FhirPathValue::Integer(i));
                                                     }
                                                 }
                                                 "valueCoding" => {
-                                                    if let Some(coding) = value_obj.get("valueCoding") {
+                                                    if let Some(coding) =
+                                                        value_obj.get("valueCoding")
+                                                    {
                                                         if let Ok(coding_val) = TerminologyUtils::extract_coding_from_json(coding) {
                                                             return Ok(TerminologyUtils::coding_to_value(&coding_val));
                                                         }
@@ -320,7 +347,7 @@ impl DefaultTerminologyProvider {
         let mut version = None;
         let mut display = String::new();
         let mut designation = Vec::new();
-        let mut property = Vec::new();
+        let property = Vec::new();
 
         if let Some(parameter_array) = parameters.get("parameter").and_then(|v| v.as_array()) {
             for param in parameter_array {
@@ -328,22 +355,30 @@ impl DefaultTerminologyProvider {
                     if let Some(param_name) = param_obj.get("name").and_then(|v| v.as_str()) {
                         match param_name {
                             "name" => {
-                                if let Some(n) = param_obj.get("valueString").and_then(|v| v.as_str()) {
+                                if let Some(n) =
+                                    param_obj.get("valueString").and_then(|v| v.as_str())
+                                {
                                     name = Some(n.to_string());
                                 }
                             }
                             "version" => {
-                                if let Some(v) = param_obj.get("valueString").and_then(|v| v.as_str()) {
+                                if let Some(v) =
+                                    param_obj.get("valueString").and_then(|v| v.as_str())
+                                {
                                     version = Some(v.to_string());
                                 }
                             }
                             "display" => {
-                                if let Some(d) = param_obj.get("valueString").and_then(|v| v.as_str()) {
+                                if let Some(d) =
+                                    param_obj.get("valueString").and_then(|v| v.as_str())
+                                {
                                     display = d.to_string();
                                 }
                             }
                             "designation" => {
-                                if let Some(designation_part) = param_obj.get("part").and_then(|v| v.as_array()) {
+                                if let Some(designation_part) =
+                                    param_obj.get("part").and_then(|v| v.as_array())
+                                {
                                     if let Ok(des) = self.parse_designation_part(designation_part) {
                                         designation.push(des);
                                     }
@@ -399,21 +434,28 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/ValueSet/$validate-code", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     // Extract result from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "result" {
-                                        if let Some(result_bool) = param_obj.get("valueBoolean").and_then(|v| v.as_bool()) {
+                                        if let Some(result_bool) =
+                                            param_obj.get("valueBoolean").and_then(|v| v.as_bool())
+                                        {
                                             return Ok(result_bool);
                                         }
                                     }
@@ -421,7 +463,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     // Default to false if result not found
                     Ok(false)
                 } else {
@@ -467,25 +509,38 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/ConceptMap/$translate", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     let mut translations = Vec::new();
-                    
+
                     // Extract matches from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "match" {
-                                        if let Some(match_part) = param_obj.get("part").and_then(|v| v.as_array()) {
-                                            if let Ok(translation) = self.parse_translation_match(match_part) {
-                                                translations.push(TerminologyUtils::translation_to_fhir_value(&translation));
+                                        if let Some(match_part) =
+                                            param_obj.get("part").and_then(|v| v.as_array())
+                                        {
+                                            if let Ok(translation) =
+                                                self.parse_translation_match(match_part)
+                                            {
+                                                translations.push(
+                                                    TerminologyUtils::translation_to_fhir_value(
+                                                        &translation,
+                                                    ),
+                                                );
                                             }
                                         }
                                     }
@@ -493,7 +548,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     Ok(translations)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -525,21 +580,28 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/CodeSystem/$validate-code", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     // Extract result from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "result" {
-                                        if let Some(result_bool) = param_obj.get("valueBoolean").and_then(|v| v.as_bool()) {
+                                        if let Some(result_bool) =
+                                            param_obj.get("valueBoolean").and_then(|v| v.as_bool())
+                                        {
                                             return Ok(result_bool);
                                         }
                                     }
@@ -547,7 +609,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     Ok(false)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -583,21 +645,28 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/CodeSystem/$subsumes", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     // Extract outcome from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "outcome" {
-                                        if let Some(outcome) = param_obj.get("valueCode").and_then(|v| v.as_str()) {
+                                        if let Some(outcome) =
+                                            param_obj.get("valueCode").and_then(|v| v.as_str())
+                                        {
                                             return Ok(outcome == "subsumes");
                                         }
                                     }
@@ -605,7 +674,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     Ok(false)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -652,33 +721,48 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     let mut designations = Vec::new();
-                    
+
                     // Extract designations from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "designation" {
-                                        if let Some(designation_part) = param_obj.get("part").and_then(|v| v.as_array()) {
-                                            if let Ok(designation) = self.parse_designation_part(designation_part) {
+                                        if let Some(designation_part) =
+                                            param_obj.get("part").and_then(|v| v.as_array())
+                                        {
+                                            if let Ok(designation) =
+                                                self.parse_designation_part(designation_part)
+                                            {
                                                 // Filter by use code if specified
                                                 if let Some(use_filter) = use_code {
-                                                    if let Some(ref use_coding) = designation.use_coding {
+                                                    if let Some(ref use_coding) =
+                                                        designation.use_coding
+                                                    {
                                                         if use_coding.code == use_filter {
                                                             designations.push(TerminologyUtils::designation_to_fhir_value(&designation));
                                                         }
                                                     }
                                                 } else {
-                                                    designations.push(TerminologyUtils::designation_to_fhir_value(&designation));
+                                                    designations.push(
+                                                        TerminologyUtils::designation_to_fhir_value(
+                                                            &designation,
+                                                        ),
+                                                    );
                                                 }
                                             }
                                         }
@@ -687,7 +771,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     Ok(designations)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -703,7 +787,11 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         }
     }
 
-    async fn get_concept_properties(&self, coding: &Coding, property: &str) -> Result<Vec<FhirPathValue>> {
+    async fn get_concept_properties(
+        &self,
+        coding: &Coding,
+        property: &str,
+    ) -> Result<Vec<FhirPathValue>> {
         let params = json!({
             "resourceType": "Parameters",
             "parameter": [
@@ -723,24 +811,33 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     let mut properties = Vec::new();
-                    
+
                     // Extract properties from Parameters response
-                    if let Some(parameter_array) = result.get("parameter").and_then(|v| v.as_array()) {
+                    if let Some(parameter_array) =
+                        result.get("parameter").and_then(|v| v.as_array())
+                    {
                         for param in parameter_array {
                             if let Some(param_obj) = param.as_object() {
                                 if let Some(name) = param_obj.get("name").and_then(|v| v.as_str()) {
                                     if name == "property" {
-                                        if let Some(property_part) = param_obj.get("part").and_then(|v| v.as_array()) {
-                                            if let Ok(property_value) = self.parse_property_part(property_part, property) {
+                                        if let Some(property_part) =
+                                            param_obj.get("part").and_then(|v| v.as_array())
+                                        {
+                                            if let Ok(property_value) =
+                                                self.parse_property_part(property_part, property)
+                                            {
                                                 properties.push(property_value);
                                             }
                                         }
@@ -749,7 +846,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                             }
                         }
                     }
-                    
+
                     Ok(properties)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -781,19 +878,24 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/ValueSet/$expand", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     let mut codings = Vec::new();
-                    
+
                     // Extract contains from ValueSet expansion
                     if let Some(expansion) = result.get("expansion") {
-                        if let Some(contains_array) = expansion.get("contains").and_then(|v| v.as_array()) {
+                        if let Some(contains_array) =
+                            expansion.get("contains").and_then(|v| v.as_array())
+                        {
                             for contain in contains_array {
                                 if let Some(contain_obj) = contain.as_object() {
                                     if let (Some(system), Some(code)) = (
@@ -801,18 +903,20 @@ impl TerminologyProvider for DefaultTerminologyProvider {
                                         contain_obj.get("code").and_then(|v| v.as_str()),
                                     ) {
                                         let mut coding = Coding::new(system, code);
-                                        
-                                        if let Some(display) = contain_obj.get("display").and_then(|v| v.as_str()) {
+
+                                        if let Some(display) =
+                                            contain_obj.get("display").and_then(|v| v.as_str())
+                                        {
                                             coding = coding.with_display(display);
                                         }
-                                        
+
                                         codings.push(coding);
                                     }
                                 }
                             }
                         }
                     }
-                    
+
                     Ok(codings)
                 } else {
                     Err(FhirPathError::evaluation_error(
@@ -844,14 +948,17 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         });
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
-        
+
         match self.client.post(&url).json(&params).send().await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
-                        FhirPathError::evaluation_error(FP0200, format!("Failed to parse response: {}", e))
+                        FhirPathError::evaluation_error(
+                            FP0200,
+                            format!("Failed to parse response: {}", e),
+                        )
                     })?;
-                    
+
                     // Parse concept details from lookup result
                     if let Ok(details) = self.parse_concept_details(&result) {
                         Ok(Some(details))
@@ -868,7 +975,7 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 }
 
 /// Mock terminology provider for testing purposes
-/// 
+///
 /// This provider returns hardcoded results for common test scenarios and
 /// doesn't require network connectivity. It's useful for unit testing and
 /// development environments.
@@ -898,7 +1005,9 @@ impl TerminologyProvider for MockTerminologyProvider {
                     .with_display("Male"),
                 comment: None,
             };
-            Ok(vec![TerminologyUtils::translation_to_fhir_value(&translation)])
+            Ok(vec![TerminologyUtils::translation_to_fhir_value(
+                &translation,
+            )])
         } else {
             Ok(vec![])
         }
@@ -908,8 +1017,10 @@ impl TerminologyProvider for MockTerminologyProvider {
         // Mock implementation - validate common codes
         Ok(matches!(
             (system, code),
-            ("http://hl7.org/fhir/administrative-gender", "male" | "female")
-                | ("http://loinc.org", "789-8")
+            (
+                "http://hl7.org/fhir/administrative-gender",
+                "male" | "female"
+            ) | ("http://loinc.org", "789-8")
         ))
     }
 
@@ -936,13 +1047,19 @@ impl TerminologyProvider for MockTerminologyProvider {
                     _ => "Male".to_string(),
                 },
             };
-            Ok(vec![TerminologyUtils::designation_to_fhir_value(&designation)])
+            Ok(vec![TerminologyUtils::designation_to_fhir_value(
+                &designation,
+            )])
         } else {
             Ok(vec![])
         }
     }
 
-    async fn get_concept_properties(&self, coding: &Coding, property: &str) -> Result<Vec<FhirPathValue>> {
+    async fn get_concept_properties(
+        &self,
+        coding: &Coding,
+        property: &str,
+    ) -> Result<Vec<FhirPathValue>> {
         // Mock implementation
         if coding.code == "male" && property == "definition" {
             Ok(vec![FhirPathValue::String("Male gender".to_string())])

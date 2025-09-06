@@ -21,7 +21,18 @@ octofhir-fhirpath = { path = "../octofhir-fhirpath" }
 octofhir-fhirschema = { workspace = true }
 octofhir-fhir-model = { workspace = true }
 
-axum = { version = "0.8" }
+# Server dependencies  
+axum = { version = "0.8", features = ["multipart"] }
+tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+octofhir-ucum = { workspace = true }
+base64 = "0.22"
+include_dir = "0.7"
+mime_guess = "2.0"
+
 # CLI dependencies
 clap = { workspace = true }
 serde_json = { workspace = true }
