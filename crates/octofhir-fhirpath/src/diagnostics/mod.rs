@@ -11,6 +11,7 @@ pub mod formatter;
 pub mod source;
 pub mod collector;
 pub mod batch_formatter;
+pub mod processor;
 
 // Re-export main types for backward compatibility
 pub use diagnostic::{Diagnostic, DiagnosticSeverity, DiagnosticCode};
@@ -20,6 +21,7 @@ pub use builder::DiagnosticBuilder;
 pub use engine::{DiagnosticEngine, ColorScheme};
 pub use formatter::DiagnosticFormatter;
 pub use source::{SourceManager, SourceInfo};
+pub use processor::{DiagnosticProcessor, ProcessedDiagnostic, ContextualSuggestion, DiagnosticRelationship};
 
 // Re-export multi-diagnostic collection types
 pub use collector::{MultiDiagnosticCollector, DiagnosticBatch, DiagnosticStatistics};

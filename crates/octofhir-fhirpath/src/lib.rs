@@ -15,6 +15,7 @@
 //! - **Integration with FHIR model providers**
 //! - **Rich type system with precision temporal types**
 //! - **UCUM unit support for quantities**
+//! - **Comprehensive terminology provider system with tx.fhir.org integration**
 //!
 //! ## Architecture
 //!
@@ -116,6 +117,9 @@ pub use crate::registry::{
     SyncFunction, AsyncFunction,
     builder::FunctionBuilder,
     dispatcher::FunctionDispatcher,
+    // Terminology types and providers
+    Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils,
+    TerminologyProvider, DefaultTerminologyProvider, MockTerminologyProvider, ConceptDetails,
 };
 
 // Re-export AST types

@@ -31,4 +31,5 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
 rustyline = { workspace = true }
-tabled = "0.15"
+tabled = "0.20"
+human-panic = "2.0"

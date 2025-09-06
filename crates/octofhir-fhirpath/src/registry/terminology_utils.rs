@@ -81,7 +81,7 @@ impl TerminologyUtils {
         }
     }
 
-    fn extract_coding_from_json(j: &JsonValue) -> Result<Coding> {
+    pub fn extract_coding_from_json(j: &JsonValue) -> Result<Coding> {
         if let Some(obj) = j.as_object() {
             // Direct Coding
             if let (Some(system), Some(code)) = (obj.get("system").and_then(|v| v.as_str()), obj.get("code").and_then(|v| v.as_str())) {

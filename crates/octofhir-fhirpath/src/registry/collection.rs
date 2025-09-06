@@ -595,21 +595,19 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["(1 | 2).subsetOf(1 | 2 | 3)", "Patient.name.given.subsetOf(Patient.name.family)"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.arguments.len() != 1 {
+                if context.arguments.is_empty() {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
-                        "subsetOf() requires exactly one argument".to_string()
+                        "subsetOf() requires at least one argument".to_string()
                     ));
                 }
 
-                let other_collection = match &context.arguments[0] {
-                    FhirPathValue::Collection(items) => items.clone(),
-                    single_item => vec![single_item.clone()],
-                };
+                // All arguments form the "other" collection to check against
+                let other_collection = context.arguments;
 
                 // Build set of items in the other collection
                 let mut other_set = HashSet::new();
-                for item in &other_collection {
+                for item in other_collection {
                     other_set.insert(CollectionUtils::value_hash_key(item));
                 }
 
@@ -635,17 +633,15 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["(1 | 2 | 3).supersetOf(1 | 2)", "Patient.telecom.supersetOf(Patient.telecom.where(system = 'phone'))"],
             implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.arguments.len() != 1 {
+                if context.arguments.is_empty() {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
-                        "supersetOf() requires exactly one argument".to_string()
+                        "supersetOf() requires at least one argument".to_string()
                     ));
                 }
 
-                let other_collection = match &context.arguments[0] {
-                    FhirPathValue::Collection(items) => items.clone(),
-                    single_item => vec![single_item.clone()],
-                };
+                // All arguments form the "other" collection to check against
+                let other_collection = context.arguments;
 
                 // Build set of items in this collection
                 let mut this_set = HashSet::new();
@@ -654,7 +650,7 @@ impl FunctionRegistry {
                 }
 
                 // Check if all items in other collection are in this collection
-                for value in &other_collection {
+                for value in other_collection {
                     if !this_set.contains(&CollectionUtils::value_hash_key(value)) {
                         return Ok(vec![FhirPathValue::Boolean(false)]);
                     }

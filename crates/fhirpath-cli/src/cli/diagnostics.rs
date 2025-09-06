@@ -74,13 +74,6 @@ impl CliDiagnosticHandler {
                 write!(writer, "{}", output)?;
                 Ok(())
             }
-            OutputFormat::Table => {
-                // Table mode shows diagnostics above the table
-                let output = DiagnosticFormatter::format_pretty(&self.engine, diagnostic, source_id)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-                write!(writer, "{}", output)?;
-                Ok(())
-            }
         }
     }
 
@@ -114,10 +107,11 @@ impl CliDiagnosticHandler {
                 Ok(())
             }
             _ => {
-                // All other modes: Show beautiful batch diagnostics
-                let output = DiagnosticFormatter::format_batch_pretty(&self.engine, diagnostics, source_id)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-                write!(writer, "{}", output)?;
+                // All other modes: Show unified diagnostics report
+                if !diagnostics.is_empty() {
+                    self.engine.emit_unified_report(diagnostics, source_id, writer)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                }
                 Ok(())
             }
         }
@@ -241,11 +235,6 @@ impl CliDiagnosticHandler {
                 let pretty_output = BatchFormatter::format_comprehensive_report(&self.engine, &result.diagnostics)
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
                 write!(writer, "{}", pretty_output)?;
-            }
-            OutputFormat::Table => {
-                let table_output = BatchFormatter::format_table_report(&result.diagnostics)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-                write!(writer, "{}", table_output)?;
             }
             OutputFormat::Raw => {
                 // Raw format shows compact list

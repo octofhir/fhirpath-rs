@@ -399,7 +399,7 @@ impl FunctionRegistry {
     fn register_is_function(&self) -> Result<()> {
         register_function!(
             self,
-            sync "is",
+            async "is",
             category: FunctionCategory::Type,
             description: "Returns true if the input is of the specified type or a subtype thereof",
             parameters: ["type": Some("string".to_string()) => "The type to check against"],
@@ -409,39 +409,45 @@ impl FunctionRegistry {
                 "Observation.value.is('Quantity')", 
                 "5.is('Integer')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.input.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "is() can only be called on a single value".to_string()
-                    ));
-                }
-
-                if context.arguments.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "is() requires exactly one type argument".to_string()
-                    ));
-                }
-
-                let type_name = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
-                    _ => {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+                Box::pin(async move {
+                    if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
                             FP0055,
-                            "is() type argument must be a string".to_string()
+                            "is() can only be called on a single value".to_string()
                         ));
                     }
-                };
 
-                let expected_type = FhirPathType::from_type_name(type_name)
-                    .ok_or_else(|| FhirPathError::evaluation_error(
-                        FP0055,
-                        format!("Unknown type: '{}'", type_name)
-                    ))?;
+                    if context.arguments.len() != 1 {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0055,
+                            "is() requires exactly one type argument".to_string()
+                        ));
+                    }
 
-                let result = TypeChecker::is_type(&context.input[0], &expected_type);
-                Ok(vec![FhirPathValue::Boolean(result)])
+                    let type_name = match &context.arguments[0] {
+                        FhirPathValue::String(s) => s,
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0055,
+                                "is() type argument must be a string".to_string()
+                            ));
+                        }
+                    };
+
+                    // Use ModelProvider instead of hardcoded type checking
+                    let current_value_type = Self::get_value_type_name(&context.input[0]);
+                    
+                    // Check type compatibility using ModelProvider
+                    match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                        Ok(is_compatible) => Ok(vec![FhirPathValue::Boolean(is_compatible)]),
+                        Err(_) => {
+                            // Fallback to basic type checking for system types
+                            let is_compatible = Self::basic_type_compatibility(&context.input[0], type_name);
+                            Ok(vec![FhirPathValue::Boolean(is_compatible)])
+                        }
+                    }
+                })
             }
         )
     }
@@ -449,7 +455,7 @@ impl FunctionRegistry {
     fn register_as_function(&self) -> Result<()> {
         register_function!(
             self,
-            sync "as",
+            async "as",
             category: FunctionCategory::Type,
             description: "Casts the input to the specified type, returns empty if the cast is not possible",
             parameters: ["type": Some("string".to_string()) => "The type to cast to"],
@@ -459,41 +465,54 @@ impl FunctionRegistry {
                 "Patient.name.as('HumanName')",
                 "Observation.value.as('Quantity')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.input.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "as() can only be called on a single value".to_string()
-                    ));
-                }
-
-                if context.arguments.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "as() requires exactly one type argument".to_string()
-                    ));
-                }
-
-                let type_name = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
-                    _ => {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+                Box::pin(async move {
+                    if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
                             FP0055,
-                            "as() type argument must be a string".to_string()
+                            "as() can only be called on a single value".to_string()
                         ));
                     }
-                };
 
-                let target_type = FhirPathType::from_type_name(type_name)
-                    .ok_or_else(|| FhirPathError::evaluation_error(
-                        FP0055,
-                        format!("Unknown type: '{}'", type_name)
-                    ))?;
+                    if context.arguments.len() != 1 {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0055,
+                            "as() requires exactly one type argument".to_string()
+                        ));
+                    }
 
-                match TypeChecker::cast_to_type(&context.input[0], &target_type) {
-                    Ok(cast_value) => Ok(vec![cast_value]),
-                    Err(_) => Ok(vec![]), // Return empty on failed cast per FHIRPath spec
-                }
+                    let type_name = match &context.arguments[0] {
+                        FhirPathValue::String(s) => s,
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0055,
+                                "as() type argument must be a string".to_string()
+                            ));
+                        }
+                    };
+
+                    // Use ModelProvider to check if casting is possible
+                    let current_value_type = Self::get_value_type_name(&context.input[0]);
+                    
+                    match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                        Ok(true) => {
+                            // Cast is possible, return the original value (most cases in FHIRPath)
+                            Ok(vec![context.input[0].clone()])
+                        },
+                        Ok(false) => {
+                            // Cast not possible, return empty per FHIRPath spec
+                            Ok(vec![])
+                        },
+                        Err(_) => {
+                            // Fallback to basic casting logic
+                            if Self::basic_type_compatibility(&context.input[0], type_name) {
+                                Ok(vec![context.input[0].clone()])
+                            } else {
+                                Ok(vec![])
+                            }
+                        }
+                    }
+                })
             }
         )
     }
@@ -501,7 +520,7 @@ impl FunctionRegistry {
     fn register_oftype_function(&self) -> Result<()> {
         register_function!(
             self,
-            sync "ofType",
+            async "ofType",
             category: FunctionCategory::Type,
             description: "Returns items from the collection that are of the specified type or a subtype thereof",
             parameters: ["type": Some("string".to_string()) => "The type to filter by"],
@@ -511,37 +530,46 @@ impl FunctionRegistry {
                 "Patient.telecom.ofType('ContactPoint')",
                 "('a', 1, true, 2.5).ofType('Integer')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.arguments.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "ofType() requires exactly one type argument".to_string()
-                    ));
-                }
-
-                let type_name = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
-                    _ => {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+                Box::pin(async move {
+                    if context.arguments.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
                             FP0055,
-                            "ofType() type argument must be a string".to_string()
+                            "ofType() requires exactly one type argument".to_string()
                         ));
                     }
-                };
 
-                let expected_type = FhirPathType::from_type_name(type_name)
-                    .ok_or_else(|| FhirPathError::evaluation_error(
-                        FP0055,
-                        format!("Unknown type: '{}'", type_name)
-                    ))?;
+                    let type_name = match &context.arguments[0] {
+                        FhirPathValue::String(s) => s,
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0055,
+                                "ofType() type argument must be a string".to_string()
+                            ));
+                        }
+                    };
 
-                let result: Vec<FhirPathValue> = context.input
-                    .iter()
-                    .filter(|value| TypeChecker::is_type(value, &expected_type))
-                    .cloned()
-                    .collect();
+                    // Filter collection using ModelProvider-based type checking
+                    let mut result = Vec::new();
+                    
+                    for value in context.input.iter() {
+                        let current_value_type = Self::get_value_type_name(value);
+                        
+                        let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                            Ok(compatible) => compatible,
+                            Err(_) => {
+                                // Fallback to basic type checking
+                                Self::basic_type_compatibility(value, type_name)
+                            }
+                        };
+                        
+                        if is_compatible {
+                            result.push(value.clone());
+                        }
+                    }
 
-                Ok(result)
+                    Ok(result)
+                })
             }
         )
     }
@@ -586,5 +614,58 @@ impl FunctionRegistry {
                 Ok(vec![FhirPathValue::JsonValue(type_info)])
             }
         )
+    }
+
+    /// Get the type name for a FhirPathValue for ModelProvider operations
+    fn get_value_type_name(value: &FhirPathValue) -> String {
+        match value {
+            FhirPathValue::Boolean(_) => "Boolean".to_string(),
+            FhirPathValue::Integer(_) => "Integer".to_string(),
+            FhirPathValue::Decimal(_) => "Decimal".to_string(),
+            FhirPathValue::String(_) => "String".to_string(),
+            FhirPathValue::Date(_) => "Date".to_string(),
+            FhirPathValue::DateTime(_) => "DateTime".to_string(),
+            FhirPathValue::Time(_) => "Time".to_string(),
+            FhirPathValue::Quantity { .. } => "Quantity".to_string(),
+            FhirPathValue::Resource(map) | FhirPathValue::JsonValue(map) => {
+                // Try to get resourceType for FHIR resources
+                if let Some(resource_type) = map.get("resourceType").and_then(|v| v.as_str()) {
+                    resource_type.to_string()
+                } else {
+                    "Resource".to_string()
+                }
+            }
+            FhirPathValue::Id(_) => "Id".to_string(),
+            FhirPathValue::Base64Binary(_) => "Base64Binary".to_string(),
+            FhirPathValue::Uri(_) => "Uri".to_string(),
+            FhirPathValue::Url(_) => "Url".to_string(),
+            FhirPathValue::Collection(_) => "Collection".to_string(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                format!("{}.{}", namespace, name)
+            },
+            FhirPathValue::Empty => "Empty".to_string(),
+        }
+    }
+
+    /// Basic type compatibility check as fallback when ModelProvider is unavailable
+    fn basic_type_compatibility(value: &FhirPathValue, target_type: &str) -> bool {
+        let current_type = Self::get_value_type_name(value);
+        
+        // Direct type match
+        if current_type == target_type {
+            return true;
+        }
+        
+        // Basic inheritance relationships for essential types
+        match (current_type.as_str(), target_type) {
+            // All FHIR resources are Resources
+            (_, "Resource") => matches!(value, FhirPathValue::Resource(_) | FhirPathValue::JsonValue(_)),
+            // System type compatibility
+            ("Boolean", "boolean") | ("boolean", "Boolean") => true,
+            ("Integer", "integer") | ("integer", "Integer") => true,
+            ("String", "string") | ("string", "String") => true,
+            ("Decimal", "decimal") | ("decimal", "Decimal") => true,
+            _ => false,
+        }
     }
 }

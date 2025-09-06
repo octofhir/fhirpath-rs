@@ -62,69 +62,23 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
     Ok(data)
 }
 
-/// Extract the primitive value from a FhirPathValue JSON representation
-fn extract_primitive_value(value: &Value) -> Value {
-    if let Some(obj) = value.as_object() {
-        if obj.len() == 1 {
-            if let Some(boolean_val) = obj.get("Boolean") {
-                return boolean_val.clone();
-            }
-            if let Some(integer_val) = obj.get("Integer") {
-                return integer_val.clone();
-            }
-            if let Some(decimal_val) = obj.get("Decimal") {
-                return decimal_val.clone();
-            }
-            if let Some(string_val) = obj.get("String") {
-                return string_val.clone();
-            }
-            if let Some(date_val) = obj.get("Date") {
-                return date_val.clone();
-            }
-            if let Some(datetime_val) = obj.get("DateTime") {
-                return datetime_val.clone();
-            }
-            if let Some(time_val) = obj.get("Time") {
-                return time_val.clone();
-            }
-            // Unwrap complex wrappers for comparison and display
-            if let Some(resource_val) = obj.get("Resource") {
-                return resource_val.clone();
-            }
-            if let Some(json_val) = obj.get("JsonValue") {
-                return json_val.clone();
-            }
-        }
-    }
-    value.clone()
-}
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
 fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> bool {
     // Convert actual to JSON for uniform comparison
-    let actual_json = match serde_json::to_string(actual) {
-        Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
-            Ok(json) => json,
-            Err(_) => return false,
-        },
+    let actual_json = match serde_json::to_value(actual) {
+        Ok(json) => json,
         Err(_) => return false,
     };
 
-    // Extract primitive values from FhirPathValue enums in actual results
-    let actual_normalized = if let Some(actual_arr) = actual_json.as_array() {
-        Value::Array(actual_arr.iter().map(extract_primitive_value).collect())
-    } else {
-        extract_primitive_value(&actual_json)
-    };
-
     // Direct comparison first - handles most cases
-    if expected == &actual_normalized {
+    if expected == &actual_json {
         return true;
     }
 
     // FHIRPath collection handling: expected single value should match [single_value]
-    match (expected, &actual_normalized) {
+    match (expected, &actual_json) {
         // Test expects single value, actual is collection with one item
         (expected_single, actual_json) if actual_json.is_array() => {
             if let Some(actual_arr) = actual_json.as_array() {
@@ -364,19 +318,10 @@ async fn main() {
             }
             let expected_json =
                 serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
-            let actual_json = match serde_json::to_string(&result) {
-                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
-                    Ok(v) => {
-                        // Extract primitive values from FhirPathValue enums for cleaner display
-                        let normalized = if let Some(actual_arr) = v.as_array() {
-                            Value::Array(actual_arr.iter().map(extract_primitive_value).collect())
-                        } else {
-                            extract_primitive_value(&v)
-                        };
-                        serde_json::to_string_pretty(&normalized).unwrap_or_else(|_| format!("{:?}", result))
-                    }
-                    Err(_) => format!("{:?}", result),
-                },
+            let actual_json = match serde_json::to_value(&result) {
+                Ok(json) => {
+                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| format!("{:?}", result))
+                }
                 Err(_) => format!("{:?}", result),
             };
             println!("   Expected: {expected_json}");

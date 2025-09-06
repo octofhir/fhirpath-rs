@@ -69,6 +69,7 @@ pub struct EngineConfig {
     /// FHIR version string used for terminology server URLs and type validation
     /// when not explicitly specified. Default: "r4"
     pub default_fhir_version: String,
+
 }
 
 impl EngineConfig {
@@ -135,6 +136,7 @@ impl EngineConfig {
         self
     }
 
+
     /// Create high-performance configuration
     ///
     /// Optimized for high-throughput scenarios with larger caches and timeouts.
@@ -190,6 +192,7 @@ impl EngineConfig {
             default_fhir_version: "r4".to_string(),
         }
     }
+
 
     /// Validate configuration values
     ///

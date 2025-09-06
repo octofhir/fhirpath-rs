@@ -8,27 +8,14 @@ use std::io::Write;
 pub struct DiagnosticFormatter;
 
 impl DiagnosticFormatter {
-    /// Format diagnostic for CLI pretty output (with colors and emojis)
+    /// Format diagnostic for CLI pretty output (pure Ariadne output like Rust compiler)
     pub fn format_pretty(
         engine: &DiagnosticEngine,
         diagnostic: &AriadneDiagnostic,
         source_id: usize,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let severity_emoji = match diagnostic.severity {
-            DiagnosticSeverity::Error => "❌",
-            DiagnosticSeverity::Warning => "⚠️",
-            DiagnosticSeverity::Info => "💡",
-            DiagnosticSeverity::Hint => "ℹ️",
-        };
-
-        let mut output = String::new();
-        output.push_str(&format!("{} FHIRPath Diagnostic Report\n\n", severity_emoji));
-        
-        // Get formatted Ariadne output
-        let ariadne_output = engine.format_diagnostic(diagnostic, source_id)?;
-        output.push_str(&ariadne_output);
-        
-        Ok(output)
+        // Return pure Ariadne output - no extra headers or emojis
+        engine.format_diagnostic(diagnostic, source_id)
     }
 
     /// Format diagnostic for CLI raw output (no colors, just text)
@@ -84,7 +71,7 @@ impl DiagnosticFormatter {
         })
     }
 
-    /// Format multiple diagnostics as batch report
+    /// Format multiple diagnostics as batch report (pure Ariadne output)
     pub fn format_batch_pretty(
         engine: &DiagnosticEngine,
         diagnostics: &[AriadneDiagnostic],
@@ -92,14 +79,11 @@ impl DiagnosticFormatter {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
         
-        output.push_str("📋 FHIRPath Analysis Report\n");
-        output.push_str(&format!("Found {} issues:\n\n", diagnostics.len()));
-        
-        for (i, diagnostic) in diagnostics.iter().enumerate() {
-            output.push_str(&format!("Issue #{}\n", i + 1));
-            output.push_str(&"─".repeat(50));
-            output.push('\n');
-            output.push_str(&Self::format_pretty(engine, diagnostic, source_id)?);
+        // Output each diagnostic with pure Ariadne formatting
+        for diagnostic in diagnostics {
+            let ariadne_output = engine.format_diagnostic(diagnostic, source_id)?;
+            output.push_str(&ariadne_output);
+            // Add a blank line between diagnostics for readability
             output.push('\n');
         }
         

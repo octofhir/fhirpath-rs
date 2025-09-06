@@ -4,7 +4,7 @@
 //! ensuring they conform to the specification and best practices.
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, Result};
+use crate::core::Result;
 
 /// Validator for FHIRPath expressions
 #[derive(Debug, Default)]

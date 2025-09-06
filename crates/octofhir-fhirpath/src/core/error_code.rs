@@ -133,6 +133,19 @@ impl ErrorRegistry {
             59 => &FP0059_INFO,
             60 => &FP0060_INFO,
 
+            // Temporal/Date validation errors (FP0070-FP0080)
+            70 => &FP0070_INFO,
+            71 => &FP0071_INFO,
+            72 => &FP0072_INFO,
+            73 => &FP0073_INFO,
+            74 => &FP0074_INFO,
+            75 => &FP0075_INFO,
+            76 => &FP0076_INFO,
+            77 => &FP0077_INFO,
+            78 => &FP0078_INFO,
+            79 => &FP0079_INFO,
+            80 => &FP0080_INFO,
+
             // Model Provider Errors (FP0101-FP0150)
             101 => &FP0101_INFO,
             102 => &FP0102_INFO,
@@ -192,6 +205,19 @@ pub const FP0057: ErrorCode = ErrorCode::new(57);  // Reference resolution faile
 pub const FP0058: ErrorCode = ErrorCode::new(58);  // Invalid type conversion
 pub const FP0059: ErrorCode = ErrorCode::new(59);  // Collection index out of bounds
 pub const FP0060: ErrorCode = ErrorCode::new(60);  // Variable not defined
+
+// Temporal/Date validation errors (FP0070-FP0080)
+pub const FP0070: ErrorCode = ErrorCode::new(70);  // Invalid date format
+pub const FP0071: ErrorCode = ErrorCode::new(71);  // Invalid date value (day > 31)
+pub const FP0072: ErrorCode = ErrorCode::new(72);  // Invalid month value (month > 12)
+pub const FP0073: ErrorCode = ErrorCode::new(73);  // Invalid year value
+pub const FP0074: ErrorCode = ErrorCode::new(74);  // Invalid time format
+pub const FP0075: ErrorCode = ErrorCode::new(75);  // Invalid datetime format
+pub const FP0076: ErrorCode = ErrorCode::new(76);  // Date out of valid range
+pub const FP0077: ErrorCode = ErrorCode::new(77);  // Invalid timezone format
+pub const FP0078: ErrorCode = ErrorCode::new(78);  // Temporal precision mismatch
+pub const FP0079: ErrorCode = ErrorCode::new(79);  // Invalid leap year date
+pub const FP0080: ErrorCode = ErrorCode::new(80);  // Temporal parsing error
 
 // Model Provider Error Codes (FP0101-FP0150)
 pub const FP0101: ErrorCode = ErrorCode::new(101); // Resource not found
@@ -362,6 +388,84 @@ static FP0060_INFO: ErrorInfo = ErrorInfo::new(
     "Variable not defined",
     "An attempt was made to access a variable that has not been defined.",
     "Check that the variable is properly defined before use. Variables must be declared in the current scope.",
+);
+
+// Temporal/Date validation error information (FP0070-FP0080)
+static FP0070_INFO: ErrorInfo = ErrorInfo::new(
+    70,
+    "Invalid date format",
+    "The date string does not match the expected FHIR date format.",
+    "Use the format YYYY-MM-DD for dates or YYYY-MM-DDTHH:MM:SSZ for datetimes. Check for typos in the date string.",
+);
+
+static FP0071_INFO: ErrorInfo = ErrorInfo::new(
+    71,
+    "Invalid date value (day > 31)",
+    "The day component of the date is greater than 31, which is not valid.",
+    "Ensure the day value is between 1 and 31, and valid for the given month (e.g., February cannot have 30 days).",
+);
+
+static FP0072_INFO: ErrorInfo = ErrorInfo::new(
+    72,
+    "Invalid month value (month > 12)",
+    "The month component of the date is greater than 12, which is not valid.",
+    "Ensure the month value is between 1 and 12 (January=1, December=12).",
+);
+
+static FP0073_INFO: ErrorInfo = ErrorInfo::new(
+    73,
+    "Invalid year value",
+    "The year component of the date is outside the valid range for FHIR dates.",
+    "Ensure the year is a valid 4-digit year. FHIR typically supports years 1900-2100.",
+);
+
+static FP0074_INFO: ErrorInfo = ErrorInfo::new(
+    74,
+    "Invalid time format",
+    "The time string does not match the expected HH:MM:SS format.",
+    "Use the format HH:MM:SS for times. Hours should be 00-23, minutes and seconds 00-59.",
+);
+
+static FP0075_INFO: ErrorInfo = ErrorInfo::new(
+    75,
+    "Invalid datetime format",
+    "The datetime string does not match the expected ISO 8601 format.",
+    "Use the format YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS+HH:MM for datetimes.",
+);
+
+static FP0076_INFO: ErrorInfo = ErrorInfo::new(
+    76,
+    "Date out of valid range",
+    "The date is outside the valid range supported by the system.",
+    "Check that the date falls within reasonable bounds (typically 1900-2100).",
+);
+
+static FP0077_INFO: ErrorInfo = ErrorInfo::new(
+    77,
+    "Invalid timezone format",
+    "The timezone component of the datetime is not in the correct format.",
+    "Use Z for UTC or +/-HH:MM format for timezone offsets (e.g., +05:30, -08:00).",
+);
+
+static FP0078_INFO: ErrorInfo = ErrorInfo::new(
+    78,
+    "Temporal precision mismatch",
+    "The temporal value's precision does not match the expected precision for this operation.",
+    "Ensure the date/datetime has the appropriate precision level for the operation being performed.",
+);
+
+static FP0079_INFO: ErrorInfo = ErrorInfo::new(
+    79,
+    "Invalid leap year date",
+    "February 29th is only valid in leap years.",
+    "Check if the year is a leap year before using February 29th. Leap years are divisible by 4, except century years which must be divisible by 400.",
+);
+
+static FP0080_INFO: ErrorInfo = ErrorInfo::new(
+    80,
+    "Temporal parsing error",
+    "General error occurred while parsing a temporal (date/time) value.",
+    "Check the format and content of the date/time string. Ensure it follows FHIR temporal format standards.",
 );
 
 // Model Provider Error Information (FP0101-FP0150)

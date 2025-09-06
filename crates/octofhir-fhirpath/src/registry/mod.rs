@@ -18,6 +18,9 @@ use crate::evaluator::TerminologyService;
 pub use terminology_utils::{
     Coding, ConceptTranslation, ConceptDesignation, ConceptProperty, PropertyValue, TerminologyUtils
 };
+pub use terminology_provider::{
+    TerminologyProvider, DefaultTerminologyProvider, MockTerminologyProvider, ConceptDetails
+};
 
 pub mod builder;
 pub mod dispatcher;
@@ -35,6 +38,7 @@ pub mod fhir;
 pub mod fhir_utils;
 pub mod terminology;
 pub mod terminology_utils;
+pub mod terminology_provider;
 pub mod logic;
 pub mod numeric;
 
@@ -58,6 +62,9 @@ mod datetime_tests;
 
 #[cfg(test)]
 mod terminology_tests;
+
+#[cfg(test)]
+mod terminology_provider_tests;
 
 #[derive(Debug, Clone)]
 pub struct FunctionMetadata {

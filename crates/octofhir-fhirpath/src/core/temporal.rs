@@ -14,9 +14,11 @@
 
 //! Precision-aware temporal types for FHIRPath
 
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, NaiveDateTime, Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use crate::core::{FhirPathError, Result};
+use crate::core::error_code::{FP0070, FP0071, FP0072, FP0073, FP0075, FP0079, FP0080};
 
 /// Precision levels for temporal values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
@@ -125,6 +127,129 @@ impl PrecisionDate {
         
         None
     }
+
+    /// Parse date string with comprehensive validation and proper error codes
+    pub fn parse_with_validation(s: &str) -> Result<Self> {
+        let trimmed = s.trim();
+        
+        // Validate basic format patterns
+        if trimmed.is_empty() {
+            return Err(FhirPathError::parse_error(FP0070, "Date string is empty", "", None));
+        }
+        
+        // YYYY
+        if trimmed.len() == 4 {
+            return Self::parse_year_with_validation(trimmed);
+        }
+        
+        // YYYY-MM
+        if trimmed.len() == 7 && trimmed.chars().nth(4) == Some('-') {
+            return Self::parse_year_month_with_validation(trimmed);
+        }
+        
+        // YYYY-MM-DD
+        if trimmed.len() == 10 {
+            return Self::parse_date_with_validation(trimmed);
+        }
+        
+        Err(FhirPathError::parse_error(FP0070, format!("Invalid date format: '{}'", trimmed), trimmed, None))
+    }
+
+    /// Parse year string with validation
+    fn parse_year_with_validation(s: &str) -> Result<Self> {
+        let year = s.parse::<i32>()
+            .map_err(|_| FhirPathError::parse_error(FP0073, format!("Invalid year value: '{}'", s), s, None))?;
+        
+        // Validate year range
+        if year < 1900 || year > 2100 {
+            return Err(FhirPathError::parse_error(FP0073, format!("Year {} is out of valid range (1900-2100)", year), s, None));
+        }
+        
+        Self::from_year(year)
+            .ok_or_else(|| FhirPathError::parse_error(FP0080, format!("Failed to create date from year {}", year), s, None))
+    }
+
+    /// Parse year-month string with validation
+    fn parse_year_month_with_validation(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() != 2 {
+            return Err(FhirPathError::parse_error(FP0070, format!("Invalid year-month format: '{}'", s), s, None));
+        }
+        
+        let year = parts[0].parse::<i32>()
+            .map_err(|_| FhirPathError::parse_error(FP0073, format!("Invalid year value: '{}'", parts[0]), parts[0], None))?;
+        let month = parts[1].parse::<u32>()
+            .map_err(|_| FhirPathError::parse_error(FP0072, format!("Invalid month value: '{}'", parts[1]), parts[1], None))?;
+        
+        // Validate ranges
+        if year < 1900 || year > 2100 {
+            return Err(FhirPathError::parse_error(FP0073, format!("Year {} is out of valid range (1900-2100)", year), s, None));
+        }
+        if month < 1 || month > 12 {
+            return Err(FhirPathError::parse_error(FP0072, format!("Month {} must be between 1 and 12", month), s, None));
+        }
+        
+        Self::from_year_month(year, month)
+            .ok_or_else(|| FhirPathError::parse_error(FP0080, format!("Failed to create date from year {} month {}", year, month), s, None))
+    }
+
+    /// Parse full date string with validation
+    fn parse_date_with_validation(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() != 3 {
+            return Err(FhirPathError::parse_error(FP0070, format!("Invalid date format: '{}', expected YYYY-MM-DD", s), s, None));
+        }
+        
+        let year = parts[0].parse::<i32>()
+            .map_err(|_| FhirPathError::parse_error(FP0073, format!("Invalid year value: '{}'", parts[0]), parts[0], None))?;
+        let month = parts[1].parse::<u32>()
+            .map_err(|_| FhirPathError::parse_error(FP0072, format!("Invalid month value: '{}'", parts[1]), parts[1], None))?;
+        let day = parts[2].parse::<u32>()
+            .map_err(|_| FhirPathError::parse_error(FP0071, format!("Invalid day value: '{}'", parts[2]), parts[2], None))?;
+        
+        // Validate ranges
+        if year < 1900 || year > 2100 {
+            return Err(FhirPathError::parse_error(FP0073, format!("Year {} is out of valid range (1900-2100)", year), s, None));
+        }
+        if month < 1 || month > 12 {
+            return Err(FhirPathError::parse_error(FP0072, format!("Month {} must be between 1 and 12", month), s, None));
+        }
+        if day < 1 || day > 31 {
+            return Err(FhirPathError::parse_error(FP0071, format!("Day {} must be between 1 and 31", day), s, None));
+        }
+        
+        // Special validation for February 29th (leap year check)
+        if month == 2 && day == 29 {
+            if !Self::is_leap_year(year) {
+                return Err(FhirPathError::parse_error(FP0079, format!("February 29th is not valid in non-leap year {}", year), s, None));
+            }
+        }
+        
+        // Validate day for specific months
+        if day > Self::days_in_month(year, month) {
+            return Err(FhirPathError::parse_error(FP0071, format!("Day {} is not valid for month {} in year {}", day, month, year), s, None));
+        }
+        
+        // Use chrono to parse and validate
+        NaiveDate::from_ymd_opt(year, month, day)
+            .map(|date| Self::from_date(date))
+            .ok_or_else(|| FhirPathError::parse_error(FP0080, format!("Invalid date: {}-{:02}-{:02}", year, month, day), s, None))
+    }
+
+    /// Check if a year is a leap year
+    fn is_leap_year(year: i32) -> bool {
+        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    }
+
+    /// Get number of days in a month for a given year
+    fn days_in_month(year: i32, month: u32) -> u32 {
+        match month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => if Self::is_leap_year(year) { 29 } else { 28 },
+            _ => 0, // Invalid month
+        }
+    }
 }
 
 impl fmt::Display for PrecisionDate {
@@ -227,6 +352,70 @@ impl PrecisionDateTime {
 
         None
     }
+
+    /// Parse datetime string with comprehensive validation and proper error codes  
+    pub fn parse_with_validation(s: &str) -> Result<Self> {
+        let trimmed = s.trim();
+        
+        if trimmed.is_empty() {
+            return Err(FhirPathError::parse_error(FP0075, "DateTime string is empty", "", None));
+        }
+
+        // Support trailing 'Z' (UTC) by normalizing to +00:00
+        let s_norm: std::borrow::Cow<str> = if trimmed.ends_with('Z') {
+            let mut owned = trimmed.to_string();
+            owned.pop();
+            owned.push_str("+00:00");
+            std::borrow::Cow::Owned(owned)
+        } else {
+            std::borrow::Cow::Borrowed(trimmed)
+        };
+
+        // Try different datetime formats with timezone first
+        let tz_formats = [
+            ("%Y-%m-%dT%H:%M:%S%:z", TemporalPrecision::Second),         // YYYY-MM-DDTHH:MM:SS+TZ
+            ("%Y-%m-%dT%H:%M:%S%.3f%:z", TemporalPrecision::Millisecond), // YYYY-MM-DDTHH:MM:SS.sss+TZ
+            ("%Y-%m-%dT%H:%M%:z", TemporalPrecision::Minute),            // YYYY-MM-DDTHH:MM+TZ
+            ("%Y-%m-%dT%H%:z", TemporalPrecision::Hour),                 // YYYY-MM-DDTHH+TZ
+        ];
+
+        for (format, precision) in &tz_formats {
+            if let Ok(dt) = DateTime::parse_from_str(&s_norm, format) {
+                return Ok(Self::new(dt, *precision));
+            }
+        }
+
+        // Fallback: accept datetimes without timezone by assuming UTC
+        let naive_formats = [
+            ("%Y-%m-%dT%H:%M:%S", TemporalPrecision::Second),         // YYYY-MM-DDTHH:MM:SS
+            ("%Y-%m-%dT%H:%M:%S%.3f", TemporalPrecision::Millisecond), // YYYY-MM-DDTHH:MM:SS.sss
+            ("%Y-%m-%dT%H:%M", TemporalPrecision::Minute),            // YYYY-MM-DDTHH:MM
+            ("%Y-%m-%dT%H", TemporalPrecision::Hour),                 // YYYY-MM-DDTHH
+        ];
+
+        for (format, precision) in &naive_formats {
+            if let Ok(ndt) = NaiveDateTime::parse_from_str(&s_norm, format) {
+                if let Some(offset) = FixedOffset::east_opt(0) {
+                    let dt = DateTime::from_naive_utc_and_offset(ndt, offset);
+                    // Additional validation can go here if needed
+                    return Ok(Self::new(dt, *precision));
+                }
+            }
+        }
+
+        Err(FhirPathError::parse_error(FP0075, format!("Invalid datetime format: '{}'. Expected ISO 8601 format like YYYY-MM-DDTHH:MM:SSZ", trimmed), trimmed, None))
+    }
+
+    /// Convert to chrono DateTime<Utc>
+    pub fn to_chrono_datetime(&self) -> Result<DateTime<Utc>> {
+        Ok(self.datetime.with_timezone(&Utc))
+    }
+
+    /// Create from chrono DateTime with specified precision
+    pub fn from_chrono_datetime(dt: &DateTime<Utc>, precision: TemporalPrecision) -> Self {
+        let fixed_offset_dt = dt.with_timezone(&FixedOffset::east_opt(0).unwrap());
+        Self::new(fixed_offset_dt, precision)
+    }
 }
 
 impl fmt::Display for PrecisionDateTime {
@@ -269,6 +458,11 @@ impl PrecisionTime {
         Self::new(time, TemporalPrecision::Second)
     }
 
+    /// Create a time with specified precision
+    pub fn from_time_with_precision(time: NaiveTime, precision: TemporalPrecision) -> Self {
+        Self::new(time, precision)
+    }
+
     /// Parse from time string with automatic precision detection
     pub fn parse(s: &str) -> Option<Self> {
         // HH
@@ -308,12 +502,52 @@ impl PrecisionTime {
 impl fmt::Display for PrecisionTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.precision {
-            TemporalPrecision::Hour => write!(f, "{}", self.time.format("%H")),
-            TemporalPrecision::Minute => write!(f, "{}", self.time.format("%H:%M")),
-            TemporalPrecision::Second => write!(f, "{}", self.time.format("%H:%M:%S")),
-            TemporalPrecision::Millisecond => write!(f, "{}", self.time.format("%H:%M:%S%.3f")),
-            _ => write!(f, "{}", self.time.format("%H:%M:%S")), // Fallback
+            TemporalPrecision::Hour => write!(f, "T{}", self.time.format("%H")),
+            TemporalPrecision::Minute => write!(f, "T{}", self.time.format("%H:%M")),
+            TemporalPrecision::Second => write!(f, "T{}", self.time.format("%H:%M:%S")),
+            TemporalPrecision::Millisecond => write!(f, "T{}", self.time.format("%H:%M:%S%.3f")),
+            _ => write!(f, "T{}", self.time.format("%H:%M:%S")), // Fallback
         }
+    }
+}
+
+/// Utility functions for parsing temporal strings from FHIR resources
+pub mod parsing {
+    use super::*;
+    
+    /// Parse a date or datetime string and return the date component with validation
+    /// This is the main function used by yearOf/monthOf/dayOf functions
+    pub fn parse_date_or_datetime_string(s: &str) -> Result<PrecisionDate> {
+        let trimmed = s.trim();
+        
+        if trimmed.is_empty() {
+            return Err(FhirPathError::parse_error(FP0070, "Date/DateTime string is empty", "", None));
+        }
+        
+        // Check if this looks like a datetime string (contains 'T')
+        if trimmed.contains('T') {
+            // Try parsing as datetime first, then extract date component
+            match PrecisionDateTime::parse_with_validation(trimmed) {
+                Ok(datetime) => Ok(datetime.date()),
+                Err(_) => {
+                    // If datetime parsing failed, it might be a malformed datetime
+                    Err(FhirPathError::parse_error(FP0075, format!("Invalid datetime format: '{}'", trimmed), trimmed, None))
+                }
+            }
+        } else {
+            // Try parsing as pure date
+            PrecisionDate::parse_with_validation(trimmed)
+        }
+    }
+    
+    /// Parse a datetime string and return the full datetime with validation
+    pub fn parse_datetime_string(s: &str) -> Result<PrecisionDateTime> {
+        PrecisionDateTime::parse_with_validation(s)
+    }
+    
+    /// Parse a date string and return the date with validation
+    pub fn parse_date_string(s: &str) -> Result<PrecisionDate> {
+        PrecisionDate::parse_with_validation(s)
     }
 }
 

@@ -4,7 +4,7 @@
 //! consolidated implementation while maintaining compatibility with serde_json::Value.
 
 use serde_json::Value as JsonValue;
-use crate::core::types::{Collection, FhirPathValue};
+use crate::core::types::FhirPathValue;
 
 /// Extension trait for JsonValue to add FHIRPath-specific functionality
 pub trait JsonValueExt {
@@ -61,7 +61,6 @@ impl JsonValueExt for JsonValue {
 /// Utility functions for working with JSON values in FHIRPath context
 pub mod utils {
     use super::*;
-    use crate::core::FhirPathError;
     
     /// Convert a JsonValue to a FhirPathValue
     pub fn json_to_fhirpath_value(json: JsonValue) -> FhirPathValue {

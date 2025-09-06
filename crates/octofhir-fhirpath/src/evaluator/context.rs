@@ -59,6 +59,8 @@ use crate::core::{Collection, FhirPathValue, FhirPathError, Result, ModelProvide
 pub struct EvaluationContext {
     /// Starting context for evaluation (e.g., Patient resource collection)
     pub start_context: Collection,
+    /// Root resource context for $this variable (ALWAYS refers to the original root resource)
+    pub root_context: Collection,
     /// User-defined variables available during evaluation
     pub variables: HashMap<String, FhirPathValue>,
     /// Built-in variables from FHIRPath specification
@@ -114,9 +116,12 @@ impl EvaluationContext {
             builtin_variables.set_root_resource(context_value);
         }
         
+        let variables = HashMap::new();
+        
         Self {
-            start_context,
-            variables: HashMap::new(),
+            start_context: start_context.clone(),
+            root_context: start_context, // Root context is initially the same as start_context
+            variables,
             builtin_variables,
             server_context: None,
             depth: 0,
@@ -133,7 +138,8 @@ impl EvaluationContext {
         variables: HashMap<String, FhirPathValue>
     ) -> Self {
         Self {
-            start_context,
+            start_context: start_context.clone(),
+            root_context: start_context, // Root context is initially the same as start_context
             variables,
             builtin_variables: BuiltinVariables::default(),
             server_context: None,
@@ -156,7 +162,8 @@ impl EvaluationContext {
         builtin_variables.terminology_server = terminology_server;
         
         Self {
-            start_context,
+            start_context: start_context.clone(),
+            root_context: start_context, // Root context is initially the same as start_context
             variables: HashMap::new(),
             builtin_variables,
             server_context: None,
@@ -199,6 +206,7 @@ impl EvaluationContext {
     pub fn create_child_context(&self, new_context: Collection) -> Self {
         Self {
             start_context: new_context,
+            root_context: self.root_context.clone(), // Preserve root context from parent
             variables: self.variables.clone(),
             builtin_variables: self.builtin_variables.clone(),
             server_context: self.server_context.clone(),
@@ -275,6 +283,9 @@ impl BuiltinVariables {
         
         // Add common LOINC environment variable
         env_vars.insert("%loinc".to_string(), FhirPathValue::String("http://loinc.org".to_string()));
+        
+        // Add UCUM environment variable
+        env_vars.insert("%ucum".to_string(), FhirPathValue::String("http://unitsofmeasure.org".to_string()));
         
         Self {
             terminology_server,

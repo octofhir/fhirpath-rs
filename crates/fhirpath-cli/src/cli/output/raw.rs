@@ -36,8 +36,9 @@ impl OutputFormatter for RawFormatter {
 
         if output.success {
             if let Some(ref value) = output.result {
-                match serde_json::to_string_pretty(value) {
-                    Ok(json) => result.push_str(&json),
+                // Use standard JSON serialization without prettifying
+                match serde_json::to_string(value) {
+                    Ok(json_str) => result.push_str(&json_str),
                     Err(_) => result.push_str(&format!("{value:?}")),
                 }
             } else {

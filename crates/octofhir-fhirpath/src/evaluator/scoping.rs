@@ -158,6 +158,10 @@ impl ScopeManager {
         // Inherit environment
         ctx.builtin_variables = self.global_context.builtin_variables.clone();
         ctx.server_context = self.global_context.server_context.clone();
+        // Copy variables from global context (like $this set in parent contexts)
+        for (name, value) in &self.global_context.variables {
+            ctx.set_variable(name.clone(), value.clone());
+        }
         // Merge variables from all scopes (outermost to innermost)
         for scope in &self.scope_stack {
             for (name, value) in &scope.variables {
@@ -173,8 +177,8 @@ impl ScopeManager {
         // Replace start context with current item
         ctx.start_context = Collection::single(item.clone());
         // Update special variables
-        ctx.set_variable("this".to_string(), item.clone());
-        ctx.set_variable("index".to_string(), FhirPathValue::Integer(index as i64));
+        ctx.set_variable("$this".to_string(), item.clone());
+        ctx.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
     }
     
     /// Push new variable scope

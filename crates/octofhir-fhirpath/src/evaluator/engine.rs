@@ -735,13 +735,30 @@ impl ExpressionEvaluator {
         let current_context = &context.start_context;
         
         if name == "$this" {
-            // Special $this identifier
-            return Ok(current_context.clone());
+            // Special $this identifier - check if it's set as a variable first
+            if let Some(variable_value) = context.get_variable("$this") {
+                return Ok(Collection::single(variable_value.clone()));
+            }
+            // Otherwise equivalent to %context (root resource)
+            // Use the same logic as %context to ensure consistency
+            if let Some(context_value) = context.builtin_variables.context.as_ref() {
+                return Ok(Collection::single(context_value.clone()));
+            } else {
+                // Fallback to root context if builtin context is not set
+                return Ok(context.root_context.clone());
+            }
         }
         
         // Check for variables first
         if let Some(variable_value) = context.get_variable(name) {
             return Ok(Collection::single(variable_value.clone()));
+        }
+        
+        // Check for environment variables (identifiers starting with %)
+        if name.starts_with('%') {
+            if let Some(env_value) = context.builtin_variables.get_environment_variable(name) {
+                return Ok(Collection::single(env_value.clone()));
+            }
         }
         
         // If identifier matches the resourceType of current items, return those items
@@ -883,9 +900,32 @@ impl ExpressionEvaluator {
                 // Contains is the reverse of In: collection contains value
                 self.apply_in_operator(right_result, left_result)
             },
-            // TODO: Implement other binary operators (And, Or, Xor, Implies, Concatenate)
+            // Type operators
+            BinaryOperator::Is => {
+                self.apply_is_operator(left_result, right_result).await
+            },
+            BinaryOperator::As => {
+                self.apply_as_operator(left_result, right_result).await
+            },
+            // Logical operators
+            BinaryOperator::And => {
+                self.apply_logical_and_operator(left_result, right_result)
+            },
+            BinaryOperator::Or => {
+                self.apply_logical_or_operator(left_result, right_result)
+            },
+            BinaryOperator::Xor => {
+                self.apply_logical_xor_operator(left_result, right_result)
+            },
+            BinaryOperator::Implies => {
+                self.apply_logical_implies_operator(left_result, right_result)
+            },
+            // String operators
+            BinaryOperator::Concatenate => {
+                self.apply_string_concatenate_operator(left_result, right_result)
+            },
+            // Unsupported operators
             _ => {
-                // For now, return empty collection for unsupported operators
                 Ok(Collection::empty())
             }
         }
@@ -1063,6 +1103,11 @@ impl ExpressionEvaluator {
                     Some(a.date().cmp(&pd))
                 } else { None }
             }
+            // Quantity comparisons with UCUM conversion
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, 
+             FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                self.compare_quantities_ordering(*v1, u1.as_deref(), *v2, u2.as_deref())
+            },
             _ => None,
         };
 
@@ -1139,10 +1184,10 @@ impl ExpressionEvaluator {
                 crate::core::temporal::PrecisionDateTime::parse(s).map(|pdt| *a == pdt)
             }
             
-            // Quantity comparisons (same unit)
+            // Quantity comparisons with UCUM conversion
             (FhirPathValue::Quantity { value: v1, unit: u1, .. }, 
              FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
-                Some(v1 == v2 && u1 == u2)
+                self.compare_quantities_equal(*v1, u1.as_deref(), *v2, u2.as_deref())
             },
             
             // Default: different types are not equal
@@ -1218,11 +1263,224 @@ impl ExpressionEvaluator {
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => Some(a == b),
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => Some(a == b),
             
+            // Quantity comparisons with UCUM conversion (equivalence with tolerance)
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, 
+             FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                self.compare_quantities_equivalent(*v1, u1.as_deref(), *v2, u2.as_deref())
+            },
+            
             // Empty values are equivalent
             (FhirPathValue::Empty, FhirPathValue::Empty) => Some(true),
             (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Some(false),
             
              _ => None,
+        }
+    }
+    
+    /// Compare two quantities for equality using UCUM unit conversion
+    fn compare_quantities_equal(
+        &self,
+        value1: rust_decimal::Decimal,
+        unit1: Option<&str>,
+        value2: rust_decimal::Decimal,
+        unit2: Option<&str>,
+    ) -> Option<bool> {
+        match (unit1, unit2) {
+            // Both unitless
+            (None, None) => Some(value1 == value2),
+            
+            // One unitless, one with unit - not comparable
+            (None, Some(_)) | (Some(_), None) => None,
+            
+            // Both have units - check UCUM compatibility and convert
+            (Some(u1), Some(u2)) => {
+                // If units are identical, compare values directly
+                if u1 == u2 {
+                    return Some(value1 == value2);
+                }
+                
+                // Check if units are comparable using UCUM
+                match octofhir_ucum::is_comparable(u1, u2) {
+                    Ok(true) => {
+                        // Parse unit expressions first
+                        match (octofhir_ucum::parse_expression(u1), octofhir_ucum::parse_expression(u2)) {
+                            (Ok(expr1), Ok(expr2)) => {
+                                // Evaluate the parsed expressions
+                                match (octofhir_ucum::evaluate_owned(&expr1), octofhir_ucum::evaluate_owned(&expr2)) {
+                                    (Ok(eval1), Ok(eval2)) => {
+                                        // Check if dimensions match
+                                        if eval1.dim != eval2.dim {
+                                            return None;
+                                        }
+                                        
+                                        // Convert both values to canonical units using factors
+                                        let factor1_f64 = octofhir_ucum::precision::to_f64(eval1.factor);
+                                        let factor2_f64 = octofhir_ucum::precision::to_f64(eval2.factor);
+                                        let canonical_value1 = value1 * rust_decimal::Decimal::try_from(factor1_f64).unwrap_or_default();
+                                        let canonical_value2 = value2 * rust_decimal::Decimal::try_from(factor2_f64).unwrap_or_default();
+                                        
+                                        Some(canonical_value1 == canonical_value2)
+                                    },
+                                    _ => None
+                                }
+                            },
+                            _ => None
+                        }
+                    },
+                    Ok(false) => None, // Units not comparable
+                    Err(_) => None,    // Error checking comparability
+                }
+            }
+        }
+    }
+    
+    /// Compare two quantities for ordering using UCUM unit conversion
+    fn compare_quantities_ordering(
+        &self,
+        value1: rust_decimal::Decimal,
+        unit1: Option<&str>,
+        value2: rust_decimal::Decimal,
+        unit2: Option<&str>,
+    ) -> Option<std::cmp::Ordering> {
+        match (unit1, unit2) {
+            // Both unitless
+            (None, None) => value1.partial_cmp(&value2),
+            
+            // One unitless, one with unit - not comparable
+            (None, Some(_)) | (Some(_), None) => None,
+            
+            // Both have units - check UCUM compatibility and convert
+            (Some(u1), Some(u2)) => {
+                // If units are identical, compare values directly
+                if u1 == u2 {
+                    return value1.partial_cmp(&value2);
+                }
+                
+                // Check if units are comparable using UCUM
+                match octofhir_ucum::is_comparable(u1, u2) {
+                    Ok(true) => {
+                        // Parse unit expressions first
+                        match (octofhir_ucum::parse_expression(u1), octofhir_ucum::parse_expression(u2)) {
+                            (Ok(expr1), Ok(expr2)) => {
+                                // Evaluate the parsed expressions
+                                match (octofhir_ucum::evaluate_owned(&expr1), octofhir_ucum::evaluate_owned(&expr2)) {
+                                    (Ok(eval1), Ok(eval2)) => {
+                                        // Check if dimensions match
+                                        if eval1.dim != eval2.dim {
+                                            return None;
+                                        }
+                                        
+                                        // Convert both values to canonical units using factors
+                                        let factor1_f64 = octofhir_ucum::precision::to_f64(eval1.factor);
+                                        let factor2_f64 = octofhir_ucum::precision::to_f64(eval2.factor);
+                                        let canonical_value1 = value1 * rust_decimal::Decimal::try_from(factor1_f64).unwrap_or_default();
+                                        let canonical_value2 = value2 * rust_decimal::Decimal::try_from(factor2_f64).unwrap_or_default();
+                                        
+                                        canonical_value1.partial_cmp(&canonical_value2)
+                                    },
+                                    _ => None
+                                }
+                            },
+                            _ => None
+                        }
+                    },
+                    Ok(false) => None, // Units not comparable
+                    Err(_) => None,    // Error checking comparability
+                }
+            }
+        }
+    }
+    
+    /// Compare two quantities for equivalency using UCUM unit conversion with tolerance
+    fn compare_quantities_equivalent(
+        &self,
+        value1: rust_decimal::Decimal,
+        unit1: Option<&str>,
+        value2: rust_decimal::Decimal,
+        unit2: Option<&str>,
+    ) -> Option<bool> {
+        use rust_decimal::Decimal;
+        
+        match (unit1, unit2) {
+            // Both unitless
+            (None, None) => {
+                // For equivalency, use small tolerance (1%)
+                let diff = if value1 > value2 { value1 - value2 } else { value2 - value1 };
+                let max_val = if value1 > value2 { value1 } else { value2 };
+                if max_val.is_zero() {
+                    Some(diff.is_zero())
+                } else {
+                    let tolerance = max_val * Decimal::new(1, 2); // 1% tolerance
+                    Some(diff <= tolerance)
+                }
+            },
+            
+            // One unitless, one with unit - not comparable
+            (None, Some(_)) | (Some(_), None) => None,
+            
+            // Both have units - check UCUM compatibility and convert
+            (Some(u1), Some(u2)) => {
+                // If units are identical, compare values with tolerance
+                if u1 == u2 {
+                    let diff = if value1 > value2 { value1 - value2 } else { value2 - value1 };
+                    let max_val = if value1 > value2 { value1 } else { value2 };
+                    if max_val.is_zero() {
+                        return Some(diff.is_zero());
+                    } else {
+                        let tolerance = max_val * Decimal::new(1, 2); // 1% tolerance
+                        return Some(diff <= tolerance);
+                    }
+                }
+                
+                // Check if units are comparable using UCUM
+                match octofhir_ucum::is_comparable(u1, u2) {
+                    Ok(true) => {
+                        // Parse unit expressions first
+                        match (octofhir_ucum::parse_expression(u1), octofhir_ucum::parse_expression(u2)) {
+                            (Ok(expr1), Ok(expr2)) => {
+                                // Evaluate the parsed expressions
+                                match (octofhir_ucum::evaluate_owned(&expr1), octofhir_ucum::evaluate_owned(&expr2)) {
+                                    (Ok(eval1), Ok(eval2)) => {
+                                        // Check if dimensions match
+                                        if eval1.dim != eval2.dim {
+                                            return None;
+                                        }
+                                        
+                                        // Convert both values to canonical units using factors
+                                        let factor1_f64 = octofhir_ucum::precision::to_f64(eval1.factor);
+                                        let factor2_f64 = octofhir_ucum::precision::to_f64(eval2.factor);
+                                        let canonical_value1 = value1 * Decimal::try_from(factor1_f64).unwrap_or_default();
+                                        let canonical_value2 = value2 * Decimal::try_from(factor2_f64).unwrap_or_default();
+                                        
+                                        // Check equivalency with tolerance
+                                        let diff = if canonical_value1 > canonical_value2 { 
+                                            canonical_value1 - canonical_value2 
+                                        } else { 
+                                            canonical_value2 - canonical_value1 
+                                        };
+                                        let max_val = if canonical_value1 > canonical_value2 { 
+                                            canonical_value1 
+                                        } else { 
+                                            canonical_value2 
+                                        };
+                                        
+                                        if max_val.is_zero() {
+                                            Some(diff.is_zero())
+                                        } else {
+                                            let tolerance = max_val * Decimal::new(1, 2); // 1% tolerance
+                                            Some(diff <= tolerance)
+                                        }
+                                    },
+                                    _ => None
+                                }
+                            },
+                            _ => None
+                        }
+                    },
+                    Ok(false) => None, // Units not comparable
+                    Err(_) => None,    // Error checking comparability
+                }
+            }
         }
     }
     
@@ -1331,7 +1589,7 @@ impl ExpressionEvaluator {
             // Provide $this bound to the single input item for convenience inside expressions
             if object_result.len() == 1 {
                 let item = object_result.first().unwrap();
-                child_context.set_variable("this".to_string(), item.clone());
+                child_context.set_variable("$this".to_string(), item.clone());
             }
 
             let adapter = ExpressionEvaluatorAdapter {
@@ -1492,12 +1750,26 @@ impl ExpressionEvaluator {
         // Evaluate the object on which the method is called
         let object_result = self.evaluate_expression(&method_node.object, context).await?;
         
-        // For lambda functions, we don't evaluate the arguments - they are expressions
-        if method_node.arguments.len() != 1 {
-            return Err(crate::core::FhirPathError::evaluation_error(
-                crate::core::error_code::FP0053,
-                format!("Lambda function '{}' requires exactly one argument", method_node.method)
-            ));
+        // For lambda functions, validate argument count based on function type
+        match method_node.method.as_str() {
+            "aggregate" => {
+                // aggregate() supports 1 or 2 arguments (lambda, optional initial value)
+                if method_node.arguments.is_empty() || method_node.arguments.len() > 2 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        "aggregate() requires 1 or 2 arguments (lambda, optional initial value)".to_string()
+                    ));
+                }
+            },
+            _ => {
+                // Other lambda functions require exactly one argument
+                if method_node.arguments.len() != 1 {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        format!("Lambda function '{}' requires exactly one argument", method_node.method)
+                    ));
+                }
+            }
         }
         
         let lambda_expr = &method_node.arguments[0];
@@ -2012,6 +2284,40 @@ impl ExpressionEvaluator {
         name: &str,
         context: &EvaluationContext
     ) -> Result<Collection> {
+        // Handle special $this variable (parser strips the $ prefix, so name is just "this")
+        if name == "this" {
+            // In lambda contexts, check if $this variable is set (current element)
+            // Note: We store it with the $ prefix but receive it without
+            if let Some(variable_value) = context.get_variable("$this") {
+                return Ok(Collection::single(variable_value.clone()));
+            }
+            // Otherwise, equivalent to %context (root resource) - use same logic
+            if let Some(context_value) = context.builtin_variables.context.as_ref() {
+                return Ok(Collection::single(context_value.clone()));
+            } else {
+                // Final fallback to root context if builtin context is not set
+                return Ok(context.root_context.clone());
+            }
+        }
+        
+        // Handle special $index variable (parser strips the $ prefix, so name is just "index")
+        if name == "index" {
+            // Note: We store it with the $ prefix but receive it without
+            if let Some(variable_value) = context.get_variable("$index") {
+                return Ok(Collection::single(variable_value.clone()));
+            } else {
+                // Return empty if $index is not set (not in lambda context)
+                return Ok(Collection::empty());
+            }
+        }
+        
+        // Try to find the variable with $ prefix (parser strips it, but we store with it)
+        let var_name = format!("${}", name);
+        if let Some(variable_value) = context.get_variable(&var_name) {
+            return Ok(Collection::single(variable_value.clone()));
+        }
+        
+        // Also try without the prefix for compatibility
         if let Some(variable_value) = context.get_variable(name) {
             Ok(Collection::single(variable_value.clone()))
         } else {
@@ -2063,8 +2369,9 @@ impl ExpressionEvaluator {
         for (index, item) in base_result.iter().enumerate() {
             // Create new context for each item with $this set to the current item
             let mut filter_context = context.clone();
-            filter_context.set_variable("this".to_string(), item.clone());
-            filter_context.set_variable("index".to_string(), FhirPathValue::Integer(index as i64));
+            filter_context.start_context = Collection::single(item.clone());
+            filter_context.set_variable("$this".to_string(), item.clone());
+            filter_context.set_variable("$index".to_string(), FhirPathValue::Integer(index as i64));
             
             // Evaluate the filter condition
             let condition_result = self.evaluate_expression(&filter_node.condition, &filter_context).await?;
@@ -2350,6 +2657,261 @@ impl crate::evaluator::lambda::LambdaExpressionEvaluator for ExpressionEvaluator
         context: &crate::evaluator::EvaluationContext,
     ) -> crate::core::Result<crate::core::Collection> {
         self.eval_async(expr, context).await
+    }
+}
+
+impl ExpressionEvaluator {
+    /// Apply the 'is' type checking operator using ModelProvider
+    async fn apply_is_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // 'is' operator: checks if left operand is of the type specified by right operand
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty());
+        }
+        
+        let left_value = left_result.first().unwrap();
+        let right_value = right_result.first().unwrap();
+        
+        // Right operand should be a string representing a type name
+        let type_name = match right_value {
+            FhirPathValue::String(s) => s,
+            _ => return Ok(Collection::empty()), // Invalid right operand
+        };
+        
+        // Use ModelProvider to check type compatibility instead of hardcoded logic
+        self.model_provider_calls += 1;
+        
+        // Get the current type of the left value
+        let current_type = self.get_fhirpath_type_name(left_value);
+        
+        // Check if the current type is compatible with the target type
+        let is_compatible = self.model_provider
+            .is_type_compatible(&current_type, type_name)
+            .await
+            .unwrap_or(false);
+        
+        self.memory_allocations += 1;
+        Ok(Collection::single(FhirPathValue::Boolean(is_compatible)))
+    }
+    
+    /// Apply the 'as' type casting operator using ModelProvider
+    async fn apply_as_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // 'as' operator: attempts to cast left operand to the type specified by right operand
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty());
+        }
+        
+        let left_value = left_result.first().unwrap();
+        let right_value = right_result.first().unwrap();
+        
+        // Right operand should be a string representing a type name
+        let type_name = match right_value {
+            FhirPathValue::String(s) => s,
+            _ => return Ok(Collection::empty()), // Invalid right operand
+        };
+        
+        // Use ModelProvider to check type compatibility
+        self.model_provider_calls += 1;
+        
+        let current_type = self.get_fhirpath_type_name(left_value);
+        let is_compatible = self.model_provider
+            .is_type_compatible(&current_type, type_name)
+            .await
+            .unwrap_or(false);
+        
+        if is_compatible {
+            // If compatible, return the original value (cast successful)
+            Ok(left_result)
+        } else {
+            // If not compatible, return empty (cast failed)
+            Ok(Collection::empty())
+        }
+    }
+    
+    /// Apply logical AND operator
+    fn apply_logical_and_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // FHIRPath logical AND: if left is true, return right; if left is false, return false
+        let left_bool = self.collection_to_boolean(&left_result)?;
+        
+        match left_bool {
+            Some(true) => {
+                // Left is true, return right result as boolean
+                self.collection_to_boolean_result(&right_result)
+            }
+            Some(false) => {
+                // Left is false, return false
+                self.memory_allocations += 1;
+                Ok(Collection::single(FhirPathValue::Boolean(false)))
+            }
+            None => {
+                // Left is empty or invalid, return empty
+                Ok(Collection::empty())
+            }
+        }
+    }
+    
+    /// Apply logical OR operator
+    fn apply_logical_or_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // FHIRPath logical OR: if left is true, return true; if left is false, return right
+        let left_bool = self.collection_to_boolean(&left_result)?;
+        
+        match left_bool {
+            Some(true) => {
+                // Left is true, return true
+                self.memory_allocations += 1;
+                Ok(Collection::single(FhirPathValue::Boolean(true)))
+            }
+            Some(false) => {
+                // Left is false, return right result as boolean
+                self.collection_to_boolean_result(&right_result)
+            }
+            None => {
+                // Left is empty, check right
+                self.collection_to_boolean_result(&right_result)
+            }
+        }
+    }
+    
+    /// Apply logical XOR operator
+    fn apply_logical_xor_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        let left_bool = self.collection_to_boolean(&left_result)?;
+        let right_bool = self.collection_to_boolean(&right_result)?;
+        
+        match (left_bool, right_bool) {
+            (Some(left), Some(right)) => {
+                let result = (left && !right) || (!left && right);
+                self.memory_allocations += 1;
+                Ok(Collection::single(FhirPathValue::Boolean(result)))
+            }
+            _ => Ok(Collection::empty()),
+        }
+    }
+    
+    /// Apply logical IMPLIES operator
+    fn apply_logical_implies_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        // FHIRPath implies: if left is false or empty, return true; otherwise return right
+        let left_bool = self.collection_to_boolean(&left_result)?;
+        
+        match left_bool {
+            Some(true) => {
+                // Left is true, return right result as boolean
+                self.collection_to_boolean_result(&right_result)
+            }
+            Some(false) | None => {
+                // Left is false or empty, return true
+                self.memory_allocations += 1;
+                Ok(Collection::single(FhirPathValue::Boolean(true)))
+            }
+        }
+    }
+    
+    /// Apply string concatenation operator
+    fn apply_string_concatenate_operator(
+        &mut self,
+        left_result: Collection,
+        right_result: Collection,
+    ) -> Result<Collection> {
+        if left_result.len() != 1 || right_result.len() != 1 {
+            return Ok(Collection::empty());
+        }
+        
+        let left_str = match left_result.first().unwrap() {
+            FhirPathValue::String(s) => s.clone(),
+            _ => return Ok(Collection::empty()),
+        };
+        
+        let right_str = match right_result.first().unwrap() {
+            FhirPathValue::String(s) => s.clone(),
+            _ => return Ok(Collection::empty()),
+        };
+        
+        self.memory_allocations += 1;
+        Ok(Collection::single(FhirPathValue::String(format!("{}{}", left_str, right_str))))
+    }
+    
+    /// Get the FHIRPath type name for a value
+    fn get_fhirpath_type_name(&self, value: &FhirPathValue) -> String {
+        match value {
+            FhirPathValue::Boolean(_) => "Boolean".to_string(),
+            FhirPathValue::Integer(_) => "Integer".to_string(),
+            FhirPathValue::Decimal(_) => "Decimal".to_string(),
+            FhirPathValue::String(_) => "String".to_string(),
+            FhirPathValue::Date(_) => "Date".to_string(),
+            FhirPathValue::DateTime(_) => "DateTime".to_string(),
+            FhirPathValue::Time(_) => "Time".to_string(),
+            FhirPathValue::Quantity { .. } => "Quantity".to_string(),
+            FhirPathValue::Resource(map) | FhirPathValue::JsonValue(map) => {
+                // Try to get resourceType for FHIR resources
+                if let Some(resource_type) = map.get("resourceType").and_then(|v| v.as_str()) {
+                    resource_type.to_string()
+                } else {
+                    "Resource".to_string()
+                }
+            }
+            FhirPathValue::Id(_) => "Id".to_string(),
+            FhirPathValue::Base64Binary(_) => "Base64Binary".to_string(),
+            FhirPathValue::Uri(_) => "Uri".to_string(),
+            FhirPathValue::Url(_) => "Url".to_string(),
+            FhirPathValue::Collection(_) => "Collection".to_string(),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                format!("{}.{}", namespace, name)
+            },
+            FhirPathValue::Empty => "Empty".to_string(),
+        }
+    }
+    
+    /// Convert a collection to boolean according to FHIRPath rules
+    fn collection_to_boolean(&self, collection: &Collection) -> Result<Option<bool>> {
+        if collection.is_empty() {
+            return Ok(None);
+        }
+        
+        if collection.len() != 1 {
+            return Ok(None);
+        }
+        
+        match collection.first().unwrap() {
+            FhirPathValue::Boolean(b) => Ok(Some(*b)),
+            FhirPathValue::Integer(i) => Ok(Some(*i != 0)),
+            FhirPathValue::Decimal(d) => Ok(Some(!d.is_zero())),
+            FhirPathValue::String(s) => Ok(Some(!s.is_empty())),
+            FhirPathValue::Empty => Ok(None),
+            _ => Ok(Some(true)), // Non-empty collections of other types are truthy
+        }
+    }
+    
+    /// Convert a collection to boolean result
+    fn collection_to_boolean_result(&mut self, collection: &Collection) -> Result<Collection> {
+        match self.collection_to_boolean(collection)? {
+            Some(b) => {
+                self.memory_allocations += 1;
+                Ok(Collection::single(FhirPathValue::Boolean(b)))
+            }
+            None => Ok(Collection::empty()),
+        }
     }
 }
 

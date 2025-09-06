@@ -22,7 +22,7 @@ pub struct JsonFormatter;
 
 impl Default for JsonFormatter {
     fn default() -> Self {
-        Self::new()
+        Self
     }
 }
 

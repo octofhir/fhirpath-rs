@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use rust_decimal::Decimal;
 use uuid::Uuid;
-use octofhir_ucum::{UnitRecord, UcumError, find_unit};
+use octofhir_ucum::{UnitRecord, find_unit};
 
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 
 /// A collection of FHIRPath values - the fundamental evaluation result type
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Collection(Vec<FhirPathValue>);
 
 impl Collection {
@@ -67,6 +67,7 @@ impl Collection {
     pub fn into_vec(self) -> Vec<FhirPathValue> {
         self.0
     }
+
 }
 
 impl From<Vec<FhirPathValue>> for Collection {
@@ -89,8 +90,18 @@ impl std::ops::Index<usize> for Collection {
     }
 }
 
+impl serde::Serialize for Collection {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Serialize as a simple array of values
+        self.0.serialize(serializer)
+    }
+}
+
 /// FHIRPath value type supporting core FHIR primitive types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub enum FhirPathValue {
     /// Boolean value
     Boolean(bool),
@@ -157,6 +168,62 @@ pub enum FhirPathValue {
     
     /// Null/empty value (represents absence)
     Empty,
+}
+
+impl serde::Serialize for FhirPathValue {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Boolean(b) => serializer.serialize_bool(*b),
+            Self::Integer(i) => serializer.serialize_i64(*i),
+            Self::Decimal(d) => {
+                // Try to serialize as number, fall back to string if precision issues
+                if let Ok(f) = d.to_string().parse::<f64>() {
+                    serializer.serialize_f64(f)
+                } else {
+                    serializer.serialize_str(&d.to_string())
+                }
+            },
+            Self::String(s) => serializer.serialize_str(s),
+            Self::Date(date) => serializer.serialize_str(&date.to_string()),
+            Self::DateTime(dt) => serializer.serialize_str(&dt.to_string()),
+            Self::Time(time) => serializer.serialize_str(&time.to_string()),
+            Self::Quantity { value, unit, .. } => {
+                let mut map = std::collections::BTreeMap::new();
+                // Convert decimal value to JSON number or string
+                if let Ok(f) = value.to_string().parse::<f64>() {
+                    map.insert("value", serde_json::Value::Number(
+                        serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0))
+                    ));
+                } else {
+                    map.insert("value", serde_json::Value::String(value.to_string()));
+                }
+                if let Some(unit) = unit {
+                    map.insert("unit", serde_json::Value::String(unit.clone()));
+                }
+                map.serialize(serializer)
+            },
+            Self::Resource(json) => json.serialize(serializer),
+            Self::Id(id) => serializer.serialize_str(&id.to_string()),
+            Self::Base64Binary(data) => {
+                // For now, serialize as string representation since we removed base64 dependency
+                serializer.serialize_str(&format!("base64({} bytes)", data.len()))
+            },
+            Self::Uri(uri) => serializer.serialize_str(uri),
+            Self::Url(url) => serializer.serialize_str(url),
+            Self::Collection(values) => values.serialize(serializer),
+            Self::TypeInfoObject { namespace, name } => {
+                let mut map = std::collections::BTreeMap::new();
+                map.insert("namespace", namespace);
+                map.insert("name", name);
+                map.serialize(serializer)
+            },
+            Self::JsonValue(json) => json.serialize(serializer),
+            Self::Empty => serializer.serialize_unit(),
+        }
+    }
 }
 
 /// Calendar units for temporal calculations (not supported by UCUM)
@@ -327,6 +394,26 @@ impl FhirPathValue {
         }
     }
 
+    /// Create a quantity value for quoted units (UCUM only, no calendar units)
+    pub fn quoted_quantity(value: Decimal, unit: Option<String>) -> Self {
+        let (ucum_unit, calendar_unit) = if let Some(ref unit_str) = unit {
+            // For quoted units, only try UCUM parsing, not calendar units
+            match find_unit(unit_str) {
+                Some(ucum) => (Some(Arc::new(ucum.clone())), None),
+                None => (None, None), // Invalid unit, keep as string only
+            }
+        } else {
+            (None, None)
+        };
+
+        Self::Quantity {
+            value,
+            unit,
+            ucum_unit,
+            calendar_unit,
+        }
+    }
+
     /// Create a quantity value with explicit calendar unit
     pub fn calendar_quantity(value: Decimal, calendar_unit: CalendarUnit) -> Self {
         Self::Quantity {
@@ -400,6 +487,7 @@ impl FhirPathValue {
             _ => false,
         }
     }
+
 }
 
 impl fmt::Display for FhirPathValue {

@@ -79,43 +79,30 @@ impl OutputFormatter for PrettyFormatter {
                 self.colorize(&output.expression, colored::Color::Blue)
             ));
 
-            if let Some(ref value) = output.result {
-                match value {
-                    FhirPathValue::Collection(values) => {
-                        result.push_str(&format!(
-                            "🎯 Results ({} items):\n",
-                            self.colorize(&values.len().to_string(), colored::Color::Yellow)
-                        ));
-                        for (i, item) in values.iter().enumerate().take(10) {
-                            let type_name = get_fhir_type_name(item);
-                            let value_str = format_fhir_value_pretty(item);
-                            result.push_str(&format!(
-                                "   [{}] {}: {}\n",
-                                self.colorize(&i.to_string(), colored::Color::Cyan),
-                                self.colorize(&type_name, colored::Color::Green),
-                                value_str
-                            ));
-                        }
-                        if values.len() > 10 {
-                            result.push_str(&format!(
-                                "   ... and {} more items\n",
-                                self.colorize(
-                                    &(values.len() - 10).to_string(),
-                                    colored::Color::Yellow
-                                )
-                            ));
-                        }
-                    }
-                    single_value => {
-                        result.push_str("🎯 Result:\n");
-                        let type_name = get_fhir_type_name(single_value);
-                        let value_str = format_fhir_value_pretty(single_value);
-                        result.push_str(&format!(
-                            "   {}: {}\n",
-                            self.colorize(&type_name, colored::Color::Green),
-                            value_str
-                        ));
-                    }
+            if let Some(ref collection) = output.result {
+                let values: Vec<&FhirPathValue> = collection.iter().collect();
+                result.push_str(&format!(
+                    "🎯 Results ({} items):\n",
+                    self.colorize(&values.len().to_string(), colored::Color::Yellow)
+                ));
+                for (i, item) in values.iter().enumerate().take(10) {
+                    let type_name = get_fhir_type_name(item);
+                    let value_str = format_fhir_value_pretty(item);
+                    result.push_str(&format!(
+                        "   [{}] {}: {}\n",
+                        self.colorize(&i.to_string(), colored::Color::Cyan),
+                        self.colorize(&type_name, colored::Color::Green),
+                        value_str
+                    ));
+                }
+                if values.len() > 10 {
+                    result.push_str(&format!(
+                        "   ... and {} more items\n",
+                        self.colorize(
+                            &(values.len() - 10).to_string(),
+                            colored::Color::Yellow
+                        )
+                    ));
                 }
             } else {
                 result.push_str(&format!(
@@ -142,11 +129,6 @@ impl OutputFormatter for PrettyFormatter {
             }
             result.push('\n');
         } else if let Some(ref error) = output.error {
-            result.push_str(&format!(
-                "{} Expression: {}\n",
-                self.error_icon(),
-                self.colorize(&output.expression, colored::Color::Blue)
-            ));
             result.push_str(&format!(
                 "💥 Error: {}\n",
                 self.colorize(&error.to_string(), colored::Color::Red)
@@ -176,10 +158,6 @@ impl OutputFormatter for PrettyFormatter {
             } else if let Some(ref error) = output.error {
                 result.push_str(&format!("{} Parse failed\n", self.error_icon()));
                 result.push_str(&format!(
-                    "📝 Expression: {}\n",
-                    self.colorize(&output.expression, colored::Color::Blue)
-                ));
-                result.push_str(&format!(
                     "💥 Error: {}\n",
                     self.colorize(&error.to_string(), colored::Color::Red)
                 ));
@@ -195,10 +173,6 @@ impl OutputFormatter for PrettyFormatter {
 
             if !output.validation_errors.is_empty() {
                 result.push_str(&format!("{} Validation failed\n", self.error_icon()));
-                result.push_str(&format!(
-                    "📝 Expression: {}\n",
-                    self.colorize(&output.expression, colored::Color::Blue)
-                ));
                 result.push_str("🔍 Validation Errors:\n");
 
                 for error in &output.validation_errors {

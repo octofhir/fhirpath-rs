@@ -17,10 +17,9 @@
 mod json;
 mod pretty;
 mod raw;
-mod table;
 
 use clap::ValueEnum;
-use octofhir_fhirpath::{ExpressionNode, FhirPathError, FhirPathValue};
+use octofhir_fhirpath::{ExpressionNode, FhirPathError, Collection};
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
@@ -28,25 +27,21 @@ use thiserror::Error;
 pub use json::JsonFormatter;
 pub use pretty::PrettyFormatter;
 pub use raw::RawFormatter;
-pub use table::TableFormatter;
 
 #[derive(Debug, Clone, ValueEnum, PartialEq)]
 pub enum OutputFormat {
-    /// JSON structured output
-    Json,
-    /// Formatted table output
-    Table,
-    /// Raw text output (default)
-    Raw,
-    /// Pretty formatted output with colors and symbols
+    /// Pretty Ariadne-formatted output with colors and diagnostics (default)
     Pretty,
+    /// JSON structured output for tooling
+    Json,
+    /// Raw text output
+    Raw,
 }
 
 impl std::fmt::Display for OutputFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OutputFormat::Json => write!(f, "json"),
-            OutputFormat::Table => write!(f, "table"),
             OutputFormat::Raw => write!(f, "raw"),
             OutputFormat::Pretty => write!(f, "pretty"),
         }
@@ -64,7 +59,7 @@ pub enum FormatError {
 #[derive(Debug, Clone)]
 pub struct EvaluationOutput {
     pub success: bool,
-    pub result: Option<FhirPathValue>,
+    pub result: Option<Collection>,
     pub error: Option<FhirPathError>,
     pub expression: String,
     pub execution_time: Duration,
@@ -115,7 +110,6 @@ impl FormatterFactory {
     pub fn create_formatter(&self, format: OutputFormat) -> Box<dyn OutputFormatter> {
         match format {
             OutputFormat::Json => Box::new(JsonFormatter::new()),
-            OutputFormat::Table => Box::new(TableFormatter::new(!self.no_color)),
             OutputFormat::Raw => Box::new(RawFormatter::new()),
             OutputFormat::Pretty => Box::new(PrettyFormatter::new(!self.no_color)),
         }

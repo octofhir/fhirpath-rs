@@ -4,8 +4,8 @@
 //! between different types, and for performing safe conversions with detailed
 //! error reporting.
 
-use crate::core::{FhirPathValue, FhirPathError, Result};
 use crate::core::error_code::FP0058;
+use crate::core::{FhirPathError, FhirPathValue, Result};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
@@ -25,9 +25,10 @@ impl ConversionUtils {
 
     /// Check if a string can be safely converted to boolean
     pub fn can_convert_to_boolean(s: &str) -> bool {
-        matches!(s.to_lowercase().trim(), 
-            "true" | "t" | "yes" | "y" | "1" | 
-            "false" | "f" | "no" | "n" | "0")
+        matches!(
+            s.to_lowercase().trim(),
+            "true" | "t" | "yes" | "y" | "1" | "false" | "f" | "no" | "n" | "0"
+        )
     }
 
     /// Check if integer conversion would overflow
@@ -39,56 +40,55 @@ impl ConversionUtils {
     /// Safe string to integer conversion with validation
     pub fn safe_string_to_integer(s: &str) -> Result<i64> {
         let trimmed = s.trim();
-        
+
         // Check for obvious invalid formats
         if trimmed.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 FP0058,
-                "Cannot convert empty string to integer"
+                "Cannot convert empty string to integer",
             ));
         }
 
         if trimmed.contains('.') {
             return Err(FhirPathError::evaluation_error(
                 FP0058,
-                "Cannot convert decimal string to integer without explicit conversion"
+                "Cannot convert decimal string to integer without explicit conversion",
             ));
         }
 
-        trimmed.parse::<i64>()
-            .map_err(|_| FhirPathError::evaluation_error(
-                FP0058,
-                &format!("Cannot convert '{}' to integer", s)
-            ))
+        trimmed.parse::<i64>().map_err(|_| {
+            FhirPathError::evaluation_error(FP0058, &format!("Cannot convert '{}' to integer", s))
+        })
     }
 
     /// Safe decimal conversion with precision validation
     pub fn safe_string_to_decimal(s: &str) -> Result<Decimal> {
         let trimmed = s.trim();
-        
+
         if trimmed.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 FP0058,
-                "Cannot convert empty string to decimal"
+                "Cannot convert empty string to decimal",
             ));
         }
 
-        trimmed.parse::<Decimal>()
-            .map_err(|_| FhirPathError::evaluation_error(
-                FP0058,
-                &format!("Cannot convert '{}' to decimal", s)
-            ))
+        trimmed.parse::<Decimal>().map_err(|_| {
+            FhirPathError::evaluation_error(FP0058, &format!("Cannot convert '{}' to decimal", s))
+        })
     }
 
     /// Format conversion error with helpful context
     pub fn format_conversion_error(
-        from_type: &str, 
-        to_type: &str, 
-        value: &str, 
-        reason: Option<&str>
+        from_type: &str,
+        to_type: &str,
+        value: &str,
+        reason: Option<&str>,
     ) -> String {
         match reason {
-            Some(r) => format!("Cannot convert {} '{}' to {}: {}", from_type, value, to_type, r),
+            Some(r) => format!(
+                "Cannot convert {} '{}' to {}: {}",
+                from_type, value, to_type, r
+            ),
             None => format!("Cannot convert {} '{}' to {}", from_type, value, to_type),
         }
     }
@@ -134,9 +134,6 @@ impl ConversionUtils {
     /// Validate conversion compatibility between two types
     pub fn validate_conversion(from_type: &str, to_type: &str) -> bool {
         match (from_type, to_type) {
-            // Any type can convert to string
-            (_, "String") => true,
-            
             // Numeric conversions
             ("Integer", "Decimal") => true,
             ("Decimal", "Integer") => true, // May truncate
@@ -144,7 +141,7 @@ impl ConversionUtils {
             ("Boolean", "Decimal") => true,
             ("Integer", "Boolean") => true,
             ("Decimal", "Boolean") => true,
-            
+
             // String conversions (may fail at runtime)
             ("String", "Integer") => true,
             ("String", "Decimal") => true,
@@ -153,32 +150,34 @@ impl ConversionUtils {
             ("String", "DateTime") => true,
             ("String", "Time") => true,
             ("String", "Quantity") => true,
-            
+
             // Temporal conversions
             ("DateTime", "Date") => true,
             ("DateTime", "Time") => true,
             ("Date", "DateTime") => true,
-            
+
             // Quantity conversions
             ("Integer", "Quantity") => true,
             ("Decimal", "Quantity") => true,
             ("Quantity", "String") => true,
-            
             // Same type conversions
             (from, to) if from == to => true,
-            
+            // Any type can convert to string
+            (_, "String") => true,
+
             _ => false,
         }
     }
 
     /// Check if conversion might lose information
     pub fn conversion_loses_information(from_type: &str, to_type: &str) -> bool {
-        matches!((from_type, to_type), 
+        matches!(
+            (from_type, to_type),
             ("Decimal", "Integer") |  // Truncation
             ("DateTime", "Date") |    // Lose time information
             ("DateTime", "Time") |    // Lose date information
             ("Quantity", "Integer") | // Lose unit information
-            ("Quantity", "Decimal")   // Lose unit information
+            ("Quantity", "Decimal") // Lose unit information
         )
     }
 
@@ -188,7 +187,9 @@ impl ConversionUtils {
             ("Decimal", "Integer") => Some("Decimal places will be truncated"),
             ("DateTime", "Date") => Some("Time information will be lost"),
             ("DateTime", "Time") => Some("Date information will be lost"),
-            ("Quantity", "Integer") | ("Quantity", "Decimal") => Some("Unit information will be lost"),
+            ("Quantity", "Integer") | ("Quantity", "Decimal") => {
+                Some("Unit information will be lost")
+            }
             _ => None,
         }
     }
@@ -222,8 +223,11 @@ mod tests {
     #[test]
     fn test_safe_string_to_integer() {
         assert_eq!(ConversionUtils::safe_string_to_integer("123").unwrap(), 123);
-        assert_eq!(ConversionUtils::safe_string_to_integer("-456").unwrap(), -456);
-        
+        assert_eq!(
+            ConversionUtils::safe_string_to_integer("-456").unwrap(),
+            -456
+        );
+
         assert!(ConversionUtils::safe_string_to_integer("12.3").is_err());
         assert!(ConversionUtils::safe_string_to_integer("").is_err());
         assert!(ConversionUtils::safe_string_to_integer("not_a_number").is_err());
@@ -240,10 +244,18 @@ mod tests {
 
     #[test]
     fn test_information_loss() {
-        assert!(ConversionUtils::conversion_loses_information("Decimal", "Integer"));
-        assert!(ConversionUtils::conversion_loses_information("DateTime", "Date"));
-        assert!(!ConversionUtils::conversion_loses_information("Integer", "Decimal"));
-        assert!(!ConversionUtils::conversion_loses_information("String", "String"));
+        assert!(ConversionUtils::conversion_loses_information(
+            "Decimal", "Integer"
+        ));
+        assert!(ConversionUtils::conversion_loses_information(
+            "DateTime", "Date"
+        ));
+        assert!(!ConversionUtils::conversion_loses_information(
+            "Integer", "Decimal"
+        ));
+        assert!(!ConversionUtils::conversion_loses_information(
+            "String", "String"
+        ));
     }
 
     #[test]
@@ -256,25 +268,43 @@ mod tests {
     #[test]
     fn test_integration_fhir_data_conversions() {
         // Test with realistic FHIR data patterns
-        
+
         // Test Patient age conversion (often comes as string in FHIR)
         let patient_age = FhirPathValue::string("65".to_string());
-        assert!(ConversionUtils::can_convert_to_type(&patient_age, "Integer"));
+        assert!(ConversionUtils::can_convert_to_type(
+            &patient_age,
+            "Integer"
+        ));
         assert_eq!(ConversionUtils::safe_string_to_integer("65").unwrap(), 65);
 
         // Test Observation value conversion
         let observation_value = FhirPathValue::string("98.6".to_string());
-        assert!(ConversionUtils::can_convert_to_type(&observation_value, "Decimal"));
-        assert_eq!(ConversionUtils::safe_string_to_decimal("98.6").unwrap(), Decimal::from_str("98.6").unwrap());
+        assert!(ConversionUtils::can_convert_to_type(
+            &observation_value,
+            "Decimal"
+        ));
+        assert_eq!(
+            ConversionUtils::safe_string_to_decimal("98.6").unwrap(),
+            Decimal::from_str("98.6").unwrap()
+        );
 
         // Test boolean flags (active/inactive status)
         let patient_active = FhirPathValue::string("true".to_string());
-        assert!(ConversionUtils::can_convert_to_type(&patient_active, "Boolean"));
+        assert!(ConversionUtils::can_convert_to_type(
+            &patient_active,
+            "Boolean"
+        ));
 
         // Test quantity conversion (weight, height, etc.)
         let weight_value = FhirPathValue::decimal(Decimal::from_str("70.5").unwrap());
-        assert!(ConversionUtils::can_convert_to_type(&weight_value, "String"));
-        assert!(ConversionUtils::can_convert_to_type(&weight_value, "Quantity"));
+        assert!(ConversionUtils::can_convert_to_type(
+            &weight_value,
+            "String"
+        ));
+        assert!(ConversionUtils::can_convert_to_type(
+            &weight_value,
+            "Quantity"
+        ));
 
         // Test temporal data (birthDate, dates)
         let birth_date = FhirPathValue::string("1958-03-15".to_string());
@@ -282,29 +312,38 @@ mod tests {
 
         // Test diagnostic code conversions (often need string representation)
         let diagnostic_code = FhirPathValue::string("I10".to_string());
-        assert!(ConversionUtils::can_convert_to_type(&diagnostic_code, "String"));
+        assert!(ConversionUtils::can_convert_to_type(
+            &diagnostic_code,
+            "String"
+        ));
     }
 
     #[test]
     fn test_fhir_conversion_warnings() {
         // Test scenarios where FHIR data conversion might lose information
-        
+
         // DateTime to Date (lose time information)
-        assert!(ConversionUtils::conversion_loses_information("DateTime", "Date"));
+        assert!(ConversionUtils::conversion_loses_information(
+            "DateTime", "Date"
+        ));
         assert_eq!(
             ConversionUtils::describe_information_loss("DateTime", "Date"),
             Some("Time information will be lost")
         );
 
         // Decimal to Integer (lose precision) - common for measurements
-        assert!(ConversionUtils::conversion_loses_information("Decimal", "Integer"));
+        assert!(ConversionUtils::conversion_loses_information(
+            "Decimal", "Integer"
+        ));
         assert_eq!(
             ConversionUtils::describe_information_loss("Decimal", "Integer"),
             Some("Decimal places will be truncated")
         );
 
         // Quantity to numeric types (lose units) - critical for medical data
-        assert!(ConversionUtils::conversion_loses_information("Quantity", "Decimal"));
+        assert!(ConversionUtils::conversion_loses_information(
+            "Quantity", "Decimal"
+        ));
         assert_eq!(
             ConversionUtils::describe_information_loss("Quantity", "Decimal"),
             Some("Unit information will be lost")
@@ -314,31 +353,31 @@ mod tests {
     #[test]
     fn test_medical_data_edge_cases() {
         // Test edge cases common in medical data
-        
+
         // Very precise measurements (lab results)
         let lab_result = "0.0001234";
         assert!(ConversionUtils::can_convert_to_decimal(lab_result));
-        
+
         // Age ranges and special values
         assert!(ConversionUtils::can_convert_to_integer("0")); // newborn
         assert!(ConversionUtils::can_convert_to_integer("120")); // very elderly
         assert!(!ConversionUtils::can_convert_to_integer("unknown")); // missing data
-        
+
         // Medical boolean flags with various formats
         assert!(ConversionUtils::can_convert_to_boolean("yes"));
         assert!(ConversionUtils::can_convert_to_boolean("no"));
         assert!(ConversionUtils::can_convert_to_boolean("Y"));
         assert!(ConversionUtils::can_convert_to_boolean("N"));
-        
+
         // Error handling for malformed medical data
         let malformed_result = ConversionUtils::safe_string_to_integer("N/A");
         assert!(malformed_result.is_err());
-        
+
         let error_message = ConversionUtils::format_conversion_error(
-            "String", 
-            "Integer", 
-            "N/A", 
-            Some("Invalid medical data format")
+            "String",
+            "Integer",
+            "N/A",
+            Some("Invalid medical data format"),
         );
         assert!(error_message.contains("Cannot convert String 'N/A' to Integer"));
         assert!(error_message.contains("Invalid medical data format"));

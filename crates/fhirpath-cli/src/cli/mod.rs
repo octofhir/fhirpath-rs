@@ -14,8 +14,8 @@
 
 //! CLI module for FHIRPath evaluation and analysis
 
-pub mod diagnostics;
 pub mod diagnostic_demo;
+pub mod diagnostics;
 pub mod output;
 // TODO: Re-enable after improving implementation
 // pub mod repl;
@@ -24,7 +24,7 @@ pub mod output;
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(name = "octofhir-fhirpath")]
 #[command(about = "OctoFHIR FHIRPath CLI")]
 #[command(version)]
@@ -39,12 +39,7 @@ pub struct Cli {
     pub packages: Vec<String>,
 
     /// Output format
-    #[arg(
-        long,
-        short = 'o',
-        value_enum,
-        default_value = "raw"
-    )]
+    #[arg(long, short = 'o', value_enum, default_value = "pretty")]
     pub output_format: OutputFormat,
 
     /// Disable colored output
@@ -63,7 +58,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum Commands {
     /// Evaluate FHIRPath expression against a FHIR resource
     Evaluate {
@@ -73,28 +68,64 @@ pub enum Commands {
         #[arg(short, long)]
         input: Option<String>,
         /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
+        #[arg(long = "var", short = 'V')]
         variables: Vec<String>,
         /// Pretty-print JSON output (only applies to raw format)
         #[arg(short, long)]
         pretty: bool,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
     },
     /// Parse and validate FHIRPath expression syntax
     Parse {
         /// FHIRPath expression to parse
         expression: String,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
     },
     /// Validate FHIRPath expression syntax (alias for parse)
     Validate {
         /// FHIRPath expression to validate
         expression: String,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
     },
     /// Analyze FHIRPath expressions with comprehensive FHIR field validation
     Analyze {
         /// FHIRPath expression to analyze
         expression: String,
         /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
+        #[arg(long = "var", short = 'V')]
         variables: Vec<String>,
         /// Only validate, don't analyze types
         #[arg(long)]
@@ -102,6 +133,23 @@ pub enum Commands {
         /// Disable type inference
         #[arg(long)]
         no_inference: bool,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
+    },
+    /// Open documentation for FHIRPath error codes
+    Docs {
+        /// Error code to get documentation for (e.g., FP0001, FP0055)
+        error_code: String,
     },
     // TODO: Re-enable REPL subcommand after improving implementation
     // /// Start interactive FHIRPath REPL
@@ -135,12 +183,4 @@ pub enum Commands {
     //     #[arg(long)]
     //     cors_all: bool,
     // },
-    /// Demonstrate Ariadne diagnostic integration
-    DiagnosticDemo {
-        /// FHIRPath expression to parse with diagnostics (optional)
-        expression: Option<String>,
-        /// Show different diagnostic types
-        #[arg(long)]
-        show_types: bool,
-    },
 }

@@ -43,7 +43,32 @@ pub struct Diagnostic {
     pub related: Vec<Diagnostic>,
 }
 
+impl DiagnosticSeverity {
+    /// Check if this severity indicates an error
+    pub fn is_error(&self) -> bool {
+        matches!(self, DiagnosticSeverity::Error)
+    }
+}
+
 impl Diagnostic {
+    /// Create a new diagnostic with specified severity
+    pub fn new(
+        severity: DiagnosticSeverity,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            severity,
+            code: DiagnosticCode {
+                code: code.into(),
+                namespace: None,
+            },
+            message: message.into(),
+            location: None,
+            related: Vec::new(),
+        }
+    }
+
     /// Create a new error diagnostic
     pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {

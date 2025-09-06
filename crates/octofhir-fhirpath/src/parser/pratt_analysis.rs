@@ -350,6 +350,16 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
     }).then_ignore(end())
 }
 
+/// Enhanced Pratt parser with multi-error recovery capabilities
+/// 
+/// For now, this uses the same parser as the standard analysis parser.
+/// The key improvement is in how we handle the parse result to collect multiple errors.
+pub fn analysis_parser_with_recovery<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::Err<Rich<'a, char>>> {
+    // Use the existing analysis parser - the multi-error capability will come from
+    // improved error collection in the parse_for_analysis function
+    analysis_parser()
+}
+
 /// Strip comments and normalize whitespace from input (shared from pratt.rs)
 fn preprocess_input(input: &str) -> String {
     let mut result = String::new();
@@ -412,30 +422,238 @@ fn preprocess_input(input: &str) -> String {
 pub fn parse_for_analysis(input: &str) -> AnalysisResult {
     // Preprocess to remove comments
     let cleaned_input = preprocess_input(input);
-    let parser = analysis_parser();
+    let parser = analysis_parser_with_recovery();
     
-    match parser.parse(&cleaned_input).into_result() {
-        Ok(ast) => AnalysisResult {
-            ast: Some(ast),
-            diagnostics: vec![],
-            has_errors: false,
+    // Main parsing attempt
+    let parse_output = parser.parse(&cleaned_input);
+    let mut diagnostics = Vec::new();
+    let mut has_errors = false;
+    let mut ast = None;
+    
+    match parse_output.into_result() {
+        Ok(parsed_ast) => {
+            ast = Some(parsed_ast);
         },
         Err(errors) => {
-            let mut diagnostics = Vec::new();
+            has_errors = true;
             
+            // Collect all errors from the main parsing attempt
             for error in errors {
                 let diagnostic = convert_rich_error_to_diagnostic(error, input);
                 diagnostics.push(diagnostic);
             }
             
-            AnalysisResult {
-                ast: None,
-                diagnostics,
-                has_errors: true,
+            // Multi-pass approach: Try to find additional errors by parsing segments
+            // This is a practical solution for collecting multiple syntax errors
+            let additional_diagnostics = collect_additional_errors(&cleaned_input, input);
+            for diagnostic in additional_diagnostics {
+                // Only add if we don't already have an error at this exact position
+                if !diagnostics.iter().any(|d| {
+                    if let (Some(loc1), Some(loc2)) = (&diagnostic.location, &d.location) {
+                        // Check if spans overlap significantly
+                        let overlap_start = loc1.offset.max(loc2.offset);
+                        let overlap_end = (loc1.offset + loc1.length).min(loc2.offset + loc2.length);
+                        overlap_end > overlap_start && (overlap_end - overlap_start) > 0
+                    } else {
+                        false
+                    }
+                }) {
+                    diagnostics.push(diagnostic);
+                }
             }
         }
     }
+    
+    AnalysisResult {
+        ast,
+        diagnostics,
+        has_errors,
+    }
 }
+
+/// Collect additional errors using multi-pass analysis
+/// 
+/// This function implements a practical approach to multi-error collection by
+/// analyzing specific patterns and trying to parse segments independently.
+fn collect_additional_errors(cleaned_input: &str, original_input: &str) -> Vec<Diagnostic> {
+    let mut additional_diagnostics = Vec::new();
+    
+    // Simple bracket matching check - this is lightweight and effective
+    if let Some(bracket_errors) = check_bracket_matching(cleaned_input, original_input) {
+        additional_diagnostics.extend(bracket_errors);
+    }
+    
+    // Check for unterminated strings
+    if let Some(string_errors) = check_unterminated_strings(cleaned_input, original_input) {
+        additional_diagnostics.extend(string_errors);
+    }
+    
+    // Look for common FHIRPath syntax errors like double dots
+    if let Some(syntax_errors) = check_common_syntax_errors(cleaned_input, original_input) {
+        additional_diagnostics.extend(syntax_errors);
+    }
+    
+    additional_diagnostics
+}
+
+/// Check bracket matching and report errors
+fn check_bracket_matching(input: &str, original: &str) -> Option<Vec<Diagnostic>> {
+    let mut diagnostics = Vec::new();
+    let mut stack = Vec::new();
+    let mut in_string = false;
+    let mut string_quote = '"';
+    
+    for (i, ch) in input.char_indices() {
+        match ch {
+            '"' | '\'' if !in_string => {
+                in_string = true;
+                string_quote = ch;
+            },
+            ch if in_string && ch == string_quote => {
+                in_string = false;
+            },
+            '(' | '[' | '{' if !in_string => {
+                stack.push((ch, i));
+            },
+            ')' | ']' | '}' if !in_string => {
+                if let Some((open, _)) = stack.pop() {
+                    let expected_close = match open {
+                        '(' => ')',
+                        '[' => ']',
+                        '{' => '}',
+                        _ => ch,
+                    };
+                    if expected_close != ch {
+                        // Bracket mismatch
+                        let location = calculate_line_column_simple(i, original);
+                        let error_code = if expected_close == ']' { "FP0004" } else { "FP0003" };
+                        diagnostics.push(create_simple_diagnostic(
+                            error_code,
+                            format!("Expected '{}' but found '{}'", expected_close, ch),
+                            location,
+                            Some(format!("The opening '{}' requires a closing '{}'", open, expected_close)),
+                        ));
+                    }
+                } else {
+                    // Unmatched closing bracket
+                    let location = calculate_line_column_simple(i, original);
+                    let error_code = if ch == ']' { "FP0004" } else { "FP0003" };
+                    diagnostics.push(create_simple_diagnostic(
+                        error_code,
+                        format!("Unexpected '{}' - no matching opening bracket", ch),
+                        location,
+                        Some("Remove this bracket or add a matching opening bracket".to_string()),
+                    ));
+                }
+            },
+            _ => {}
+        }
+    }
+    
+    // Check for unclosed brackets
+    while let Some((open, pos)) = stack.pop() {
+        let expected_close = match open {
+            '(' => ')',
+            '[' => ']',
+            '{' => '}',
+            _ => '?',
+        };
+        let location = calculate_line_column_simple(pos, original);
+        diagnostics.push(create_simple_diagnostic(
+            "FP0008",
+            format!("Unclosed '{}' - expected '{}'", open, expected_close),
+            location,
+            Some(format!("Add '{}' to close this bracket", expected_close)),
+        ));
+    }
+    
+    if diagnostics.is_empty() { None } else { Some(diagnostics) }
+}
+
+/// Check for unterminated strings
+fn check_unterminated_strings(input: &str, original: &str) -> Option<Vec<Diagnostic>> {
+    let mut diagnostics = Vec::new();
+    let mut in_string = false;
+    let mut string_start = 0;
+    let mut string_quote = '"';
+    
+    for (i, ch) in input.char_indices() {
+        match ch {
+            '"' | '\'' if !in_string => {
+                in_string = true;
+                string_start = i;
+                string_quote = ch;
+            },
+            ch if in_string && ch == string_quote => {
+                in_string = false;
+            },
+            _ => {}
+        }
+    }
+    
+    if in_string {
+        let location = calculate_line_column_simple(string_start, original);
+        diagnostics.push(create_simple_diagnostic(
+            "FP0009",
+            format!("Unterminated string literal - expected '{}'", string_quote),
+            location,
+            Some(format!("Add '{}' to close this string", string_quote)),
+        ));
+    }
+    
+    if diagnostics.is_empty() { None } else { Some(diagnostics) }
+}
+
+/// Check for common FHIRPath syntax errors  
+fn check_common_syntax_errors(input: &str, original: &str) -> Option<Vec<Diagnostic>> {
+    let mut diagnostics = Vec::new();
+    
+    // Look for double dots (invalid in FHIRPath)
+    for (i, _) in input.match_indices("..") {
+        let location = calculate_line_column_simple(i, original);
+        diagnostics.push(create_simple_diagnostic(
+            "FP0010",
+            "Double dot '..' is not valid in FHIRPath expressions".to_string(),
+            SourceLocation::new(location.line, location.column, i, 2),
+            Some("Use single '.' for property access".to_string()),
+        ));
+    }
+    
+    if diagnostics.is_empty() { None } else { Some(diagnostics) }
+}
+
+/// Calculate line and column from character position  
+fn calculate_line_column_simple(pos: usize, input: &str) -> SourceLocation {
+    let mut line = 1;
+    let mut column = 1;
+    
+    for (i, ch) in input.char_indices() {
+        if i >= pos { break; }
+        if ch == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    
+    SourceLocation::new(line, column, pos, 1)
+}
+
+/// Create a simple diagnostic
+fn create_simple_diagnostic(code: &str, message: String, location: SourceLocation, _help: Option<String>) -> Diagnostic {
+    Diagnostic {
+        severity: DiagnosticSeverity::Error,
+        code: DiagnosticCode {
+            code: code.to_string(),
+            namespace: None,
+        },
+        message,
+        location: Some(location),
+        related: Vec::new(),
+    }
+}
+
 
 /// Convert Chumsky Rich error to our diagnostic format
 fn convert_rich_error_to_diagnostic(error: Rich<char>, input: &str) -> Diagnostic {

@@ -18,7 +18,6 @@ pub fn demo_parse_with_diagnostics(expression: &str, output_format: &OutputForma
     let source_id = engine.add_source("expression.fhirpath".to_string(), expression.to_string());
 
     let mut stderr = io::stderr();
-    let mut stdout = io::stdout();
 
     // Show what we're doing
     if *output_format != OutputFormat::Json {

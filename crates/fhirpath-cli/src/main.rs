@@ -17,18 +17,132 @@
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
 
 use clap::Parser;
+use fhirpath_cli::FhirSchemaModelProvider;
+use octofhir_fhirpath::evaluator::FhirPathEngine;
+use octofhir_fhirpath::create_standard_registry;
+use octofhir_fhirpath::parser::{ParsingMode, ParseResult, parse_with_mode};
+use std::sync::Arc;
 use fhirpath_cli::cli::output::{
-    AnalysisOutput, EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput,
+    EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput,
 };
 use fhirpath_cli::cli::{Cli, Commands};
-use octofhir_fhirpath::model::provider::PackageSpec;
-use octofhir_fhirpath::parse;
+use octofhir_fhirpath;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
-use std::path::PathBuf;
 use std::process;
-use std::sync::Arc;
 use std::time::Instant;
+
+/// Merge global and subcommand output options, with subcommand taking precedence
+fn merge_output_options(
+    global: &fhirpath_cli::cli::Cli,
+    subcommand_format: Option<fhirpath_cli::cli::output::OutputFormat>,
+    subcommand_no_color: bool,
+    subcommand_quiet: bool,
+    subcommand_verbose: bool,
+) -> (fhirpath_cli::cli::output::OutputFormat, bool, bool, bool) {
+    let format = subcommand_format.unwrap_or(global.output_format.clone());
+    let no_color = subcommand_no_color || global.no_color;
+    let quiet = subcommand_quiet || global.quiet;
+    let verbose = subcommand_verbose || global.verbose;
+    
+    (format, no_color, quiet, verbose)
+}
+
+/// Convert diagnostic code string to ErrorCode
+fn parse_error_code(code_str: &str) -> octofhir_fhirpath::core::error_code::ErrorCode {
+    use octofhir_fhirpath::core::error_code::*;
+    
+    match code_str {
+        "FP0001" => FP0001,
+        "FP0002" => FP0002,
+        "FP0003" => FP0003,
+        "FP0004" => FP0004,
+        "FP0005" => FP0005,
+        "FP0006" => FP0006,
+        "FP0007" => FP0007,
+        "FP0008" => FP0008,
+        "FP0009" => FP0009,
+        "FP0010" => FP0010,
+        "FP0051" => FP0051,
+        "FP0052" => FP0052,
+        "FP0053" => FP0053,
+        "FP0054" => FP0054,
+        "FP0055" => FP0055,
+        "FP0056" => FP0056,
+        "FP0057" => FP0057,
+        "FP0058" => FP0058,
+        "FP0059" => FP0059,
+        "FP0060" => FP0060,
+        // Extract numeric code from string like "FP0123" or fallback to FP0001
+        _ => {
+            if code_str.starts_with("FP") && code_str.len() == 6 {
+                if let Ok(num) = code_str[2..].parse::<u16>() {
+                    ErrorCode::new(num)
+                } else {
+                    FP0001
+                }
+            } else if let Ok(num) = code_str.parse::<u16>() {
+                ErrorCode::new(num)
+            } else {
+                FP0001 // Fallback to generic parse error
+            }
+        }
+    }
+}
+
+/// Convert FhirPathError to AriadneDiagnostic with proper error code extraction
+fn fhirpath_error_to_ariadne(error: &octofhir_fhirpath::core::FhirPathError, span: std::ops::Range<usize>) -> octofhir_fhirpath::diagnostics::AriadneDiagnostic {
+    use octofhir_fhirpath::diagnostics::{AriadneDiagnostic, DiagnosticSeverity};
+    
+    AriadneDiagnostic {
+        severity: DiagnosticSeverity::Error,
+        error_code: error.error_code().clone(),  // Use the actual error code from FhirPathError
+        message: error.to_string(),
+        span,
+        help: None,
+        note: None,
+        related: Vec::new(),
+    }
+}
+
+/// Convert parser Diagnostic to AriadneDiagnostic for proper span information
+fn convert_diagnostic_to_ariadne(diagnostic: &octofhir_fhirpath::diagnostics::Diagnostic) -> octofhir_fhirpath::diagnostics::AriadneDiagnostic {
+    use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
+    use std::ops::Range;
+    
+    // Convert location to span
+    let span: Range<usize> = if let Some(location) = &diagnostic.location {
+        location.offset..(location.offset + location.length)
+    } else {
+        0..0  // Fallback to zero span if no location
+    };
+    
+    // Extract proper error code from diagnostic
+    let error_code = parse_error_code(&diagnostic.code.code);
+    
+    AriadneDiagnostic {
+        severity: diagnostic.severity.clone(),
+        error_code,
+        message: diagnostic.message.clone(),
+        span,
+        help: None,  // TODO: Extract from diagnostic when available
+        note: None,  // TODO: Extract from diagnostic when available 
+        related: Vec::new(),  // TODO: Convert related diagnostics
+    }
+}
+
+/// Create FHIRPath engine with FhirSchemaModelProvider
+async fn create_fhirpath_engine_with_schema_provider() -> octofhir_fhirpath::Result<FhirPathEngine> {
+    let registry = create_standard_registry().await;
+    let model_provider = Arc::new(FhirSchemaModelProvider::r4().await.map_err(|e| {
+        octofhir_fhirpath::FhirPathError::model_error(
+            octofhir_fhirpath::core::error_code::FP0001,
+            format!("Failed to create FHIR R4 schema model provider: {}", e),
+        )
+    })?);
+    
+    Ok(FhirPathEngine::new(Arc::new(registry), model_provider))
+}
 
 #[tokio::main]
 async fn main() {
@@ -47,64 +161,137 @@ async fn main() {
             ref input,
             ref variables,
             pretty,
+            ref output_format,
+            no_color,
+            quiet,
+            verbose,
         } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
+            
+            // Create temporary CLI with merged options for this command
+            let mut merged_cli = cli.clone();
+            merged_cli.output_format = merged_format.clone();
+            merged_cli.no_color = merged_no_color;
+            merged_cli.quiet = merged_quiet;
+            merged_cli.verbose = merged_verbose;
+            
+            // Create formatter with merged options
+            let merged_formatter_factory = FormatterFactory::new(merged_no_color);
+            let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
+            
             handle_evaluate(
                 expression,
                 input.as_deref(),
                 variables,
                 pretty,
-                &cli,
-                &*formatter,
+                &merged_cli,
+                &*merged_formatter,
             )
             .await;
         }
-        Commands::Parse { ref expression } => {
-            handle_parse(expression, &cli, &*formatter);
+        Commands::Parse { 
+            ref expression, 
+            ref output_format, 
+            no_color, 
+            quiet, 
+            verbose 
+        } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
+            
+            let mut merged_cli = cli.clone();
+            merged_cli.output_format = merged_format.clone();
+            merged_cli.no_color = merged_no_color;
+            merged_cli.quiet = merged_quiet;
+            merged_cli.verbose = merged_verbose;
+            
+            let merged_formatter_factory = FormatterFactory::new(merged_no_color);
+            let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
+            
+            handle_parse(expression, &merged_cli, &*merged_formatter);
         }
-        Commands::Validate { ref expression } => {
-            handle_validate(expression, &cli, &*formatter);
+        Commands::Validate { 
+            ref expression, 
+            ref output_format, 
+            no_color, 
+            quiet, 
+            verbose 
+        } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
+            
+            let mut merged_cli = cli.clone();
+            merged_cli.output_format = merged_format.clone();
+            merged_cli.no_color = merged_no_color;
+            merged_cli.quiet = merged_quiet;
+            merged_cli.verbose = merged_verbose;
+            
+            // Create formatter with merged options
+            let merged_formatter_factory = FormatterFactory::new(merged_no_color);
+            let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
+            
+            handle_validate(expression, &merged_cli, &*merged_formatter);
         }
         Commands::Analyze {
             ref expression,
             ref variables,
             validate_only,
             no_inference,
+            ref output_format,
+            no_color,
+            quiet,
+            verbose,
         } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
+            
+            let mut merged_cli = cli.clone();
+            merged_cli.output_format = merged_format.clone();
+            merged_cli.no_color = merged_no_color;
+            merged_cli.quiet = merged_quiet;
+            merged_cli.verbose = merged_verbose;
+            
+            // Create formatter with merged options
+            let merged_formatter_factory = FormatterFactory::new(merged_no_color);
+            let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
+            
             handle_analyze(
                 expression,
                 variables,
                 validate_only,
                 no_inference,
-                &cli,
-                &*formatter,
+                &merged_cli,
+                &*merged_formatter,
             )
             .await;
         }
-        // TODO: Re-enable REPL handling after improving implementation
-        // Commands::Repl {
-        //     ref input,
-        //     ref variables,
-        //     ref history_file,
-        //     history_size,
-        // } => {
-        //     handle_repl(
-        //         input.as_deref(),
-        //         variables,
-        //         history_file.as_deref(),
-        //         history_size,
-        //         &cli,
-        //     )
-        //     .await;
-        // }
-        // TODO: Re-enable server handling after fixing dependencies
-        // Commands::Server {
-        //     port,
-        //     ref storage,
-        //     ref host,
-        //     cors_all,
-        // } => {
-        //     handle_server(port, storage.clone(), host.clone(), cors_all, &cli).await;
-        // }
+        Commands::Docs { ref error_code } => {
+            handle_docs(error_code, &cli);
+        } // Commands::Repl {
+          //     ref input,
+          //     ref variables,
+          //     ref history_file,
+          //     history_size,
+          // } => {
+          //     handle_repl(
+          //         input.as_deref(),
+          //         variables,
+          //         history_file.as_deref(),
+          //         history_size,
+          //         &cli,
+          //     )
+          //     .await;
+          // }
+          // TODO: Re-enable server handling after fixing dependencies
+          // Commands::Server {
+          //     port,
+          //     ref storage,
+          //     ref host,
+          //     cors_all,
+          // } => {
+          //     handle_server(port, storage.clone(), host.clone(), cors_all, &cli).await;
+          // }
     }
 }
 
@@ -116,7 +303,8 @@ async fn handle_evaluate(
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
 ) {
-    let start_time = Instant::now();
+    use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
+    use std::io::stderr;
 
     // Get resource data
     let resource_data = if let Some(input_str) = input {
@@ -130,7 +318,7 @@ async fn handle_evaluate(
                 Ok(content) => content,
                 Err(e) => {
                     if !cli.quiet {
-                        eprintln!("Error reading file '{input_str}': {e}");
+                        eprintln!("Error reading file {}: {}", input_str, e);
                     }
                     process::exit(1);
                 }
@@ -138,9 +326,6 @@ async fn handle_evaluate(
         }
     } else {
         // No input provided - read from stdin
-        if !cli.quiet {
-            eprintln!("Reading FHIR resource from stdin...");
-        }
 
         use std::io::{self, Read};
         let mut stdin_content = String::new();
@@ -148,7 +333,7 @@ async fn handle_evaluate(
             Ok(_) => stdin_content,
             Err(e) => {
                 if !cli.quiet {
-                    eprintln!("Error reading from stdin: {e}");
+                    eprintln!("Error reading from stdin: {}", e);
                 }
                 process::exit(1);
             }
@@ -164,74 +349,38 @@ async fn handle_evaluate(
         match parse_json(&resource_data) {
             Ok(json) => json,
             Err(e) => {
-                eprintln!("Error parsing JSON resource: {e}");
-                process::exit(1);
-            }
-        }
-    };
-
-    // Create FHIRPath engine with specified FHIR version schema provider
-    let model_provider: std::sync::Arc<dyn octofhir_fhirpath::model::provider::ModelProvider> = {
-        use octofhir_fhirpath::model::{
-            fhirschema_provider::FhirSchemaModelProvider, provider::FhirVersion,
-        };
-
-        let fhir_version = match cli.fhir_version.to_lowercase().as_str() {
-            "r4" => FhirVersion::R4,
-            "r4b" => FhirVersion::R4B,
-            "r5" => FhirVersion::R5,
-            _ => {
-                eprintln!(
-                    "⚠️ Invalid FHIR version '{}', defaulting to R4",
-                    cli.fhir_version
+                let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+                let source_id = handler.add_source("resource".to_string(), resource_data.clone());
+                
+                let diagnostic = handler.create_diagnostic_from_error(
+                    octofhir_fhirpath::core::error_code::FP0001,
+                    format!("Invalid JSON resource: {}", e),
+                    0..resource_data.len(),
+                    Some("Ensure the resource is valid JSON format".to_string()),
                 );
-                FhirVersion::R4
-            }
-        };
-
-        let mut additional_packages = Vec::new();
-        for package_spec in &cli.packages {
-            if let Some((name, version)) = package_spec.split_once('@') {
-                additional_packages.push(PackageSpec::registry(name, version));
-            } else {
-                eprintln!("⚠️ Invalid package format '{package_spec}', expected 'package@version'");
-            }
-        }
-
-        let config = octofhir_fhir_model::provider::FhirSchemaConfig {
-            fhir_version,
-            additional_packages,
-            ..Default::default()
-        };
-
-        match FhirSchemaModelProvider::with_config(config).await {
-            Ok(provider) => {
-                if !cli.quiet {
-                    eprintln!(
-                        "✅ Initialized FHIR {} schema provider",
-                        match fhir_version {
-                            FhirVersion::R4 => "R4",
-                            FhirVersion::R4B => "R4B",
-                            FhirVersion::R5 => "R5",
-                        }
-                    );
-                }
-                std::sync::Arc::new(provider)
-            }
-            Err(e) => {
-                eprintln!("❌ CRITICAL: Failed to initialize FHIR schema provider: {e}");
-                eprintln!("💡 This is required for proper FHIR operations.");
-                eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
+                
+                handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
                 process::exit(1);
             }
         }
     };
-    // Create registries for the SendSafe engine using standard registries
-    let registry = octofhir_fhirpath_registry::create_standard_registry().await;
 
-    // Use the unified FhirPathEngine as default (thread-safe by design)
-    let engine =
-        octofhir_fhirpath_evaluator::FhirPathEngine::new(Arc::new(registry), model_provider);
+    // Create FHIRPath engine with FhirSchemaModelProvider (R4 by default)
+    let engine = match create_fhirpath_engine_with_schema_provider().await {
+        Ok(engine) => engine,
+        Err(e) => {
+            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+            let source_id = handler.add_source("expression".to_string(), expression.to_string());
+            
+            // Create AriadneDiagnostic using proper error code from FhirPathError
+            let diagnostic = fhirpath_error_to_ariadne(&e, 0..expression.len());
+            handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
+            process::exit(1);
+        }
+    };
+
+    // Engine initialized successfully - now start timing for actual execution
+    let start_time = Instant::now();
 
     // Parse initial variables from command line
     let mut initial_variables = std::collections::HashMap::new();
@@ -239,18 +388,18 @@ async fn handle_evaluate(
         if let Some((name, value_str)) = var_spec.split_once('=') {
             // Try to parse value as JSON first
             let value = match parse_json::<JsonValue>(value_str) {
-                Ok(json_value) => octofhir_fhirpath::FhirPathValue::from(json_value),
+                Ok(json_value) => octofhir_fhirpath::FhirPathValue::resource(json_value),
                 Err(_) => {
                     // If JSON parsing fails, treat as string
                     octofhir_fhirpath::FhirPathValue::String(value_str.to_string().into())
                 }
             };
             initial_variables.insert(name.to_string(), value);
-            if !cli.quiet {
-                eprintln!("Variable set: {name} = {value_str}");
-            }
         } else {
-            eprintln!("⚠️ Invalid variable format '{var_spec}', expected 'name=value'");
+            eprintln!(
+                "⚠️ Invalid variable format {}, expected 'name=value'",
+                var_spec
+            );
         }
     }
 
@@ -258,38 +407,114 @@ async fn handle_evaluate(
     let variables: std::collections::HashMap<String, octofhir_fhirpath::FhirPathValue> =
         initial_variables.into_iter().collect();
 
-    // Use the appropriate evaluation method based on whether variables are provided
-    let result = if variables.is_empty() {
-        engine.evaluate(expression, resource).await
-    } else {
-        engine
-            .evaluate_with_variables(expression, resource, variables)
-            .await
-    };
+    // Create evaluation context with the resource
+    let context_collection =
+        octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource));
+    let mut eval_context = octofhir_fhirpath::EvaluationContext::new(context_collection);
+    if !variables.is_empty() {
+        for (name, value) in variables {
+            eval_context.set_variable(name, value);
+        }
+    }
 
-    let execution_time = start_time.elapsed();
-
-    let output = match result {
-        Ok(result_value) => EvaluationOutput {
-            success: true,
-            result: Some(result_value),
-            error: None,
-            expression: expression.to_string(),
-            execution_time,
-            metadata: OutputMetadata {
-                cache_hits: 0,  // TODO: Track cache hits from engine
-                ast_nodes: 0,   // TODO: Track AST nodes
-                memory_used: 0, // TODO: Track memory usage
+    // First parse the expression to get proper diagnostics with span information
+    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    
+    let output = if !parse_result.success {
+        // Parse failed - show detailed diagnostics with proper spans
+        let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+        let source_id = handler.add_source("expression".to_string(), expression.to_string());
+        
+        // Report all diagnostics as a unified report (with proper spans)
+        if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+            let ariadne_diagnostics: Vec<_> = parse_result.diagnostics
+                .iter()
+                .map(convert_diagnostic_to_ariadne)
+                .collect();
+            handler.report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr()).unwrap_or_default();
+        }
+        
+        // Collect all error codes and positions from diagnostics  
+        let error_details: Vec<String> = parse_result.diagnostics
+            .iter()
+            .map(|d| {
+                if let Some(location) = &d.location {
+                    format!("{} at {}:{}", d.code.code, location.line, location.column)
+                } else {
+                    d.code.code.clone()
+                }
+            })
+            .collect();
+        
+        let error_message = if error_details.is_empty() {
+            "Parse failed".to_string()
+        } else {
+            format!("{}: Parse failed", error_details.join(", "))
+        };
+        
+        // Create error with all collected error codes instead of using parse_result.into_result()
+        let error = octofhir_fhirpath::core::FhirPathError::parse_error(
+            if error_details.is_empty() { 
+                octofhir_fhirpath::core::error_code::FP0001 
+            } else {
+                // Use first error code as the primary error for the ErrorCode type - extract just the code part
+                let first_error_code = error_details[0].split(" at ").next().unwrap_or(&error_details[0]);
+                parse_error_code(first_error_code)
             },
-        },
-        Err(e) => EvaluationOutput {
+            &error_message,
+            expression,
+            None,
+        );
+        
+        let execution_time = start_time.elapsed();
+        EvaluationOutput {
             success: false,
             result: None,
-            error: Some((Box::new(e) as Box<dyn std::error::Error>).into()),
+            error: Some(error),
             expression: expression.to_string(),
             execution_time,
             metadata: OutputMetadata::default(),
-        },
+        }
+    } else {
+        // Parse successful - now evaluate using the AST
+        let ast = parse_result.ast.unwrap();
+        let result = engine.evaluate_ast(&ast, &eval_context).await;
+        
+        let execution_time = start_time.elapsed();
+        match result {
+            Ok(collection) => EvaluationOutput {
+                success: true,
+                result: Some(collection),
+                error: None,
+                expression: expression.to_string(),
+                execution_time,
+                metadata: OutputMetadata {
+                    cache_hits: 0, // TODO: Implement cache hit tracking
+                    ast_nodes: 0,   // TODO: Track AST nodes
+                    memory_used: 0, // TODO: Track memory usage
+                },
+            },
+            Err(e) => {
+                // Report diagnostic for evaluation error
+                let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+                let source_id = handler.add_source("expression".to_string(), expression.to_string());
+                
+                // Create AriadneDiagnostic using proper error code from FhirPathError
+                let diagnostic = fhirpath_error_to_ariadne(&e, 0..expression.len());
+                if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+                    handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
+                }
+                
+                EvaluationOutput {
+                    success: false,
+                    result: None,
+                    error: Some(e),
+                    expression: expression.to_string(),
+                    execution_time,
+                    metadata: OutputMetadata::default(),
+                }
+            },
+        }
     };
 
     match formatter.format_evaluation(&output) {
@@ -300,7 +525,18 @@ async fn handle_evaluate(
             }
         }
         Err(e) => {
-            eprintln!("Error formatting output: {}", e);
+            // Create diagnostic handler for error reporting
+            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+            let source_id = handler.add_source("expression".to_string(), expression.to_string());
+            
+            let diagnostic = handler.create_diagnostic_from_error(
+                octofhir_fhirpath::core::error_code::FP0001,
+                format!("Error formatting output: {}", e),
+                0..expression.len(),
+                Some("Check output format configuration".to_string()),
+            );
+            
+            handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
             process::exit(1);
         }
     }
@@ -308,13 +544,17 @@ async fn handle_evaluate(
 
 fn handle_parse(
     expression: &str,
-    _cli: &Cli,
+    cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
 ) {
-    let output = match parse(expression) {
-        Ok(ast) => ParseOutput {
+    use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
+    use std::io::stderr;
+    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    
+    let output = if parse_result.success {
+        ParseOutput {
             success: true,
-            ast: Some(ast),
+            ast: parse_result.ast,
             error: None,
             expression: expression.to_string(),
             metadata: OutputMetadata {
@@ -322,14 +562,56 @@ fn handle_parse(
                 ast_nodes: 1, // TODO: Count AST nodes properly
                 memory_used: 0,
             },
-        },
-        Err(e) => ParseOutput {
+        }
+    } else {
+        // Report rich diagnostics with proper spans
+        let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+        let source_id = handler.add_source("expression".to_string(), expression.to_string());
+        
+        // Report all diagnostics from the parser (with proper spans)
+        if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+            let ariadne_diagnostics: Vec<_> = parse_result.diagnostics
+                .iter()
+                .map(convert_diagnostic_to_ariadne)
+                .collect();
+            handler.report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr()).unwrap_or_default();
+        }
+        
+        // Collect all error codes and positions from diagnostics
+        let error_details: Vec<String> = parse_result.diagnostics
+            .iter()
+            .map(|d| {
+                if let Some(location) = &d.location {
+                    format!("{} at {}:{}", d.code.code, location.line, location.column)
+                } else {
+                    d.code.code.clone()
+                }
+            })
+            .collect();
+        
+        let error_message = if error_details.is_empty() {
+            "Parse failed".to_string()
+        } else {
+            format!("{}: Parse failed", error_details.join(", "))
+        };
+        
+        // Convert first error to FhirPathError for output structure
+        let error = parse_result.into_result().err().unwrap_or_else(|| {
+            octofhir_fhirpath::core::FhirPathError::parse_error(
+                octofhir_fhirpath::core::error_code::FP0001,
+                &error_message,
+                expression,
+                None
+            )
+        });
+        
+        ParseOutput {
             success: false,
             ast: None,
-            error: Some(e.into()),
+            error: Some(error.into()),
             expression: expression.to_string(),
             metadata: OutputMetadata::default(),
-        },
+        }
     };
 
     match formatter.format_parse(&output) {
@@ -340,7 +622,18 @@ fn handle_parse(
             }
         }
         Err(e) => {
-            eprintln!("Error formatting output: {}", e);
+            // Create diagnostic handler for error reporting
+            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+            let source_id = handler.add_source("expression".to_string(), expression.to_string());
+            
+            let diagnostic = handler.create_diagnostic_from_error(
+                octofhir_fhirpath::core::error_code::FP0001,
+                format!("Error formatting parse output: {}", e),
+                0..expression.len(),
+                Some("Check output format configuration".to_string()),
+            );
+            
+            handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
             process::exit(1);
         }
     }
@@ -348,14 +641,18 @@ fn handle_parse(
 
 fn handle_validate(
     expression: &str,
-    _cli: &Cli,
+    cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
 ) {
+    use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
+    use std::io::stderr;
     // Validate is basically the same as parse but focuses on success/failure
-    let output = match parse(expression) {
-        Ok(ast) => ParseOutput {
+    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+    
+    let output = if parse_result.success {
+        ParseOutput {
             success: true,
-            ast: Some(ast),
+            ast: parse_result.ast,
             error: None,
             expression: expression.to_string(),
             metadata: OutputMetadata {
@@ -363,14 +660,60 @@ fn handle_validate(
                 ast_nodes: 1,
                 memory_used: 0,
             },
-        },
-        Err(e) => ParseOutput {
+        }
+    } else {
+        // Report rich diagnostics with proper spans
+        let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+        let source_id = handler.add_source("expression".to_string(), expression.to_string());
+        
+        // Report all diagnostics from the parser (with proper spans)
+        if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+            let ariadne_diagnostics: Vec<_> = parse_result.diagnostics
+                .iter()
+                .map(convert_diagnostic_to_ariadne)
+                .collect();
+            handler.report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr()).unwrap_or_default();
+        }
+        
+        // Collect all error codes and positions from diagnostics
+        let error_details: Vec<String> = parse_result.diagnostics
+            .iter()
+            .map(|d| {
+                if let Some(location) = &d.location {
+                    format!("{} at {}:{}", d.code.code, location.line, location.column)
+                } else {
+                    d.code.code.clone()
+                }
+            })
+            .collect();
+        
+        let error_message = if error_details.is_empty() {
+            "Validation failed".to_string()
+        } else {
+            format!("{}: Validation failed", error_details.join(", "))
+        };
+        
+        // Create error with all collected error codes instead of using parse_result.into_result()
+        let error = octofhir_fhirpath::core::FhirPathError::parse_error(
+            if error_details.is_empty() { 
+                octofhir_fhirpath::core::error_code::FP0001 
+            } else {
+                // Use first error code as the primary error for the ErrorCode type - extract just the code part
+                let first_error_code = error_details[0].split(" at ").next().unwrap_or(&error_details[0]);
+                parse_error_code(first_error_code)
+            },
+            &error_message,
+            expression,
+            None
+        );
+        
+        ParseOutput {
             success: false,
             ast: None,
-            error: Some(e.into()),
+            error: Some(error.into()),
             expression: expression.to_string(),
             metadata: OutputMetadata::default(),
-        },
+        }
     };
 
     match formatter.format_parse(&output) {
@@ -381,7 +724,18 @@ fn handle_validate(
             }
         }
         Err(e) => {
-            eprintln!("Error formatting output: {}", e);
+            // Create diagnostic handler for error reporting
+            let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+            let source_id = handler.add_source("expression".to_string(), expression.to_string());
+            
+            let diagnostic = handler.create_diagnostic_from_error(
+                octofhir_fhirpath::core::error_code::FP0001,
+                format!("Error formatting validation output: {}", e),
+                0..expression.len(),
+                Some("Check output format configuration".to_string()),
+            );
+            
+            handler.report_diagnostic(&diagnostic, source_id, &mut stderr()).unwrap_or_default();
             process::exit(1);
         }
     }
@@ -390,7 +744,7 @@ fn handle_validate(
 async fn handle_analyze(
     expression: &str,
     _variables: &[String],
-    validate_only: bool,
+    _validate_only: bool,
     _no_inference: bool,
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
@@ -399,163 +753,16 @@ async fn handle_analyze(
     handle_analyze_multi_error(expression, cli, formatter).await;
 }
 
-async fn handle_repl(
-    input: Option<&str>,
-    variables: &[String],
-    history_file: Option<&str>,
-    history_size: usize,
-    cli: &Cli,
-) {
-    use fhirpath_cli::cli::repl::{ReplConfig, start_repl};
-    use octofhir_fhirpath::model::{
-        provider::{FhirVersion, ModelProvider},
-    };
-    use octofhir_fhirschema::provider::FhirSchemaModelProvider;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::sync::Arc;
-
-    // Parse initial variables
-    let initial_variables: Vec<(String, String)> = variables
-        .iter()
-        .filter_map(|var| {
-            if let Some(eq_pos) = var.find('=') {
-                let name = var[..eq_pos].to_string();
-                let value = var[eq_pos + 1..].to_string();
-                Some((name, value))
-            } else {
-                eprintln!(
-                    "Warning: Invalid variable format '{}', expected 'name=value'",
-                    var
-                );
-                None
-            }
-        })
-        .collect();
-
-    // Load initial resource if provided
-    let initial_resource = if let Some(input_path) = input {
-        match fs::read_to_string(input_path) {
-            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(json) => Some(json),
-                Err(e) => {
-                    eprintln!("Error parsing initial resource '{}': {}", input_path, e);
-                    process::exit(1);
-                }
-            },
-            Err(e) => {
-                eprintln!("Error reading initial resource '{}': {}", input_path, e);
-                process::exit(1);
-            }
-        }
-    } else {
-        None
-    };
-
-    // Create model provider with specified FHIR version
-    let fhir_version = match cli.fhir_version.to_lowercase().as_str() {
-        "r4" => FhirVersion::R4,
-        "r4b" => FhirVersion::R4B,
-        "r5" => FhirVersion::R5,
-        _ => {
-            eprintln!(
-                "⚠️ Invalid FHIR version '{}', defaulting to R4",
-                cli.fhir_version
-            );
-            FhirVersion::R4
-        }
-    };
-
-    let model_provider = match fhir_version {
-        FhirVersion::R4 => match FhirSchemaModelProvider::r4().await {
-            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-            Err(e) => {
-                eprintln!(
-                    "Failed to create model provider for FHIR {:?}: {}",
-                    fhir_version, e
-                );
-                process::exit(1);
-            }
-        },
-        FhirVersion::R4B => match FhirSchemaModelProvider::r4b().await {
-            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-            Err(e) => {
-                eprintln!(
-                    "Failed to create model provider for FHIR {:?}: {}",
-                    fhir_version, e
-                );
-                process::exit(1);
-            }
-        },
-        FhirVersion::R5 => match FhirSchemaModelProvider::r5().await {
-            Ok(provider) => std::sync::Arc::new(provider) as Arc<dyn ModelProvider>,
-            Err(e) => {
-                eprintln!(
-                    "Failed to create model provider for FHIR {:?}: {}",
-                    fhir_version, e
-                );
-                process::exit(1);
-            }
-        },
-    };
-
-    // Create REPL configuration
-    let config = ReplConfig::new()
-        .with_model_provider(model_provider)
-        .with_initial_resource(initial_resource)
-        .with_initial_variables(initial_variables)
-        .with_history_file(history_file.map(|s| s.to_string()))
-        .with_history_size(history_size)
-        .with_quiet(cli.quiet)
-        .with_verbose(cli.verbose);
-
-    // Start the REPL
-    match start_repl(config).await {
-        Ok(()) => {
-            if !cli.quiet {
-                eprintln!("🎯 REPL session ended successfully");
-            }
-        }
-        Err(e) => {
-            eprintln!("❌ REPL error: {}", e);
-            process::exit(1);
-        }
-    }
-}
-
-// TODO: Re-enable server function after fixing dependencies
-// async fn handle_server(port: u16, storage: PathBuf, host: String, cors_all: bool, cli: &Cli) {
-//     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
-//     // Initialize tracing for server logging
-//     tracing_subscriber::fmt()
-//         .with_env_filter(
-//             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-//         )
-//         .init();
-//     if !cli.quiet {
-//         println!("🚀 Starting FHIRPath server...");
-//         println!("🌐 Host: {}", host);
-//         println!("🔌 Port: {}", port);
-//         println!("📁 Storage: {}", storage.display());
-//         if cors_all {
-//             println!("🌐 CORS: Enabled for all origins (development mode)");
-//         }
-//     }
-
-//     // Create server configuration
-//     let config = ServerConfig::new(port, host, storage, cors_all);
-
-//     // Ensure storage directory exists
-//     if let Err(e) = config.ensure_storage_dir().await {
-//         eprintln!("❌ Failed to create storage directory: {}", e);
-//         process::exit(1);
-//     }
-
-//     // Start the server
-//     if let Err(e) = start_server(config).await {
-//         eprintln!("❌ Server error: {}", e);
-//         process::exit(1);
-//     }
+// TODO: Re-enable after repl module is implemented
+// async fn handle_repl(
+//     input: Option<&str>,
+//     variables: &[String],
+//     history_file: Option<&str>,
+//     history_size: usize,
+//     cli: &Cli,
+// ) {
+//     // REPL functionality implementation pending
+//     eprintln!("REPL functionality is currently disabled");
 // }
 
 /// Handle analyze command with comprehensive multi-error display (default mode)
@@ -566,44 +773,115 @@ async fn handle_analyze_multi_error(
 ) {
     use fhirpath_cli::cli::{diagnostics::CliDiagnosticHandler, output::OutputFormat};
     use octofhir_fhirpath::parser::analysis_integration::ComprehensiveAnalyzer;
-    use std::io::{self, Write};
+    use std::io::{stderr, stdout};
 
-    let mut handler = CliDiagnosticHandler::new(cli.output_format.clone())
-        .with_quiet(cli.quiet)
-        .with_verbose(cli.verbose);
-
-    let mut stdout = io::stdout();
-    let mut stderr = io::stderr();
+    // Create diagnostic handler for this analysis
+    let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
 
     // Add source for better error reporting
-    let source_id = handler.add_source("expression".to_string(), expression.to_string());
+    let _source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-    handler.info(&format!("Analyzing FHIRPath expression: {}", expression), &mut stderr).unwrap_or_default();
+    handler
+        .info(
+            &format!("Analyzing FHIRPath expression: {}", expression),
+            &mut std::io::stderr(),
+        )
+        .unwrap_or_default();
 
     // Show progress phases
-    handler.show_analysis_progress("Phase 1: Parsing with error recovery", &mut stderr).unwrap_or_default();
-    
+    handler
+        .show_analysis_progress("Phase 1: Parsing with error recovery", &mut stderr())
+        .unwrap_or_default();
+
     // Run comprehensive analysis
     let mut analyzer = ComprehensiveAnalyzer::new();
     let analysis_result = analyzer.analyze(expression, "expression".to_string());
 
-    handler.show_analysis_progress("Phase 2: Static analysis", &mut stderr).unwrap_or_default();
-    handler.show_analysis_progress("Phase 3: Generating diagnostics", &mut stderr).unwrap_or_default();
+    handler
+        .show_analysis_progress("Phase 2: Static analysis", &mut stderr())
+        .unwrap_or_default();
+    handler
+        .show_analysis_progress("Phase 3: Generating diagnostics", &mut stderr())
+        .unwrap_or_default();
 
     // Report all results with beautiful formatting
     if cli.output_format == OutputFormat::Json {
         // JSON output goes to stdout
-        handler.report_analysis_result(&analysis_result, &mut stdout).unwrap_or_default();
+        handler
+            .report_analysis_result(&analysis_result, &mut stdout())
+            .unwrap_or_default();
     } else {
         // Other formats show diagnostics on stderr
-        handler.report_analysis_result(&analysis_result, &mut stderr).unwrap_or_default();
+        handler
+            .report_analysis_result(&analysis_result, &mut stderr())
+            .unwrap_or_default();
     }
 
     // Show completion status
-    handler.show_analysis_completion(&analysis_result.diagnostics.statistics, &mut stderr).unwrap_or_default();
+    handler
+        .show_analysis_completion(&analysis_result.diagnostics.statistics, &mut stderr())
+        .unwrap_or_default();
 
     // Exit with appropriate code
     if analysis_result.diagnostics.statistics.error_count > 0 {
         process::exit(1);
+    }
+}
+
+/// Handle docs command - open documentation for error codes
+fn handle_docs(error_code: &str, cli: &Cli) {
+    use std::process::Command;
+    use octofhir_fhirpath::core::error_code::ErrorCode;
+    
+    // Parse error code - handle both "FP0001" and "1" formats
+    let code_num = if error_code.starts_with("FP") || error_code.starts_with("fp") {
+        error_code[2..].parse::<u16>()
+    } else {
+        error_code.parse::<u16>()
+    };
+    
+    match code_num {
+        Ok(num) => {
+            let error_code = ErrorCode::new(num);
+            let url = error_code.docs_url();
+            
+            println!("Opening documentation for {}: {}", error_code.code_str(), url);
+            
+            // Try to open the URL in the user's default browser
+            let result = if cfg!(target_os = "macos") {
+                Command::new("open").arg(&url).status()
+            } else if cfg!(target_os = "windows") {
+                Command::new("cmd").args(&["/C", "start", &url]).status()
+            } else {
+                // Linux/Unix
+                Command::new("xdg-open").arg(&url).status()
+            };
+            
+            match result {
+                Ok(_) => {
+                    if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+                        println!("✅ Documentation opened in your default browser");
+                    }
+                }
+                Err(e) => {
+                    if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+                        println!("❌ Failed to open browser: {}", e);
+                        println!("You can manually visit: {}", url);
+                    } else {
+                        eprintln!("{{\"error\": \"Failed to open browser\", \"url\": \"{}\"}}", url);
+                    }
+                    process::exit(1);
+                }
+            }
+        }
+        Err(_) => {
+            if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
+                println!("❌ Invalid error code format: {}", error_code);
+                println!("Expected formats: FP0001, fp0055, 1, 55");
+            } else {
+                eprintln!("{{\"error\": \"Invalid error code format\", \"provided\": \"{}\"}}", error_code);
+            }
+            process::exit(1);
+        }
     }
 }

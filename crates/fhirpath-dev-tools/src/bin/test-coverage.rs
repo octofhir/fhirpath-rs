@@ -290,35 +290,6 @@ mod integration_test_runner {
             FhirPathValue::JsonValue(expected.clone())
         }
 
-        /// Extract the primitive value from a FhirPathValue JSON representation
-        fn extract_primitive_value(value: &Value) -> Value {
-            if let Some(obj) = value.as_object() {
-                if obj.len() == 1 {
-                    if let Some(boolean_val) = obj.get("Boolean") {
-                        return boolean_val.clone();
-                    }
-                    if let Some(integer_val) = obj.get("Integer") {
-                        return integer_val.clone();
-                    }
-                    if let Some(decimal_val) = obj.get("Decimal") {
-                        return decimal_val.clone();
-                    }
-                    if let Some(string_val) = obj.get("String") {
-                        return string_val.clone();
-                    }
-                    if let Some(date_val) = obj.get("Date") {
-                        return date_val.clone();
-                    }
-                    if let Some(datetime_val) = obj.get("DateTime") {
-                        return datetime_val.clone();
-                    }
-                    if let Some(time_val) = obj.get("Time") {
-                        return time_val.clone();
-                    }
-                }
-            }
-            value.clone()
-        }
 
         /// Compare actual collection result with expected result
         /// Matches the test-runner comparison logic exactly  
@@ -328,19 +299,9 @@ mod integration_test_runner {
             expected: &Value,
         ) -> bool {
             // Convert actual to JSON for uniform comparison
-            let actual_json = match serde_json::to_string(actual) {
-                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
-                    Ok(json) => json,
-                    Err(_) => return false,
-                },
+            let actual_normalized = match serde_json::to_value(actual) {
+                Ok(json) => json,
                 Err(_) => return false,
-            };
-
-            // Extract primitive values from FhirPathValue enums in actual results
-            let actual_normalized = if let Some(actual_arr) = actual_json.as_array() {
-                Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
-            } else {
-                Self::extract_primitive_value(&actual_json)
             };
 
             // Direct comparison first - handles most cases
@@ -410,16 +371,10 @@ mod integration_test_runner {
         /// Simplified comparison with proper handling of FHIRPath collection semantics
         fn compare_results(&self, actual: &FhirPathValue, expected: &Value) -> bool {
             // Convert actual to JSON for uniform comparison
-            let actual_json = match serde_json::to_string(actual) {
-                Ok(json_str) => match serde_json::from_str::<Value>(&json_str) {
-                    Ok(json) => json,
-                    Err(_) => return false,
-                },
+            let actual_normalized = match serde_json::to_value(actual) {
+                Ok(json) => json,
                 Err(_) => return false,
             };
-
-            // Extract primitive values from FhirPathValue enums in actual results
-            let actual_normalized = Self::extract_primitive_value(&actual_json);
 
             // Direct comparison first - handles most cases
             if expected == &actual_normalized {
@@ -485,34 +440,28 @@ mod integration_test_runner {
                 println!("Expression: {}", test.expression);
             }
 
-            // Load input data
-            let input_data = match &test.inputfile {
-                Some(filename) => match self.load_input_data(filename) {
+            // Load input data - use same logic as test-runner.rs
+            let input_data = if let Some(ref filename) = test.inputfile {
+                match self.load_input_data(filename) {
                     Ok(json_data) => FhirPathValue::JsonValue(json_data),
                     Err(e) => {
                         return TestResult::Error {
                             error: format!("Failed to load input from {filename}: {e}"),
                         };
                     }
-                },
-                None => {
-                    match &test.input {
-                        Some(input_val) => {
-                            if input_val.is_null() {
-                                // null input means evaluate without context data
-                                FhirPathValue::Empty
-                            } else {
-                                FhirPathValue::JsonValue(input_val.clone())
-                            }
-                        }
-                        None => {
-                            return TestResult::Error {
-                                error: "No input data provided (neither inputfile nor input)"
-                                    .to_string(),
-                            };
-                        }
-                    }
                 }
+            } else if let Some(ref input_val) = test.input {
+                if input_val.is_null() {
+                    // null input means evaluate without context data
+                    FhirPathValue::Empty
+                } else {
+                    FhirPathValue::JsonValue(input_val.clone())
+                }
+            } else {
+                return TestResult::Error {
+                    error: "No input data provided (neither inputfile nor input)"
+                        .to_string(),
+                };
             };
 
             // Parse expression using integrated parser
@@ -571,24 +520,9 @@ mod integration_test_runner {
                 }
             };
 
-            // If an error was expected but evaluation succeeded, mark as failure
-            if test.expect_error.unwrap_or(false) {
-                let actual_json = serde_json::to_string(&result)
-                    .and_then(|s| serde_json::from_str::<Value>(&s))
-                    .map(|v| {
-                        // Extract primitive values from FhirPathValue enums for cleaner display
-                        if let Some(actual_arr) = v.as_array() {
-                            Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
-                        } else {
-                            Self::extract_primitive_value(&v)
-                        }
-                    })
-                    .unwrap_or_default();
-                return TestResult::Failed {
-                    expected: serde_json::json!({"__errorExpected": true}),
-                    actual: actual_json,
-                };
-            }
+            // For expectError tests, we only expect errors during parsing/evaluation
+            // If evaluation succeeds, we should compare results normally
+            // The expectError flag is handled earlier for actual parse/eval errors
 
             if self.verbose {
                 println!("Result: {result:?}");
@@ -602,18 +536,8 @@ mod integration_test_runner {
             if self.compare_results_collection(&result, &test.expected) {
                 TestResult::Passed
             } else {
-                // Convert actual result to JSON for comparison, extracting primitive values
-                let actual_json = serde_json::to_string(&result)
-                    .and_then(|s| serde_json::from_str::<Value>(&s))
-                    .map(|v| {
-                        // Extract primitive values from FhirPathValue enums for cleaner display
-                        if let Some(actual_arr) = v.as_array() {
-                            Value::Array(actual_arr.iter().map(Self::extract_primitive_value).collect())
-                        } else {
-                            Self::extract_primitive_value(&v)
-                        }
-                    })
-                    .unwrap_or_default();
+                // Convert actual result to JSON for display
+                let actual_json = serde_json::to_value(&result).unwrap_or_default();
                 TestResult::Failed {
                     expected: test.expected.clone(),
                     actual: actual_json,

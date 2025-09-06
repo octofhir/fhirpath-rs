@@ -655,9 +655,43 @@ impl ArithmeticOperations {
             }
 
             // Date + Quantity -> date arithmetic
-            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, .. }) => {
+            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
                 if let Some(unit_str) = unit {
-                    let duration = DateTimeDuration::from_quantity(value, unit_str)?;
+                    // For date arithmetic, accept calendar units, unquoted time units, or valid UCUM time units
+                    let duration = if calendar_unit.is_some() {
+                        // Valid calendar unit - use DateTimeDuration
+                        DateTimeDuration::from_quantity(value, unit_str)?
+                    } else if let Some(_ucum) = ucum_unit {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" | "d" | "wk" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid UCUM unit for date arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for date arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        match unit_str.to_lowercase().as_str() {
+                            "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" | "day" | "days" | "millisecond" | "milliseconds" => {
+                                // Valid unquoted time units - use DateTimeDuration  
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid unit for date arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unknown unit '{}' for date arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    };
                     
                     // Convert date to datetime at midnight UTC for arithmetic
                     let naive_datetime = date.date.and_hms_opt(0, 0, 0)
@@ -669,9 +703,10 @@ impl ArithmeticOperations {
                     
                     let result_datetime = duration.add_to_datetime(datetime)?;
                     
-                    // Convert back to date (preserving precision)
+                    // Convert back to date (preserving precision) and return as string for FHIRPath compliance
                     let result_date = result_datetime.naive_utc().date();
-                    Ok(FhirPathValue::Date(crate::core::temporal::PrecisionDate::from_date(result_date)))
+                    let precision_date = crate::core::temporal::PrecisionDate::from_date(result_date);
+                    Ok(FhirPathValue::String(precision_date.to_string()))
                 } else {
                     Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -681,18 +716,54 @@ impl ArithmeticOperations {
             }
 
             // DateTime + Quantity -> datetime arithmetic  
-            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity { value, unit, .. }) => {
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
                 if let Some(unit_str) = unit {
-                    let duration = DateTimeDuration::from_quantity(value, unit_str)?;
+                    // For datetime arithmetic, accept calendar units, unquoted time units, or valid UCUM time units
+                    let duration = if calendar_unit.is_some() {
+                        // Valid calendar unit - use DateTimeDuration
+                        DateTimeDuration::from_quantity(value, unit_str)?
+                    } else if let Some(_ucum) = ucum_unit {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" | "d" | "wk" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid UCUM unit for datetime arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for datetime arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        match unit_str.to_lowercase().as_str() {
+                            "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" | "millisecond" | "milliseconds" => {
+                                // Valid unquoted time units - use DateTimeDuration
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid unit for datetime arithmetic  
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unknown unit '{}' for datetime arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    };
                     let result_datetime = duration.add_to_datetime(datetime.datetime.with_timezone(&Utc))?;
                     
                     // Preserve original timezone if possible
                     let result_with_tz = result_datetime.with_timezone(&datetime.datetime.timezone());
                     
-                    Ok(FhirPathValue::DateTime(crate::core::temporal::PrecisionDateTime::new(
+                    // Return as string for FHIRPath compliance
+                    let precision_datetime = crate::core::temporal::PrecisionDateTime::new(
                         result_with_tz,
                         datetime.precision
-                    )))
+                    );
+                    Ok(FhirPathValue::String(precision_datetime.to_string()))
                 } else {
                     Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -702,8 +773,46 @@ impl ArithmeticOperations {
             }
 
             // Time + Quantity -> time arithmetic with wrap-around
-            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, .. }) => {
+            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
                 if let Some(unit_str) = unit {
+                    // For time arithmetic, only accept calendar units or valid UCUM time units
+                    // No calendar units are valid for time, only time-related UCUM units
+                    if calendar_unit.is_some() {
+                        // Calendar units like year, month don't make sense for time-of-day
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Calendar unit '{}' is not valid for time arithmetic", unit_str)
+                        ));
+                    } else if ucum_unit.is_some() {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" => {
+                                // Valid time units - continue with arithmetic
+                            }
+                            _ => {
+                                // Invalid UCUM unit for time arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for time arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check unquoted time units (hour, minute, second, etc.)
+                        match unit_str.to_lowercase().as_str() {
+                            "hour" | "hours" | "minute" | "minutes" | "second" | "seconds" | "millisecond" | "milliseconds" => {
+                                // Valid unquoted time units - continue
+                            }
+                            _ => {
+                                // Invalid unit for time arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unknown unit '{}' for time arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    }
+                    
                     match unit_str.to_lowercase().as_str() {
                         "hour" | "hours" | "h" => {
                             let hours = value.to_i64().unwrap_or(0) % 24;
@@ -713,10 +822,12 @@ impl ArithmeticOperations {
                                     FP0053,
                                     "Invalid hour in time arithmetic".to_string()
                                 ))?;
-                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                            // Return as string for FHIRPath compliance  
+                            let precision_time = crate::core::temporal::PrecisionTime::new(
                                 result_time,
                                 time.precision
-                            )))
+                            );
+                            Ok(FhirPathValue::String(precision_time.to_string()))
                         }
                         "minute" | "minutes" | "min" => {
                             let total_minutes = time.time.hour() as i64 * 60 + time.time.minute() as i64 + value.to_i64().unwrap_or(0);
@@ -728,10 +839,12 @@ impl ArithmeticOperations {
                                     FP0053,
                                     "Invalid time in time arithmetic".to_string()
                                 ))?;
-                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                            // Return as string for FHIRPath compliance  
+                            let precision_time = crate::core::temporal::PrecisionTime::new(
                                 result_time,
                                 time.precision
-                            )))
+                            );
+                            Ok(FhirPathValue::String(precision_time.to_string()))
                         }
                         "second" | "seconds" | "s" => {
                             let total_seconds = time.time.hour() as i64 * 3600 + time.time.minute() as i64 * 60 + time.time.second() as i64;
@@ -745,10 +858,12 @@ impl ArithmeticOperations {
                                     FP0053,
                                     "Invalid time in time arithmetic".to_string()
                                 ))?;
-                            Ok(FhirPathValue::Time(crate::core::temporal::PrecisionTime::new(
+                            // Return as string for FHIRPath compliance  
+                            let precision_time = crate::core::temporal::PrecisionTime::new(
                                 result_time,
                                 time.precision
-                            )))
+                            );
+                            Ok(FhirPathValue::String(precision_time.to_string()))
                         }
                         _ => Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -771,6 +886,10 @@ impl ArithmeticOperations {
     }
 
     pub fn subtract(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        use crate::registry::datetime_utils::DateTimeDuration;
+        use crate::core::types::CalendarUnit;
+        use chrono::{DateTime, Utc, NaiveTime, Timelike};
+
         match (left, right) {
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
                 Ok(FhirPathValue::Integer(a - b))
@@ -801,6 +920,180 @@ impl ArithmeticOperations {
                     calendar_unit: cal_a.or(*cal_b),
                 })
             }
+
+            // Date - Quantity -> date arithmetic
+            (FhirPathValue::Date(date), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    // For date arithmetic, accept calendar units, unquoted time units, or valid UCUM time units
+                    let duration = if calendar_unit.is_some() {
+                        // Valid calendar unit - use DateTimeDuration
+                        DateTimeDuration::from_quantity(value, unit_str)?
+                    } else if let Some(_ucum) = ucum_unit {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" | "d" | "wk" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid UCUM unit for date arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for date arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        match unit_str.to_lowercase().as_str() {
+                            "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" | "day" | "days" | "millisecond" | "milliseconds" => {
+                                // Valid unquoted time units - use DateTimeDuration  
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid unit for date arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unknown unit '{}' for date arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    };
+                    
+                    // Convert date to datetime at midnight UTC for arithmetic
+                    let naive_datetime = date.date.and_hms_opt(0, 0, 0)
+                        .ok_or_else(|| crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "Invalid date for arithmetic".to_string()
+                        ))?;
+                    let datetime = DateTime::from_naive_utc_and_offset(naive_datetime, Utc);
+                    
+                    let result_datetime = duration.subtract_from_datetime(datetime)?;
+                    
+                    // Convert back to date (preserving precision) and return as string for FHIRPath compliance
+                    let result_date = result_datetime.naive_utc().date();
+                    let precision_date = crate::core::temporal::PrecisionDate::from_date(result_date);
+                    Ok(FhirPathValue::String(precision_date.to_string()))
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot subtract quantity without unit from date".to_string()
+                    ))
+                }
+            }
+
+            // DateTime - Quantity -> datetime arithmetic  
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    // For datetime arithmetic, accept calendar units, unquoted time units, or valid UCUM time units
+                    let duration = if calendar_unit.is_some() {
+                        // Valid calendar unit - use DateTimeDuration
+                        DateTimeDuration::from_quantity(value, unit_str)?
+                    } else if let Some(_ucum) = ucum_unit {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" | "d" | "wk" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid UCUM unit for datetime arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for datetime arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check if it's an unquoted time unit (not in CalendarUnit but valid for time)
+                        match unit_str.to_lowercase().as_str() {
+                            "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" | "day" | "days" | "millisecond" | "milliseconds" => {
+                                // Valid unquoted time units - use DateTimeDuration  
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid unit for datetime arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unknown unit '{}' for datetime arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    };
+                    
+                    // Convert PrecisionDateTime to chrono DateTime
+                    let chrono_datetime = datetime.to_chrono_datetime()?;
+                    
+                    let result_datetime = duration.subtract_from_datetime(chrono_datetime)?;
+                    
+                    // Convert result back to PrecisionDateTime and return as string
+                    let result_precision = crate::core::temporal::PrecisionDateTime::from_chrono_datetime(&result_datetime, datetime.precision);
+                    Ok(FhirPathValue::String(result_precision.to_string()))
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot subtract quantity without unit from datetime".to_string()
+                    ))
+                }
+            }
+
+            // Time - Quantity -> time arithmetic
+            (FhirPathValue::Time(time), FhirPathValue::Quantity { value, unit, calendar_unit, ucum_unit, .. }) => {
+                if let Some(unit_str) = unit {
+                    // For time arithmetic, only accept time units
+                    let duration = if calendar_unit.is_some() {
+                        // Calendar units not valid for time arithmetic
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            format!("Calendar unit '{}' is not valid for time arithmetic", unit_str)
+                        ));
+                    } else if let Some(_ucum) = ucum_unit {
+                        // Valid UCUM unit - check if it's a time unit
+                        match unit_str.as_str() {
+                            "ms" | "s" | "min" | "h" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid UCUM unit for time arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for time arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    } else {
+                        // Check if it's an unquoted time unit
+                        match unit_str.to_lowercase().as_str() {
+                            "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" | "millisecond" | "milliseconds" => {
+                                DateTimeDuration::from_quantity(value, unit_str)?
+                            }
+                            _ => {
+                                // Invalid unit for time arithmetic
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    format!("Unit '{}' is not valid for time arithmetic", unit_str)
+                                ));
+                            }
+                        }
+                    };
+                    
+                    // Convert PrecisionTime to a base datetime (today at this time) for arithmetic
+                    let today = chrono::Utc::now().naive_utc().date();
+                    let naive_datetime = today.and_time(time.time);
+                    let datetime = DateTime::from_naive_utc_and_offset(naive_datetime, Utc);
+                    
+                    let result_datetime = duration.subtract_from_datetime(datetime)?;
+                    
+                    // Extract time from result and return as string
+                    let result_time = result_datetime.naive_utc().time();
+                    let precision_time = crate::core::temporal::PrecisionTime::from_time_with_precision(result_time, time.precision);
+                    Ok(FhirPathValue::String(precision_time.to_string()))
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "Cannot subtract quantity without unit from time".to_string()
+                    ))
+                }
+            }
+
             _ => Err(crate::core::FhirPathError::evaluation_error(
                 FP0053,
                 "Cannot subtract values of these types".to_string()

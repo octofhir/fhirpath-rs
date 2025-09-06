@@ -114,8 +114,24 @@ impl FunctionRegistry {
                         FhirPathValue::DateTime(datetime) => {
                             results.push(FhirPathValue::integer(datetime.datetime.year() as i64));
                         }
+                        FhirPathValue::String(s) => {
+                            // Use the new temporal parsing utilities with proper validation
+                            use crate::core::temporal::parsing::parse_date_or_datetime_string;
+                            
+                            match parse_date_or_datetime_string(s) {
+                                Ok(precision_date) => {
+                                    results.push(FhirPathValue::integer(precision_date.date.year() as i64));
+                                }
+                                Err(_) => {
+                                    // If parsing fails with validation errors, skip this item
+                                    // The error information is preserved but we don't propagate it
+                                    // to maintain backward compatibility with existing behavior
+                                    continue;
+                                }
+                            }
+                        }
                         _ => {
-                            // For non-date/datetime values, skip them (don't add to results)
+                            // For other non-date/datetime values, skip them (don't add to results)
                             continue;
                         }
                     }
@@ -148,8 +164,24 @@ impl FunctionRegistry {
                         FhirPathValue::DateTime(datetime) => {
                             results.push(FhirPathValue::integer(datetime.datetime.month() as i64));
                         }
+                        FhirPathValue::String(s) => {
+                            // Use the new temporal parsing utilities with proper validation
+                            use crate::core::temporal::parsing::parse_date_or_datetime_string;
+                            
+                            match parse_date_or_datetime_string(s) {
+                                Ok(precision_date) => {
+                                    results.push(FhirPathValue::integer(precision_date.date.month() as i64));
+                                }
+                                Err(_) => {
+                                    // If parsing fails with validation errors, skip this item
+                                    // The error information is preserved but we don't propagate it
+                                    // to maintain backward compatibility with existing behavior
+                                    continue;
+                                }
+                            }
+                        }
                         _ => {
-                            // For non-date/datetime values, skip them (don't add to results)
+                            // For other non-date/datetime values, skip them (don't add to results)
                             continue;
                         }
                     }
@@ -182,8 +214,24 @@ impl FunctionRegistry {
                         FhirPathValue::DateTime(datetime) => {
                             results.push(FhirPathValue::integer(datetime.datetime.day() as i64));
                         }
+                        FhirPathValue::String(s) => {
+                            // Use the new temporal parsing utilities with proper validation
+                            use crate::core::temporal::parsing::parse_date_or_datetime_string;
+                            
+                            match parse_date_or_datetime_string(s) {
+                                Ok(precision_date) => {
+                                    results.push(FhirPathValue::integer(precision_date.date.day() as i64));
+                                }
+                                Err(_) => {
+                                    // If parsing fails with validation errors, skip this item
+                                    // The error information is preserved but we don't propagate it
+                                    // to maintain backward compatibility with existing behavior
+                                    continue;
+                                }
+                            }
+                        }
                         _ => {
-                            // For non-date/datetime values, skip them (don't add to results)
+                            // For other non-date/datetime values, skip them (don't add to results)
                             continue;
                         }
                     }

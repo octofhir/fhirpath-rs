@@ -623,16 +623,34 @@ impl LambdaEvaluator {
         initial_value: Option<FhirPathValue>,
         evaluator: &dyn LambdaExpressionEvaluator,
     ) -> crate::core::Result<FhirPathValue> {
-        // Start with initial value or empty collection
-        let mut total = initial_value.unwrap_or(FhirPathValue::Collection(Vec::new()));
+        // Check if we have an initial value to determine processing mode
+        let has_initial_value = initial_value.is_some();
+        
+        // Start with initial value or first item of collection
+        let mut total = if let Some(init) = initial_value {
+            init
+        } else if !collection.is_empty() {
+            // For 1-argument form, start with first item
+            collection.first().unwrap().clone()
+        } else {
+            // Empty collection case
+            return Ok(FhirPathValue::Collection(Vec::new()));
+        };
         
         // Reusable lambda context: inherit built-ins and captured variables once
         let mut lambda_context = self.scope_manager.create_lambda_base_context();
         
-        for (index, item) in collection.iter().enumerate() {
+        // For 1-argument form, skip first item since it's used as initial value
+        let items_to_process: Vec<(usize, &FhirPathValue)> = if has_initial_value {
+            collection.iter().enumerate().collect()  // Process all items
+        } else {
+            collection.iter().enumerate().skip(1).collect()  // Skip first item
+        };
+        
+        for (index, item) in items_to_process {
             // Update context for item, index, and total
             self.scope_manager.update_lambda_item(&mut lambda_context, item, index);
-            lambda_context.set_variable("total".to_string(), total.clone());
+            lambda_context.set_variable("$total".to_string(), total.clone());
             
             // Evaluate lambda expression
             let result = evaluator.evaluate_expression(lambda_expr, &lambda_context).await?;

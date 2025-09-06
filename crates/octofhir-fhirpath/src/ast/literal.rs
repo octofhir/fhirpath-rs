@@ -9,7 +9,7 @@ use rust_decimal::Decimal;
 use chrono::NaiveDate;
 
 use crate::core::{FhirPathError, FP0006, FP0001};
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 
 /// Literal values that can appear directly in FHIRPath expressions
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -168,11 +168,33 @@ impl LiteralValue {
 
         let unit = unit_str.map(|u| {
             // Remove quotes from unit if present
-            if (u.starts_with('\'') && u.ends_with('\'')) || (u.starts_with('"') && u.ends_with('"')) {
-                u[1..u.len()-1].to_string()
+            let clean_unit = if (u.starts_with('\'') && u.ends_with('\'')) || (u.starts_with('"') && u.ends_with('"')) {
+                &u[1..u.len()-1]
             } else {
-                u.to_string()
-            }
+                u
+            };
+            
+            // Normalize common unit names to UCUM codes
+            let normalized_unit = match clean_unit {
+                "day" | "days" => "d",
+                "week" | "weeks" => "wk", 
+                "month" | "months" => "mo",
+                "year" | "years" => "a",
+                "hour" | "hours" => "h",
+                "minute" | "minutes" => "min",
+                "second" | "seconds" => "s",
+                "millisecond" | "milliseconds" => "ms",
+                "gram" | "grams" => "g",
+                "kilogram" | "kilograms" => "kg",
+                "meter" | "meters" | "metre" | "metres" => "m",
+                "centimeter" | "centimeters" | "centimetre" | "centimetres" => "cm",
+                "millimeter" | "millimeters" | "millimetre" | "millimetres" => "mm",
+                "inch" | "inches" => "[in_i]",
+                "foot" | "feet" => "[ft_i]",
+                _ => clean_unit, // Keep original for valid UCUM codes
+            };
+            
+            normalized_unit.to_string()
         });
 
         Ok(Self::Quantity { value, unit })

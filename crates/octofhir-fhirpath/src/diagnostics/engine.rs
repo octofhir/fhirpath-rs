@@ -105,6 +105,69 @@ impl DiagnosticEngine {
         }
     }
 
+    /// Build a unified report with multiple diagnostics
+    pub fn build_unified_report(&self, diagnostics: &[AriadneDiagnostic], source_id: usize) -> Result<Report<'static, (usize, Range<usize>)>, Box<dyn std::error::Error>> {
+        if diagnostics.is_empty() {
+            return Err("No diagnostics to report".into());
+        }
+
+        let _source_info = self.source_manager.get_source(source_id)
+            .ok_or("Source not found")?;
+
+        // Use the first diagnostic as the primary report, but don't show the header
+        let primary = &diagnostics[0];
+        let mut report = Report::build(
+            primary.severity.to_report_kind(),
+            (source_id, primary.span.clone())
+        );
+        // Don't add code or message header - the user wants to show only span information
+
+        // Add labels for all diagnostics
+        for diagnostic in diagnostics {
+            let color = if self.show_colors { 
+                diagnostic.severity.color() 
+            } else { 
+                Color::Fixed(7) // Default terminal color when colors are disabled
+            };
+            
+            let label = Label::new((source_id, diagnostic.span.clone()))
+                .with_message(&diagnostic.message)
+                .with_color(color);
+            report = report.with_label(label);
+        }
+
+        // Add documentation links for all unique error codes
+        let mut seen_codes = std::collections::HashSet::new();
+        for diagnostic in diagnostics {
+            if seen_codes.insert(diagnostic.error_code.code) {
+                let docs_note = format!(
+                    "For more information about {}, try: {}",
+                    diagnostic.error_code.code_str(),
+                    diagnostic.error_code.docs_url()
+                );
+                report = report.with_note(&docs_note);
+            }
+        }
+
+        Ok(report.finish())
+    }
+
+    /// Format and emit a unified report with multiple diagnostics
+    pub fn emit_unified_report(
+        &self,
+        diagnostics: &[AriadneDiagnostic],
+        source_id: usize,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = self.build_unified_report(diagnostics, source_id)?;
+        let source_info = self.source_manager.get_source(source_id)
+            .ok_or("Source not found")?;
+        
+        let source = Source::from(&source_info.content);
+        report.write((source_id, source), writer)?;
+        Ok(())
+    }
+
     /// Build a comprehensive diagnostic report using Ariadne
     pub fn build_report(&self, diagnostic: &AriadneDiagnostic, source_id: usize) -> Result<Report<'static, (usize, Range<usize>)>, Box<dyn std::error::Error>> {
         let _source_info = self.source_manager.get_source(source_id)
@@ -124,8 +187,11 @@ impl DiagnosticEngine {
             Color::Fixed(7) // Default terminal color when colors are disabled
         };
         
+        // Use the original diagnostic message as label
+        let label_message = &diagnostic.message;
+        
         let primary_label = Label::new((source_id, diagnostic.span.clone()))
-            .with_message("error occurred here")
+            .with_message(label_message)
             .with_color(primary_color);
         report = report.with_label(primary_label);
 
@@ -286,6 +352,7 @@ impl Default for ReportBuilder {
         Self::new()
     }
 }
+
 
 #[cfg(test)]
 mod tests {
