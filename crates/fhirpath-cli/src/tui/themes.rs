@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Theme System for TUI
-//! 
+//!
 //! This module provides a comprehensive theming system with support for
 //! multiple color schemes, syntax highlighting, and customizable visual styles.
 
@@ -114,30 +114,30 @@ pub struct ColorScheme {
     // Border colors
     pub focused_border: Color,
     pub unfocused_border: Color,
-    
+
     // Background colors
     pub background: Color,
     pub selected_background: Color,
     pub active_background: Color,
-    
+
     // Text colors
     pub normal_text: Color,
     pub selected_text: Color,
     pub disabled_text: Color,
     pub highlight_text: Color,
-    
+
     // Status colors
     pub success_color: Color,
     pub warning_color: Color,
     pub error_color: Color,
     pub info_color: Color,
-    
+
     // Special UI colors
     pub cursor_color: Color,
     pub selection_color: Color,
     pub match_color: Color,
     pub line_number_color: Color,
-    
+
     // Panel-specific colors
     pub input_background: Option<Color>,
     pub output_background: Option<Color>,
@@ -153,25 +153,25 @@ pub struct SyntaxTheme {
     pub resource_type_color: Color,
     pub operator_color: Color,
     pub keyword_color: Color,
-    
+
     // Literals
     pub string_color: Color,
     pub number_color: Color,
     pub boolean_color: Color,
     pub null_color: Color,
-    
+
     // Punctuation and symbols
     pub punctuation_color: Color,
     pub bracket_color: Color,
     pub parenthesis_color: Color,
-    
+
     // Variables and identifiers
     pub variable_color: Color,
     pub identifier_color: Color,
-    
+
     // Comments (for help text)
     pub comment_color: Color,
-    
+
     // Error highlighting
     pub syntax_error_color: Color,
     pub type_error_color: Color,
@@ -185,20 +185,20 @@ pub struct StyleTheme {
     pub bold: Style,
     pub italic: Style,
     pub underline: Style,
-    
+
     // Panel styles
     pub focused_panel: Style,
     pub unfocused_panel: Style,
-    
+
     // Status line styles
     pub status_normal: Style,
     pub status_active: Style,
     pub status_error: Style,
-    
+
     // Selection styles
     pub selected_item: Style,
     pub highlighted_item: Style,
-    
+
     // Input styles
     pub input_normal: Style,
     pub input_error: Style,
@@ -267,7 +267,7 @@ impl TuiTheme {
             styles: StyleTheme::dark(),
         }
     }
-    
+
     /// Create a light theme
     pub fn light_theme() -> Self {
         Self {
@@ -323,7 +323,7 @@ impl TuiTheme {
             styles: StyleTheme::light(),
         }
     }
-    
+
     /// Create a high contrast theme for accessibility
     pub fn high_contrast_theme() -> Self {
         Self {
@@ -379,7 +379,7 @@ impl TuiTheme {
             styles: StyleTheme::high_contrast(),
         }
     }
-    
+
     /// Get available built-in themes
     pub fn available_themes() -> Vec<String> {
         vec![
@@ -388,7 +388,7 @@ impl TuiTheme {
             "high_contrast".to_string(),
         ]
     }
-    
+
     /// Load theme by name
     pub fn load_theme(name: &str) -> Option<Self> {
         match name.to_lowercase().as_str() {
@@ -398,7 +398,7 @@ impl TuiTheme {
             _ => None,
         }
     }
-    
+
     /// Get style for FHIRPath token type
     pub fn get_syntax_style(&self, token_type: &str) -> Style {
         let color = match token_type {
@@ -421,10 +421,10 @@ impl TuiTheme {
             "type_error" => self.syntax.type_error_color,
             _ => self.colors.normal_text,
         };
-        
+
         Style::default().fg(color)
     }
-    
+
     /// Get style for diagnostic severity
     pub fn get_diagnostic_style(&self, severity: &str) -> Style {
         let color = match severity.to_lowercase().as_str() {
@@ -434,10 +434,10 @@ impl TuiTheme {
             "hint" => self.colors.disabled_text,
             _ => self.colors.normal_text,
         };
-        
+
         Style::default().fg(color)
     }
-    
+
     /// Get style for result type
     pub fn get_result_style(&self, result_type: &str) -> Style {
         let color = match result_type {
@@ -447,7 +447,7 @@ impl TuiTheme {
             "info" => self.colors.info_color,
             _ => self.colors.normal_text,
         };
-        
+
         Style::default().fg(color)
     }
 }
@@ -456,9 +456,15 @@ impl StyleTheme {
     pub fn dark() -> Self {
         Self {
             normal: Style::default().fg(Color::White),
-            bold: Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
-            italic: Style::default().fg(Color::White).add_modifier(Modifier::ITALIC),
-            underline: Style::default().fg(Color::White).add_modifier(Modifier::UNDERLINED),
+            bold: Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+            italic: Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::ITALIC),
+            underline: Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::UNDERLINED),
             focused_panel: Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -481,18 +487,22 @@ impl StyleTheme {
                 .add_modifier(Modifier::BOLD),
             input_normal: Style::default().fg(Color::White),
             input_error: Style::default().fg(Color::Red),
-            cursor_style: Style::default()
-                .bg(Color::White)
-                .fg(Color::Black),
+            cursor_style: Style::default().bg(Color::White).fg(Color::Black),
         }
     }
-    
+
     pub fn light() -> Self {
         Self {
             normal: Style::default().fg(Color::Black),
-            bold: Style::default().fg(Color::Black).add_modifier(Modifier::BOLD),
-            italic: Style::default().fg(Color::Black).add_modifier(Modifier::ITALIC),
-            underline: Style::default().fg(Color::Black).add_modifier(Modifier::UNDERLINED),
+            bold: Style::default()
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+            italic: Style::default()
+                .fg(Color::Black)
+                .add_modifier(Modifier::ITALIC),
+            underline: Style::default()
+                .fg(Color::Black)
+                .add_modifier(Modifier::UNDERLINED),
             focused_panel: Style::default()
                 .fg(Color::Blue)
                 .add_modifier(Modifier::BOLD),
@@ -515,12 +525,10 @@ impl StyleTheme {
                 .add_modifier(Modifier::BOLD),
             input_normal: Style::default().fg(Color::Black),
             input_error: Style::default().fg(Color::Red),
-            cursor_style: Style::default()
-                .bg(Color::Black)
-                .fg(Color::White),
+            cursor_style: Style::default().bg(Color::Black).fg(Color::White),
         }
     }
-    
+
     pub fn high_contrast() -> Self {
         Self {
             normal: Style::default().fg(Color::White),
@@ -537,9 +545,7 @@ impl StyleTheme {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
             unfocused_panel: Style::default().fg(Color::Gray),
-            status_normal: Style::default()
-                .fg(Color::Black)
-                .bg(Color::White),
+            status_normal: Style::default().fg(Color::Black).bg(Color::White),
             status_active: Style::default()
                 .fg(Color::Black)
                 .bg(Color::Yellow)
@@ -556,12 +562,8 @@ impl StyleTheme {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
             input_normal: Style::default().fg(Color::White),
-            input_error: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
-            cursor_style: Style::default()
-                .bg(Color::Yellow)
-                .fg(Color::Black),
+            input_error: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            cursor_style: Style::default().bg(Color::Yellow).fg(Color::Black),
         }
     }
 }
@@ -569,7 +571,7 @@ impl StyleTheme {
 /// Theme utilities and helpers
 pub mod utils {
     use super::*;
-    
+
     /// Blend two colors (simple average)
     pub fn blend_colors(color1: Color, color2: Color, ratio: f32) -> Color {
         // This is a simplified color blending - in a real implementation
@@ -582,7 +584,7 @@ pub mod utils {
             color2 // Simplified - just return the second color
         }
     }
-    
+
     /// Get contrasting color for text readability
     pub fn contrasting_color(background: Color) -> Color {
         match background {
@@ -591,7 +593,7 @@ pub mod utils {
             _ => Color::White, // Default to white for most colors
         }
     }
-    
+
     /// Darken a color
     pub fn darken_color(color: Color) -> Color {
         match color {
@@ -605,7 +607,7 @@ pub mod utils {
             _ => color,
         }
     }
-    
+
     /// Lighten a color
     pub fn lighten_color(color: Color) -> Color {
         match color {
@@ -617,30 +619,32 @@ pub mod utils {
             _ => color,
         }
     }
-    
+
     /// Check if theme is suitable for current terminal
     pub fn validate_theme_compatibility(theme: &TuiTheme) -> Vec<String> {
         let mut issues = Vec::new();
-        
+
         // Check for 16-color compatibility
         if uses_extended_colors(theme) {
-            issues.push("Theme uses extended colors that may not be supported in all terminals".to_string());
+            issues.push(
+                "Theme uses extended colors that may not be supported in all terminals".to_string(),
+            );
         }
-        
+
         // Check for adequate contrast
         if !has_adequate_contrast(theme) {
             issues.push("Theme may have insufficient contrast for accessibility".to_string());
         }
-        
+
         issues
     }
-    
+
     fn uses_extended_colors(theme: &TuiTheme) -> bool {
         // Check if theme uses colors beyond the basic 16-color palette
         // This is a simplified check
         matches!(theme.colors.focused_border, Color::Rgb(_, _, _))
     }
-    
+
     fn has_adequate_contrast(theme: &TuiTheme) -> bool {
         // Simplified contrast check
         // In a real implementation, you'd calculate luminance ratios
@@ -651,18 +655,18 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_theme_creation() {
         let dark_theme = TuiTheme::dark_theme();
         assert!(dark_theme.metadata.dark_mode);
         assert_eq!(dark_theme.metadata.name, "Dark");
-        
+
         let light_theme = TuiTheme::light_theme();
         assert!(!light_theme.metadata.dark_mode);
         assert_eq!(light_theme.metadata.name, "Light");
     }
-    
+
     #[test]
     fn test_theme_loading() {
         assert!(TuiTheme::load_theme("dark").is_some());
@@ -670,27 +674,27 @@ mod tests {
         assert!(TuiTheme::load_theme("high_contrast").is_some());
         assert!(TuiTheme::load_theme("nonexistent").is_none());
     }
-    
+
     #[test]
     fn test_syntax_style() {
         let theme = TuiTheme::dark_theme();
         let function_style = theme.get_syntax_style("function");
         assert_eq!(function_style.fg, Some(Color::Blue));
-        
+
         let unknown_style = theme.get_syntax_style("unknown");
         assert_eq!(unknown_style.fg, Some(theme.colors.normal_text));
     }
-    
+
     #[test]
     fn test_diagnostic_style() {
         let theme = TuiTheme::dark_theme();
         let error_style = theme.get_diagnostic_style("error");
         assert_eq!(error_style.fg, Some(Color::Red));
-        
+
         let warning_style = theme.get_diagnostic_style("warning");
         assert_eq!(warning_style.fg, Some(Color::Yellow));
     }
-    
+
     #[test]
     fn test_available_themes() {
         let themes = TuiTheme::available_themes();

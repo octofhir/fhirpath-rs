@@ -32,15 +32,20 @@ use std::time::Instant;
 
 /// Create a shared EmbeddedModelProvider instance for all commands
 async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvider>> {
-    let provider = EmbeddedModelProvider::r4().await
+    let provider = EmbeddedModelProvider::r4()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize FHIR schema: {}", e))?;
     Ok(Arc::new(provider))
 }
 
 /// Create FhirPathEngine with the shared model provider
-async fn create_fhirpath_engine(model_provider: Arc<EmbeddedModelProvider>) -> anyhow::Result<FhirPathEngine> {
+async fn create_fhirpath_engine(
+    model_provider: Arc<EmbeddedModelProvider>,
+) -> anyhow::Result<FhirPathEngine> {
     let registry = Arc::new(create_standard_registry().await);
-    let engine = FhirPathEngine::new(registry, model_provider).await
+    let fhir_version = std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
+    let engine = FhirPathEngine::new_with_fhir_version(registry, model_provider, &fhir_version)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
     Ok(engine)
 }
@@ -148,7 +153,6 @@ fn convert_diagnostic_to_ariadne(
         related: Vec::new(), // TODO: Convert related diagnostics
     }
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -478,6 +482,7 @@ async fn handle_evaluate(
     let context_collection =
         octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource));
     let mut eval_context = octofhir_fhirpath::EvaluationContext::new(context_collection);
+
     if !variables.is_empty() {
         for (name, value) in variables {
             eval_context.set_variable(name, value);
@@ -556,13 +561,11 @@ async fn handle_evaluate(
 
         let execution_time = start_time.elapsed();
         match result {
-            Ok(fhir_path_value) => {
-                EvaluationOutput::from_fhir_path_value(
-                    fhir_path_value,
-                    expression.to_string(),
-                    execution_time,
-                )
-            },
+            Ok(fhir_path_value) => EvaluationOutput::from_fhir_path_value(
+                fhir_path_value,
+                expression.to_string(),
+                execution_time,
+            ),
             Err(e) => {
                 // Report diagnostic for evaluation error
                 let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
@@ -946,22 +949,24 @@ async fn handle_analyze_multi_error(
         // Phase 2: Run static analysis with shared model provider (UNIFIED)
         let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
         let analyzer = StaticAnalyzer::new(registry, model_provider.clone());
-        
+
         // Run the analysis on the parsed AST
         match analyzer.analyze(parse_result.ast.as_ref().unwrap()).await {
             Ok(analysis_result) => {
                 // Add static analysis diagnostics (Ariadne diagnostics are already in the result)
                 let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
-                
+
                 // Fix missing spans by calculating them from expression text
                 for diagnostic in &mut static_diagnostics {
                     if diagnostic.span == (0..0) {
-                        if let Some(span) = calculate_span_from_message(&diagnostic.message, expression) {
+                        if let Some(span) =
+                            calculate_span_from_message(&diagnostic.message, expression)
+                        {
                             diagnostic.span = span;
                         }
                     }
                 }
-                
+
                 all_diagnostics.extend(static_diagnostics);
             }
             Err(e) => {
@@ -979,11 +984,13 @@ async fn handle_analyze_multi_error(
 
     // Sort diagnostics before deduplication to ensure consistent ordering
     all_diagnostics.sort_by(|a, b| {
-        a.span.start.cmp(&b.span.start)
+        a.span
+            .start
+            .cmp(&b.span.start)
             .then(a.error_code.code.cmp(&b.error_code.code))
             .then(a.message.cmp(&b.message))
     });
-    
+
     // Deduplicate diagnostics based on message, error code, and span
     all_diagnostics.dedup_by(|a, b| {
         a.message == b.message && a.error_code == b.error_code && a.span == b.span
@@ -1003,14 +1010,16 @@ async fn handle_analyze_multi_error(
 
     // Exit with error code if there were any errors
     let has_errors = all_diagnostics.iter().any(|d| {
-        matches!(d.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error)
+        matches!(
+            d.severity,
+            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+        )
     });
 
     if has_errors {
         std::process::exit(1);
     }
 }
-
 
 /// Handle docs command - open documentation for error codes
 fn handle_docs(error_code: &str, cli: &Cli) {
@@ -1204,7 +1213,7 @@ fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::o
             }
         }
     }
-    
+
     None
 }
 
@@ -1221,9 +1230,9 @@ async fn handle_tui(
     check_terminal: bool,
     _cli: &Cli,
 ) {
-    use fhirpath_cli::tui::{start_tui, TuiConfig, check_terminal_capabilities};
+    use fhirpath_cli::tui::{TuiConfig, check_terminal_capabilities, start_tui};
     use serde_json::Value as JsonValue;
-    
+
     // Check terminal capabilities if requested
     if check_terminal {
         match check_terminal_capabilities() {
@@ -1276,15 +1285,15 @@ async fn handle_tui(
     if no_mouse {
         config.set_feature("mouse_support", false).ok();
     }
-    
+
     if no_syntax_highlighting {
         config.set_feature("syntax_highlighting", false).ok();
     }
-    
+
     if no_auto_completion {
         config.set_feature("auto_completion", false).ok();
     }
-    
+
     if performance_monitoring {
         config.set_feature("performance_monitoring", true).ok();
     }
@@ -1295,7 +1304,10 @@ async fn handle_tui(
         if let Some((name, value)) = var.split_once('=') {
             initial_variables.push((name.to_string(), value.to_string()));
         } else {
-            eprintln!("Warning: Invalid variable format '{}', expected 'name=value'", var);
+            eprintln!(
+                "Warning: Invalid variable format '{}', expected 'name=value'",
+                var
+            );
         }
     }
 
@@ -1304,7 +1316,10 @@ async fn handle_tui(
         match load_resource_from_input(input_path) {
             Ok(resource) => Some(resource),
             Err(e) => {
-                eprintln!("Warning: Failed to load resource from '{}': {}", input_path, e);
+                eprintln!(
+                    "Warning: Failed to load resource from '{}': {}",
+                    input_path, e
+                );
                 None
             }
         }
@@ -1314,7 +1329,10 @@ async fn handle_tui(
 
     // Show startup information
     if !config.ui_preferences.show_performance_info {
-        println!("🎨 Starting FHIRPath TUI with {} theme", config.theme.metadata.name);
+        println!(
+            "🎨 Starting FHIRPath TUI with {} theme",
+            config.theme.metadata.name
+        );
         if config.features.syntax_highlighting {
             println!("✨ Syntax highlighting enabled");
         }
@@ -1337,14 +1355,13 @@ async fn handle_tui(
 /// Load a resource from input (file path or JSON string)
 fn load_resource_from_input(input: &str) -> anyhow::Result<JsonValue> {
     use anyhow::Context;
-    
+
     if input.starts_with('{') || input.starts_with('[') {
         // Input looks like JSON, try to parse directly
         serde_json::from_str(input).context("Failed to parse input as JSON")
     } else {
         // Input is likely a file path
-        let content = std::fs::read_to_string(input)
-            .context("Failed to read input file")?;
+        let content = std::fs::read_to_string(input).context("Failed to read input file")?;
         serde_json::from_str(&content).context("Failed to parse file content as JSON")
     }
 }

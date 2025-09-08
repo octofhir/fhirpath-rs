@@ -540,7 +540,7 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
             // Convert FHIR resource back to JSON using Debug trait
             JsonValue::String(format!("{:?}", resource))
         }
-        FhirPathValue::JsonValue(json_val) => json_val,
+        FhirPathValue::JsonValue(json_val) => json_val.as_ref().clone(),
         FhirPathValue::TypeInfoObject { namespace, name } => {
             serde_json::json!({
                 "namespace": namespace.to_string(),

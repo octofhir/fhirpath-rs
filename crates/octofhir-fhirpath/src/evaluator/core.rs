@@ -8,15 +8,19 @@
 
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
+use std::sync::Arc;
 
 use crate::{
-    ast::{ExpressionNode, LiteralNode, IdentifierNode, VariableNode},
+    ast::{ExpressionNode, IdentifierNode, LiteralNode, VariableNode},
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
-    evaluator::{EvaluationContext, traits::{ExpressionEvaluator, MetadataAwareEvaluator}},
-    wrapped::{WrappedCollection, WrappedValue, ValueMetadata, collection_utils},
-    typing::{TypeResolver, type_utils},
-    path::CanonicalPath,
     evaluator::metadata_core::MetadataCoreEvaluator,
+    evaluator::{
+        EvaluationContext,
+        traits::{ExpressionEvaluator, MetadataAwareEvaluator},
+    },
+    path::CanonicalPath,
+    typing::{TypeResolver, type_utils},
+    wrapped::{ValueMetadata, WrappedCollection, WrappedValue, collection_utils},
 };
 
 /// Core evaluator for basic expression types
@@ -34,7 +38,7 @@ impl CoreEvaluator {
     /// Evaluate a literal expression
     fn evaluate_literal(&self, literal: &LiteralNode) -> Result<FhirPathValue> {
         use crate::ast::literal::LiteralValue;
-        
+
         let value = match &literal.value {
             LiteralValue::String(s) => FhirPathValue::String(s.clone()),
             LiteralValue::Integer(i) => FhirPathValue::Integer(*i),
@@ -43,11 +47,9 @@ impl CoreEvaluator {
             LiteralValue::Date(d) => FhirPathValue::Date(d.clone()),
             LiteralValue::DateTime(dt) => FhirPathValue::DateTime(dt.clone()),
             LiteralValue::Time(t) => FhirPathValue::Time(t.clone()),
-            LiteralValue::Quantity { value, unit } => {
-                FhirPathValue::quantity(*value, unit.clone())
-            },
+            LiteralValue::Quantity { value, unit } => FhirPathValue::quantity(*value, unit.clone()),
         };
-        
+
         Ok(value)
     }
 
@@ -61,7 +63,7 @@ impl CoreEvaluator {
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
         let name = &identifier.name;
-        
+
         // Special case: empty context
         if context.start_context.is_empty() {
             return Ok(FhirPathValue::Empty);
@@ -70,16 +72,16 @@ impl CoreEvaluator {
         // For identifiers, we perform property access on the current start context
         // This handles cases like "Patient" when the context is a Patient resource
         let mut results = Vec::new();
-        
+
         for value in context.start_context.iter() {
             match self.resolve_identifier_in_value(value, name)? {
-                FhirPathValue::Empty => {}, // Skip empty results
+                FhirPathValue::Empty => {} // Skip empty results
                 FhirPathValue::Collection(vec) => {
                     results.extend(vec);
-                },
+                }
                 single_value => {
                     results.push(single_value);
-                },
+                }
             }
         }
 
@@ -97,12 +99,8 @@ impl CoreEvaluator {
         identifier: &str,
     ) -> Result<FhirPathValue> {
         match value {
-            FhirPathValue::Resource(json) => {
-                self.resolve_identifier_in_json(json, identifier)
-            },
-            FhirPathValue::JsonValue(json) => {
-                self.resolve_identifier_in_json(json, identifier)
-            },
+            FhirPathValue::Resource(json) => self.resolve_identifier_in_json(json, identifier),
+            FhirPathValue::JsonValue(json) => self.resolve_identifier_in_json(json, identifier),
             // For other value types, check if the identifier matches the type name
             _ => {
                 if identifier == value.type_name() {
@@ -132,26 +130,26 @@ impl CoreEvaluator {
                     if let Some(type_str) = resource_type.as_str() {
                         if identifier == type_str {
                             // Return the entire resource when resourceType matches
-                            return Ok(FhirPathValue::Resource(json.clone()));
+                            return Ok(FhirPathValue::Resource(Arc::new(json.clone())));
                         }
                     }
                 }
 
                 // No match found
                 Ok(FhirPathValue::Empty)
-            },
+            }
             JsonValue::Array(arr) => {
                 // For arrays, try to resolve the identifier in each element
                 let mut results = Vec::new();
                 for item in arr {
                     match self.resolve_identifier_in_json(item, identifier)? {
-                        FhirPathValue::Empty => {}, // Skip empty results
+                        FhirPathValue::Empty => {} // Skip empty results
                         FhirPathValue::Collection(vec) => {
                             results.extend(vec);
-                        },
+                        }
                         single_value => {
                             results.push(single_value);
-                        },
+                        }
                     }
                 }
 
@@ -160,7 +158,7 @@ impl CoreEvaluator {
                     1 => results.into_iter().next().unwrap(),
                     _ => FhirPathValue::Collection(results),
                 })
-            },
+            }
             _ => Ok(FhirPathValue::Empty),
         }
     }
@@ -176,16 +174,16 @@ impl CoreEvaluator {
                 } else if let Some(f) = n.as_f64() {
                     match rust_decimal::Decimal::from_f64_retain(f) {
                         Some(d) => FhirPathValue::Decimal(d),
-                        None => FhirPathValue::JsonValue(JsonValue::Number(n)),
+                        None => FhirPathValue::JsonValue(Arc::new(JsonValue::Number(n))),
                     }
                 } else {
-                    FhirPathValue::JsonValue(JsonValue::Number(n))
+                    FhirPathValue::JsonValue(Arc::new(JsonValue::Number(n)))
                 }
-            },
+            }
             JsonValue::String(s) => {
                 // For now, just return as string - temporal parsing will be added later
                 FhirPathValue::String(s.clone())
-            },
+            }
             JsonValue::Array(arr) => {
                 if arr.is_empty() {
                     FhirPathValue::Empty
@@ -194,15 +192,15 @@ impl CoreEvaluator {
                         .into_iter()
                         .map(|v| self.json_to_fhir_path_value(v))
                         .collect();
-                    
+
                     if values.len() == 1 {
                         values.into_iter().next().unwrap()
                     } else {
                         FhirPathValue::Collection(values)
                     }
                 }
-            },
-            JsonValue::Object(_) => FhirPathValue::Resource(json),
+            }
+            JsonValue::Object(_) => FhirPathValue::Resource(Arc::new(json)),
         }
     }
 
@@ -213,18 +211,18 @@ impl CoreEvaluator {
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
         let name = &variable.name;
-        
+
         // Check for user-defined variables first
         if let Some(value) = context.get_variable(name) {
             return Ok(value.clone());
         }
-        
+
         // Check for built-in variables (with % prefix)
         let prefixed_name = format!("%{}", name);
         if let Some(value) = context.get_variable(&prefixed_name) {
             return Ok(value.clone());
         }
-        
+
         // Handle special built-in variables explicitly
         match name.as_str() {
             "this" => {
@@ -235,20 +233,21 @@ impl CoreEvaluator {
                     Ok(context.start_context.first().unwrap().clone())
                 } else {
                     // Multiple items - return as collection
-                    let values: Vec<FhirPathValue> = context.start_context.iter().cloned().collect();
+                    let values: Vec<FhirPathValue> =
+                        context.start_context.iter().cloned().collect();
                     Ok(FhirPathValue::Collection(values))
                 }
-            },
+            }
             "index" => {
                 // $index is used in lambda contexts - for now return 0
                 // This will be properly handled by the lambda evaluator
                 Ok(FhirPathValue::Integer(0))
-            },
+            }
             "total" => {
                 // $total is used in aggregate contexts - return empty for now
                 // This will be properly handled by aggregate functions
                 Ok(FhirPathValue::Empty)
-            },
+            }
             _ => {
                 // Unknown variable
                 Err(FhirPathError::evaluation_error(
@@ -268,9 +267,11 @@ impl CoreEvaluator {
     ) -> Result<WrappedCollection> {
         // Use the new metadata-aware evaluator
         let mut metadata_evaluator = MetadataCoreEvaluator::new();
-        metadata_evaluator.evaluate_with_metadata(expr, context, resolver).await
+        metadata_evaluator
+            .evaluate_with_metadata(expr, context, resolver)
+            .await
     }
-    
+
     /// Convert evaluation result to wrapped collection
     pub async fn wrap_evaluation_result(
         &self,
@@ -293,7 +294,7 @@ impl CoreEvaluator {
             }
         }
     }
-    
+
     /// Infer wrapped value from plain FhirPathValue
     async fn infer_wrapped_value(
         &self,
@@ -307,14 +308,14 @@ impl CoreEvaluator {
         } else {
             CanonicalPath::empty()
         };
-        
+
         let metadata = ValueMetadata {
             fhir_type,
             resource_type: None,
             path,
             index: if index > 0 { Some(index) } else { None },
         };
-        
+
         Ok(WrappedValue::new(value, metadata))
     }
 }
@@ -339,20 +340,24 @@ impl ExpressionEvaluator for CoreEvaluator {
             ExpressionNode::Parenthesized(inner) => {
                 // For parenthesized expressions, just evaluate the inner expression
                 Box::pin(self.evaluate(inner, context)).await
-            },
+            }
             _ => Err(FhirPathError::evaluation_error(
                 FP0051,
-                format!("CoreEvaluator cannot handle expression type: {}", expr.node_type()),
+                format!(
+                    "CoreEvaluator cannot handle expression type: {}",
+                    expr.node_type()
+                ),
             )),
         }
     }
 
     fn can_evaluate(&self, expr: &ExpressionNode) -> bool {
-        matches!(expr, 
-            ExpressionNode::Literal(_) | 
-            ExpressionNode::Identifier(_) | 
-            ExpressionNode::Variable(_) |
-            ExpressionNode::Parenthesized(_)
+        matches!(
+            expr,
+            ExpressionNode::Literal(_)
+                | ExpressionNode::Identifier(_)
+                | ExpressionNode::Variable(_)
+                | ExpressionNode::Parenthesized(_)
         )
     }
 
@@ -383,7 +388,7 @@ mod tests {
             }],
             "age": 25
         })));
-        
+
         EvaluationContext::new(patient)
     }
 
@@ -421,7 +426,10 @@ mod tests {
             value: LiteralValue::Decimal(dec!(3.14)),
             location: None,
         });
-        let result = evaluator.evaluate(&decimal_literal, &context).await.unwrap();
+        let result = evaluator
+            .evaluate(&decimal_literal, &context)
+            .await
+            .unwrap();
         assert_eq!(result, FhirPathValue::Decimal(dec!(3.14)));
     }
 
@@ -435,13 +443,19 @@ mod tests {
             name: "Patient".to_string(),
             location: None,
         });
-        let result = evaluator.evaluate(&patient_identifier, &context).await.unwrap();
-        
+        let result = evaluator
+            .evaluate(&patient_identifier, &context)
+            .await
+            .unwrap();
+
         // Should return the Patient resource since resourceType matches
         match result {
             FhirPathValue::Resource(json) => {
-                assert_eq!(json.get("resourceType").unwrap().as_str().unwrap(), "Patient");
-            },
+                assert_eq!(
+                    json.get("resourceType").unwrap().as_str().unwrap(),
+                    "Patient"
+                );
+            }
             _ => panic!("Expected Resource value"),
         }
 
@@ -458,7 +472,10 @@ mod tests {
             name: "nonexistent".to_string(),
             location: None,
         });
-        let result = evaluator.evaluate(&missing_identifier, &context).await.unwrap();
+        let result = evaluator
+            .evaluate(&missing_identifier, &context)
+            .await
+            .unwrap();
         assert_eq!(result, FhirPathValue::Empty);
     }
 
@@ -466,9 +483,12 @@ mod tests {
     async fn test_variable_evaluation() {
         let mut evaluator = CoreEvaluator::new();
         let mut context = create_test_context();
-        
+
         // Add a custom variable
-        context.set_variable("myVar".to_string(), FhirPathValue::String("custom".to_string()));
+        context.set_variable(
+            "myVar".to_string(),
+            FhirPathValue::String("custom".to_string()),
+        );
 
         // Test custom variable
         let custom_var = ExpressionNode::Variable(VariableNode {
@@ -484,12 +504,15 @@ mod tests {
             location: None,
         });
         let result = evaluator.evaluate(&this_var, &context).await.unwrap();
-        
+
         // Should return the current context (Patient resource)
         match result {
             FhirPathValue::Resource(json) => {
-                assert_eq!(json.get("resourceType").unwrap().as_str().unwrap(), "Patient");
-            },
+                assert_eq!(
+                    json.get("resourceType").unwrap().as_str().unwrap(),
+                    "Patient"
+                );
+            }
             _ => panic!("Expected Resource value for $this"),
         }
 
@@ -513,7 +536,7 @@ mod tests {
             location: None,
         });
         let parenthesized = ExpressionNode::Parenthesized(Box::new(inner));
-        
+
         let result = evaluator.evaluate(&parenthesized, &context).await.unwrap();
         assert_eq!(result, FhirPathValue::String("test".to_string()));
     }
@@ -543,7 +566,7 @@ mod tests {
     #[tokio::test]
     async fn test_array_property_resolution() {
         let mut evaluator = CoreEvaluator::new();
-        
+
         // Create context with array property
         let patient = Collection::single(FhirPathValue::resource(json!({
             "resourceType": "Patient",
@@ -559,8 +582,11 @@ mod tests {
             name: "name".to_string(),
             location: None,
         });
-        let result = evaluator.evaluate(&name_identifier, &context).await.unwrap();
-        
+        let result = evaluator
+            .evaluate(&name_identifier, &context)
+            .await
+            .unwrap();
+
         // Should return collection of name objects
         match result {
             FhirPathValue::Collection(values) => {
@@ -571,11 +597,11 @@ mod tests {
                         FhirPathValue::Resource(json) => {
                             assert!(json.get("family").is_some());
                             assert!(json.get("given").is_some());
-                        },
+                        }
                         _ => panic!("Expected Resource value in collection"),
                     }
                 }
-            },
+            }
             _ => panic!("Expected Collection for array property"),
         }
     }

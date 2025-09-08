@@ -22,6 +22,7 @@ use chrono::{DateTime, Utc};
 use clap::{Arg, Command};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 // Integration test runner functionality
 mod integration_test_runner {
@@ -281,7 +282,7 @@ mod integration_test_runner {
 
         /// Convert expected JSON value to FhirPathValue for comparison
         fn convert_expected_value(&self, expected: &Value) -> FhirPathValue {
-            FhirPathValue::JsonValue(expected.clone())
+            FhirPathValue::JsonValue(Arc::new(expected.clone()))
         }
 
         /// Compare actual collection result with expected result

@@ -214,7 +214,7 @@ impl EngineConfig {
             max_cache_size: 0,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
-            enable_metadata: false, // Disable to save memory
+            enable_metadata: false,        // Disable to save memory
             enable_type_resolution: false, // Disable to save memory
             enable_type_caching: false,
             enable_path_tracking: false, // Disable to save memory

@@ -519,14 +519,8 @@ impl FhirPathCompleter {
                 // We're typing the value part - suggest common expression patterns
                 let suggestions = [
                     ("Patient.name.first().given.first()", "first name"),
-                    (
-                        "Patient.telecom.where(use='work').value",
-                        "work contact",
-                    ),
-                    (
-                        "Patient.telecom.where(system='email').value",
-                        "email",
-                    ),
+                    ("Patient.telecom.where(use='work').value", "work contact"),
+                    ("Patient.telecom.where(system='email').value", "email"),
                     ("Patient.active", "active"),
                     ("'simple string'", "string"),
                     ("today()", "today"),
@@ -664,8 +658,7 @@ impl Hinter for FhirPathCompleter {
         // Enhanced command hints
         if line == ":" {
             return Some(
-                "load | set | vars | help | quit | type | explain | analyze | validate"
-                    .to_string(),
+                "load | set | vars | help | quit | type | explain | analyze | validate".to_string(),
             );
         }
 
@@ -713,9 +706,7 @@ impl FhirPathCompleter {
     fn get_expression_hint(&self, line: &str) -> Option<String> {
         // Hint for dot operations
         if line.ends_with(".") {
-            return Some(
-                "first() | count() | where() | select() | exists()".to_string(),
-            );
+            return Some("first() | count() | where() | select() | exists()".to_string());
         }
 
         // Hint for where clauses

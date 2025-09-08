@@ -1,6 +1,7 @@
 //! FHIR utilities for registry functions
 
 use serde_json::{Map, Value as JsonValue};
+use std::sync::Arc;
 
 use crate::core::{FhirPathValue, Result};
 
@@ -140,7 +141,7 @@ fn json_to_value(v: JsonValue) -> FhirPathValue {
             let values = arr.into_iter().map(json_to_value).collect();
             FhirPathValue::Collection(values)
         }
-        JsonValue::Object(_) => FhirPathValue::Resource(v),
+        JsonValue::Object(_) => FhirPathValue::Resource(Arc::new(v)),
         JsonValue::Null => FhirPathValue::Empty,
     }
 }

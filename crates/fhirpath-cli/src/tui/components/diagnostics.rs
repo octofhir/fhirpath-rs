@@ -20,7 +20,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 use ratatui::{Frame, text::Text};
 
-use super::{ComponentResult, TuiComponent, SizeConstraints, ScrollState, utils};
+use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
@@ -45,12 +45,14 @@ impl DiagnosticsPanel {
 impl TuiComponent for DiagnosticsPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
         let is_focused = state.focused_panel == PanelType::Diagnostics;
-        let block = utils::create_panel_block("Diagnostics", PanelType::Diagnostics, is_focused, theme);
-        
+        let block =
+            utils::create_panel_block("Diagnostics", PanelType::Diagnostics, is_focused, theme);
+
         let items: Vec<ListItem> = if state.diagnostics.is_empty() {
             vec![ListItem::new("No diagnostics")]
         } else {
-            state.diagnostics
+            state
+                .diagnostics
                 .iter()
                 .map(|diagnostic| {
                     let severity_str = format!("{:?}", diagnostic.severity).to_uppercase();
@@ -59,17 +61,17 @@ impl TuiComponent for DiagnosticsPanel {
                 })
                 .collect()
         };
-        
+
         let list = List::new(items)
             .block(block)
             .highlight_style(theme.styles.selected_item);
-            
+
         frame.render_stateful_widget(list, area, &mut self.list_state);
     }
-    
+
     fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult {
         use crossterm::event::KeyCode;
-        
+
         match key.code {
             KeyCode::Up => {
                 self.scroll_state.select_previous(state.diagnostics.len());
@@ -81,17 +83,15 @@ impl TuiComponent for DiagnosticsPanel {
                 self.list_state.select(self.scroll_state.selected_index);
                 ComponentResult::Handled
             }
-            KeyCode::Enter => {
-                ComponentResult::ToggleDiagnosticDetails
-            }
+            KeyCode::Enter => ComponentResult::ToggleDiagnosticDetails,
             _ => ComponentResult::NotHandled,
         }
     }
-    
+
     fn update(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     fn size_constraints(&self) -> SizeConstraints {
         SizeConstraints {
             min_height: Some(3),

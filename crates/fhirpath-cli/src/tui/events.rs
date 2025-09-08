@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Event Handling System
-//! 
+//!
 //! This module provides a comprehensive event handling system with customizable
 //! key bindings, context-aware actions, and efficient event routing.
 
@@ -57,24 +57,28 @@ impl EventHandler {
     pub fn new(key_bindings: KeyBindings) -> Self {
         Self { key_bindings }
     }
-    
+
     /// Handle a key event and return the appropriate action
     pub fn handle_key_event(&self, key: KeyEvent, state: &AppState) -> TuiAction {
         // First check for global key bindings
         if let Some(action) = self.key_bindings.get_global_action(&key) {
             return action;
         }
-        
+
         // Then check for panel-specific bindings
-        if let Some(action) = self.key_bindings.get_panel_action(&key, state.focused_panel) {
+        if let Some(action) = self
+            .key_bindings
+            .get_panel_action(&key, state.focused_panel)
+        {
             return action;
         }
-        
+
         // Finally check for mode-specific bindings
-        self.key_bindings.get_mode_action(&key, AppMode::Normal)
+        self.key_bindings
+            .get_mode_action(&key, AppMode::Normal)
             .unwrap_or(TuiAction::NoAction)
     }
-    
+
     /// Update key bindings configuration
     pub fn set_key_bindings(&mut self, bindings: KeyBindings) {
         self.key_bindings = bindings;
@@ -86,10 +90,10 @@ impl EventHandler {
 pub enum TuiAction {
     /// No action (event not handled)
     NoAction,
-    
+
     /// Exit the application
     Quit,
-    
+
     // Navigation actions
     /// Focus a specific panel
     FocusPanel(PanelType),
@@ -97,7 +101,7 @@ pub enum TuiAction {
     NextPanel,
     /// Move focus to previous panel
     PreviousPanel,
-    
+
     // Input actions
     /// Execute the current expression
     ExecuteExpression,
@@ -125,7 +129,7 @@ pub enum TuiAction {
     DeleteWord,
     /// Delete to end of line
     DeleteToEnd,
-    
+
     // History actions
     /// Navigate to previous history item
     HistoryPrevious,
@@ -135,7 +139,7 @@ pub enum TuiAction {
     LoadFromHistory(usize),
     /// Clear history
     ClearHistory,
-    
+
     // Selection and scrolling
     /// Scroll up in current panel
     ScrollUp,
@@ -151,7 +155,7 @@ pub enum TuiAction {
     SelectNext,
     /// Activate/enter selected item
     ActivateSelected,
-    
+
     // Variable management
     /// Set a variable
     SetVariable(String, String),
@@ -159,13 +163,13 @@ pub enum TuiAction {
     UnsetVariable(String),
     /// Edit selected variable
     EditVariable(String),
-    
+
     // Resource management
     /// Load resource from file
     LoadResource(String),
     /// Clear current resource
     ClearResource,
-    
+
     // Mode toggles
     /// Toggle application mode
     ToggleMode(AppMode),
@@ -175,7 +179,7 @@ pub enum TuiAction {
     ToggleSettings,
     /// Toggle diagnostic details
     ToggleDiagnosticDetails,
-    
+
     // Panel-specific actions
     /// Copy result to clipboard
     CopyResult,
@@ -183,7 +187,7 @@ pub enum TuiAction {
     ExportResults(String),
     /// Change output format
     ChangeOutputFormat(OutputFormat),
-    
+
     // Configuration actions
     /// Save current configuration
     SaveConfiguration,
@@ -222,13 +226,13 @@ impl KeyBindings {
             mode_bindings: HashMap::new(),
         }
     }
-    
+
     /// Get global action for key event
     pub fn get_global_action(&self, key: &KeyEvent) -> Option<TuiAction> {
         let wrapper = KeyEventWrapper::from(key.clone());
         self.global.get(&wrapper).cloned()
     }
-    
+
     /// Get panel-specific action for key event
     pub fn get_panel_action(&self, key: &KeyEvent, panel: PanelType) -> Option<TuiAction> {
         let wrapper = KeyEventWrapper::from(key.clone());
@@ -237,7 +241,7 @@ impl KeyBindings {
             .and_then(|bindings| bindings.get(&wrapper))
             .cloned()
     }
-    
+
     /// Get mode-specific action for key event
     pub fn get_mode_action(&self, key: &KeyEvent, mode: AppMode) -> Option<TuiAction> {
         let wrapper = KeyEventWrapper::from(key.clone());
@@ -246,13 +250,13 @@ impl KeyBindings {
             .and_then(|bindings| bindings.get(&wrapper))
             .cloned()
     }
-    
+
     /// Add a global key binding
     pub fn bind_global(&mut self, key: KeyEvent, action: TuiAction) {
         let wrapper = KeyEventWrapper::from(key);
         self.global.insert(wrapper, action);
     }
-    
+
     /// Add a panel-specific key binding
     pub fn bind_panel(&mut self, panel: PanelType, key: KeyEvent, action: TuiAction) {
         let wrapper = KeyEventWrapper::from(key);
@@ -261,7 +265,7 @@ impl KeyBindings {
             .or_insert_with(HashMap::new)
             .insert(wrapper, action);
     }
-    
+
     /// Add a mode-specific key binding
     pub fn bind_mode(&mut self, mode: AppMode, key: KeyEvent, action: TuiAction) {
         let wrapper = KeyEventWrapper::from(key);
@@ -270,15 +274,15 @@ impl KeyBindings {
             .or_insert_with(HashMap::new)
             .insert(wrapper, action);
     }
-    
+
     /// Load key bindings from configuration
     pub fn from_config(config: &HashMap<String, String>) -> anyhow::Result<Self> {
         let mut bindings = Self::default();
-        
+
         for (key_str, action_str) in config {
             let key = parse_key_string(key_str)?;
             let action = parse_action_string(action_str)?;
-            
+
             // Determine context from action string prefix
             if action_str.starts_with("global:") {
                 bindings.bind_global(key, action);
@@ -290,7 +294,7 @@ impl KeyBindings {
                 }
             }
         }
-        
+
         Ok(bindings)
     }
 }
@@ -298,7 +302,7 @@ impl KeyBindings {
 impl Default for KeyBindings {
     fn default() -> Self {
         let mut bindings = Self::new();
-        
+
         // Global key bindings
         bindings.bind_global(
             KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL),
@@ -324,7 +328,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE),
             TuiAction::ToggleSettings,
         );
-        
+
         // Input panel bindings
         bindings.bind_panel(
             PanelType::Input,
@@ -381,7 +385,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
             TuiAction::Backspace,
         );
-        
+
         // Output panel bindings
         bindings.bind_panel(
             PanelType::Output,
@@ -408,7 +412,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
             TuiAction::CopyResult,
         );
-        
+
         // Diagnostics panel bindings
         bindings.bind_panel(
             PanelType::Diagnostics,
@@ -425,7 +429,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
             TuiAction::ToggleDiagnosticDetails,
         );
-        
+
         // Variables panel bindings
         bindings.bind_panel(
             PanelType::Variables,
@@ -447,7 +451,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
             TuiAction::UnsetVariable("".to_string()), // Will be filled by handler
         );
-        
+
         // History panel bindings
         bindings.bind_panel(
             PanelType::History,
@@ -469,7 +473,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
             TuiAction::ClearHistory,
         );
-        
+
         // Help panel bindings
         bindings.bind_panel(
             PanelType::Help,
@@ -491,7 +495,7 @@ impl Default for KeyBindings {
             KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
             TuiAction::PageDown,
         );
-        
+
         bindings
     }
 }
@@ -500,9 +504,9 @@ impl Default for KeyBindings {
 fn parse_key_string(key_str: &str) -> anyhow::Result<KeyEvent> {
     let mut modifiers = KeyModifiers::NONE;
     let mut key_code = KeyCode::Char(' ');
-    
+
     let parts: Vec<&str> = key_str.split('+').collect();
-    
+
     for part in &parts[..parts.len() - 1] {
         match part.to_lowercase().as_str() {
             "ctrl" => modifiers |= KeyModifiers::CONTROL,
@@ -511,7 +515,7 @@ fn parse_key_string(key_str: &str) -> anyhow::Result<KeyEvent> {
             _ => anyhow::bail!("Unknown modifier: {}", part),
         }
     }
-    
+
     let key_part = parts.last().unwrap();
     key_code = match key_part.to_lowercase().as_str() {
         "enter" => KeyCode::Enter,
@@ -543,7 +547,7 @@ fn parse_key_string(key_str: &str) -> anyhow::Result<KeyEvent> {
         key if key.len() == 1 => KeyCode::Char(key.chars().next().unwrap()),
         _ => anyhow::bail!("Unknown key: {}", key_part),
     };
-    
+
     Ok(KeyEvent::new(key_code, modifiers))
 }
 
@@ -555,7 +559,7 @@ fn parse_action_string(action_str: &str) -> anyhow::Result<TuiAction> {
         .or_else(|| action_str.strip_prefix("panel:"))
         .map(|s| s.split_once(':').map(|(_, action)| action).unwrap_or(s))
         .unwrap_or(action_str);
-    
+
     match action_str {
         "quit" => Ok(TuiAction::Quit),
         "next_panel" => Ok(TuiAction::NextPanel),
@@ -587,7 +591,7 @@ fn parse_action_string(action_str: &str) -> anyhow::Result<TuiAction> {
 
 impl std::str::FromStr for PanelType {
     type Err = anyhow::Error;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "input" => Ok(PanelType::Input),
@@ -604,50 +608,47 @@ impl std::str::FromStr for PanelType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_key_string() {
         assert_eq!(
             parse_key_string("Ctrl+C").unwrap(),
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)
         );
-        
+
         assert_eq!(
             parse_key_string("Alt+Enter").unwrap(),
             KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT)
         );
-        
+
         assert_eq!(
             parse_key_string("F1").unwrap(),
             KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)
         );
     }
-    
+
     #[test]
     fn test_parse_action_string() {
-        assert_eq!(
-            parse_action_string("quit").unwrap(),
-            TuiAction::Quit
-        );
-        
+        assert_eq!(parse_action_string("quit").unwrap(), TuiAction::Quit);
+
         assert_eq!(
             parse_action_string("global:next_panel").unwrap(),
             TuiAction::NextPanel
         );
-        
+
         assert_eq!(
             parse_action_string("panel:input:execute_expression").unwrap(),
             TuiAction::ExecuteExpression
         );
     }
-    
+
     #[test]
     fn test_key_bindings() {
         let bindings = KeyBindings::default();
-        
+
         let quit_key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL);
         assert_eq!(bindings.get_global_action(&quit_key), Some(TuiAction::Quit));
-        
+
         let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
         assert_eq!(
             bindings.get_panel_action(&enter_key, PanelType::Input),

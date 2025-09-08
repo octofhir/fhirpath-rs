@@ -113,7 +113,10 @@ impl StaticAnalyzer {
         Self {
             function_registry: function_registry.clone(),
             type_checker: TypeChecker::new(function_registry.clone(), model_provider.clone()),
-            property_validator: PropertyValidator::new(model_provider.clone(), function_registry.clone()),
+            property_validator: PropertyValidator::new(
+                model_provider.clone(),
+                function_registry.clone(),
+            ),
             max_depth: 50,
             max_complexity: 100,
         }
@@ -158,7 +161,7 @@ impl StaticAnalyzer {
         // Phase 3: Property Validation
         let property_analysis = self.property_validator.validate(expression).await?;
         warnings.extend(property_analysis.warnings);
-        
+
         // Collect enhanced Ariadne diagnostics from PropertyValidator
         let ariadne_diagnostics = property_analysis.ariadne_diagnostics;
 

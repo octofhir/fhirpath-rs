@@ -8,8 +8,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 
 use super::terminology_utils::{
-    Coding, ConceptDesignation, ConceptProperty, ConceptTranslation,
-    TerminologyUtils,
+    Coding, ConceptDesignation, ConceptProperty, ConceptTranslation, TerminologyUtils,
 };
 use crate::core::error_code::FP0200;
 use crate::core::{FhirPathError, FhirPathValue, Result};
@@ -140,9 +139,23 @@ pub struct DefaultTerminologyProvider {
 }
 
 impl DefaultTerminologyProvider {
-    /// Create a new DefaultTerminologyProvider using tx.fhir.org
+    /// Create a new DefaultTerminologyProvider using tx.fhir.org with default FHIR version (R4)
     pub fn new() -> Self {
-        Self::with_server_url("https://tx.fhir.org/r4")
+        Self::with_fhir_version("r4")
+    }
+
+    /// Create a new DefaultTerminologyProvider with specific FHIR version
+    ///
+    /// # Arguments
+    /// * `fhir_version` - FHIR version ("r4", "r4b", "r5", etc.). Defaults to "r4" if not specified.
+    pub fn with_fhir_version(fhir_version: &str) -> Self {
+        let version = if fhir_version.is_empty() {
+            "r4"
+        } else {
+            fhir_version
+        };
+        let server_url = format!("https://tx.fhir.org/{}", version.to_lowercase());
+        Self::with_server_url(server_url)
     }
 
     /// Create a new DefaultTerminologyProvider with custom server URL

@@ -93,7 +93,7 @@ impl BinaryOperator {
             // Additive operators: +, -, & (spec level 5 -> internal 9)
             Self::Add | Self::Subtract | Self::Concatenate => 9,
 
-            // Type operators: is, as (spec level 6 -> internal 8) 
+            // Type operators: is, as (spec level 6 -> internal 8)
             Self::Is | Self::As => 8,
 
             // Collection union: | (spec level 7 -> internal 7)

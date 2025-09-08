@@ -8,10 +8,14 @@ pub mod types;
 pub mod value;
 
 pub use error::*;
-pub use model_provider::*;
 pub use temporal::*;
 pub use types::*;
-pub use value::*;
+
+// Re-export specific items from model_provider (avoiding utils conflict)
+pub use model_provider::ModelProvider;
+
+// Re-export specific items from value (avoiding utils conflict)
+pub use value::JsonValueExt;
 
 // Re-export utils modules with qualified names to avoid conflicts
 pub use model_provider::utils as model_provider_utils;

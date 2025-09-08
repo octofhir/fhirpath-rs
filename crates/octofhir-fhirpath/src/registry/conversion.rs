@@ -50,7 +50,11 @@ impl FunctionRegistry {
                 "Patient.birthDate.toString()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.input.len() != 1 {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
+                if context.input.len() > 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
                         "toString() can only be called on a single value"
@@ -110,7 +114,11 @@ impl FunctionRegistry {
                 "true.toInteger()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.input.len() != 1 {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
+                if context.input.len() > 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
                         "toInteger() can only be called on a single value"
@@ -129,11 +137,15 @@ impl FunctionRegistry {
                             ))?
                     }
                     Some(FhirPathValue::String(s)) => {
-                        s.trim().parse::<i64>()
-                            .map_err(|_| FhirPathError::evaluation_error(
-                                FP0058,
-                                &format!("Cannot convert '{}' to integer", s)
-                            ))?
+                        let trimmed = s.trim();
+                        // Per FHIRPath specification, strings with decimal points should not convert to integers
+                        if trimmed.contains('.') {
+                            return Ok(FhirPathValue::empty());
+                        }
+                        match trimmed.parse::<i64>() {
+                            Ok(int_val) => int_val,
+                            Err(_) => return Ok(FhirPathValue::empty()), // Return empty for failed conversion per FHIRPath specification
+                        }
                     }
                     Some(FhirPathValue::Boolean(b)) => if *b { 1 } else { 0 },
                     Some(_) => {
@@ -169,7 +181,11 @@ impl FunctionRegistry {
                 "'3.14159'.toDecimal()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.input.len() != 1 {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
+                if context.input.len() > 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
                         "toDecimal() can only be called on a single value"
@@ -180,11 +196,10 @@ impl FunctionRegistry {
                     Some(FhirPathValue::Decimal(d)) => *d,
                     Some(FhirPathValue::Integer(i)) => Decimal::from(*i),
                     Some(FhirPathValue::String(s)) => {
-                        s.trim().parse::<Decimal>()
-                            .map_err(|_| FhirPathError::evaluation_error(
-                                FP0058,
-                                &format!("Cannot convert '{}' to decimal", s)
-                            ))?
+                        match s.trim().parse::<Decimal>() {
+                            Ok(decimal_val) => decimal_val,
+                            Err(_) => return Ok(FhirPathValue::empty()), // Return empty for failed conversion per FHIRPath specification
+                        }
                     }
                     Some(FhirPathValue::Boolean(b)) => Decimal::from(if *b { 1 } else { 0 }),
                     Some(_) => {
@@ -291,7 +306,6 @@ impl FunctionRegistry {
                 "'2023-12-25T10:30:00Z'.toDate()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                println!("{:#?}", context.input);
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -446,7 +460,7 @@ impl FunctionRegistry {
     }
 
     // Helper functions for parsing
-    fn parse_date_string(input: &str) -> Result<PrecisionDate> {
+    pub fn parse_date_string(input: &str) -> Result<PrecisionDate> {
         let trimmed = input.trim();
 
         if let Some(pdt) = PrecisionDateTime::parse(trimmed) {
@@ -478,7 +492,7 @@ impl FunctionRegistry {
         ))
     }
 
-    fn parse_datetime_string(input: &str) -> Result<PrecisionDateTime> {
+    pub fn parse_datetime_string(input: &str) -> Result<PrecisionDateTime> {
         let trimmed = input.trim();
         // Use unified precision-aware parser that supports partial precisions and timezones
         if let Some(pdt) = PrecisionDateTime::parse(trimmed) {

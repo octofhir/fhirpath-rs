@@ -17,6 +17,11 @@ impl FunctionRegistry {
         self.register_subsumes_function()?;
         self.register_designation_function()?;
         self.register_property_function()?;
+
+        // Register %terminologies built-in functions
+        self.register_expand_function()?;
+        self.register_validate_vs_function()?;
+
         Ok(())
     }
 
@@ -431,5 +436,149 @@ impl FunctionRegistry {
                 })
             }
         )
+    }
+
+    fn register_expand_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            async "expand",
+            category: FunctionCategory::Terminology,
+            description: "Expand a ValueSet to get all member codes (called on %terminologies)",
+            parameters: ["valueset": Some("string".to_string()) => "ValueSet URL or identifier"],
+            return_type: "resource",
+            examples: [
+                "%terminologies.expand('http://hl7.org/fhir/ValueSet/administrative-gender')"
+            ],
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
+                Box::pin(async move {
+                    // This function should only be called on %terminologies
+                    if !Self::is_terminologies_input(&context.input) {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "expand() can only be called on %terminologies".to_string(),
+                        ));
+                    }
+
+                    if context.arguments.len() != 1 {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0053,
+                            "expand() requires exactly one argument (ValueSet URL)".to_string(),
+                        ));
+                    }
+
+                    let valueset_url = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0051,
+                                "expand() ValueSet argument must be a string".to_string(),
+                            ));
+                        }
+                    };
+
+                    // Get terminology service from context
+                    let svc = match context.terminology {
+                        Some(s) => s,
+                        None => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0200,
+                                "Terminology service is not configured".to_string(),
+                            ));
+                        }
+                    };
+
+                    // Call expand and return the result
+                    let expansion_result = svc.expand(valueset_url, None).await?;
+
+                    // Return the ValueSet expansion result
+                    if expansion_result.is_empty() {
+                        Ok(FhirPathValue::Empty)
+                    } else {
+                        Ok(expansion_result.first().unwrap().clone())
+                    }
+                })
+            }
+        )
+    }
+
+    fn register_validate_vs_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            async "validateVS",
+            category: FunctionCategory::Terminology,
+            description: "Validate a code against a ValueSet (called on %terminologies)",
+            parameters: [
+                "valueset": Some("string".to_string()) => "ValueSet URL or identifier",
+                "coded": Some("coding".to_string()) => "Coding or code to validate"
+            ],
+            return_type: "resource",
+            examples: [
+                "%terminologies.validateVS('http://hl7.org/fhir/ValueSet/administrative-gender', $this.gender)"
+            ],
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
+                Box::pin(async move {
+                    // This function should only be called on %terminologies
+                    if !Self::is_terminologies_input(&context.input) {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "validateVS() can only be called on %terminologies".to_string(),
+                        ));
+                    }
+
+                    if context.arguments.len() != 2 {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0053,
+                            "validateVS() requires exactly two arguments (ValueSet URL and coded value)".to_string(),
+                        ));
+                    }
+
+                    let valueset_url = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0051,
+                                "validateVS() ValueSet argument must be a string".to_string(),
+                            ));
+                        }
+                    };
+
+                    let coded_value = context.arguments.get(1).ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            FP0053,
+                            "validateVS() requires second argument (coded value)".to_string(),
+                        )
+                    })?;
+
+                    // Get terminology service from context
+                    let svc = match context.terminology {
+                        Some(s) => s,
+                        None => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0200,
+                                "Terminology service is not configured".to_string(),
+                            ));
+                        }
+                    };
+
+                    // Call validate_vs and return the result
+                    let validation_result = svc.validate_vs(valueset_url, coded_value, None).await?;
+
+                    // Return the validation Parameters result
+                    if validation_result.is_empty() {
+                        Ok(FhirPathValue::Empty)
+                    } else {
+                        Ok(validation_result.first().unwrap().clone())
+                    }
+                })
+            }
+        )
+    }
+
+    /// Check if the input is the %terminologies variable
+    fn is_terminologies_input(input: &FhirPathValue) -> bool {
+        match input {
+            FhirPathValue::TypeInfoObject { name, .. } => name == "terminologies",
+            _ => false,
+        }
     }
 }

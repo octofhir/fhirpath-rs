@@ -24,5 +24,5 @@ pub mod tui;
 pub use cli::*;
 // Re-export TUI functionality
 pub use tui::*;
-// Re-export model providers from fhirschema crate  
+// Re-export model providers from fhirschema crate
 pub use octofhir_fhirschema::provider::EmbeddedModelProvider;

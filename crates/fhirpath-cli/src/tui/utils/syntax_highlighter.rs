@@ -39,21 +39,25 @@ impl SyntaxHighlighter {
             cache: HighlightCache::default(),
         }
     }
-    
+
     /// Highlight a FHIRPath expression
     pub fn highlight(&mut self, expression: &str) -> Vec<HighlightedSpan> {
         // Check cache first
         if expression == self.cache.last_expression {
             return self.cache.last_result.clone();
         }
-        
+
         // Simple pattern-based highlighting for now
         let mut spans = Vec::new();
-        
+
         // Basic FHIRPath keyword highlighting (will use registry later)
-        let _keywords = ["and", "or", "xor", "implies", "is", "as", "div", "mod", "in", "contains"];
-        let _functions = ["first", "last", "count", "exists", "empty", "where", "select"];
-        
+        let _keywords = [
+            "and", "or", "xor", "implies", "is", "as", "div", "mod", "in", "contains",
+        ];
+        let _functions = [
+            "first", "last", "count", "exists", "empty", "where", "select",
+        ];
+
         // For now, just highlight the whole expression as normal text
         // This is a simplified version until we have proper tokenization
         spans.push(HighlightedSpan {
@@ -61,14 +65,14 @@ impl SyntaxHighlighter {
             style: self.theme.get_syntax_style("identifier"),
             token_type: "identifier".to_string(),
         });
-        
+
         // Update cache
         self.cache.last_expression = expression.to_string();
         self.cache.last_result = spans.clone();
-        
+
         spans
     }
-    
+
     /// Highlight expression with diagnostic overlays
     pub fn highlight_with_diagnostics(
         &mut self,
@@ -76,13 +80,13 @@ impl SyntaxHighlighter {
         diagnostics: &[AriadneDiagnostic],
     ) -> Vec<HighlightedSpan> {
         let mut spans = self.highlight(expression);
-        
+
         // Overlay diagnostic highlighting
         for diagnostic in diagnostics {
             let range = &diagnostic.span;
             let severity_str = format!("{:?}", diagnostic.severity).to_lowercase();
             let error_style = self.theme.get_diagnostic_style(&severity_str);
-            
+
             // Find spans that overlap with the diagnostic range
             for span in &mut spans {
                 if spans_overlap(&span.range, range) {
@@ -91,19 +95,19 @@ impl SyntaxHighlighter {
                 }
             }
         }
-        
+
         spans
     }
-    
+
     /// Convert highlighted spans to ratatui Line
     pub fn spans_to_line<'a>(&self, text: &'a str, spans: &[HighlightedSpan]) -> Line<'a> {
         if spans.is_empty() {
             return Line::from(text);
         }
-        
+
         let mut ratatui_spans = Vec::new();
         let mut last_end = 0;
-        
+
         for span in spans {
             // Add any unhighlighted text before this span
             if span.range.start > last_end {
@@ -112,14 +116,14 @@ impl SyntaxHighlighter {
                     ratatui_spans.push(Span::raw(unhighlighted));
                 }
             }
-            
+
             // Add the highlighted span
             let highlighted_text = &text[span.range.clone()];
             ratatui_spans.push(Span::styled(highlighted_text, span.style));
-            
+
             last_end = span.range.end;
         }
-        
+
         // Add any remaining unhighlighted text
         if last_end < text.len() {
             let remaining = &text[last_end..];
@@ -127,10 +131,10 @@ impl SyntaxHighlighter {
                 ratatui_spans.push(Span::raw(remaining));
             }
         }
-        
+
         Line::from(ratatui_spans)
     }
-    
+
     /// Update theme
     pub fn set_theme(&mut self, theme: Arc<TuiTheme>) {
         self.theme = theme;

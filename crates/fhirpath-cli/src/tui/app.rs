@@ -697,7 +697,7 @@ impl TuiApp {
             serde_json::Value::String(s) => FhirPathValue::String(s.clone()),
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
                 // For complex objects, create a Resource value
-                FhirPathValue::Resource(json.clone())
+                FhirPathValue::Resource(std::sync::Arc::new(json.clone()))
             }
         }
     }

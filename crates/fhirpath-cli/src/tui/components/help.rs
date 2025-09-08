@@ -17,11 +17,13 @@
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{
+    Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+};
 use ratatui::{Frame, text::Text};
 use std::sync::Arc;
 
-use super::{ComponentResult, TuiComponent, SizeConstraints, ScrollState, utils};
+use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
@@ -49,7 +51,7 @@ impl TuiComponent for HelpPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
         let is_focused = state.focused_panel == PanelType::Help;
         let block = utils::create_panel_block("Help", PanelType::Help, is_focused, theme);
-        
+
         let help_text = r#"FHIRPath TUI Help
 
 KEYBOARD SHORTCUTS:
@@ -86,29 +88,24 @@ EXAMPLES:
   Patient.birthDate > @1990-01-01
   Bundle.entry.resource.ofType(Patient)
 "#;
-        
+
         let paragraph = Paragraph::new(Text::from(help_text))
             .block(block)
             .scroll((self.scroll_state.offset as u16, 0));
-            
+
         frame.render_widget(paragraph, area);
-        
+
         // Render scrollbar if focused
         if is_focused {
-            let scrollbar = Scrollbar::default()
-                .orientation(ScrollbarOrientation::VerticalRight);
+            let scrollbar = Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight);
             let mut scrollbar_state = ScrollbarState::default();
-            frame.render_stateful_widget(
-                scrollbar,
-                area,
-                &mut scrollbar_state,
-            );
+            frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
         }
     }
-    
+
     fn handle_key_event(&mut self, key: KeyEvent, _state: &mut AppState) -> ComponentResult {
         use crossterm::event::KeyCode;
-        
+
         match key.code {
             KeyCode::Up => {
                 self.scroll_state.scroll_up();
@@ -133,7 +130,7 @@ EXAMPLES:
             _ => ComponentResult::NotHandled,
         }
     }
-    
+
     fn update(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }

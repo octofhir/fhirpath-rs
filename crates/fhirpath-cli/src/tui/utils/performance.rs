@@ -30,16 +30,18 @@ impl PerformanceTracker {
             max_samples,
         }
     }
-    
+
     /// Start timing an operation
     pub fn start_timer(&self, _name: &str) -> Timer {
         Timer::new()
     }
-    
+
     /// Record operation completion
     pub fn record(&mut self, name: &str, duration: Duration) {
-        let metric = self.metrics.entry(name.to_string()).or_insert_with(|| {
-            PerformanceMetric {
+        let metric = self
+            .metrics
+            .entry(name.to_string())
+            .or_insert_with(|| PerformanceMetric {
                 name: name.to_string(),
                 total_time: Duration::ZERO,
                 count: 0,
@@ -47,9 +49,8 @@ impl PerformanceTracker {
                 min_time: Duration::MAX,
                 max_time: Duration::ZERO,
                 last_time: Duration::ZERO,
-            }
-        });
-        
+            });
+
         metric.total_time += duration;
         metric.count += 1;
         metric.average_time = metric.total_time / metric.count as u32;
@@ -57,7 +58,7 @@ impl PerformanceTracker {
         metric.max_time = metric.max_time.max(duration);
         metric.last_time = duration;
     }
-    
+
     /// Record render time
     pub fn record_render_time(&mut self, duration: Duration) {
         self.render_times.push_back(duration);
@@ -65,7 +66,7 @@ impl PerformanceTracker {
             self.render_times.pop_front();
         }
     }
-    
+
     /// Get average render time
     pub fn average_render_time(&self) -> Duration {
         if self.render_times.is_empty() {
@@ -75,7 +76,7 @@ impl PerformanceTracker {
             total / self.render_times.len() as u32
         }
     }
-    
+
     /// Get current FPS estimate
     pub fn current_fps(&self) -> f64 {
         let avg_render_time = self.average_render_time();
@@ -85,28 +86,27 @@ impl PerformanceTracker {
             1000.0 / avg_render_time.as_millis() as f64
         }
     }
-    
+
     /// Get performance summary
     pub fn summary(&self) -> Vec<String> {
         let mut summary = Vec::new();
-        
+
         summary.push(format!("Average FPS: {:.1}", self.current_fps()));
-        summary.push(format!("Average render time: {:?}", self.average_render_time()));
-        
+        summary.push(format!(
+            "Average render time: {:?}",
+            self.average_render_time()
+        ));
+
         for metric in self.metrics.values() {
             summary.push(format!(
                 "{}: avg={:?}, count={}, min={:?}, max={:?}",
-                metric.name,
-                metric.average_time,
-                metric.count,
-                metric.min_time,
-                metric.max_time
+                metric.name, metric.average_time, metric.count, metric.min_time, metric.max_time
             ));
         }
-        
+
         summary
     }
-    
+
     /// Check if performance is acceptable
     pub fn is_performance_acceptable(&self) -> bool {
         self.current_fps() >= 30.0 // Target 30 FPS minimum
@@ -124,7 +124,7 @@ impl Timer {
             start_time: Instant::now(),
         }
     }
-    
+
     /// Stop timer and get elapsed duration
     pub fn elapsed(self) -> Duration {
         self.start_time.elapsed()

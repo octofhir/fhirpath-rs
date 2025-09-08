@@ -13,7 +13,7 @@ use octofhir_fhirpath::registry::{FunctionCategory, FunctionRegistry};
 #[command(about = "Generate MDX docs for functions and error codes", long_about = None)]
 struct Args {
     /// Output documentation root directory (Starlight docs content dir)
-    #[arg(short = 'o', long = "out", default_value = "docs/src/content/docs")] 
+    #[arg(short = 'o', long = "out", default_value = "docs/src/content/docs")]
     out_dir: PathBuf,
 }
 
@@ -98,7 +98,10 @@ fn generate_functions_docs(dir: &Path) -> Result<()> {
 
         fs::write(&path, mdx).with_context(|| format!("write {}", path.display()))?;
 
-        grouped.entry(category.to_string()).or_default().push(file_name);
+        grouped
+            .entry(category.to_string())
+            .or_default()
+            .push(file_name);
     }
 
     // Build a simple index with links
@@ -159,7 +162,8 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
     for code in 1u16..=250u16 {
         let ec = ErrorCode::new(code);
         let info = ec.info();
-        if info.code != code { // unknown
+        if info.code != code {
+            // unknown
             continue;
         }
         let file = format!("FP{:04}.mdx", code);
@@ -168,10 +172,15 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
         let mut mdx = String::new();
         mdx.push_str(&format!(
             "---\nTitle: {} — {}\nsidebar:\n  label: FP{:04}\n---\n\n",
-            ec.code_str(), info.title, code
+            ec.code_str(),
+            info.title,
+            code
         ));
         mdx.push_str(&format!("# {} — {}\n\n", ec.code_str(), info.title));
-        mdx.push_str(&format!("**Category**: {}\n\n", format_error_category(&ec.category())));
+        mdx.push_str(&format!(
+            "**Category**: {}\n\n",
+            format_error_category(&ec.category())
+        ));
         if !info.description.is_empty() {
             mdx.push_str("## Description\n\n");
             mdx.push_str(info.description);

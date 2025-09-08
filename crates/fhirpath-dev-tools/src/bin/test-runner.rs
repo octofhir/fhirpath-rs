@@ -226,8 +226,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create the FhirPathEngine with model provider
     println!("📋 Creating FhirPathEngine...");
     let engine_start = std::time::Instant::now();
-    let mut engine =
-        octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
+    let fhir_version = std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
+    let mut engine = octofhir_fhirpath::FhirPathEngine::new_with_fhir_version(
+        registry,
+        model_provider.clone(),
+        &fhir_version,
+    )
+    .await?;
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
     let mut passed = 0;
@@ -257,7 +262,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Convert input to FhirPathValue and create evaluation context
         let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
-        let context = octofhir_fhirpath::EvaluationContext::from_value(input_value);
+        let mut context = octofhir_fhirpath::EvaluationContext::from_value(input_value);
+
+        // Log terminology setup only for tests that actually use it (engine handles terminology setup automatically)
+        if test_suite.name.contains("Terminology")
+            || test_case.expression.contains("%terminologies")
+        {
+            let fhir_version =
+                std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
+            println!(
+                "📋 Engine includes terminology service (tx.fhir.org/{}) for test '{}'",
+                fhir_version, test_case.name
+            );
+        }
 
         // Use single root evaluation method (parse + evaluate in one call)
         let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")

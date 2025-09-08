@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::{
     ast::ExpressionNode,
-    core::{FhirPathValue, ModelProvider, Result},
+    core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result},
     evaluator::{
         EvaluationContext, MetadataCollectionEvaluator, MetadataCoreEvaluator,
         MetadataFunctionEvaluator, MetadataNavigator,
@@ -20,7 +20,7 @@ use crate::{
     },
     registry::FunctionRegistry,
     typing::{TypeResolver, TypeResolverFactory},
-    wrapped::{WrappedCollection, collection_utils},
+    wrapped::{WrappedCollection, WrappedValue, collection_utils},
 };
 
 /// Composite evaluator with metadata support
@@ -35,8 +35,8 @@ pub struct CompositeEvaluator {
     operator_evaluator: Box<dyn crate::evaluator::OperatorEvaluator + Send + Sync>,
     /// Metadata-aware collection evaluator
     collection_evaluator: MetadataCollectionEvaluator,
-    /// Standard lambda evaluator (can be enhanced later)
-    lambda_evaluator: Box<dyn crate::evaluator::LambdaEvaluatorTrait + Send + Sync>,
+    /// Metadata-aware lambda evaluator
+    lambda_evaluator: tokio::sync::Mutex<Box<dyn crate::evaluator::LambdaEvaluator + Send + Sync>>,
     /// Model provider for type resolution
     model_provider: Arc<dyn ModelProvider>,
     /// Function registry for function resolution
@@ -54,7 +54,7 @@ impl CompositeEvaluator {
         _function_evaluator: Box<dyn crate::evaluator::FunctionEvaluator + Send + Sync>,
         operator_evaluator: Box<dyn crate::evaluator::OperatorEvaluator + Send + Sync>,
         _collection_evaluator: Box<dyn crate::evaluator::CollectionEvaluator + Send + Sync>,
-        lambda_evaluator: Box<dyn crate::evaluator::LambdaEvaluatorTrait + Send + Sync>,
+        lambda_evaluator: Box<dyn crate::evaluator::LambdaEvaluator + Send + Sync>,
         model_provider: Arc<dyn ModelProvider>,
         function_registry: Arc<FunctionRegistry>,
         config: EngineConfig,
@@ -70,12 +70,908 @@ impl CompositeEvaluator {
             ),
             operator_evaluator,
             collection_evaluator: MetadataCollectionEvaluator::new(),
-            lambda_evaluator,
+            lambda_evaluator: tokio::sync::Mutex::new(lambda_evaluator),
             model_provider: model_provider.clone(),
             function_registry,
             type_resolver,
             config,
         }
+    }
+
+    /// Check if a method name represents a lambda method that needs special handling
+    fn is_lambda_method(&self, method_name: &str) -> bool {
+        matches!(
+            method_name,
+            "where" | "select" | "sort" | "aggregate" | "all" | "exists" | "repeat" | "repeatAll"
+        )
+    }
+
+    /// Check if a method name is a type function that expects type name arguments
+    fn is_type_function(&self, method_name: &str) -> bool {
+        matches!(method_name, "is" | "as" | "ofType")
+    }
+
+    /// Evaluate an argument for type functions, converting identifiers to strings
+    async fn evaluate_type_function_argument(
+        &mut self,
+        arg: &crate::ast::ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        use crate::ast::ExpressionNode;
+
+        match arg {
+            ExpressionNode::Identifier(identifier) => {
+                // Convert identifier to string value for type names
+                let type_name = &identifier.name;
+                let string_value = crate::core::FhirPathValue::String(type_name.clone());
+                let metadata = crate::wrapped::ValueMetadata::primitive(
+                    "string".to_string(),
+                    crate::path::CanonicalPath::empty(),
+                );
+                let wrapped_value = WrappedValue::new(string_value, metadata);
+                Ok(vec![wrapped_value])
+            }
+            _ => {
+                // For non-identifier arguments, evaluate normally
+                Box::pin(self.evaluate_with_metadata(arg, context)).await
+            }
+        }
+    }
+
+    /// Evaluate a lambda method call with raw AST arguments
+    async fn evaluate_lambda_method_call(
+        &mut self,
+        object: &WrappedCollection,
+        method_name: &str,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        // Special cases for methods with no arguments that need special handling
+        if arguments.is_empty() {
+            match method_name {
+                "sort" => {
+                    return self
+                        .evaluate_sort_method_composite(object, arguments, context)
+                        .await;
+                }
+                "exists" => {
+                    return self
+                        .evaluate_exists_method_composite(object, arguments, context)
+                        .await;
+                }
+                _ => return Ok(object.clone()),
+            }
+        }
+
+        // Create lambda node from the first argument (lambda expression)
+        let lambda_expression = &arguments[0];
+
+        match method_name {
+            "where" => {
+                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                    eprintln!(
+                        "🚀 WHERE: Composite evaluator called with {} items",
+                        object.len()
+                    );
+                }
+
+                // Check for resourceType filter patterns for aggressive type casting
+                let detected_resource_type = self.detect_resource_type_filter(lambda_expression);
+
+                if let Some(ref target_resource_type) = detected_resource_type {
+                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                        eprintln!(
+                            "🚀 AGGRESSIVE TYPE CAST: Detected resourceType='{}' filter",
+                            target_resource_type
+                        );
+                    }
+                }
+
+                // Filter the collection based on the lambda expression
+                let mut filtered_results = Vec::new();
+
+                for wrapped_item in object {
+                    // Create lambda context with this item as $this
+                    let lambda_context = self
+                        .create_lambda_context_for_item(wrapped_item, context)
+                        .await?;
+
+                    // Evaluate the lambda expression in this context
+                    let result = self
+                        .evaluate_expression_with_metadata(lambda_expression, &lambda_context)
+                        .await?;
+
+                    // Check if result is truthy (follows FHIRPath boolean conversion)
+                    if self.is_collection_truthy(&result) {
+                        // AGGRESSIVE TYPE CASTING: If this is a resourceType filter, typecast the result
+                        if let Some(ref target_type) = detected_resource_type {
+                            let mut typecast_item = wrapped_item.clone();
+                            // Update metadata to reflect the specific resource type
+                            typecast_item.metadata.fhir_type = target_type.clone();
+                            typecast_item.metadata.resource_type = Some(target_type.clone());
+                            filtered_results.push(typecast_item);
+                        } else {
+                            filtered_results.push(wrapped_item.clone());
+                        }
+                    }
+                }
+
+                if let Some(ref target_type) = detected_resource_type {
+                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                        eprintln!(
+                            "🚀 AGGRESSIVE TYPE CAST: Filtered {} resources typecast to {}",
+                            filtered_results.len(),
+                            target_type
+                        );
+                    }
+                }
+
+                Ok(filtered_results)
+            }
+            "select" => {
+                // Transform each item in the collection
+                let mut selected_results = Vec::new();
+
+                for wrapped_item in object {
+                    // Create lambda context with this item as $this
+                    let lambda_context = self
+                        .create_lambda_context_for_item(wrapped_item, context)
+                        .await?;
+
+                    // Evaluate the lambda expression in this context
+                    let result = self
+                        .evaluate_expression_with_metadata(lambda_expression, &lambda_context)
+                        .await?;
+
+                    // Add all results from this evaluation
+                    selected_results.extend(result);
+                }
+
+                Ok(selected_results)
+            }
+            "sort" => {
+                // Handle sorting with lambda expressions
+                self.evaluate_sort_method_composite(object, arguments, context)
+                    .await
+            }
+            "aggregate" => {
+                // Handle aggregation with lambda expressions
+                self.evaluate_aggregate_method_composite(object, arguments, context)
+                    .await
+            }
+            "repeat" => {
+                // Handle repeat traversal with safety mechanisms
+                self.evaluate_repeat_method_composite(object, arguments, context)
+                    .await
+            }
+            "repeatAll" => {
+                // Handle repeatAll traversal with safety mechanisms
+                self.evaluate_repeat_all_method_composite(object, arguments, context)
+                    .await
+            }
+            "exists" => {
+                // Handle exists() lambda method
+                self.evaluate_exists_method_composite(object, arguments, context)
+                    .await
+            }
+            "all" => {
+                // Handle all() lambda method
+                self.evaluate_all_method_composite(object, arguments, context)
+                    .await
+            }
+            _ => {
+                // Other lambda methods not yet implemented
+                Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0055,
+                    format!("Lambda method '{}' not yet fully implemented", method_name),
+                ))
+            }
+        }
+    }
+
+    /// Create a lambda context where $this is bound to the given item
+    async fn create_lambda_context_for_item(
+        &self,
+        item: &WrappedValue,
+        parent_context: &EvaluationContext,
+    ) -> Result<EvaluationContext> {
+        let mut lambda_context = parent_context.clone();
+
+        // Set the start_context to this single item (this becomes $this for implicit property access)
+        lambda_context.start_context = crate::core::Collection::single(item.as_plain().clone());
+
+        // Store the metadata for $this in a special variable
+        let metadata_json = serde_json::json!({
+            "fhir_type": item.metadata().fhir_type.to_string(),
+            "resource_type": item.metadata().resource_type,
+            "path": item.metadata().path.to_string()
+        });
+        lambda_context.set_variable(
+            "__$this_metadata__".to_string(),
+            FhirPathValue::JsonValue(metadata_json.into()),
+        );
+
+        // Also explicitly bind $this variable for explicit $this property access
+        lambda_context.set_variable("$this".to_string(), item.as_plain().clone());
+
+        Ok(lambda_context)
+    }
+
+    /// Evaluate an expression with metadata in a given context
+    async fn evaluate_expression_with_metadata(
+        &mut self,
+        expression: &crate::ast::ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        Box::pin(self.evaluate_with_metadata(expression, context)).await
+    }
+
+    /// Check if a collection is truthy according to FHIRPath rules
+    fn is_collection_truthy(&self, collection: &WrappedCollection) -> bool {
+        if collection.is_empty() {
+            return false;
+        }
+
+        // If collection has one item, check if it's truthy
+        if collection.len() == 1 {
+            match collection[0].as_plain() {
+                crate::core::FhirPathValue::Boolean(b) => *b,
+                crate::core::FhirPathValue::Integer(i) => *i != 0,
+                crate::core::FhirPathValue::String(s) => !s.is_empty(),
+                crate::core::FhirPathValue::Empty => false,
+                _ => true, // Non-empty complex values are truthy
+            }
+        } else {
+            // Non-empty collections are truthy
+            true
+        }
+    }
+
+    /// Handle sort method with lambda expressions and multiple criteria
+    async fn evaluate_sort_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        // Handle empty collection
+        if object.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // If no sort criteria, perform natural sort
+        if arguments.is_empty() {
+            let mut sorted = object.clone();
+            sorted
+                .sort_by(|a, b| self.compare_fhirpath_values_naturally(a.as_plain(), b.as_plain()));
+            return Ok(sorted);
+        }
+
+        // Parse sort criteria and evaluate each item
+        let mut items_with_sort_keys = Vec::new();
+
+        for wrapped_item in object {
+            // Create lambda context with this item as $this
+            let lambda_context = self
+                .create_lambda_context_for_item(wrapped_item, context)
+                .await?;
+
+            // Evaluate all sort criteria for this item
+            let mut sort_keys = Vec::new();
+            for sort_expression in arguments {
+                // Check if expression starts with unary minus for descending sort
+                let (descending, actual_expression) =
+                    Self::parse_sort_direction_static(sort_expression);
+
+                // Evaluate the sort key expression
+                let result = self
+                    .evaluate_expression_with_metadata(actual_expression, &lambda_context)
+                    .await?;
+
+                // Convert result to a single sort key value
+                let sort_key = if result.is_empty() {
+                    crate::core::FhirPathValue::Empty
+                } else {
+                    result[0].as_plain().clone()
+                };
+
+                sort_keys.push((sort_key, descending));
+            }
+
+            items_with_sort_keys.push((wrapped_item.clone(), sort_keys));
+        }
+
+        // Sort the items based on their sort keys
+        items_with_sort_keys.sort_by(|a, b| {
+            let (_, keys_a) = a;
+            let (_, keys_b) = b;
+
+            // Compare each sort key in order
+            for (_i, ((key_a, desc_a), (key_b, _desc_b))) in
+                keys_a.iter().zip(keys_b.iter()).enumerate()
+            {
+                let cmp = self.compare_fhirpath_values_naturally(key_a, key_b);
+                let result = if *desc_a { cmp.reverse() } else { cmp };
+
+                if result != std::cmp::Ordering::Equal {
+                    return result;
+                }
+            }
+
+            std::cmp::Ordering::Equal
+        });
+
+        // Extract the sorted items
+        let sorted_items = items_with_sort_keys
+            .into_iter()
+            .map(|(item, _)| item)
+            .collect();
+        Ok(sorted_items)
+    }
+
+    /// Parse sort direction from expression (detect unary minus for descending)
+    fn parse_sort_direction_static(
+        expression: &crate::ast::ExpressionNode,
+    ) -> (bool, &crate::ast::ExpressionNode) {
+        use crate::ast::{ExpressionNode, UnaryOperator};
+
+        match expression {
+            ExpressionNode::UnaryOperation(unary_node)
+                if unary_node.operator == UnaryOperator::Negate =>
+            {
+                (true, unary_node.operand.as_ref()) // Descending
+            }
+            _ => (false, expression), // Ascending
+        }
+    }
+
+    /// Compare FhirPathValues naturally for sorting
+    fn compare_fhirpath_values_naturally(
+        &self,
+        a: &crate::core::FhirPathValue,
+        b: &crate::core::FhirPathValue,
+    ) -> std::cmp::Ordering {
+        use crate::core::FhirPathValue;
+        use std::cmp::Ordering;
+
+        match (a, b) {
+            // Same types - direct comparison
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => a.cmp(b),
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a.cmp(b),
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a.cmp(b),
+            (FhirPathValue::Boolean(a), FhirPathValue::Boolean(b)) => a.cmp(b),
+
+            // Mixed numeric types
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                rust_decimal::Decimal::from(*a).cmp(b)
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                a.cmp(&rust_decimal::Decimal::from(*b))
+            }
+
+            // Different types - use type precedence: numbers < strings < booleans < others
+            (FhirPathValue::Integer(_) | FhirPathValue::Decimal(_), FhirPathValue::String(_)) => {
+                Ordering::Less
+            }
+            (FhirPathValue::String(_), FhirPathValue::Integer(_) | FhirPathValue::Decimal(_)) => {
+                Ordering::Greater
+            }
+            (FhirPathValue::Integer(_) | FhirPathValue::Decimal(_), FhirPathValue::Boolean(_)) => {
+                Ordering::Less
+            }
+            (FhirPathValue::Boolean(_), FhirPathValue::Integer(_) | FhirPathValue::Decimal(_)) => {
+                Ordering::Greater
+            }
+            (FhirPathValue::String(_), FhirPathValue::Boolean(_)) => Ordering::Less,
+            (FhirPathValue::Boolean(_), FhirPathValue::String(_)) => Ordering::Greater,
+
+            // Empty values sort first
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
+            (FhirPathValue::Empty, _) => Ordering::Less,
+            (_, FhirPathValue::Empty) => Ordering::Greater,
+
+            // All other cases - fallback to string comparison
+            _ => format!("{:?}", a).cmp(&format!("{:?}", b)),
+        }
+    }
+
+    /// Handle aggregate method with lambda expressions
+    async fn evaluate_aggregate_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        // Aggregate requires 1 or 2 arguments: lambda expression and optional initial value
+        if arguments.is_empty() || arguments.len() > 2 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0056,
+                "aggregate() function requires 1 or 2 arguments: expression and optional initial value".to_string(),
+            ));
+        }
+
+        let lambda_expression = &arguments[0];
+
+        // Determine initial value
+        let mut total = if arguments.len() == 2 {
+            // Initial value provided as second argument
+            let initial_value_expr = &arguments[1];
+            let initial_result = self
+                .evaluate_expression_with_metadata(initial_value_expr, context)
+                .await?;
+            if initial_result.is_empty() {
+                crate::core::FhirPathValue::Empty
+            } else {
+                initial_result[0].as_plain().clone()
+            }
+        } else {
+            // No initial value - start with Empty (will be handled by $total.empty() in expression)
+            crate::core::FhirPathValue::Empty
+        };
+
+        // Iterate through each item in the collection
+        for wrapped_item in object {
+            // Create lambda context with this item as $this and current total as $total
+            let mut lambda_context = self
+                .create_lambda_context_for_item(wrapped_item, context)
+                .await?;
+            lambda_context.set_variable("$total".to_string(), total.clone());
+
+            // Evaluate the lambda expression
+            let result = self
+                .evaluate_expression_with_metadata(lambda_expression, &lambda_context)
+                .await?;
+
+            // Update the total with the result
+            total = if result.is_empty() {
+                crate::core::FhirPathValue::Empty
+            } else {
+                result[0].as_plain().clone()
+            };
+        }
+
+        // Return the final aggregated result as a single-item collection
+        let metadata = crate::wrapped::ValueMetadata::unknown(crate::path::CanonicalPath::root(
+            "<aggregate>".to_string(),
+        ));
+        let wrapped_result = crate::wrapped::WrappedValue::new(total, metadata);
+        Ok(vec![wrapped_result])
+    }
+
+    /// Evaluate repeat() method with safety mechanisms
+    /// repeat(projection: expression) : collection
+    /// https://build.fhir.org/ig/HL7/FHIRPath/#repeatprojection-expression--collection
+    async fn evaluate_repeat_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        if arguments.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0001,
+                "repeat() requires exactly one argument (projection expression)".to_string(),
+            ));
+        }
+
+        let projection_expr = &arguments[0];
+        let mut result = Vec::new();
+        let mut work_set: std::collections::VecDeque<WrappedValue> =
+            object.iter().cloned().collect();
+        let mut visited = std::collections::HashSet::new();
+
+        // Safety limits to prevent infinite loops and stack overflow
+        const MAX_ITERATIONS: usize = 1000; // Reduced limit
+        const MAX_DEPTH: usize = 100;
+        const MAX_CONSECUTIVE_SAME: usize = 5; // Max consecutive identical values
+        let mut iteration_count = 0;
+        let mut consecutive_same_count = 0;
+        let mut last_work_set_size = work_set.len();
+
+        while let Some(current_item) = work_set.pop_front() {
+            iteration_count += 1;
+            if iteration_count > MAX_ITERATIONS {
+                return Err(FhirPathError::evaluation_error(
+                    FP0200,
+                    format!(
+                        "repeat() exceeded maximum iterations limit ({})",
+                        MAX_ITERATIONS
+                    ),
+                ));
+            }
+
+            // Create unique identifier for cycle detection using value and path
+            let item_id = format!("{:?}_{}", current_item.as_plain(), current_item.path());
+
+            // Check for cycles to prevent infinite loops
+            if visited.contains(&item_id) {
+                continue; // Skip already processed items (deduplication)
+            }
+            visited.insert(item_id);
+
+            // Add current item to result
+            result.push(current_item.clone());
+
+            // Check depth to prevent stack overflow
+            let current_depth = current_item.path().segments().len();
+            if current_depth > MAX_DEPTH {
+                return Err(FhirPathError::evaluation_error(
+                    FP0200,
+                    format!("repeat() exceeded maximum depth limit ({})", MAX_DEPTH),
+                ));
+            }
+
+            // Evaluate projection on current item
+            let item_context = self
+                .create_lambda_context_for_item(&current_item, context)
+                .await?;
+            let projection_result = self
+                .evaluate_expression_with_metadata(projection_expr, &item_context)
+                .await?;
+
+            // Detect infinite loops by checking if work set keeps growing at same rate
+            if work_set.len() == last_work_set_size {
+                consecutive_same_count += 1;
+                if consecutive_same_count > MAX_CONSECUTIVE_SAME {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0200,
+                        "repeat() detected potential infinite loop - work set not decreasing"
+                            .to_string(),
+                    ));
+                }
+            } else {
+                consecutive_same_count = 0;
+            }
+
+            // Add projection results to work set for further processing
+            for projected_item in projection_result {
+                // Validate input types to prevent incompatible operations
+                if let Err(e) = self.validate_repeat_input(&projected_item, projection_expr) {
+                    return Err(e);
+                }
+
+                // Detect cycles in projection results - if we keep getting the same values
+                let projected_id =
+                    format!("{:?}_{}", projected_item.as_plain(), projected_item.path());
+                if visited.contains(&projected_id) {
+                    // This projection produces a value we've already seen - potential infinite loop
+                    continue;
+                }
+
+                work_set.push_back(projected_item);
+            }
+
+            last_work_set_size = work_set.len();
+        }
+
+        Ok(result)
+    }
+
+    /// Evaluate repeatAll() method with safety mechanisms  
+    /// repeatAll(projection: expression) : collection
+    /// https://build.fhir.org/ig/HL7/FHIRPath/#repeatallprojection-expression--collection
+    async fn evaluate_repeat_all_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        if arguments.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0001,
+                "repeatAll() requires exactly one argument (projection expression)".to_string(),
+            ));
+        }
+
+        let projection_expr = &arguments[0];
+        let mut result = Vec::new();
+        let mut work_set: std::collections::VecDeque<WrappedValue> =
+            object.iter().cloned().collect();
+
+        // Safety limits to prevent infinite loops and stack overflow
+        const MAX_ITERATIONS: usize = 1000; // Reduced limit
+        const MAX_DEPTH: usize = 100;
+        const MAX_CONSECUTIVE_SAME: usize = 5; // Max consecutive identical values
+        let mut iteration_count = 0;
+        let mut consecutive_same_count = 0;
+        let mut last_work_set_size = work_set.len();
+        let mut seen_values = std::collections::HashSet::new();
+
+        while let Some(current_item) = work_set.pop_front() {
+            iteration_count += 1;
+            if iteration_count > MAX_ITERATIONS {
+                return Err(FhirPathError::evaluation_error(
+                    FP0200,
+                    format!(
+                        "repeatAll() exceeded maximum iterations limit ({})",
+                        MAX_ITERATIONS
+                    ),
+                ));
+            }
+
+            // Add current item to result (no deduplication in repeatAll)
+            result.push(current_item.clone());
+
+            // Check depth to prevent stack overflow
+            let current_depth = current_item.path().segments().len();
+            if current_depth > MAX_DEPTH {
+                return Err(FhirPathError::evaluation_error(
+                    FP0200,
+                    format!("repeatAll() exceeded maximum depth limit ({})", MAX_DEPTH),
+                ));
+            }
+
+            // Evaluate projection on current item
+            let item_context = self
+                .create_lambda_context_for_item(&current_item, context)
+                .await?;
+            let projection_result = self
+                .evaluate_expression_with_metadata(projection_expr, &item_context)
+                .await?;
+
+            // Detect infinite loops by checking if work set keeps growing at same rate
+            if work_set.len() == last_work_set_size {
+                consecutive_same_count += 1;
+                if consecutive_same_count > MAX_CONSECUTIVE_SAME {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0200,
+                        "repeatAll() detected potential infinite loop - work set not decreasing"
+                            .to_string(),
+                    ));
+                }
+            } else {
+                consecutive_same_count = 0;
+            }
+
+            // Add projection results to work set for further processing
+            for projected_item in projection_result {
+                // Validate input types to prevent incompatible operations
+                if let Err(e) = self.validate_repeat_input(&projected_item, projection_expr) {
+                    return Err(e);
+                }
+
+                // For repeatAll, still detect obvious infinite loops (same value over and over)
+                let projected_id =
+                    format!("{:?}_{}", projected_item.as_plain(), projected_item.path());
+                if seen_values.contains(&projected_id) && seen_values.len() < 5 {
+                    // If we keep seeing the same few values repeatedly, it's likely infinite
+                    continue;
+                }
+                seen_values.insert(projected_id);
+
+                work_set.push_back(projected_item);
+            }
+
+            last_work_set_size = work_set.len();
+        }
+
+        Ok(result)
+    }
+
+    /// Validate repeat function input to prevent invalid operations
+    fn validate_repeat_input(
+        &self,
+        item: &WrappedValue,
+        projection_expr: &crate::ast::ExpressionNode,
+    ) -> Result<()> {
+        // Check for arithmetic operations in projection - these are usually invalid
+        // repeat() should be used for FHIR property traversal, not mathematical sequences
+        if let crate::ast::ExpressionNode::BinaryOperation(bin_op) = projection_expr {
+            if matches!(
+                bin_op.operator,
+                crate::ast::BinaryOperator::Add
+                    | crate::ast::BinaryOperator::Subtract
+                    | crate::ast::BinaryOperator::Multiply
+                    | crate::ast::BinaryOperator::Divide
+                    | crate::ast::BinaryOperator::Modulo
+            ) {
+                // Check if $this is involved in arithmetic - this typically creates infinite sequences
+                if let crate::ast::ExpressionNode::Variable(var) = bin_op.left.as_ref() {
+                    if var.name == "this" {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "repeat() with arithmetic on $this typically creates infinite sequences. Use repeat() for FHIR property traversal instead.".to_string(),
+                        ));
+                    }
+                }
+                if let crate::ast::ExpressionNode::Variable(var) = bin_op.right.as_ref() {
+                    if var.name == "this" {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "repeat() with arithmetic on $this typically creates infinite sequences. Use repeat() for FHIR property traversal instead.".to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Check if we're operating on primitive values with simple arithmetic
+        // This is a common source of infinite loops like 1.repeat($this + 1)
+        match item.as_plain() {
+            crate::core::FhirPathValue::Integer(_)
+            | crate::core::FhirPathValue::Decimal(_)
+            | crate::core::FhirPathValue::String(_) => {
+                // For primitive values, only allow safe projection expressions
+                match projection_expr {
+                    // Allow literals like repeat('test') 
+                    crate::ast::ExpressionNode::Literal(_) => Ok(()),
+                    // Allow property access like repeat(item)
+                    crate::ast::ExpressionNode::Identifier(_) => Ok(()),
+                    // Allow conditional expressions like repeat(iif(...))
+                    crate::ast::ExpressionNode::FunctionCall(func) if func.name == "iif" => Ok(()),
+                    // Reject arithmetic and other potentially dangerous operations on primitives
+                    _ => {
+                        Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "repeat() on primitive values should use literal or property projections, not complex expressions that may create infinite sequences".to_string(),
+                        ))
+                    }
+                }
+            }
+            // For complex objects, allow more flexibility
+            _ => Ok(()),
+        }
+    }
+
+    /// Evaluate exists() lambda method
+    /// exists(criteria?: expression) : boolean
+    async fn evaluate_exists_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        if arguments.is_empty() {
+            // Simple exists() - check if collection is non-empty
+            let exists = !object.is_empty();
+            let metadata = crate::wrapped::ValueMetadata::unknown(
+                crate::path::CanonicalPath::root("<exists>".to_string()),
+            );
+            let wrapped_result = crate::wrapped::WrappedValue::new(
+                crate::core::FhirPathValue::Boolean(exists),
+                metadata,
+            );
+            Ok(vec![wrapped_result])
+        } else if arguments.len() == 1 {
+            // exists(criteria) - check if any item matches criteria
+            let criteria_expr = &arguments[0];
+
+            for wrapped_item in object {
+                let item_context = self
+                    .create_lambda_context_for_item(wrapped_item, context)
+                    .await?;
+                let result = self
+                    .evaluate_expression_with_metadata(criteria_expr, &item_context)
+                    .await?;
+
+                // If any result is truthy, exists returns true
+                if !result.is_empty() {
+                    if let Some(first_result) = result.first() {
+                        match first_result.as_plain() {
+                            crate::core::FhirPathValue::Boolean(true) => {
+                                let metadata = crate::wrapped::ValueMetadata::unknown(
+                                    crate::path::CanonicalPath::root("<exists>".to_string()),
+                                );
+                                let wrapped_result = crate::wrapped::WrappedValue::new(
+                                    crate::core::FhirPathValue::Boolean(true),
+                                    metadata,
+                                );
+                                return Ok(vec![wrapped_result]);
+                            }
+                            crate::core::FhirPathValue::Boolean(false) => continue,
+                            _ => {
+                                // Non-boolean values are considered truthy if non-empty
+                                let metadata = crate::wrapped::ValueMetadata::unknown(
+                                    crate::path::CanonicalPath::root("<exists>".to_string()),
+                                );
+                                let wrapped_result = crate::wrapped::WrappedValue::new(
+                                    crate::core::FhirPathValue::Boolean(true),
+                                    metadata,
+                                );
+                                return Ok(vec![wrapped_result]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // No item matched criteria
+            let metadata = crate::wrapped::ValueMetadata::unknown(
+                crate::path::CanonicalPath::root("<exists>".to_string()),
+            );
+            let wrapped_result = crate::wrapped::WrappedValue::new(
+                crate::core::FhirPathValue::Boolean(false),
+                metadata,
+            );
+            Ok(vec![wrapped_result])
+        } else {
+            Err(FhirPathError::evaluation_error(
+                FP0001,
+                "exists() requires 0 or 1 arguments".to_string(),
+            ))
+        }
+    }
+
+    /// Evaluate all() lambda method
+    /// all(criteria: expression) : boolean
+    async fn evaluate_all_method_composite(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        if arguments.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0001,
+                "all() requires exactly one argument (criteria expression)".to_string(),
+            ));
+        }
+
+        let criteria_expr = &arguments[0];
+
+        // Empty collection: all() returns true (vacuous truth)
+        if object.is_empty() {
+            let metadata = crate::wrapped::ValueMetadata::unknown(
+                crate::path::CanonicalPath::root("<all>".to_string()),
+            );
+            let wrapped_result = crate::wrapped::WrappedValue::new(
+                crate::core::FhirPathValue::Boolean(true),
+                metadata,
+            );
+            return Ok(vec![wrapped_result]);
+        }
+
+        // Check if ALL items satisfy the criteria
+        for wrapped_item in object {
+            let item_context = self
+                .create_lambda_context_for_item(wrapped_item, context)
+                .await?;
+            let result = self
+                .evaluate_expression_with_metadata(criteria_expr, &item_context)
+                .await?;
+
+            // Check if this item fails the criteria
+            if result.is_empty() {
+                // Empty result is considered false
+                let metadata = crate::wrapped::ValueMetadata::unknown(
+                    crate::path::CanonicalPath::root("<all>".to_string()),
+                );
+                let wrapped_result = crate::wrapped::WrappedValue::new(
+                    crate::core::FhirPathValue::Boolean(false),
+                    metadata,
+                );
+                return Ok(vec![wrapped_result]);
+            }
+
+            if let Some(first_result) = result.first() {
+                match first_result.as_plain() {
+                    crate::core::FhirPathValue::Boolean(false) => {
+                        // Explicit false
+                        let metadata = crate::wrapped::ValueMetadata::unknown(
+                            crate::path::CanonicalPath::root("<all>".to_string()),
+                        );
+                        let wrapped_result = crate::wrapped::WrappedValue::new(
+                            crate::core::FhirPathValue::Boolean(false),
+                            metadata,
+                        );
+                        return Ok(vec![wrapped_result]);
+                    }
+                    crate::core::FhirPathValue::Boolean(true) => continue,
+                    _ => {
+                        // Non-boolean values are considered truthy if non-empty
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // All items passed the criteria
+        let metadata = crate::wrapped::ValueMetadata::unknown(crate::path::CanonicalPath::root(
+            "<all>".to_string(),
+        ));
+        let wrapped_result =
+            crate::wrapped::WrappedValue::new(crate::core::FhirPathValue::Boolean(true), metadata);
+        Ok(vec![wrapped_result])
     }
 
     /// Get the model provider reference
@@ -106,8 +1002,35 @@ impl CompositeEvaluator {
                     .await
             }
             ExpressionNode::PropertyAccess(prop) => {
-                let object_result =
-                    Box::pin(self.evaluate_with_metadata(&prop.object, context)).await?;
+                // Special handling for $this in property access
+                let object_result = match prop.object.as_ref() {
+                    ExpressionNode::Variable(var) => {
+                        if var.name == "this" {
+                            // Direct evaluation through core evaluator for $this variables
+                            self.core_evaluator
+                                .evaluate_with_metadata(&prop.object, context, &self.type_resolver)
+                                .await?
+                        } else {
+                            Box::pin(self.evaluate_with_metadata(&prop.object, context)).await?
+                        }
+                    }
+                    ExpressionNode::Identifier(id) => {
+                        if id.name == "$this" {
+                            // Convert to Variable and evaluate through core evaluator
+                            let var_node = crate::ast::VariableNode {
+                                name: "$this".to_string(),
+                                location: Some(crate::core::SourceLocation::point(0, 0, 0)),
+                            };
+                            let var_expr = ExpressionNode::Variable(var_node);
+                            self.core_evaluator
+                                .evaluate_with_metadata(&var_expr, context, &self.type_resolver)
+                                .await?
+                        } else {
+                            Box::pin(self.evaluate_with_metadata(&prop.object, context)).await?
+                        }
+                    }
+                    _ => Box::pin(self.evaluate_with_metadata(&prop.object, context)).await?,
+                };
                 let mut combined_result = Vec::new();
 
                 for object_wrapped in object_result {
@@ -178,9 +1101,28 @@ impl CompositeEvaluator {
                 let object_result =
                     Box::pin(self.evaluate_with_metadata(&method.object, context)).await?;
 
+                // Check if this is a lambda method that needs special handling
+                if self.is_lambda_method(&method.method) {
+                    // For lambda methods, pass the raw AST nodes instead of evaluating them
+                    return self
+                        .evaluate_lambda_method_call(
+                            &object_result,
+                            &method.method,
+                            &method.arguments,
+                            context,
+                        )
+                        .await;
+                }
+
+                // For regular methods, evaluate arguments normally
                 let mut wrapped_args = Vec::new();
                 for arg in &method.arguments {
-                    let arg_result = Box::pin(self.evaluate_with_metadata(arg, context)).await?;
+                    let arg_result = if self.is_type_function(&method.method) {
+                        // For type functions, convert identifier arguments to string values
+                        self.evaluate_type_function_argument(arg, context).await?
+                    } else {
+                        Box::pin(self.evaluate_with_metadata(arg, context)).await?
+                    };
                     wrapped_args.push(arg_result);
                 }
 
@@ -268,27 +1210,47 @@ impl CompositeEvaluator {
                 self.wrap_plain_result(result).await
             }
             ExpressionNode::Lambda(lambda) => {
-                // For lambda expressions, we need to convert wrapped values to plain for compatibility
-                // with the existing lambda evaluator
+                // For lambda expressions, use metadata-aware lambda evaluation
                 let lambda_context = context.clone();
 
-                // Convert the current context collection to a FhirPathValue for lambda evaluation
-                let context_value = if context.start_context.is_empty() {
-                    // In FHIRPath, empty contexts are represented as empty collections
-                    FhirPathValue::Collection(Vec::new())
-                } else if context.start_context.len() == 1 {
-                    context.start_context.first().unwrap().clone()
+                // Convert the current context to a WrappedCollection for metadata-aware evaluation
+                let context_collection = if context.start_context.is_empty() {
+                    collection_utils::empty()
                 } else {
-                    FhirPathValue::Collection(context.start_context.clone().into_vec())
+                    // Convert context values to wrapped values with basic metadata
+                    let wrapped_values: Vec<WrappedValue> = context
+                        .start_context
+                        .iter()
+                        .enumerate()
+                        .map(|(i, value)| {
+                            let fhir_type =
+                                crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
+                            let path =
+                                crate::path::CanonicalPath::parse(&format!("[{}]", i)).unwrap();
+                            let metadata = crate::wrapped::ValueMetadata {
+                                fhir_type,
+                                resource_type: None,
+                                path,
+                                index: Some(i),
+                            };
+                            WrappedValue::new(value.clone(), metadata)
+                        })
+                        .collect();
+                    wrapped_values
                 };
 
-                // Use standard lambda evaluator and wrap result with metadata
-                let result = self
-                    .lambda_evaluator
-                    .evaluate_lambda(lambda, &context_value, &lambda_context)
+                // Use metadata-aware lambda evaluator
+                let mut lambda_evaluator = self.lambda_evaluator.lock().await;
+                let result = lambda_evaluator
+                    .evaluate_lambda(
+                        lambda,
+                        &context_collection,
+                        &lambda_context,
+                        &self.type_resolver,
+                    )
                     .await?;
 
-                self.wrap_plain_result(result).await
+                Ok(result)
             }
             ExpressionNode::Parenthesized(inner) => {
                 // Simply evaluate the inner expression - parentheses don't change semantics
@@ -410,6 +1372,50 @@ impl CompositeEvaluator {
     /// Get reference to function evaluator (for extracting registry)
     pub fn function_evaluator(&self) -> &MetadataFunctionEvaluator {
         &self.function_evaluator
+    }
+
+    /// Detect if a lambda expression represents a resourceType filter for aggressive type casting
+    /// Returns the target resource type if detected, None otherwise
+    fn detect_resource_type_filter(&self, expr: &crate::ast::ExpressionNode) -> Option<String> {
+        use crate::ast::{
+            BinaryOperator, ExpressionNode, IdentifierNode, LiteralNode, literal::LiteralValue,
+        };
+
+        match expr {
+            // Pattern: resourceType = 'SomeResourceType'
+            ExpressionNode::BinaryOperation(binop) => {
+                if let BinaryOperator::Equal = binop.operator {
+                    // Check left side for resourceType property access
+                    if let ExpressionNode::Identifier(IdentifierNode { name, .. }) = &*binop.left {
+                        if name == "resourceType" {
+                            // Check right side for string literal
+                            if let ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::String(resource_type),
+                                ..
+                            }) = &*binop.right
+                            {
+                                return Some(resource_type.clone());
+                            }
+                        }
+                    }
+                    // Also check reverse pattern: 'SomeResourceType' = resourceType
+                    if let ExpressionNode::Identifier(IdentifierNode { name, .. }) = &*binop.right {
+                        if name == "resourceType" {
+                            if let ExpressionNode::Literal(LiteralNode {
+                                value: LiteralValue::String(resource_type),
+                                ..
+                            }) = &*binop.left
+                            {
+                                return Some(resource_type.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
     }
 }
 

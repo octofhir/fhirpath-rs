@@ -12,7 +12,9 @@
         "testSecondOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [45]
+      "expected": [
+        45
+      ]
     },
     {
       "name": "testSecondOfDateTimeZero",
@@ -23,7 +25,9 @@
         "testSecondOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [0]
+      "expected": [
+        0
+      ]
     },
     {
       "name": "testSecondOfDateTimeMax",
@@ -34,7 +38,9 @@
         "testSecondOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [59]
+      "expected": [
+        59
+      ]
     },
     {
       "name": "testSecondOfDateTimeWithTimezone",
@@ -45,7 +51,9 @@
         "testSecondOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [30]
+      "expected": [
+        30
+      ]
     },
     {
       "name": "testSecondOfCollectionOfDateTimes",
@@ -56,7 +64,8 @@
         "testSecondOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [15, 30, 45]
+      "expected": [],
+      "expectError": true
     }
   ]
 }

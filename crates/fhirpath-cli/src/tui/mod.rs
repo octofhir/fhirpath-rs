@@ -13,20 +13,20 @@
 // limitations under the License.
 
 //! Terminal User Interface (TUI) for FHIRPath REPL
-//! 
+//!
 //! This module provides a rich, multi-panel terminal interface using Ratatui
 //! that replaces the simple rustyline-based REPL with advanced features:
-//! 
+//!
 //! - Multi-panel layout with input, output, diagnostics, variables, and history
 //! - Real-time syntax highlighting and validation
 //! - Interactive auto-completion with context awareness  
 //! - Professional visual design with configurable themes
 //! - Mouse and keyboard navigation support
-//! 
+//!
 //! ## Architecture Overview
-//! 
+//!
 //! The TUI is built around several core concepts:
-//! 
+//!
 //! - **Application State**: Centralized state management for all panels
 //! - **Component System**: Modular, reusable UI components  
 //! - **Event Handling**: Unified event processing with key bindings
@@ -41,22 +41,24 @@ pub mod layout;
 pub mod themes;
 pub mod utils;
 
-pub use app::{TuiApp, AppState, AppMode};
-pub use config::{TuiConfig, FeatureFlags};
+pub use app::{AppMode, AppState, TuiApp};
+pub use config::{FeatureFlags, TuiConfig};
 pub use events::{EventHandler, KeyBindings, TuiAction};
-pub use layout::{LayoutManager, PanelType, PanelLayout, LayoutConfig};
-pub use themes::{TuiTheme, ColorScheme};
+pub use layout::{LayoutConfig, LayoutManager, PanelLayout, PanelType};
+pub use themes::{ColorScheme, TuiTheme};
 
 use std::io::{self, Stdout};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::ExecutableCommand;
-use ratatui::backend::CrosstermBackend;
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use serde_json::Value as JsonValue;
 
 use octofhir_fhirpath::core::ModelProvider;
@@ -104,21 +106,24 @@ pub async fn start_tui(
 /// Utility function to check terminal capabilities
 pub fn check_terminal_capabilities() -> Result<()> {
     use crossterm::terminal::{size, supports_keyboard_enhancement};
-    
+
     let (width, height) = size().context("Failed to get terminal size")?;
-    
+
     if width < 80 || height < 24 {
         anyhow::bail!(
             "Terminal too small for TUI. Minimum size is 80x24, current size is {}x{}",
-            width, height
+            width,
+            height
         );
     }
 
     // Check for advanced features
     let keyboard_enhanced = supports_keyboard_enhancement().unwrap_or(false);
-    
+
     if !keyboard_enhanced {
-        eprintln!("Warning: Terminal does not support keyboard enhancement. Some key combinations may not work.");
+        eprintln!(
+            "Warning: Terminal does not support keyboard enhancement. Some key combinations may not work."
+        );
     }
 
     Ok(())

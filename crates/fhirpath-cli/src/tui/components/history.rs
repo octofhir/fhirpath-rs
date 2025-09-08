@@ -20,7 +20,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 use ratatui::{Frame, text::Text};
 
-use super::{ComponentResult, TuiComponent, SizeConstraints, ScrollState, utils};
+use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
@@ -46,11 +46,12 @@ impl TuiComponent for HistoryPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
         let is_focused = state.focused_panel == PanelType::History;
         let block = utils::create_panel_block("History", PanelType::History, is_focused, theme);
-        
+
         let items: Vec<ListItem> = if state.evaluation_history.is_empty() {
             vec![ListItem::new("No history yet")]
         } else {
-            state.evaluation_history
+            state
+                .evaluation_history
                 .iter()
                 .rev() // Show most recent first
                 .take(20) // Limit display
@@ -62,25 +63,27 @@ impl TuiComponent for HistoryPanel {
                 })
                 .collect()
         };
-        
+
         let list = List::new(items)
             .block(block)
             .highlight_style(theme.styles.selected_item);
-            
+
         frame.render_stateful_widget(list, area, &mut self.list_state);
     }
-    
+
     fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult {
         use crossterm::event::KeyCode;
-        
+
         match key.code {
             KeyCode::Up => {
-                self.scroll_state.select_previous(state.evaluation_history.len().min(20));
+                self.scroll_state
+                    .select_previous(state.evaluation_history.len().min(20));
                 self.list_state.select(self.scroll_state.selected_index);
                 ComponentResult::Handled
             }
             KeyCode::Down => {
-                self.scroll_state.select_next(state.evaluation_history.len().min(20));
+                self.scroll_state
+                    .select_next(state.evaluation_history.len().min(20));
                 self.list_state.select(self.scroll_state.selected_index);
                 ComponentResult::Handled
             }
@@ -92,17 +95,15 @@ impl TuiComponent for HistoryPanel {
                 }
                 ComponentResult::Handled
             }
-            KeyCode::Delete => {
-                ComponentResult::ClearHistory
-            }
+            KeyCode::Delete => ComponentResult::ClearHistory,
             _ => ComponentResult::NotHandled,
         }
     }
-    
+
     fn update(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     fn size_constraints(&self) -> SizeConstraints {
         SizeConstraints {
             min_width: Some(25),

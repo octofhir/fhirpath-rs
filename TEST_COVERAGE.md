@@ -11,148 +11,149 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Test Suites** | 112 | 100% |
-| **Total Individual Tests** | 1090 | 100% |
-| **Passing Tests** | 655 | 60.1% |
-| **Failing Tests** | 186 | 17.1% |
-| **Error Tests** | 249 | 22.8% |
+| **Total Test Suites** | 113 | 100% |
+| **Total Individual Tests** | 1110 | 100% |
+| **Passing Tests** | 886 | 79.8% |
+| **Failing Tests** | 163 | 14.7% |
+| **Error Tests** | 61 | 5.5% |
 
 ## Test Results by Suite
 
 ### ✅ Fully Passing (100%)
 
+- **Precision.json** - 6/6 tests
+- **day-of.json** - 7/7 tests
+- **from-Zulip.json** - 2/2 tests
+- **hour-of.json** - 5/5 tests
 - **minimal.json** - 1/1 tests
+- **minute-of.json** - 5/5 tests
+- **month-of.json** - 7/7 tests
+- **resolve.json** - 3/3 tests
+- **second-of.json** - 5/5 tests
+- **testAbs.json** - 4/4 tests
+- **testBooleanImplies.json** - 9/9 tests
+- **testBooleanLogicAnd.json** - 9/9 tests
+- **testBooleanLogicOr.json** - 9/9 tests
+- **testBooleanLogicXOr.json** - 9/9 tests
 - **testCase.json** - 4/4 tests
+- **testCeiling.json** - 4/4 tests
+- **testConcatenate.json** - 4/4 tests
+- **testContainsCollection.json** - 9/9 tests
+- **testContainsString.json** - 12/12 tests
 - **testCount.json** - 4/4 tests
+- **testDiv.json** - 8/8 tests
+- **testDivide.json** - 9/9 tests
+- **testEndsWith.json** - 12/12 tests
 - **testEscapeUnescape.json** - 4/4 tests
 - **testExclude.json** - 4/4 tests
+- **testExists.json** - 5/5 tests
+- **testExp.json** - 3/3 tests
 - **testFirstLast.json** - 2/2 tests
+- **testFloor.json** - 4/4 tests
+- **testJoin.json** - 1/1 tests
+- **testLength.json** - 6/6 tests
 - **testLn.json** - 3/3 tests
+- **testMatches.json** - 16/16 tests
+- **testMinus.json** - 11/11 tests
+- **testMod.json** - 8/8 tests
+- **testMultiply.json** - 6/6 tests
+- **testPlus.json** - 34/34 tests
+- **testReplace.json** - 6/6 tests
+- **testRound.json** - 3/3 tests
 - **testSingle.json** - 2/2 tests
 - **testSkip.json** - 4/4 tests
 - **testSplit.json** - 4/4 tests
+- **testStartsWith.json** - 14/14 tests
+- **testSubstring.json** - 12/12 tests
+- **testSuperSetOf.json** - 2/2 tests
 - **testTail.json** - 2/2 tests
 - **testTake.json** - 7/7 tests
 - **testToChars.json** - 1/1 tests
+- **testToDecimal.json** - 5/5 tests
+- **testToInteger.json** - 5/5 tests
 - **testToString.json** - 5/5 tests
+- **testToday.json** - 2/2 tests
+- **testTrim.json** - 6/6 tests
+- **testTruncate.json** - 4/4 tests
+- **testWhere.json** - 4/4 tests
 - **timezone-offset-of.json** - 5/5 tests
 - **to-date.json** - 11/11 tests
 - **year-of.json** - 9/9 tests
 
 ### 🟡 Well Implemented (70%+)
 
-- **testContainsCollection.json** - 88.9% (8/9 tests)
-- **testGreaterThan.json** - 86.7% (26/30 tests)
-- **testLessOrEqual.json** - 86.7% (26/30 tests)
-- **testNotEquivalent.json** - 86.4% (19/22 tests)
-- **day-of.json** - 85.7% (6/7 tests)
-- **month-of.json** - 85.7% (6/7 tests)
-- **Precision.json** - 83.3% (5/6 tests)
-- **testLength.json** - 83.3% (5/6 tests)
-- **testReplace.json** - 83.3% (5/6 tests)
-- **testTrim.json** - 83.3% (5/6 tests)
-- **testMatches.json** - 81.2% (13/16 tests)
-- **hour-of.json** - 80.0% (4/5 tests)
-- **minute-of.json** - 80.0% (4/5 tests)
-- **second-of.json** - 80.0% (4/5 tests)
-- **testExists.json** - 80.0% (4/5 tests)
-- **testGreatorOrEqual.json** - 80.0% (24/30 tests)
-- **testLessThan.json** - 80.0% (24/30 tests)
-- **testToDecimal.json** - 80.0% (4/5 tests)
-- **testAbs.json** - 75.0% (3/4 tests)
-- **testCeiling.json** - 75.0% (3/4 tests)
-- **testContainsString.json** - 75.0% (9/12 tests)
+- **testGreaterThan.json** - 96.7% (29/30 tests)
+- **testLessThan.json** - 96.7% (29/30 tests)
+- **testUnion.json** - 91.7% (11/12 tests)
+- **testGreatorOrEqual.json** - 90.0% (27/30 tests)
+- **testLessOrEqual.json** - 90.0% (27/30 tests)
+- **comments.json** - 88.9% (8/9 tests)
+- **testIn.json** - 87.5% (7/8 tests)
+- **testBasics.json** - 85.7% (6/7 tests)
+- **testLiterals.json** - 84.1% (69/82 tests)
+- **testTypes.json** - 83.8% (83/99 tests)
+- **testCollectionBoolean.json** - 83.3% (5/6 tests)
+- **testIndexOf.json** - 83.3% (5/6 tests)
+- **testNotEquivalent.json** - 81.8% (18/22 tests)
+- **testDollar.json** - 80.0% (4/5 tests)
+- **testLog.json** - 80.0% (4/5 tests)
+- **testSort.json** - 80.0% (8/10 tests)
 - **testEncodeDecode.json** - 75.0% (6/8 tests)
-- **testEndsWith.json** - 75.0% (9/12 tests)
-- **testEquivalent.json** - 75.0% (18/24 tests)
-- **testFloor.json** - 75.0% (3/4 tests)
 - **testIntersect.json** - 75.0% (3/4 tests)
 - **testNEquality.json** - 75.0% (18/24 tests)
-- **testTruncate.json** - 75.0% (3/4 tests)
 - **testVariables.json** - 75.0% (3/4 tests)
-- **testTypes.json** - 71.7% (71/99 tests)
+- **repeat-all.json** - 73.7% (14/19 tests)
 - **testEquality.json** - 71.4% (20/28 tests)
-- **testStartsWith.json** - 71.4% (10/14 tests)
+- **testEquivalent.json** - 70.8% (17/24 tests)
 
 ### 🟠 Partially Implemented (30-70%)
 
-- **testBooleanLogicAnd.json** - 66.7% (6/9 tests)
-- **testBooleanLogicOr.json** - 66.7% (6/9 tests)
-- **testExp.json** - 66.7% (2/3 tests)
+- **testCombine--.json** - 66.7% (2/3 tests)
+- **testMiscellaneousAccessorTests.json** - 66.7% (2/3 tests)
+- **testPower.json** - 66.7% (4/6 tests)
 - **testPrecedence.json** - 66.7% (4/6 tests)
-- **testRound.json** - 66.7% (2/3 tests)
-- **testUnion.json** - 66.7% (8/12 tests)
-- **testIn.json** - 62.5% (5/8 tests)
-- **testLiterals.json** - 62.2% (51/82 tests)
+- **testSelect.json** - 66.7% (2/3 tests)
+- **testSqrt.json** - 66.7% (2/3 tests)
+- **testSubSetOf.json** - 66.7% (2/3 tests)
 - **LowBoundary.json** - 60.7% (17/28 tests)
-- **testToInteger.json** - 60.0% (3/5 tests)
 - **HighBoundary.json** - 58.3% (14/24 tests)
-- **comments.json** - 55.6% (5/9 tests)
-- **testDivide.json** - 55.6% (5/9 tests)
-- **from-Zulip.json** - 50.0% (1/2 tests)
-- **testCollectionBoolean.json** - 50.0% (3/6 tests)
-- **testDiv.json** - 50.0% (4/8 tests)
+- **testReplaceMatches.json** - 57.1% (4/7 tests)
+- **testQuantity.json** - 54.5% (6/11 tests)
+- **miscEngineTests.json** - 50.0% (1/2 tests)
+- **testAll.json** - 50.0% (2/4 tests)
 - **testIif.json** - 50.0% (6/12 tests)
-- **testIndexOf.json** - 50.0% (3/6 tests)
-- **testMod.json** - 50.0% (4/8 tests)
-- **testMultiply.json** - 50.0% (3/6 tests)
 - **testNow.json** - 50.0% (1/2 tests)
-- **testToday.json** - 50.0% (1/2 tests)
-- **testMinus.json** - 45.5% (5/11 tests)
-- **testBooleanImplies.json** - 44.4% (4/9 tests)
-- **testBooleanLogicXOr.json** - 44.4% (4/9 tests)
-- **testBasics.json** - 42.9% (3/7 tests)
-- **testReplaceMatches.json** - 42.9% (3/7 tests)
-- **testDollar.json** - 40.0% (2/5 tests)
-- **testLog.json** - 40.0% (2/5 tests)
+- **testTrace.json** - 50.0% (1/2 tests)
+- **testInheritance.json** - 37.5% (9/24 tests)
+- **testType.json** - 36.7% (11/30 tests)
 - **Comparable.json** - 33.3% (1/3 tests)
 - **cdaTests.json** - 33.3% (1/3 tests)
 - **testConformsTo.json** - 33.3% (1/3 tests)
 - **testDistinct.json** - 33.3% (2/6 tests)
 - **testExtension.json** - 33.3% (1/3 tests)
-- **testPower.json** - 33.3% (2/6 tests)
-- **testSqrt.json** - 33.3% (1/3 tests)
 
 ### 🔴 Major Issues (0-30%)
 
-- **testType.json** - 26.7% (8/30 tests) - Issues
-- **testInheritance.json** - 25.0% (6/24 tests) - Issues
-- **testWhere.json** - 25.0% (1/4 tests) - Issues
-- **testPlus.json** - 20.6% (7/34 tests) - Issues
-- **testSubstring.json** - 16.7% (2/12 tests) - Issues
-- **testQuantity.json** - 9.1% (1/11 tests) - Issues
+- **testAggregate.json** - 25.0% (1/4 tests) - Issues
 - **defineVariable.json** - 4.8% (1/21 tests) - Issues
 - **TerminologyTests.json** - 0.0% (0/3 tests) - Missing
 - **index-part.json** - 0.0% (0/1 tests) - Missing
-- **miscEngineTests.json** - 0.0% (0/2 tests) - Missing
 - **period.json** - 0.0% (0/2 tests) - Missing
 - **polymorphics.json** - 0.0% (0/2 tests) - Missing
-- **resolve.json** - 0.0% (0/2 tests) - Missing
-- **testAggregate.json** - 0.0% (0/4 tests) - Missing
-- **testAll.json** - 0.0% (0/4 tests) - Missing
-- **testCombine--.json** - 0.0% (0/3 tests) - Missing
-- **testConcatenate.json** - 0.0% (0/4 tests) - Missing
 - **testIndexer.json** - 0.0% (0/2 tests) - Missing
-- **testJoin.json** - 0.0% (0/1 tests) - Missing
-- **testMiscellaneousAccessorTests.json** - 0.0% (0/3 tests) - Missing
 - **testObservations.json** - 0.0% (0/10 tests) - Missing
 - **testRepeat.json** - 0.0% (0/5 tests) - Missing
-- **testSelect.json** - 0.0% (0/3 tests) - Missing
-- **testSort.json** - 0.0% (0/10 tests) - Missing
-- **testSubSetOf.json** - 0.0% (0/3 tests) - Missing
-- **testSuperSetOf.json** - 0.0% (0/2 tests) - Missing
-- **testTrace.json** - 0.0% (0/2 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **60.1% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **79.8% of all FHIRPath tests**.
 
 ### Key Statistics
-- **Test Suites**: 112
-- **Total Tests**: 1090
-- **Pass Rate**: 60.1%
+- **Test Suites**: 113
+- **Total Tests**: 1110
+- **Pass Rate**: 79.8%
 
 ---
 
-*Report generated on: 2025-09-08 09:06:31*
+*Report generated on: 2025-09-08 21:39:13*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

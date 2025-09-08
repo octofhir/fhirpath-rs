@@ -62,6 +62,74 @@
           }
         }
       ]
+    },
+    {
+      "name": "testResolveContained",
+      "expression": "DiagnosticReport.specimen.resolve().resourceType",
+      "input": {
+        "resourceType": "DiagnosticReport",
+        "id": "example",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "LAB"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "58410-2"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/example"
+        },
+        "effectiveDateTime": "2011-03-04T08:30:00+11:00",
+        "issued": "2011-03-04T11:45:33+11:00",
+        "performer": [
+          {
+            "reference": "Organization/example"
+          }
+        ],
+        "specimen": [
+          {
+            "reference": "#specimen-1"
+          }
+        ],
+        "contained": [
+          {
+            "resourceType": "Specimen",
+            "id": "specimen-1",
+            "status": "available",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "122555007",
+                  "display": "Venous blood specimen"
+                }
+              ]
+            },
+            "subject": {
+              "reference": "Patient/example"
+            }
+          }
+        ]
+      },
+      "tags": [
+        "resolve",
+        "contained"
+      ],
+      "expected": [
+        "Specimen"
+      ]
     }
   ]
 }

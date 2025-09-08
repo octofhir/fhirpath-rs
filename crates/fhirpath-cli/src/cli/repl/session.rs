@@ -50,8 +50,10 @@ impl ReplSession {
     /// Create a new REPL session with a pre-created engine
     pub async fn new(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
         // Create analyzer
-        let analyzer =
-            StaticAnalyzer::new(engine.get_function_registry().clone(), engine.get_model_provider().clone());
+        let analyzer = StaticAnalyzer::new(
+            engine.get_function_registry().clone(),
+            engine.get_model_provider().clone(),
+        );
 
         // Initialize editor with history
         let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()
@@ -317,8 +319,8 @@ impl ReplSession {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
                 FhirPathValue::Resource(res) => res.clone(),
-                FhirPathValue::JsonValue(json) => json.as_inner().clone(),
-                _ => serde_json::json!({}),
+                FhirPathValue::JsonValue(json) => std::sync::Arc::new(json.as_ref().clone()),
+                _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else if needs_resource {
             // Provide helpful message when no resource is loaded but expression likely needs one
@@ -329,7 +331,7 @@ impl ReplSession {
             };
             return Ok(suggestion.to_string());
         } else {
-            serde_json::json!({})
+            std::sync::Arc::new(serde_json::json!({}))
         };
 
         // Add timing information for complex expressions
@@ -337,9 +339,9 @@ impl ReplSession {
 
         // For now, use a simple evaluation approach
         // TODO: Integrate variables and full engine support properly
-        use octofhir_fhirpath::{FhirPathValue, Collection};
+        use octofhir_fhirpath::{Collection, FhirPathValue};
         use std::collections::HashMap;
-        let input_value = FhirPathValue::resource(input_json.clone());
+        let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let variables = HashMap::new();
         let result = self
@@ -474,19 +476,19 @@ impl ReplSession {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
                 FhirPathValue::Resource(res) => res.clone(),
-                FhirPathValue::JsonValue(json) => json.as_inner().clone(),
-                _ => serde_json::json!({}),
+                FhirPathValue::JsonValue(json) => std::sync::Arc::new(json.as_ref().clone()),
+                _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else {
             // For expressions that don't need context like literals or today/now
-            serde_json::json!({})
+            std::sync::Arc::new(serde_json::json!({}))
         };
 
         // For now, use simple evaluation without variables
         // TODO: Add variables support back
         use octofhir_fhirpath::Collection;
         use std::collections::HashMap;
-        let input_value = FhirPathValue::resource(input_json.clone());
+        let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let variables = HashMap::new();
         let result = self
@@ -638,21 +640,20 @@ impl ReplSession {
         use crate::cli::diagnostics::CliDiagnosticHandler;
         use crate::cli::output::OutputFormat;
         use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
-        
+
         // Create diagnostic handler using the same system as CLI
-        let mut handler = CliDiagnosticHandler::new(
-            if self.config.color_output { 
-                OutputFormat::Pretty 
-            } else { 
-                OutputFormat::Raw 
-            }
-        );
+        let mut handler = CliDiagnosticHandler::new(if self.config.color_output {
+            OutputFormat::Pretty
+        } else {
+            OutputFormat::Raw
+        });
         let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
         // Parse expression with analysis mode (same as CLI)
         let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
 
-        let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
+        let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> =
+            Vec::new();
 
         // Convert parser diagnostics to AriadneDiagnostic format (same as CLI)
         if !parse_result.diagnostics.is_empty() {
@@ -660,9 +661,9 @@ impl ReplSession {
                 .diagnostics
                 .iter()
                 .map(|diagnostic| {
-                    use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
                     use octofhir_fhirpath::core::error_code::ErrorCode;
-                    
+                    use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
+
                     // Convert location to span
                     let span = if let Some(location) = &diagnostic.location {
                         location.offset..(location.offset + location.length)
@@ -699,20 +700,26 @@ impl ReplSession {
 
         // Run static analysis if parsing succeeded (same logic as CLI)
         if parse_result.success && parse_result.ast.is_some() {
-            match self.analyzer.analyze(parse_result.ast.as_ref().unwrap()).await {
+            match self
+                .analyzer
+                .analyze(parse_result.ast.as_ref().unwrap())
+                .await
+            {
                 Ok(analysis_result) => {
                     // Add static analysis diagnostics (using Ariadne diagnostics from analyzer)
                     let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
-                    
+
                     // Fix missing spans by calculating them from expression text (same as CLI)
                     for diagnostic in &mut static_diagnostics {
                         if diagnostic.span == (0..0) {
-                            if let Some(span) = self.calculate_span_from_message(&diagnostic.message, expression) {
+                            if let Some(span) =
+                                self.calculate_span_from_message(&diagnostic.message, expression)
+                            {
                                 diagnostic.span = span;
                             }
                         }
                     }
-                    
+
                     all_diagnostics.extend(static_diagnostics);
                 }
                 Err(e) => {
@@ -730,11 +737,13 @@ impl ReplSession {
 
         // Sort and deduplicate diagnostics (same as CLI)
         all_diagnostics.sort_by(|a, b| {
-            a.span.start.cmp(&b.span.start)
+            a.span
+                .start
+                .cmp(&b.span.start)
                 .then(a.error_code.code.cmp(&b.error_code.code))
                 .then(a.message.cmp(&b.message))
         });
-        
+
         all_diagnostics.dedup_by(|a, b| {
             a.message == b.message && a.error_code == b.error_code && a.span == b.span
         });
@@ -745,11 +754,14 @@ impl ReplSession {
             Ok(_) => {
                 let diagnostic_output = String::from_utf8(output)
                     .unwrap_or_else(|_| "Encoding error in diagnostics".to_string());
-                
+
                 // Add analysis summary if successful
                 if all_diagnostics.is_empty() {
                     let success_msg = if self.config.color_output {
-                        format!("✅ {}", "Expression analysis passed with no issues".bright_green())
+                        format!(
+                            "✅ {}",
+                            "Expression analysis passed with no issues".bright_green()
+                        )
                     } else {
                         "✓ Expression analysis passed with no issues".to_string()
                     };
@@ -757,9 +769,12 @@ impl ReplSession {
                 } else {
                     // Check if there are any errors
                     let has_errors = all_diagnostics.iter().any(|d| {
-                        matches!(d.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error)
+                        matches!(
+                            d.severity,
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                        )
                     });
-                    
+
                     let summary = if has_errors {
                         if self.config.color_output {
                             format!("❌ {}", "Analysis completed with errors".bright_red())
@@ -773,13 +788,11 @@ impl ReplSession {
                             "⚠ Analysis completed with warnings".to_string()
                         }
                     };
-                    
+
                     Ok(format!("{}\n\n{}", summary, diagnostic_output))
                 }
             }
-            Err(e) => {
-                Ok(format!("Failed to format diagnostics: {}", e))
-            }
+            Err(e) => Ok(format!("Failed to format diagnostics: {}", e)),
         }
     }
 
@@ -1096,10 +1109,10 @@ Examples:
         ariadne_diagnostics: &[octofhir_fhirpath::diagnostics::AriadneDiagnostic],
     ) -> String {
         let mut output = Vec::new();
-        
+
         // Add the expression as a source
         let source_id = self.diagnostic_engine.add_source("expression", expression);
-        
+
         // Use the DiagnosticEngine to emit a beautiful unified report
         match self.diagnostic_engine.emit_unified_report(
             ariadne_diagnostics,
@@ -1113,9 +1126,11 @@ Examples:
                 } else {
                     "Enhanced Property Validation:\n".to_string()
                 };
-                
-                result.push_str(&String::from_utf8(output)
-                    .unwrap_or_else(|_| "Encoding error in diagnostics".to_string()));
+
+                result.push_str(
+                    &String::from_utf8(output)
+                        .unwrap_or_else(|_| "Encoding error in diagnostics".to_string()),
+                );
                 result
             }
             Err(e) => {
@@ -1123,54 +1138,74 @@ Examples:
                 if ariadne_diagnostics.is_empty() {
                     return "No enhanced diagnostics available".to_string();
                 }
-                
+
                 let mut result = String::new();
                 for (i, diagnostic) in ariadne_diagnostics.iter().enumerate() {
                     if i > 0 {
                         result.push('\n');
                     }
-                    
+
                     let severity_marker = if self.config.color_output {
                         match diagnostic.severity {
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => "❌".bright_red(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => "⚠️".bright_yellow(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => "ℹ️".bright_blue(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => "💡".bright_cyan(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => {
+                                "❌".bright_red()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => {
+                                "⚠️".bright_yellow()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => {
+                                "ℹ️".bright_blue()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => {
+                                "💡".bright_cyan()
+                            }
                         }
                     } else {
                         match diagnostic.severity {
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => "✗".normal(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => "⚠".normal(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => "i".normal(),
-                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => "?".normal(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => {
+                                "✗".normal()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => {
+                                "⚠".normal()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => {
+                                "i".normal()
+                            }
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => {
+                                "?".normal()
+                            }
                         }
                     };
-                    
+
                     result.push_str(&format!(
-                        "{} [{}] {}", 
+                        "{} [{}] {}",
                         severity_marker,
                         diagnostic.error_code.code_str(),
                         diagnostic.message
                     ));
-                    
+
                     // Add help text if available
                     if let Some(help) = &diagnostic.help {
                         result.push_str(&format!("\n  {}", help));
                     }
-                    
-                    // Add note if available  
+
+                    // Add note if available
                     if let Some(note) = &diagnostic.note {
                         result.push_str(&format!("\n  {}", note));
                     }
                 }
-                
+
                 format!("Fallback diagnostic formatting ({}): {}", e, result)
             }
         }
     }
 
     /// Calculate span from diagnostic message by finding tokens in expression (same as CLI)
-    fn calculate_span_from_message(&self, message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
+    fn calculate_span_from_message(
+        &self,
+        message: &str,
+        expression: &str,
+    ) -> Option<std::ops::Range<usize>> {
         // Extract resource type or property name from message
         if message.contains("Unknown resource type: '") {
             // Extract resource type name from message like "Unknown resource type: 'Pat'"
@@ -1201,7 +1236,7 @@ Examples:
                 }
             }
         }
-        
+
         None
     }
 
@@ -1212,7 +1247,6 @@ Examples:
         diagnostics: &[octofhir_fhirpath::diagnostics::Diagnostic],
     ) -> String {
         use octofhir_fhirpath::core::error_code::ErrorCode;
-        
 
         let mut output = Vec::new();
 

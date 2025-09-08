@@ -23,13 +23,13 @@ use chumsky::pratt::{infix, left, postfix, prefix, right};
 use chumsky::prelude::*;
 
 use super::combinators::{
-    boolean_parser,
-    datetime_literal_parser, identifier_parser, number_parser, string_literal_parser,
-    variable_parser,
+    boolean_parser, datetime_literal_parser, identifier_parser, number_parser,
+    string_literal_parser, variable_parser,
 };
 use crate::ast::{
-    BinaryOperationNode, BinaryOperator, CollectionNode, ExpressionNode, FunctionCallNode, IndexAccessNode, MethodCallNode, PropertyAccessNode,
-    TypeCastNode, TypeCheckNode, UnaryOperationNode, UnaryOperator, UnionNode,
+    BinaryOperationNode, BinaryOperator, CollectionNode, ExpressionNode, FunctionCallNode,
+    IndexAccessNode, MethodCallNode, PropertyAccessNode, TypeCastNode, TypeCheckNode,
+    UnaryOperationNode, UnaryOperator, UnionNode,
 };
 use crate::core::{FP0001, FhirPathError};
 
@@ -65,7 +65,7 @@ fn preprocess_input(input: &str) -> String {
                         result.push(' '); // Add space where comment was
                         while let Some(c) = chars.next() {
                             if c == '\n' || c == '\r' {
-                                result.push(c); // Keep the newline
+                                result.push(' '); // Replace newline with space
                                 break;
                             }
                         }
@@ -127,11 +127,22 @@ fn preprocess_input(input: &str) -> String {
                     result.push(ch);
                 }
             }
+            // Normalize newlines and tabs to spaces outside of strings
+            '\n' | '\r' | '\t' if !in_string => {
+                result.push(' ');
+            }
             _ => result.push(ch),
         }
     }
 
-    result
+    // Trim and collapse multiple whitespaces
+    let normalized = result
+        .trim()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    normalized
 }
 
 /// Parse a FHIRPath expression into an AST using Chumsky Pratt parser
@@ -382,8 +393,17 @@ fn fhirpath_parser<'a>()
 
         // Layer 3: Medium precedence operators (relational, equality, membership, concatenation)
         let with_medium_precedence = with_high_precedence.pratt((
-            // Relational operators - precedence 8
-            infix(left(8), just("<=").padded(), |left, _, right, _| {
+            // String concatenation - precedence 8 (higher than relational and equality)
+            infix(left(8), just('&').padded(), |left, _, right, _| {
+                ExpressionNode::BinaryOperation(BinaryOperationNode {
+                    left: Box::new(left),
+                    operator: BinaryOperator::Concatenate,
+                    right: Box::new(right),
+                    location: None,
+                })
+            }),
+            // Relational operators - precedence 7
+            infix(left(7), just("<=").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::LessThanOrEqual,
@@ -391,7 +411,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(8), just(">=").padded(), |left, _, right, _| {
+            infix(left(7), just(">=").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::GreaterThanOrEqual,
@@ -399,7 +419,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(8), just("<").padded(), |left, _, right, _| {
+            infix(left(7), just("<").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::LessThan,
@@ -407,7 +427,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(8), just(">").padded(), |left, _, right, _| {
+            infix(left(7), just(">").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::GreaterThan,
@@ -415,8 +435,8 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            // Equality operators - precedence 7
-            infix(left(7), just("=").padded(), |left, _, right, _| {
+            // Equality operators - precedence 6
+            infix(left(6), just("=").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Equal,
@@ -424,7 +444,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(7), just("!=").padded(), |left, _, right, _| {
+            infix(left(6), just("!=").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::NotEqual,
@@ -432,7 +452,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(7), just("~").padded(), |left, _, right, _| {
+            infix(left(6), just("~").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Equivalent,
@@ -440,7 +460,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(7), just("!~").padded(), |left, _, right, _| {
+            infix(left(6), just("!~").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::NotEquivalent,
@@ -448,8 +468,8 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            // Membership operators - precedence 6
-            infix(left(6), just("in").padded(), |left, _, right, _| {
+            // Membership operators - precedence 5
+            infix(left(5), just("in").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::In,
@@ -457,7 +477,7 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            infix(left(6), just("contains").padded(), |left, _, right, _| {
+            infix(left(5), just("contains").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Contains,
@@ -465,8 +485,8 @@ fn fhirpath_parser<'a>()
                     location: None,
                 })
             }),
-            // String concatenation - precedence 5
-            infix(left(5), just('&').padded(), |left, _, right, _| {
+            // String concatenation - precedence 8 (higher than equality)
+            infix(left(8), just('&').padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
                     left: Box::new(left),
                     operator: BinaryOperator::Concatenate,
@@ -516,6 +536,7 @@ fn fhirpath_parser<'a>()
             }),
         ))
     })
+    .padded() // Use padded to handle trailing whitespace
     .then_ignore(end())
 }
 

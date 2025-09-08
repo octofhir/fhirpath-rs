@@ -12,10 +12,13 @@ use std::collections::HashSet;
 use crate::{
     ast::ExpressionNode,
     core::{FhirPathValue, Result},
-    evaluator::{traits::{CollectionEvaluator, MetadataAwareCollectionEvaluator}, EvaluationContext},
-    wrapped::{WrappedCollection, WrappedValue, collection_utils},
-    typing::TypeResolver,
     evaluator::metadata_collections::MetadataCollectionEvaluator,
+    evaluator::{
+        EvaluationContext,
+        traits::{CollectionEvaluator, MetadataAwareCollectionEvaluator},
+    },
+    typing::TypeResolver,
+    wrapped::{WrappedCollection, WrappedValue, collection_utils},
 };
 
 /// Implementation of CollectionEvaluator
@@ -36,7 +39,7 @@ impl CollectionEvaluatorImpl {
                     result.extend(self.flatten_collection(item));
                 }
                 result
-            },
+            }
             FhirPathValue::Empty => Vec::new(),
             single_value => vec![single_value.clone()],
         }
@@ -46,7 +49,7 @@ impl CollectionEvaluatorImpl {
     fn remove_duplicates(&self, items: Vec<FhirPathValue>) -> Vec<FhirPathValue> {
         let mut seen = HashSet::new();
         let mut result = Vec::new();
-        
+
         for item in items {
             // For simplicity, use string representation for deduplication
             // In a full implementation, this would need proper value comparison
@@ -55,7 +58,7 @@ impl CollectionEvaluatorImpl {
                 result.push(item);
             }
         }
-        
+
         result
     }
 }
@@ -85,13 +88,13 @@ impl CollectionEvaluator for CollectionEvaluatorImpl {
     fn union_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> FhirPathValue {
         let mut left_items = self.flatten_collection(left);
         let right_items = self.flatten_collection(right);
-        
+
         // Add right items to left, maintaining order
         left_items.extend(right_items);
-        
+
         // Remove duplicates to follow FHIRPath union semantics
         let unique_items = self.remove_duplicates(left_items);
-        
+
         self.create_collection(unique_items)
     }
 
@@ -121,11 +124,9 @@ impl CollectionEvaluator for CollectionEvaluatorImpl {
                     // Simple comparison - in full implementation would use proper equality
                     format!("{:?}", item) == format!("{:?}", value)
                 })
-            },
-            FhirPathValue::Empty => false,
-            single_value => {
-                format!("{:?}", single_value) == format!("{:?}", value)
             }
+            FhirPathValue::Empty => false,
+            single_value => format!("{:?}", single_value) == format!("{:?}", value),
         }
     }
 }
@@ -162,14 +163,15 @@ impl CollectionEvaluatorImpl {
         result: FhirPathValue,
         _resolver: &TypeResolver,
     ) -> Result<WrappedCollection> {
-        use crate::typing::type_utils;
-        use crate::wrapped::{ValueMetadata};
         use crate::path::CanonicalPath;
+        use crate::typing::type_utils;
+        use crate::wrapped::ValueMetadata;
 
         match result {
             FhirPathValue::Empty => Ok(collection_utils::empty()),
             FhirPathValue::Collection(values) => {
-                let wrapped_values: Vec<WrappedValue> = values.into_iter()
+                let wrapped_values: Vec<WrappedValue> = values
+                    .into_iter()
                     .enumerate()
                     .map(|(i, value)| {
                         let fhir_type = type_utils::fhirpath_value_to_fhir_type(&value);
@@ -193,7 +195,10 @@ impl CollectionEvaluatorImpl {
                     path: CanonicalPath::empty(),
                     index: None,
                 };
-                Ok(collection_utils::single(WrappedValue::new(single_value, metadata)))
+                Ok(collection_utils::single(WrappedValue::new(
+                    single_value,
+                    metadata,
+                )))
             }
         }
     }
@@ -228,7 +233,7 @@ mod tests {
                 assert_eq!(items[0], FhirPathValue::Integer(1));
                 assert_eq!(items[1], FhirPathValue::Integer(2));
                 assert_eq!(items[2], FhirPathValue::Integer(3));
-            },
+            }
             _ => panic!("Expected Collection"),
         }
 
@@ -243,7 +248,7 @@ mod tests {
                 assert_eq!(items.len(), 2);
                 assert_eq!(items[0], FhirPathValue::Integer(1));
                 assert_eq!(items[1], FhirPathValue::Integer(2));
-            },
+            }
             _ => panic!("Expected Collection"),
         }
     }
@@ -261,15 +266,13 @@ mod tests {
                 assert_eq!(items.len(), 2);
                 assert_eq!(items[0], FhirPathValue::Integer(1));
                 assert_eq!(items[1], FhirPathValue::Integer(2));
-            },
+            }
             _ => panic!("Expected Collection"),
         }
 
         // Union with collections
-        let left = FhirPathValue::Collection(vec![
-            FhirPathValue::Integer(1),
-            FhirPathValue::Integer(2),
-        ]);
+        let left =
+            FhirPathValue::Collection(vec![FhirPathValue::Integer(1), FhirPathValue::Integer(2)]);
         let right = FhirPathValue::Collection(vec![
             FhirPathValue::Integer(2), // Duplicate - should be removed
             FhirPathValue::Integer(3),
@@ -281,7 +284,7 @@ mod tests {
                 assert!(items.contains(&FhirPathValue::Integer(1)));
                 assert!(items.contains(&FhirPathValue::Integer(2)));
                 assert!(items.contains(&FhirPathValue::Integer(3)));
-            },
+            }
             _ => panic!("Expected Collection"),
         }
 
@@ -327,7 +330,9 @@ mod tests {
 
         // Value is not in collection
         assert!(!evaluator.contains_value(&collection, &FhirPathValue::Integer(99)));
-        assert!(!evaluator.contains_value(&collection, &FhirPathValue::String("missing".to_string())));
+        assert!(
+            !evaluator.contains_value(&collection, &FhirPathValue::String("missing".to_string()))
+        );
 
         // Single value contains itself
         let single = FhirPathValue::Integer(42);

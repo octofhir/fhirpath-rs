@@ -1,0 +1,254 @@
+{
+  "name": "repeat-all",
+  "description": "Test cases for repeat() and repeatAll() functions with safety mechanisms",
+  "source": "octofhir-fhirpath custom tests",
+  "tests": [
+    {
+      "name": "testRepeatBasic",
+      "expression": "Patient.name.repeat('test').first() = 'test'",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeat-basic"
+      ]
+    },
+    {
+      "name": "testRepeatAllBasic",
+      "expression": "Patient.name.repeatAll('test').count() >= 1",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeatAll-basic"
+      ]
+    },
+    {
+      "name": "testRepeatDeduplication",
+      "expression": "Patient.name.repeat('duplicate').count() <= Patient.name.repeatAll('duplicate').count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeat-deduplication"
+      ]
+    },
+    {
+      "name": "testRepeatEmpty",
+      "expression": "{}.repeat($this + 1).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeat-empty"
+      ]
+    },
+    {
+      "name": "testRepeatAllEmpty",
+      "expression": "{}.repeatAll($this + 1).empty()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeatAll-empty"
+      ]
+    },
+    {
+      "name": "testRepeatIncompatibleArithmetic",
+      "expression": "'1'.repeat($this + 1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeat-safety"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatAllIncompatibleArithmetic",
+      "expression": "'test'.repeatAll($this * 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeatAll-safety"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatSingleArgument",
+      "expression": "1.repeat($this + 1, $this * 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeat-args"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatAllSingleArgument",
+      "expression": "1.repeatAll($this + 1, $this * 2)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeatAll-args"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatNoArguments",
+      "expression": "1.repeat()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeat-noargs"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatAllNoArguments",
+      "expression": "1.repeatAll()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeatAll-noargs"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatSimpleProjection",
+      "expression": "5.repeat(iif($this > 0, $this - 1, {})).where($this > 0) = (5|4|3|2|1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeat-projection"
+      ]
+    },
+    {
+      "name": "testRepeatAllSimpleProjection", 
+      "expression": "5.repeatAll(iif($this > 0, $this - 1, {})).where($this > 0).count() >= 5.repeat(iif($this > 0, $this - 1, {})).where($this > 0).count()",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeatAll-projection"
+      ]
+    },
+    {
+      "name": "testRepeatFiniteSequence",
+      "expression": "10.repeat(iif($this > 1, $this - 2, {})).count() = 6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeat-finite"
+      ]
+    },
+    {
+      "name": "testRepeatAllFiniteSequence",
+      "expression": "10.repeatAll(iif($this > 1, $this - 2, {})).count() = 6",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [
+        true
+      ],
+      "tags": [
+        "r5-xml",
+        "repeatAll-finite"
+      ]
+    },
+    {
+      "name": "testRepeatInfiniteLoop",
+      "expression": "1.repeat($this + 1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeat-infinite"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatAllInfiniteLoop",
+      "expression": "1.repeatAll($this + 1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeatAll-infinite"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatInfiniteConstant",
+      "expression": "1.repeat(1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeat-constant"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    },
+    {
+      "name": "testRepeatAllInfiniteConstant",
+      "expression": "1.repeatAll(1)",
+      "input": null,
+      "inputfile": "patient-example.json",
+      "expected": [],
+      "tags": [
+        "r5-xml",
+        "repeatAll-constant"
+      ],
+      "expectError": true,
+      "invalidKind": "execution"
+    }
+  ]
+}

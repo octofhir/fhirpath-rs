@@ -16,8 +16,8 @@
 
 use anyhow::Error;
 use colored::*;
-use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::FhirPathValue;
+use octofhir_fhirpath::core::JsonValueExt;
 
 /// Handles formatting of REPL output
 pub struct DisplayFormatter {
@@ -278,7 +278,7 @@ impl DisplayFormatter {
             }
             FhirPathValue::Resource(resource) => {
                 // Format FHIR resources nicely
-                if let Ok(pretty) = serde_json::to_string_pretty(resource) {
+                if let Ok(pretty) = serde_json::to_string_pretty(resource.as_ref()) {
                     if self.use_colors {
                         self.cyan(&pretty)
                     } else {

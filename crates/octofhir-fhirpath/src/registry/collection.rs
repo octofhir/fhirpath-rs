@@ -371,8 +371,8 @@ impl FunctionRegistry {
             examples: ["Patient.name.where(use = 'official')", "Bundle.entry.where(resource.active = true)"],
             implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
                 Err(crate::core::FhirPathError::evaluation_error(
-                    FP0053,
-                    "where() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                    crate::core::error_code::FP0053,
+                    "where() function is implemented through metadata-aware lambda evaluation system".to_string()
                 ))
             }
         )
@@ -389,8 +389,8 @@ impl FunctionRegistry {
             examples: ["Patient.name.select(family + ', ' + given.first())", "Bundle.entry.select(resource.id)"],
             implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
                 Err(crate::core::FhirPathError::evaluation_error(
-                    FP0053,
-                    "select() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                    crate::core::error_code::FP0053,
+                    "select() function is implemented through metadata-aware lambda evaluation system".to_string()
                 ))
             }
         )
@@ -529,8 +529,8 @@ impl FunctionRegistry {
             examples: ["(1 | 2 | 3).aggregate($total + $this, 0)"],
             implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
                 Err(crate::core::FhirPathError::evaluation_error(
-                    FP0053,
-                    "aggregate() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                    crate::core::error_code::FP0053,
+                    "aggregate() function is implemented through metadata-aware lambda evaluation system".to_string()
                 ))
             }
         )
@@ -547,8 +547,8 @@ impl FunctionRegistry {
             examples: ["Patient.name.sort()", "Bundle.entry.sort(resource.id)"],
             implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
                 Err(crate::core::FhirPathError::evaluation_error(
-                    FP0053,
-                    "sort() function requires lambda expression evaluation system (not yet implemented)".to_string()
+                    crate::core::error_code::FP0053,
+                    "sort() function is implemented through metadata-aware lambda evaluation system".to_string()
                 ))
             }
         )

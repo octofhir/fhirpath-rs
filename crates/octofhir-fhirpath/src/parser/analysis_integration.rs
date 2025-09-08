@@ -5,8 +5,8 @@
 
 use crate::ast::ExpressionNode;
 use crate::core::error_code::*;
-use crate::diagnostics::collector::{DiagnosticBatch, MultiDiagnosticCollector};
 use crate::diagnostics::DiagnosticSeverity;
+use crate::diagnostics::collector::{DiagnosticBatch, MultiDiagnosticCollector};
 use std::ops::Range;
 
 /// Result of comprehensive FHIRPath analysis

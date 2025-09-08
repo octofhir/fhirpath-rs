@@ -1,7 +1,7 @@
 //! Simplified optimization detector for FHIRPath expressions
 
-use crate::analyzer::type_checker::{NodeId, TypeInfo};
 use crate::analyzer::OptimizationSuggestion;
+use crate::analyzer::type_checker::{NodeId, TypeInfo};
 use crate::ast::expression::*;
 use crate::core::{Result, SourceLocation};
 use std::collections::HashMap;

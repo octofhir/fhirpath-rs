@@ -12,7 +12,9 @@
         "testDayOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [1]
+      "expected": [
+        1
+      ]
     },
     {
       "name": "testDayOfDateMiddleOfMonth",
@@ -23,7 +25,9 @@
         "testDayOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [15]
+      "expected": [
+        15
+      ]
     },
     {
       "name": "testDayOfDateEndOfMonth",
@@ -34,7 +38,9 @@
         "testDayOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [31]
+      "expected": [
+        31
+      ]
     },
     {
       "name": "testDayOfDateTime",
@@ -45,7 +51,9 @@
         "testDayOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [25]
+      "expected": [
+        25
+      ]
     },
     {
       "name": "testDayOfLeapYear",
@@ -56,7 +64,9 @@
         "testDayOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [29]
+      "expected": [
+        29
+      ]
     },
     {
       "name": "testDayOfCollectionOfDates",
@@ -66,8 +76,9 @@
         "fhirpath-lab",
         "testDayOf"
       ],
+      "expectError": true,
       "inputfile": "patient-example.json",
-      "expected": [1, 15, 31]
+      "expected": []
     },
     {
       "name": "testDayOfPatientBirthDate",
@@ -81,7 +92,9 @@
         "testDayOf"
       ],
       "inputfile": null,
-      "expected": [15]
+      "expected": [
+        15
+      ]
     }
   ]
 }

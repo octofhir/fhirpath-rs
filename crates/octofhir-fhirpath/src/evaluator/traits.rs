@@ -13,8 +13,8 @@ use crate::{
     ast::ExpressionNode,
     core::{FhirPathValue, ModelProvider, Result},
     evaluator::EvaluationContext,
-    wrapped::{WrappedValue, WrappedCollection},
     typing::TypeResolver,
+    wrapped::{WrappedCollection, WrappedValue},
 };
 
 // Note: We always depend on ModelProvider trait - no direct implementations
@@ -39,12 +39,12 @@ pub trait ExpressionEvaluator {
         expr: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<FhirPathValue>;
-    
+
     /// Check if this evaluator can handle the given expression type
     ///
     /// This allows for efficient dispatch to specialized evaluators.
     fn can_evaluate(&self, expr: &ExpressionNode) -> bool;
-    
+
     /// Get the name of this evaluator for debugging and metrics
     fn evaluator_name(&self) -> &'static str;
 }
@@ -248,61 +248,6 @@ pub trait CollectionEvaluator {
     fn contains_value(&self, collection: &FhirPathValue, value: &FhirPathValue) -> bool;
 }
 
-/// Trait for evaluating lambda expressions
-///
-/// Handles lambda expressions with proper variable scoping and context management
-/// for operations like where(), select(), and aggregate functions.
-#[async_trait]
-pub trait LambdaEvaluator {
-    /// Evaluate a lambda expression against a collection
-    ///
-    /// # Arguments
-    /// * `lambda` - The lambda expression to evaluate
-    /// * `collection` - The collection to evaluate against
-    /// * `context` - The current evaluation context
-    ///
-    /// # Returns
-    /// * `FhirPathValue` - The lambda evaluation result
-    async fn evaluate_lambda(
-        &mut self,
-        lambda: &crate::ast::LambdaNode,
-        collection: &FhirPathValue,
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue>;
-
-    /// Evaluate a lambda expression for each item in a collection
-    ///
-    /// # Arguments
-    /// * `lambda` - The lambda expression to evaluate
-    /// * `collection` - The collection to iterate over
-    /// * `context` - The current evaluation context
-    ///
-    /// # Returns
-    /// * `Vec<FhirPathValue>` - Results for each collection item
-    async fn map_lambda(
-        &mut self,
-        lambda: &crate::ast::LambdaNode,
-        collection: &FhirPathValue,
-        context: &EvaluationContext,
-    ) -> Result<Vec<FhirPathValue>>;
-
-    /// Create a child context with lambda variable bindings
-    ///
-    /// # Arguments
-    /// * `parent_context` - The parent evaluation context
-    /// * `lambda_param` - The lambda parameter name (e.g., "$this")
-    /// * `param_value` - The value to bind to the parameter
-    ///
-    /// # Returns
-    /// * `EvaluationContext` - The child context with bindings
-    fn create_lambda_context(
-        &self,
-        parent_context: &EvaluationContext,
-        lambda_param: Option<&str>,
-        param_value: &FhirPathValue,
-    ) -> EvaluationContext;
-}
-
 /// Metadata-aware trait for navigating through values with rich metadata propagation
 ///
 /// This trait provides metadata-aware navigation that preserves type information,
@@ -504,3 +449,63 @@ pub trait MetadataAwareCollectionEvaluator {
     fn contains_wrapped_value(&self, collection: &WrappedCollection, value: &WrappedValue) -> bool;
 }
 
+/// Standard trait for evaluating lambda expressions with metadata propagation
+///
+/// This trait provides lambda evaluation that preserves type information
+/// and path contexts through lambda operations like where(), select(), and aggregate functions.
+#[async_trait]
+pub trait LambdaEvaluator {
+    /// Evaluate a lambda expression against a wrapped collection
+    ///
+    /// # Arguments
+    /// * `lambda` - The lambda expression to evaluate
+    /// * `collection` - The wrapped collection to evaluate against
+    /// * `context` - The current evaluation context
+    /// * `resolver` - Type resolver for result metadata
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The lambda evaluation result with metadata
+    async fn evaluate_lambda(
+        &mut self,
+        lambda: &crate::ast::LambdaNode,
+        collection: &WrappedCollection,
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+
+    /// Evaluate a lambda expression for each item in a wrapped collection
+    ///
+    /// # Arguments
+    /// * `lambda` - The lambda expression to evaluate
+    /// * `collection` - The wrapped collection to iterate over
+    /// * `context` - The current evaluation context
+    /// * `resolver` - Type resolver for result metadata
+    ///
+    /// # Returns
+    /// * `Vec<WrappedCollection>` - Results for each collection item with metadata
+    async fn map_lambda(
+        &mut self,
+        lambda: &crate::ast::LambdaNode,
+        collection: &WrappedCollection,
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<Vec<WrappedCollection>>;
+
+    /// Create a child context with lambda variable bindings
+    ///
+    /// # Arguments
+    /// * `parent_context` - The parent evaluation context
+    /// * `lambda_param` - The lambda parameter name (e.g., "$this")
+    /// * `param_value` - The wrapped value to bind to the parameter
+    /// * `resolver` - Type resolver for context metadata
+    ///
+    /// # Returns
+    /// * `EvaluationContext` - The child context with bindings
+    async fn create_lambda_context(
+        &self,
+        parent_context: &EvaluationContext,
+        lambda_param: Option<&str>,
+        param_value: &WrappedValue,
+        resolver: &TypeResolver,
+    ) -> Result<EvaluationContext>;
+}

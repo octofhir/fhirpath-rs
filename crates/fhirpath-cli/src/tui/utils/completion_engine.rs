@@ -46,14 +46,14 @@ impl CompletionEngine {
             analyzer,
             cache: CompletionCache::default(),
         };
-        
+
         // Pre-populate cache
         engine.populate_function_cache().await?;
         engine.populate_keyword_cache();
-        
+
         Ok(engine)
     }
-    
+
     /// Get completions for the given context
     pub async fn get_completions(
         &mut self,
@@ -61,10 +61,10 @@ impl CompletionEngine {
         state: &AppState,
     ) -> anyhow::Result<Vec<CompletionItem>> {
         let mut completions = Vec::new();
-        
+
         // Determine what kind of completion is needed based on context
         let completion_type = self.analyze_completion_context(&context)?;
-        
+
         match completion_type {
             CompletionType::Function => {
                 completions.extend(self.get_function_completions(&context).await?);
@@ -88,17 +88,20 @@ impl CompletionEngine {
                 completions.extend(self.get_variable_completions(&context, state));
             }
         }
-        
+
         // Sort by relevance
         self.rank_completions(&mut completions, &context);
-        
+
         Ok(completions)
     }
-    
+
     /// Analyze context to determine completion type
-    fn analyze_completion_context(&self, context: &CompletionContext) -> anyhow::Result<CompletionType> {
+    fn analyze_completion_context(
+        &self,
+        context: &CompletionContext,
+    ) -> anyhow::Result<CompletionType> {
         let text_before_cursor = &context.expression[..context.cursor_position];
-        
+
         if text_before_cursor.ends_with('.') {
             Ok(CompletionType::Property)
         } else if text_before_cursor.contains('(') && !text_before_cursor.ends_with(')') {
@@ -111,29 +114,39 @@ impl CompletionEngine {
             Ok(CompletionType::Mixed)
         }
     }
-    
+
     /// Get function completions
-    async fn get_function_completions(&self, _context: &CompletionContext) -> anyhow::Result<Vec<CompletionItem>> {
+    async fn get_function_completions(
+        &self,
+        _context: &CompletionContext,
+    ) -> anyhow::Result<Vec<CompletionItem>> {
         Ok(self.cache.functions.clone())
     }
-    
+
     /// Get property completions
-    async fn get_property_completions(&self, context: &CompletionContext) -> anyhow::Result<Vec<CompletionItem>> {
-        let resource_type = context.current_resource_type
+    async fn get_property_completions(
+        &self,
+        context: &CompletionContext,
+    ) -> anyhow::Result<Vec<CompletionItem>> {
+        let resource_type = context
+            .current_resource_type
             .as_deref()
             .unwrap_or("Resource");
-        
+
         if let Some(cached) = self.cache.properties.get(resource_type) {
             return Ok(cached.clone());
         }
-        
+
         // This would integrate with the ModelProvider to get actual properties
         // For now, return empty list
         Ok(Vec::new())
     }
-    
+
     /// Get resource type completions
-    async fn get_resource_type_completions(&self, _context: &CompletionContext) -> anyhow::Result<Vec<CompletionItem>> {
+    async fn get_resource_type_completions(
+        &self,
+        _context: &CompletionContext,
+    ) -> anyhow::Result<Vec<CompletionItem>> {
         // This would get resource types from ModelProvider
         Ok(vec![
             CompletionItem {
@@ -152,10 +165,16 @@ impl CompletionEngine {
             },
         ])
     }
-    
+
     /// Get variable completions
-    fn get_variable_completions(&self, _context: &CompletionContext, state: &AppState) -> Vec<CompletionItem> {
-        state.variables.keys()
+    fn get_variable_completions(
+        &self,
+        _context: &CompletionContext,
+        state: &AppState,
+    ) -> Vec<CompletionItem> {
+        state
+            .variables
+            .keys()
             .map(|name| CompletionItem {
                 text: format!("%{}", name),
                 display: format!("%{}", name),
@@ -165,32 +184,35 @@ impl CompletionEngine {
             })
             .collect()
     }
-    
+
     /// Get keyword completions
     fn get_keyword_completions(&self, _context: &CompletionContext) -> Vec<CompletionItem> {
         self.cache.keywords.clone()
     }
-    
+
     /// Rank completions by relevance
     fn rank_completions(&self, completions: &mut Vec<CompletionItem>, context: &CompletionContext) {
         let partial = self.get_partial_word(context);
-        
+
         completions.sort_by(|a, b| {
             let a_score = self.completion_score(a, &partial);
             let b_score = self.completion_score(b, &partial);
-            b_score.partial_cmp(&a_score).unwrap_or(std::cmp::Ordering::Equal)
+            b_score
+                .partial_cmp(&a_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
     }
-    
+
     /// Get partial word being completed
     fn get_partial_word(&self, context: &CompletionContext) -> String {
         let text_before_cursor = &context.expression[..context.cursor_position];
-        text_before_cursor.split(|c: char| !c.is_alphanumeric() && c != '_')
+        text_before_cursor
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
             .last()
             .unwrap_or("")
             .to_string()
     }
-    
+
     /// Calculate relevance score for a completion
     fn completion_score(&self, completion: &CompletionItem, partial: &str) -> f64 {
         if partial.is_empty() {
@@ -203,10 +225,10 @@ impl CompletionEngine {
                 CompletionKind::Operator => 0.5,
             };
         }
-        
+
         let text = completion.text.to_lowercase();
         let partial = partial.to_lowercase();
-        
+
         if text.starts_with(&partial) {
             1.0 + (partial.len() as f64 / text.len() as f64)
         } else if text.contains(&partial) {
@@ -215,13 +237,13 @@ impl CompletionEngine {
             0.0
         }
     }
-    
+
     /// Pre-populate function cache
     async fn populate_function_cache(&mut self) -> anyhow::Result<()> {
         // Use the actual function registry to get all available functions
         if let Some(registry) = &self.function_registry {
             let functions = registry.list_functions();
-            
+
             for function in functions {
                 let completion = CompletionItem {
                     text: format!("{}()", function.name),
@@ -235,9 +257,9 @@ impl CompletionEngine {
         } else {
             // Fallback to basic function list when registry is not available
             let basic_functions = vec![
-                "first", "last", "count", "empty", "exists", "where", "select", "single"
+                "first", "last", "count", "empty", "exists", "where", "select", "single",
             ];
-            
+
             for name in basic_functions {
                 let completion = CompletionItem {
                     text: format!("{}()", name),
@@ -249,10 +271,10 @@ impl CompletionEngine {
                 self.cache.functions.push(completion);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Pre-populate keyword cache
     fn populate_keyword_cache(&mut self) {
         let keywords = vec![
@@ -270,7 +292,7 @@ impl CompletionEngine {
             ("false", "Boolean false literal"),
             ("null", "Null literal"),
         ];
-        
+
         for (keyword, description) in keywords {
             let completion = CompletionItem {
                 text: keyword.to_string(),

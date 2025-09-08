@@ -9,15 +9,13 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
-use crate::core::{
-    FhirPathError, FhirPathValue, ModelProvider, Result,
-    error_code::FP0054,
-};
+use crate::core::{FhirPathError, FhirPathValue, ModelProvider, Result, error_code::FP0054};
 use crate::evaluator::TerminologyService;
 
 pub use terminology_provider::{
     ConceptDetails, DefaultTerminologyProvider, MockTerminologyProvider, TerminologyProvider,
 };
+pub use terminology_service::ConcreteTerminologyService;
 pub use terminology_utils::{
     Coding, ConceptDesignation, ConceptProperty, ConceptTranslation, PropertyValue,
     TerminologyUtils,
@@ -39,6 +37,7 @@ pub mod numeric;
 pub mod string;
 pub mod terminology;
 pub mod terminology_provider;
+pub mod terminology_service;
 pub mod terminology_utils;
 pub mod type_utils;
 pub mod types;

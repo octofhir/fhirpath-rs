@@ -121,7 +121,7 @@ impl FunctionRegistry {
                         // Use the new temporal parsing utilities with proper validation
                         use crate::core::temporal::parsing::parse_date_or_datetime_string;
 
-                        match parse_date_or_datetime_string(s) {
+                        match parse_date_or_datetime_string(&s) {
                             Ok(precision_date) => {
                                 Ok(FhirPathValue::integer(precision_date.date.year() as i64))
                             }
@@ -174,7 +174,7 @@ impl FunctionRegistry {
                         // Use the new temporal parsing utilities with proper validation
                         use crate::core::temporal::parsing::parse_date_or_datetime_string;
 
-                        match parse_date_or_datetime_string(s) {
+                        match parse_date_or_datetime_string(&s) {
                             Ok(precision_date) => {
                                 Ok(FhirPathValue::integer(precision_date.date.month() as i64))
                             }
@@ -205,6 +205,10 @@ impl FunctionRegistry {
             return_type: "Integer",
             examples: ["Patient.birthDate.dayOf()", "now().dayOf()", "@2023-05-15.dayOf()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() > 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         crate::core::FP0053,
@@ -212,10 +216,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let Some(first_item) = context.input.first() else {
-                    return Ok(FhirPathValue::empty());
-                };
-
+                let first_item = context.input.first().unwrap();
                 match first_item {
                     FhirPathValue::Date(date) => {
                         Ok(FhirPathValue::integer(date.date.day() as i64))
@@ -227,7 +228,7 @@ impl FunctionRegistry {
                         // Use the new temporal parsing utilities with proper validation
                         use crate::core::temporal::parsing::parse_date_or_datetime_string;
 
-                        match parse_date_or_datetime_string(s) {
+                        match parse_date_or_datetime_string(&s) {
                             Ok(precision_date) => {
                                 Ok(FhirPathValue::integer(precision_date.date.day() as i64))
                             }

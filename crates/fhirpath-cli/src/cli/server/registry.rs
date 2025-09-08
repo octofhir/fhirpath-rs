@@ -20,6 +20,10 @@ use tracing::{error, info, warn};
 pub struct ServerRegistry {
     /// Engines for evaluation (without analyzer)
     evaluation_engines: HashMap<ServerFhirVersion, Arc<Mutex<FhirPathEngine>>>,
+    /// Shared function registry for all engines
+    function_registry: Arc<FunctionRegistry>,
+    /// Shared model providers for per-request engine creation
+    model_providers: HashMap<ServerFhirVersion, Arc<EmbeddedModelProvider>>,
     // TODO: Add proper analysis engines when analyzer is integrated
 }
 
@@ -27,6 +31,7 @@ impl ServerRegistry {
     /// Create a new server registry with engines for all FHIR versions
     pub async fn new() -> ServerResult<Self> {
         let mut evaluation_engines = HashMap::new();
+        let mut model_providers = HashMap::new();
 
         // Create shared function registry once
         let function_registry: Arc<FunctionRegistry> = Arc::new(create_standard_registry().await);
@@ -34,19 +39,37 @@ impl ServerRegistry {
 
         // Initialize engines for all supported FHIR versions
         for &version in ServerFhirVersion::all() {
+            let start_time = std::time::Instant::now();
             info!("🔧 Initializing engines for FHIR {}", version);
 
             // Create model provider for this version
+            let model_provider_start = std::time::Instant::now();
             let model_provider: EmbeddedModelProvider =
                 create_model_provider_for_version(version).await?;
             let model_provider_arc = Arc::new(model_provider);
+            let model_provider_time = model_provider_start.elapsed();
+            info!(
+                "📊 Model provider for {} created in {:?}",
+                version, model_provider_time
+            );
+
+            // Store shared model provider for per-request engine creation
+            model_providers.insert(version, model_provider_arc.clone());
 
             // Create evaluation engine
+            let engine_start = std::time::Instant::now();
             let eval_engine =
                 FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone()).await?;
+            let engine_time = engine_start.elapsed();
+            info!("📊 Engine for {} created in {:?}", version, engine_time);
+
             evaluation_engines.insert(version, Arc::new(Mutex::new(eval_engine)));
 
-            info!("✅ Engine initialized for FHIR {}", version);
+            let total_time = start_time.elapsed();
+            info!(
+                "✅ Engine initialized for FHIR {} (total: {:?})",
+                version, total_time
+            );
         }
 
         info!(
@@ -54,21 +77,20 @@ impl ServerRegistry {
             evaluation_engines.len()
         );
 
-        Ok(Self { evaluation_engines })
+        Ok(Self {
+            evaluation_engines,
+            function_registry,
+            model_providers,
+        })
     }
 
     /// Get the evaluation engine for a specific FHIR version
-    pub fn get_evaluation_engine(&self, version: ServerFhirVersion) -> Option<Arc<Mutex<FhirPathEngine>>> {
+    pub fn get_evaluation_engine(
+        &self,
+        version: ServerFhirVersion,
+    ) -> Option<Arc<Mutex<FhirPathEngine>>> {
         self.evaluation_engines.get(&version).cloned()
     }
-
-    /// Get the analysis engine for a specific FHIR version
-    /// For now, returns None since proper analyzer is not integrated yet
-    pub fn get_analysis_engine(&self, _version: ServerFhirVersion) -> Option<Arc<Mutex<FhirPathEngine>>> {
-        // TODO: Return proper analysis engine when analyzer is integrated
-        None
-    }
-
     /// Get the number of FHIR versions supported
     pub fn version_count(&self) -> usize {
         self.evaluation_engines.len()
@@ -84,11 +106,45 @@ impl ServerRegistry {
         self.evaluation_engines.contains_key(&version)
     }
 
-    /// Check if analysis is available for a FHIR version
-    /// For now, returns false since proper analyzer is not integrated yet
-    pub fn supports_analysis(&self, _version: ServerFhirVersion) -> bool {
-        // TODO: Return true when proper analyzer is integrated
-        false
+    /// Check if analysis is supported for a FHIR version
+    pub fn supports_analysis(&self, version: ServerFhirVersion) -> bool {
+        // TODO: Add proper analysis support when analyzer is integrated
+        self.evaluation_engines.contains_key(&version)
+    }
+
+    /// Create a new engine for the given FHIR version (per-request)
+    /// Returns timing information for performance comparison
+    pub async fn create_engine_for_version(
+        &self,
+        version: ServerFhirVersion,
+    ) -> ServerResult<(FhirPathEngine, std::time::Duration)> {
+        let start_time = std::time::Instant::now();
+
+        let model_provider =
+            self.model_providers
+                .get(&version)
+                .ok_or_else(|| ServerError::BadRequest {
+                    message: format!("FHIR version {} not supported", version),
+                })?;
+
+        let engine =
+            FhirPathEngine::new(self.function_registry.clone(), model_provider.clone()).await?;
+
+        let creation_time = start_time.elapsed();
+        Ok((engine, creation_time))
+    }
+
+    /// Get shared function registry
+    pub fn get_function_registry(&self) -> &Arc<FunctionRegistry> {
+        &self.function_registry
+    }
+
+    /// Get shared model provider for a version
+    pub fn get_model_provider(
+        &self,
+        version: ServerFhirVersion,
+    ) -> Option<&Arc<EmbeddedModelProvider>> {
+        self.model_providers.get(&version)
     }
 }
 
@@ -146,9 +202,5 @@ mod tests {
         // Test evaluation engine retrieval
         let r4_engine = registry.get_evaluation_engine(ServerFhirVersion::R4);
         assert!(r4_engine.is_some());
-
-        // Test analysis engine retrieval
-        let r4_analyzer = registry.get_analysis_engine(ServerFhirVersion::R4);
-        assert!(r4_analyzer.is_some());
     }
 }

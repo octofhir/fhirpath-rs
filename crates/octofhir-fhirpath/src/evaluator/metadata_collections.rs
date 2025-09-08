@@ -8,13 +8,10 @@ use async_trait::async_trait;
 use crate::{
     ast::ExpressionNode,
     core::{FhirPathValue, Result},
-    evaluator::{
-        traits::MetadataAwareCollectionEvaluator,
-        EvaluationContext,
-    },
+    evaluator::{EvaluationContext, traits::MetadataAwareCollectionEvaluator},
     path::CanonicalPath,
     typing::{TypeResolver, type_utils},
-    wrapped::{WrappedValue, WrappedCollection, collection_utils},
+    wrapped::{WrappedCollection, WrappedValue, collection_utils},
 };
 
 /// Metadata-aware collection evaluator
@@ -28,7 +25,10 @@ impl MetadataCollectionEvaluator {
     }
 
     /// Flatten nested wrapped collections into a single collection
-    fn flatten_wrapped_collections(&self, collections: Vec<WrappedCollection>) -> WrappedCollection {
+    fn flatten_wrapped_collections(
+        &self,
+        collections: Vec<WrappedCollection>,
+    ) -> WrappedCollection {
         let mut flattened = Vec::new();
         for collection in collections {
             flattened.extend(collection);
@@ -42,9 +42,7 @@ impl MetadataCollectionEvaluator {
             return "empty".to_string();
         }
 
-        let types: Vec<String> = values.iter()
-            .map(|v| v.fhir_type().to_string())
-            .collect();
+        let types: Vec<String> = values.iter().map(|v| v.fhir_type().to_string()).collect();
 
         type_utils::get_common_type(&types)
     }
@@ -57,7 +55,8 @@ impl MetadataCollectionEvaluator {
 
         // If all values have the same base path, use that
         if let Some(first_path) = values.first().map(|v| v.path()) {
-            let all_same_base = values.iter()
+            let all_same_base = values
+                .iter()
                 .all(|v| v.path().parent().as_ref() == first_path.parent().as_ref());
 
             if all_same_base {
@@ -77,11 +76,13 @@ impl MetadataCollectionEvaluator {
         for (i, wrapped) in collection.iter_mut().enumerate() {
             if collection_len > 1 {
                 // Update the path with correct index
-                let base_path = wrapped.path().parent()
+                let base_path = wrapped
+                    .path()
+                    .parent()
                     .map(|p| p.clone())
                     .unwrap_or_else(|| CanonicalPath::empty());
                 let new_path = base_path.append_index(i);
-                
+
                 wrapped.metadata.path = new_path;
                 wrapped.metadata.index = Some(i);
             }
@@ -102,16 +103,13 @@ impl MetadataCollectionEvaluator {
         for wrapped_element in collection {
             // Create a new context with this element as the focus
             let element_context = self.create_element_context(context, wrapped_element);
-            
+
             // Evaluate the condition with this element
             // For now, we'll use a simplified approach - real implementation would
             // need access to the full evaluator to evaluate the condition expression
-            let should_include = self.evaluate_simple_condition(
-                condition,
-                wrapped_element,
-                &element_context,
-                resolver,
-            ).await?;
+            let should_include = self
+                .evaluate_simple_condition(condition, wrapped_element, &element_context, resolver)
+                .await?;
 
             if should_include {
                 filtered_results.push(wrapped_element.clone());
@@ -130,17 +128,20 @@ impl MetadataCollectionEvaluator {
         // Create a new context with the element as the focus
         let element_collection = collection_utils::single(element.clone());
         let plain_collection = crate::core::Collection::from_values(
-            element_collection.iter().map(|w| w.as_plain().clone()).collect()
+            element_collection
+                .iter()
+                .map(|w| w.as_plain().clone())
+                .collect(),
         );
-        
+
         // Create new context with element as start context
         let mut new_context = EvaluationContext::new(plain_collection);
-        
+
         // Copy variables from original context
         for (name, value) in &base_context.variables {
             new_context.set_variable(name.clone(), value.clone());
         }
-        
+
         new_context
     }
 
@@ -166,7 +167,7 @@ impl MetadataCollectionEvaluator {
         for wrapped in collection {
             // Create a key for deduplication based on the actual value
             let value_key = format!("{:?}", wrapped.as_plain());
-            
+
             if !seen_values.contains(&value_key) {
                 seen_values.insert(value_key);
                 unique_values.push(wrapped);
@@ -186,10 +187,10 @@ impl MetadataAwareCollectionEvaluator for MetadataCollectionEvaluator {
     ) -> Result<WrappedCollection> {
         // Flatten all element collections into a single collection
         let flattened = self.flatten_wrapped_collections(elements);
-        
+
         // Update indices for proper collection semantics
         let indexed = self.update_collection_indices(flattened);
-        
+
         Ok(indexed)
     }
 
@@ -202,13 +203,13 @@ impl MetadataAwareCollectionEvaluator for MetadataCollectionEvaluator {
         // Combine both collections
         let mut combined = left.clone();
         combined.extend_from_slice(right);
-        
+
         // Remove duplicates according to FHIRPath semantics
         let deduplicated = self.remove_duplicates(combined);
-        
+
         // Update indices
         let indexed = self.update_collection_indices(deduplicated);
-        
+
         Ok(indexed)
     }
 
@@ -219,7 +220,8 @@ impl MetadataAwareCollectionEvaluator for MetadataCollectionEvaluator {
         context: &EvaluationContext,
         resolver: &TypeResolver,
     ) -> Result<WrappedCollection> {
-        self.apply_filter_condition(collection, condition, context, resolver).await
+        self.apply_filter_condition(collection, condition, context, resolver)
+            .await
     }
 
     fn contains_wrapped_value(&self, collection: &WrappedCollection, value: &WrappedValue) -> bool {
@@ -267,9 +269,7 @@ pub mod collection_ops {
 
     /// Convert a wrapped collection to a plain collection
     pub fn to_plain_collection(collection: WrappedCollection) -> crate::core::Collection {
-        let values: Vec<FhirPathValue> = collection.into_iter()
-            .map(|w| w.into_plain())
-            .collect();
+        let values: Vec<FhirPathValue> = collection.into_iter().map(|w| w.into_plain()).collect();
         crate::core::Collection::from_values(values)
     }
 
@@ -328,11 +328,11 @@ pub mod collection_ops {
 mod tests {
     use super::*;
     use crate::{
-        path::CanonicalPath,
-        wrapped::{ValueMetadata, WrappedValue},
         core::{Collection, FhirPathValue},
         evaluator::EvaluationContext,
+        path::CanonicalPath,
         typing::TypeResolver,
+        wrapped::{ValueMetadata, WrappedValue},
     };
     use octofhir_fhir_model::EmptyModelProvider;
     use std::sync::Arc;
@@ -464,10 +464,10 @@ mod tests {
 
         assert_eq!(collection_ops::len(&collection), 2);
         assert!(!collection_ops::is_empty(&collection));
-        
+
         let first = collection_ops::first(&collection).unwrap();
         assert_eq!(first.path().to_string(), "test[0]");
-        
+
         let last = collection_ops::last(&collection).unwrap();
         assert_eq!(last.path().to_string(), "test[1]");
     }

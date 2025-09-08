@@ -17,10 +17,12 @@
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{
+    Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+};
 use ratatui::{Frame, text::Text};
 
-use super::{ComponentResult, TuiComponent, SizeConstraints, ScrollState, utils};
+use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
@@ -44,35 +46,30 @@ impl TuiComponent for OutputPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
         let is_focused = state.focused_panel == PanelType::Output;
         let block = utils::create_panel_block("Output", PanelType::Output, is_focused, theme);
-        
+
         let content = if let Some(result) = &state.last_result {
             format!("{:?}", result) // Simplified for now
         } else {
             "No results yet. Execute an expression to see output here.".to_string()
         };
-        
+
         let paragraph = Paragraph::new(Text::from(content))
             .block(block)
             .scroll((self.scroll_state.offset as u16, 0));
-            
+
         frame.render_widget(paragraph, area);
-        
+
         // Render scrollbar if needed
         if is_focused {
-            let scrollbar = Scrollbar::default()
-                .orientation(ScrollbarOrientation::VerticalRight);
+            let scrollbar = Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight);
             let mut scrollbar_state = ScrollbarState::default();
-            frame.render_stateful_widget(
-                scrollbar,
-                area,
-                &mut scrollbar_state,
-            );
+            frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
         }
     }
-    
+
     fn handle_key_event(&mut self, key: KeyEvent, _state: &mut AppState) -> ComponentResult {
         use crossterm::event::KeyCode;
-        
+
         match key.code {
             KeyCode::Up => {
                 self.scroll_state.scroll_up();
@@ -97,11 +94,11 @@ impl TuiComponent for OutputPanel {
             _ => ComponentResult::NotHandled,
         }
     }
-    
+
     fn update(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     fn size_constraints(&self) -> SizeConstraints {
         SizeConstraints {
             min_height: Some(5),

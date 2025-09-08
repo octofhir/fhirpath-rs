@@ -301,7 +301,7 @@ impl AnalysisContext {
     /// Create a new context with the specified types
     pub fn with_types(types: Vec<TypeInfo>) -> Self {
         let mut context = Self::new();
-        
+
         // If there's a resource type in the types, set it as the context resource type
         for type_info in &types {
             if let TypeInfo::Resource { resource_type } = type_info {
@@ -309,7 +309,7 @@ impl AnalysisContext {
                 break;
             }
         }
-        
+
         context
     }
 }

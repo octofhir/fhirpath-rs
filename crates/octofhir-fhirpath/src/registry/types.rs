@@ -445,16 +445,21 @@ impl FunctionRegistry {
                         }
                     };
 
-                    // Use ModelProvider instead of hardcoded type checking
-                    let current_value_type = Self::get_value_type_name(input_value);
-
-                    // Check type compatibility using ModelProvider
-                    match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
-                        Ok(is_compatible) => Ok(FhirPathValue::Boolean(is_compatible)),
-                        Err(_) => {
-                            // Fallback to basic type checking for system types
-                            let is_compatible = Self::basic_type_compatibility(input_value, type_name);
-                            Ok(FhirPathValue::Boolean(is_compatible))
+                    // Check if target type is a primitive type first
+                    if let Some(fhir_path_type) = FhirPathType::from_type_name(type_name) {
+                        // Use built-in type checking for primitive and known types
+                        let is_compatible = TypeChecker::is_type(input_value, &fhir_path_type);
+                        Ok(FhirPathValue::Boolean(is_compatible))
+                    } else {
+                        // Use ModelProvider for FHIR resource types
+                        let current_value_type = Self::get_value_type_name(input_value);
+                        match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                            Ok(is_compatible) => Ok(FhirPathValue::Boolean(is_compatible)),
+                            Err(_) => {
+                                // Fallback to basic type checking for system types
+                                let is_compatible = Self::basic_type_compatibility(input_value, type_name);
+                                Ok(FhirPathValue::Boolean(is_compatible))
+                            }
                         }
                     }
                 })
@@ -504,24 +509,37 @@ impl FunctionRegistry {
                         }
                     };
 
-                    // Use ModelProvider to check if casting is possible
-                    let current_value_type = Self::get_value_type_name(input_value);
-
-                    match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
-                        Ok(true) => {
-                            // Cast is possible, return the original value (most cases in FHIRPath)
+                    // Check if target type is a primitive type first
+                    if let Some(fhir_path_type) = FhirPathType::from_type_name(type_name) {
+                        // Use built-in type checking for primitive and known types
+                        if TypeChecker::is_type(input_value, &fhir_path_type) {
                             Ok(input_value.clone())
-                        },
-                        Ok(false) => {
-                            // Cast not possible, return empty per FHIRPath spec
-                            Ok(FhirPathValue::empty())
-                        },
-                        Err(_) => {
-                            // Fallback to basic casting logic
-                            if Self::basic_type_compatibility(input_value, type_name) {
+                        } else {
+                            // Try to cast using TypeChecker
+                            match TypeChecker::cast_to_type(input_value, &fhir_path_type) {
+                                Ok(casted_value) => Ok(casted_value),
+                                Err(_) => Ok(FhirPathValue::empty())
+                            }
+                        }
+                    } else {
+                        // Use ModelProvider for FHIR resource types
+                        let current_value_type = Self::get_value_type_name(input_value);
+                        match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                            Ok(true) => {
+                                // Cast is possible, return the original value (most cases in FHIRPath)
                                 Ok(input_value.clone())
-                            } else {
+                            },
+                            Ok(false) => {
+                                // Cast not possible, return empty per FHIRPath spec
                                 Ok(FhirPathValue::empty())
+                            },
+                            Err(_) => {
+                                // Fallback to basic casting logic
+                                if Self::basic_type_compatibility(input_value, type_name) {
+                                    Ok(input_value.clone())
+                                } else {
+                                    Ok(FhirPathValue::empty())
+                                }
                             }
                         }
                     }
@@ -562,23 +580,33 @@ impl FunctionRegistry {
                         }
                     };
 
-                    // Filter collection using ModelProvider-based type checking
+                    // Filter collection based on type compatibility
                     let mut result = Vec::new();
                     let input_values: Vec<_> = context.input.cloned_collection();
 
-                    for value in input_values {
-                        let current_value_type = Self::get_value_type_name(&value);
-
-                        let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
-                            Ok(compatible) => compatible,
-                            Err(_) => {
-                                // Fallback to basic type checking
-                                Self::basic_type_compatibility(&value, type_name)
+                    if let Some(fhir_path_type) = FhirPathType::from_type_name(type_name) {
+                        // Use built-in type checking for primitive and known types
+                        for value in input_values {
+                            if TypeChecker::is_type(&value, &fhir_path_type) {
+                                result.push(value);
                             }
-                        };
+                        }
+                    } else {
+                        // Use ModelProvider for FHIR resource types
+                        for value in input_values {
+                            let current_value_type = Self::get_value_type_name(&value);
 
-                        if is_compatible {
-                            result.push(value);
+                            let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
+                                Ok(compatible) => compatible,
+                                Err(_) => {
+                                    // Fallback to basic type checking
+                                    Self::basic_type_compatibility(&value, type_name)
+                                }
+                            };
+
+                            if is_compatible {
+                                result.push(value);
+                            }
                         }
                     }
 
@@ -628,7 +656,7 @@ impl FunctionRegistry {
                     "name": type_name
                 });
 
-                Ok(FhirPathValue::JsonValue(type_info))
+                Ok(FhirPathValue::JsonValue(type_info.into()))
             }
         )
     }

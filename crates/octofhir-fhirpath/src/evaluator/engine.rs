@@ -68,6 +68,8 @@ pub struct FhirPathEngine {
     config: EngineConfig,
     /// AST cache for frequently used expressions
     ast_cache: RwLock<HashMap<String, Arc<ExpressionNode>>>,
+    /// Terminology service for %terminologies built-in variable
+    terminology_service: Option<Arc<dyn crate::evaluator::context::TerminologyService>>,
 }
 
 impl FhirPathEngine {
@@ -75,6 +77,16 @@ impl FhirPathEngine {
     pub async fn new(
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
+    ) -> Result<Self> {
+        // Use R4 as default FHIR version
+        Self::new_with_fhir_version(function_registry, model_provider, "r4").await
+    }
+
+    /// Create new engine with specific FHIR version for terminology services
+    pub async fn new_with_fhir_version(
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+        fhir_version: &str,
     ) -> Result<Self> {
         // Create specialized evaluators
         let core_evaluator = Box::new(CoreEvaluator::new());
@@ -100,10 +112,17 @@ impl FhirPathEngine {
         )
         .await;
 
+        // Create terminology service with the specified FHIR version
+        let terminology_service = Some(Arc::new(
+            crate::registry::ConcreteTerminologyService::with_fhir_version(fhir_version),
+        )
+            as Arc<dyn crate::evaluator::context::TerminologyService>);
+
         Ok(Self {
             evaluator,
             config: EngineConfig::default(),
             ast_cache: RwLock::new(HashMap::new()),
+            terminology_service,
         })
     }
 
@@ -112,6 +131,17 @@ impl FhirPathEngine {
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         config: EngineConfig,
+    ) -> Result<Self> {
+        // Use R4 as default FHIR version
+        Self::with_config_and_fhir_version(function_registry, model_provider, config, "r4").await
+    }
+
+    /// Create engine with custom configuration and FHIR version
+    pub async fn with_config_and_fhir_version(
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+        config: EngineConfig,
+        fhir_version: &str,
     ) -> Result<Self> {
         // Create specialized evaluators
         let core_evaluator = Box::new(CoreEvaluator::new());
@@ -137,10 +167,17 @@ impl FhirPathEngine {
         )
         .await;
 
+        // Create terminology service with the specified FHIR version
+        let terminology_service = Some(Arc::new(
+            crate::registry::ConcreteTerminologyService::with_fhir_version(fhir_version),
+        )
+            as Arc<dyn crate::evaluator::context::TerminologyService>);
+
         Ok(Self {
             evaluator,
             config,
             ast_cache: RwLock::new(HashMap::new()),
+            terminology_service,
         })
     }
 
@@ -156,8 +193,11 @@ impl FhirPathEngine {
         // Parse expression (with caching)
         let ast = self.parse_or_cached(expression)?;
 
+        // Setup context with terminology service if available
+        let context_with_terminology = self.setup_context_with_terminology(context);
+
         let wrapped_values = self
-            .evaluate_ast_with_metadata(&ast, context, &mut type_stats)
+            .evaluate_ast_with_metadata(&ast, &context_with_terminology, &mut type_stats)
             .await?;
 
         let elapsed = start_time.elapsed();
@@ -211,8 +251,12 @@ impl FhirPathEngine {
         ast: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<FhirPathValue> {
+        // Setup context with terminology service if available
+        let context_with_terminology = self.setup_context_with_terminology(context);
+
         // Dispatch to appropriate evaluator based on expression type
-        self.dispatch_evaluation(ast, context).await
+        self.dispatch_evaluation(ast, &context_with_terminology)
+            .await
     }
 
     /// Dispatch evaluation to the unified metadata-aware evaluator
@@ -376,10 +420,7 @@ impl FhirPathEngine {
         }
     }
 
-    async fn wrap_plain_result(
-        &self,
-        result: FhirPathValue,
-    ) -> Result<WrappedCollection> {
+    async fn wrap_plain_result(&self, result: FhirPathValue) -> Result<WrappedCollection> {
         use crate::typing::type_utils;
 
         match result {
@@ -426,6 +467,26 @@ impl FhirPathEngine {
     /// Get function registry from evaluator  
     pub fn get_function_registry(&self) -> Arc<FunctionRegistry> {
         self.evaluator.function_registry().clone()
+    }
+
+    /// Setup evaluation context with terminology service and %terminologies variable
+    fn setup_context_with_terminology(&self, context: &EvaluationContext) -> EvaluationContext {
+        let mut context_with_terminology = context.clone();
+
+        if let Some(ref terminology_service) = self.terminology_service {
+            // Set the terminology service in builtin_variables
+            context_with_terminology.builtin_variables.terminologies =
+                Some(terminology_service.clone());
+
+            // Set the %terminologies variable as a TypeInfoObject so it can be referenced
+            let terminologies_var = crate::core::FhirPathValue::TypeInfoObject {
+                namespace: "fhir".to_string(),
+                name: "terminologies".to_string(),
+            };
+            context_with_terminology.set_variable("%terminologies".to_string(), terminologies_var);
+        }
+
+        context_with_terminology
     }
 }
 

@@ -2,6 +2,7 @@
 
 use rust_decimal::Decimal;
 use serde_json::{Map, Value as JsonValue};
+use std::sync::Arc;
 
 use crate::core::error_code::FP0051;
 use crate::core::temporal::PrecisionDateTime;
@@ -135,7 +136,7 @@ impl TerminologyUtils {
         if let Some(d) = &c.display {
             m.insert("display".to_string(), JsonValue::String(d.clone()));
         }
-        FhirPathValue::Resource(JsonValue::Object(m))
+        FhirPathValue::Resource(Arc::new(JsonValue::Object(m)))
     }
 
     /// Create a Coding from system and code strings
@@ -193,17 +194,20 @@ impl TerminologyUtils {
             JsonValue::String(translation.equivalence.clone()),
         );
 
-        if let FhirPathValue::Resource(JsonValue::Object(concept_obj)) =
-            Self::coding_to_value(&translation.concept)
-        {
-            translation_obj.insert("concept".to_string(), JsonValue::Object(concept_obj));
+        if let FhirPathValue::Resource(concept_arc) = Self::coding_to_value(&translation.concept) {
+            if let JsonValue::Object(concept_obj) = concept_arc.as_ref() {
+                translation_obj.insert(
+                    "concept".to_string(),
+                    JsonValue::Object(concept_obj.clone()),
+                );
+            }
         }
 
         if let Some(ref comment) = translation.comment {
             translation_obj.insert("comment".to_string(), JsonValue::String(comment.clone()));
         }
 
-        FhirPathValue::Resource(JsonValue::Object(translation_obj))
+        FhirPathValue::Resource(Arc::new(JsonValue::Object(translation_obj)))
     }
 
     /// Convert ConceptDesignation to FhirPathValue
@@ -219,14 +223,14 @@ impl TerminologyUtils {
         }
 
         if let Some(ref use_coding) = designation.use_coding {
-            if let FhirPathValue::Resource(JsonValue::Object(use_obj)) =
-                Self::coding_to_value(use_coding)
-            {
-                designation_obj.insert("use".to_string(), JsonValue::Object(use_obj));
+            if let FhirPathValue::Resource(use_arc) = Self::coding_to_value(use_coding) {
+                if let JsonValue::Object(use_obj) = use_arc.as_ref() {
+                    designation_obj.insert("use".to_string(), JsonValue::Object(use_obj.clone()));
+                }
             }
         }
 
-        FhirPathValue::Resource(JsonValue::Object(designation_obj))
+        FhirPathValue::Resource(Arc::new(JsonValue::Object(designation_obj)))
     }
 
     /// Convert PropertyValue to FhirPathValue

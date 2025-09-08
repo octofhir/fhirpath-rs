@@ -1890,7 +1890,7 @@ impl<'a> TypeInferenceVisitor<'a> {
                     | (TypeInfo::Integer, TypeInfo::Quantity) => TypeInfo::Quantity,
                     (TypeInfo::Quantity, TypeInfo::Decimal)
                     | (TypeInfo::Decimal, TypeInfo::Quantity) => TypeInfo::Quantity,
-                    
+
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
 
                     _ => TypeInfo::Unknown,
@@ -1901,11 +1901,11 @@ impl<'a> TypeInferenceVisitor<'a> {
                 match (left, right) {
                     // Numeric division - always results in decimal for precision
                     (TypeInfo::Integer, TypeInfo::Integer) => TypeInfo::Decimal,
-                    
+
                     // Quantity division (before general decimal match)
                     (TypeInfo::Quantity, TypeInfo::Integer)
                     | (TypeInfo::Quantity, TypeInfo::Decimal) => TypeInfo::Quantity,
-                    
+
                     (TypeInfo::Decimal, _) | (_, TypeInfo::Decimal) => TypeInfo::Decimal,
                     (TypeInfo::Quantity, TypeInfo::Quantity) => TypeInfo::Decimal, // Ratio
 

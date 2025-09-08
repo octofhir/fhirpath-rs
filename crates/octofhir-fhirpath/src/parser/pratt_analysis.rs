@@ -9,7 +9,8 @@ use chumsky::pratt::{infix, left, postfix, prefix};
 use chumsky::prelude::*;
 
 use super::combinators::{
-    boolean_parser, datetime_literal_parser, identifier_parser, number_parser, string_literal_parser, variable_parser,
+    boolean_parser, datetime_literal_parser, identifier_parser, number_parser,
+    string_literal_parser, variable_parser,
 };
 use crate::ast::{
     BinaryOperationNode, BinaryOperator, CollectionNode, ExpressionNode, FunctionCallNode,
@@ -109,7 +110,7 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             // Logical OR - precedence 1
             infix(
                 left(1),
-                choice((text::keyword("or"), text::keyword("OR"))).padded(),
+                text::keyword("or").padded(),
                 |left, _, right, _| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
@@ -122,11 +123,36 @@ pub fn analysis_parser<'a>() -> impl Parser<'a, &'a str, ExpressionNode, extra::
             // Logical AND - precedence 2
             infix(
                 left(2),
-                choice((text::keyword("and"), text::keyword("AND"))).padded(),
+                text::keyword("and").padded(),
                 |left, _, right, _| {
                     ExpressionNode::BinaryOperation(BinaryOperationNode {
                         left: Box::new(left),
                         operator: BinaryOperator::And,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                },
+            ),
+            // Collection membership operators - precedence 4 (matching main parser)
+            infix(
+                left(4),
+                text::keyword("in").padded(),
+                |left, _, right, _| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::In,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                },
+            ),
+            infix(
+                left(4),
+                text::keyword("contains").padded(),
+                |left, _, right, _| {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Contains,
                         right: Box::new(right),
                         location: None,
                     })

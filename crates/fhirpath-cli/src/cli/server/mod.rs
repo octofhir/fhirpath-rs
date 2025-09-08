@@ -34,9 +34,9 @@ use crate::cli::server::{
     assets::{asset_count, serve_embedded_assets, serve_ui_root, ui_assets_available},
     config::ServerConfig,
     handlers::{
-        analyze_handler, evaluate_handler, files_handler, health_handler, version_handler,
-        fhirpath_lab_handler, fhirpath_lab_r4_handler, fhirpath_lab_r4b_handler,
-        fhirpath_lab_r5_handler, fhirpath_lab_r6_handler
+        analyze_handler, evaluate_handler, fhirpath_lab_handler, fhirpath_lab_r4_handler,
+        fhirpath_lab_r4b_handler, fhirpath_lab_r5_handler, fhirpath_lab_r6_handler, files_handler,
+        health_handler, version_handler,
     },
     registry::ServerRegistry,
 };
@@ -51,7 +51,11 @@ pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
         )
         .init();
 
-    let mode = if config.no_ui { "API-only" } else { "Full (API + Web UI)" };
+    let mode = if config.no_ui {
+        "API-only"
+    } else {
+        "Full (API + Web UI)"
+    };
     info!(
         "🚀 Starting FHIRPath server ({}) on {}:{} with storage at {}",
         mode,
@@ -117,38 +121,39 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
             .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap()) // Default frontend dev server
     };
 
-    // Create basic API routes
+    // Create basic API routes - always include health and version
     let mut app = Router::new()
         // Health check endpoints
         .route("/health", get(health_handler))
         .route("/healthz", get(health_handler))
         .route("/version", get(version_handler))
-        // File management endpoints
-        .route(
-            "/files",
-            get(files_handler::list_files).post(files_handler::upload_file),
-        )
-        .route(
-            "/files/{filename}",
-            get(files_handler::get_file).delete(files_handler::delete_file),
-        )
-        // Legacy test routes for backward compatibility
-        .route("/test/evaluate", post(evaluate_handler))
-        .route("/test/analyze", post(analyze_handler))
-        // FHIRPath Lab API endpoints
+        // FHIRPath Lab API endpoints (core functionality)
         .route("/r4", post(fhirpath_lab_r4_handler))
         .route("/r4b", post(fhirpath_lab_r4b_handler))
         .route("/r5", post(fhirpath_lab_r5_handler))
         .route("/r6", post(fhirpath_lab_r6_handler));
 
-    // Conditionally add UI routes based on no_ui flag
+    // Conditionally add features based on no_ui flag
     if !config.no_ui {
-        // Add UI serving routes - these conflict with API endpoints, so only add when UI is enabled
+        // Add UI-specific routes: file management, legacy test endpoints, UI serving
         app = app
+            // File management endpoints (needed for UI)
+            .route(
+                "/files",
+                get(files_handler::list_files).post(files_handler::upload_file),
+            )
+            .route(
+                "/files/{filename}",
+                get(files_handler::get_file).delete(files_handler::delete_file),
+            )
+            // Legacy test routes for backward compatibility (used by UI)
+            .route("/test/evaluate", post(evaluate_handler))
+            .route("/test/analyze", post(analyze_handler))
+            // UI serving routes
             .route("/", get(serve_ui_root))
             .route("/{*path}", get(serve_embedded_assets));
     } else {
-        // In API-only mode, add FHIRPath Lab API root endpoint
+        // In API-only mode, add FHIRPath Lab API root endpoint only
         app = app.route("/", post(fhirpath_lab_handler));
     }
 

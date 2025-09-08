@@ -256,6 +256,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["1.50.precision()", "@2023-12-25.precision()", "@2023.precision()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,

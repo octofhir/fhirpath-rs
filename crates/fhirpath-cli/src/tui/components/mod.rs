@@ -13,61 +13,61 @@
 // limitations under the License.
 
 //! TUI Component System
-//! 
+//!
 //! This module provides a modular component architecture for the TUI interface.
 //! Each panel is implemented as a separate component with its own state management,
 //! rendering logic, and event handling capabilities.
 
+pub mod diagnostics;
+pub mod help;
+pub mod history;
 pub mod input;
 pub mod output;
-pub mod diagnostics;
 pub mod variables;
-pub mod history;
-pub mod help;
 
 use std::collections::HashMap;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
-use ratatui::layout::Rect;
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 use super::app::AppState;
 use super::config::TuiConfig;
-use super::layout::{PanelType, PanelLayout};
+use super::layout::{PanelLayout, PanelType};
 use super::themes::TuiTheme;
 
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
 use octofhir_fhirpath::FhirPathEngine;
+use octofhir_fhirpath::analyzer::StaticAnalyzer;
 
+pub use diagnostics::DiagnosticsPanel;
+pub use help::HelpPanel;
+pub use history::HistoryPanel;
 pub use input::InputPanel;
 pub use output::OutputPanel;
-pub use diagnostics::DiagnosticsPanel;
 pub use variables::VariablesPanel;
-pub use history::HistoryPanel;
-pub use help::HelpPanel;
 
 /// Trait for TUI components that can render themselves and handle events
 pub trait TuiComponent {
     /// Render the component in the given area
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme);
-    
+
     /// Handle a key event when this component has focus
     fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult;
-    
+
     /// Update component state (called every frame)
     fn update(&mut self, state: &mut AppState) -> ComponentResult;
-    
+
     /// Called when the component gains focus
     fn on_focus(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     /// Called when the component loses focus
     fn on_blur(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     /// Get the component's preferred size constraints
     fn size_constraints(&self) -> SizeConstraints {
         SizeConstraints::default()
@@ -157,7 +157,7 @@ impl ComponentManager {
             help: HelpPanel::new(config, engine.get_function_registry().clone()).await?,
         })
     }
-    
+
     /// Render all components in their respective areas
     pub fn render_all(
         &mut self,
@@ -169,22 +169,19 @@ impl ComponentManager {
         // Render main panels
         self.input.render(frame, layout.input, state, theme);
         self.output.render(frame, layout.output, state, theme);
-        self.diagnostics.render(frame, layout.diagnostics, state, theme);
+        self.diagnostics
+            .render(frame, layout.diagnostics, state, theme);
         self.variables.render(frame, layout.variables, state, theme);
         self.history.render(frame, layout.history, state, theme);
-        
+
         // Render help panel if visible
         if layout.help.width > 0 && layout.help.height > 0 {
             self.help.render(frame, layout.help, state, theme);
         }
     }
-    
+
     /// Handle key event for the currently focused component
-    pub fn handle_key_event(
-        &mut self,
-        key: KeyEvent,
-        state: &mut AppState,
-    ) -> ComponentResult {
+    pub fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult {
         match state.focused_panel {
             PanelType::Input => self.input.handle_key_event(key, state),
             PanelType::Output => self.output.handle_key_event(key, state),
@@ -194,7 +191,7 @@ impl ComponentManager {
             PanelType::Help => self.help.handle_key_event(key, state),
         }
     }
-    
+
     /// Update all components
     pub async fn update_all(&mut self, state: &mut AppState) -> Result<()> {
         // Update components (most are stateless, but some may need periodic updates)
@@ -204,10 +201,10 @@ impl ComponentManager {
         self.variables.update(state);
         self.history.update(state);
         self.help.update(state);
-        
+
         Ok(())
     }
-    
+
     /// Handle focus change events
     pub fn handle_focus_change(
         &mut self,
@@ -217,76 +214,100 @@ impl ComponentManager {
     ) {
         // Blur old component
         match old_panel {
-            PanelType::Input => { self.input.on_blur(state); }
-            PanelType::Output => { self.output.on_blur(state); }
-            PanelType::Diagnostics => { self.diagnostics.on_blur(state); }
-            PanelType::Variables => { self.variables.on_blur(state); }
-            PanelType::History => { self.history.on_blur(state); }
-            PanelType::Help => { self.help.on_blur(state); }
+            PanelType::Input => {
+                self.input.on_blur(state);
+            }
+            PanelType::Output => {
+                self.output.on_blur(state);
+            }
+            PanelType::Diagnostics => {
+                self.diagnostics.on_blur(state);
+            }
+            PanelType::Variables => {
+                self.variables.on_blur(state);
+            }
+            PanelType::History => {
+                self.history.on_blur(state);
+            }
+            PanelType::Help => {
+                self.help.on_blur(state);
+            }
         }
-        
+
         // Focus new component
         match new_panel {
-            PanelType::Input => { self.input.on_focus(state); }
-            PanelType::Output => { self.output.on_focus(state); }
-            PanelType::Diagnostics => { self.diagnostics.on_focus(state); }
-            PanelType::Variables => { self.variables.on_focus(state); }
-            PanelType::History => { self.history.on_focus(state); }
-            PanelType::Help => { self.help.on_focus(state); }
+            PanelType::Input => {
+                self.input.on_focus(state);
+            }
+            PanelType::Output => {
+                self.output.on_focus(state);
+            }
+            PanelType::Diagnostics => {
+                self.diagnostics.on_focus(state);
+            }
+            PanelType::Variables => {
+                self.variables.on_focus(state);
+            }
+            PanelType::History => {
+                self.history.on_focus(state);
+            }
+            PanelType::Help => {
+                self.help.on_focus(state);
+            }
         }
     }
-    
+
     /// Handle scroll up event for the focused panel
     pub fn handle_scroll_up(&mut self, state: &mut AppState) -> Result<ComponentResult> {
         let result = match state.focused_panel {
             PanelType::Output => {
                 // Scroll up in output panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Diagnostics => {
-                // Scroll up in diagnostics panel  
+                // Scroll up in diagnostics panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Variables => {
                 // Scroll up in variables panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::History => {
                 // Scroll up in history panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Help => {
                 // Scroll up in help panel
                 ComponentResult::Handled
-            },
+            }
             _ => ComponentResult::Handled,
         };
         Ok(result)
     }
-    
+
     /// Handle scroll down event for the focused panel
     pub fn handle_scroll_down(&mut self, state: &mut AppState) -> Result<ComponentResult> {
         let result = match state.focused_panel {
             PanelType::Output => {
                 // Scroll down in output panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Diagnostics => {
                 // Scroll down in diagnostics panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Variables => {
                 // Scroll down in variables panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::History => {
                 // Scroll down in history panel
                 ComponentResult::Handled
-            },
+            }
             PanelType::Help => {
                 // Scroll down in help panel
                 ComponentResult::Handled
-            },
+            }
             _ => ComponentResult::Handled,
         };
         Ok(result)
@@ -304,14 +325,14 @@ impl ScrollState {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Scroll up by one item
     pub fn scroll_up(&mut self) {
         if self.offset > 0 {
             self.offset -= 1;
         }
     }
-    
+
     /// Scroll down by one item
     pub fn scroll_down(&mut self, max_items: usize, visible_items: usize) {
         let max_offset = max_items.saturating_sub(visible_items);
@@ -319,35 +340,35 @@ impl ScrollState {
             self.offset += 1;
         }
     }
-    
+
     /// Select previous item
     pub fn select_previous(&mut self, max_items: usize) {
         if max_items == 0 {
             self.selected_index = None;
             return;
         }
-        
+
         match self.selected_index {
             None => self.selected_index = Some(0),
             Some(0) => self.selected_index = Some(max_items - 1),
             Some(idx) => self.selected_index = Some(idx - 1),
         }
     }
-    
+
     /// Select next item
     pub fn select_next(&mut self, max_items: usize) {
         if max_items == 0 {
             self.selected_index = None;
             return;
         }
-        
+
         match self.selected_index {
             None => self.selected_index = Some(0),
             Some(idx) if idx >= max_items - 1 => self.selected_index = Some(0),
             Some(idx) => self.selected_index = Some(idx + 1),
         }
     }
-    
+
     /// Ensure selected item is visible
     pub fn ensure_selected_visible(&mut self, visible_items: usize) {
         if let Some(selected) = self.selected_index {
@@ -364,11 +385,11 @@ impl ScrollState {
 pub mod utils {
     use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
     use ratatui::style::{Color, Style};
-    use ratatui::widgets::{Block, Borders, BorderType};
-    
+    use ratatui::widgets::{Block, BorderType, Borders};
+
     use super::PanelType;
     use crate::tui::themes::TuiTheme;
-    
+
     /// Create a bordered block for a panel
     pub fn create_panel_block<'a>(
         title: &str,
@@ -381,14 +402,14 @@ pub mod utils {
         } else {
             theme.colors.unfocused_border
         };
-        
+
         Block::default()
             .title(format!(" {} ", title))
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(border_color))
     }
-    
+
     /// Split area horizontally with minimum sizes
     pub fn split_horizontal_with_min(area: Rect, ratios: &[u16], mins: &[u16]) -> Vec<Rect> {
         let constraints: Vec<Constraint> = ratios
@@ -396,14 +417,14 @@ pub mod utils {
             .zip(mins.iter())
             .map(|(&ratio, &min)| Constraint::Min(min.max(area.height * ratio / 100)))
             .collect();
-            
+
         Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints)
             .split(area)
             .to_vec()
     }
-    
+
     /// Split area vertically with minimum sizes
     pub fn split_vertical_with_min(area: Rect, ratios: &[u16], mins: &[u16]) -> Vec<Rect> {
         let constraints: Vec<Constraint> = ratios
@@ -411,14 +432,14 @@ pub mod utils {
             .zip(mins.iter())
             .map(|(&ratio, &min)| Constraint::Min(min.max(area.width * ratio / 100)))
             .collect();
-            
+
         Layout::default()
             .direction(Direction::Vertical)
             .constraints(constraints)
             .split(area)
             .to_vec()
     }
-    
+
     /// Calculate inner area with padding
     pub fn inner_area(area: Rect, padding: u16) -> Rect {
         area.inner(Margin {

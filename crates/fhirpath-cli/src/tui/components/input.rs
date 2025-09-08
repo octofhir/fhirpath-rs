@@ -16,12 +16,12 @@
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 use tui_textarea::TextArea;
 
-use super::{ComponentResult, TuiComponent, SizeConstraints, utils};
+use super::{ComponentResult, SizeConstraints, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
@@ -40,13 +40,13 @@ impl InputPanel {
     pub async fn new(_config: &TuiConfig, _analyzer: &StaticAnalyzer) -> Result<Self> {
         let mut text_area = TextArea::default();
         text_area.set_placeholder_text("Enter FHIRPath expression...");
-        
+
         Ok(Self {
             text_area,
             _analyzer: None,
         })
     }
-    
+
     /// Get current expression text
     pub fn get_expression(&self) -> String {
         self.text_area.lines().join("")
@@ -57,27 +57,26 @@ impl TuiComponent for InputPanel {
     fn render(&mut self, frame: &mut Frame, area: Rect, state: &AppState, theme: &TuiTheme) {
         let is_focused = state.focused_panel == PanelType::Input;
         let block = utils::create_panel_block("Input", PanelType::Input, is_focused, theme);
-        
+
         self.text_area.set_block(block);
-        
+
         if is_focused {
-            self.text_area.set_cursor_line_style(theme.styles.cursor_style);
+            self.text_area
+                .set_cursor_line_style(theme.styles.cursor_style);
         }
-        
+
         frame.render_widget(&self.text_area, area);
     }
-    
+
     fn handle_key_event(&mut self, key: KeyEvent, state: &mut AppState) -> ComponentResult {
         use crossterm::event::{KeyCode, KeyModifiers};
-        
+
         match (key.code, key.modifiers) {
             (KeyCode::Enter, KeyModifiers::NONE) => {
                 state.current_expression = self.get_expression();
                 ComponentResult::ExecuteExpression
             }
-            (KeyCode::Char(' '), KeyModifiers::CONTROL) => {
-                ComponentResult::ShowCompletions
-            }
+            (KeyCode::Char(' '), KeyModifiers::CONTROL) => ComponentResult::ShowCompletions,
             _ => {
                 // Forward all other keys to the textarea for text input
                 // Create input event for tui_textarea, using raw event conversion
@@ -144,22 +143,22 @@ impl TuiComponent for InputPanel {
                     },
                     _ => return ComponentResult::Handled,
                 };
-                
+
                 // Apply the input to the text area
                 self.text_area.input(input);
-                
+
                 // Update the current expression in state
                 state.current_expression = self.get_expression();
-                
+
                 ComponentResult::Handled
             }
         }
     }
-    
+
     fn update(&mut self, _state: &mut AppState) -> ComponentResult {
         ComponentResult::Handled
     }
-    
+
     fn size_constraints(&self) -> SizeConstraints {
         SizeConstraints {
             min_height: Some(3),

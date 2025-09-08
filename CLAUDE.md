@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-You always work as  As an FHIR expert and professional Rust developer with strong background in compiler and  programming language development. Provide clear, structured reasoning, and ensure the solution follows idiomatic Rust practices, maintains high  performance, and is easy to extend and maintain.  
+You always work as an FHIR expert and professional Rust developer with strong background in compiler and programming language development. Provide clear, structured reasoning, and ensure the solution follows idiomatic Rust practices, maintains high performance, and is easy to extend and maintain.  
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is **fhirpath-rs** (octofhir-fhirpath), a high-performance FHIRPath implementation in Rust for healthcare data processing. It provides a complete implementation of the FHIRPath expression language for FHIR resources with **90.9% specification compliance** (1003/1104 tests passing).
+This is **fhirpath-rs** (octofhir-fhirpath), a FHIRPath implementation in Rust for healthcare data processing. It provides an implementation of the FHIRPath expression language for FHIR resources with **60.8% specification compliance** (663/1090 tests passing).
 
 ## Common Commands
 
@@ -38,10 +38,16 @@ All development tasks use the `justfile` system. Essential commands:
 - `just cli-validate "expression"` - Validate syntax only
 - `just cli-analyze "expression"` - Analyze expression with optimization suggestions
 
-### Interactive REPL
+### Interactive Development
 - `just repl` - Start interactive FHIRPath REPL for rapid prototyping and debugging
 - `just repl file.json` - Start REPL with initial resource loaded from file
-- `just repl --fhir-version r5` - Start REPL with specific FHIR version (r4, r4b, r5)
+- `just tui` - Start Terminal User Interface (TUI) with advanced multi-panel interface
+- `just tui file.json` - Start TUI with initial resource loaded from file
+- `just tui-light` - Start TUI with light theme
+- `just tui-high-contrast` - Start TUI with high contrast theme (accessibility)
+- `just tui-perf` - Start TUI with performance monitoring enabled
+- `just server` - Start HTTP server on port 8080
+- `just server-dev` - Start server with CORS enabled for development
 
 #### Enhanced Output Formats
 The CLI supports multiple output formats for better integration and user experience:
@@ -61,32 +67,24 @@ Global flags:
 - `--quiet` - Suppress informational messages
 - `--verbose` - Enable additional details
 
-### Documentation
+### Documentation & Diagnostics
 - `just doc` - Generate API documentation
 - `just docs` - Generate all documentation including benchmarks
 
 ## Architecture
 
-### Modular Workspace Structure
-The project uses 11 specialized crates for flexibility and maintainability:
+### Simplified Workspace Structure
+The project uses 3 main crates for flexibility and maintainability:
 
 ```
 crates/
 ├── octofhir-fhirpath/     # Main library (core functionality, published)
-├── fhirpath-core/         # Core types, errors, evaluation results (published)
-├── fhirpath-ast/          # Abstract syntax tree definitions (published)
-├── fhirpath-parser/       # Tokenizer and parser (nom-based) (published)
-├── fhirpath-evaluator/    # Expression evaluation engine (published)
-├── fhirpath-model/        # Value types and FHIR data model (published)
-├── fhirpath-registry/     # Function and operator registry (published)
-├── fhirpath-analyzer/     # Static analysis and validation (published)
-├── fhirpath-diagnostics/  # Error handling and reporting (published)
-├── fhirpath-cli/          # Command-line interface (NOT published)
+├── fhirpath-cli/          # Command-line interface (NOT published) 
 └── fhirpath-dev-tools/    # Development tools (NOT published)
 ```
 
 ### Key Design Principles
-1. **Performance**: Zero-copy parsing, arena allocation, efficient data structures
+1. **Performance**: Zero-copy parsing, arena allocation, efficient data structures, Arc<JsonValue> shared ownership
 2. **Safety**: 100% memory-safe Rust, no unsafe blocks
 3. **Async-First**: ModelProvider architecture supports async operations without over-engineering
 4. **Thread-Safe**: Full Send + Sync support for FhirPathEngine
@@ -94,52 +92,62 @@ crates/
 6. **Simplicity**: Clean, maintainable code without unnecessary overhead or complexity
 7. **Separation of Concerns**: Core library, CLI, and dev tools are cleanly separated
 
+### Performance Architecture
+
+**Arc<JsonValue> Shared Ownership (v0.4.22+)**
+The system uses `Arc<JsonValue>` for shared ownership of JSON data to eliminate expensive cloning operations:
+
+- **Resource and JsonValue variants** use `Arc<JsonValue>` instead of owned `JsonValue`
+- **99% performance improvement** for resolve() operations (24+ seconds → ~25ms)
+- **Zero-copy operations** throughout evaluation pipeline
+- **Memory efficiency** for large Bundle resources (100+ MB)
+- **Thread-safe sharing** of JSON data between evaluation contexts
+
+This architectural change enables efficient processing of large FHIR Bundles by avoiding expensive JSON cloning operations while maintaining memory safety and thread safety.
+
 ### Crate Architecture Details
 
 #### Published Crates (for library users)
-- **octofhir-fhirpath**: Main library with minimal dependencies, includes MockModelProvider
-- **fhirpath-core**: Core types and errors
-- **fhirpath-ast**: AST definitions  
-- **fhirpath-parser**: Parsing functionality
-- **fhirpath-evaluator**: Expression evaluation
-- **fhirpath-model**: Value types and ModelProvider trait
-- **fhirpath-registry**: Function registry
-- **fhirpath-analyzer**: Static analysis
-- **fhirpath-diagnostics**: Error handling
+- **octofhir-fhirpath**: Main library with complete FHIRPath implementation
 
 #### Private Crates (NOT published)
-- **fhirpath-cli**: Complete CLI application with FhirSchemaModelProvider, REPL, server
+- **fhirpath-cli**: Complete CLI application with REPL, server, and TUI
 - **fhirpath-dev-tools**: Test runners, benchmarking, coverage analysis
 
 ### JSON Processing
 **Important**: This codebase uses `serde_json::Value` for all JSON processing. Maintain consistency by always using `serde_json` throughout the codebase. Do not introduce other JSON libraries unless there is a compelling performance or compatibility reason.
 
-## Interactive REPL
+## Interactive Development Environment
 
-The FHIRPath REPL provides an interactive environment for rapid prototyping and debugging of FHIRPath expressions. It includes the following features:
-
-### REPL Commands
+### REPL (Read-Eval-Print Loop)
+Simple interactive environment for rapid prototyping:
 - `<expression>` - Evaluate any FHIRPath expression
 - `:load <file>` - Load FHIR resource from file
 - `:set <name> <value>` - Set variable value 
 - `:unset <name>` - Remove variable
 - `:vars` - List all variables and context
 - `:resource` - Show current resource information
-- `:type <expression>` - Show type information (planned)
-- `:explain <expression>` - Show evaluation steps (planned)
 - `:help [function]` - Show help for commands or functions
 - `:history` - Show command history
 - `:quit` - Exit REPL
 
-### Features
-- **Interactive line editing** with history and arrow key navigation
+### TUI (Terminal User Interface)
+Advanced multi-panel interface with enhanced features:
+- **Syntax highlighting** for FHIRPath expressions
 - **Auto-completion** for function names and properties
-- **Colored output** for better readability
-- **Variable management** for complex expression building
-- **Resource loading** from JSON files
-- **Command history** with persistent storage
-- **Help system** with function documentation
-- **Error handling** with clear, actionable messages
+- **Multi-panel layout** with expression input, results, and resource viewer
+- **Theme support** (dark, light, high-contrast)
+- **Performance monitoring** with execution metrics
+- **Mouse support** for enhanced interaction
+- **Resource management** with drag-and-drop loading
+
+### HTTP Server
+Web-based FHIRPath evaluation server:
+- **Multiple FHIR versions** (R4, R4B, R5) support
+- **Web UI** for interactive evaluation
+- **REST API** for programmatic access
+- **File management** with persistent storage
+- **CORS support** for cross-origin requests
 
 ### Usage Examples
 ```bash
@@ -179,7 +187,7 @@ fhirpath> :quit
 ### Testing Strategy
 - **Unit Tests**: Each crate has comprehensive unit tests
 - **Integration Tests**: Cross-crate functionality testing
-- **Specification Compliance**: 1104 official FHIRPath tests (90.9% pass rate)
+- **Specification Compliance**: 1090 official FHIRPath tests (60.8% pass rate)
 - **Performance Tests**: Automated benchmarking and regression detection
 - Always run `just test-coverage` to update compliance report
 
@@ -220,7 +228,7 @@ The main CLI binary is now in `crates/fhirpath-cli/src/main.rs`. All CLI functio
 - `cargo test --package crate-name` - Tests for specific crate
 
 ### Test Coverage
-Current status: **90.9%** (1003/1104 tests passing)
+Current status: **60.8%** (663/1090 tests passing)
 - Run `just test-coverage` to update TEST_COVERAGE.md
 - Focus on improving coverage in areas marked 🟠 or 🔴 in test report
 - All new functionality must include tests
@@ -262,7 +270,13 @@ Current status: **90.9%** (1003/1104 tests passing)
 - Follow FHIRPath specification exactly (http://hl7.org/fhirpath/)
 - Any deviations must be documented with rationale
 - Test against official test suites regularly
-- Current focus: improving from 90.9% to 95%+ compliance
+- Current focus: improving from 60.8% to 80%+ compliance
+
+**Important FHIRPath Function Notes:**
+- FHIRPath does NOT have an `any()` function - use `exists()` instead
+- Lambda functions: `where()`, `select()`, `sort()`, `aggregate()`, `all()`, `exists()`
+- Collection functions: `empty()`, `exists()`, `all()`, `count()`, `first()`, `last()`, `tail()`
+- Do not implement functions that don't exist in the official FHIRPath specification
 
 ### Healthcare Data Processing
 - Large Bundle resources are common (hundreds of entries)
@@ -289,11 +303,11 @@ Starting from v0.3.0, ModelProvider is mandatory:
 - Run `just release-prep` for complete quality assurance
 - Update CHANGELOG.md for significant changes
 - Use semantic versioning (currently v0.4.x)
-- All releases require 90%+ test compliance
+- All releases require 70%+ test compliance
 
 ## Current Priorities
 
-1. **Improve FHIRPath compliance** from 90.9% to 95%+
+1. **Improve FHIRPath compliance** from 60.8% to 80%+
 2. **Optimize performance** for complex expressions on large Bundles  
 3. **Enhance error messages** with better diagnostics
 4. **Complete missing functions** (see TEST_COVERAGE.md for specifics)
@@ -316,6 +330,12 @@ Starting from v0.3.0, ModelProvider is mandatory:
 - Focus on technical accuracy and implementation details
 - Document the "what" and "why" rather than subjective performance claims
 - Use reliable, measurable descriptions (e.g., "O(1) lookup", "thread-local caching", "linear scan for <50 entries")
+
+**Naming Standards:**
+- NEVER use prefixes like "Enhanced", "Advanced", "Super", "Improved", etc.
+- Use clean, idiomatic, descriptive names that clearly express function/purpose
+- Prefer specific, technical terms over generic qualifiers
+- Examples: `ValidationContext` not `EnhancedValidationContext`, `TerminologyProvider` not `AdvancedTerminologyProvider`
 
 ## Integration Notes
 

@@ -35,6 +35,9 @@ impl FunctionRegistry {
         // Register terminology functions
         self.register_terminology_functions()?;
 
+        // NOTE: %terminologies built-in functions are handled by modifying existing functions
+        // self.register_terminologies_builtin_functions()?;
+
         // Register logic functions
         self.register_logic_functions()?;
 

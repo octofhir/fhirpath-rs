@@ -142,6 +142,10 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["Patient.name.family.contains('Doe')", "'Hello World'.contains('World')"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -192,6 +196,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["'Hello World'.indexOf('World')", "Patient.name.family.indexOf('Doe')"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -321,6 +329,10 @@ impl FunctionRegistry {
             return_type: "string",
             examples: ["'Hello World'.substring(6)", "'Hello World'.substring(0, 5)", "Patient.name.family.substring(1, 3)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+               if context.input.is_empty() || context.arguments.is_empty(){
+                    return Ok(FhirPathValue::Empty)
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -345,13 +357,10 @@ impl FunctionRegistry {
                     }
                 };
 
-                let start = match &context.arguments {
-                    FhirPathValue::Integer(i) => {
+                let start = match &context.arguments.first() {
+                    Some(FhirPathValue::Integer(i)) => {
                         if *i < 0 {
-                            return Err(crate::core::FhirPathError::evaluation_error(
-                                FP0053,
-                                "substring() start index must be non-negative".to_string()
-                            ));
+                           return Ok(FhirPathValue::Empty)
                         }
                         *i as usize
                     }
@@ -367,10 +376,7 @@ impl FunctionRegistry {
                     match context.arguments.get(1) {
                         Some(FhirPathValue::Integer(i)) => {
                             if *i < 0 {
-                                return Err(crate::core::FhirPathError::evaluation_error(
-                                    FP0053,
-                                    "substring() length must be non-negative".to_string()
-                                ));
+                                return Ok(FhirPathValue::String(String::new()))
                             }
                             Some(*i as usize)
                         }
@@ -386,7 +392,10 @@ impl FunctionRegistry {
                 };
 
                 let result = StringUtils::safe_substring(input_str, start, length);
-                Ok(FhirPathValue::String(result))
+                match result.len(){
+                    0 => Ok(FhirPathValue::Empty),
+                    _ =>Ok(FhirPathValue::String(result))
+                }
             }
         )
     }
@@ -401,6 +410,10 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["Patient.name.family.startsWith('Mc')", "'Hello World'.startsWith('Hello')"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -451,6 +464,10 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["Patient.name.family.endsWith('son')", "'Hello World'.endsWith('World')"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -567,6 +584,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["Patient.name.family.length()", "'Hello World'.length()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -600,6 +621,10 @@ impl FunctionRegistry {
             return_type: "string",
             examples: ["'  hello world  '.trim()", "Patient.name.family.trim()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -639,6 +664,10 @@ impl FunctionRegistry {
                 "Patient.name.family.replace('Mc', 'Mac')"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -715,6 +744,10 @@ impl FunctionRegistry {
                 "Patient.telecom.value.matches('^\\+1-[0-9]{3}-[0-9]{3}-[0-9]{4}$')"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() || context.arguments.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -781,6 +814,10 @@ impl FunctionRegistry {
                 "Patient.name.text.replaceMatches('\\s+', ' ')"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -1031,6 +1068,10 @@ impl FunctionRegistry {
                         use base64::{Engine as _, engine::general_purpose::STANDARD};
                         STANDARD.encode(input_str.as_bytes())
                     },
+                    "urlbase64" => {
+                        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+                        URL_SAFE_NO_PAD.encode(input_str.as_bytes())
+                    },
                     "hex" => {
                         input_str.as_bytes()
                             .iter()
@@ -1104,6 +1145,18 @@ impl FunctionRegistry {
                                 return Err(crate::core::FhirPathError::evaluation_error(
                                     FP0053,
                                     "Invalid base64 input".to_string()
+                                ));
+                            }
+                        }
+                    },
+                    "urlbase64" => {
+                        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+                        match URL_SAFE_NO_PAD.decode(input_str.as_bytes()) {
+                            Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
+                            Err(_) => {
+                                return Err(crate::core::FhirPathError::evaluation_error(
+                                    FP0053,
+                                    "Invalid urlbase64 input".to_string()
                                 ));
                             }
                         }

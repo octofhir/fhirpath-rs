@@ -34,6 +34,10 @@ impl FunctionRegistry {
             return_type: "number",
             examples: ["(-5).abs()", "(-3.14).abs()", "5.abs()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -75,6 +79,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["3.14.ceiling()", "(-2.5).ceiling()", "5.ceiling()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -124,6 +132,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["3.14.floor()", "(-2.5).floor()", "5.floor()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -172,6 +184,10 @@ impl FunctionRegistry {
             return_type: "number",
             examples: ["3.14159.round(2)", "3.6.round()", "(-2.5).round()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -259,6 +275,10 @@ impl FunctionRegistry {
             return_type: "integer",
             examples: ["3.14.truncate()", "(-2.9).truncate()", "5.truncate()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -307,6 +327,10 @@ impl FunctionRegistry {
             return_type: "decimal",
             examples: ["16.sqrt()", "2.25.sqrt()", "9.sqrt()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -394,6 +418,10 @@ impl FunctionRegistry {
                 if context.input.is_empty(){
                     return Ok(FhirPathValue::Empty)
                 }
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -446,6 +474,10 @@ impl FunctionRegistry {
             return_type: "decimal",
             examples: ["100.log(10)", "8.log(2)", "27.log(3)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -519,6 +551,10 @@ impl FunctionRegistry {
             return_type: "decimal",
             examples: ["2.power(3)", "10.power(2)", "16.power(0.5)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -578,6 +614,10 @@ impl FunctionRegistry {
             return_type: "decimal",
             examples: ["1.exp()", "0.exp()", "2.exp()"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,

@@ -12,7 +12,9 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [1]
+      "expected": [
+        1
+      ]
     },
     {
       "name": "testMonthOfDateDecember",
@@ -23,7 +25,9 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [12]
+      "expected": [
+        12
+      ]
     },
     {
       "name": "testMonthOfDateTime",
@@ -34,7 +38,9 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [6]
+      "expected": [
+        6
+      ]
     },
     {
       "name": "testMonthOfDateTimeWithTimezone",
@@ -45,7 +51,9 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [3]
+      "expected": [
+        3
+      ]
     },
     {
       "name": "testMonthOfLeapYearFebruary",
@@ -56,7 +64,9 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [2]
+      "expected": [
+        2
+      ]
     },
     {
       "name": "testMonthOfCollectionOfDates",
@@ -67,7 +77,8 @@
         "testMonthOf"
       ],
       "inputfile": "patient-example.json",
-      "expected": [1, 6, 12]
+      "expected": [],
+      "expectError": true
     },
     {
       "name": "testMonthOfObservationDate",
@@ -81,7 +92,9 @@
         "testMonthOf"
       ],
       "inputfile": null,
-      "expected": [9]
+      "expected": [
+        9
+      ]
     }
   ]
 }
