@@ -140,7 +140,7 @@ criterion = { version = "0.7.0", features = ["html_reports"] }
 pretty_assertions = "1.4.1"
 rstest = "0.26"
 serde-xml-rs = "0.8"
-axum-test = "17.0"
+axum-test = "18.1"
 
 [features]
 default = []
