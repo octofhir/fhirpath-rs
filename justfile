@@ -9,10 +9,19 @@ default:
     @echo "🚀 Quick Start:"
     @echo "  just server              # Start HTTP server on port 8080"
     @echo "  just server-dev          # Start server with CORS for development"
-    @echo "  just repl                # Start interactive REPL"
+    @echo "  just server-no-ui        # Start API-only server (no web UI)"
+    @echo "  just repl                # Start interactive REPL (simple)"
+    @echo "  just tui                 # Start Terminal User Interface (advanced)"
     @echo "  just test                # Run all tests"
     @echo "  just diagnostic-demo     # Show beautiful error reporting demo"
     @echo "  just convert-r5-xml      # Convert official R5 XML tests to JSON (in-place)"
+    @echo ""
+    @echo "🎨 TUI Commands:"
+    @echo "  just tui-check           # Check terminal compatibility"
+    @echo "  just tui-light           # Start TUI with light theme"
+    @echo "  just tui-high-contrast   # Start TUI with high contrast theme"
+    @echo "  just tui-perf            # Start TUI with performance monitoring"
+    @echo "  just tui-minimal         # Start minimal TUI (no advanced features)"
     @echo ""
     @echo "🧪 Diagnostic Demo Commands:"
     @echo "  just diagnostic-demo-examples    # Run all diagnostic examples"
@@ -120,6 +129,25 @@ docs: doc
     @echo "✅ Complete documentation generated!"
     @echo "📋 Available documentation:"
     @echo "  📖 API docs: target/doc/octofhir_fhirpath/index.html"
+
+# Website Docs (Astro + Starlight)
+docs-generate:
+    @echo "📝 Generating website docs content (functions + errors)"
+    cargo run --package fhirpath-dev-tools --bin generate-docs -- --out docs/src/content/docs
+
+docs-dev:
+    @echo "🚀 Starting docs dev server (Astro 5 + Starlight)"
+    just docs-generate
+    cd docs && pnpm install && pnpm dev
+
+docs-build:
+    @echo "🏗️  Building docs site"
+    just docs-generate
+    cd docs && pnpm install && pnpm build
+
+docs-preview:
+    @echo "🔍 Previewing built docs site"
+    cd docs && pnpm preview
 
 # Profiling commands for performance analysis
 profile EXPRESSION *ARGS:
@@ -230,6 +258,48 @@ repl FILE="" *ARGS:
         echo "🔥 Starting FHIRPath REPL with initial resource: {{FILE}}"; \
         cargo run --package fhirpath-cli --bin octofhir-fhirpath -- repl --input "{{FILE}}" {{ARGS}}; \
     fi
+
+# Start Terminal User Interface (TUI) - Advanced multi-panel REPL
+tui FILE="" *ARGS:
+    @if [ "{{FILE}}" = "" ]; then \
+        echo "🎨 Starting FHIRPath Terminal User Interface"; \
+        echo "Multi-panel interface with syntax highlighting and auto-completion"; \
+        echo "Press F1 for help, Esc to quit"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- tui {{ARGS}}; \
+    else \
+        echo "🎨 Starting FHIRPath TUI with initial resource: {{FILE}}"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- tui --input "{{FILE}}" {{ARGS}}; \
+    fi
+
+# Start TUI with dark theme (default)
+tui-dark FILE="":
+    just tui "{{FILE}}" --theme dark
+
+# Start TUI with light theme
+tui-light FILE="":
+    just tui "{{FILE}}" --theme light
+
+# Start TUI with high contrast theme (accessibility)
+tui-high-contrast FILE="":
+    just tui "{{FILE}}" --theme high_contrast
+
+# Start TUI with performance monitoring enabled
+tui-perf FILE="":
+    just tui "{{FILE}}" --performance-monitoring
+
+# Start minimal TUI (no mouse, no syntax highlighting, no auto-completion)
+tui-minimal FILE="":
+    just tui "{{FILE}}" --no-mouse --no-syntax-highlighting --no-auto-completion
+
+# Check if terminal supports TUI features
+tui-check:
+    @echo "🔍 Checking terminal capabilities for TUI..."
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- tui --check-terminal
+
+# Start TUI with custom configuration
+tui-config CONFIG FILE="":
+    @echo "🎨 Starting FHIRPath TUI with custom config: {{CONFIG}}"
+    just tui "{{FILE}}" --config "{{CONFIG}}"
 
 # Enhanced CLI output format examples
 cli-pretty EXPRESSION FILE="":
@@ -366,6 +436,19 @@ server-dev *ARGS:
     cd ui && pnpm install && pnpm build
     @echo "🚀 Starting server..."
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --cors-all {{ARGS}}
+
+# Start server without web UI (API-only mode)
+server-no-ui *ARGS:
+    @echo "🔧 Starting FHIRPath HTTP Server (API-Only Mode)"
+    @echo "==============================================="
+    @echo "🔗 FHIRPath Lab API: http://localhost:8080/"
+    @echo "🔗 Version endpoints: http://localhost:8080/r4, /r4b, /r5, /r6"
+    @echo "🔗 Health check: http://localhost:8080/healthz"
+    @echo "📁 Storage: ./storage"
+    @echo "🚫 Web UI: Disabled"
+    @echo "⏹️  Press Ctrl+C to stop the server"
+    @echo ""
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --no-ui {{ARGS}}
 
 # Start server with custom storage directory
 server-storage STORAGE_DIR *ARGS:

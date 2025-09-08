@@ -102,8 +102,8 @@ pub enum FunctionCategory {
 
 /// Function execution context
 pub struct FunctionContext<'a> {
-    pub input: &'a [FhirPathValue],
-    pub arguments: &'a [FhirPathValue],
+    pub input: FhirPathValue,
+    pub arguments: FhirPathValue,
     pub model_provider: &'a dyn ModelProvider,
     pub variables: &'a HashMap<String, FhirPathValue>,
     pub resource_context: Option<&'a FhirPathValue>,
@@ -112,13 +112,13 @@ pub struct FunctionContext<'a> {
 }
 
 /// Sync function signature
-pub type SyncFunction = Arc<dyn Fn(&FunctionContext) -> Result<Vec<FhirPathValue>> + Send + Sync>;
+pub type SyncFunction = Arc<dyn Fn(&FunctionContext) -> Result<FhirPathValue> + Send + Sync>;
 
 /// Async function signature
 pub type AsyncFunction = Arc<
     dyn for<'a> Fn(
             &'a FunctionContext<'a>,
-        ) -> Pin<Box<dyn Future<Output = Result<Vec<FhirPathValue>>> + Send + 'a>>
+        ) -> Pin<Box<dyn Future<Output = Result<FhirPathValue>> + Send + 'a>>
         + Send
         + Sync,
 >;

@@ -1,0 +1,28 @@
+---
+title: defineVariable
+sidebar:
+  label: defineVariable
+---
+
+# defineVariable()
+
+**Category**: Logic
+
+Defines a variable in the current scope that can be accessed using %name syntax (placeholder implementation)
+
+## Signature
+
+- Return type: `any`
+- Parameters:
+  - `name` `string` — Variable name to define
+
+## Examples
+
+```fhirpath
+Patient.defineVariable('pat').name.family
+```
+
+```fhirpath
+Bundle.entry.resource.defineVariable('res').id
+```
+

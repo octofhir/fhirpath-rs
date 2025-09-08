@@ -8,7 +8,7 @@ exclude = []
 resolver = "3"
 
 [workspace.package]
-version = "0.4.21"
+version = "0.4.22"
 edition = "2024"
 authors = ["OctoFHIR Team <funyloony@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -74,3 +74,6 @@ rustyline = "17.0"
 # Optional diagnostic dependencies
 colored = "3.0.0"
 lsp-types = "0.97.0"
+
+[workspace.lints.rust]
+missing_docs = "allow"

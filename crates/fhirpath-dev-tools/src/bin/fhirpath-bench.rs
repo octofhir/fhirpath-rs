@@ -229,7 +229,7 @@ async fn profile_expression(
     use_bundle: bool,
 ) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
-    use octofhir_fhirschema::provider::FhirSchemaModelProvider;
+    use octofhir_fhirschema::provider::EmbeddedModelProvider;
     use std::sync::Arc;
 
     // Create output directory if it doesn't exist
@@ -240,7 +240,7 @@ async fn profile_expression(
     // Initialize engine
     let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
     let model_provider = Arc::new(
-        FhirSchemaModelProvider::r5()
+        EmbeddedModelProvider::r5()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
@@ -328,7 +328,7 @@ fn list_expressions() {
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirpath::parse_expression;
-    use octofhir_fhirschema::provider::FhirSchemaModelProvider;
+    use octofhir_fhirschema::provider::EmbeddedModelProvider;
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -343,9 +343,9 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
-    println!("Initializing FhirSchemaModelProvider R5...");
+    println!("Initializing EmbeddedModelProvider R5...");
     let model_provider = Arc::new(
-        FhirSchemaModelProvider::r5()
+        EmbeddedModelProvider::r5()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;

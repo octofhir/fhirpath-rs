@@ -1,0 +1,26 @@
+---
+title: allTrue
+sidebar:
+  label: allTrue
+---
+
+# allTrue()
+
+**Category**: Collection
+
+Returns true if all items in the collection are boolean true
+
+## Signature
+
+- Return type: `boolean`
+
+## Examples
+
+```fhirpath
+(true | true | true).allTrue()
+```
+
+```fhirpath
+(Patient.active | Patient.active).allTrue()
+```
+

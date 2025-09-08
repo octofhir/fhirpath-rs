@@ -1,0 +1,28 @@
+---
+title: unescape
+sidebar:
+  label: unescape
+---
+
+# unescape()
+
+**Category**: String
+
+Unescapes special characters in the input string for the specified format
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `format` `string` — Unescape format ('html', 'json', 'xml')
+
+## Examples
+
+```fhirpath
+'&lt;tag&gt;'.unescape('html')
+```
+
+```fhirpath
+'\"text\"'.unescape('json')
+```
+

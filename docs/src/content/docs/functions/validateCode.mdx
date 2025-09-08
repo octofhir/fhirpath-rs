@@ -1,0 +1,29 @@
+---
+title: validateCode
+sidebar:
+  label: validateCode
+---
+
+# validateCode()
+
+**Category**: Terminology
+
+Validates that a code is valid within the specified code system
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `system` `string` — Code system URL
+  - `code` `string` — Code to validate (optional if input is a coding)
+
+## Examples
+
+```fhirpath
+'male'.validateCode('http://hl7.org/fhir/administrative-gender', 'male')
+```
+
+```fhirpath
+Patient.gender.validateCode('http://hl7.org/fhir/administrative-gender')
+```
+

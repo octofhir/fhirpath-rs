@@ -1,0 +1,30 @@
+---
+title: resolve
+sidebar:
+  label: resolve
+---
+
+# resolve()
+
+**Category**: FHIR
+
+Resolves a Reference.reference to the target resource. Supports contained ('#id'), in-bundle, and provider-backed resolution.
+
+## Signature
+
+- Return type: `Resource`
+
+## Examples
+
+```fhirpath
+Patient.managingOrganization.resolve()
+```
+
+```fhirpath
+Observation.subject.resolve()
+```
+
+```fhirpath
+Bundle.entry.resource.resolve()
+```
+

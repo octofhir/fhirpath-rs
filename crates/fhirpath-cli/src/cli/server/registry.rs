@@ -4,7 +4,7 @@
 //! - Single Registry: Create ONE shared FhirPathEngine registry and reuse for all endpoints
 //! - Engine Reuse: Pre-initialize engines for each FHIR version and reuse them across HTTP calls
 
-use crate::FhirSchemaModelProvider;
+use crate::EmbeddedModelProvider;
 use crate::cli::server::{
     error::{ServerError, ServerResult},
     version::ServerFhirVersion,
@@ -37,7 +37,7 @@ impl ServerRegistry {
             info!("🔧 Initializing engines for FHIR {}", version);
 
             // Create model provider for this version
-            let model_provider: FhirSchemaModelProvider =
+            let model_provider: EmbeddedModelProvider =
                 create_model_provider_for_version(version).await?;
             let model_provider_arc = Arc::new(model_provider);
 
@@ -95,26 +95,26 @@ impl ServerRegistry {
 /// Create a model provider for a specific FHIR version
 async fn create_model_provider_for_version(
     version: ServerFhirVersion,
-) -> ServerResult<FhirSchemaModelProvider> {
+) -> ServerResult<EmbeddedModelProvider> {
     let _model_version = version.to_model_version();
 
     match version {
-        ServerFhirVersion::R4 => crate::FhirSchemaModelProvider::r4().await.map_err(|e| {
+        ServerFhirVersion::R4 => crate::EmbeddedModelProvider::r4().await.map_err(|e| {
             error!("Failed to create R4 model provider: {}", e);
             ServerError::Internal(e.into())
         }),
-        ServerFhirVersion::R4B => crate::FhirSchemaModelProvider::r4b().await.map_err(|e| {
+        ServerFhirVersion::R4B => crate::EmbeddedModelProvider::r4b().await.map_err(|e| {
             error!("Failed to create R4B model provider: {}", e);
             ServerError::Internal(e.into())
         }),
-        ServerFhirVersion::R5 => crate::FhirSchemaModelProvider::r5().await.map_err(|e| {
+        ServerFhirVersion::R5 => crate::EmbeddedModelProvider::r5().await.map_err(|e| {
             error!("Failed to create R5 model provider: {}", e);
             ServerError::Internal(e.into())
         }),
         ServerFhirVersion::R6 => {
             // R6 uses R5 schema for now since R6 is still in development
             warn!("FHIR R6 is using R5 schema as R6 is still in development");
-            crate::FhirSchemaModelProvider::r5().await.map_err(|e| {
+            crate::EmbeddedModelProvider::r5().await.map_err(|e| {
                 error!("Failed to create R6 (R5 schema) model provider: {}", e);
                 ServerError::Internal(e.into())
             })

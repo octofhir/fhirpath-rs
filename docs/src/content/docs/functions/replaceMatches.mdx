@@ -1,0 +1,29 @@
+---
+title: replaceMatches
+sidebar:
+  label: replaceMatches
+---
+
+# replaceMatches()
+
+**Category**: String
+
+Returns the input string with all matches of the regex pattern replaced with the replacement string
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `regex` `string` — Regular expression pattern to match
+  - `replacement` `string` — Replacement string
+
+## Examples
+
+```fhirpath
+'Hello 123 World 456'.replaceMatches('[0-9]+', 'XXX')
+```
+
+```fhirpath
+Patient.name.text.replaceMatches('\s+', ' ')
+```
+

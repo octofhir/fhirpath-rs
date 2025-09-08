@@ -1,0 +1,28 @@
+---
+title: indexOf
+sidebar:
+  label: indexOf
+---
+
+# indexOf()
+
+**Category**: String
+
+Returns the zero-based index of the first occurrence of the substring, or -1 if not found
+
+## Signature
+
+- Return type: `integer`
+- Parameters:
+  - `substring` `string` — Substring to search for
+
+## Examples
+
+```fhirpath
+'Hello World'.indexOf('World')
+```
+
+```fhirpath
+Patient.name.family.indexOf('Doe')
+```
+

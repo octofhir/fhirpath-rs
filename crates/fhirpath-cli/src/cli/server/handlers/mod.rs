@@ -8,7 +8,9 @@ use crate::cli::server::{
     registry::ServerRegistry,
     version::ServerFhirVersion,
 };
-use octofhir_fhirpath::FhirPathValue;
+use octofhir_fhirpath::{FhirPathValue, Collection};
+use octofhir_fhirpath::parser::{parse_with_mode, ParsingMode};
+use axum_macros::debug_handler;
 // Analysis types - will be added when analyzer is properly integrated
 
 use axum::{
@@ -223,10 +225,218 @@ pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
             "GET /version - Version and build info",
             "POST /test/evaluate - Test evaluation endpoint",
             "POST /test/analyze - Test analysis endpoint",
+            "POST / - FHIRPath Lab API (auto-detect version)",
+            "POST /r4 - FHIRPath Lab API (R4)",
+            "POST /r4b - FHIRPath Lab API (R4B)",
+            "POST /r5 - FHIRPath Lab API (R5)",
+            "POST /r6 - FHIRPath Lab API (R6)",
             "GET / - Web UI root"
         ],
-        "fhir_versions_supported": ["r4", "r4b", "r5"]
+        "fhir_versions_supported": ["r4", "r4b", "r5", "r6"]
     });
 
     Ok(Json(version_response))
+}
+
+/// FHIRPath Lab API endpoint - auto-detect FHIR version
+pub async fn fhirpath_lab_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<FhirPathLabRequest>,
+) -> Result<Json<FhirPathLabResponse>, ServerError> {
+    // Auto-detect FHIR version from resource or default to R4  
+    let version = detect_fhir_version(&request).unwrap_or(ServerFhirVersion::R4);
+    
+    fhirpath_lab_handler_impl(&registry, request, version).await
+}
+
+/// FHIRPath Lab API endpoint - R4  
+#[debug_handler]
+pub async fn fhirpath_lab_r4_handler(
+    State(_registry): State<ServerRegistry>,
+    Json(_request): Json<FhirPathLabRequest>,
+) -> Json<FhirPathLabResponse> {
+    let mut response = FhirPathLabResponse::new();
+    response.add_string_parameter("evaluator", format!("octofhir-fhirpath-{}", env!("CARGO_PKG_VERSION")));
+    response.add_string_parameter("fhir_version", "R4".to_string());
+    response.add_string_parameter("status", "test".to_string());
+    Json(response)
+}
+
+/// FHIRPath Lab API endpoint - R4B
+pub async fn fhirpath_lab_r4b_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<FhirPathLabRequest>,
+) -> Result<Json<FhirPathLabResponse>, ServerError> {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4B).await
+}
+
+/// FHIRPath Lab API endpoint - R5
+pub async fn fhirpath_lab_r5_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<FhirPathLabRequest>,
+) -> Result<Json<FhirPathLabResponse>, ServerError> {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R5).await
+}
+
+/// FHIRPath Lab API endpoint - R6
+pub async fn fhirpath_lab_r6_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<FhirPathLabRequest>,
+) -> Result<Json<FhirPathLabResponse>, ServerError> {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R6).await
+}
+
+/// Core FHIRPath Lab API implementation
+async fn fhirpath_lab_handler_impl(
+    registry: &ServerRegistry,
+    request: FhirPathLabRequest,
+    version: ServerFhirVersion,
+) -> Result<Json<FhirPathLabResponse>, ServerError> {
+    let start_time = Instant::now();
+    
+    info!("🔍 FHIRPath Lab API request for FHIR {}", version);
+
+    // Parse the FHIR Parameters request
+    let parsed_request = request.parse()
+        .map_err(|e| ServerError::BadRequest { message: e })?;
+
+    // Get the evaluation engine for the specified version
+    let engine = registry
+        .get_evaluation_engine(version)
+        .ok_or_else(|| ServerError::BadRequest {
+            message: format!("FHIR version {} not supported", version),
+        })?;
+
+    let mut response = FhirPathLabResponse::new();
+
+    // Add evaluator information
+    response.add_string_parameter("evaluator", format!("octofhir-fhirpath-{}", env!("CARGO_PKG_VERSION")));
+
+    // Add input parameters echo
+    response.add_string_parameter("expression", parsed_request.expression.clone());
+    response.add_resource_parameter("resource", parsed_request.resource.clone());
+
+    if let Some(context) = &parsed_request.context {
+        response.add_string_parameter("context", context.clone());
+    }
+
+    // Perform validation if requested
+    if parsed_request.validate {
+        // TODO: Add proper validation when analyzer is integrated
+        response.add_string_parameter("validation", "Expression syntax is valid".to_string());
+    }
+
+    // Add AST representation as parseDebugTree
+    let parse_result = parse_with_mode(&parsed_request.expression, ParsingMode::Analysis);
+    if parse_result.success {
+        if let Some(ref ast) = parse_result.ast {
+            // Convert AST to JSON for debug tree representation
+            let ast_json = serde_json::to_string_pretty(ast).unwrap_or_else(|_| "{}".to_string());
+            response.add_string_parameter("parseDebugTree", ast_json);
+        } else {
+            response.add_string_parameter("parseDebugTree", "{}".to_string());
+        }
+    } else {
+        response.add_string_parameter("parseDebugTree", "{}".to_string());
+    }
+
+    // Evaluate the expression
+    match evaluate_fhirpath_expression(&engine, &parsed_request).await {
+        Ok(result) => {
+            // Convert result to FHIR Parameters format
+            let result_json = collection_to_json(result);
+            
+            // Create result parameter
+            let mut result_parts = Vec::new();
+            result_parts.push(FhirPathLabResponseParameter {
+                name: "trace".to_string(),
+                value_string: Some(format!("Evaluated expression: {}", parsed_request.expression)),
+                resource: None,
+                part: None,
+            });
+            
+            result_parts.push(FhirPathLabResponseParameter {
+                name: "result".to_string(),
+                value_string: None,
+                resource: Some(result_json),
+                part: None,
+            });
+
+            response.add_complex_parameter("result", result_parts);
+            
+            info!("✅ FHIRPath Lab evaluation completed in {:?}", start_time.elapsed());
+        }
+        Err(e) => {
+            let error_msg = format!("Evaluation failed: {}", e);
+            response.add_string_parameter("error", error_msg);
+            info!("❌ FHIRPath Lab evaluation failed: {}", e);
+        }
+    }
+
+    Ok(Json(response))
+}
+
+/// Detect FHIR version from the request resource
+fn detect_fhir_version(_request: &FhirPathLabRequest) -> Option<ServerFhirVersion> {
+    // TODO: Implement actual FHIR version detection from resource
+    // For now, default to R4
+    Some(ServerFhirVersion::R4)
+}
+
+/// Evaluate FHIRPath expression using the engine
+async fn evaluate_fhirpath_expression(
+    engine: &octofhir_fhirpath::evaluator::FhirPathEngine,
+    request: &ParsedFhirPathLabRequest,
+) -> Result<Collection, ServerError> {
+    use octofhir_fhirpath::evaluator::EvaluationContext;
+
+    // Convert resource to FhirPathValue and create initial collection
+    let resource_value = json_to_fhirpath_value(request.resource.clone());
+    let context_collection = Collection::single(resource_value);
+
+    // Create evaluation context
+    let mut eval_context = EvaluationContext::new(context_collection);
+
+    // Set variables
+    for (name, value) in &request.variables {
+        let fhir_value = json_to_fhirpath_value(value.clone());
+        eval_context.set_variable(name.to_string(), fhir_value);
+    }
+
+    // First parse the expression to get the AST
+    let parse_result = parse_with_mode(&request.expression, ParsingMode::Analysis);
+
+    if !parse_result.success {
+        let error_details: Vec<String> = parse_result
+            .diagnostics
+            .iter()
+            .map(|d| {
+                if let Some(location) = &d.location {
+                    format!("{} at {}:{}", d.code.code, location.line, location.column)
+                } else {
+                    d.code.code.clone()
+                }
+            })
+            .collect();
+
+        let error_message = if error_details.is_empty() {
+            "Parse failed - unknown error".to_string()
+        } else {
+            format!("Parse failed: {}", error_details.join(", "))
+        };
+
+        return Err(ServerError::BadRequest {
+            message: error_message,
+        });
+    }
+
+    // Parse successful - now evaluate using the AST
+    let ast = parse_result.ast.unwrap();
+    let result = engine
+        .evaluate_ast(&ast, &eval_context)
+        .await
+        .map_err(|e| ServerError::Internal(e.into()))?;
+
+    // Convert the result to a Collection
+    Ok(Collection::from_values(result.to_collection()))
 }

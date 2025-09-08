@@ -1,0 +1,28 @@
+---
+title: extension
+sidebar:
+  label: extension
+---
+
+# extension()
+
+**Category**: FHIR
+
+Returns extensions with the specified URL (includes modifierExtension)
+
+## Signature
+
+- Return type: `Collection`
+- Parameters:
+  - `url` `string` — Extension URL to filter by
+
+## Examples
+
+```fhirpath
+Patient.extension('http://hl7.org/fhir/StructureDefinition/patient-nationality')
+```
+
+```fhirpath
+Observation.extension('http://example.org/custom')
+```
+

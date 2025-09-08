@@ -1,0 +1,26 @@
+---
+title: getValue
+sidebar:
+  label: getValue
+---
+
+# getValue()
+
+**Category**: FHIR
+
+Returns the primitive value from a FHIR element (value[x]) or self for primitives
+
+## Signature
+
+- Return type: `any`
+
+## Examples
+
+```fhirpath
+Patient.name.family.getValue()
+```
+
+```fhirpath
+Observation.valueQuantity.value.getValue()
+```
+

@@ -1,0 +1,34 @@
+---
+title: iif
+sidebar:
+  label: iif
+---
+
+# iif()
+
+**Category**: Logic
+
+Conditional function: returns the 'then' value if condition is true, 'else' value if false, empty if condition is empty
+
+## Signature
+
+- Return type: `any`
+- Parameters:
+  - `condition` `boolean` — The condition to evaluate
+  - `then` `any` — Value to return if condition is true
+  - `else` `any` — Value to return if condition is false (optional)
+
+## Examples
+
+```fhirpath
+iif(Patient.active, 'active', 'inactive')
+```
+
+```fhirpath
+iif(true, 'yes', 'no')
+```
+
+```fhirpath
+iif(false, 'yes')
+```
+

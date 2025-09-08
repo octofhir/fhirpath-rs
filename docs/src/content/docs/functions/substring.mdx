@@ -1,0 +1,33 @@
+---
+title: substring
+sidebar:
+  label: substring
+---
+
+# substring()
+
+**Category**: String
+
+Returns a substring starting at the specified index, optionally with specified length
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `start` `integer` — Zero-based starting index
+  - `length` `integer` — Length of substring (optional)
+
+## Examples
+
+```fhirpath
+'Hello World'.substring(6)
+```
+
+```fhirpath
+'Hello World'.substring(0, 5)
+```
+
+```fhirpath
+Patient.name.family.substring(1, 3)
+```
+

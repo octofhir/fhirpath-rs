@@ -1,0 +1,28 @@
+---
+title: supersetOf
+sidebar:
+  label: supersetOf
+---
+
+# supersetOf()
+
+**Category**: Collection
+
+Returns true if this collection is a superset of the other collection
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `other` `collection` — Collection to compare against
+
+## Examples
+
+```fhirpath
+(1 | 2 | 3).supersetOf(1 | 2)
+```
+
+```fhirpath
+Patient.telecom.supersetOf(Patient.telecom.where(system = 'phone'))
+```
+

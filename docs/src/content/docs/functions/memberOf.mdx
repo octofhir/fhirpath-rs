@@ -1,0 +1,28 @@
+---
+title: memberOf
+sidebar:
+  label: memberOf
+---
+
+# memberOf()
+
+**Category**: Terminology
+
+Returns true if the input coding/code is a member of the specified ValueSet
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `valueset` `string` — ValueSet URL or identifier
+
+## Examples
+
+```fhirpath
+Observation.code.coding.memberOf('http://hl7.org/fhir/ValueSet/observation-codes')
+```
+
+```fhirpath
+Patient.maritalStatus.coding.memberOf('http://hl7.org/fhir/ValueSet/marital-status')
+```
+

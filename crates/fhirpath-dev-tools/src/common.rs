@@ -16,13 +16,13 @@
 
 use octofhir_fhirpath::MockModelProvider;
 use octofhir_fhirpath::ModelProvider;
-use octofhir_fhirschema::provider::FhirSchemaModelProvider;
+use octofhir_fhirschema::provider::EmbeddedModelProvider;
 use std::env;
 use std::sync::Arc;
 
 /// Create a model provider for development tools
-/// This always uses FhirSchemaModelProvider for production-quality testing
-/// Exits the process if FhirSchemaModelProvider cannot be initialized
+/// This always uses EmbeddedModelProvider for production-quality testing
+/// Exits the process if EmbeddedModelProvider cannot be initialized
 pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
     // Allow opting into the lightweight MockModelProvider for offline/sandboxed testing
     let use_mock = env::var("FHIRPATH_USE_MOCK_PROVIDER")
@@ -40,12 +40,12 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
     let fhir_version = env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
 
     log::info!(
-        "Using FhirSchemaModelProvider for development tools (FHIR version: {})",
+        "Using EmbeddedModelProvider for development tools (FHIR version: {})",
         fhir_version
     );
 
     let provider = match fhir_version.to_lowercase().as_str() {
-        "r4" => match FhirSchemaModelProvider::r4().await {
+        "r4" => match EmbeddedModelProvider::r4().await {
             Ok(provider) => provider,
             Err(e) => {
                 eprintln!("❌ CRITICAL: Failed to initialize FHIR R4 schema provider: {e}");
@@ -54,7 +54,7 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
                 std::process::exit(1);
             }
         },
-        "r4b" => match FhirSchemaModelProvider::r4b().await {
+        "r4b" => match EmbeddedModelProvider::r4b().await {
             Ok(provider) => provider,
             Err(e) => {
                 eprintln!("❌ CRITICAL: Failed to initialize FHIR R4B schema provider: {e}");
@@ -63,7 +63,7 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
                 std::process::exit(1);
             }
         },
-        "r5" => match FhirSchemaModelProvider::r5().await {
+        "r5" => match EmbeddedModelProvider::r5().await {
             Ok(provider) => provider,
             Err(e) => {
                 eprintln!("❌ CRITICAL: Failed to initialize FHIR R5 schema provider: {e}");
@@ -74,7 +74,7 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
         },
         _ => {
             log::warn!("Unknown FHIR version '{}', defaulting to R4", fhir_version);
-            match FhirSchemaModelProvider::r4().await {
+            match EmbeddedModelProvider::r4().await {
                 Ok(provider) => provider,
                 Err(e) => {
                     eprintln!(

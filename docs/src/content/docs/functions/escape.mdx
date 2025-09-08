@@ -1,0 +1,28 @@
+---
+title: escape
+sidebar:
+  label: escape
+---
+
+# escape()
+
+**Category**: String
+
+Escapes special characters in the input string for the specified format
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `format` `string` — Escape format ('html', 'json', 'xml')
+
+## Examples
+
+```fhirpath
+'<tag>'.escape('html')
+```
+
+```fhirpath
+'"text"'.escape('json')
+```
+

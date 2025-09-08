@@ -1,0 +1,24 @@
+---
+title: conformsTo
+sidebar:
+  label: conformsTo
+---
+
+# conformsTo()
+
+**Category**: FHIR
+
+Returns true if the resource conforms to the specified profile (currently always true)
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `profile` `string` — Profile URL to validate against
+
+## Examples
+
+```fhirpath
+Patient.conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')
+```
+

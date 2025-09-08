@@ -1,0 +1,28 @@
+---
+title: subsetOf
+sidebar:
+  label: subsetOf
+---
+
+# subsetOf()
+
+**Category**: Collection
+
+Returns true if this collection is a subset of the other collection
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `other` `collection` — Collection to compare against
+
+## Examples
+
+```fhirpath
+(1 | 2).subsetOf(1 | 2 | 3)
+```
+
+```fhirpath
+Patient.name.given.subsetOf(Patient.name.family)
+```
+

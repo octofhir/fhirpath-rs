@@ -1,0 +1,28 @@
+---
+title: lastIndexOf
+sidebar:
+  label: lastIndexOf
+---
+
+# lastIndexOf()
+
+**Category**: String
+
+Returns the zero-based index of the last occurrence of the substring, or -1 if not found
+
+## Signature
+
+- Return type: `integer`
+- Parameters:
+  - `substring` `string` — Substring to search for
+
+## Examples
+
+```fhirpath
+'Hello World World'.lastIndexOf('World')
+```
+
+```fhirpath
+Patient.name.family.lastIndexOf('son')
+```
+

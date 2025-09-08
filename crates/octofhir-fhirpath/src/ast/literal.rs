@@ -37,7 +37,9 @@ pub enum LiteralValue {
 
     /// Quantity literal (e.g., 5 'mg', 10.5 'kg')
     Quantity {
+        /// Quantity value
         value: Decimal,
+        /// Quantity unit
         unit: Option<String>,
     },
 }

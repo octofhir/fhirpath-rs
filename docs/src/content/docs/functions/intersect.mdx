@@ -1,0 +1,28 @@
+---
+title: intersect
+sidebar:
+  label: intersect
+---
+
+# intersect()
+
+**Category**: Collection
+
+Returns the intersection of two collections
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `other` `collection` — Collection to intersect with
+
+## Examples
+
+```fhirpath
+Patient.name.given.intersect(Patient.name.family)
+```
+
+```fhirpath
+Bundle.entry.resource.intersect($otherBundle.entry.resource)
+```
+

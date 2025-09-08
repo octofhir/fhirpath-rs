@@ -1,0 +1,28 @@
+---
+title: endsWith
+sidebar:
+  label: endsWith
+---
+
+# endsWith()
+
+**Category**: String
+
+Returns true if the input string ends with the specified suffix
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `suffix` `string` — Suffix to check for
+
+## Examples
+
+```fhirpath
+Patient.name.family.endsWith('son')
+```
+
+```fhirpath
+'Hello World'.endsWith('World')
+```
+

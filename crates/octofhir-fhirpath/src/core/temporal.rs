@@ -389,15 +389,23 @@ pub struct PrecisionDateTime {
     pub datetime: DateTime<FixedOffset>,
     /// The precision of this datetime
     pub precision: TemporalPrecision,
+    /// Whether the original literal included an explicit timezone (Z, +HH:MM, -HH:MM)
+    #[serde(default)]
+    pub tz_specified: bool,
 }
 
 impl PrecisionDateTime {
-    /// Create a new precision datetime
+    /// Create a new precision datetime (assumes timezone was explicitly specified)
     pub fn new(datetime: DateTime<FixedOffset>, precision: TemporalPrecision) -> Self {
         Self {
             datetime,
             precision,
+            tz_specified: true,
         }
+    }
+    /// Create a new precision datetime with explicit timezone presence flag
+    pub fn new_with_tz(datetime: DateTime<FixedOffset>, precision: TemporalPrecision, tz_specified: bool) -> Self {
+        Self { datetime, precision, tz_specified }
     }
 
     /// Create a datetime with full precision

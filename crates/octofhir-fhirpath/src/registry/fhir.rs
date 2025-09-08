@@ -59,7 +59,7 @@ impl FunctionRegistry {
                 "Observation.subject.resolve()",
                 "Bundle.entry.resource.resolve()"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     let total_start = std::time::Instant::now();
                     
@@ -78,7 +78,7 @@ impl FunctionRegistry {
                     // Phase 1: Input processing
                     let phase_start = std::time::Instant::now();
                     if context.input.is_empty() {
-                        return Ok(Vec::new());
+                        return Ok(FhirPathValue::empty());
                     }
                     let input_len = context.input.len();
                     metrics.input_processing_us = phase_start.elapsed().as_micros() as u64;
@@ -95,13 +95,14 @@ impl FunctionRegistry {
 
                                     // Phase 3: Batch optimization
                                     let phase_start = std::time::Instant::now();
-                                    let result = resolve_batch_optimized_with_metrics(context.input, obj, &mut metrics);
+                                    let input_vec = context.input.cloned_collection();
+                                    let result = resolve_batch_optimized_with_metrics(&input_vec, obj, &mut metrics);
                                     metrics.batch_optimization_us = phase_start.elapsed().as_micros() as u64;
 
                                     // Final metrics
                                     metrics.total_us = total_start.elapsed().as_micros() as u64;
                                     print_performance_metrics(&metrics, input_len);
-                                    return Ok(result);
+                                    return Ok(FhirPathValue::collection(result));
                                 }
                             }
                         }
@@ -155,7 +156,7 @@ impl FunctionRegistry {
 
                     metrics.total_us = total_start.elapsed().as_micros() as u64;
                     print_performance_metrics(&metrics, input_len);
-                    Ok(resolved_resources)
+                    Ok(FhirPathValue::collection(resolved_resources))
                 })
             }
         )
@@ -173,7 +174,7 @@ impl FunctionRegistry {
                 "Patient.extension('http://hl7.org/fhir/StructureDefinition/patient-nationality')",
                 "Observation.extension('http://example.org/custom')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 use crate::core::error_code::{FP0051, FP0053};
                 if context.arguments.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
@@ -182,8 +183,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let url = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s.as_str(),
+                let url = match context.arguments.first() {
+                    Some(FhirPathValue::String(s)) => s.as_str(),
                     _ => {
                         return Err(FhirPathError::evaluation_error(
                             FP0051,
@@ -196,7 +197,7 @@ impl FunctionRegistry {
                 for v in context.input.iter() {
                     out.extend(FhirUtils::filter_extensions_by_url(v, url));
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -213,7 +214,7 @@ impl FunctionRegistry {
                 "Patient.name.family.hasValue()",
                 "Observation.value.hasValue()"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let has = if context.input.is_empty() {
                     false
                 } else {
@@ -229,7 +230,7 @@ impl FunctionRegistry {
                         _ => true,
                     })
                 };
-                Ok(vec![FhirPathValue::boolean(has)])
+                Ok(FhirPathValue::boolean(has))
             }
         )
     }
@@ -246,7 +247,7 @@ impl FunctionRegistry {
                 "Patient.name.family.getValue()",
                 "Observation.valueQuantity.value.getValue()"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let mut out = Vec::new();
                 for v in context.input.iter() {
                     match v {
@@ -261,7 +262,7 @@ impl FunctionRegistry {
                         _ => out.push(v.clone()),
                     }
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -277,11 +278,11 @@ impl FunctionRegistry {
             examples: [
                 "Patient.conformsTo('http://hl7.org/fhir/StructureDefinition/Patient')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     // For now, per request, always return true
                     let _ = context;
-                    Ok(vec![FhirPathValue::boolean(true)])
+                    Ok(FhirPathValue::boolean(true))
                 })
             }
         )
@@ -299,12 +300,12 @@ impl FunctionRegistry {
                 "Patient.descendants()",
                 "Bundle.entry.resource.descendants()"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let mut out = Vec::new();
                 for v in context.input.iter() {
                     FhirUtils::collect_descendants(v, &mut out);
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -321,12 +322,12 @@ impl FunctionRegistry {
                 "Patient.children()",
                 "Bundle.entry.children()"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let mut out = Vec::new();
                 for v in context.input.iter() {
                     out.extend(FhirUtils::collect_children(v));
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -343,7 +344,7 @@ impl FunctionRegistry {
                 "Observation.code.coding",
                 "Patient.maritalStatus.coding"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let mut out = Vec::new();
                 for v in context.input.iter() {
                     match v {
@@ -357,7 +358,7 @@ impl FunctionRegistry {
                         _ => {}
                     }
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -374,7 +375,7 @@ impl FunctionRegistry {
                 "Observation.code.coding.display",
                 "Patient.maritalStatus.coding.display"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let mut out = Vec::new();
                 for v in context.input.iter() {
                     match v {
@@ -386,7 +387,7 @@ impl FunctionRegistry {
                         _ => {}
                     }
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -403,7 +404,7 @@ impl FunctionRegistry {
                 "Patient.identifier('http://hl7.org/fhir/sid/us-ssn')",
                 "Organization.identifier('http://hl7.org/fhir/sid/us-npi')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 use crate::core::error_code::{FP0051, FP0053};
                 if context.arguments.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
@@ -412,8 +413,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let target = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s.as_str(),
+                let target = match context.arguments.first() {
+                    Some(FhirPathValue::String(s)) => s.as_str(),
                     _ => {
                         return Err(FhirPathError::evaluation_error(
                             FP0051,
@@ -444,7 +445,7 @@ impl FunctionRegistry {
                         _ => {}
                     }
                 }
-                Ok(out)
+                Ok(FhirPathValue::collection(out))
             }
         )
     }
@@ -943,7 +944,7 @@ impl FunctionRegistry {
                 "ClinicalDocument.hasTemplateIdOf('2.16.840.1.113883.10.20.22.1.1')",
                 "section.hasTemplateIdOf('2.16.840.1.113883.10.20.22.2.4.1', '2014-06-09')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.arguments.is_empty() || context.arguments.len() > 2 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0053,
@@ -951,72 +952,72 @@ impl FunctionRegistry {
                     ));
                 }
 
-                if context.input.len() != 1 {
-                    return Ok(vec![FhirPathValue::Boolean(false)]);
-                }
-
-                // Get the root parameter
-                let target_root = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
-                    _ => {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0053,
-                            "hasTemplateIdOf() root parameter must be a string".to_string()
-                        ));
-                    }
-                };
-
-                // Get optional extension parameter
-                let target_extension = if context.arguments.len() > 1 {
-                    match &context.arguments[1] {
-                        FhirPathValue::String(s) => Some(s),
+                if let Some(first_input) = context.input.first() {
+                    // Get the root parameter
+                    let target_root = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s,
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0053,
-                                "hasTemplateIdOf() extension parameter must be a string".to_string()
+                                "hasTemplateIdOf() root parameter must be a string".to_string()
                             ));
                         }
-                    }
-                } else {
-                    None
-                };
+                    };
 
-                // Check if the input has templateId array
-                match &context.input[0] {
-                    FhirPathValue::Resource(obj) => {
-                        if let Some(template_ids) = obj.get("templateId").and_then(|v| v.as_array()) {
-                            for template_id in template_ids {
-                                if let Some(template_obj) = template_id.as_object() {
-                                    // Check root
-                                    let root_matches = template_obj
-                                        .get("root")
-                                        .and_then(|v| v.as_str())
-                                        .map(|r| r == target_root)
-                                        .unwrap_or(false);
+                    // Get optional extension parameter
+                    let target_extension = if context.arguments.len() > 1 {
+                        match context.arguments.get(1) {
+                            Some(FhirPathValue::String(s)) => Some(s),
+                            _ => {
+                                return Err(FhirPathError::evaluation_error(
+                                    crate::core::error_code::FP0053,
+                                    "hasTemplateIdOf() extension parameter must be a string".to_string()
+                                ));
+                            }
+                        }
+                    } else {
+                        None
+                    };
 
-                                    if root_matches {
-                                        // If no extension required, root match is enough
-                                        if target_extension.is_none() {
-                                            return Ok(vec![FhirPathValue::Boolean(true)]);
-                                        }
-
-                                        // Check extension if required
-                                        let extension_matches = template_obj
-                                            .get("extension")
+                    // Check if the input has templateId array
+                    match first_input {
+                        FhirPathValue::Resource(obj) => {
+                            if let Some(template_ids) = obj.get("templateId").and_then(|v| v.as_array()) {
+                                for template_id in template_ids {
+                                    if let Some(template_obj) = template_id.as_object() {
+                                        // Check root
+                                        let root_matches = template_obj
+                                            .get("root")
                                             .and_then(|v| v.as_str())
-                                            .map(|e| target_extension.map_or(false, |te| e == te))
+                                            .map(|r| r == target_root)
                                             .unwrap_or(false);
 
-                                        if extension_matches {
-                                            return Ok(vec![FhirPathValue::Boolean(true)]);
+                                        if root_matches {
+                                            // If no extension required, root match is enough
+                                            if target_extension.is_none() {
+                                                return Ok(FhirPathValue::Boolean(true));
+                                            }
+
+                                            // Check extension if required
+                                            let extension_matches = template_obj
+                                                .get("extension")
+                                                .and_then(|v| v.as_str())
+                                                .map(|e| target_extension.map_or(false, |te| e == te))
+                                                .unwrap_or(false);
+
+                                            if extension_matches {
+                                                return Ok(FhirPathValue::Boolean(true));
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        Ok(vec![FhirPathValue::Boolean(false)])
-                    },
-                    _ => Ok(vec![FhirPathValue::Boolean(false)])
+                            Ok(FhirPathValue::Boolean(false))
+                        },
+                        _ => Ok(FhirPathValue::Boolean(false))
+                    }
+                } else {
+                    Ok(FhirPathValue::Boolean(false))
                 }
             }
         )

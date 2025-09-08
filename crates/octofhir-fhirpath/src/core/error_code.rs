@@ -138,6 +138,7 @@ impl ErrorRegistry {
             58 => &FP0058_INFO,
             59 => &FP0059_INFO,
             60 => &FP0060_INFO,
+            61 => &FP0061_INFO,
 
             // Temporal/Date validation errors (FP0070-FP0080)
             70 => &FP0070_INFO,
@@ -216,6 +217,7 @@ pub const FP0057: ErrorCode = ErrorCode::new(57); // Reference resolution failed
 pub const FP0058: ErrorCode = ErrorCode::new(58); // Invalid type conversion
 pub const FP0059: ErrorCode = ErrorCode::new(59); // Collection index out of bounds
 pub const FP0060: ErrorCode = ErrorCode::new(60); // Variable not defined
+pub const FP0061: ErrorCode = ErrorCode::new(61); // Resource type mismatch
 
 // Temporal/Date validation errors (FP0070-FP0080)
 pub const FP0070: ErrorCode = ErrorCode::new(70); // Invalid date format
@@ -404,6 +406,13 @@ static FP0060_INFO: ErrorInfo = ErrorInfo::new(
     "Variable not defined",
     "An attempt was made to access a variable that has not been defined.",
     "Check that the variable is properly defined before use. Variables must be declared in the current scope.",
+);
+
+static FP0061_INFO: ErrorInfo = ErrorInfo::new(
+    61,
+    "Resource type mismatch",
+    "Expression expects a specific resource type but the context contains a different resource type.",
+    "Ensure the FHIRPath expression matches the resource type being evaluated. For example, use 'Patient.name' only when evaluating Patient resources, not Encounter resources.",
 );
 
 // Temporal/Date validation error information (FP0070-FP0080)
@@ -756,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_all_evaluation_codes() {
-        for code in 51..=60 {
+        for code in 51..=61 {
             let error_code = ErrorCode::new(code);
             assert_eq!(error_code.category(), ErrorCategory::Evaluation);
             assert!(!error_code.description().is_empty());

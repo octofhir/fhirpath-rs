@@ -20,19 +20,28 @@ pub struct MultiDiagnosticCollector {
 /// Batch of collected diagnostics with metadata
 #[derive(Debug, Clone)]
 pub struct DiagnosticBatch {
+    /// Collection of diagnostics found during analysis
     pub diagnostics: Vec<AriadneDiagnostic>,
+    /// Unique identifier for the source being analyzed
     pub source_id: usize,
+    /// Human-readable name of the source (e.g., filename)
     pub source_name: String,
+    /// Summary statistics about the collected diagnostics
     pub statistics: DiagnosticStatistics,
 }
 
 /// Statistics about collected diagnostics
 #[derive(Debug, Clone, Default)]
 pub struct DiagnosticStatistics {
+    /// Number of error diagnostics
     pub error_count: usize,
+    /// Number of warning diagnostics
     pub warning_count: usize,
+    /// Number of suggestion diagnostics
     pub suggestion_count: usize,
+    /// Number of note diagnostics
     pub note_count: usize,
+    /// Total number of diagnostics
     pub total_count: usize,
 }
 

@@ -1,0 +1,28 @@
+---
+title: take
+sidebar:
+  label: take
+---
+
+# take()
+
+**Category**: Collection
+
+Returns the first n items in a collection
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `num` `integer` — Number of items to take
+
+## Examples
+
+```fhirpath
+Patient.name.take(2)
+```
+
+```fhirpath
+Bundle.entry.take(5)
+```
+

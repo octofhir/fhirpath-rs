@@ -185,6 +185,175 @@ pub struct FileUploadResponse {
     pub error: Option<ErrorInfo>,
 }
 
+// ===== FHIRPATH LAB API MODELS =====
+
+/// FHIRPath Lab API request in FHIR Parameters format
+#[derive(Debug, Deserialize)]
+pub struct FhirPathLabRequest {
+    /// FHIR resource type (should be "Parameters")
+    #[serde(rename = "resourceType")]
+    pub resource_type: String,
+    /// Parameters array
+    pub parameter: Vec<FhirPathLabParameter>,
+}
+
+/// Individual parameter in FHIR Parameters resource
+#[derive(Debug, Deserialize)]
+pub struct FhirPathLabParameter {
+    /// Parameter name
+    pub name: String,
+    /// String value (for expression, context, etc.)
+    #[serde(rename = "valueString")]
+    pub value_string: Option<String>,
+    /// Boolean value (for validate flag)
+    #[serde(rename = "valueBoolean")]
+    pub value_boolean: Option<bool>,
+    /// Resource value (for the resource to evaluate against)
+    #[serde(rename = "resource")]
+    pub resource: Option<JsonValue>,
+    /// Nested parameters (for variables)
+    pub part: Option<Vec<FhirPathLabParameter>>,
+}
+
+/// FHIRPath Lab API response in FHIR Parameters format
+#[derive(Debug, Serialize)]
+pub struct FhirPathLabResponse {
+    /// FHIR resource type (always "Parameters")
+    #[serde(rename = "resourceType")]
+    pub resource_type: String,
+    /// Parameters array containing results
+    pub parameter: Vec<FhirPathLabResponseParameter>,
+}
+
+/// Response parameter in FHIR Parameters resource
+#[derive(Debug, Serialize)]
+pub struct FhirPathLabResponseParameter {
+    /// Parameter name
+    pub name: String,
+    /// String value (for simple results)
+    #[serde(rename = "valueString", skip_serializing_if = "Option::is_none")]
+    pub value_string: Option<String>,
+    /// Resource value (for complex results)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource: Option<JsonValue>,
+    /// Nested parameters (for structured data)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<Vec<FhirPathLabResponseParameter>>,
+}
+
+/// Parsed FHIRPath Lab request for easier handling
+#[derive(Debug)]
+pub struct ParsedFhirPathLabRequest {
+    /// FHIRPath expression to evaluate
+    pub expression: String,
+    /// Resource to evaluate against
+    pub resource: JsonValue,
+    /// Optional context
+    pub context: Option<String>,
+    /// Validate expression flag
+    pub validate: bool,
+    /// Variables for the expression
+    pub variables: HashMap<String, JsonValue>,
+    /// Terminology server URL
+    pub terminology_server: Option<String>,
+}
+
+impl FhirPathLabRequest {
+    /// Parse the FHIR Parameters request into a more usable format
+    pub fn parse(self) -> Result<ParsedFhirPathLabRequest, String> {
+        let mut expression = None;
+        let mut resource = None;
+        let mut context = None;
+        let mut validate = false;
+        let mut variables = HashMap::new();
+        let mut terminology_server = None;
+
+        for param in self.parameter {
+            match param.name.as_str() {
+                "expression" => {
+                    expression = param.value_string;
+                }
+                "resource" => {
+                    resource = param.resource;
+                }
+                "context" => {
+                    context = param.value_string;
+                }
+                "validate" => {
+                    validate = param.value_boolean.unwrap_or(false);
+                }
+                "terminologyServer" => {
+                    terminology_server = param.value_string;
+                }
+                "variables" => {
+                    if let Some(parts) = param.part {
+                        for part in parts {
+                            if let Some(value) = part.value_string {
+                                variables.insert(part.name, JsonValue::String(value));
+                            } else if let Some(res) = part.resource {
+                                variables.insert(part.name, res);
+                            }
+                        }
+                    }
+                }
+                _ => {} // Ignore unknown parameters
+            }
+        }
+
+        let expression = expression.ok_or("Missing required 'expression' parameter")?;
+        let resource = resource.ok_or("Missing required 'resource' parameter")?;
+
+        Ok(ParsedFhirPathLabRequest {
+            expression,
+            resource,
+            context,
+            validate,
+            variables,
+            terminology_server,
+        })
+    }
+}
+
+impl FhirPathLabResponse {
+    /// Create a new FHIRPath Lab response
+    pub fn new() -> Self {
+        Self {
+            resource_type: "Parameters".to_string(),
+            parameter: Vec::new(),
+        }
+    }
+
+    /// Add a string parameter to the response
+    pub fn add_string_parameter(&mut self, name: &str, value: String) {
+        self.parameter.push(FhirPathLabResponseParameter {
+            name: name.to_string(),
+            value_string: Some(value),
+            resource: None,
+            part: None,
+        });
+    }
+
+    /// Add a resource parameter to the response
+    pub fn add_resource_parameter(&mut self, name: &str, resource: JsonValue) {
+        self.parameter.push(FhirPathLabResponseParameter {
+            name: name.to_string(),
+            value_string: None,
+            resource: Some(resource),
+            part: None,
+        });
+    }
+
+    /// Add a complex parameter with nested parts
+    pub fn add_complex_parameter(&mut self, name: &str, parts: Vec<FhirPathLabResponseParameter>) {
+        self.parameter.push(FhirPathLabResponseParameter {
+            name: name.to_string(),
+            value_string: None,
+            resource: None,
+            part: Some(parts),
+        });
+    }
+}
+
 // ===== COMMON MODELS =====
 
 /// Error information

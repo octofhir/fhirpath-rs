@@ -33,7 +33,11 @@ use tracing::{info, warn};
 use crate::cli::server::{
     assets::{asset_count, serve_embedded_assets, serve_ui_root, ui_assets_available},
     config::ServerConfig,
-    handlers::{analyze_handler, evaluate_handler, files_handler, health_handler, version_handler},
+    handlers::{
+        analyze_handler, evaluate_handler, files_handler, health_handler, version_handler,
+        fhirpath_lab_handler, fhirpath_lab_r4_handler, fhirpath_lab_r4b_handler,
+        fhirpath_lab_r5_handler, fhirpath_lab_r6_handler
+    },
     registry::ServerRegistry,
 };
 
@@ -47,8 +51,10 @@ pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
         )
         .init();
 
+    let mode = if config.no_ui { "API-only" } else { "Full (API + Web UI)" };
     info!(
-        "🚀 Starting FHIRPath server on {}:{} with storage at {}",
+        "🚀 Starting FHIRPath server ({}) on {}:{} with storage at {}",
+        mode,
         config.host,
         config.port,
         config.storage_dir.display()
@@ -74,11 +80,15 @@ pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
         config.storage_dir.display()
     );
 
-    // Check if UI assets are available
-    if ui_assets_available() {
-        info!("🎨 Web UI available with {} embedded assets", asset_count());
+    // Check if UI assets are available (only relevant if not in no-ui mode)
+    if !config.no_ui {
+        if ui_assets_available() {
+            info!("🎨 Web UI available with {} embedded assets", asset_count());
+        } else {
+            warn!("⚠️  Web UI not available - run 'cd ui && pnpm install && pnpm build' to enable");
+        }
     } else {
-        warn!("⚠️  Web UI not available - run 'cd ui && pnpm install && pnpm build' to enable");
+        info!("🔧 Running in API-only mode - Web UI disabled");
     }
 
     if config.cors_all {
@@ -107,10 +117,12 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
             .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap()) // Default frontend dev server
     };
 
-    // Create versioned routes for each FHIR version
+    // Create basic API routes
     let mut app = Router::new()
-        // Health check
+        // Health check endpoints
         .route("/health", get(health_handler))
+        .route("/healthz", get(health_handler))
+        .route("/version", get(version_handler))
         // File management endpoints
         .route(
             "/files",
@@ -120,26 +132,25 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
             "/files/{filename}",
             get(files_handler::get_file).delete(files_handler::delete_file),
         )
-        // Static UI serving - root and SPA routes
-        .route("/", get(serve_ui_root))
-        .route("/{*path}", get(serve_embedded_assets));
-
-    // Add health check and version endpoints (required by task)
-    app = app
-        .route("/healthz", get(health_handler))
-        .route("/version", get(version_handler));
-
-    // Add simplified test routes first
-    app = app
+        // Legacy test routes for backward compatibility
         .route("/test/evaluate", post(evaluate_handler))
-        .route("/test/analyze", post(analyze_handler));
+        .route("/test/analyze", post(analyze_handler))
+        // FHIRPath Lab API endpoints
+        .route("/r4", post(fhirpath_lab_r4_handler))
+        .route("/r4b", post(fhirpath_lab_r4b_handler))
+        .route("/r5", post(fhirpath_lab_r5_handler))
+        .route("/r6", post(fhirpath_lab_r6_handler));
 
-    // TODO: Add versioned routes later
-    // for version in ["r4", "r4b", "r5", "r6"] {
-    //     app = app
-    //         .route(&format!("/{}/evaluate", version), post(evaluate_handler))
-    //         .route(&format!("/{}/analyze", version), post(analyze_handler));
-    // }
+    // Conditionally add UI routes based on no_ui flag
+    if !config.no_ui {
+        // Add UI serving routes - these conflict with API endpoints, so only add when UI is enabled
+        app = app
+            .route("/", get(serve_ui_root))
+            .route("/{*path}", get(serve_embedded_assets));
+    } else {
+        // In API-only mode, add FHIRPath Lab API root endpoint
+        app = app.route("/", post(fhirpath_lab_handler));
+    }
 
     // Apply middleware
     let app = app

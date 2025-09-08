@@ -12,17 +12,26 @@ keywords = ["fhir", "fhirpath", "cli", "healthcare", "hl7"]
 categories = ["command-line-utilities", "parser-implementations", "science"]
 publish = false
 
+[features]
+default = ["embedded-providers", "dynamic-caching"]
+embedded-providers = ["octofhir-fhirschema/embedded-providers"]
+dynamic-caching = ["octofhir-fhirschema/dynamic-caching"]
+
 [[bin]]
 name = "octofhir-fhirpath"
 path = "src/main.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { workspace = true }
+octofhir-fhirschema = { workspace = true, features = ["embedded-providers", "dynamic-caching"] }
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies  
 axum = { version = "0.8", features = ["multipart"] }
+axum-macros = "0.4"
 tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -44,3 +53,11 @@ colored = { workspace = true }
 rustyline = { workspace = true }
 tabled = "0.20"
 human-panic = "2.0"
+
+# TUI dependencies
+ratatui = "0.29.0"
+crossterm = "0.29.0"
+tui-textarea = "0.7.0"
+dirs = "6"
+toml = "0.9"
+ariadne = "0.5.1"

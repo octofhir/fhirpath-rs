@@ -1,0 +1,29 @@
+---
+title: replace
+sidebar:
+  label: replace
+---
+
+# replace()
+
+**Category**: String
+
+Returns the input string with all occurrences of the search string replaced with the replacement string
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `search` `string` — String to search for
+  - `replace` `string` — Replacement string
+
+## Examples
+
+```fhirpath
+'Hello World'.replace('World', 'Universe')
+```
+
+```fhirpath
+Patient.name.family.replace('Mc', 'Mac')
+```
+

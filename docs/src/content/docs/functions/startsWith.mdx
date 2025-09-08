@@ -1,0 +1,28 @@
+---
+title: startsWith
+sidebar:
+  label: startsWith
+---
+
+# startsWith()
+
+**Category**: String
+
+Returns true if the input string starts with the specified prefix
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `prefix` `string` — Prefix to check for
+
+## Examples
+
+```fhirpath
+Patient.name.family.startsWith('Mc')
+```
+
+```fhirpath
+'Hello World'.startsWith('Hello')
+```
+

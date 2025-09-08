@@ -1,0 +1,28 @@
+---
+title: sort
+sidebar:
+  label: sort
+---
+
+# sort()
+
+**Category**: Collection
+
+Returns the collection sorted by the specified criteria (placeholder implementation)
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `criteria` `expression` — Expression to sort by (optional)
+
+## Examples
+
+```fhirpath
+Patient.name.sort()
+```
+
+```fhirpath
+Bundle.entry.sort(resource.id)
+```
+

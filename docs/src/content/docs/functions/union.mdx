@@ -1,0 +1,28 @@
+---
+title: union
+sidebar:
+  label: union
+---
+
+# union()
+
+**Category**: Collection
+
+Returns the union of two collections, removing duplicates
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `other` `collection` — Collection to union with
+
+## Examples
+
+```fhirpath
+Patient.name.given.union(Patient.name.family)
+```
+
+```fhirpath
+Bundle.entry.resource.union($otherBundle.entry.resource)
+```
+

@@ -1,0 +1,28 @@
+---
+title: property
+sidebar:
+  label: property
+---
+
+# property()
+
+**Category**: Terminology
+
+Returns properties of the input coding from the terminology server
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `property` `string` — Property name to retrieve
+
+## Examples
+
+```fhirpath
+Observation.code.coding.property('parent')
+```
+
+```fhirpath
+Medication.code.coding.property('ingredient')
+```
+

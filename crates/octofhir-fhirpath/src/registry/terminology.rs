@@ -32,7 +32,7 @@ impl FunctionRegistry {
                 "Observation.code.coding.memberOf('http://hl7.org/fhir/ValueSet/observation-codes')",
                 "Patient.maritalStatus.coding.memberOf('http://hl7.org/fhir/ValueSet/marital-status')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -46,8 +46,8 @@ impl FunctionRegistry {
                             "memberOf() requires exactly one argument (ValueSet URL)".to_string(),
                         ));
                     }
-                    let vs = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s.as_str(),
+                    let vs = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0051,
@@ -56,7 +56,12 @@ impl FunctionRegistry {
                         }
                     };
 
-                    let coding = TerminologyUtils::extract_coding(&context.input[0])?;
+                    let coding = TerminologyUtils::extract_coding(context.input.first().ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            FP0053,
+                            "memberOf() requires a singleton input".to_string(),
+                        )
+                    })?)?;
                     let coded_value = TerminologyUtils::coding_to_value(&coding);
 
                     let svc = match context.terminology {
@@ -76,7 +81,7 @@ impl FunctionRegistry {
                         FhirPathValue::Boolean(b) => Some(*b),
                         _ => None,
                     }).unwrap_or(false);
-                    Ok(vec![FhirPathValue::boolean(is_member)])
+                    Ok(FhirPathValue::boolean(is_member))
                 })
             }
         )
@@ -95,7 +100,7 @@ impl FunctionRegistry {
             examples: [
                 "Observation.code.coding.translate('http://example.org/ConceptMap/lab-to-loinc')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -109,8 +114,8 @@ impl FunctionRegistry {
                             "translate() requires exactly one argument (ConceptMap URL)".to_string(),
                         ));
                     }
-                    let cm = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s.as_str(),
+                    let cm = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0051,
@@ -118,7 +123,12 @@ impl FunctionRegistry {
                             ));
                         }
                     };
-                    let coding = TerminologyUtils::extract_coding(&context.input[0])?;
+                    let coding = TerminologyUtils::extract_coding(context.input.first().ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            FP0053,
+                            "translate() requires a singleton input".to_string(),
+                        )
+                    })?)?;
                     let coded_value = TerminologyUtils::coding_to_value(&coding);
 
                     let svc = match context.terminology {
@@ -131,7 +141,7 @@ impl FunctionRegistry {
                         }
                     };
                     let out = svc.translate(cm, &coded_value, None).await?;
-                    Ok(out.into_vec())
+                    Ok(FhirPathValue::collection(out.into_vec()))
                 })
             }
         )
@@ -152,7 +162,7 @@ impl FunctionRegistry {
                 "'male'.validateCode('http://hl7.org/fhir/administrative-gender', 'male')",
                 "Patient.gender.validateCode('http://hl7.org/fhir/administrative-gender')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.input.len() > 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -166,8 +176,8 @@ impl FunctionRegistry {
                             "validateCode() requires 1 or 2 arguments: system and optional code".to_string(),
                         ));
                     }
-                    let system = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s.as_str(),
+                    let system = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0051,
@@ -177,8 +187,8 @@ impl FunctionRegistry {
                     };
 
                     let coding: Coding = if context.arguments.len() > 1 {
-                        let code = match &context.arguments[1] {
-                            FhirPathValue::String(s) => s.as_str(),
+                        let code = match context.arguments.get(1) {
+                            Some(FhirPathValue::String(s)) => s.as_str(),
                             _ => {
                                 return Err(FhirPathError::evaluation_error(
                                     FP0051,
@@ -188,7 +198,7 @@ impl FunctionRegistry {
                         };
                         Coding::new(system, code)
                     } else if !context.input.is_empty() {
-                        TerminologyUtils::extract_coding(&context.input[0])?
+                        TerminologyUtils::extract_coding(&context.input)?
                     } else {
                         return Err(FhirPathError::evaluation_error(
                             FP0053,
@@ -212,7 +222,7 @@ impl FunctionRegistry {
                     params.insert("system".to_string(), system.to_string());
                     let result = svc.lookup(&coded_value, Some(params)).await?;
                     let is_valid = !result.is_empty();
-                    Ok(vec![FhirPathValue::boolean(is_valid)])
+                    Ok(FhirPathValue::boolean(is_valid))
                 })
             }
         )
@@ -233,7 +243,7 @@ impl FunctionRegistry {
                 "subsumes(ParentCode.coding, ChildCode.coding)",
                 "Condition.code.coding.subsumes(MoreSpecificCondition.code.coding)"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.arguments.len() != 2 {
                         return Err(FhirPathError::evaluation_error(
@@ -242,11 +252,11 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let coding_a = TerminologyUtils::extract_coding(&context.arguments[0])?;
-                    let coding_b = TerminologyUtils::extract_coding(&context.arguments[1])?;
+                    let coding_a = TerminologyUtils::extract_coding(context.arguments.first().ok_or_else(|| FhirPathError::evaluation_error(FP0053, "subsumes() requires first argument".to_string()))?)?;
+                    let coding_b = TerminologyUtils::extract_coding(context.arguments.get(1).ok_or_else(|| FhirPathError::evaluation_error(FP0053, "subsumes() requires second argument".to_string()))?)?;
 
                     if coding_a.system != coding_b.system {
-                        return Ok(vec![FhirPathValue::boolean(false)]);
+                        return Ok(FhirPathValue::boolean(false));
                     }
 
                     let svc = match context.terminology {
@@ -264,7 +274,7 @@ impl FunctionRegistry {
                     let coll = svc.subsumes(&coding_a.system, &a_val, &b_val, None).await?;
                     // Interpret boolean if provided, else false
                     let subsumes = coll.iter().find_map(|v| match v { FhirPathValue::Boolean(b) => Some(*b), _ => None }).unwrap_or(false);
-                    Ok(vec![FhirPathValue::boolean(subsumes)])
+                    Ok(FhirPathValue::boolean(subsumes))
                 })
             }
         )
@@ -285,7 +295,7 @@ impl FunctionRegistry {
                 "Observation.code.coding.designation('es')",
                 "Patient.maritalStatus.coding.designation('en', 'display')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -301,8 +311,9 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let language = if !context.arguments.is_empty() {
-                        match &context.arguments[0] {
+                    let args_vec = context.arguments.cloned_collection();
+                    let language = if !args_vec.is_empty() {
+                        match &args_vec[0] {
                             FhirPathValue::String(s) => Some(s.as_str()),
                             _ => {
                                 return Err(FhirPathError::evaluation_error(
@@ -315,8 +326,8 @@ impl FunctionRegistry {
                         None
                     };
 
-                    let use_code = if context.arguments.len() > 1 {
-                        match &context.arguments[1] {
+                    let use_code = if args_vec.len() > 1 {
+                        match &args_vec[1] {
                             FhirPathValue::String(s) => Some(s.as_str()),
                             _ => {
                                 return Err(FhirPathError::evaluation_error(
@@ -329,7 +340,7 @@ impl FunctionRegistry {
                         None
                     };
 
-                    let coding = TerminologyUtils::extract_coding(&context.input[0])?;
+                    let coding = TerminologyUtils::extract_coding(&context.input)?;
                     let coded_value = TerminologyUtils::coding_to_value(&coding);
 
                     let svc = match context.terminology {
@@ -353,7 +364,7 @@ impl FunctionRegistry {
 
                     // Use lookup operation to get designations - terminology service will extract designations from the result
                     let result = svc.lookup(&coded_value, Some(params)).await?;
-                    Ok(result.into_vec())
+                    Ok(FhirPathValue::collection(result.into_vec()))
                 })
             }
         )
@@ -371,7 +382,7 @@ impl FunctionRegistry {
                 "Observation.code.coding.property('parent')",
                 "Medication.code.coding.property('ingredient')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.input.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -387,7 +398,7 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let property_name = match &context.arguments[0] {
+                    let property_name = match &context.arguments {
                         FhirPathValue::String(s) => s.as_str(),
                         _ => {
                             return Err(FhirPathError::evaluation_error(
@@ -397,7 +408,7 @@ impl FunctionRegistry {
                         }
                     };
 
-                    let coding = TerminologyUtils::extract_coding(&context.input[0])?;
+                    let coding = TerminologyUtils::extract_coding(&context.input)?;
                     let coded_value = TerminologyUtils::coding_to_value(&coding);
 
                     let svc = match context.terminology {
@@ -416,7 +427,7 @@ impl FunctionRegistry {
 
                     // Use lookup operation to get properties - terminology service will extract properties from the result
                     let result = svc.lookup(&coded_value, Some(params)).await?;
-                    Ok(result.into_vec())
+                    Ok(FhirPathValue::collection(result.into_vec()))
                 })
             }
         )

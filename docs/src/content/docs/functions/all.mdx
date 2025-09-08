@@ -1,0 +1,28 @@
+---
+title: all
+sidebar:
+  label: all
+---
+
+# all()
+
+**Category**: Collection
+
+Returns true if the given expression evaluates to true for all items in the collection
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `criteria` `expression` — Boolean expression to evaluate for each item
+
+## Examples
+
+```fhirpath
+Patient.name.all(use = 'official')
+```
+
+```fhirpath
+Bundle.entry.all(resource.exists())
+```
+

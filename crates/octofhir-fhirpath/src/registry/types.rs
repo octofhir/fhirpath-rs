@@ -416,14 +416,17 @@ impl FunctionRegistry {
                 "Observation.value.is('Quantity')",
                 "5.is('Integer')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
-                    if context.input.len() != 1 {
-                        return Err(FhirPathError::evaluation_error(
-                            FP0055,
-                            "is() can only be called on a single value".to_string()
-                        ));
-                    }
+                    let input_value = match context.input.first() {
+                        Some(value) => value,
+                        None => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0055,
+                                "is() can only be called on a single value".to_string()
+                            ));
+                        }
+                    };
 
                     if context.arguments.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -432,8 +435,8 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let type_name = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s,
+                    let type_name = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s,
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0055,
@@ -443,15 +446,15 @@ impl FunctionRegistry {
                     };
 
                     // Use ModelProvider instead of hardcoded type checking
-                    let current_value_type = Self::get_value_type_name(&context.input[0]);
+                    let current_value_type = Self::get_value_type_name(input_value);
 
                     // Check type compatibility using ModelProvider
                     match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
-                        Ok(is_compatible) => Ok(vec![FhirPathValue::Boolean(is_compatible)]),
+                        Ok(is_compatible) => Ok(FhirPathValue::Boolean(is_compatible)),
                         Err(_) => {
                             // Fallback to basic type checking for system types
-                            let is_compatible = Self::basic_type_compatibility(&context.input[0], type_name);
-                            Ok(vec![FhirPathValue::Boolean(is_compatible)])
+                            let is_compatible = Self::basic_type_compatibility(input_value, type_name);
+                            Ok(FhirPathValue::Boolean(is_compatible))
                         }
                     }
                 })
@@ -472,14 +475,17 @@ impl FunctionRegistry {
                 "Patient.name.as('HumanName')",
                 "Observation.value.as('Quantity')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
-                    if context.input.len() != 1 {
-                        return Err(FhirPathError::evaluation_error(
-                            FP0055,
-                            "as() can only be called on a single value".to_string()
-                        ));
-                    }
+                    let input_value = match context.input.first() {
+                        Some(value) => value,
+                        None => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0055,
+                                "as() can only be called on a single value".to_string()
+                            ));
+                        }
+                    };
 
                     if context.arguments.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -488,8 +494,8 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let type_name = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s,
+                    let type_name = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s,
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0055,
@@ -499,23 +505,23 @@ impl FunctionRegistry {
                     };
 
                     // Use ModelProvider to check if casting is possible
-                    let current_value_type = Self::get_value_type_name(&context.input[0]);
+                    let current_value_type = Self::get_value_type_name(input_value);
 
                     match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
                         Ok(true) => {
                             // Cast is possible, return the original value (most cases in FHIRPath)
-                            Ok(vec![context.input[0].clone()])
+                            Ok(input_value.clone())
                         },
                         Ok(false) => {
                             // Cast not possible, return empty per FHIRPath spec
-                            Ok(vec![])
+                            Ok(FhirPathValue::empty())
                         },
                         Err(_) => {
                             // Fallback to basic casting logic
-                            if Self::basic_type_compatibility(&context.input[0], type_name) {
-                                Ok(vec![context.input[0].clone()])
+                            if Self::basic_type_compatibility(input_value, type_name) {
+                                Ok(input_value.clone())
                             } else {
-                                Ok(vec![])
+                                Ok(FhirPathValue::empty())
                             }
                         }
                     }
@@ -537,7 +543,7 @@ impl FunctionRegistry {
                 "Patient.telecom.ofType('ContactPoint')",
                 "('a', 1, true, 2.5).ofType('Integer')"
             ],
-            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FhirPathValue>>> + Send + '_>> {
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     if context.arguments.len() != 1 {
                         return Err(FhirPathError::evaluation_error(
@@ -546,8 +552,8 @@ impl FunctionRegistry {
                         ));
                     }
 
-                    let type_name = match &context.arguments[0] {
-                        FhirPathValue::String(s) => s,
+                    let type_name = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s,
                         _ => {
                             return Err(FhirPathError::evaluation_error(
                                 FP0055,
@@ -558,24 +564,25 @@ impl FunctionRegistry {
 
                     // Filter collection using ModelProvider-based type checking
                     let mut result = Vec::new();
+                    let input_values: Vec<_> = context.input.cloned_collection();
 
-                    for value in context.input.iter() {
-                        let current_value_type = Self::get_value_type_name(value);
+                    for value in input_values {
+                        let current_value_type = Self::get_value_type_name(&value);
 
                         let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
                             Ok(compatible) => compatible,
                             Err(_) => {
                                 // Fallback to basic type checking
-                                Self::basic_type_compatibility(value, type_name)
+                                Self::basic_type_compatibility(&value, type_name)
                             }
                         };
 
                         if is_compatible {
-                            result.push(value.clone());
+                            result.push(value);
                         }
                     }
 
-                    Ok(result)
+                    Ok(FhirPathValue::Collection(result))
                 })
             }
         )
@@ -594,15 +601,18 @@ impl FunctionRegistry {
                 "5.type().namespace",
                 "true.type()"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
-                if context.input.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0055,
-                        "type() can only be called on a single value".to_string()
-                    ));
-                }
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                let input_value = match context.input.first() {
+                    Some(value) => value,
+                    None => {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0055,
+                            "type() can only be called on a single value".to_string()
+                        ));
+                    }
+                };
 
-                let value_type = TypeChecker::get_type(&context.input[0]);
+                let value_type = TypeChecker::get_type(input_value);
                 let type_name = value_type.type_name();
 
                 // Create TypeInfo object with namespace and name properties
@@ -618,7 +628,7 @@ impl FunctionRegistry {
                     "name": type_name
                 });
 
-                Ok(vec![FhirPathValue::JsonValue(type_info)])
+                Ok(FhirPathValue::JsonValue(type_info))
             }
         )
     }

@@ -1,0 +1,26 @@
+---
+title: distinct
+sidebar:
+  label: distinct
+---
+
+# distinct()
+
+**Category**: Collection
+
+Returns a collection with duplicate items removed
+
+## Signature
+
+- Return type: `collection`
+
+## Examples
+
+```fhirpath
+Patient.name.family.distinct()
+```
+
+```fhirpath
+Bundle.entry.resource.resourceType.distinct()
+```
+

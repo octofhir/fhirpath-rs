@@ -1,0 +1,28 @@
+---
+title: matchesFull
+sidebar:
+  label: matchesFull
+---
+
+# matchesFull()
+
+**Category**: String
+
+Returns true if the entire input string matches the given regex pattern
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `pattern` `string` — Regular expression pattern
+
+## Examples
+
+```fhirpath
+'Hello123'.matchesFull('[A-Za-z0-9]+')
+```
+
+```fhirpath
+Patient.id.matchesFull('[a-f0-9-]+')
+```
+

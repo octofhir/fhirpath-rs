@@ -1,0 +1,17 @@
+---
+Title: FP0061 — Resource type mismatch
+sidebar:
+  label: FP0061
+---
+
+# FP0061 — Resource type mismatch
+
+**Category**: Evaluation
+
+## Description
+
+Expression expects a specific resource type but the context contains a different resource type.
+
+## Help
+
+Ensure the FHIRPath expression matches the resource type being evaluated. For example, use 'Patient.name' only when evaluating Patient resources, not Encounter resources.

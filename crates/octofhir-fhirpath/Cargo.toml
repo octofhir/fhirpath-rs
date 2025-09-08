@@ -26,6 +26,9 @@ include = [
 name = "octofhir_fhirpath"
 path = "src/lib.rs"
 
+[lints]
+workspace = true
+
 
 [dependencies]
 # All dependencies are now internal - no more workspace crate dependencies

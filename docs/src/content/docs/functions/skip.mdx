@@ -1,0 +1,28 @@
+---
+title: skip
+sidebar:
+  label: skip
+---
+
+# skip()
+
+**Category**: Collection
+
+Returns all items except the first n items in a collection
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `num` `integer` — Number of items to skip
+
+## Examples
+
+```fhirpath
+Patient.name.skip(1)
+```
+
+```fhirpath
+Bundle.entry.skip(2)
+```
+

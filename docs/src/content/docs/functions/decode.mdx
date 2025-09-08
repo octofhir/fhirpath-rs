@@ -1,0 +1,28 @@
+---
+title: decode
+sidebar:
+  label: decode
+---
+
+# decode()
+
+**Category**: String
+
+Decodes the input string using the specified format
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `format` `string` — Decoding format ('base64', 'hex', 'url')
+
+## Examples
+
+```fhirpath
+'SGVsbG8='.decode('base64')
+```
+
+```fhirpath
+'48656c6c6f'.decode('hex')
+```
+

@@ -1,0 +1,28 @@
+---
+title: matches
+sidebar:
+  label: matches
+---
+
+# matches()
+
+**Category**: String
+
+Returns true if the input string matches the specified regular expression
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `regex` `string` — Regular expression pattern
+
+## Examples
+
+```fhirpath
+'hello@example.com'.matches('[a-z]+@[a-z]+\.[a-z]+')
+```
+
+```fhirpath
+Patient.telecom.value.matches('^\+1-[0-9]{3}-[0-9]{3}-[0-9]{4}$')
+```
+

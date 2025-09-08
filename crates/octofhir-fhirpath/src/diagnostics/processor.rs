@@ -116,10 +116,15 @@ pub struct Highlight {
 /// Highlight style
 #[derive(Debug, Clone)]
 pub enum HighlightStyle {
+    /// Error highlighting
     Error,
+    /// Warning highlighting
     Warning,
+    /// Info highlighting
     Info,
+    /// Suggestion highlighting
     Suggestion,
+    /// Context highlighting
     Context,
 }
 
@@ -152,18 +157,25 @@ pub struct TextReplacement {
 /// Confidence level for suggestions
 #[derive(Debug, Clone, PartialEq)]
 pub enum SuggestionConfidence {
-    High,   // Almost certainly correct
-    Medium, // Likely correct
-    Low,    // Possible alternative
+    /// Almost certainly correct
+    High,
+    /// Likely correct
+    Medium,
+    /// Possible alternative
+    Low,
 }
 
 /// Category of suggestion
 #[derive(Debug, Clone)]
 pub enum SuggestionCategory {
-    Fix,           // Fix a definite error
-    Improvement,   // Performance or style improvement
-    Alternative,   // Different way to achieve same result
-    Clarification, // Make intent clearer
+    /// Fix a definite error
+    Fix,
+    /// Performance or style improvement
+    Improvement,
+    /// Different way to achieve same result
+    Alternative,
+    /// Make intent clearer
+    Clarification,
 }
 
 /// Relationship between diagnostics

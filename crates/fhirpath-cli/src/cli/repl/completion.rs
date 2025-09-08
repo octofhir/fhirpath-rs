@@ -53,6 +53,8 @@ impl FhirPathCompleter {
             ":resource".to_string(),
             ":type".to_string(),
             ":explain".to_string(),
+            ":analyze".to_string(),
+            ":validate".to_string(),
             ":help".to_string(),
             ":history".to_string(),
             ":quit".to_string(),
@@ -122,68 +124,68 @@ impl FhirPathCompleter {
     fn get_function_description(&self, name: &str) -> String {
         match name {
             // Core collection operations
-            "first" => "Returns first item in collection".to_string(),
-            "last" => "Returns last item in collection".to_string(),
-            "count" => "Returns number of items".to_string(),
-            "length" => "Returns string length or collection size".to_string(),
-            "empty" => "True if collection is empty".to_string(),
-            "exists" => "True if collection is not empty".to_string(),
-            "single" => "Returns single item (error if not exactly one)".to_string(),
-            "distinct" => "Returns unique items".to_string(),
+            "first" => "first item".to_string(),
+            "last" => "last item".to_string(),
+            "count" => "item count".to_string(),
+            "length" => "length".to_string(),
+            "empty" => "is empty".to_string(),
+            "exists" => "has items".to_string(),
+            "single" => "single item".to_string(),
+            "distinct" => "unique items".to_string(),
 
             // Lambda operations (evaluator-handled)
-            "where" => "Filters collection by condition".to_string(),
-            "select" => "Transforms each item using expression".to_string(),
-            "all" => "True if all items satisfy condition".to_string(),
-            "any" => "True if any item satisfies condition".to_string(),
-            "repeat" => "Repeatedly applies expression".to_string(),
-            "aggregate" => "Aggregates collection into single value".to_string(),
-            "iif" => "Conditional expression (if-then-else)".to_string(),
+            "where" => "filter".to_string(),
+            "select" => "transform".to_string(),
+            "all" => "all match".to_string(),
+            "any" => "any match".to_string(),
+            "repeat" => "repeat".to_string(),
+            "aggregate" => "aggregate".to_string(),
+            "iif" => "if-then-else".to_string(),
 
             // String operations
-            "substring" => "Extracts substring".to_string(),
-            "contains" => "True if string contains substring".to_string(),
-            "startsWith" => "True if string starts with prefix".to_string(),
-            "endsWith" => "True if string ends with suffix".to_string(),
-            "upper" => "Converts to uppercase".to_string(),
-            "lower" => "Converts to lowercase".to_string(),
-            "replace" => "Replaces substring with new value".to_string(),
+            "substring" => "substring".to_string(),
+            "contains" => "contains".to_string(),
+            "startsWith" => "starts with".to_string(),
+            "endsWith" => "ends with".to_string(),
+            "upper" => "uppercase".to_string(),
+            "lower" => "lowercase".to_string(),
+            "replace" => "replace".to_string(),
 
             // Type operations
-            "ofType" => "Filters by specific type".to_string(),
-            "as" => "Casts to specific type".to_string(),
-            "is" => "Checks if value is of type".to_string(),
-            "toString" => "Converts to string".to_string(),
-            "toInteger" => "Converts to integer".to_string(),
+            "ofType" => "filter type".to_string(),
+            "as" => "cast".to_string(),
+            "is" => "type check".to_string(),
+            "toString" => "to string".to_string(),
+            "toInteger" => "to int".to_string(),
 
             // Collection operations
-            "union" => "Combines collections, removes duplicates".to_string(),
-            "intersect" => "Items that exist in both collections".to_string(),
-            "exclude" => "Items in first but not second collection".to_string(),
-            "skip" => "Skips first N items".to_string(),
-            "take" => "Takes first N items".to_string(),
+            "union" => "union".to_string(),
+            "intersect" => "intersect".to_string(),
+            "exclude" => "exclude".to_string(),
+            "skip" => "skip N".to_string(),
+            "take" => "take N".to_string(),
 
             // DateTime operations
-            "today" => "Current date".to_string(),
-            "now" => "Current date and time".to_string(),
+            "today" => "today".to_string(),
+            "now" => "now".to_string(),
 
             // Common FHIR properties
-            "id" => "Resource identifier".to_string(),
-            "meta" => "Resource metadata".to_string(),
-            "resourceType" => "Type of FHIR resource".to_string(),
-            "identifier" => "Business identifier".to_string(),
-            "active" => "Whether record is active".to_string(),
-            "name" => "Human name".to_string(),
-            "telecom" => "Contact details".to_string(),
-            "gender" => "Administrative gender".to_string(),
-            "birthDate" => "Date of birth".to_string(),
-            "address" => "Address information".to_string(),
-            "status" => "Status of the resource".to_string(),
-            "subject" => "Subject of the resource".to_string(),
-            "code" => "Code/classification".to_string(),
-            "value" => "Value of the element".to_string(),
-            "text" => "Human readable text".to_string(),
-            "extension" => "Additional content defined by implementations".to_string(),
+            "id" => "resource id".to_string(),
+            "meta" => "metadata".to_string(),
+            "resourceType" => "resource type".to_string(),
+            "identifier" => "identifier".to_string(),
+            "active" => "active status".to_string(),
+            "name" => "name".to_string(),
+            "telecom" => "contact".to_string(),
+            "gender" => "gender".to_string(),
+            "birthDate" => "birth date".to_string(),
+            "address" => "address".to_string(),
+            "status" => "status".to_string(),
+            "subject" => "subject".to_string(),
+            "code" => "code".to_string(),
+            "value" => "value".to_string(),
+            "text" => "text".to_string(),
+            "extension" => "extensions".to_string(),
 
             _ => String::new(), // No description available
         }
@@ -327,49 +329,49 @@ impl FhirPathCompleter {
 
         // Common FHIR properties with descriptions
         let properties = [
-            ("id", "Resource identifier"),
-            ("meta", "Resource metadata"),
-            ("text", "Human readable text"),
-            ("contained", "Contained resources"),
-            ("extension", "Additional content"),
-            ("modifierExtension", "Extensions that cannot be ignored"),
-            ("identifier", "Business identifier"),
-            ("active", "Whether record is active"),
-            ("name", "Human name"),
-            ("telecom", "Contact details"),
-            ("gender", "Administrative gender"),
-            ("birthDate", "Date of birth"),
-            ("address", "Address information"),
-            ("maritalStatus", "Marital status"),
-            ("photo", "Image of the person"),
-            ("contact", "Contact party"),
-            ("communication", "Language preferences"),
-            ("generalPractitioner", "Primary care provider"),
-            ("managingOrganization", "Organization responsible"),
-            ("resourceType", "Type of FHIR resource"),
-            ("status", "Status of the resource"),
-            ("category", "Classification"),
-            ("code", "Code/classification"),
-            ("subject", "Subject of the resource"),
-            ("encounter", "Healthcare event"),
-            ("effectiveDateTime", "When performed"),
-            ("valueQuantity", "Quantity value"),
-            ("valueCodeableConcept", "Coded value"),
-            ("valueString", "String value"),
-            ("component", "Component results"),
-            ("system", "Identity of the terminology system"),
-            ("value", "Contact point details"),
-            ("use", "Purpose of contact point"),
-            ("given", "Given names"),
-            ("family", "Family name"),
-            ("prefix", "Name prefix"),
-            ("suffix", "Name suffix"),
-            ("period", "Time period when active"),
-            ("line", "Street address line"),
-            ("city", "City name"),
-            ("state", "State/Province"),
-            ("postalCode", "Postal code"),
-            ("country", "Country"),
+            ("id", "resource id"),
+            ("meta", "metadata"),
+            ("text", "narrative"),
+            ("contained", "contained"),
+            ("extension", "extensions"),
+            ("modifierExtension", "modifier ext"),
+            ("identifier", "identifier"),
+            ("active", "active"),
+            ("name", "name"),
+            ("telecom", "contact"),
+            ("gender", "gender"),
+            ("birthDate", "birth date"),
+            ("address", "address"),
+            ("maritalStatus", "marital"),
+            ("photo", "photo"),
+            ("contact", "contact"),
+            ("communication", "language"),
+            ("generalPractitioner", "gp"),
+            ("managingOrganization", "org"),
+            ("resourceType", "type"),
+            ("status", "status"),
+            ("category", "category"),
+            ("code", "code"),
+            ("subject", "subject"),
+            ("encounter", "encounter"),
+            ("effectiveDateTime", "effective"),
+            ("valueQuantity", "quantity"),
+            ("valueCodeableConcept", "concept"),
+            ("valueString", "string"),
+            ("component", "component"),
+            ("system", "system"),
+            ("value", "value"),
+            ("use", "use"),
+            ("given", "given"),
+            ("family", "family"),
+            ("prefix", "prefix"),
+            ("suffix", "suffix"),
+            ("period", "period"),
+            ("line", "line"),
+            ("city", "city"),
+            ("state", "state"),
+            ("postalCode", "postal"),
+            ("country", "country"),
         ];
 
         for (prop, desc) in properties {
@@ -396,10 +398,10 @@ impl FhirPathCompleter {
         // Suggest common patterns based on context
         if context.ends_with(".where(") && word.is_empty() {
             let suggestions = [
-                ("system = 'email'", "Filter by email system"),
-                ("use = 'official'", "Filter by official use"),
-                ("active = true", "Filter for active items"),
-                ("exists()", "Filter for non-empty items"),
+                ("system = 'email'", "email"),
+                ("use = 'official'", "official"),
+                ("active = true", "active"),
+                ("exists()", "exists"),
             ];
 
             for (suggestion, desc) in suggestions {
@@ -413,13 +415,13 @@ impl FhirPathCompleter {
         // Suggest operations after dot only when user starts typing and not in command context
         if context.ends_with('.') && !word.is_empty() && !self.is_after_command_word(context) {
             let common_ops = [
-                ("first()", "Get first item"),
-                ("last()", "Get last item"),
-                ("count()", "Count items"),
-                ("exists()", "Check if not empty"),
-                ("where(...)", "Filter by condition"),
-                ("select(...)", "Transform items"),
-                ("empty()", "Check if empty"),
+                ("first()", "first"),
+                ("last()", "last"),
+                ("count()", "count"),
+                ("exists()", "exists"),
+                ("where(...)", "filter"),
+                ("select(...)", "transform"),
+                ("empty()", "empty"),
             ];
 
             for (op, desc) in common_ops {
@@ -438,16 +440,16 @@ impl FhirPathCompleter {
             && (word.is_empty() || word.ends_with(' '))
         {
             let operators = [
-                ("=", "Equal to"),
-                ("!=", "Not equal to"),
-                (">=", "Greater than or equal"),
-                ("<=", "Less than or equal"),
-                (">", "Greater than"),
-                ("<", "Less than"),
-                ("and", "Logical AND"),
-                ("or", "Logical OR"),
-                ("contains", "String contains"),
-                ("startsWith", "String starts with"),
+                ("=", "equal"),
+                ("!=", "not equal"),
+                (">=", "gte"),
+                ("<=", "lte"),
+                (">", "gt"),
+                ("<", "lt"),
+                ("and", "and"),
+                ("or", "or"),
+                ("contains", "contains"),
+                ("startsWith", "starts with"),
             ];
 
             for (op, desc) in operators {
@@ -516,18 +518,18 @@ impl FhirPathCompleter {
             if parts.len() >= 2 {
                 // We're typing the value part - suggest common expression patterns
                 let suggestions = [
-                    ("Patient.name.first().given.first()", "First given name"),
+                    ("Patient.name.first().given.first()", "first name"),
                     (
                         "Patient.telecom.where(use='work').value",
-                        "Work contact value",
+                        "work contact",
                     ),
                     (
                         "Patient.telecom.where(system='email').value",
-                        "Email address",
+                        "email",
                     ),
-                    ("Patient.active", "Patient active status"),
-                    ("'simple string'", "String literal"),
-                    ("today()", "Current date"),
+                    ("Patient.active", "active"),
+                    ("'simple string'", "string"),
+                    ("today()", "today"),
                 ];
 
                 for (suggestion, desc) in suggestions {
@@ -545,7 +547,7 @@ impl FhirPathCompleter {
         if context.starts_with(":load ") && !word.is_empty() {
             if word.ends_with('.') {
                 candidates.push(Pair {
-                    display: "json - JSON file".to_string(),
+                    display: "json".to_string(),
                     replacement: "json".to_string(),
                 });
             }
@@ -557,7 +559,7 @@ impl FhirPathCompleter {
             for name in function_names {
                 if name.starts_with(word) {
                     candidates.push(Pair {
-                        display: format!("{name} - Function help"),
+                        display: name.clone(),
                         replacement: name,
                     });
                 }
@@ -662,25 +664,38 @@ impl Hinter for FhirPathCompleter {
         // Enhanced command hints
         if line == ":" {
             return Some(
-                "load <file> | set <name> <value> | vars | help | quit | type | explain"
+                "load | set | vars | help | quit | type | explain | analyze | validate"
                     .to_string(),
             );
         }
 
         // Partial command hints with examples
         match line {
-            ":l" | ":lo" | ":loa" => Some("oad patient.json".to_string()),
-            ":s" | ":se" => Some("et myVar 'value' or Patient.name.first()".to_string()),
-            ":h" | ":he" | ":hel" => Some("elp [operation]".to_string()),
-            ":t" | ":ty" | ":typ" => Some("ype Patient.name".to_string()),
+            ":l" | ":lo" | ":loa" => Some("oad file.json".to_string()),
+            ":s" | ":se" => Some("et var value".to_string()),
+            ":h" | ":he" | ":hel" => Some("elp [function]".to_string()),
+            ":t" | ":ty" | ":typ" => Some("ype expression".to_string()),
             ":e" | ":ex" | ":exp" | ":expl" | ":expla" | ":explai" => {
-                Some("xplain Patient.telecom.where(system='email')".to_string())
+                Some("xplain expression".to_string())
+            }
+            ":a" | ":an" | ":ana" | ":anal" | ":analy" | ":analyz" => {
+                Some("nalyze expression".to_string())
+            }
+            ":v" if line.len() <= 2 => Some("ars".to_string()),
+            ":va" if line.starts_with(":va") && line.len() <= 3 => {
+                if line == ":va" {
+                    Some("rs | lidate expression".to_string())
+                } else {
+                    Some("lidate expression".to_string())
+                }
+            }
+            ":val" | ":vali" | ":valid" | ":valida" | ":validat" => {
+                Some("idate expression".to_string())
             }
             ":q" | ":qu" | ":qui" => Some("uit".to_string()),
             ":r" | ":re" | ":res" | ":reso" | ":resou" | ":resour" | ":resourc" => {
                 Some("esource".to_string())
             }
-            ":v" | ":va" | ":var" => Some("ars".to_string()),
             ":u" | ":un" | ":uns" | ":unse" => Some("nset varName".to_string()),
             _ => {
                 if self.is_command_context(line) {
@@ -699,7 +714,7 @@ impl FhirPathCompleter {
         // Hint for dot operations
         if line.ends_with(".") {
             return Some(
-                "first() | count() | where(condition) | select(expression) | exists()".to_string(),
+                "first() | count() | where() | select() | exists()".to_string(),
             );
         }
 
@@ -722,7 +737,7 @@ impl FhirPathCompleter {
         if line.contains(" ") && !line.contains("=") && !line.contains(">") && !line.contains("<") {
             let words: Vec<&str> = line.split_whitespace().collect();
             if !words.is_empty() && !words.last().unwrap().starts_with(':') {
-                return Some("= | != | > | < | >= | <= | contains".to_string());
+                return Some("= | != | > | < | contains".to_string());
             }
         }
 

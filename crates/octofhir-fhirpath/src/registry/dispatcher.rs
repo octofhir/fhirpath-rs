@@ -17,7 +17,7 @@ impl FunctionDispatcher {
         &self,
         function_name: &str,
         context: &FunctionContext,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         match self.registry.get_sync_function(function_name) {
             Some((function, metadata)) => {
                 // Validate parameters
@@ -51,7 +51,7 @@ impl FunctionDispatcher {
         &self,
         function_name: &str,
         context: &FunctionContext<'_>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         match self.registry.get_async_function(function_name) {
             Some((function, metadata)) => {
                 // Validate parameters

@@ -1,0 +1,29 @@
+---
+title: designation
+sidebar:
+  label: designation
+---
+
+# designation()
+
+**Category**: Terminology
+
+Returns designations (display names) for the input coding in the specified language
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `language` `string` — Language code (optional, e.g., 'en', 'es')
+  - `use` `string` — Designation use code (optional)
+
+## Examples
+
+```fhirpath
+Observation.code.coding.designation('es')
+```
+
+```fhirpath
+Patient.maritalStatus.coding.designation('en', 'display')
+```
+

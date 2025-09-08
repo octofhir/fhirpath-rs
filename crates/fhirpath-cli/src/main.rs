@@ -17,7 +17,7 @@
 //! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
 
 use clap::Parser;
-use fhirpath_cli::FhirSchemaModelProvider;
+use fhirpath_cli::EmbeddedModelProvider;
 use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput};
 use fhirpath_cli::cli::{Cli, Commands};
 use octofhir_fhirpath;
@@ -29,6 +29,20 @@ use std::fs;
 use std::process;
 use std::sync::Arc;
 use std::time::Instant;
+
+/// Create a shared EmbeddedModelProvider instance for all commands
+async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvider>> {
+    let provider = EmbeddedModelProvider::r4().await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize FHIR schema: {}", e))?;
+    Ok(Arc::new(provider))
+}
+
+/// Create FhirPathEngine with the shared model provider
+async fn create_fhirpath_engine(model_provider: Arc<EmbeddedModelProvider>) -> anyhow::Result<FhirPathEngine> {
+    let registry = Arc::new(create_standard_registry().await);
+    let engine = FhirPathEngine::new(registry, model_provider);
+    Ok(engine)
+}
 
 /// Merge global and subcommand output options, with subcommand taking precedence
 fn merge_output_options(
@@ -134,19 +148,6 @@ fn convert_diagnostic_to_ariadne(
     }
 }
 
-/// Create FHIRPath engine with FhirSchemaModelProvider
-async fn create_fhirpath_engine_with_schema_provider() -> octofhir_fhirpath::Result<FhirPathEngine>
-{
-    let registry = create_standard_registry().await;
-    let model_provider = Arc::new(FhirSchemaModelProvider::r4().await.map_err(|e| {
-        octofhir_fhirpath::FhirPathError::model_error(
-            octofhir_fhirpath::core::error_code::FP0001,
-            format!("Failed to create FHIR R4 schema model provider: {}", e),
-        )
-    })?);
-
-    Ok(FhirPathEngine::new(Arc::new(registry), model_provider))
-}
 
 #[tokio::main]
 async fn main() {
@@ -154,6 +155,15 @@ async fn main() {
     human_panic::setup_panic!();
 
     let cli = Cli::parse();
+
+    // Create shared model provider for all commands
+    let shared_model_provider = match create_shared_model_provider().await {
+        Ok(provider) => provider,
+        Err(e) => {
+            eprintln!("❌ Failed to initialize FHIR schema: {}", e);
+            process::exit(1);
+        }
+    };
 
     // Create formatter factory
     let formatter_factory = FormatterFactory::new(cli.no_color);
@@ -191,6 +201,7 @@ async fn main() {
                 pretty,
                 &merged_cli,
                 &*merged_formatter,
+                &shared_model_provider,
             )
             .await;
         }
@@ -267,6 +278,7 @@ async fn main() {
                 no_inference,
                 &merged_cli,
                 &*merged_formatter,
+                &shared_model_provider,
             )
             .await;
         }
@@ -296,6 +308,7 @@ async fn main() {
             max_body_size,
             timeout,
             rate_limit,
+            no_ui,
         } => {
             handle_server(
                 port,
@@ -305,6 +318,32 @@ async fn main() {
                 max_body_size,
                 timeout,
                 rate_limit,
+                no_ui,
+                &cli,
+            )
+            .await;
+        }
+        Commands::Tui {
+            ref input,
+            ref variables,
+            ref config,
+            ref theme,
+            no_mouse,
+            no_syntax_highlighting,
+            no_auto_completion,
+            performance_monitoring,
+            check_terminal,
+        } => {
+            handle_tui(
+                input.as_deref(),
+                variables,
+                config.as_deref(),
+                theme,
+                no_mouse,
+                no_syntax_highlighting,
+                no_auto_completion,
+                performance_monitoring,
+                check_terminal,
                 &cli,
             )
             .await;
@@ -319,6 +358,7 @@ async fn handle_evaluate(
     _pretty: bool,
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    model_provider: &Arc<EmbeddedModelProvider>,
 ) {
     use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
     use std::io::stderr;
@@ -384,15 +424,20 @@ async fn handle_evaluate(
         }
     };
 
-    // Create FHIRPath engine with FhirSchemaModelProvider (R4 by default)
-    let engine = match create_fhirpath_engine_with_schema_provider().await {
+    // Create FHIRPath engine with shared model provider
+    let engine = match create_fhirpath_engine(model_provider.clone()).await {
         Ok(engine) => engine,
         Err(e) => {
             let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
             let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-            // Create AriadneDiagnostic using proper error code from FhirPathError
-            let diagnostic = fhirpath_error_to_ariadne(&e, 0..expression.len());
+            // Create AriadneDiagnostic using proper error code from anyhow::Error
+            let diagnostic = handler.create_diagnostic_from_error(
+                octofhir_fhirpath::core::error_code::FP0001,
+                format!("Failed to create FHIRPath engine: {}", e),
+                0..expression.len(),
+                None,
+            );
             handler
                 .report_diagnostic(&diagnostic, source_id, &mut stderr())
                 .unwrap_or_default();
@@ -510,17 +555,12 @@ async fn handle_evaluate(
 
         let execution_time = start_time.elapsed();
         match result {
-            Ok(collection) => EvaluationOutput {
-                success: true,
-                result: Some(collection),
-                error: None,
-                expression: expression.to_string(),
-                execution_time,
-                metadata: OutputMetadata {
-                    cache_hits: 0,  // TODO: Implement cache hit tracking
-                    ast_nodes: 0,   // TODO: Track AST nodes
-                    memory_used: 0, // TODO: Track memory usage
-                },
+            Ok(fhir_path_value) => {
+                EvaluationOutput::from_fhir_path_value(
+                    fhir_path_value,
+                    expression.to_string(),
+                    execution_time,
+                )
             },
             Err(e) => {
                 // Report diagnostic for evaluation error
@@ -796,9 +836,10 @@ async fn handle_analyze(
     _no_inference: bool,
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    model_provider: &Arc<EmbeddedModelProvider>,
 ) {
     // Always use comprehensive multi-error display
-    handle_analyze_multi_error(expression, cli, formatter).await;
+    handle_analyze_multi_error(expression, cli, formatter, model_provider).await;
 }
 
 async fn handle_repl(
@@ -813,7 +854,7 @@ async fn handle_repl(
     use std::path::PathBuf;
 
     // Create FhirSchemaModelProvider
-    let model_provider = match fhirpath_cli::FhirSchemaModelProvider::r4().await {
+    let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
         Ok(provider) => std::sync::Arc::new(provider),
         Err(e) => {
             eprintln!("Failed to create FHIR schema model provider: {}", e);
@@ -870,68 +911,105 @@ async fn handle_repl(
     }
 }
 
-/// Handle analyze command with comprehensive multi-error display (default mode)
+/// Handle analyze command with unified diagnostics system (like evaluate command)
 async fn handle_analyze_multi_error(
     expression: &str,
     cli: &Cli,
     _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    model_provider: &Arc<EmbeddedModelProvider>,
 ) {
-    use fhirpath_cli::cli::{diagnostics::CliDiagnosticHandler, output::OutputFormat};
-    use octofhir_fhirpath::parser::analysis_integration::ComprehensiveAnalyzer;
+    use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
+    use octofhir_fhirpath::analyzer::StaticAnalyzer;
     use std::io::{stderr, stdout};
 
-    // Create diagnostic handler for this analysis
+    // Create diagnostic handler for unified error reporting
     let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+    let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-    // Add source for better error reporting
-    let _source_id = handler.add_source("expression".to_string(), expression.to_string());
+    // First parse the expression with proper diagnostics (same as evaluate command)
+    let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
 
-    handler
-        .info(
-            &format!("Analyzing FHIRPath expression: {}", expression),
-            &mut std::io::stderr(),
-        )
-        .unwrap_or_default();
+    let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
 
-    // Show progress phases
-    handler
-        .show_analysis_progress("Phase 1: Parsing with error recovery", &mut stderr())
-        .unwrap_or_default();
+    // Collect parser diagnostics first
+    if !parse_result.diagnostics.is_empty() {
+        let parser_diagnostics: Vec<_> = parse_result
+            .diagnostics
+            .iter()
+            .map(convert_diagnostic_to_ariadne)
+            .collect();
+        all_diagnostics.extend(parser_diagnostics);
+    }
 
-    // Run comprehensive analysis
-    let mut analyzer = ComprehensiveAnalyzer::new();
-    let analysis_result = analyzer.analyze(expression, "expression".to_string());
+    if parse_result.success && parse_result.ast.is_some() {
+        // Phase 2: Run static analysis with shared model provider (UNIFIED)
+        let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
+        let analyzer = StaticAnalyzer::new(registry, model_provider.clone());
+        
+        // Run the analysis on the parsed AST
+        match analyzer.analyze(parse_result.ast.as_ref().unwrap()).await {
+            Ok(analysis_result) => {
+                // Add static analysis diagnostics (Ariadne diagnostics are already in the result)
+                let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
+                
+                // Fix missing spans by calculating them from expression text
+                for diagnostic in &mut static_diagnostics {
+                    if diagnostic.span == (0..0) {
+                        if let Some(span) = calculate_span_from_message(&diagnostic.message, expression) {
+                            diagnostic.span = span;
+                        }
+                    }
+                }
+                
+                all_diagnostics.extend(static_diagnostics);
+            }
+            Err(e) => {
+                // Convert analysis error to diagnostic
+                let error_diagnostic = handler.create_diagnostic_from_error(
+                    octofhir_fhirpath::core::error_code::FP0001,
+                    format!("Static analysis failed: {}", e),
+                    0..expression.len(),
+                    None,
+                );
+                all_diagnostics.push(error_diagnostic);
+            }
+        }
+    }
 
-    handler
-        .show_analysis_progress("Phase 2: Static analysis", &mut stderr())
-        .unwrap_or_default();
-    handler
-        .show_analysis_progress("Phase 3: Generating diagnostics", &mut stderr())
-        .unwrap_or_default();
+    // Sort diagnostics before deduplication to ensure consistent ordering
+    all_diagnostics.sort_by(|a, b| {
+        a.span.start.cmp(&b.span.start)
+            .then(a.error_code.code.cmp(&b.error_code.code))
+            .then(a.message.cmp(&b.message))
+    });
+    
+    // Deduplicate diagnostics based on message, error code, and span
+    all_diagnostics.dedup_by(|a, b| {
+        a.message == b.message && a.error_code == b.error_code && a.span == b.span
+    });
 
-    // Report all results with beautiful formatting
-    if cli.output_format == OutputFormat::Json {
-        // JSON output goes to stdout
+    // Report unified diagnostics (same pattern as evaluate command)
+    if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
         handler
-            .report_analysis_result(&analysis_result, &mut stdout())
+            .report_diagnostics(&all_diagnostics, source_id, &mut stderr())
             .unwrap_or_default();
     } else {
-        // Other formats show diagnostics on stderr
+        // JSON format: report to stdout
         handler
-            .report_analysis_result(&analysis_result, &mut stderr())
+            .report_diagnostics(&all_diagnostics, source_id, &mut stdout())
             .unwrap_or_default();
     }
 
-    // Show completion status
-    handler
-        .show_analysis_completion(&analysis_result.diagnostics.statistics, &mut stderr())
-        .unwrap_or_default();
+    // Exit with error code if there were any errors
+    let has_errors = all_diagnostics.iter().any(|d| {
+        matches!(d.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error)
+    });
 
-    // Exit with appropriate code
-    if analysis_result.diagnostics.statistics.error_count > 0 {
-        process::exit(1);
+    if has_errors {
+        std::process::exit(1);
     }
 }
+
 
 /// Handle docs command - open documentation for error codes
 fn handle_docs(error_code: &str, cli: &Cli) {
@@ -1071,6 +1149,7 @@ async fn handle_server(
     max_body_size: u64,
     timeout: u64,
     rate_limit: u32,
+    no_ui: bool,
     _cli: &Cli,
 ) {
     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
@@ -1083,10 +1162,188 @@ async fn handle_server(
         max_body_size_mb: max_body_size,
         timeout_seconds: timeout,
         rate_limit_per_minute: rate_limit,
+        no_ui,
     };
 
     if let Err(e) = start_server(config).await {
         eprintln!("❌ Server error: {}", e);
         std::process::exit(1);
+    }
+}
+
+/// Calculate span from diagnostic message by finding tokens in expression
+fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
+    // Extract resource type or property name from message
+    if message.contains("Unknown resource type: '") {
+        // Extract resource type name from message like "Unknown resource type: 'Pat'"
+        let start_marker = "Unknown resource type: '";
+        let end_marker = "'";
+        if let Some(start) = message.find(start_marker) {
+            let name_start = start + start_marker.len();
+            if let Some(name_end) = message[name_start..].find(end_marker) {
+                let resource_name = &message[name_start..name_start + name_end];
+                // Find this resource name in the expression
+                if let Some(pos) = expression.find(resource_name) {
+                    return Some(pos..pos + resource_name.len());
+                }
+            }
+        }
+    } else if message.contains("Cannot validate property '") {
+        // Extract property name from message like "Cannot validate property 'name' on unknown type"
+        let start_marker = "Cannot validate property '";
+        let end_marker = "'";
+        if let Some(start) = message.find(start_marker) {
+            let name_start = start + start_marker.len();
+            if let Some(name_end) = message[name_start..].find(end_marker) {
+                let property_name = &message[name_start..name_start + name_end];
+                // Find this property name in the expression (usually after a dot)
+                if let Some(pos) = expression.find(&format!(".{}", property_name)) {
+                    return Some(pos + 1..pos + 1 + property_name.len());
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Handle the TUI command
+async fn handle_tui(
+    input: Option<&str>,
+    variables: &[String],
+    config_path: Option<&str>,
+    theme: &str,
+    no_mouse: bool,
+    no_syntax_highlighting: bool,
+    no_auto_completion: bool,
+    performance_monitoring: bool,
+    check_terminal: bool,
+    _cli: &Cli,
+) {
+    use fhirpath_cli::tui::{start_tui, TuiConfig, check_terminal_capabilities};
+    use serde_json::Value as JsonValue;
+    
+    // Check terminal capabilities if requested
+    if check_terminal {
+        match check_terminal_capabilities() {
+            Ok(_) => {
+                println!("✅ Terminal capabilities check passed");
+                println!("   - Minimum size requirement met");
+                println!("   - Color support available");
+                return;
+            }
+            Err(e) => {
+                eprintln!("❌ Terminal capabilities check failed: {}", e);
+                eprintln!("   Consider using a larger terminal or different terminal emulator");
+                process::exit(1);
+            }
+        }
+    }
+
+    // Create FhirSchemaModelProvider
+    let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
+        Ok(provider) => std::sync::Arc::new(provider),
+        Err(e) => {
+            eprintln!("Failed to create FHIR schema model provider: {}", e);
+            return;
+        }
+    };
+
+    // Load configuration
+    let mut config = if let Some(config_path) = config_path {
+        match TuiConfig::load_from_file(config_path) {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Warning: Failed to load config from {}: {}", config_path, e);
+                eprintln!("Using default configuration");
+                TuiConfig::default()
+            }
+        }
+    } else {
+        match TuiConfig::load_with_fallbacks() {
+            Ok(config) => config,
+            Err(_) => TuiConfig::default(),
+        }
+    };
+
+    // Apply command-line overrides
+    if let Err(e) = config.set_theme(theme) {
+        eprintln!("Warning: {}", e);
+        eprintln!("Using default theme");
+    }
+
+    if no_mouse {
+        config.set_feature("mouse_support", false).ok();
+    }
+    
+    if no_syntax_highlighting {
+        config.set_feature("syntax_highlighting", false).ok();
+    }
+    
+    if no_auto_completion {
+        config.set_feature("auto_completion", false).ok();
+    }
+    
+    if performance_monitoring {
+        config.set_feature("performance_monitoring", true).ok();
+    }
+
+    // Parse initial variables
+    let mut initial_variables = Vec::new();
+    for var in variables {
+        if let Some((name, value)) = var.split_once('=') {
+            initial_variables.push((name.to_string(), value.to_string()));
+        } else {
+            eprintln!("Warning: Invalid variable format '{}', expected 'name=value'", var);
+        }
+    }
+
+    // Load initial resource if provided
+    let initial_resource = if let Some(input_path) = input {
+        match load_resource_from_input(input_path) {
+            Ok(resource) => Some(resource),
+            Err(e) => {
+                eprintln!("Warning: Failed to load resource from '{}': {}", input_path, e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Show startup information
+    if !config.ui_preferences.show_performance_info {
+        println!("🎨 Starting FHIRPath TUI with {} theme", config.theme.metadata.name);
+        if config.features.syntax_highlighting {
+            println!("✨ Syntax highlighting enabled");
+        }
+        if config.features.auto_completion {
+            println!("🔮 Auto-completion enabled");
+        }
+        if config.features.performance_monitoring {
+            println!("📊 Performance monitoring enabled");
+        }
+        println!("Press F1 for help, Esc to quit\n");
+    }
+
+    // Start the TUI
+    if let Err(e) = start_tui(model_provider, config, initial_resource, initial_variables).await {
+        eprintln!("TUI error: {}", e);
+        process::exit(1);
+    }
+}
+
+/// Load a resource from input (file path or JSON string)
+fn load_resource_from_input(input: &str) -> anyhow::Result<JsonValue> {
+    use anyhow::Context;
+    
+    if input.starts_with('{') || input.starts_with('[') {
+        // Input looks like JSON, try to parse directly
+        serde_json::from_str(input).context("Failed to parse input as JSON")
+    } else {
+        // Input is likely a file path
+        let content = std::fs::read_to_string(input)
+            .context("Failed to read input file")?;
+        serde_json::from_str(&content).context("Failed to parse file content as JSON")
     }
 }

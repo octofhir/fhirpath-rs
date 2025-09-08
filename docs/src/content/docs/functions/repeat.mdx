@@ -1,0 +1,32 @@
+---
+title: repeat
+sidebar:
+  label: repeat
+---
+
+# repeat()
+
+**Category**: Collection
+
+Repeatedly evaluates a lambda expression until no new unique items are found, preventing infinite loops
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `expression` `expression` — Lambda expression to repeat recursively
+
+## Examples
+
+```fhirpath
+ValueSet.expansion.repeat(contains)
+```
+
+```fhirpath
+Questionnaire.repeat(item)
+```
+
+```fhirpath
+Bundle.entry.resource.repeat(reference.resolve())
+```
+

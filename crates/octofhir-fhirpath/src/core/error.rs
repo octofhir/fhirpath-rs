@@ -20,6 +20,7 @@ pub struct SourceLocation {
 }
 
 impl SourceLocation {
+    /// Create new source location
     pub fn new(line: usize, column: usize, offset: usize, length: usize) -> Self {
         Self {
             line,
@@ -29,6 +30,7 @@ impl SourceLocation {
         }
     }
 
+    /// Create point source location with length 1
     pub fn point(line: usize, column: usize, offset: usize) -> Self {
         Self::new(line, column, offset, 1)
     }
@@ -46,56 +48,82 @@ pub enum FhirPathError {
     /// Parse error with source location
     #[error("{error_code}: {message}")]
     ParseError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Expression being parsed
         expression: String,
+        /// Source location
         location: Option<SourceLocation>,
+        /// Additional context
         context: Option<String>,
     },
 
     /// Evaluation error during expression execution
     #[error("{error_code}: {message}")]
     EvaluationError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Expression being evaluated
         expression: Option<String>,
+        /// Source location
         location: Option<SourceLocation>,
+        /// Additional context
         context: Option<String>,
     },
 
     /// Type checking or validation error
     #[error("{error_code}: {message}")]
     TypeError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Expected type
         expected_type: Option<String>,
+        /// Actual type
         actual_type: Option<String>,
+        /// Source location
         location: Option<SourceLocation>,
     },
 
     /// Model provider error
     #[error("{error_code}: {message}")]
     ModelError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Resource type
         resource_type: Option<String>,
+        /// Additional context
         context: Option<String>,
     },
 
     /// Function registry error
     #[error("{error_code}: {message}")]
     FunctionError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Function name that caused the error
         function_name: Option<String>,
+        /// Additional context
         context: Option<String>,
     },
 
     /// System or configuration error
     #[error("{error_code}: {message}")]
     SystemError {
+        /// Error code
         error_code: ErrorCode,
+        /// Error message
         message: String,
+        /// Additional context
         context: Option<String>,
     },
 }
@@ -138,6 +166,27 @@ impl FhirPathError {
         }
     }
 
+    /// Create a resource type mismatch error
+    pub fn resource_type_mismatch(
+        expected_type: impl Into<String>,
+        actual_type: impl Into<String>,
+        location: Option<SourceLocation>,
+    ) -> Self {
+        let expected = expected_type.into();
+        let actual = actual_type.into();
+        let message = format!(
+            "Resource type mismatch: expression expects '{}' but context contains '{}' resource",
+            expected, actual
+        );
+        Self::EvaluationError {
+            error_code: super::error_code::FP0061,
+            message,
+            expression: None,
+            location,
+            context: Some(format!("Expected: {}, Actual: {}", expected, actual)),
+        }
+    }
+
     /// Get the error code for this error
     pub fn error_code(&self) -> &ErrorCode {
         match self {
@@ -162,13 +211,16 @@ pub enum EvaluationError {
     /// General evaluation failure
     #[error("Evaluation failed: {message}")]
     Failed {
+        /// Error message describing the failure
         message: String,
+        /// Optional error code for categorization
         error_code: Option<ErrorCode>,
     },
 }
 
 // Additional error codes for system errors (using new FP0001-style codes)
-pub const FP0200: ErrorCode = ErrorCode::new(200); // System external error
+/// System external error code
+pub const FP0200: ErrorCode = ErrorCode::new(200);
 
 /// Result type for FHIRPath operations
 pub type Result<T> = std::result::Result<T, FhirPathError>;

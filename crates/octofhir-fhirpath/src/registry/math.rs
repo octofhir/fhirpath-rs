@@ -33,7 +33,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "number",
             examples: ["(-5).abs()", "(-3.14).abs()", "5.abs()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -41,18 +41,22 @@ impl FunctionRegistry {
                     ));
                 }
 
-                match &context.input[0] {
-                    FhirPathValue::Integer(i) => Ok(vec![FhirPathValue::Integer(i.abs())]),
-                    FhirPathValue::Decimal(d) => Ok(vec![FhirPathValue::Decimal(d.abs())]),
-                    FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit } => {
-                        Ok(vec![FhirPathValue::Quantity {
+                match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => Ok(FhirPathValue::Integer(i.abs())),
+                    Some(FhirPathValue::Decimal(d)) => Ok(FhirPathValue::Decimal(d.abs())),
+                    Some(FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit }) => {
+                        Ok(FhirPathValue::Quantity {
                             value: value.abs(),
                             unit: unit.clone(),
                             ucum_unit: ucum_unit.clone(),
                             calendar_unit: *calendar_unit,
-                        }])
+                        })
                     }
-                    _ => Err(crate::core::FhirPathError::evaluation_error(
+                    Some(_) => Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "abs() can only be called on numeric values".to_string()
+                    )),
+                    None => Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "abs() can only be called on numeric values".to_string()
                     ))
@@ -70,7 +74,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "integer",
             examples: ["3.14.ceiling()", "(-2.5).ceiling()", "5.ceiling()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -78,26 +82,30 @@ impl FunctionRegistry {
                     ));
                 }
 
-                match &context.input[0] {
-                    FhirPathValue::Integer(i) => Ok(vec![FhirPathValue::Integer(*i)]),
-                    FhirPathValue::Decimal(d) => {
+                match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => Ok(FhirPathValue::Integer(*i)),
+                    Some(FhirPathValue::Decimal(d)) => {
                         let result = d.ceil();
                         // Convert to integer if it fits
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    FhirPathValue::Quantity { value, .. } => {
+                    Some(FhirPathValue::Quantity { value, .. }) => {
                         let result = value.ceil();
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    _ => Err(crate::core::FhirPathError::evaluation_error(
+                    Some(_) => Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "ceiling() can only be called on numeric values".to_string()
+                    )),
+                    None => Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "ceiling() can only be called on numeric values".to_string()
                     ))
@@ -115,7 +123,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "integer",
             examples: ["3.14.floor()", "(-2.5).floor()", "5.floor()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -123,25 +131,29 @@ impl FunctionRegistry {
                     ));
                 }
 
-                match &context.input[0] {
-                    FhirPathValue::Integer(i) => Ok(vec![FhirPathValue::Integer(*i)]),
-                    FhirPathValue::Decimal(d) => {
+                match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => Ok(FhirPathValue::Integer(*i)),
+                    Some(FhirPathValue::Decimal(d)) => {
                         let result = d.floor();
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    FhirPathValue::Quantity { value, .. } => {
+                    Some(FhirPathValue::Quantity { value, .. }) => {
                         let result = value.floor();
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    _ => Err(crate::core::FhirPathError::evaluation_error(
+                    Some(_) => Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "floor() can only be called on numeric values".to_string()
+                    )),
+                    None => Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "floor() can only be called on numeric values".to_string()
                     ))
@@ -159,7 +171,7 @@ impl FunctionRegistry {
             parameters: ["precision": Some("integer".to_string()) => "Number of decimal places (optional, defaults to 0)"],
             return_type: "number",
             examples: ["3.14159.round(2)", "3.6.round()", "(-2.5).round()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -170,8 +182,8 @@ impl FunctionRegistry {
                 let precision = if context.arguments.is_empty() {
                     0u32
                 } else {
-                    match &context.arguments[0] {
-                        FhirPathValue::Integer(p) => {
+                    match context.arguments.first() {
+                        Some(FhirPathValue::Integer(p)) => {
                             if *p < 0 || *p > 28 {
                                 return Err(crate::core::FhirPathError::evaluation_error(
                                     FP0053,
@@ -180,7 +192,13 @@ impl FunctionRegistry {
                             }
                             *p as u32
                         }
-                        _ => {
+                        Some(_) => {
+                            return Err(crate::core::FhirPathError::evaluation_error(
+                                FP0053,
+                                "round() precision must be an integer".to_string()
+                            ));
+                        }
+                        None => {
                             return Err(crate::core::FhirPathError::evaluation_error(
                                 FP0053,
                                 "round() precision must be an integer".to_string()
@@ -189,36 +207,40 @@ impl FunctionRegistry {
                     }
                 };
 
-                match &context.input[0] {
-                    FhirPathValue::Integer(i) => {
+                match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => {
                         if precision == 0 {
-                            Ok(vec![FhirPathValue::Integer(*i)])
+                            Ok(FhirPathValue::Integer(*i))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(Decimal::from(*i))])
+                            Ok(FhirPathValue::Decimal(Decimal::from(*i)))
                         }
                     }
-                    FhirPathValue::Decimal(d) => {
+                    Some(FhirPathValue::Decimal(d)) => {
                         let result = d.round_dp(precision);
                         if precision == 0 && result.fract().is_zero() {
                             if let Some(int_value) = result.to_i64() {
-                                Ok(vec![FhirPathValue::Integer(int_value)])
+                                Ok(FhirPathValue::Integer(int_value))
                             } else {
-                                Ok(vec![FhirPathValue::Decimal(result)])
+                                Ok(FhirPathValue::Decimal(result))
                             }
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit } => {
+                    Some(FhirPathValue::Quantity { value, unit, ucum_unit, calendar_unit }) => {
                         let result = value.round_dp(precision);
-                        Ok(vec![FhirPathValue::Quantity {
+                        Ok(FhirPathValue::Quantity {
                             value: result,
                             unit: unit.clone(),
                             ucum_unit: ucum_unit.clone(),
                             calendar_unit: *calendar_unit,
-                        }])
+                        })
                     }
-                    _ => Err(crate::core::FhirPathError::evaluation_error(
+                    Some(_) => Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "round() can only be called on numeric values".to_string()
+                    )),
+                    None => Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "round() can only be called on numeric values".to_string()
                     ))
@@ -236,7 +258,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "integer",
             examples: ["3.14.truncate()", "(-2.9).truncate()", "5.truncate()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -244,25 +266,29 @@ impl FunctionRegistry {
                     ));
                 }
 
-                match &context.input[0] {
-                    FhirPathValue::Integer(i) => Ok(vec![FhirPathValue::Integer(*i)]),
-                    FhirPathValue::Decimal(d) => {
+                match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => Ok(FhirPathValue::Integer(*i)),
+                    Some(FhirPathValue::Decimal(d)) => {
                         let result = d.trunc();
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    FhirPathValue::Quantity { value, .. } => {
+                    Some(FhirPathValue::Quantity { value, .. }) => {
                         let result = value.trunc();
                         if let Some(int_value) = result.to_i64() {
-                            Ok(vec![FhirPathValue::Integer(int_value)])
+                            Ok(FhirPathValue::Integer(int_value))
                         } else {
-                            Ok(vec![FhirPathValue::Decimal(result)])
+                            Ok(FhirPathValue::Decimal(result))
                         }
                     }
-                    _ => Err(crate::core::FhirPathError::evaluation_error(
+                    Some(_) => Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "truncate() can only be called on numeric values".to_string()
+                    )),
+                    None => Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "truncate() can only be called on numeric values".to_string()
                     ))
@@ -280,7 +306,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "decimal",
             examples: ["16.sqrt()", "2.25.sqrt()", "9.sqrt()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -288,8 +314,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let value = match &context.input[0] {
-                    FhirPathValue::Integer(i) => {
+                let value = match context.input.first() {
+                    Some(FhirPathValue::Integer(i)) => {
                         if *i < 0 {
                             return Err(crate::core::FhirPathError::evaluation_error(
                                 FP0053,
@@ -298,7 +324,7 @@ impl FunctionRegistry {
                         }
                         *i as f64
                     }
-                    FhirPathValue::Decimal(d) => {
+                    Some(FhirPathValue::Decimal(d)) => {
                         let f_val = d.to_f64().ok_or_else(|| {
                             crate::core::FhirPathError::evaluation_error(
                                 FP0053,
@@ -313,7 +339,7 @@ impl FunctionRegistry {
                         }
                         f_val
                     }
-                    FhirPathValue::Quantity { value, .. } => {
+                    Some(FhirPathValue::Quantity { value, .. }) => {
                         let f_val = value.to_f64().ok_or_else(|| {
                             crate::core::FhirPathError::evaluation_error(
                                 FP0053,
@@ -328,7 +354,13 @@ impl FunctionRegistry {
                         }
                         f_val
                     }
-                    _ => {
+                    Some(_) => {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            FP0053,
+                            "sqrt() can only be called on numeric values".to_string()
+                        ));
+                    }
+                    None => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
                             "sqrt() can only be called on numeric values".to_string()
@@ -344,7 +376,7 @@ impl FunctionRegistry {
                     )
                 })?;
 
-                Ok(vec![FhirPathValue::Decimal(decimal_result)])
+                Ok(FhirPathValue::Decimal(decimal_result))
             }
         )
     }
@@ -358,7 +390,10 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "decimal",
             examples: ["2.71828.ln()", "10.ln()", "1.ln()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.is_empty(){
+                    return Ok(FhirPathValue::Empty)
+                }
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -366,7 +401,13 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let value = extract_numeric_value(&context.input[0], "ln()")?;
+                let value = match context.input.first() {
+                    Some(first_value) => extract_numeric_value(first_value, "ln()")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "ln() can only be called on numeric values".to_string()
+                    ))
+                };
 
                 if value <= 0.0 {
                     return Err(crate::core::FhirPathError::evaluation_error(
@@ -390,7 +431,7 @@ impl FunctionRegistry {
                     )
                 })?;
 
-                Ok(vec![FhirPathValue::Decimal(decimal_result)])
+                Ok(FhirPathValue::Decimal(decimal_result))
             }
         )
     }
@@ -404,7 +445,7 @@ impl FunctionRegistry {
             parameters: ["base": Some("number".to_string()) => "The base for the logarithm"],
             return_type: "decimal",
             examples: ["100.log(10)", "8.log(2)", "27.log(3)"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -419,8 +460,20 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let value = extract_numeric_value(&context.input[0], "log()")?;
-                let base = extract_numeric_value(&context.arguments[0], "log() base")?;
+                let value = match context.input.first() {
+                    Some(first_value) => extract_numeric_value(first_value, "log()")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "log() can only be called on numeric values".to_string()
+                    ))
+                };
+                let base = match context.arguments.first() {
+                    Some(first_arg) => extract_numeric_value(first_arg, "log() base")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "log() requires exactly one base argument".to_string()
+                    ))
+                };
 
                 if value <= 0.0 {
                     return Err(crate::core::FhirPathError::evaluation_error(
@@ -451,7 +504,7 @@ impl FunctionRegistry {
                     )
                 })?;
 
-                Ok(vec![FhirPathValue::Decimal(decimal_result)])
+                Ok(FhirPathValue::Decimal(decimal_result))
             }
         )
     }
@@ -465,7 +518,7 @@ impl FunctionRegistry {
             parameters: ["exponent": Some("number".to_string()) => "The exponent"],
             return_type: "decimal",
             examples: ["2.power(3)", "10.power(2)", "16.power(0.5)"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -480,8 +533,20 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let base = extract_numeric_value(&context.input[0], "power()")?;
-                let exponent = extract_numeric_value(&context.arguments[0], "power() exponent")?;
+                let base = match context.input.first() {
+                    Some(first_value) => extract_numeric_value(first_value, "power()")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "power() can only be called on numeric values".to_string()
+                    ))
+                };
+                let exponent = match context.arguments.first() {
+                    Some(first_arg) => extract_numeric_value(first_arg, "power() exponent")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "power() requires exactly one exponent argument".to_string()
+                    ))
+                };
 
                 let result = base.powf(exponent);
                 if result.is_nan() || result.is_infinite() {
@@ -498,7 +563,7 @@ impl FunctionRegistry {
                     )
                 })?;
 
-                Ok(vec![FhirPathValue::Decimal(decimal_result)])
+                Ok(FhirPathValue::Decimal(decimal_result))
             }
         )
     }
@@ -512,7 +577,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "decimal",
             examples: ["1.exp()", "0.exp()", "2.exp()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -520,7 +585,13 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let value = extract_numeric_value(&context.input[0], "exp()")?;
+                let value = match context.input.first() {
+                    Some(first_value) => extract_numeric_value(first_value, "exp()")?,
+                    None => return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0053,
+                        "exp() can only be called on numeric values".to_string()
+                    ))
+                };
 
                 let result = value.exp();
                 if result.is_nan() || result.is_infinite() {
@@ -537,7 +608,7 @@ impl FunctionRegistry {
                     )
                 })?;
 
-                Ok(vec![FhirPathValue::Decimal(decimal_result)])
+                Ok(FhirPathValue::Decimal(decimal_result))
             }
         )
     }
@@ -945,7 +1016,6 @@ impl ArithmeticOperations {
     }
 
     pub fn subtract(left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
-        
         use crate::registry::datetime_utils::DateTimeDuration;
         use chrono::{DateTime, Utc};
 

@@ -12,8 +12,8 @@ use rust_decimal::Decimal;
 impl FunctionRegistry {
     pub fn register_numeric_functions(&self) -> Result<()> {
         self.register_comparable_function()?;
-        self.register_lowBoundary_function()?;
-        self.register_highBoundary_function()?;
+        self.register_low_boundary_function()?;
+        self.register_high_boundary_function()?;
         self.register_precision_function()?;
         Ok(())
     }
@@ -27,7 +27,7 @@ impl FunctionRegistry {
             parameters: ["other": Some("any".to_string()) => "Value to test comparability with"],
             return_type: "boolean",
             examples: ["1.comparable(2)", "'a'.comparable('b')", "1.comparable('a')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 || context.arguments.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -35,8 +35,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input = &context.input[0];
-                let arg = &context.arguments[0];
+                let input = context.input.first().unwrap();
+                let arg = context.arguments.first().unwrap();
 
                 let comparable = match (input, arg) {
                     // Numbers are comparable with numbers
@@ -71,12 +71,12 @@ impl FunctionRegistry {
                     _ => false,
                 };
 
-                Ok(vec![FhirPathValue::Boolean(comparable)])
+                Ok(FhirPathValue::Boolean(comparable))
             }
         )
     }
 
-    fn register_lowBoundary_function(&self) -> Result<()> {
+    fn register_low_boundary_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "lowBoundary",
@@ -85,7 +85,7 @@ impl FunctionRegistry {
             parameters: ["precision": Some("integer".to_string()) => "Optional precision level"],
             return_type: "any",
             examples: ["1.5.lowBoundary()", "@2023-12-25.lowBoundary()", "1.lowBoundary(1)"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -94,7 +94,7 @@ impl FunctionRegistry {
                 }
 
                 let precision_arg = if context.arguments.len() == 1 {
-                    match &context.arguments[0] {
+                    match context.arguments.first().unwrap() {
                         FhirPathValue::Integer(p) => Some(*p),
                         _ => return Err(FhirPathError::evaluation_error(
                             FP0053,
@@ -110,7 +110,7 @@ impl FunctionRegistry {
                     ));
                 };
 
-                match &context.input[0] {
+                match context.input.first().unwrap() {
                     FhirPathValue::Decimal(d) => {
                         Self::calculate_decimal_low_boundary(*d, precision_arg)
                     },
@@ -138,7 +138,7 @@ impl FunctionRegistry {
                                 } else {
                                     formatted_value
                                 };
-                                Ok(vec![FhirPathValue::String(result)])
+                                Ok(FhirPathValue::String(result))
                             },
                             _ => Ok(low_boundary)
                         }
@@ -161,7 +161,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_highBoundary_function(&self) -> Result<()> {
+    fn register_high_boundary_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "highBoundary",
@@ -170,7 +170,7 @@ impl FunctionRegistry {
             parameters: ["precision": Some("integer".to_string()) => "Optional precision level"],
             return_type: "any",
             examples: ["1.5.highBoundary()", "@2023-12-25.highBoundary()", "1.highBoundary(1)"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -179,7 +179,7 @@ impl FunctionRegistry {
                 }
 
                 let precision_arg = if context.arguments.len() == 1 {
-                    match &context.arguments[0] {
+                    match context.arguments.first().unwrap() {
                         FhirPathValue::Integer(p) => Some(*p),
                         _ => return Err(FhirPathError::evaluation_error(
                             FP0053,
@@ -195,7 +195,7 @@ impl FunctionRegistry {
                     ));
                 };
 
-                match &context.input[0] {
+                match context.input.first().unwrap() {
                     FhirPathValue::Decimal(d) => {
                         Self::calculate_decimal_high_boundary(*d, precision_arg)
                     },
@@ -223,7 +223,7 @@ impl FunctionRegistry {
                                 } else {
                                     formatted_value
                                 };
-                                Ok(vec![FhirPathValue::String(result)])
+                                Ok(FhirPathValue::String(result))
                             },
                             _ => Ok(high_boundary)
                         }
@@ -255,7 +255,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "integer",
             examples: ["1.50.precision()", "@2023-12-25.precision()", "@2023.precision()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -263,50 +263,50 @@ impl FunctionRegistry {
                     ));
                 }
 
-                match &context.input[0] {
+                match context.input.first().unwrap() {
                     FhirPathValue::Decimal(d) => {
                         // Count decimal places
                         let decimal_str = d.to_string();
                         if let Some(dot_pos) = decimal_str.find('.') {
                             let decimal_places = decimal_str.len() - dot_pos - 1;
-                            Ok(vec![FhirPathValue::Integer(decimal_places as i64)])
+                            Ok(FhirPathValue::Integer(decimal_places as i64))
                         } else {
-                            Ok(vec![FhirPathValue::Integer(0)])
+                            Ok(FhirPathValue::Integer(0))
                         }
                     },
                     FhirPathValue::Integer(_) => {
                         // Integers have precision of 1
-                        Ok(vec![FhirPathValue::Integer(1)])
+                        Ok(FhirPathValue::Integer(1))
                     },
                     FhirPathValue::Date(date) => {
                         // Return precision based on date precision
                         match date.precision {
-                            crate::core::temporal::TemporalPrecision::Year => Ok(vec![FhirPathValue::Integer(4)]),
-                            crate::core::temporal::TemporalPrecision::Month => Ok(vec![FhirPathValue::Integer(6)]),
-                            crate::core::temporal::TemporalPrecision::Day => Ok(vec![FhirPathValue::Integer(8)]),
-                            _ => Ok(vec![FhirPathValue::Integer(8)]),
+                            crate::core::temporal::TemporalPrecision::Year => Ok(FhirPathValue::Integer(4)),
+                            crate::core::temporal::TemporalPrecision::Month => Ok(FhirPathValue::Integer(6)),
+                            crate::core::temporal::TemporalPrecision::Day => Ok(FhirPathValue::Integer(8)),
+                            _ => Ok(FhirPathValue::Integer(8)),
                         }
                     },
                     FhirPathValue::DateTime(datetime) => {
                         // Return precision based on datetime precision
                         match datetime.precision {
-                            crate::core::temporal::TemporalPrecision::Year => Ok(vec![FhirPathValue::Integer(4)]),
-                            crate::core::temporal::TemporalPrecision::Month => Ok(vec![FhirPathValue::Integer(6)]),
-                            crate::core::temporal::TemporalPrecision::Day => Ok(vec![FhirPathValue::Integer(8)]),
-                            crate::core::temporal::TemporalPrecision::Hour => Ok(vec![FhirPathValue::Integer(10)]),
-                            crate::core::temporal::TemporalPrecision::Minute => Ok(vec![FhirPathValue::Integer(12)]),
-                            crate::core::temporal::TemporalPrecision::Second => Ok(vec![FhirPathValue::Integer(14)]),
-                            crate::core::temporal::TemporalPrecision::Millisecond => Ok(vec![FhirPathValue::Integer(17)]),
+                            crate::core::temporal::TemporalPrecision::Year => Ok(FhirPathValue::Integer(4)),
+                            crate::core::temporal::TemporalPrecision::Month => Ok(FhirPathValue::Integer(6)),
+                            crate::core::temporal::TemporalPrecision::Day => Ok(FhirPathValue::Integer(8)),
+                            crate::core::temporal::TemporalPrecision::Hour => Ok(FhirPathValue::Integer(10)),
+                            crate::core::temporal::TemporalPrecision::Minute => Ok(FhirPathValue::Integer(12)),
+                            crate::core::temporal::TemporalPrecision::Second => Ok(FhirPathValue::Integer(14)),
+                            crate::core::temporal::TemporalPrecision::Millisecond => Ok(FhirPathValue::Integer(17)),
                         }
                     },
                     FhirPathValue::Time(time) => {
                         // Return precision based on time precision
                         match time.precision {
-                            crate::core::temporal::TemporalPrecision::Hour => Ok(vec![FhirPathValue::Integer(2)]),
-                            crate::core::temporal::TemporalPrecision::Minute => Ok(vec![FhirPathValue::Integer(4)]),
-                            crate::core::temporal::TemporalPrecision::Second => Ok(vec![FhirPathValue::Integer(6)]),
-                            crate::core::temporal::TemporalPrecision::Millisecond => Ok(vec![FhirPathValue::Integer(9)]),
-                            _ => Ok(vec![FhirPathValue::Integer(6)]),
+                            crate::core::temporal::TemporalPrecision::Hour => Ok(FhirPathValue::Integer(2)),
+                            crate::core::temporal::TemporalPrecision::Minute => Ok(FhirPathValue::Integer(4)),
+                            crate::core::temporal::TemporalPrecision::Second => Ok(FhirPathValue::Integer(6)),
+                            crate::core::temporal::TemporalPrecision::Millisecond => Ok(FhirPathValue::Integer(9)),
+                            _ => Ok(FhirPathValue::Integer(6)),
                         }
                     },
                     _ => Err(FhirPathError::evaluation_error(
@@ -322,15 +322,15 @@ impl FunctionRegistry {
     fn calculate_decimal_high_boundary(
         value: Decimal,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         // Validate precision
         if let Some(p) = precision {
             if p < 0 {
-                return Ok(vec![]); // Empty result for negative precision
+                return Ok(FhirPathValue::empty()); // Empty result for negative precision
             }
             if p > 28 {
                 // Decimal max precision
-                return Ok(vec![]); // Empty result for too high precision
+                return Ok(FhirPathValue::empty()); // Empty result for too high precision
             }
         }
 
@@ -375,21 +375,21 @@ impl FunctionRegistry {
             }
         };
 
-        Ok(vec![FhirPathValue::Decimal(result)])
+        Ok(FhirPathValue::Decimal(result))
     }
 
     fn calculate_decimal_low_boundary(
         value: Decimal,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         // Validate precision
         if let Some(p) = precision {
             if p < 0 {
-                return Ok(vec![]); // Empty result for negative precision
+                return Ok(FhirPathValue::empty()); // Empty result for negative precision
             }
             if p > 28 {
                 // Decimal max precision
-                return Ok(vec![]); // Empty result for too high precision
+                return Ok(FhirPathValue::empty()); // Empty result for too high precision
             }
         }
 
@@ -424,13 +424,13 @@ impl FunctionRegistry {
             }
         };
 
-        Ok(vec![FhirPathValue::Decimal(result)])
+        Ok(FhirPathValue::Decimal(result))
     }
 
     fn calculate_date_high_boundary(
         date: &crate::core::temporal::PrecisionDate,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::{Datelike, NaiveDate};
 
         let target_precision = precision.unwrap_or(6); // Default to month precision
@@ -440,11 +440,11 @@ impl FunctionRegistry {
                 // Month precision: return last month of the year
                 let year = date.date.year();
                 let _result_date = NaiveDate::from_ymd_opt(year, 12, 1).unwrap();
-                Ok(vec![FhirPathValue::String(format!("{}-{:02}", year, 12))])
+                Ok(FhirPathValue::String(format!("{}-{:02}", year, 12)))
             }
             _ => {
                 // For other precisions, return the same date (simplified)
-                Ok(vec![FhirPathValue::String(date.to_string())])
+                Ok(FhirPathValue::String(date.to_string()))
             }
         }
     }
@@ -452,7 +452,7 @@ impl FunctionRegistry {
     fn calculate_date_low_boundary(
         date: &crate::core::temporal::PrecisionDate,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::{Datelike, NaiveDate};
 
         let target_precision = precision.unwrap_or(6); // Default to month precision
@@ -462,17 +462,17 @@ impl FunctionRegistry {
                 // Month precision: return first month of the year
                 let year = date.date.year();
                 let _result_date = NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
-                Ok(vec![FhirPathValue::String(format!("{}-{:02}", year, 1))])
+                Ok(FhirPathValue::String(format!("{}-{:02}", year, 1)))
             }
             8 => {
                 // Day precision: return the full date
-                Ok(vec![FhirPathValue::String(
+                Ok(FhirPathValue::String(
                     date.date.format("%Y-%m-%d").to_string(),
-                )])
+                ))
             }
             _ => {
                 // For other precisions, return the same date (simplified)
-                Ok(vec![FhirPathValue::String(date.to_string())])
+                Ok(FhirPathValue::String(date.to_string()))
             }
         }
     }
@@ -480,7 +480,7 @@ impl FunctionRegistry {
     fn calculate_datetime_high_boundary(
         datetime: &crate::core::temporal::PrecisionDateTime,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::Timelike;
 
         let target_precision = precision.unwrap_or(17); // Default to millisecond precision
@@ -503,11 +503,11 @@ impl FunctionRegistry {
                 let formatted = high_boundary
                     .format("%Y-%m-%dT%H:%M:%S%.3f-12:00")
                     .to_string();
-                Ok(vec![FhirPathValue::String(formatted)])
+                Ok(FhirPathValue::String(formatted))
             }
             _ => {
                 // For other precisions, return the datetime as-is (simplified)
-                Ok(vec![FhirPathValue::String(datetime.to_string())])
+                Ok(FhirPathValue::String(datetime.to_string()))
             }
         }
     }
@@ -515,7 +515,7 @@ impl FunctionRegistry {
     fn calculate_datetime_low_boundary(
         datetime: &crate::core::temporal::PrecisionDateTime,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::Timelike;
 
         let target_precision = precision.unwrap_or(17); // Default to millisecond precision
@@ -544,18 +544,16 @@ impl FunctionRegistry {
                         .format("%Y-%m-%dT%H:%M:%S%.3f+14:00")
                         .to_string()
                 };
-                Ok(vec![FhirPathValue::String(formatted)])
+                Ok(FhirPathValue::String(formatted))
             }
             8 => {
                 // Day precision: return just the date part
                 let dt = datetime.datetime;
-                Ok(vec![FhirPathValue::String(
-                    dt.format("%Y-%m-%d").to_string(),
-                )])
+                Ok(FhirPathValue::String(dt.format("%Y-%m-%d").to_string()))
             }
             _ => {
                 // For other precisions, return the datetime as-is (simplified)
-                Ok(vec![FhirPathValue::String(datetime.to_string())])
+                Ok(FhirPathValue::String(datetime.to_string()))
             }
         }
     }
@@ -563,7 +561,7 @@ impl FunctionRegistry {
     fn calculate_time_high_boundary(
         time: &crate::core::temporal::PrecisionTime,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::Timelike;
 
         let target_precision = precision.unwrap_or(9); // Default to millisecond precision
@@ -582,14 +580,14 @@ impl FunctionRegistry {
                     .with_nanosecond(999_000_000)
                     .unwrap(); // 999 milliseconds
 
-                Ok(vec![FhirPathValue::String(format!(
+                Ok(FhirPathValue::String(format!(
                     "T{}",
                     high_boundary.format("%H:%M:%S%.3f")
-                ))])
+                )))
             }
             _ => {
                 // For other precisions, return the time as-is (simplified)
-                Ok(vec![FhirPathValue::String(time.to_string())])
+                Ok(FhirPathValue::String(time.to_string()))
             }
         }
     }
@@ -597,7 +595,7 @@ impl FunctionRegistry {
     fn calculate_time_low_boundary(
         time: &crate::core::temporal::PrecisionTime,
         precision: Option<i64>,
-    ) -> Result<Vec<FhirPathValue>> {
+    ) -> Result<FhirPathValue> {
         use chrono::Timelike;
 
         let target_precision = precision.unwrap_or(9); // Default to millisecond precision
@@ -616,14 +614,14 @@ impl FunctionRegistry {
                     .with_nanosecond(0)
                     .unwrap();
 
-                Ok(vec![FhirPathValue::String(format!(
+                Ok(FhirPathValue::String(format!(
                     "T{}",
                     low_boundary.format("%H:%M:%S%.3f")
-                ))])
+                )))
             }
             _ => {
                 // For other precisions, return the time as-is (simplified)
-                Ok(vec![FhirPathValue::String(time.to_string())])
+                Ok(FhirPathValue::String(time.to_string()))
             }
         }
     }

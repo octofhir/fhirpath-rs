@@ -68,126 +68,172 @@ pub enum ExpressionNode {
 /// Literal value with source location
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LiteralNode {
+    /// Literal value
     pub value: LiteralValue,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Identifier with validation and source tracking
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IdentifierNode {
+    /// Identifier name
     pub name: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Function call with arguments and validation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionCallNode {
+    /// Function name
     pub name: String,
+    /// Function arguments
     pub arguments: Vec<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Method call on an object (e.g., Patient.name.first())
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MethodCallNode {
+    /// Method object
     pub object: Box<ExpressionNode>,
+    /// Method name
     pub method: String,
+    /// Method arguments
     pub arguments: Vec<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Property access for navigation (dot notation)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyAccessNode {
+    /// Property object
     pub object: Box<ExpressionNode>,
+    /// Property name
     pub property: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Index access with bounds checking
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndexAccessNode {
+    /// Index object
     pub object: Box<ExpressionNode>,
+    /// Index expression
     pub index: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Binary operation with operator precedence
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BinaryOperationNode {
+    /// Left operand
     pub left: Box<ExpressionNode>,
+    /// Binary operator
     pub operator: BinaryOperator,
+    /// Right operand
     pub right: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Unary operation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UnaryOperationNode {
+    /// Unary operator
     pub operator: UnaryOperator,
+    /// Operand expression
     pub operand: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Lambda expression for filtering and mapping
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LambdaNode {
-    pub parameter: Option<String>, // Parameter name (e.g., "$this")
+    /// Parameter name (e.g., "$this")
+    pub parameter: Option<String>,
+    /// Lambda body expression
     pub body: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Collection literal
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CollectionNode {
+    /// Collection elements
     pub elements: Vec<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Type cast expression
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeCastNode {
+    /// Expression to cast
     pub expression: Box<ExpressionNode>,
+    /// Target type name
     pub target_type: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Filter expression (where clause)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterNode {
+    /// Base expression to filter
     pub base: Box<ExpressionNode>,
+    /// Filter condition
     pub condition: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Union expression
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UnionNode {
+    /// Left union operand
     pub left: Box<ExpressionNode>,
+    /// Right union operand
     pub right: Box<ExpressionNode>,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Type check expression
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeCheckNode {
+    /// Expression to check
     pub expression: Box<ExpressionNode>,
+    /// Target type name
     pub target_type: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Variable reference
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariableNode {
+    /// Variable name
     pub name: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 
 /// Path expression
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PathNode {
+    /// Base expression
     pub base: Box<ExpressionNode>,
+    /// Path string
     pub path: String,
+    /// Source location
     pub location: Option<SourceLocation>,
 }
 

@@ -11,6 +11,11 @@ keywords = ["fhir", "fhirpath", "testing", "benchmarking", "dev-tools"]
 categories = ["development-tools", "science"]
 publish = false
 
+[features]
+default = ["embedded-providers", "dynamic-caching"]
+embedded-providers = ["octofhir-fhirschema/embedded-providers"]
+dynamic-caching = ["octofhir-fhirschema/dynamic-caching"]
+
 [[bin]]
 name = "test-runner"
 path = "src/bin/test-runner.rs"
@@ -23,9 +28,16 @@ path = "src/bin/test-coverage.rs"
 name = "octofhir-fhirpath-bench"
 path = "src/bin/fhirpath-bench.rs"
 
+[[bin]]
+name = "generate-docs"
+path = "src/bin/generate-docs.rs"
+
+[lints]
+workspace = true
+
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { workspace = true }
+octofhir-fhirschema = { workspace = true, features = ["embedded-providers", "dynamic-caching"] }
 octofhir-fhir-model = { workspace = true }
 
 # Dev tools dependencies

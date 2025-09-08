@@ -1,4 +1,6 @@
 //! # OctoFHIR FHIRPath Implementation
+
+#![allow(missing_docs)]
 //!
 //! A high-performance, spec-compliant implementation of the FHIRPath expression language
 //! for FHIR resources. This implementation consolidates all functionality into a single
@@ -61,8 +63,6 @@
 //! - **ModelProvider**: Pluggable model provider system for different FHIR versions
 
 #![deny(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::missing_docs_in_private_items)]
 
 // Core modules
 pub mod ast;
@@ -77,11 +77,9 @@ pub mod registry;
 pub mod analyzer;
 pub mod diagnostics;
 
-// Additional modules
-pub mod mock_provider;
-
 // Re-export core types for convenience
 pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
+pub use octofhir_fhir_model::EmptyModelProvider as MockModelProvider;
 
 // Re-export main engine types
 pub use crate::evaluator::{
@@ -178,8 +176,7 @@ pub use crate::diagnostics::{
     SourceManager,
 };
 
-// Re-export MockModelProvider for testing and development
-pub use crate::mock_provider::MockModelProvider;
+// Note: MockModelProvider will be provided by external model provider dependencies
 
 /// Create a FhirPathEngine with MockModelProvider for testing and development
 ///
@@ -198,11 +195,12 @@ pub use crate::mock_provider::MockModelProvider;
 /// ```
 pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
     use std::sync::Arc;
-
-    let registry = create_standard_registry().await;
-    let model_provider = Arc::new(octofhir_fhir_model::EmptyModelProvider);
-
-    Ok(FhirPathEngine::new(Arc::new(registry), model_provider))
+    use octofhir_fhir_model::EmptyModelProvider;
+    
+    let registry = Arc::new(create_standard_registry().await);
+    let model_provider = Arc::new(EmptyModelProvider);
+    
+    FhirPathEngine::new(registry, model_provider).await
 }
 
 /// Main evaluation function for simple use cases
@@ -225,9 +223,9 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 /// # Ok(())
 /// # }
 /// ```
-pub async fn evaluate(expression: &str, context: &Collection) -> Result<Collection> {
-    let engine = create_engine_with_mock_provider().await?;
-    let eval_context = EvaluationContext::new(context.clone());
+pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirPathValue> {
+    let mut engine = create_engine_with_mock_provider().await?;
+    let eval_context = EvaluationContext::from_value(context.clone());
     let result = engine.evaluate(expression, &eval_context).await?;
     Ok(result.value)
 }

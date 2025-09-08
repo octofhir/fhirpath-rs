@@ -128,6 +128,23 @@ impl EvaluationContext {
         }
     }
 
+    /// Create new context with input value as start context
+    ///
+    /// This is the preferred method for creating contexts with plain FhirPathValue.
+    /// It converts the FhirPathValue to a Collection internally.
+    ///
+    /// # Arguments
+    /// * `start_value` - Input value that becomes the start context for evaluation
+    pub fn from_value(start_value: FhirPathValue) -> Self {
+        let start_context = match start_value {
+            FhirPathValue::Collection(vec) => Collection::from_values(vec),
+            FhirPathValue::Empty => Collection::empty(),
+            single_value => Collection::single(single_value.clone()),
+        };
+
+        Self::new(start_context)
+    }
+
     /// Create context with custom variables
     ///
     /// # Arguments

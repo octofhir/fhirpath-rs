@@ -15,11 +15,14 @@
 //! FHIRPath CLI Library
 //!
 //! This crate provides the command-line interface functionality for the FHIRPath implementation.
-//! It includes REPL, server, output formatting, and various CLI utilities.
+//! It includes REPL, TUI, server, output formatting, and various CLI utilities.
 
 pub mod cli;
+pub mod tui;
 
 // Re-export CLI functionality
 pub use cli::*;
-// Re-export FhirSchemaModelProvider from fhirschema crate
-pub use octofhir_fhirschema::provider::FhirSchemaModelProvider;
+// Re-export TUI functionality
+pub use tui::*;
+// Re-export model providers from fhirschema crate  
+pub use octofhir_fhirschema::provider::EmbeddedModelProvider;

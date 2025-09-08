@@ -83,45 +83,41 @@ pub enum UnaryOperator {
 
 impl BinaryOperator {
     /// Get the precedence level of this operator (higher = binds tighter)
+    /// Based on FHIRPath specification: http://hl7.org/fhirpath/#grammar
+    /// Spec precedence levels converted to higher=tighter internal representation
     pub fn precedence(self) -> u8 {
         match self {
-            // Highest precedence: Type operators
-            Self::Is | Self::As => 13,
+            // Multiplicative operators: *, /, div, mod (spec level 4 -> internal 10)
+            Self::Multiply | Self::Divide | Self::IntegerDivide | Self::Modulo => 10,
 
-            // Multiplicative operators
-            Self::Multiply | Self::Divide | Self::IntegerDivide | Self::Modulo => 12,
+            // Additive operators: +, -, & (spec level 5 -> internal 9)
+            Self::Add | Self::Subtract | Self::Concatenate => 9,
 
-            // Additive operators
-            Self::Add | Self::Subtract => 11,
+            // Type operators: is, as (spec level 6 -> internal 8) 
+            Self::Is | Self::As => 8,
 
-            // Collection operators
-            Self::Union => 10,
+            // Collection union: | (spec level 7 -> internal 7)
+            Self::Union => 7,
 
-            // Relational operators
+            // Relational operators: >, <, >=, <= (spec level 8 -> internal 6)
             Self::LessThan
             | Self::LessThanOrEqual
             | Self::GreaterThan
-            | Self::GreaterThanOrEqual => 9,
+            | Self::GreaterThanOrEqual => 6,
 
-            // String concatenation (should bind tighter than comparisons)
-            Self::Concatenate => 8,
+            // Equality operators: =, ~, !=, !~ (spec level 9 -> internal 5)
+            Self::Equal | Self::NotEqual | Self::Equivalent | Self::NotEquivalent => 5,
 
-            // Equality operators
-            Self::Equal | Self::NotEqual | Self::Equivalent | Self::NotEquivalent => 7,
+            // Membership operators: in, contains (spec level 10 -> internal 4)
+            Self::In | Self::Contains => 4,
 
-            // Membership operators
-            Self::In | Self::Contains => 6,
+            // Logical AND (spec level 11 -> internal 3)
+            Self::And => 3,
 
-            // Logical AND
-            Self::And => 4,
+            // Logical XOR, OR (spec level 12 -> internal 2)
+            Self::Xor | Self::Or => 2,
 
-            // Logical XOR
-            Self::Xor => 3,
-
-            // Logical OR
-            Self::Or => 2,
-
-            // Lowest precedence: Implication
+            // Lowest precedence: Implication (spec level 13 -> internal 1)
             Self::Implies => 1,
         }
     }
@@ -332,7 +328,9 @@ impl fmt::Display for UnaryOperator {
 /// Operator associativity for parsing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Associativity {
+    /// Left-associative operators
     Left,
+    /// Right-associative operators  
     Right,
 }
 

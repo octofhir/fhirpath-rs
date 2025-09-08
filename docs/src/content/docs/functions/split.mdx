@@ -1,0 +1,28 @@
+---
+title: split
+sidebar:
+  label: split
+---
+
+# split()
+
+**Category**: String
+
+Splits the input string by the specified separator and returns a collection of strings
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `separator` `string` — String to split by
+
+## Examples
+
+```fhirpath
+'a,b,c'.split(',')
+```
+
+```fhirpath
+Patient.name.text.split(' ')
+```
+

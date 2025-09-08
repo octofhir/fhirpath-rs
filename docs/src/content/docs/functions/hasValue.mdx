@@ -1,0 +1,26 @@
+---
+title: hasValue
+sidebar:
+  label: hasValue
+---
+
+# hasValue()
+
+**Category**: FHIR
+
+Returns true if the input has a value (not null or empty)
+
+## Signature
+
+- Return type: `boolean`
+
+## Examples
+
+```fhirpath
+Patient.name.family.hasValue()
+```
+
+```fhirpath
+Observation.value.hasValue()
+```
+

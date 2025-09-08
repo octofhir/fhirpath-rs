@@ -1,0 +1,28 @@
+---
+title: join
+sidebar:
+  label: join
+---
+
+# join()
+
+**Category**: String
+
+Joins a collection of strings using the specified separator
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `separator` `string` — String to join with
+
+## Examples
+
+```fhirpath
+Patient.name.given.join(' ')
+```
+
+```fhirpath
+('a', 'b', 'c').join(',')
+```
+

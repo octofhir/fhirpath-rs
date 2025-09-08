@@ -48,6 +48,11 @@ impl Collection {
         self.0.first()
     }
 
+    /// Get the last item, if any
+    pub fn last(&self) -> Option<&FhirPathValue> {
+        self.0.last()
+    }
+
     /// Get item at index
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
         self.0.get(index)
@@ -496,6 +501,66 @@ impl FhirPathValue {
             }
             _ => false,
         }
+    }
+
+    /// Get the length of the value (1 for single values, n for collections, 0 for empty)
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Collection(vec) => vec.len(),
+            Self::Empty => 0,
+            _ => 1,
+        }
+    }
+
+    /// Get the first item from a collection, or the value itself if single
+    pub fn first(&self) -> Option<&FhirPathValue> {
+        match self {
+            Self::Collection(vec) => vec.first(),
+            Self::Empty => None,
+            single => Some(single),
+        }
+    }
+
+    /// Get the last item from a collection, or the value itself if single
+    pub fn last(&self) -> Option<&FhirPathValue> {
+        match self {
+            Self::Collection(vec) => vec.last(),
+            Self::Empty => None,
+            single => Some(single),
+        }
+    }
+
+    /// Get an item at a specific index
+    pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
+        match self {
+            Self::Collection(vec) => vec.get(index),
+            Self::Empty => None,
+            single if index == 0 => Some(single),
+            _ => None,
+        }
+    }
+
+    /// Iterate over collection items, or a single item if not a collection
+    pub fn iter(&self) -> Box<dyn Iterator<Item = &FhirPathValue> + '_> {
+        match self {
+            Self::Collection(vec) => Box::new(vec.iter()),
+            Self::Empty => Box::new(std::iter::empty()),
+            single => Box::new(std::iter::once(single)),
+        }
+    }
+
+    /// Convert to a collection (wrapping single values)
+    pub fn to_collection(self) -> Vec<FhirPathValue> {
+        match self {
+            Self::Collection(vec) => vec,
+            Self::Empty => Vec::new(),
+            single => vec![single],
+        }
+    }
+
+    /// Clone the collection items into a Vec
+    pub fn cloned_collection(&self) -> Vec<FhirPathValue> {
+        self.iter().cloned().collect()
     }
 }
 

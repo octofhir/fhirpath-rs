@@ -260,6 +260,58 @@ impl AnalysisContext {
     pub fn allows_flow_control(&self) -> bool {
         self.scopes.iter().any(|scope| scope.allows_flow_control)
     }
+
+    /// Get the current types in the analysis context
+    /// This method determines what types are available for property access
+    pub fn get_current_types(&self) -> Vec<TypeInfo> {
+        let mut current_types = Vec::new();
+
+        // If we have a specific resource type in context, use it
+        if let Some(resource_type) = &self.resource_type {
+            current_types.push(TypeInfo::Resource {
+                resource_type: resource_type.clone(),
+            });
+        }
+
+        // Check the current scope for additional type information
+        if let Some(current_scope) = self.scopes.last() {
+            if let Some(return_type) = &current_scope.return_type {
+                current_types.push(return_type.clone());
+            }
+        }
+
+        // If we have variables, add their types
+        for type_info in self.variables.values() {
+            current_types.push(type_info.clone());
+        }
+
+        // If we still have no types, try to infer from the current path
+        if current_types.is_empty() && !self.current_path.is_empty() {
+            if let Some(first_element) = self.current_path.first() {
+                // The first element in the path is usually the resource type
+                current_types.push(TypeInfo::Resource {
+                    resource_type: first_element.clone(),
+                });
+            }
+        }
+
+        current_types
+    }
+
+    /// Create a new context with the specified types
+    pub fn with_types(types: Vec<TypeInfo>) -> Self {
+        let mut context = Self::new();
+        
+        // If there's a resource type in the types, set it as the context resource type
+        for type_info in &types {
+            if let TypeInfo::Resource { resource_type } = type_info {
+                context.resource_type = Some(resource_type.clone());
+                break;
+            }
+        }
+        
+        context
+    }
 }
 
 impl Default for AnalysisContext {

@@ -12,6 +12,15 @@ pub mod lambda;
 pub mod metrics;
 pub mod scoping;
 
+// New modular evaluator architecture
+pub mod collections;
+pub mod core;
+pub mod functions;
+pub mod lambdas;
+pub mod navigator;
+pub mod operators;
+pub mod traits;
+
 // Re-export the comprehensive context system
 pub use context::{
     BuiltinVariables, EvaluationContext, EvaluationContextBuilder, PropertyDefinition, ServerApi,
@@ -19,7 +28,7 @@ pub use context::{
 };
 
 // Re-export the main engine types
-pub use engine::{EvaluationResult, EvaluationWarning, FhirPathEngine};
+pub use engine::{EvaluationResult, EvaluationWarning};
 
 // Re-export configuration types
 pub use config::EngineConfig;
@@ -37,3 +46,17 @@ pub use scoping::{
 
 // Re-export lambda evaluation types
 pub use lambda::{LambdaEvaluator, LambdaExpressionEvaluator, SortCriterion};
+
+// Re-export new modular evaluator types
+pub use collections::CollectionEvaluatorImpl;
+pub use core::CoreEvaluator;
+pub use functions::FunctionEvaluatorImpl;
+pub use lambdas::LambdaEvaluatorImpl;
+pub use navigator::Navigator;
+// Re-export the main engine type
+pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
+pub use operators::OperatorEvaluatorImpl;
+pub use traits::{
+    CollectionEvaluator, CompositeEvaluator, ExpressionEvaluator, FunctionEvaluator,
+    LambdaEvaluator as LambdaEvaluatorTrait, OperatorEvaluator, ValueNavigator,
+};

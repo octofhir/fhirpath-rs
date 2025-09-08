@@ -1,0 +1,30 @@
+---
+title: type
+sidebar:
+  label: type
+---
+
+# type()
+
+**Category**: Type
+
+Returns the type information of the input value as a TypeInfo object
+
+## Signature
+
+- Return type: `TypeInfo`
+
+## Examples
+
+```fhirpath
+Patient.name.type().name
+```
+
+```fhirpath
+5.type().namespace
+```
+
+```fhirpath
+true.type()
+```
+

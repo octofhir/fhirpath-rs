@@ -1,0 +1,26 @@
+---
+title: isDistinct
+sidebar:
+  label: isDistinct
+---
+
+# isDistinct()
+
+**Category**: Collection
+
+Returns true if all items in the collection are unique
+
+## Signature
+
+- Return type: `boolean`
+
+## Examples
+
+```fhirpath
+(1 | 2 | 3).isDistinct()
+```
+
+```fhirpath
+Patient.name.given.isDistinct()
+```
+

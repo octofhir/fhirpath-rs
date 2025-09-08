@@ -109,26 +109,26 @@ impl StringUtils {
 impl FunctionRegistry {
     pub fn register_string_functions(&self) -> Result<()> {
         self.register_contains_function()?;
-        self.register_indexOf_function()?;
-        self.register_lastIndexOf_function()?;
+        self.register_index_of_function()?;
+        self.register_last_index_of_function()?;
         self.register_substring_function()?;
-        self.register_startsWith_function()?;
-        self.register_endsWith_function()?;
+        self.register_starts_with_function()?;
+        self.register_ends_with_function()?;
         self.register_upper_function()?;
         self.register_lower_function()?;
         self.register_replace_function()?;
         self.register_matches_function()?;
-        self.register_replaceMatches_function()?;
+        self.register_replace_matches_function()?;
         self.register_split_function()?;
         self.register_join_function()?;
         self.register_length_function()?;
         self.register_trim_function()?;
-        self.register_toChars_function()?;
+        self.register_to_chars_function()?;
         self.register_encode_function()?;
         self.register_decode_function()?;
         self.register_escape_function()?;
         self.register_unescape_function()?;
-        self.register_matchesFull_function()?;
+        self.register_matches_full_function()?;
         Ok(())
     }
 
@@ -141,7 +141,7 @@ impl FunctionRegistry {
             parameters: ["substring": Some("string".to_string()) => "Substring to search for"],
             return_type: "boolean",
             examples: ["Patient.name.family.contains('Doe')", "'Hello World'.contains('World')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -156,7 +156,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -166,7 +166,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let substring = match &context.arguments[0] {
+                let substring = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -177,12 +177,12 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.contains(substring);
-                Ok(vec![FhirPathValue::Boolean(result)])
+                Ok(FhirPathValue::Boolean(result))
             }
         )
     }
 
-    fn register_indexOf_function(&self) -> Result<()> {
+    fn register_index_of_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "indexOf",
@@ -191,7 +191,7 @@ impl FunctionRegistry {
             parameters: ["substring": Some("string".to_string()) => "Substring to search for"],
             return_type: "integer",
             examples: ["'Hello World'.indexOf('World')", "Patient.name.family.indexOf('Doe')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -206,7 +206,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -216,7 +216,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let substring = match &context.arguments[0] {
+                let substring = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -231,21 +231,21 @@ impl FunctionRegistry {
                 let substring_chars: Vec<char> = substring.chars().collect();
 
                 if substring_chars.is_empty() {
-                    return Ok(vec![FhirPathValue::Integer(0)]);
+                    return Ok(FhirPathValue::Integer(0));
                 }
 
                 for i in 0..=input_chars.len().saturating_sub(substring_chars.len()) {
                     if input_chars[i..i + substring_chars.len()] == substring_chars {
-                        return Ok(vec![FhirPathValue::Integer(i as i64)]);
+                        return Ok(FhirPathValue::Integer(i as i64));
                     }
                 }
 
-                Ok(vec![FhirPathValue::Integer(-1)])
+                Ok(FhirPathValue::Integer(-1))
             }
         )
     }
 
-    fn register_lastIndexOf_function(&self) -> Result<()> {
+    fn register_last_index_of_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "lastIndexOf",
@@ -254,7 +254,7 @@ impl FunctionRegistry {
             parameters: ["substring": Some("string".to_string()) => "Substring to search for"],
             return_type: "integer",
             examples: ["'Hello World World'.lastIndexOf('World')", "Patient.name.family.lastIndexOf('son')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -269,7 +269,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -279,7 +279,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let substring = match &context.arguments[0] {
+                let substring = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -294,16 +294,16 @@ impl FunctionRegistry {
                 let substring_chars: Vec<char> = substring.chars().collect();
 
                 if substring_chars.is_empty() {
-                    return Ok(vec![FhirPathValue::Integer(input_chars.len() as i64)]);
+                    return Ok(FhirPathValue::Integer(input_chars.len() as i64));
                 }
 
                 for i in (0..=input_chars.len().saturating_sub(substring_chars.len())).rev() {
                     if input_chars[i..i + substring_chars.len()] == substring_chars {
-                        return Ok(vec![FhirPathValue::Integer(i as i64)]);
+                        return Ok(FhirPathValue::Integer(i as i64));
                     }
                 }
 
-                Ok(vec![FhirPathValue::Integer(-1)])
+                Ok(FhirPathValue::Integer(-1))
             }
         )
     }
@@ -320,7 +320,7 @@ impl FunctionRegistry {
             ],
             return_type: "string",
             examples: ["'Hello World'.substring(6)", "'Hello World'.substring(0, 5)", "Patient.name.family.substring(1, 3)"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -328,14 +328,14 @@ impl FunctionRegistry {
                     ));
                 }
 
-                if context.arguments.is_empty() || context.arguments.len() > 2 {
+                if context.arguments.len() == 0 || context.arguments.len() > 2 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
                         "substring() requires 1 or 2 integer arguments".to_string()
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -345,7 +345,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let start = match &context.arguments[0] {
+                let start = match &context.arguments {
                     FhirPathValue::Integer(i) => {
                         if *i < 0 {
                             return Err(crate::core::FhirPathError::evaluation_error(
@@ -364,8 +364,8 @@ impl FunctionRegistry {
                 };
 
                 let length = if context.arguments.len() == 2 {
-                    match &context.arguments[1] {
-                        FhirPathValue::Integer(i) => {
+                    match context.arguments.get(1) {
+                        Some(FhirPathValue::Integer(i)) => {
                             if *i < 0 {
                                 return Err(crate::core::FhirPathError::evaluation_error(
                                     FP0053,
@@ -386,12 +386,12 @@ impl FunctionRegistry {
                 };
 
                 let result = StringUtils::safe_substring(input_str, start, length);
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
 
-    fn register_startsWith_function(&self) -> Result<()> {
+    fn register_starts_with_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "startsWith",
@@ -400,7 +400,7 @@ impl FunctionRegistry {
             parameters: ["prefix": Some("string".to_string()) => "Prefix to check for"],
             return_type: "boolean",
             examples: ["Patient.name.family.startsWith('Mc')", "'Hello World'.startsWith('Hello')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -415,7 +415,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -425,7 +425,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let prefix = match &context.arguments[0] {
+                let prefix = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -436,12 +436,12 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.starts_with(prefix);
-                Ok(vec![FhirPathValue::Boolean(result)])
+                Ok(FhirPathValue::Boolean(result))
             }
         )
     }
 
-    fn register_endsWith_function(&self) -> Result<()> {
+    fn register_ends_with_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "endsWith",
@@ -450,7 +450,7 @@ impl FunctionRegistry {
             parameters: ["suffix": Some("string".to_string()) => "Suffix to check for"],
             return_type: "boolean",
             examples: ["Patient.name.family.endsWith('son')", "'Hello World'.endsWith('World')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -465,7 +465,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -475,7 +475,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let suffix = match &context.arguments[0] {
+                let suffix = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -486,7 +486,7 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.ends_with(suffix);
-                Ok(vec![FhirPathValue::Boolean(result)])
+                Ok(FhirPathValue::Boolean(result))
             }
         )
     }
@@ -500,7 +500,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "string",
             examples: ["Patient.name.family.upper()", "'hello world'.upper()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -508,7 +508,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -519,7 +519,7 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.to_uppercase();
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -533,7 +533,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "string",
             examples: ["Patient.name.family.lower()", "'HELLO WORLD'.lower()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -541,7 +541,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -552,7 +552,7 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.to_lowercase();
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -566,7 +566,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "integer",
             examples: ["Patient.name.family.length()", "'Hello World'.length()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -574,7 +574,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -585,7 +585,7 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.chars().count() as i64;
-                Ok(vec![FhirPathValue::Integer(result)])
+                Ok(FhirPathValue::Integer(result))
             }
         )
     }
@@ -599,7 +599,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "string",
             examples: ["'  hello world  '.trim()", "Patient.name.family.trim()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -607,7 +607,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -618,7 +618,7 @@ impl FunctionRegistry {
                 };
 
                 let result = input_str.trim().to_string();
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -638,7 +638,7 @@ impl FunctionRegistry {
                 "'Hello World'.replace('World', 'Universe')",
                 "Patient.name.family.replace('Mc', 'Mac')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -653,7 +653,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -663,8 +663,21 @@ impl FunctionRegistry {
                     }
                 };
 
-                let search = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
+                let args = context.arguments.cloned_collection();
+
+                // If either argument is empty ({}), the result is empty
+                match &args.get(0) {
+                    Some(FhirPathValue::Empty) => return Ok(FhirPathValue::empty()),
+                    _ => {}
+                }
+                match args.get(1) {
+                    Some(FhirPathValue::Empty) => return Ok(FhirPathValue::empty()),
+                    None => return Ok(FhirPathValue::empty()),
+                    _ => {}
+                }
+
+                let search = match &args.get(0) {
+                    Some(FhirPathValue::String(s)) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -673,8 +686,8 @@ impl FunctionRegistry {
                     }
                 };
 
-                let replacement = match &context.arguments[1] {
-                    FhirPathValue::String(s) => s,
+                let replacement = match args.get(1) {
+                    Some(FhirPathValue::String(s)) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -683,8 +696,8 @@ impl FunctionRegistry {
                     }
                 };
 
-                let result = input_str.replace(search, replacement);
-                Ok(vec![FhirPathValue::String(result)])
+                let result = input_str.replace(search, &replacement);
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -701,7 +714,7 @@ impl FunctionRegistry {
                 "'hello@example.com'.matches('[a-z]+@[a-z]+\\.[a-z]+')",
                 "Patient.telecom.value.matches('^\\+1-[0-9]{3}-[0-9]{3}-[0-9]{4}$')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -716,7 +729,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -726,7 +739,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let pattern = match &context.arguments[0] {
+                let pattern = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -747,12 +760,12 @@ impl FunctionRegistry {
                 };
 
                 let result = regex.is_match(input_str);
-                Ok(vec![FhirPathValue::Boolean(result)])
+                Ok(FhirPathValue::Boolean(result))
             }
         )
     }
 
-    fn register_replaceMatches_function(&self) -> Result<()> {
+    fn register_replace_matches_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "replaceMatches",
@@ -767,7 +780,7 @@ impl FunctionRegistry {
                 "'Hello 123 World 456'.replaceMatches('[0-9]+', 'XXX')",
                 "Patient.name.text.replaceMatches('\\s+', ' ')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -782,7 +795,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -791,9 +804,10 @@ impl FunctionRegistry {
                         ));
                     }
                 };
+                let args = context.arguments.cloned_collection();
 
-                let pattern = match &context.arguments[0] {
-                    FhirPathValue::String(s) => s,
+                let pattern = match &args.get(0) {
+                    Some(FhirPathValue::String(s)) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -802,8 +816,8 @@ impl FunctionRegistry {
                     }
                 };
 
-                let replacement = match &context.arguments[1] {
-                    FhirPathValue::String(s) => s,
+                let replacement = match &args.get(1) {
+                    Some(FhirPathValue::String(s)) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -823,7 +837,7 @@ impl FunctionRegistry {
                 };
 
                 let result = regex.replace_all(input_str, replacement).to_string();
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -840,7 +854,7 @@ impl FunctionRegistry {
                 "'a,b,c'.split(',')",
                 "Patient.name.text.split(' ')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -855,7 +869,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -865,7 +879,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let separator = match &context.arguments[0] {
+                let separator = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -884,7 +898,7 @@ impl FunctionRegistry {
                         .collect()
                 };
 
-                Ok(result)
+                Ok(FhirPathValue::collection(result))
             }
         )
     }
@@ -901,7 +915,7 @@ impl FunctionRegistry {
                 "Patient.name.given.join(' ')",
                 "('a', 'b', 'c').join(',')"
             ],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.arguments.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -909,7 +923,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let separator = match &context.arguments[0] {
+                let separator = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -927,12 +941,12 @@ impl FunctionRegistry {
 
                 let strings = string_values?;
                 let result = strings.join(separator);
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
 
-    fn register_toChars_function(&self) -> Result<()> {
+    fn register_to_chars_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toChars",
@@ -941,7 +955,7 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "collection",
             examples: ["'Hello'.toChars()", "Patient.name.family.toChars()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -949,7 +963,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -958,13 +972,12 @@ impl FunctionRegistry {
                         ));
                     }
                 };
-
                 let result: Vec<FhirPathValue> = input_str
                     .chars()
                     .map(|c| FhirPathValue::String(c.to_string()))
                     .collect();
 
-                Ok(result)
+                Ok(FhirPathValue::collection(result))
             }
         )
     }
@@ -978,7 +991,7 @@ impl FunctionRegistry {
             parameters: ["format": Some("string".to_string()) => "Encoding format ('base64', 'hex', 'url')"],
             return_type: "string",
             examples: ["'Hello'.encode('base64')", "'test@example.com'.encode('url')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -993,7 +1006,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1003,7 +1016,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let format = match &context.arguments[0] {
+                let format = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1033,7 +1046,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -1047,7 +1060,7 @@ impl FunctionRegistry {
             parameters: ["format": Some("string".to_string()) => "Decoding format ('base64', 'hex', 'url')"],
             return_type: "string",
             examples: ["'SGVsbG8='.decode('base64')", "'48656c6c6f'.decode('hex')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -1062,7 +1075,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1072,7 +1085,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let format = match &context.arguments[0] {
+                let format = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1131,7 +1144,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -1145,7 +1158,7 @@ impl FunctionRegistry {
             parameters: ["format": Some("string".to_string()) => "Escape format ('html', 'json', 'xml')"],
             return_type: "string",
             examples: ["'<tag>'.escape('html')", "'\"text\"'.escape('json')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -1160,7 +1173,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1170,7 +1183,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let format = match &context.arguments[0] {
+                let format = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1214,7 +1227,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
@@ -1228,7 +1241,7 @@ impl FunctionRegistry {
             parameters: ["format": Some("string".to_string()) => "Unescape format ('html', 'json', 'xml')"],
             return_type: "string",
             examples: ["'&lt;tag&gt;'.unescape('html')", "'\\\"text\\\"'.unescape('json')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -1243,7 +1256,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1253,7 +1266,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let format = match &context.arguments[0] {
+                let format = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1291,12 +1304,12 @@ impl FunctionRegistry {
                     }
                 };
 
-                Ok(vec![FhirPathValue::String(result)])
+                Ok(FhirPathValue::String(result))
             }
         )
     }
 
-    fn register_matchesFull_function(&self) -> Result<()> {
+    fn register_matches_full_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "matchesFull",
@@ -1305,7 +1318,7 @@ impl FunctionRegistry {
             parameters: ["pattern": Some("string".to_string()) => "Regular expression pattern"],
             return_type: "boolean",
             examples: ["'Hello123'.matchesFull('[A-Za-z0-9]+')", "Patient.id.matchesFull('[a-f0-9-]+')"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
@@ -1320,7 +1333,7 @@ impl FunctionRegistry {
                     ));
                 }
 
-                let input_str = match &context.input[0] {
+                let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1330,7 +1343,7 @@ impl FunctionRegistry {
                     }
                 };
 
-                let pattern = match &context.arguments[0] {
+                let pattern = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
@@ -1354,7 +1367,7 @@ impl FunctionRegistry {
                 match StringUtils::get_cached_regex(&anchored_pattern) {
                     Ok(regex) => {
                         let result = regex.is_match(input_str);
-                        Ok(vec![FhirPathValue::Boolean(result)])
+                        Ok(FhirPathValue::Boolean(result))
                     },
                     Err(_) => {
                         Err(crate::core::FhirPathError::evaluation_error(

@@ -1,0 +1,28 @@
+---
+title: contains
+sidebar:
+  label: contains
+---
+
+# contains()
+
+**Category**: String
+
+Returns true if the input string contains the specified substring
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `substring` `string` — Substring to search for
+
+## Examples
+
+```fhirpath
+Patient.name.family.contains('Doe')
+```
+
+```fhirpath
+'Hello World'.contains('World')
+```
+

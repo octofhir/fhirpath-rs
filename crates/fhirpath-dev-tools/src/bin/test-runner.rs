@@ -64,7 +64,7 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
-fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> bool {
+fn compare_results(expected: &Value, actual: &octofhir_fhirpath::FhirPathValue) -> bool {
     // Convert actual to JSON for uniform comparison
     let actual_json = match serde_json::to_value(actual) {
         Ok(json) => json,
@@ -135,7 +135,7 @@ fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> 
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: {} <test_file.json>", args[0]);
@@ -186,16 +186,16 @@ async fn main() {
         let provider_timeout = Duration::from_secs(60);
         match tokio::time::timeout(
             provider_timeout,
-            octofhir_fhirschema::provider::FhirSchemaModelProvider::r4(),
+            octofhir_fhirschema::provider::EmbeddedModelProvider::r4(),
         )
         .await
         {
             Ok(Ok(provider)) => {
-                println!("✅ FhirSchemaModelProvider (R4) loaded successfully");
+                println!("✅ EmbeddedModelProvider (R4) loaded successfully");
                 Arc::new(provider)
             }
             Ok(Err(e)) => {
-                eprintln!("❌ Failed to initialize FhirSchemaModelProvider (R4): {e}");
+                eprintln!("❌ Failed to initialize EmbeddedModelProvider (R4): {e}");
                 eprintln!(
                     "💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1"
                 );
@@ -203,7 +203,7 @@ async fn main() {
             }
             Err(_) => {
                 eprintln!(
-                    "❌ FhirSchemaModelProvider (R4) initialization timed out ({}s)",
+                    "❌ EmbeddedModelProvider (R4) initialization timed out ({}s)",
                     provider_timeout.as_secs()
                 );
                 eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
@@ -225,7 +225,7 @@ async fn main() {
     // Create the FhirPathEngine with model provider
     println!("📋 Creating FhirPathEngine...");
     let engine_start = std::time::Instant::now();
-    let engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone());
+    let mut engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
     let mut passed = 0;
@@ -255,8 +255,7 @@ async fn main() {
 
         // Convert input to FhirPathValue and create evaluation context
         let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
-        let collection = octofhir_fhirpath::Collection::single(input_value);
-        let context = octofhir_fhirpath::EvaluationContext::new(collection);
+        let context = octofhir_fhirpath::EvaluationContext::from_value(input_value);
 
         // Use single root evaluation method (parse + evaluate in one call)
         let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -287,7 +286,7 @@ async fn main() {
                 let eval_time = eval_start.elapsed();
                 println!("✅ Expression evaluated in {}ms", eval_time.as_millis());
                 match inner {
-                    Ok(eval_result) => eval_result.value, // Extract collection from EvaluationResult
+                    Ok(eval_result) => eval_result.value, // Extract FhirPathValue from EvaluationResult
                     Err(e) => {
                         if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
                             println!("✅ PASS");
@@ -301,6 +300,13 @@ async fn main() {
                 }
             }
         };
+
+        // Check if test expects an error but we got a result
+        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+            println!("❌ FAIL: Expected error but got result");
+            failed += 1;
+            continue;
+        }
 
         // Compare results
         if compare_results(&test_case.expected, &result) {
@@ -359,4 +365,6 @@ async fn main() {
     } else {
         println!("🎉 All tests passed!");
     }
+    
+    Ok(())
 }

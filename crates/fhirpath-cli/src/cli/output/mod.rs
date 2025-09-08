@@ -19,7 +19,7 @@ mod pretty;
 mod raw;
 
 use clap::ValueEnum;
-use octofhir_fhirpath::{Collection, ExpressionNode, FhirPathError};
+use octofhir_fhirpath::{Collection, ExpressionNode, FhirPathError, FhirPathValue};
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
@@ -64,6 +64,29 @@ pub struct EvaluationOutput {
     pub expression: String,
     pub execution_time: Duration,
     pub metadata: OutputMetadata,
+}
+
+impl EvaluationOutput {
+    /// Create evaluation output from FhirPathValue result
+    pub fn from_fhir_path_value(
+        value: FhirPathValue,
+        expression: String,
+        execution_time: Duration,
+    ) -> Self {
+        let collection = Collection::from_values(value.to_collection());
+        Self {
+            success: true,
+            result: Some(collection),
+            error: None,
+            expression,
+            execution_time,
+            metadata: OutputMetadata {
+                cache_hits: 0,
+                ast_nodes: 0,
+                memory_used: 0,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

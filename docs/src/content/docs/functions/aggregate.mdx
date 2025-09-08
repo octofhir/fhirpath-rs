@@ -1,0 +1,25 @@
+---
+title: aggregate
+sidebar:
+  label: aggregate
+---
+
+# aggregate()
+
+**Category**: Collection
+
+Performs aggregation over a collection using lambda expressions (placeholder implementation)
+
+## Signature
+
+- Return type: `any`
+- Parameters:
+  - `initial` `any` — Initial value for aggregation
+  - `expression` `expression` — Lambda expression for aggregation
+
+## Examples
+
+```fhirpath
+(1 | 2 | 3).aggregate($total + $this, 0)
+```
+

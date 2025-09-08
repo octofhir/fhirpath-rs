@@ -53,9 +53,9 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "boolean",
             examples: ["Patient.name.empty()", "Bundle.entry.empty()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let is_empty = context.input.is_empty();
-                Ok(vec![FhirPathValue::boolean(is_empty)])
+                Ok(FhirPathValue::boolean(is_empty))
             }
         )
     }
@@ -69,9 +69,9 @@ impl FunctionRegistry {
             parameters: [],
             return_type: "boolean",
             examples: ["Patient.name.exists()", "Bundle.entry.exists()"],
-            implementation: |context: &FunctionContext| -> Result<Vec<FhirPathValue>> {
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 let exists = !context.input.is_empty();
-                Ok(vec![FhirPathValue::boolean(exists)])
+                Ok(FhirPathValue::boolean(exists))
             }
         )
     }

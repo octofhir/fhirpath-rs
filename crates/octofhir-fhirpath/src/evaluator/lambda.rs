@@ -548,16 +548,32 @@ impl LambdaEvaluator {
         max_unique_items: Option<usize>,
     ) -> crate::core::Result<Collection> {
         use std::collections::{HashMap, VecDeque};
+        use crate::ast::ExpressionNode;
 
         let max_iterations = max_iterations.unwrap_or(10_000);
         let max_unique_items = max_unique_items.unwrap_or(100_000);
+
+        // Special case: if lambda expression is a literal, just return that literal
+        // This handles cases like Patient.name.repeat('test') -> ['test']
+        if let ExpressionNode::Literal(literal_node) = lambda_expr {
+            let literal_value = match &literal_node.value {
+                crate::ast::LiteralValue::String(s) => crate::core::FhirPathValue::String(s.clone()),
+                crate::ast::LiteralValue::Integer(i) => crate::core::FhirPathValue::Integer(*i),
+                crate::ast::LiteralValue::Decimal(d) => crate::core::FhirPathValue::Decimal(*d),
+                crate::ast::LiteralValue::Boolean(b) => crate::core::FhirPathValue::Boolean(*b),
+                crate::ast::LiteralValue::Date(d) => crate::core::FhirPathValue::Date(d.clone()),
+                crate::ast::LiteralValue::DateTime(dt) => crate::core::FhirPathValue::DateTime(dt.clone()),
+                crate::ast::LiteralValue::Time(t) => crate::core::FhirPathValue::Time(t.clone()),
+                crate::ast::LiteralValue::Quantity { value, unit } => crate::core::FhirPathValue::quantity(*value, unit.clone()),
+            };
+            return Ok(Collection::single(literal_value));
+        }
 
         // Unique node tracking using more robust key generation
         let mut seen_nodes = HashMap::new();
         let mut result_items = Vec::new();
 
         // Input queue for iterative processing (prevents stack overflow)
-        // Store indices into the original collection to avoid cloning large items unnecessarily
         let mut input_queue: VecDeque<FhirPathValue> = VecDeque::new();
         for item in collection.iter() {
             input_queue.push_back(item.clone());
@@ -586,9 +602,14 @@ impl LambdaEvaluator {
                 continue;
             }
 
-            // Mark this node as seen and add to results
+            // Mark this node as seen
             seen_nodes.insert(item_key, true);
-            result_items.push(current_item.clone());
+
+            // Only add to results if this is not from the initial collection (iteration > 1)
+            // The initial collection items are just starting points, not results
+            if iteration_count > collection.len() {
+                result_items.push(current_item.clone());
+            }
 
             // Update context for current item (index doesn't apply to repeat)
             self.scope_manager

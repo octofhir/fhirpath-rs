@@ -187,5 +187,38 @@ pub enum Commands {
         /// Rate limit: requests per minute per IP
         #[arg(long, default_value = "100")]
         rate_limit: u32,
+        /// Run server without web UI (API-only mode)
+        #[arg(long)]
+        no_ui: bool,
+    },
+    /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
+    Tui {
+        /// JSON file containing FHIR resource to load initially
+        #[arg(short, long)]
+        input: Option<String>,
+        /// Initial variables to set in format var=value (can be used multiple times)
+        #[arg(short, long = "variable")]
+        variables: Vec<String>,
+        /// Configuration file path (default: ~/.config/fhirpath-tui/config.toml)
+        #[arg(long)]
+        config: Option<String>,
+        /// Theme to use (dark, light, high_contrast)
+        #[arg(long, default_value = "dark")]
+        theme: String,
+        /// Disable mouse support
+        #[arg(long)]
+        no_mouse: bool,
+        /// Disable syntax highlighting
+        #[arg(long)]
+        no_syntax_highlighting: bool,
+        /// Disable auto-completion
+        #[arg(long)]
+        no_auto_completion: bool,
+        /// Enable performance monitoring
+        #[arg(long)]
+        performance_monitoring: bool,
+        /// Check terminal capabilities and exit
+        #[arg(long)]
+        check_terminal: bool,
     },
 }

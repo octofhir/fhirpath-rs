@@ -1,0 +1,28 @@
+---
+title: identifier
+sidebar:
+  label: identifier
+---
+
+# identifier()
+
+**Category**: FHIR
+
+Returns identifiers with the specified system
+
+## Signature
+
+- Return type: `Collection`
+- Parameters:
+  - `system` `string` — Identifier system to filter by
+
+## Examples
+
+```fhirpath
+Patient.identifier('http://hl7.org/fhir/sid/us-ssn')
+```
+
+```fhirpath
+Organization.identifier('http://hl7.org/fhir/sid/us-npi')
+```
+

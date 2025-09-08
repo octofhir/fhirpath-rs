@@ -1,0 +1,29 @@
+---
+title: subsumes
+sidebar:
+  label: subsumes
+---
+
+# subsumes()
+
+**Category**: Terminology
+
+Returns true if the first code subsumes (is more general than) the second code
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `codeA` `coding` — The potentially subsuming code
+  - `codeB` `coding` — The potentially subsumed code
+
+## Examples
+
+```fhirpath
+subsumes(ParentCode.coding, ChildCode.coding)
+```
+
+```fhirpath
+Condition.code.coding.subsumes(MoreSpecificCondition.code.coding)
+```
+

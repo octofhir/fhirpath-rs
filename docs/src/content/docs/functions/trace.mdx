@@ -1,0 +1,28 @@
+---
+title: trace
+sidebar:
+  label: trace
+---
+
+# trace()
+
+**Category**: Utility
+
+Logs the input value and passes it through unchanged for debugging
+
+## Signature
+
+- Return type: `any`
+- Parameters:
+  - `name` `string` — Name to use in trace output (optional)
+
+## Examples
+
+```fhirpath
+Patient.name.trace('names')
+```
+
+```fhirpath
+Bundle.entry.trace().resource
+```
+

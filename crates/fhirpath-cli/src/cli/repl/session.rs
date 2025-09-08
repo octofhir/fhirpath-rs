@@ -337,15 +337,15 @@ impl ReplSession {
 
         // For now, use a simple evaluation approach
         // TODO: Integrate variables and full engine support properly
-        use octofhir_fhirpath::{Collection, FhirPathValue};
-        let input_collection = Collection::single(FhirPathValue::resource(input_json.clone()));
+        use octofhir_fhirpath::FhirPathValue;
+        let input_value = FhirPathValue::resource(input_json.clone());
         let result = self
             .engine
-            .evaluate_simple(expression, &input_collection)
+            .evaluate_simple(expression, &input_value)
             .await
             .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
 
-        // Convert Collection to Vec<FhirPathValue>
+        // Convert FhirPathValue to Vec<FhirPathValue>
         let values: Vec<FhirPathValue> = result.iter().cloned().collect();
 
         // Convert back to single FhirPathValue for formatting
@@ -482,10 +482,10 @@ impl ReplSession {
         // For now, use simple evaluation without variables
         // TODO: Add variables support back
         use octofhir_fhirpath::Collection;
-        let input_collection = Collection::single(FhirPathValue::resource(input_json.clone()));
+        let input_value = FhirPathValue::resource(input_json.clone());
         let result = self
             .engine
-            .evaluate_simple(expression, &input_collection)
+            .evaluate_simple(expression, &input_value)
             .await
             .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))?;
 
@@ -627,147 +627,152 @@ impl ReplSession {
         }
     }
 
-    /// Analyze expression with full diagnostics using Ariadne
+    /// Analyze expression with full diagnostics using unified diagnostic system
     async fn analyze_expression(&mut self, expression: &str) -> Result<String> {
-        // First parse with analysis to get detailed parser diagnostics
-        let parse_result = parse_with_analysis(expression);
+        use crate::cli::diagnostics::CliDiagnosticHandler;
+        use crate::cli::output::OutputFormat;
+        use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
+        
+        // Create diagnostic handler using the same system as CLI
+        let mut handler = CliDiagnosticHandler::new(
+            if self.config.color_output { 
+                OutputFormat::Pretty 
+            } else { 
+                OutputFormat::Raw 
+            }
+        );
+        let source_id = handler.add_source("expression".to_string(), expression.to_string());
 
-        if parse_result.has_errors() {
-            // If parse fails, show Ariadne parser diagnostics
-            return Ok(self.format_parser_diagnostics(expression, &parse_result.diagnostics));
+        // Parse expression with analysis mode (same as CLI)
+        let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
+
+        let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
+
+        // Convert parser diagnostics to AriadneDiagnostic format (same as CLI)
+        if !parse_result.diagnostics.is_empty() {
+            let parser_diagnostics: Vec<_> = parse_result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    use octofhir_fhirpath::diagnostics::AriadneDiagnostic;
+                    use octofhir_fhirpath::core::error_code::ErrorCode;
+                    
+                    // Convert location to span
+                    let span = if let Some(location) = &diagnostic.location {
+                        location.offset..(location.offset + location.length)
+                    } else {
+                        0..0
+                    };
+
+                    // Parse error code
+                    let error_code = if diagnostic.code.code.starts_with("FP") {
+                        if let Ok(num) = diagnostic.code.code[2..].parse::<u16>() {
+                            ErrorCode::new(num)
+                        } else {
+                            ErrorCode::new(1)
+                        }
+                    } else if let Ok(num) = diagnostic.code.code.parse::<u16>() {
+                        ErrorCode::new(num)
+                    } else {
+                        ErrorCode::new(1)
+                    };
+
+                    AriadneDiagnostic {
+                        severity: diagnostic.severity.clone(),
+                        error_code,
+                        message: diagnostic.message.clone(),
+                        span,
+                        help: None,
+                        note: None,
+                        related: Vec::new(),
+                    }
+                })
+                .collect();
+            all_diagnostics.extend(parser_diagnostics);
         }
 
-        // If parsing succeeds, continue with analyzer
-        let parsed_expr = parse_result.into_result().unwrap(); // Safe since we checked has_errors()
-        match self.analyzer.analyze(&parsed_expr).await {
-            Ok(analysis) => {
-                let mut result = Vec::new();
-
-                if self.config.color_output {
-                    result.push(format!(
-                        "🔍 {} Analysis for: {}",
-                        "Analyzing".bright_blue(),
-                        expression.yellow()
-                    ));
-                    result.push("━".repeat(60));
-                } else {
-                    result.push(format!("Analysis for: {}", expression));
-                    result.push("=".repeat(50));
-                }
-
-                // Show syntax validation
-                let parse_result = octofhir_fhirpath::parser::parse(expression);
-                if parse_result.has_errors() {
-                    if self.config.color_output {
-                        result.push(format!("{} Syntax: Invalid", "❌".bright_red()));
-                        if let Some(error) = parse_result.first_error() {
-                            result.push(format!("  Error: {}", error));
-                        }
-                    } else {
-                        result.push("✗ Syntax: Invalid".to_string());
-                        if let Some(error) = parse_result.first_error() {
-                            result.push(format!("  Error: {}", error));
+        // Run static analysis if parsing succeeded (same logic as CLI)
+        if parse_result.success && parse_result.ast.is_some() {
+            match self.analyzer.analyze(parse_result.ast.as_ref().unwrap()).await {
+                Ok(analysis_result) => {
+                    // Add static analysis diagnostics (using Ariadne diagnostics from analyzer)
+                    let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
+                    
+                    // Fix missing spans by calculating them from expression text (same as CLI)
+                    for diagnostic in &mut static_diagnostics {
+                        if diagnostic.span == (0..0) {
+                            if let Some(span) = self.calculate_span_from_message(&diagnostic.message, expression) {
+                                diagnostic.span = span;
+                            }
                         }
                     }
+                    
+                    all_diagnostics.extend(static_diagnostics);
+                }
+                Err(e) => {
+                    // Convert analysis error to diagnostic
+                    let error_diagnostic = handler.create_diagnostic_from_error(
+                        octofhir_fhirpath::core::error_code::FP0001,
+                        format!("Static analysis failed: {}", e),
+                        0..expression.len(),
+                        None,
+                    );
+                    all_diagnostics.push(error_diagnostic);
+                }
+            }
+        }
+
+        // Sort and deduplicate diagnostics (same as CLI)
+        all_diagnostics.sort_by(|a, b| {
+            a.span.start.cmp(&b.span.start)
+                .then(a.error_code.code.cmp(&b.error_code.code))
+                .then(a.message.cmp(&b.message))
+        });
+        
+        all_diagnostics.dedup_by(|a, b| {
+            a.message == b.message && a.error_code == b.error_code && a.span == b.span
+        });
+
+        // Format diagnostics using the unified system
+        let mut output = Vec::new();
+        match handler.report_diagnostics(&all_diagnostics, source_id, &mut output) {
+            Ok(_) => {
+                let diagnostic_output = String::from_utf8(output)
+                    .unwrap_or_else(|_| "Encoding error in diagnostics".to_string());
+                
+                // Add analysis summary if successful
+                if all_diagnostics.is_empty() {
+                    let success_msg = if self.config.color_output {
+                        format!("✅ {}", "Expression analysis passed with no issues".bright_green())
+                    } else {
+                        "✓ Expression analysis passed with no issues".to_string()
+                    };
+                    Ok(success_msg)
                 } else {
-                    if self.config.color_output {
-                        result.push(format!("{} Syntax: Valid", "✅".bright_green()));
-                    } else {
-                        result.push("✓ Syntax: Valid".to_string());
-                    }
-                }
-
-                // Show diagnostics with Ariadne formatting
-                if !analysis.diagnostics.is_empty() {
-                    if self.config.color_output {
-                        result.push(format!("\n{} Diagnostics:", "🚨".bright_red()));
-                    } else {
-                        result.push("\nDiagnostics:".to_string());
-                    }
-
-                    // Add Ariadne-formatted diagnostics
-                    let ariadne_output =
-                        self.format_analyzer_diagnostics(expression, &analysis.diagnostics);
-                    result.push(ariadne_output);
-                }
-
-                // Show analysis warnings (including resource type validation)
-                if !analysis.warnings.is_empty() {
-                    if self.config.color_output {
-                        result.push(format!("\n{} Analysis Warnings:", "⚠️".bright_yellow()));
-                    } else {
-                        result.push("\nAnalysis Warnings:".to_string());
-                    }
-
-                    for warning in &analysis.warnings {
-                        let severity_icon = match warning.severity {
-                            DiagnosticSeverity::Error => {
-                                if self.config.color_output { "❌".bright_red() } else { "✗".normal() }
-                            }
-                            DiagnosticSeverity::Warning => {
-                                if self.config.color_output { "⚠️".bright_yellow() } else { "⚠".normal() }
-                            }
-                            DiagnosticSeverity::Info => {
-                                if self.config.color_output { "ℹ️".bright_blue() } else { "i".normal() }
-                            }
-                            DiagnosticSeverity::Hint => {
-                                if self.config.color_output { "💡".bright_cyan() } else { "»".normal() }
-                            }
-                        };
-
-                        result.push(format!("  {} [{}] {}", severity_icon, warning.code, warning.message));
-                        
-                        if let Some(suggestion) = &warning.suggestion {
-                            result.push(format!("      {}", suggestion));
+                    // Check if there are any errors
+                    let has_errors = all_diagnostics.iter().any(|d| {
+                        matches!(d.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error)
+                    });
+                    
+                    let summary = if has_errors {
+                        if self.config.color_output {
+                            format!("❌ {}", "Analysis completed with errors".bright_red())
+                        } else {
+                            "✗ Analysis completed with errors".to_string()
                         }
-                    }
-                }
-
-                // Show optimization suggestions
-                if !analysis.suggestions.is_empty() {
-                    if self.config.color_output {
-                        result.push(format!(
-                            "\n{} Optimization Suggestions:",
-                            "💡".bright_yellow()
-                        ));
                     } else {
-                        result.push("\nOptimization Suggestions:".to_string());
-                    }
-
-                    for suggestion in &analysis.suggestions {
-                        result.push(format!(
-                            "  • {} (potential {:.0}% improvement)",
-                            suggestion.message,
-                            suggestion.estimated_improvement * 100.0
-                        ));
-                    }
+                        if self.config.color_output {
+                            format!("⚠️  {}", "Analysis completed with warnings".bright_yellow())
+                        } else {
+                            "⚠ Analysis completed with warnings".to_string()
+                        }
+                    };
+                    
+                    Ok(format!("{}\n\n{}", summary, diagnostic_output))
                 }
-
-                // Show performance analysis
-                let perf = &analysis.complexity_metrics;
-                if self.config.color_output {
-                    result.push(format!("\n{} Performance Analysis:", "⚡".bright_cyan()));
-                } else {
-                    result.push("\nPerformance Analysis:".to_string());
-                }
-
-                result.push(format!("  Complexity: {}", perf.cyclomatic_complexity));
-                result.push(format!("  Expression depth: {}", perf.expression_depth));
-                result.push(format!("  Function calls: {}", perf.function_calls));
-                result.push(format!("  Property accesses: {}", perf.property_accesses));
-                result.push(format!(
-                    "  Est. runtime cost: {:.2}",
-                    perf.estimated_runtime_cost
-                ));
-
-                Ok(result.join("\n"))
             }
             Err(e) => {
-                if self.config.color_output {
-                    Ok(format!("{} Analysis failed: {}", "❌".bright_red(), e))
-                } else {
-                    Ok(format!("Analysis failed: {}", e))
-                }
+                Ok(format!("Failed to format diagnostics: {}", e))
             }
         }
     }
@@ -1076,6 +1081,122 @@ Examples:
     ) -> String {
         // Reuse the same formatting logic as parser diagnostics
         self.format_parser_diagnostics(expression, analyzer_diagnostics)
+    }
+
+    /// Format enhanced Ariadne diagnostics from PropertyValidator
+    fn format_enhanced_ariadne_diagnostics(
+        &mut self,
+        expression: &str,
+        ariadne_diagnostics: &[octofhir_fhirpath::diagnostics::AriadneDiagnostic],
+    ) -> String {
+        let mut output = Vec::new();
+        
+        // Add the expression as a source
+        let source_id = self.diagnostic_engine.add_source("expression", expression);
+        
+        // Use the DiagnosticEngine to emit a beautiful unified report
+        match self.diagnostic_engine.emit_unified_report(
+            ariadne_diagnostics,
+            source_id,
+            &mut output,
+        ) {
+            Ok(_) => {
+                // Add header if colors are enabled
+                let mut result = if self.config.color_output {
+                    format!("{} Enhanced Property Validation:\n", "🔍".bright_cyan())
+                } else {
+                    "Enhanced Property Validation:\n".to_string()
+                };
+                
+                result.push_str(&String::from_utf8(output)
+                    .unwrap_or_else(|_| "Encoding error in diagnostics".to_string()));
+                result
+            }
+            Err(e) => {
+                // Fallback to simple diagnostic listing
+                if ariadne_diagnostics.is_empty() {
+                    return "No enhanced diagnostics available".to_string();
+                }
+                
+                let mut result = String::new();
+                for (i, diagnostic) in ariadne_diagnostics.iter().enumerate() {
+                    if i > 0 {
+                        result.push('\n');
+                    }
+                    
+                    let severity_marker = if self.config.color_output {
+                        match diagnostic.severity {
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => "❌".bright_red(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => "⚠️".bright_yellow(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => "ℹ️".bright_blue(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => "💡".bright_cyan(),
+                        }
+                    } else {
+                        match diagnostic.severity {
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => "✗".normal(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => "⚠".normal(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => "i".normal(),
+                            octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => "?".normal(),
+                        }
+                    };
+                    
+                    result.push_str(&format!(
+                        "{} [{}] {}", 
+                        severity_marker,
+                        diagnostic.error_code.code_str(),
+                        diagnostic.message
+                    ));
+                    
+                    // Add help text if available
+                    if let Some(help) = &diagnostic.help {
+                        result.push_str(&format!("\n  {}", help));
+                    }
+                    
+                    // Add note if available  
+                    if let Some(note) = &diagnostic.note {
+                        result.push_str(&format!("\n  {}", note));
+                    }
+                }
+                
+                format!("Fallback diagnostic formatting ({}): {}", e, result)
+            }
+        }
+    }
+
+    /// Calculate span from diagnostic message by finding tokens in expression (same as CLI)
+    fn calculate_span_from_message(&self, message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
+        // Extract resource type or property name from message
+        if message.contains("Unknown resource type: '") {
+            // Extract resource type name from message like "Unknown resource type: 'Pat'"
+            let start_marker = "Unknown resource type: '";
+            let end_marker = "'";
+            if let Some(start) = message.find(start_marker) {
+                let name_start = start + start_marker.len();
+                if let Some(name_end) = message[name_start..].find(end_marker) {
+                    let resource_name = &message[name_start..name_start + name_end];
+                    // Find this resource name in the expression
+                    if let Some(pos) = expression.find(resource_name) {
+                        return Some(pos..pos + resource_name.len());
+                    }
+                }
+            }
+        } else if message.contains("Cannot validate property '") {
+            // Extract property name from message like "Cannot validate property 'name' on unknown type"
+            let start_marker = "Cannot validate property '";
+            let end_marker = "'";
+            if let Some(start) = message.find(start_marker) {
+                let name_start = start + start_marker.len();
+                if let Some(name_end) = message[name_start..].find(end_marker) {
+                    let property_name = &message[name_start..name_start + name_end];
+                    // Find this property name in the expression (usually after a dot)
+                    if let Some(pos) = expression.find(&format!(".{}", property_name)) {
+                        return Some(pos + 1..pos + 1 + property_name.len());
+                    }
+                }
+            }
+        }
+        
+        None
     }
 
     /// Format parser diagnostics with Ariadne

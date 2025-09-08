@@ -1,0 +1,32 @@
+---
+title: is
+sidebar:
+  label: is
+---
+
+# is()
+
+**Category**: Type
+
+Returns true if the input is of the specified type or a subtype thereof
+
+## Signature
+
+- Return type: `boolean`
+- Parameters:
+  - `type` `string` — The type to check against
+
+## Examples
+
+```fhirpath
+Patient.name.is('HumanName')
+```
+
+```fhirpath
+Observation.value.is('Quantity')
+```
+
+```fhirpath
+5.is('Integer')
+```
+

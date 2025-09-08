@@ -1,0 +1,26 @@
+---
+title: single
+sidebar:
+  label: single
+---
+
+# single()
+
+**Category**: Collection
+
+Returns the single item in a collection, or error if the collection is empty or has more than one item
+
+## Signature
+
+- Return type: `any`
+
+## Examples
+
+```fhirpath
+Patient.id.single()
+```
+
+```fhirpath
+Patient.active.single()
+```
+

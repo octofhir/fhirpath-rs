@@ -1,0 +1,28 @@
+---
+title: select
+sidebar:
+  label: select
+---
+
+# select()
+
+**Category**: Collection
+
+Projects each item in the collection through the given expression
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `projection` `expression` — Expression to apply to each item
+
+## Examples
+
+```fhirpath
+Patient.name.select(family + ', ' + given.first())
+```
+
+```fhirpath
+Bundle.entry.select(resource.id)
+```
+

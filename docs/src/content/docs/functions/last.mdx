@@ -1,0 +1,26 @@
+---
+title: last
+sidebar:
+  label: last
+---
+
+# last()
+
+**Category**: Collection
+
+Returns the last item in a collection, or empty if the collection is empty
+
+## Signature
+
+- Return type: `any`
+
+## Examples
+
+```fhirpath
+Patient.name.last()
+```
+
+```fhirpath
+Bundle.entry.last().resource
+```
+

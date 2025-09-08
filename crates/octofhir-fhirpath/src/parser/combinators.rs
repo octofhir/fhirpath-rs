@@ -170,8 +170,10 @@ pub fn number_parser<'a>()
                     just('\'')
                         .ignore_then(none_of(['\'']).repeated().collect::<String>())
                         .then_ignore(just('\'')),
-                    // Unquoted units like days, hours, weeks, months, years
+                    // Unquoted units like days, hours, weeks, months, years, milliseconds
                     choice((
+                        just("milliseconds").to("milliseconds".to_string()),
+                        just("millisecond").to("millisecond".to_string()),
                         just("days").to("days".to_string()),
                         just("day").to("day".to_string()),
                         just("hours").to("hours".to_string()),

@@ -22,6 +22,8 @@ pub struct ServerConfig {
     pub timeout_seconds: u64,
     /// Rate limit: requests per minute per IP
     pub rate_limit_per_minute: u32,
+    /// Run server without web UI (API-only mode)
+    pub no_ui: bool,
 }
 
 impl Default for ServerConfig {
@@ -34,6 +36,7 @@ impl Default for ServerConfig {
             max_body_size_mb: 60,
             timeout_seconds: 30,
             rate_limit_per_minute: 100,
+            no_ui: false,
         }
     }
 }
@@ -48,6 +51,7 @@ impl ServerConfig {
         max_body_size_mb: u64,
         timeout_seconds: u64,
         rate_limit_per_minute: u32,
+        no_ui: bool,
     ) -> Self {
         Self {
             port,
@@ -57,6 +61,7 @@ impl ServerConfig {
             max_body_size_mb,
             timeout_seconds,
             rate_limit_per_minute,
+            no_ui,
         }
     }
 

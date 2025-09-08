@@ -1,0 +1,28 @@
+---
+title: combine
+sidebar:
+  label: combine
+---
+
+# combine()
+
+**Category**: Collection
+
+Merge the input and other collections into a single collection without eliminating duplicate values
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `other` `collection` — Collection to combine with
+
+## Examples
+
+```fhirpath
+(1 | 2).combine(2 | 3)
+```
+
+```fhirpath
+Patient.name.combine(Patient.address)
+```
+

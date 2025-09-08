@@ -1,0 +1,24 @@
+---
+title: translate
+sidebar:
+  label: translate
+---
+
+# translate()
+
+**Category**: Terminology
+
+Translates the input coding using the specified ConceptMap
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `conceptmap` `string` — ConceptMap URL or identifier
+
+## Examples
+
+```fhirpath
+Observation.code.coding.translate('http://example.org/ConceptMap/lab-to-loinc')
+```
+

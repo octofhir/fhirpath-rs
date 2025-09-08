@@ -8,6 +8,7 @@ use crate::core::Result;
 
 /// Trait for visiting expression nodes in the AST
 pub trait ExpressionVisitor {
+    /// The type returned by each visit method
     type Output;
 
     /// Visit any expression node (dispatches to specific methods)
@@ -87,14 +88,17 @@ pub trait ExpressionVisitor {
 
 /// Default implementation for ExpressionVisitor that does nothing
 pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
+    /// Visit a literal value (default implementation does nothing)
     fn visit_literal(&mut self, _literal: &LiteralNode) -> Result<()> {
         Ok(())
     }
 
+    /// Visit an identifier (default implementation does nothing)
     fn visit_identifier(&mut self, _identifier: &IdentifierNode) -> Result<()> {
         Ok(())
     }
 
+    /// Visit a function call (default implementation visits all arguments)
     fn visit_function_call(&mut self, call: &FunctionCallNode) -> Result<()> {
         for arg in &call.arguments {
             self.visit_expression(arg)?;
@@ -102,6 +106,7 @@ pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
         Ok(())
     }
 
+    /// Visit a method call (default implementation visits object and all arguments)
     fn visit_method_call(&mut self, call: &MethodCallNode) -> Result<()> {
         self.visit_expression(&call.object)?;
         for arg in &call.arguments {
@@ -110,28 +115,34 @@ pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
         Ok(())
     }
 
+    /// Visit a property access (default implementation visits the object)
     fn visit_property_access(&mut self, access: &PropertyAccessNode) -> Result<()> {
         self.visit_expression(&access.object)
     }
 
+    /// Visit an index access (default implementation visits object and index)
     fn visit_index_access(&mut self, access: &IndexAccessNode) -> Result<()> {
         self.visit_expression(&access.object)?;
         self.visit_expression(&access.index)
     }
 
+    /// Visit a binary operation (default implementation visits left and right operands)
     fn visit_binary_operation(&mut self, binary: &BinaryOperationNode) -> Result<()> {
         self.visit_expression(&binary.left)?;
         self.visit_expression(&binary.right)
     }
 
+    /// Visit a unary operation (default implementation visits the operand)
     fn visit_unary_operation(&mut self, unary: &UnaryOperationNode) -> Result<()> {
         self.visit_expression(&unary.operand)
     }
 
+    /// Visit a lambda expression (default implementation visits the body)
     fn visit_lambda(&mut self, lambda: &LambdaNode) -> Result<()> {
         self.visit_expression(&lambda.body)
     }
 
+    /// Visit a collection literal (default implementation visits all elements)
     fn visit_collection(&mut self, collection: &CollectionNode) -> Result<()> {
         for element in &collection.elements {
             self.visit_expression(element)?;
@@ -139,32 +150,39 @@ pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
         Ok(())
     }
 
+    /// Visit a parenthesized expression (default implementation visits the inner expression)
     fn visit_parenthesized(&mut self, expr: &ExpressionNode) -> Result<()> {
         self.visit_expression(expr)
     }
 
+    /// Visit a type cast (default implementation visits the expression)
     fn visit_type_cast(&mut self, cast: &TypeCastNode) -> Result<()> {
         self.visit_expression(&cast.expression)
     }
 
+    /// Visit a filter expression (default implementation visits base and condition)
     fn visit_filter(&mut self, filter: &FilterNode) -> Result<()> {
         self.visit_expression(&filter.base)?;
         self.visit_expression(&filter.condition)
     }
 
+    /// Visit a union expression (default implementation visits left and right expressions)
     fn visit_union(&mut self, union: &UnionNode) -> Result<()> {
         self.visit_expression(&union.left)?;
         self.visit_expression(&union.right)
     }
 
+    /// Visit a type check (default implementation visits the expression)
     fn visit_type_check(&mut self, check: &TypeCheckNode) -> Result<()> {
         self.visit_expression(&check.expression)
     }
 
+    /// Visit a variable reference (default implementation does nothing)
     fn visit_variable(&mut self, _variable: &VariableNode) -> Result<()> {
         Ok(())
     }
 
+    /// Visit a path expression (default implementation visits the base)
     fn visit_path(&mut self, path: &PathNode) -> Result<()> {
         self.visit_expression(&path.base)
     }
@@ -172,11 +190,12 @@ pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
 
 /// A collecting visitor that accumulates results
 pub trait CollectingVisitor<T> {
-    /// Collect from a single node
+    /// Collect results from a single node (default implementation returns empty vec)
     fn collect_from_node(&mut self, _expr: &ExpressionNode) -> Result<Vec<T>> {
         Ok(vec![])
     }
 
+    /// Visit an expression and collect results from it and all its children
     fn visit_expression(&mut self, expr: &ExpressionNode) -> Result<Vec<T>> {
         let mut results = self.collect_from_node(expr)?;
 

@@ -21,5 +21,5 @@ pub mod common;
 
 // Re-export common functionality
 pub use common::*;
-// Re-export FhirSchemaModelProvider from fhirschema crate
-pub use octofhir_fhirschema::provider::FhirSchemaModelProvider;
+// Re-export model providers from fhirschema crate
+pub use octofhir_fhirschema::provider::EmbeddedModelProvider;

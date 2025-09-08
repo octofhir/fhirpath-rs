@@ -1,0 +1,28 @@
+---
+title: where
+sidebar:
+  label: where
+---
+
+# where()
+
+**Category**: Collection
+
+Returns items from the collection where the given expression evaluates to true
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `criteria` `expression` — Boolean expression to filter by
+
+## Examples
+
+```fhirpath
+Patient.name.where(use = 'official')
+```
+
+```fhirpath
+Bundle.entry.where(resource.active = true)
+```
+

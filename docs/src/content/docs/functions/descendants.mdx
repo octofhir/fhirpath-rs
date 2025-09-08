@@ -1,0 +1,26 @@
+---
+title: descendants
+sidebar:
+  label: descendants
+---
+
+# descendants()
+
+**Category**: FHIR
+
+Returns all descendant elements of the input
+
+## Signature
+
+- Return type: `Collection`
+
+## Examples
+
+```fhirpath
+Patient.descendants()
+```
+
+```fhirpath
+Bundle.entry.resource.descendants()
+```
+

@@ -1,0 +1,28 @@
+---
+title: encode
+sidebar:
+  label: encode
+---
+
+# encode()
+
+**Category**: String
+
+Encodes the input string using the specified format
+
+## Signature
+
+- Return type: `string`
+- Parameters:
+  - `format` `string` — Encoding format ('base64', 'hex', 'url')
+
+## Examples
+
+```fhirpath
+'Hello'.encode('base64')
+```
+
+```fhirpath
+'test@example.com'.encode('url')
+```
+

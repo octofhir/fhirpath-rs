@@ -1,0 +1,28 @@
+---
+title: exclude
+sidebar:
+  label: exclude
+---
+
+# exclude()
+
+**Category**: Collection
+
+Returns a collection with all items from the input except those that match the argument
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `other` `collection` — Collection of items to exclude
+
+## Examples
+
+```fhirpath
+(1 | 2 | 3).exclude(2)
+```
+
+```fhirpath
+Patient.telecom.exclude(Patient.telecom.where(system = 'email'))
+```
+

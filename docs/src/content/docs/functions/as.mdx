@@ -1,0 +1,32 @@
+---
+title: as
+sidebar:
+  label: as
+---
+
+# as()
+
+**Category**: Type
+
+Casts the input to the specified type, returns empty if the cast is not possible
+
+## Signature
+
+- Return type: `any`
+- Parameters:
+  - `type` `string` — The type to cast to
+
+## Examples
+
+```fhirpath
+'123'.as('Integer')
+```
+
+```fhirpath
+Patient.name.as('HumanName')
+```
+
+```fhirpath
+Observation.value.as('Quantity')
+```
+

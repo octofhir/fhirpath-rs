@@ -32,6 +32,8 @@ pub struct StaticAnalysisResult {
     pub complexity_metrics: ComplexityMetrics,
     /// Whether the analysis passed without errors
     pub is_valid: bool,
+    /// Enhanced Ariadne diagnostics from PropertyValidator
+    pub ariadne_diagnostics: Vec<crate::diagnostics::AriadneDiagnostic>,
 }
 
 /// Analysis warning with optional suggestion
@@ -156,6 +158,9 @@ impl StaticAnalyzer {
         // Phase 3: Property Validation
         let property_analysis = self.property_validator.validate(expression).await?;
         warnings.extend(property_analysis.warnings);
+        
+        // Collect enhanced Ariadne diagnostics from PropertyValidator
+        let ariadne_diagnostics = property_analysis.ariadne_diagnostics;
 
         // Convert property suggestions to optimization suggestions
         for prop_suggestion in property_analysis.suggestions {
@@ -218,6 +223,7 @@ impl StaticAnalyzer {
             type_info,
             complexity_metrics,
             is_valid,
+            ariadne_diagnostics,
         })
     }
 

@@ -1,0 +1,32 @@
+---
+title: ofType
+sidebar:
+  label: ofType
+---
+
+# ofType()
+
+**Category**: Type
+
+Returns items from the collection that are of the specified type or a subtype thereof
+
+## Signature
+
+- Return type: `collection`
+- Parameters:
+  - `type` `string` — The type to filter by
+
+## Examples
+
+```fhirpath
+Bundle.entry.resource.ofType('Patient')
+```
+
+```fhirpath
+Patient.telecom.ofType('ContactPoint')
+```
+
+```fhirpath
+('a', 1, true, 2.5).ofType('Integer')
+```
+
