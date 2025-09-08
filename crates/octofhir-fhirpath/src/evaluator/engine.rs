@@ -10,27 +10,28 @@ use crate::{
     ast::ExpressionNode,
     core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result},
     parser::parse_ast,
-    registry::{create_standard_registry, FunctionRegistry},
+    path::CanonicalPath,
+    registry::{FunctionRegistry, create_standard_registry},
+    wrapped::{ValueMetadata, WrappedCollection, WrappedValue, collection_utils},
 };
 
 use super::{
-    config::EngineConfig,
-    context::EvaluationContext,
-    metrics::EvaluationMetrics,
-    traits::CompositeEvaluator,
-    CoreEvaluator, Navigator, OperatorEvaluatorImpl, 
-    FunctionEvaluatorImpl, CollectionEvaluatorImpl, LambdaEvaluatorImpl,
+    CollectionEvaluatorImpl, CoreEvaluator, FunctionEvaluatorImpl, LambdaEvaluatorImpl, Navigator,
+    OperatorEvaluatorImpl, composite::CompositeEvaluator, config::EngineConfig,
+    context::EvaluationContext, metrics::EvaluationMetrics,
 };
 
 /// Result of expression evaluation with metrics and warnings
 #[derive(Debug, Clone)]
 pub struct EvaluationResult {
-    /// Resulting value from evaluation
-    pub value: FhirPathValue,
+    /// Resulting collection (always a Collection per FHIRPath spec)
+    pub value: Collection,
     /// Performance metrics
     pub metrics: EvaluationMetrics,
     /// Any warnings generated during evaluation
     pub warnings: Vec<EvaluationWarning>,
+    /// Type resolution statistics
+    pub type_stats: TypeResolutionStats,
 }
 
 /// Warning generated during evaluation
@@ -42,6 +43,21 @@ pub struct EvaluationWarning {
     pub message: String,
     /// Source location if available
     pub location: Option<std::ops::Range<usize>>,
+}
+
+// EnhancedEvaluationResult removed - we now always use EvaluationResult with metadata
+
+/// Statistics about type resolution during evaluation
+#[derive(Debug, Clone, Default)]
+pub struct TypeResolutionStats {
+    /// Number of types resolved via ModelProvider
+    pub types_resolved: usize,
+    /// Number of types that fell back to inference
+    pub types_inferred: usize,
+    /// Number of paths constructed
+    pub paths_constructed: usize,
+    /// Number of cache hits for type resolution
+    pub cache_hits: usize,
 }
 
 /// FHIRPath evaluation engine using CompositeEvaluator architecture
@@ -60,16 +76,17 @@ impl FhirPathEngine {
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Result<Self> {
-        
         // Create specialized evaluators
         let core_evaluator = Box::new(CoreEvaluator::new());
         let navigator = Box::new(Navigator::new());
-        let function_evaluator = Box::new(FunctionEvaluatorImpl::new(function_registry));
+        let function_evaluator = Box::new(FunctionEvaluatorImpl::new(
+            function_registry.clone(),
+            model_provider.clone(),
+        ));
         let operator_evaluator = Box::new(OperatorEvaluatorImpl::new());
         let collection_evaluator = Box::new(CollectionEvaluatorImpl::new());
         let lambda_evaluator = Box::new(LambdaEvaluatorImpl::new());
-        
-        // Create composite evaluator
+
         let evaluator = CompositeEvaluator::new(
             core_evaluator,
             navigator,
@@ -78,73 +95,95 @@ impl FhirPathEngine {
             collection_evaluator,
             lambda_evaluator,
             model_provider,
-        );
-        
+            function_registry,
+            EngineConfig::default(),
+        )
+        .await;
+
         Ok(Self {
             evaluator,
             config: EngineConfig::default(),
             ast_cache: RwLock::new(HashMap::new()),
         })
     }
-    
+
     /// Create engine with custom configuration
     pub async fn with_config(
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         config: EngineConfig,
     ) -> Result<Self> {
-        let mut engine = Self::new(function_registry, model_provider).await?;
-        engine.config = config;
-        Ok(engine)
+        // Create specialized evaluators
+        let core_evaluator = Box::new(CoreEvaluator::new());
+        let navigator = Box::new(Navigator::new());
+        let function_evaluator = Box::new(FunctionEvaluatorImpl::new(
+            function_registry.clone(),
+            model_provider.clone(),
+        ));
+        let operator_evaluator = Box::new(OperatorEvaluatorImpl::new());
+        let collection_evaluator = Box::new(CollectionEvaluatorImpl::new());
+        let lambda_evaluator = Box::new(LambdaEvaluatorImpl::new());
+
+        let evaluator = CompositeEvaluator::new(
+            core_evaluator,
+            navigator,
+            function_evaluator,
+            operator_evaluator,
+            collection_evaluator,
+            lambda_evaluator,
+            model_provider,
+            function_registry,
+            config.clone(),
+        )
+        .await;
+
+        Ok(Self {
+            evaluator,
+            config,
+            ast_cache: RwLock::new(HashMap::new()),
+        })
     }
-    
-    /// Evaluate expression with comprehensive context support
+
+    /// Evaluate expression with comprehensive context support (always uses wrapped/metadata evaluation)
     pub async fn evaluate(
         &mut self,
         expression: &str,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
         let start_time = std::time::Instant::now();
-        
+        let mut type_stats = TypeResolutionStats::default();
+
         // Parse expression (with caching)
         let ast = self.parse_or_cached(expression)?;
-        
-        // Evaluate using composite evaluator (validation happens during evaluation)
-        let value = self.evaluate_ast(&ast, context).await?;
-        
+
+        let wrapped_values = self
+            .evaluate_ast_with_metadata(&ast, context, &mut type_stats)
+            .await?;
+
         let elapsed = start_time.elapsed();
         let metrics = EvaluationMetrics {
             total_time_us: elapsed.as_micros() as u64,
             parse_time_us: 0, // TODO: track parsing time separately
             eval_time_us: elapsed.as_micros() as u64,
             function_calls: 0, // TODO: track function calls
-            model_provider_calls: 0, // TODO: track model provider calls
-            service_calls: 0, // TODO: track service calls
+            model_provider_calls: type_stats.types_resolved,
+            service_calls: 0,      // TODO: track service calls
             memory_allocations: 0, // TODO: track memory allocations
         };
-        
-        // Always wrap result in Collection for proper serialization
-        let collection = self.value_to_collection(value);
-        let collection_value = FhirPathValue::Collection(collection.into_vec());
-        
+
+        // Convert WrappedCollection to Collection (always a Collection per FHIRPath spec)
+        let collection_values: Vec<FhirPathValue> =
+            wrapped_values.into_iter().map(|w| w.value).collect();
+        let result_collection = Collection::from_values(collection_values);
+
         Ok(EvaluationResult {
-            value: collection_value,
+            value: result_collection,
             metrics,
             warnings: vec![], // TODO: collect warnings during evaluation
+            type_stats,
         })
     }
-    
-    /// Evaluate expression with simple context (Collection)
-    pub async fn evaluate_simple(
-        &mut self,
-        expression: &str,
-        collection: &Collection,
-    ) -> Result<Collection> {
-        let context = EvaluationContext::new(collection.clone());
-        let result = self.evaluate(expression, &context).await?;
-        Ok(self.value_to_collection(result.value))
-    }
-    
+
     /// Evaluate expression with variables
     pub async fn evaluate_with_variables(
         &mut self,
@@ -155,16 +194,17 @@ impl FhirPathEngine {
         _terminology_service: Option<Arc<dyn crate::evaluator::TerminologyService>>,
     ) -> Result<Collection> {
         let mut context = EvaluationContext::new(collection.clone());
-        
+
         // Add variables to context
         for (name, value) in variables {
             context.set_variable(name, value);
         }
-        
+
         let result = self.evaluate(expression, &context).await?;
-        Ok(self.value_to_collection(result.value))
+        // Return the Collection directly (already a Collection per FHIRPath spec)
+        Ok(result.value)
     }
-    
+
     /// Evaluate pre-parsed AST for maximum performance
     pub async fn evaluate_ast(
         &mut self,
@@ -175,93 +215,27 @@ impl FhirPathEngine {
         self.dispatch_evaluation(ast, context).await
     }
 
-    /// Dispatch evaluation to the appropriate specialized evaluator
+    /// Dispatch evaluation to the unified metadata-aware evaluator
     fn dispatch_evaluation<'a>(
         &'a mut self,
         expr: &'a ExpressionNode,
         context: &'a EvaluationContext,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + 'a>> {
         Box::pin(async move {
-        match expr {
-            // Property access - delegate to navigator
-            ExpressionNode::PropertyAccess(node) => {
-                let object_value = self.dispatch_evaluation(&node.object, context).await?;
-                self.evaluator.navigator.navigate_property(&object_value, &node.property, &*self.evaluator.model_provider)
-            },
-            
-            // Index access - delegate to navigator  
-            ExpressionNode::IndexAccess(node) => {
-                let object_value = self.dispatch_evaluation(&node.object, context).await?;
-                let index_value = self.dispatch_evaluation(&node.index, context).await?;
-                
-                // Convert index to usize
-                match index_value {
-                    FhirPathValue::Integer(i) if i >= 0 => {
-                        self.evaluator.navigator.navigate_index(&object_value, i as usize)
-                    },
-                    _ => Ok(FhirPathValue::Empty),
-                }
-            },
-            
-            // Binary operations - delegate to operator evaluator
-            ExpressionNode::BinaryOperation(node) => {
-                let left_value = self.dispatch_evaluation(&node.left, context).await?;
-                let right_value = self.dispatch_evaluation(&node.right, context).await?;
-                self.evaluator.operator_evaluator.evaluate_binary_op(&left_value, &node.operator, &right_value)
-            },
-            
-            // Unary operations - delegate to operator evaluator
-            ExpressionNode::UnaryOperation(node) => {
-                let operand_value = self.dispatch_evaluation(&node.operand, context).await?;
-                self.evaluator.operator_evaluator.evaluate_unary_op(&node.operator, &operand_value)
-            },
-            
-            // Function calls - delegate to function evaluator
-            ExpressionNode::FunctionCall(node) => {
-                let mut arg_values = Vec::new();
-                for arg in &node.arguments {
-                    arg_values.push(self.dispatch_evaluation(arg, context).await?);
-                }
-                let mut func_eval = &mut *self.evaluator.function_evaluator;
-                func_eval.call_function(&node.name, &arg_values, context).await
-            },
-            
-            // Method calls - delegate to function evaluator  
-            ExpressionNode::MethodCall(node) => {
-                let object_value = self.dispatch_evaluation(&node.object, context).await?;
-                let mut arg_values = Vec::new();
-                for arg in &node.arguments {
-                    arg_values.push(self.dispatch_evaluation(arg, context).await?);
-                }
-                let mut func_eval = &mut *self.evaluator.function_evaluator;
-                func_eval.call_method(&object_value, &node.method, &arg_values, context).await
-            },
-            
-            // Collection literals - delegate to collection evaluator
-            ExpressionNode::Collection(node) => {
-                let mut element_values = Vec::new();
-                for element in &node.elements {
-                    element_values.push(self.dispatch_evaluation(element, context).await?);
-                }
-                Ok(self.evaluator.collection_evaluator.create_collection(element_values))
-            },
-            
-            // Identifier - validate resource type if applicable, then delegate to core evaluator
-            ExpressionNode::Identifier(identifier) => {
-                // Check if this identifier represents a resource type that should be validated
-                self.validate_identifier_resource_type(identifier, context).await?;
-                
-                self.evaluator.core_evaluator.evaluate(expr, context).await
-            },
-            
-            // Basic expressions (literals, other nodes) - delegate to core evaluator  
-            _ => {
-                self.evaluator.core_evaluator.evaluate(expr, context).await
+            // Use unified metadata-aware evaluation and convert result to plain FhirPathValue
+            let wrapped_result = self.evaluator.evaluate_with_metadata(expr, context).await?;
+
+            // Convert wrapped collection to plain FhirPathValue
+            match wrapped_result.len() {
+                0 => Ok(FhirPathValue::Empty),
+                1 => Ok(wrapped_result.into_iter().next().unwrap().value),
+                _ => Ok(FhirPathValue::Collection(
+                    wrapped_result.into_iter().map(|w| w.value).collect(),
+                )),
             }
-        }
         })
     }
-    
+
     /// Get cached AST or parse and cache expression
     fn parse_or_cached(&self, expression: &str) -> Result<Arc<ExpressionNode>> {
         // Check cache first
@@ -270,19 +244,19 @@ impl FhirPathEngine {
                 return Ok(ast.clone());
             }
         }
-        
+
         // Parse expression
         let ast = parse_ast(expression)?;
         let ast_arc = Arc::new(ast);
-        
+
         // Cache the result
         if let Ok(mut cache) = self.ast_cache.write() {
             cache.insert(expression.to_string(), ast_arc.clone());
         }
-        
+
         Ok(ast_arc)
     }
-    
+
     /// Helper to convert FhirPathValue to Collection for backward compatibility
     fn value_to_collection(&self, value: FhirPathValue) -> Collection {
         match value {
@@ -291,32 +265,38 @@ impl FhirPathEngine {
             single_value => Collection::single(single_value),
         }
     }
-    
+
     /// Get engine configuration
     pub fn config(&self) -> &EngineConfig {
         &self.config
     }
-    
+
     /// Get cache statistics
     pub fn cache_stats(&self) -> Result<HashMap<String, usize>> {
         let cache = self.ast_cache.read().map_err(|_| {
-            FhirPathError::evaluation_error(crate::core::error_code::FP0001, "Failed to read AST cache")
+            FhirPathError::evaluation_error(
+                crate::core::error_code::FP0001,
+                "Failed to read AST cache",
+            )
         })?;
-        
+
         let mut stats = HashMap::new();
         stats.insert("entries".to_string(), cache.len());
         Ok(stats)
     }
-    
+
     /// Clear AST cache
     pub fn clear_cache(&self) -> Result<()> {
         let mut cache = self.ast_cache.write().map_err(|_| {
-            FhirPathError::evaluation_error(crate::core::error_code::FP0001, "Failed to write AST cache")
+            FhirPathError::evaluation_error(
+                crate::core::error_code::FP0001,
+                "Failed to write AST cache",
+            )
         })?;
         cache.clear();
         Ok(())
     }
-    
+
     /// Validate identifier if it represents a resource type
     async fn validate_identifier_resource_type(
         &self,
@@ -324,14 +304,21 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<()> {
         let name = &identifier.name;
-        
+
         // Only validate if identifier starts with capital letter (potential resource type)
         if let Some(first_char) = name.chars().next() {
             if first_char.is_uppercase() {
                 // Check if this is a valid resource type
-                if self.evaluator.model_provider.resource_type_exists(name).unwrap_or(false) {
+                if self
+                    .evaluator
+                    .model_provider()
+                    .resource_type_exists(name)
+                    .unwrap_or(false)
+                {
                     // This is a resource type - validate against context data
-                    if let Some(resource_type_from_data) = self.extract_resource_type_from_context(context) {
+                    if let Some(resource_type_from_data) =
+                        self.extract_resource_type_from_context(context)
+                    {
                         if name != &resource_type_from_data {
                             return Err(FhirPathError::evaluation_error(
                                 crate::core::error_code::FP0002,
@@ -347,28 +334,98 @@ impl FhirPathEngine {
         }
         Ok(())
     }
-    
+
     /// Extract resource type from evaluation context data
     fn extract_resource_type_from_context(&self, context: &EvaluationContext) -> Option<String> {
         // Get the first value from start context
         let root_value = context.start_context.first()?;
-        
+
         // Extract resourceType from Resource or JsonValue
         match root_value {
-            FhirPathValue::Resource(json) => {
-                json.as_object()?
-                    .get("resourceType")?
-                    .as_str()
-                    .map(|s| s.to_string())
-            },
-            FhirPathValue::JsonValue(json) => {
-                json.as_object()?
-                    .get("resourceType")?
-                    .as_str()
-                    .map(|s| s.to_string())
-            },
+            FhirPathValue::Resource(json) => json
+                .as_object()?
+                .get("resourceType")?
+                .as_str()
+                .map(|s| s.to_string()),
+            FhirPathValue::JsonValue(json) => json
+                .as_object()?
+                .get("resourceType")?
+                .as_str()
+                .map(|s| s.to_string()),
             _ => None,
         }
+    }
+
+    /// Evaluate expression with comprehensive metadata
+    // evaluate_with_metadata removed - now all evaluation uses metadata via the main evaluate() method
+
+    async fn evaluate_ast_with_metadata(
+        &mut self,
+        ast: &ExpressionNode,
+        context: &EvaluationContext,
+        type_stats: &mut TypeResolutionStats,
+    ) -> Result<WrappedCollection> {
+        if let Ok(wrapped_result) = self.evaluator.evaluate_with_metadata(ast, context).await {
+            type_stats.types_resolved += wrapped_result.len();
+            Ok(wrapped_result)
+        } else {
+            let plain_result = self.evaluate_ast(ast, context).await?;
+            let wrapped_result = self.wrap_plain_result(plain_result).await?;
+            type_stats.types_inferred += wrapped_result.len();
+            Ok(wrapped_result)
+        }
+    }
+
+    async fn wrap_plain_result(
+        &self,
+        result: FhirPathValue,
+    ) -> Result<WrappedCollection> {
+        use crate::typing::type_utils;
+
+        match result {
+            FhirPathValue::Empty => Ok(collection_utils::empty()),
+            FhirPathValue::Collection(values) => {
+                let wrapped_values: Vec<WrappedValue> = values
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, value)| {
+                        let fhir_type = type_utils::fhirpath_value_to_fhir_type(&value);
+                        let path = CanonicalPath::parse(&format!("[{}]", i)).unwrap();
+                        let metadata = ValueMetadata {
+                            fhir_type,
+                            resource_type: None,
+                            path,
+                            index: Some(i),
+                        };
+                        WrappedValue::new(value, metadata)
+                    })
+                    .collect();
+                Ok(wrapped_values)
+            }
+            single_value => {
+                let fhir_type = type_utils::fhirpath_value_to_fhir_type(&single_value);
+                let metadata = ValueMetadata {
+                    fhir_type,
+                    resource_type: None,
+                    path: CanonicalPath::empty(),
+                    index: None,
+                };
+                Ok(collection_utils::single(WrappedValue::new(
+                    single_value,
+                    metadata,
+                )))
+            }
+        }
+    }
+
+    /// Get model provider from evaluator
+    pub fn get_model_provider(&self) -> Arc<dyn ModelProvider> {
+        self.evaluator.model_provider().clone()
+    }
+
+    /// Get function registry from evaluator  
+    pub fn get_function_registry(&self) -> Arc<FunctionRegistry> {
+        self.evaluator.function_registry().clone()
     }
 }
 

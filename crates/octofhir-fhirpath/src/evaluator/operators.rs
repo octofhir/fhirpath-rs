@@ -408,50 +408,84 @@ impl OperatorEvaluatorImpl {
         }
     }
 
-    /// Perform logical AND
+    /// Perform logical AND with FHIRPath three-valued logic
     fn and(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
-        let left_bool = match left {
-            FhirPathValue::Boolean(b) => *b,
-            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
-            _ => return Err(FhirPathError::evaluation_error(
-                FP0052,
-                format!("Cannot perform AND on non-boolean value: {}", left.type_name()),
-            )),
-        };
-
-        let right_bool = match right {
-            FhirPathValue::Boolean(b) => *b,
-            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
-            _ => return Err(FhirPathError::evaluation_error(
-                FP0052,
-                format!("Cannot perform AND on non-boolean value: {}", right.type_name()),
-            )),
-        };
-
-        Ok(FhirPathValue::Boolean(left_bool && right_bool))
+        // FHIRPath AND truth table:
+        // true  AND true  → true
+        // true  AND false → false
+        // false AND true  → false  
+        // false AND false → false
+        // true  AND {}    → {}
+        // false AND {}    → false (short-circuit)
+        // {}    AND true  → {}
+        // {}    AND false → false (short-circuit)
+        // {}    AND {}    → {}
+        
+        match (left, right) {
+            // If either operand is false, result is false (short-circuit)
+            (FhirPathValue::Boolean(false), _) => Ok(FhirPathValue::Boolean(false)),
+            (_, FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+            
+            // Both are true
+            (FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+            
+            // One is true, other is empty → empty
+            (FhirPathValue::Boolean(true), FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
+            (FhirPathValue::Empty, FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Empty),
+            
+            // Both are empty → empty
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
+            
+            // Error cases for non-boolean values
+            _ => {
+                let left_type = if matches!(left, FhirPathValue::Empty) { "empty" } else { left.type_name() };
+                let right_type = if matches!(right, FhirPathValue::Empty) { "empty" } else { right.type_name() };
+                Err(FhirPathError::evaluation_error(
+                    FP0052,
+                    format!("Cannot perform AND on non-boolean values: {} and {}", left_type, right_type),
+                ))
+            }
+        }
     }
 
-    /// Perform logical OR
+    /// Perform logical OR with FHIRPath three-valued logic
     fn or(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
-        let left_bool = match left {
-            FhirPathValue::Boolean(b) => *b,
-            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
-            _ => return Err(FhirPathError::evaluation_error(
-                FP0052,
-                format!("Cannot perform OR on non-boolean value: {}", left.type_name()),
-            )),
-        };
-
-        let right_bool = match right {
-            FhirPathValue::Boolean(b) => *b,
-            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
-            _ => return Err(FhirPathError::evaluation_error(
-                FP0052,
-                format!("Cannot perform OR on non-boolean value: {}", right.type_name()),
-            )),
-        };
-
-        Ok(FhirPathValue::Boolean(left_bool || right_bool))
+        // FHIRPath OR truth table:
+        // true  OR true  → true
+        // true  OR false → true
+        // false OR true  → true  
+        // false OR false → false
+        // true  OR {}    → true (short-circuit)
+        // false OR {}    → {}
+        // {}    OR true  → true (short-circuit)
+        // {}    OR false → {}
+        // {}    OR {}    → {}
+        
+        match (left, right) {
+            // If either operand is true, result is true (short-circuit)
+            (FhirPathValue::Boolean(true), _) => Ok(FhirPathValue::Boolean(true)),
+            (_, FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+            
+            // Both are false
+            (FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+            
+            // One is false, other is empty → empty
+            (FhirPathValue::Boolean(false), FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
+            (FhirPathValue::Empty, FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Empty),
+            
+            // Both are empty → empty
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::Empty),
+            
+            // Error cases for non-boolean values
+            _ => {
+                let left_type = if matches!(left, FhirPathValue::Empty) { "empty" } else { left.type_name() };
+                let right_type = if matches!(right, FhirPathValue::Empty) { "empty" } else { right.type_name() };
+                Err(FhirPathError::evaluation_error(
+                    FP0052,
+                    format!("Cannot perform OR on non-boolean values: {} and {}", left_type, right_type),
+                ))
+            }
+        }
     }
 
     /// Perform logical XOR
@@ -496,37 +530,189 @@ impl OperatorEvaluatorImpl {
         }
     }
 
-    /// Placeholder implementations for missing operators
-    fn integer_divide(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Integer division not yet implemented"))
+    /// Perform integer division (div operator)
+    fn integer_divide(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        match (left, right) {
+            (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0052,
+                        "Division by zero".to_string(),
+                    ));
+                }
+                Ok(FhirPathValue::Integer(a / b))
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0052,
+                        "Division by zero".to_string(),
+                    ));
+                }
+                Ok(FhirPathValue::Integer((a / b).trunc().to_i64().unwrap_or(0)))
+            },
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                if b.is_zero() {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0052,
+                        "Division by zero".to_string(),
+                    ));
+                }
+                Ok(FhirPathValue::Integer((Decimal::from(*a) / b).trunc().to_i64().unwrap_or(0)))
+            },
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                if *b == 0 {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0052,
+                        "Division by zero".to_string(),
+                    ));
+                }
+                Ok(FhirPathValue::Integer((a / Decimal::from(*b)).trunc().to_i64().unwrap_or(0)))
+            },
+            _ => Err(FhirPathError::evaluation_error(
+                FP0052,
+                format!("Cannot perform integer division on {} and {}", left.type_name(), right.type_name()),
+            )),
+        }
     }
 
-    fn equivalent(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Equivalent operator not yet implemented"))
+    fn equivalent(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        // Equivalent (~) is similar to equals (=) but with different null/empty handling
+        // For now, implement similar to equals - can be refined later
+        match (left, right) {
+            // Both empty are equivalent
+            (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::Boolean(true)),
+            // If either is empty but not both, they're not equivalent  
+            (FhirPathValue::Empty, _) | (_, FhirPathValue::Empty) => Ok(FhirPathValue::Boolean(false)),
+            // Otherwise delegate to equals logic
+            _ => self.equals(left, right),
+        }
     }
 
-    fn not_equivalent(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Not equivalent operator not yet implemented"))
+    fn not_equivalent(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        match self.equivalent(left, right)? {
+            FhirPathValue::Boolean(result) => Ok(FhirPathValue::Boolean(!result)),
+            _ => Ok(FhirPathValue::Boolean(true)), // If equivalent fails, assume not equivalent
+        }
     }
 
-    fn implies(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Implies operator not yet implemented"))
+    fn implies(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        // FHIRPath implies: false implies anything = true, true implies false = false, true implies true = true
+        let left_bool = match left {
+            FhirPathValue::Boolean(b) => *b,
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            _ => return Err(FhirPathError::evaluation_error(
+                FP0052,
+                format!("Cannot perform IMPLIES on non-boolean value: {}", left.type_name()),
+            )),
+        };
+
+        let right_bool = match right {
+            FhirPathValue::Boolean(b) => *b,
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            _ => return Err(FhirPathError::evaluation_error(
+                FP0052,
+                format!("Cannot perform IMPLIES on non-boolean value: {}", right.type_name()),
+            )),
+        };
+
+        // A implies B is equivalent to (not A) or B
+        Ok(FhirPathValue::Boolean(!left_bool || right_bool))
     }
 
-    fn concatenate(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Concatenate operator not yet implemented"))
+    fn concatenate(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        // FHIRPath concatenate (&) - concatenates strings
+        match (left, right) {
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+                Ok(FhirPathValue::String(format!("{}{}", a, b)))
+            },
+            // Convert other types to string then concatenate
+            _ => {
+                let left_str = left.to_string().unwrap_or_else(|_| "".to_string());
+                let right_str = right.to_string().unwrap_or_else(|_| "".to_string());
+                Ok(FhirPathValue::String(format!("{}{}", left_str, right_str)))
+            }
+        }
     }
 
-    fn union(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Union operator not yet implemented"))
+    fn union(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
+        // FHIRPath union (|) - combines two collections removing duplicates
+        let mut result_items = Vec::new();
+        
+        // Add items from left
+        match left {
+            FhirPathValue::Empty => {},
+            FhirPathValue::Collection(items) => {
+                result_items.extend(items.iter().cloned());
+            },
+            single => {
+                result_items.push(single.clone());
+            }
+        }
+        
+        // Add items from right (avoiding duplicates)
+        match right {
+            FhirPathValue::Empty => {},
+            FhirPathValue::Collection(items) => {
+                for item in items {
+                    let mut found = false;
+                    for existing in &result_items {
+                        if let Ok(FhirPathValue::Boolean(true)) = self.equals(existing, item) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        result_items.push(item.clone());
+                    }
+                }
+            },
+            single => {
+                let mut found = false;
+                for existing in &result_items {
+                    if let Ok(FhirPathValue::Boolean(true)) = self.equals(existing, single) {
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    result_items.push(single.clone());
+                }
+            }
+        }
+        
+        // Return appropriate result
+        match result_items.len() {
+            0 => Ok(FhirPathValue::Empty),
+            1 => Ok(result_items.into_iter().next().unwrap()),
+            _ => Ok(FhirPathValue::Collection(result_items)),
+        }
     }
 
-    fn is_type(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "Is type operator not yet implemented"))
+    fn is_type(&self, value: &FhirPathValue, type_name: &FhirPathValue) -> Result<FhirPathValue> {
+        // Extract type name from right operand
+        let target_type = match type_name {
+            FhirPathValue::String(s) => s,
+            _ => return Err(FhirPathError::evaluation_error(
+                FP0052,
+                "Type name must be a string".to_string(),
+            )),
+        };
+        
+        Ok(FhirPathValue::Boolean(self.is_of_type(value, target_type)))
     }
 
-    fn as_type(&self, _left: &FhirPathValue, _right: &FhirPathValue) -> Result<FhirPathValue> {
-        Err(FhirPathError::evaluation_error(FP0052, "As type operator not yet implemented"))
+    fn as_type(&self, value: &FhirPathValue, type_name: &FhirPathValue) -> Result<FhirPathValue> {
+        // Extract type name from right operand
+        let target_type = match type_name {
+            FhirPathValue::String(s) => s,
+            _ => return Err(FhirPathError::evaluation_error(
+                FP0052,
+                "Type name must be a string".to_string(),
+            )),
+        };
+        
+        self.cast_to_type(value, target_type)
     }
 }
 

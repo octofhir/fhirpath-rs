@@ -34,7 +34,7 @@ impl FunctionRegistry {
         self.register_conforms_to_function()?;
         self.register_descendants_function()?;
         self.register_children_function()?;
-        self.register_hasTemplateIdOf_function()?;
+        self.register_has_template_id_of_function()?;
         Ok(())
     }
 
@@ -62,7 +62,7 @@ impl FunctionRegistry {
             implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
                     let total_start = std::time::Instant::now();
-                    
+
 
                     // Performance profiling structure
                     let mut metrics = PerformanceMetrics {
@@ -929,7 +929,7 @@ fn extract_reference_string(input_value: &FhirPathValue) -> Option<String> {
 }
 
 impl FunctionRegistry {
-    fn register_hasTemplateIdOf_function(&self) -> Result<()> {
+    fn register_has_template_id_of_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "hasTemplateIdOf",

@@ -154,7 +154,7 @@ impl ComponentManager {
             diagnostics: DiagnosticsPanel::new(config).await?,
             variables: VariablesPanel::new(config).await?,
             history: HistoryPanel::new(config).await?,
-            help: HelpPanel::new(config, engine.registry().clone()).await?,
+            help: HelpPanel::new(config, engine.get_function_registry().clone()).await?,
         })
     }
     

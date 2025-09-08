@@ -16,6 +16,7 @@
 //!
 //! Usage: cargo run --bin test-runner <test_file.json>
 
+use octofhir_fhirpath::FhirPathValue;
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -64,7 +65,7 @@ fn load_input_data(inputfile: &str) -> Result<Value, Box<dyn std::error::Error>>
 
 /// Compare expected result with actual result
 /// Simplified comparison with proper handling of FHIRPath collection semantics
-fn compare_results(expected: &Value, actual: &octofhir_fhirpath::FhirPathValue) -> bool {
+fn compare_results(expected: &Value, actual: &octofhir_fhirpath::Collection) -> bool {
     // Convert actual to JSON for uniform comparison
     let actual_json = match serde_json::to_value(actual) {
         Ok(json) => json,
@@ -225,7 +226,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create the FhirPathEngine with model provider
     println!("📋 Creating FhirPathEngine...");
     let engine_start = std::time::Instant::now();
-    let mut engine = octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
+    let mut engine =
+        octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
     let mut passed = 0;
@@ -365,6 +367,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("🎉 All tests passed!");
     }
-    
+
     Ok(())
 }

@@ -1,4 +1,4 @@
-//! Enhanced Evaluation Context System for FHIRPath
+//! Evaluation Context System for FHIRPath
 //!
 //! This module implements the comprehensive evaluation context system required by
 //! the FHIRPath specification, including built-in variables (%terminologies, %server, %factory),

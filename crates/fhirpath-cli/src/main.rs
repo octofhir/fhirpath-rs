@@ -40,7 +40,8 @@ async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvi
 /// Create FhirPathEngine with the shared model provider
 async fn create_fhirpath_engine(model_provider: Arc<EmbeddedModelProvider>) -> anyhow::Result<FhirPathEngine> {
     let registry = Arc::new(create_standard_registry().await);
-    let engine = FhirPathEngine::new(registry, model_provider);
+    let engine = FhirPathEngine::new(registry, model_provider).await
+        .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
     Ok(engine)
 }
 
@@ -425,7 +426,7 @@ async fn handle_evaluate(
     };
 
     // Create FHIRPath engine with shared model provider
-    let engine = match create_fhirpath_engine(model_provider.clone()).await {
+    let mut engine = match create_fhirpath_engine(model_provider.clone()).await {
         Ok(engine) => engine,
         Err(e) => {
             let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());

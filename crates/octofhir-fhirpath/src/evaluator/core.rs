@@ -12,7 +12,11 @@ use serde_json::Value as JsonValue;
 use crate::{
     ast::{ExpressionNode, LiteralNode, IdentifierNode, VariableNode},
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
-    evaluator::{EvaluationContext, traits::ExpressionEvaluator},
+    evaluator::{EvaluationContext, traits::{ExpressionEvaluator, MetadataAwareEvaluator}},
+    wrapped::{WrappedCollection, WrappedValue, ValueMetadata, collection_utils},
+    typing::{TypeResolver, type_utils},
+    path::CanonicalPath,
+    evaluator::metadata_core::MetadataCoreEvaluator,
 };
 
 /// Core evaluator for basic expression types
@@ -253,6 +257,65 @@ impl CoreEvaluator {
                 ))
             }
         }
+    }
+
+    /// Bridge method to evaluate with metadata awareness
+    pub async fn evaluate_with_metadata_bridge(
+        &mut self,
+        expr: &ExpressionNode,
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection> {
+        // Use the new metadata-aware evaluator
+        let mut metadata_evaluator = MetadataCoreEvaluator::new();
+        metadata_evaluator.evaluate_with_metadata(expr, context, resolver).await
+    }
+    
+    /// Convert evaluation result to wrapped collection
+    pub async fn wrap_evaluation_result(
+        &self,
+        result: FhirPathValue,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection> {
+        match result {
+            FhirPathValue::Empty => Ok(collection_utils::empty()),
+            FhirPathValue::Collection(values) => {
+                let mut wrapped_values = Vec::new();
+                for (i, value) in values.into_iter().enumerate() {
+                    let wrapped = self.infer_wrapped_value(value, i, resolver).await?;
+                    wrapped_values.push(wrapped);
+                }
+                Ok(wrapped_values)
+            }
+            single_value => {
+                let wrapped = self.infer_wrapped_value(single_value, 0, resolver).await?;
+                Ok(collection_utils::single(wrapped))
+            }
+        }
+    }
+    
+    /// Infer wrapped value from plain FhirPathValue
+    async fn infer_wrapped_value(
+        &self,
+        value: FhirPathValue,
+        index: usize,
+        _resolver: &TypeResolver,
+    ) -> Result<WrappedValue> {
+        let fhir_type = type_utils::fhirpath_value_to_fhir_type(&value);
+        let path = if index > 0 {
+            CanonicalPath::parse(&format!("[{}]", index)).unwrap()
+        } else {
+            CanonicalPath::empty()
+        };
+        
+        let metadata = ValueMetadata {
+            fhir_type,
+            resource_type: None,
+            path,
+            index: if index > 0 { Some(index) } else { None },
+        };
+        
+        Ok(WrappedValue::new(value, metadata))
     }
 }
 

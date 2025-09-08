@@ -12,14 +12,14 @@ use crate::cli::server::{
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::{FunctionRegistry, create_standard_registry};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 
 /// Shared registry containing pre-initialized FhirPathEngines for all FHIR versions
 #[derive(Clone)]
 pub struct ServerRegistry {
     /// Engines for evaluation (without analyzer)
-    evaluation_engines: HashMap<ServerFhirVersion, Arc<FhirPathEngine>>,
+    evaluation_engines: HashMap<ServerFhirVersion, Arc<Mutex<FhirPathEngine>>>,
     // TODO: Add proper analysis engines when analyzer is integrated
 }
 
@@ -43,8 +43,8 @@ impl ServerRegistry {
 
             // Create evaluation engine
             let eval_engine =
-                FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone());
-            evaluation_engines.insert(version, Arc::new(eval_engine));
+                FhirPathEngine::new(function_registry.clone(), model_provider_arc.clone()).await?;
+            evaluation_engines.insert(version, Arc::new(Mutex::new(eval_engine)));
 
             info!("✅ Engine initialized for FHIR {}", version);
         }
@@ -58,13 +58,13 @@ impl ServerRegistry {
     }
 
     /// Get the evaluation engine for a specific FHIR version
-    pub fn get_evaluation_engine(&self, version: ServerFhirVersion) -> Option<Arc<FhirPathEngine>> {
+    pub fn get_evaluation_engine(&self, version: ServerFhirVersion) -> Option<Arc<Mutex<FhirPathEngine>>> {
         self.evaluation_engines.get(&version).cloned()
     }
 
     /// Get the analysis engine for a specific FHIR version
     /// For now, returns None since proper analyzer is not integrated yet
-    pub fn get_analysis_engine(&self, _version: ServerFhirVersion) -> Option<Arc<FhirPathEngine>> {
+    pub fn get_analysis_engine(&self, _version: ServerFhirVersion) -> Option<Arc<Mutex<FhirPathEngine>>> {
         // TODO: Return proper analysis engine when analyzer is integrated
         None
     }

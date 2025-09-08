@@ -22,7 +22,6 @@ use chrono::{DateTime, Utc};
 use clap::{Arg, Command};
 use std::fs;
 use std::path::PathBuf;
-use std::time::Duration;
 
 // Integration test runner functionality
 mod integration_test_runner {
@@ -289,7 +288,7 @@ mod integration_test_runner {
         /// Matches the test-runner comparison logic exactly  
         fn compare_results_collection(
             &self,
-            actual: &octofhir_fhirpath::FhirPathValue,
+            actual: &octofhir_fhirpath::Collection,
             expected: &Value,
         ) -> bool {
             // Convert actual to JSON for uniform comparison

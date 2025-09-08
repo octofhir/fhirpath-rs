@@ -301,7 +301,7 @@ async fn fhirpath_lab_handler_impl(
         .map_err(|e| ServerError::BadRequest { message: e })?;
 
     // Get the evaluation engine for the specified version
-    let engine = registry
+    let engine_arc = registry
         .get_evaluation_engine(version)
         .ok_or_else(|| ServerError::BadRequest {
             message: format!("FHIR version {} not supported", version),
@@ -341,7 +341,8 @@ async fn fhirpath_lab_handler_impl(
     }
 
     // Evaluate the expression
-    match evaluate_fhirpath_expression(&engine, &parsed_request).await {
+    let mut engine = engine_arc.lock().unwrap();
+    match evaluate_fhirpath_expression(&mut engine, &parsed_request).await {
         Ok(result) => {
             // Convert result to FHIR Parameters format
             let result_json = collection_to_json(result);
@@ -385,7 +386,7 @@ fn detect_fhir_version(_request: &FhirPathLabRequest) -> Option<ServerFhirVersio
 
 /// Evaluate FHIRPath expression using the engine
 async fn evaluate_fhirpath_expression(
-    engine: &octofhir_fhirpath::evaluator::FhirPathEngine,
+    engine: &mut octofhir_fhirpath::evaluator::FhirPathEngine,
     request: &ParsedFhirPathLabRequest,
 ) -> Result<Collection, ServerError> {
     use octofhir_fhirpath::evaluator::EvaluationContext;

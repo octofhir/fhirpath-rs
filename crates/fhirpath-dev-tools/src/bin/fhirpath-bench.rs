@@ -244,7 +244,7 @@ async fn profile_expression(
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
-    let engine = FhirPathEngine::new(registry, model_provider);
+    let mut engine = FhirPathEngine::new(registry, model_provider).await?;
 
     // Get test data
     let data = if use_bundle {
@@ -350,7 +350,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
 
-    let engine = FhirPathEngine::new(registry, model_provider);
+    let mut engine = FhirPathEngine::new(registry, model_provider).await?;
     let patient_data = get_sample_patient();
     let bundle_data = get_sample_bundle();
 
@@ -402,7 +402,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
         name: &str,
         expressions: &[&str],
         data: &serde_json::Value,
-        engine: &FhirPathEngine,
+        engine: &mut FhirPathEngine,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();
         println!("  Running {name} benchmarks...");
@@ -456,7 +456,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Simple Evaluation",
             &expressions.simple,
             &patient_data,
-            &engine,
+            &mut engine,
         )
         .await,
     );
@@ -465,7 +465,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Medium Evaluation",
             &expressions.medium,
             &patient_data,
-            &engine,
+            &mut engine,
         )
         .await,
     );
@@ -474,7 +474,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Complex Evaluation",
             &expressions.complex,
             &bundle_data,
-            &engine,
+            &mut engine,
         )
         .await,
     );

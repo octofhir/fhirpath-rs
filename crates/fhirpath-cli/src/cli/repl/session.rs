@@ -51,7 +51,7 @@ impl ReplSession {
     pub async fn new(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
         // Create analyzer
         let analyzer =
-            StaticAnalyzer::new(engine.registry().clone(), engine.model_provider().clone());
+            StaticAnalyzer::new(engine.get_function_registry().clone(), engine.get_model_provider().clone());
 
         // Initialize editor with history
         let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()
@@ -59,8 +59,8 @@ impl ReplSession {
 
         // Set up completer
         let completer = FhirPathCompleter::with_registry(
-            engine.model_provider().clone(),
-            Some(engine.registry().clone()),
+            engine.get_model_provider().clone(),
+            Some(engine.get_function_registry().clone()),
         );
         editor.set_helper(Some(completer));
 
@@ -72,7 +72,7 @@ impl ReplSession {
         }
 
         let formatter = DisplayFormatter::new(config.color_output);
-        let help_system = HelpSystem::with_registry(engine.registry().clone());
+        let help_system = HelpSystem::with_registry(engine.get_function_registry().clone());
 
         // Create diagnostic engine for beautiful error reports
         let diagnostic_engine = if config.color_output {
@@ -299,7 +299,7 @@ impl ReplSession {
     }
 
     /// Evaluate a FHIRPath expression with enhanced feedback
-    async fn evaluate_expression(&self, expression: &str) -> Result<String> {
+    async fn evaluate_expression(&mut self, expression: &str) -> Result<String> {
         // Pre-validation
         if expression.trim().is_empty() {
             return Ok(
@@ -337,11 +337,14 @@ impl ReplSession {
 
         // For now, use a simple evaluation approach
         // TODO: Integrate variables and full engine support properly
-        use octofhir_fhirpath::FhirPathValue;
+        use octofhir_fhirpath::{FhirPathValue, Collection};
+        use std::collections::HashMap;
         let input_value = FhirPathValue::resource(input_json.clone());
+        let collection = Collection::single(input_value);
+        let variables = HashMap::new();
         let result = self
             .engine
-            .evaluate_simple(expression, &input_value)
+            .evaluate_with_variables(expression, &collection, variables, None, None)
             .await
             .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
 
@@ -404,7 +407,7 @@ impl ReplSession {
     }
 
     /// Parse a string value into a FHIRPath value (supports both literal values and expressions)
-    async fn parse_variable_value(&self, value: &str) -> Result<(FhirPathValue, String)> {
+    async fn parse_variable_value(&mut self, value: &str) -> Result<(FhirPathValue, String)> {
         let value = value.trim();
 
         // Check if it looks like a FHIRPath expression (contains dots, function calls, etc.)
@@ -467,7 +470,7 @@ impl ReplSession {
     }
 
     /// Try to evaluate a string as a FHIRPath expression
-    async fn try_evaluate_as_expression(&self, expression: &str) -> Result<FhirPathValue> {
+    async fn try_evaluate_as_expression(&mut self, expression: &str) -> Result<FhirPathValue> {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
                 FhirPathValue::Resource(res) => res.clone(),
@@ -482,10 +485,13 @@ impl ReplSession {
         // For now, use simple evaluation without variables
         // TODO: Add variables support back
         use octofhir_fhirpath::Collection;
+        use std::collections::HashMap;
         let input_value = FhirPathValue::resource(input_json.clone());
+        let collection = Collection::single(input_value);
+        let variables = HashMap::new();
         let result = self
             .engine
-            .evaluate_simple(expression, &input_value)
+            .evaluate_with_variables(expression, &collection, variables, None, None)
             .await
             .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))?;
 
@@ -576,7 +582,7 @@ impl ReplSession {
     }
 
     /// Explain expression evaluation steps
-    async fn explain_expression(&self, expression: &str) -> Result<String> {
+    async fn explain_expression(&mut self, expression: &str) -> Result<String> {
         // Try to parse and analyze the expression to provide insights
         let parse_result = parse(expression);
         let parsed_expr = match parse_result.into_result() {
@@ -952,7 +958,7 @@ impl ReplSession {
     async fn cache_function_names(&mut self) {
         let function_names: Vec<String> = self
             .engine
-            .registry()
+            .get_function_registry()
             .list_functions()
             .iter()
             .map(|f| f.name.clone())

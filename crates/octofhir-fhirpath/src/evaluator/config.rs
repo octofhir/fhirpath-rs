@@ -69,6 +69,36 @@ pub struct EngineConfig {
     /// FHIR version string used for terminology server URLs and type validation
     /// when not explicitly specified. Default: "r4"
     pub default_fhir_version: String,
+
+    /// Enable rich metadata collection during evaluation
+    ///
+    /// Always enabled - evaluation always preserves detailed type and path information
+    /// throughout expression evaluation for consistency and debugging. Default: true
+    pub enable_metadata: bool,
+
+    /// Enable detailed type resolution via ModelProvider
+    ///
+    /// When enabled, types are resolved through the ModelProvider for accurate
+    /// FHIR type information. Default: true
+    pub enable_type_resolution: bool,
+
+    /// Cache resolved types for better performance
+    ///
+    /// When enabled, type resolution results are cached to avoid repeated
+    /// ModelProvider calls. Default: true
+    pub enable_type_caching: bool,
+
+    /// Enable path tracking during evaluation
+    ///
+    /// When enabled, canonical paths are maintained throughout evaluation
+    /// for precise location tracking. Default: true
+    pub enable_path_tracking: bool,
+
+    /// Maximum depth for path tracking (prevents infinite recursion)
+    ///
+    /// Limits the maximum depth of path construction to prevent stack overflow
+    /// in complex nested expressions. Default: 50
+    pub max_path_depth: usize,
 }
 
 impl EngineConfig {
@@ -146,6 +176,11 @@ impl EngineConfig {
             max_cache_size: 10000,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
+            enable_metadata: true,
+            enable_type_resolution: true,
+            enable_type_caching: true,
+            enable_path_tracking: true,
+            max_path_depth: 100,
         }
     }
 
@@ -160,6 +195,11 @@ impl EngineConfig {
             max_cache_size: 500,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
+            enable_metadata: true,
+            enable_type_resolution: false, // Disable for speed
+            enable_type_caching: true,
+            enable_path_tracking: false, // Disable for speed
+            max_path_depth: 25,
         }
     }
 
@@ -174,6 +214,11 @@ impl EngineConfig {
             max_cache_size: 0,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
+            enable_metadata: false, // Disable to save memory
+            enable_type_resolution: false, // Disable to save memory
+            enable_type_caching: false,
+            enable_path_tracking: false, // Disable to save memory
+            max_path_depth: 0,
         }
     }
 
@@ -188,6 +233,49 @@ impl EngineConfig {
             max_cache_size: 10,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
+            enable_metadata: true,
+            enable_type_resolution: false, // Use mock providers in tests
+            enable_type_caching: false,
+            enable_path_tracking: true,
+            max_path_depth: 10,
+        }
+    }
+
+    /// Create a configuration optimized for metadata-aware evaluation
+    ///
+    /// Enables all metadata features with optimized settings for rich evaluation.
+    pub fn metadata_optimized() -> Self {
+        Self {
+            max_recursion_depth: 100,
+            operation_timeout_ms: 45000, // 45 seconds
+            enable_ast_cache: true,
+            max_cache_size: 2000,
+            default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
+            default_fhir_version: "r4".to_string(),
+            enable_metadata: true,
+            enable_type_resolution: true,
+            enable_type_caching: true,
+            enable_path_tracking: true,
+            max_path_depth: 100,
+        }
+    }
+
+    /// Create a configuration for backward compatibility (minimal metadata)
+    ///
+    /// Disables metadata features for maximum compatibility with legacy code.
+    pub fn compatibility_mode() -> Self {
+        Self {
+            max_recursion_depth: 100,
+            operation_timeout_ms: 30000,
+            enable_ast_cache: true,
+            max_cache_size: 1000,
+            default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
+            default_fhir_version: "r4".to_string(),
+            enable_metadata: false,
+            enable_type_resolution: false,
+            enable_type_caching: false,
+            enable_path_tracking: false,
+            max_path_depth: 0,
         }
     }
 
@@ -263,6 +351,11 @@ impl Default for EngineConfig {
             max_cache_size: 1000,
             default_terminology_server: "https://tx.fhir.org/r4/".to_string(),
             default_fhir_version: "r4".to_string(),
+            enable_metadata: true,
+            enable_type_resolution: true,
+            enable_type_caching: true,
+            enable_path_tracking: true,
+            max_path_depth: 50,
         }
     }
 }

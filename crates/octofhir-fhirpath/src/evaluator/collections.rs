@@ -11,8 +11,11 @@ use std::collections::HashSet;
 
 use crate::{
     ast::ExpressionNode,
-    core::{FhirPathError, FhirPathValue, Result, error_code::*},
-    evaluator::{traits::CollectionEvaluator, EvaluationContext},
+    core::{FhirPathValue, Result},
+    evaluator::{traits::{CollectionEvaluator, MetadataAwareCollectionEvaluator}, EvaluationContext},
+    wrapped::{WrappedCollection, WrappedValue, collection_utils},
+    typing::TypeResolver,
+    evaluator::metadata_collections::MetadataCollectionEvaluator,
 };
 
 /// Implementation of CollectionEvaluator
@@ -122,6 +125,75 @@ impl CollectionEvaluator for CollectionEvaluatorImpl {
             FhirPathValue::Empty => false,
             single_value => {
                 format!("{:?}", single_value) == format!("{:?}", value)
+            }
+        }
+    }
+}
+
+impl CollectionEvaluatorImpl {
+    /// Bridge method to create collection with metadata awareness
+    pub async fn create_collection_with_metadata_bridge(
+        &self,
+        elements: Vec<WrappedCollection>,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection> {
+        let metadata_evaluator = MetadataCollectionEvaluator::new();
+        metadata_evaluator
+            .create_collection_with_metadata(elements, resolver)
+            .await
+    }
+
+    /// Bridge method to union collections with metadata
+    pub async fn union_collections_with_metadata_bridge(
+        &self,
+        left: &WrappedCollection,
+        right: &WrappedCollection,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection> {
+        let metadata_evaluator = MetadataCollectionEvaluator::new();
+        metadata_evaluator
+            .union_collections_with_metadata(left, right, resolver)
+            .await
+    }
+
+    /// Convert plain collection result to wrapped collection
+    pub async fn wrap_collection_result(
+        &self,
+        result: FhirPathValue,
+        _resolver: &TypeResolver,
+    ) -> Result<WrappedCollection> {
+        use crate::typing::type_utils;
+        use crate::wrapped::{ValueMetadata};
+        use crate::path::CanonicalPath;
+
+        match result {
+            FhirPathValue::Empty => Ok(collection_utils::empty()),
+            FhirPathValue::Collection(values) => {
+                let wrapped_values: Vec<WrappedValue> = values.into_iter()
+                    .enumerate()
+                    .map(|(i, value)| {
+                        let fhir_type = type_utils::fhirpath_value_to_fhir_type(&value);
+                        let path = CanonicalPath::parse(&format!("[{}]", i)).unwrap();
+                        let metadata = ValueMetadata {
+                            fhir_type,
+                            resource_type: None,
+                            path,
+                            index: Some(i),
+                        };
+                        WrappedValue::new(value, metadata)
+                    })
+                    .collect();
+                Ok(wrapped_values)
+            }
+            single_value => {
+                let fhir_type = type_utils::fhirpath_value_to_fhir_type(&single_value);
+                let metadata = ValueMetadata {
+                    fhir_type,
+                    resource_type: None,
+                    path: CanonicalPath::empty(),
+                    index: None,
+                };
+                Ok(collection_utils::single(WrappedValue::new(single_value, metadata)))
             }
         }
     }

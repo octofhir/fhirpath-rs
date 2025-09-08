@@ -15,8 +15,13 @@ pub mod scoping;
 // New modular evaluator architecture
 pub mod collections;
 pub mod core;
+pub mod composite;
 pub mod functions;
 pub mod lambdas;
+pub mod metadata_collections;
+pub mod metadata_core;
+pub mod metadata_functions;
+pub mod metadata_navigator;
 pub mod navigator;
 pub mod operators;
 pub mod traits;
@@ -50,13 +55,21 @@ pub use lambda::{LambdaEvaluator, LambdaExpressionEvaluator, SortCriterion};
 // Re-export new modular evaluator types
 pub use collections::CollectionEvaluatorImpl;
 pub use core::CoreEvaluator;
+pub use composite::CompositeEvaluator;
 pub use functions::FunctionEvaluatorImpl;
 pub use lambdas::LambdaEvaluatorImpl;
+pub use metadata_collections::{MetadataCollectionEvaluator, collection_ops};
+pub use metadata_core::MetadataCoreEvaluator;
+pub use metadata_functions::MetadataFunctionEvaluator;
+pub use metadata_navigator::MetadataNavigator;
 pub use navigator::Navigator;
 // Re-export the main engine type
-pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
+pub use engine::{
+    FhirPathEngine, create_engine_with_mock_provider,
+    TypeResolutionStats,
+};
 pub use operators::OperatorEvaluatorImpl;
 pub use traits::{
-    CollectionEvaluator, CompositeEvaluator, ExpressionEvaluator, FunctionEvaluator,
-    LambdaEvaluator as LambdaEvaluatorTrait, OperatorEvaluator, ValueNavigator,
+    CollectionEvaluator, ExpressionEvaluator, FunctionEvaluator,
+    LambdaEvaluator as LambdaEvaluatorTrait, MetadataAwareCollectionEvaluator, MetadataAwareEvaluator, MetadataAwareFunctionEvaluator, MetadataAwareNavigator, OperatorEvaluator, ValueNavigator,
 };

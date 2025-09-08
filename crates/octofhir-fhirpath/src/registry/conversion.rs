@@ -14,29 +14,29 @@ use std::str::FromStr;
 
 impl FunctionRegistry {
     pub fn register_conversion_functions(&self) -> Result<()> {
-        self.register_toString_function()?;
-        self.register_toInteger_function()?;
-        self.register_toDecimal_function()?;
-        self.register_toBoolean_function()?;
+        self.register_to_string_function()?;
+        self.register_to_integer_function()?;
+        self.register_to_decimal_function()?;
+        self.register_to_boolean_function()?;
         self.register_to_date_function()?;
         self.register_to_date_time_function()?;
         self.register_to_time_function()?;
         self.register_to_quantity_function()?;
 
         // Register conversion testing functions
-        self.register_convertsToBoolean_function()?;
-        self.register_convertsToInteger_function()?;
-        self.register_convertsToDecimal_function()?;
-        self.register_convertsToString_function()?;
-        self.register_convertsToDate_function()?;
-        self.register_convertsToDateTime_function()?;
-        self.register_convertsToTime_function()?;
-        self.register_convertsToQuantity_function()?;
+        self.register_converts_to_boolean_function()?;
+        self.register_converts_to_integer_function()?;
+        self.register_converts_to_decimal_function()?;
+        self.register_converts_to_string_function()?;
+        self.register_converts_to_date_function()?;
+        self.register_converts_to_date_time_function()?;
+        self.register_converts_to_time_function()?;
+        self.register_converts_to_quantity_function()?;
 
         Ok(())
     }
 
-    fn register_toString_function(&self) -> Result<()> {
+    fn register_to_string_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toString",
@@ -96,7 +96,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toInteger_function(&self) -> Result<()> {
+    fn register_to_integer_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toInteger",
@@ -155,7 +155,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toDecimal_function(&self) -> Result<()> {
+    fn register_to_decimal_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toDecimal",
@@ -206,7 +206,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_toBoolean_function(&self) -> Result<()> {
+    fn register_to_boolean_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "toBoolean",
@@ -242,20 +242,20 @@ impl FunctionRegistry {
                         }
                     }
                     Some(FhirPathValue::Integer(i)) => {
-                        if *i == 0 { 
-                            false 
-                        } else if *i == 1 { 
-                            true 
-                        } else { 
+                        if *i == 0 {
+                            false
+                        } else if *i == 1 {
+                            true
+                        } else {
                             return Ok(FhirPathValue::Empty)
                         }
                     }
                     Some(FhirPathValue::Decimal(d)) => {
-                        if d.is_zero() { 
-                            false 
-                        } else if *d == Decimal::ONE { 
-                            true 
-                        } else { 
+                        if d.is_zero() {
+                            false
+                        } else if *d == Decimal::ONE {
+                            true
+                        } else {
                             return Ok(FhirPathValue::Empty)
                         }
                     }
@@ -291,6 +291,7 @@ impl FunctionRegistry {
                 "'2023-12-25T10:30:00Z'.toDate()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                println!("{:#?}", context.input);
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -723,7 +724,7 @@ impl FunctionRegistry {
         ))
     }
 
-    fn register_convertsToBoolean_function(&self) -> Result<()> {
+    fn register_converts_to_boolean_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToBoolean",
@@ -753,7 +754,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToInteger_function(&self) -> Result<()> {
+    fn register_converts_to_integer_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToInteger",
@@ -784,7 +785,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToDecimal_function(&self) -> Result<()> {
+    fn register_converts_to_decimal_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToDecimal",
@@ -812,7 +813,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToString_function(&self) -> Result<()> {
+    fn register_converts_to_string_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToString",
@@ -848,7 +849,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToDate_function(&self) -> Result<()> {
+    fn register_converts_to_date_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToDate",
@@ -877,7 +878,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToDateTime_function(&self) -> Result<()> {
+    fn register_converts_to_date_time_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToDateTime",
@@ -906,7 +907,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToTime_function(&self) -> Result<()> {
+    fn register_converts_to_time_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToTime",
@@ -935,7 +936,7 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_convertsToQuantity_function(&self) -> Result<()> {
+    fn register_converts_to_quantity_function(&self) -> Result<()> {
         register_function!(
             self,
             sync "convertsToQuantity",

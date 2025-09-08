@@ -5,7 +5,6 @@
 use async_trait::async_trait;
 
 use crate::{
-    ast::ExpressionNode,
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
     evaluator::{traits::LambdaEvaluator, EvaluationContext},
 };

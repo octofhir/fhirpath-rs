@@ -73,7 +73,7 @@ pub async fn start_repl(
 
     // Create the engine asynchronously
     let registry = Arc::new(create_standard_registry().await);
-    let engine = FhirPathEngine::new(registry, model_provider);
+    let engine = FhirPathEngine::new(registry, model_provider).await?;
 
     let mut session = ReplSession::new(engine, config).await?;
 

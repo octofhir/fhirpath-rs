@@ -11,8 +11,10 @@ use async_trait::async_trait;
 
 use crate::{
     ast::ExpressionNode,
-    core::{FhirPathError, FhirPathValue, ModelProvider, Result},
+    core::{FhirPathValue, ModelProvider, Result},
     evaluator::EvaluationContext,
+    wrapped::{WrappedValue, WrappedCollection},
+    typing::TypeResolver,
 };
 
 // Note: We always depend on ModelProvider trait - no direct implementations
@@ -301,240 +303,204 @@ pub trait LambdaEvaluator {
     ) -> EvaluationContext;
 }
 
-/// Composite evaluator that orchestrates all evaluation concerns
+/// Metadata-aware trait for navigating through values with rich metadata propagation
 ///
-/// This is the main evaluator that coordinates between specialized evaluators
-/// to provide complete FHIRPath expression evaluation capabilities.
-pub struct CompositeEvaluator {
-    /// Core evaluator for basic expressions
-    pub core_evaluator: Box<dyn ExpressionEvaluator + Send + Sync>,
-    /// Navigator for property and index access
-    pub navigator: Box<dyn ValueNavigator + Send + Sync>,
-    /// Function and method call evaluator
-    pub function_evaluator: Box<dyn FunctionEvaluator + Send + Sync>,
-    /// Operator and type operation evaluator
-    pub operator_evaluator: Box<dyn OperatorEvaluator + Send + Sync>,
-    /// Collection operation evaluator
-    pub collection_evaluator: Box<dyn CollectionEvaluator + Send + Sync>,
-    /// Lambda expression evaluator
-    pub lambda_evaluator: Box<dyn LambdaEvaluator + Send + Sync>,
-    /// Model provider for FHIR schema information and reference resolution
-    pub model_provider: std::sync::Arc<dyn ModelProvider>,
-}
-
-impl CompositeEvaluator {
-    /// Create a new composite evaluator with all specialized evaluators
-    pub fn new(
-        core_evaluator: Box<dyn ExpressionEvaluator + Send + Sync>,
-        navigator: Box<dyn ValueNavigator + Send + Sync>,
-        function_evaluator: Box<dyn FunctionEvaluator + Send + Sync>,
-        operator_evaluator: Box<dyn OperatorEvaluator + Send + Sync>,
-        collection_evaluator: Box<dyn CollectionEvaluator + Send + Sync>,
-        lambda_evaluator: Box<dyn LambdaEvaluator + Send + Sync>,
-        model_provider: std::sync::Arc<dyn ModelProvider>,
-    ) -> Self {
-        Self {
-            core_evaluator,
-            navigator,
-            function_evaluator,
-            operator_evaluator,
-            collection_evaluator,
-            lambda_evaluator,
-            model_provider,
-        }
-    }
-}
-
+/// This trait provides metadata-aware navigation that preserves type information,
+/// path contexts, and other metadata throughout property access and indexing operations.
+/// It is the foundation for providing rich error messages and improved CLI output.
 #[async_trait]
-impl ExpressionEvaluator for CompositeEvaluator {
-    async fn evaluate(
-        &mut self,
-        expr: &ExpressionNode,
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        // Dispatch to the appropriate specialized evaluator based on expression type
-        match expr {
-            ExpressionNode::Literal(_) | ExpressionNode::Identifier(_) | ExpressionNode::Variable(_) => {
-                self.core_evaluator.evaluate(expr, context).await
-            }
-            ExpressionNode::PropertyAccess(_) | ExpressionNode::IndexAccess(_) | ExpressionNode::Path(_) => {
-                self.evaluate_navigation_expr(expr, context).await
-            }
-            ExpressionNode::FunctionCall(_) | ExpressionNode::MethodCall(_) => {
-                self.evaluate_function_expr(expr, context).await
-            }
-            ExpressionNode::BinaryOperation(_) | ExpressionNode::UnaryOperation(_) | 
-            ExpressionNode::TypeCast(_) | ExpressionNode::TypeCheck(_) => {
-                self.evaluate_operator_expr(expr, context).await
-            }
-            ExpressionNode::Collection(_) | ExpressionNode::Union(_) | ExpressionNode::Filter(_) => {
-                self.evaluate_collection_expr(expr, context).await
-            }
-            ExpressionNode::Lambda(_) => {
-                // For standalone lambda, we need a collection to apply it to
-                let empty_collection = FhirPathValue::Empty;
-                self.lambda_evaluator.evaluate_lambda(
-                    match expr {
-                        ExpressionNode::Lambda(lambda) => lambda,
-                        _ => unreachable!(),
-                    },
-                    &empty_collection,
-                    context,
-                ).await
-            }
-            ExpressionNode::Parenthesized(inner) => {
-                self.evaluate(inner, context).await
-            }
-        }
-    }
+pub trait MetadataAwareNavigator {
+    /// Navigate to a property with metadata preservation and type resolution
+    ///
+    /// # Arguments
+    /// * `source` - The wrapped source value to navigate from
+    /// * `property` - The property name to access
+    /// * `resolver` - Type resolver for accurate FHIR type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The property values with updated metadata
+    async fn navigate_property_with_metadata(
+        &self,
+        source: &WrappedValue,
+        property: &str,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
 
-    fn can_evaluate(&self, _expr: &ExpressionNode) -> bool {
-        // Composite evaluator can handle all expression types
-        true
-    }
+    /// Navigate to an indexed element with metadata preservation
+    ///
+    /// # Arguments
+    /// * `source` - The wrapped source value to navigate from
+    /// * `index` - The zero-based index to access
+    /// * `resolver` - Type resolver for element type information
+    ///
+    /// # Returns
+    /// * `Option<WrappedValue>` - The indexed value with updated metadata
+    async fn navigate_index_with_metadata(
+        &self,
+        source: &WrappedValue,
+        index: usize,
+        resolver: &TypeResolver,
+    ) -> Result<Option<WrappedValue>>;
 
-    fn evaluator_name(&self) -> &'static str {
-        "CompositeEvaluator"
-    }
+    /// Navigate through multiple property steps with metadata
+    ///
+    /// # Arguments
+    /// * `source` - The wrapped source value to navigate from
+    /// * `path_segments` - The property path to follow (e.g., ["name", "given"])
+    /// * `resolver` - Type resolver for type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The final navigation results with metadata
+    async fn navigate_path_with_metadata(
+        &self,
+        source: &WrappedValue,
+        path_segments: &[&str],
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
 }
 
-impl CompositeEvaluator {
-    /// Handle navigation expressions (property access, indexing, path navigation)
-    async fn evaluate_navigation_expr(
+/// Metadata-aware trait for evaluating expressions with rich metadata propagation
+///
+/// This trait provides metadata-aware expression evaluation that preserves type information,
+/// path contexts, and other metadata throughout the evaluation process. It is the foundation
+/// for providing accurate error messages and improved output with real FHIR types.
+#[async_trait]
+pub trait MetadataAwareEvaluator {
+    /// Evaluate an expression with metadata propagation
+    ///
+    /// # Arguments
+    /// * `expr` - The AST expression node to evaluate
+    /// * `context` - The evaluation context
+    /// * `resolver` - Type resolver for accurate FHIR type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The evaluation result with metadata
+    async fn evaluate_with_metadata(
         &mut self,
         expr: &ExpressionNode,
         context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        match expr {
-            ExpressionNode::PropertyAccess(prop) => {
-                let object_value = self.evaluate(&prop.object, context).await?;
-                self.navigator.navigate_property(&object_value, &prop.property, 
-                    &*self.model_provider)
-            }
-            ExpressionNode::IndexAccess(idx) => {
-                let object_value = self.evaluate(&idx.object, context).await?;
-                let index_value = self.evaluate(&idx.index, context).await?;
-                
-                // Convert index to usize
-                match index_value {
-                    FhirPathValue::Integer(i) if i >= 0 => {
-                        self.navigator.navigate_index(&object_value, i as usize)
-                    }
-                    _ => Ok(FhirPathValue::Empty), // Invalid index
-                }
-            }
-            ExpressionNode::Path(path) => {
-                let base_value = self.evaluate(&path.base, context).await?;
-                self.navigator.navigate_path(&base_value, &path.path, 
-                    &*self.model_provider)
-            }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                format!("Invalid navigation expression: {:?}", expr),
-            )),
-        }
-    }
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
 
-    /// Handle function and method call expressions
-    async fn evaluate_function_expr(
-        &mut self,
-        expr: &ExpressionNode,
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        match expr {
-            ExpressionNode::FunctionCall(func) => {
-                // Evaluate all arguments first
-                let mut args = Vec::new();
-                for arg in &func.arguments {
-                    args.push(self.evaluate(arg, context).await?);
-                }
-                
-                self.function_evaluator.call_function(&func.name, &args, context).await
-            }
-            ExpressionNode::MethodCall(method) => {
-                let object_value = self.evaluate(&method.object, context).await?;
-                
-                // Evaluate all arguments
-                let mut args = Vec::new();
-                for arg in &method.arguments {
-                    args.push(self.evaluate(arg, context).await?);
-                }
-                
-                self.function_evaluator.call_method(&object_value, &method.method, &args, context).await
-            }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                format!("Invalid function expression: {:?}", expr),
-            )),
-        }
-    }
-
-    /// Handle operator expressions (binary ops, unary ops, type ops)
-    async fn evaluate_operator_expr(
-        &mut self,
-        expr: &ExpressionNode,
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        match expr {
-            ExpressionNode::BinaryOperation(bin) => {
-                let left_value = self.evaluate(&bin.left, context).await?;
-                let right_value = self.evaluate(&bin.right, context).await?;
-                
-                self.operator_evaluator.evaluate_binary_op(&left_value, &bin.operator, &right_value)
-            }
-            ExpressionNode::UnaryOperation(un) => {
-                let operand_value = self.evaluate(&un.operand, context).await?;
-                
-                self.operator_evaluator.evaluate_unary_op(&un.operator, &operand_value)
-            }
-            ExpressionNode::TypeCast(cast) => {
-                let expr_value = self.evaluate(&cast.expression, context).await?;
-                
-                self.operator_evaluator.cast_to_type(&expr_value, &cast.target_type)
-            }
-            ExpressionNode::TypeCheck(check) => {
-                let expr_value = self.evaluate(&check.expression, context).await?;
-                let is_type = self.operator_evaluator.is_of_type(&expr_value, &check.target_type);
-                
-                Ok(FhirPathValue::Boolean(is_type))
-            }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                format!("Invalid operator expression: {:?}", expr),
-            )),
-        }
-    }
-
-    /// Handle collection expressions (collections, unions, filters)
-    async fn evaluate_collection_expr(
-        &mut self,
-        expr: &ExpressionNode,
-        context: &EvaluationContext,
-    ) -> Result<FhirPathValue> {
-        match expr {
-            ExpressionNode::Collection(coll) => {
-                let mut elements = Vec::new();
-                for element in &coll.elements {
-                    elements.push(self.evaluate(element, context).await?);
-                }
-                
-                Ok(self.collection_evaluator.create_collection(elements))
-            }
-            ExpressionNode::Union(union) => {
-                let left_value = self.evaluate(&union.left, context).await?;
-                let right_value = self.evaluate(&union.right, context).await?;
-                
-                Ok(self.collection_evaluator.union_values(&left_value, &right_value))
-            }
-            ExpressionNode::Filter(filter) => {
-                let base_value = self.evaluate(&filter.base, context).await?;
-                
-                self.collection_evaluator.filter_collection(&base_value, &filter.condition, context).await
-            }
-            _ => Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                format!("Invalid collection expression: {:?}", expr),
-            )),
-        }
-    }
+    /// Initialize root evaluation context with metadata
+    ///
+    /// # Arguments
+    /// * `root_data` - The root data for evaluation
+    /// * `resolver` - Type resolver for root type detection
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The root context with metadata
+    async fn initialize_root_context(
+        &self,
+        root_data: &crate::core::Collection,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
 }
+
+/// Metadata-aware trait for evaluating functions with rich metadata propagation
+///
+/// This trait provides metadata-aware function evaluation that preserves type information
+/// and path contexts through function calls, enabling accurate result type resolution.
+#[async_trait]
+pub trait MetadataAwareFunctionEvaluator {
+    /// Execute a function call with metadata-aware arguments and results
+    ///
+    /// # Arguments
+    /// * `name` - The function name to call
+    /// * `args` - The evaluated arguments with metadata
+    /// * `context` - The evaluation context
+    /// * `resolver` - Type resolver for result type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The function result with metadata
+    async fn call_function_with_metadata(
+        &mut self,
+        name: &str,
+        args: &[WrappedCollection],
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+
+    /// Execute a method call on a wrapped object with metadata
+    ///
+    /// # Arguments
+    /// * `object` - The wrapped object to call the method on
+    /// * `method` - The method name to call
+    /// * `args` - The evaluated arguments with metadata
+    /// * `context` - The evaluation context
+    /// * `resolver` - Type resolver for result type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The method result with metadata
+    async fn call_method_with_metadata(
+        &mut self,
+        object: &WrappedCollection,
+        method: &str,
+        args: &[WrappedCollection],
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+}
+
+/// Trait for evaluating collection operations with rich metadata propagation
+#[async_trait]
+pub trait MetadataAwareCollectionEvaluator {
+    /// Create a collection from individual wrapped elements
+    ///
+    /// # Arguments
+    /// * `elements` - The wrapped elements to include in the collection
+    /// * `resolver` - Type resolver for collection type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The resulting collection with metadata
+    async fn create_collection_with_metadata(
+        &self,
+        elements: Vec<WrappedCollection>,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+
+    /// Union two wrapped collections according to FHIRPath semantics
+    ///
+    /// # Arguments
+    /// * `left` - The left collection with metadata
+    /// * `right` - The right collection with metadata
+    /// * `resolver` - Type resolver for result type information
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The union result with metadata
+    async fn union_collections_with_metadata(
+        &self,
+        left: &WrappedCollection,
+        right: &WrappedCollection,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+
+    /// Filter a wrapped collection using a condition with metadata preservation
+    ///
+    /// # Arguments
+    /// * `collection` - The wrapped collection to filter
+    /// * `condition` - The condition expression to apply
+    /// * `context` - The evaluation context
+    /// * `resolver` - Type resolver for result metadata
+    ///
+    /// # Returns
+    /// * `WrappedCollection` - The filtered collection with preserved metadata
+    async fn filter_collection_with_metadata(
+        &mut self,
+        collection: &WrappedCollection,
+        condition: &ExpressionNode,
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<WrappedCollection>;
+
+    /// Check if a wrapped collection contains a specific wrapped value
+    ///
+    /// # Arguments
+    /// * `collection` - The wrapped collection to search
+    /// * `value` - The wrapped value to find
+    ///
+    /// # Returns
+    /// * `bool` - True if the value is found in the collection
+    fn contains_wrapped_value(&self, collection: &WrappedCollection, value: &WrappedValue) -> bool;
+}
+

@@ -76,10 +76,26 @@ pub mod registry;
 // Support modules
 pub mod analyzer;
 pub mod diagnostics;
+pub mod path;
+pub mod typing;
+pub mod wrapped;
 
 // Re-export core types for convenience
 pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
 pub use octofhir_fhir_model::EmptyModelProvider as MockModelProvider;
+
+// Re-export wrapped types for rich metadata support
+pub use crate::wrapped::{
+    IntoPlain, IntoWrapped, ValueMetadata, WrappedCollection, WrappedValue, collection_utils,
+};
+
+// Re-export path types for canonical path representation
+pub use crate::path::{CanonicalPath, PathBuilder, PathParseError, PathSegment, path_utils};
+
+// Re-export typing types for type resolution
+pub use crate::typing::{
+    TypeResolutionContext, TypeResolver, TypeResolverFactory, is_primitive_type, type_utils,
+};
 
 // Re-export main engine types
 pub use crate::evaluator::{
@@ -88,7 +104,9 @@ pub use crate::evaluator::{
     CacheMetrics,
     CacheStats,
     EngineConfig,
-    // Enhanced context system
+    // Composite evaluator types
+    CompositeEvaluator,
+    // Context system
     EvaluationContext,
     EvaluationContextBuilder,
     EvaluationMetrics,
@@ -96,6 +114,17 @@ pub use crate::evaluator::{
     EvaluationResult,
     EvaluationWarning,
     FhirPathEngine,
+    MetadataAwareCollectionEvaluator,
+    MetadataAwareEvaluator,
+    MetadataAwareFunctionEvaluator,
+    MetadataAwareNavigator,
+    // Collection types
+    MetadataCollectionEvaluator,
+    // Evaluator types
+    MetadataCoreEvaluator,
+    MetadataFunctionEvaluator,
+    // Navigator types
+    MetadataNavigator,
     MetricsCollector,
     PerformanceLevel,
     PropertyDefinition,
@@ -105,6 +134,8 @@ pub use crate::evaluator::{
     TypeDefinition,
     TypeFactory,
     TypeKind,
+    TypeResolutionStats,
+    collection_ops,
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
@@ -194,12 +225,12 @@ pub use crate::diagnostics::{
 /// # }
 /// ```
 pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
-    use std::sync::Arc;
     use octofhir_fhir_model::EmptyModelProvider;
-    
+    use std::sync::Arc;
+
     let registry = Arc::new(create_standard_registry().await);
     let model_provider = Arc::new(EmptyModelProvider);
-    
+
     FhirPathEngine::new(registry, model_provider).await
 }
 
@@ -227,7 +258,14 @@ pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirP
     let mut engine = create_engine_with_mock_provider().await?;
     let eval_context = EvaluationContext::from_value(context.clone());
     let result = engine.evaluate(expression, &eval_context).await?;
-    Ok(result.value)
+    // Convert Collection to FhirPathValue for convenience function
+    let values = result.value.into_vec();
+    let fhir_value = match values.len() {
+        0 => FhirPathValue::Empty,
+        1 => values.into_iter().next().unwrap(),
+        _ => FhirPathValue::Collection(values),
+    };
+    Ok(fhir_value)
 }
 
 // Version information
