@@ -23,7 +23,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install Node.js and pnpm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       
@@ -165,7 +165,7 @@ jobs:
           echo "Using release version: ${VERSION}"
 
       - name: Install Node.js and pnpm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       
