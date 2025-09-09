@@ -263,7 +263,7 @@ pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirP
     let fhir_value = match values.len() {
         0 => FhirPathValue::Empty,
         1 => values.into_iter().next().unwrap(),
-        _ => FhirPathValue::Collection(values),
+        _ => FhirPathValue::Collection(Collection::from_values(values)),
     };
     Ok(fhir_value)
 }

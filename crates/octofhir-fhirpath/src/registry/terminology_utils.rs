@@ -194,8 +194,8 @@ impl TerminologyUtils {
             JsonValue::String(translation.equivalence.clone()),
         );
 
-        if let FhirPathValue::Resource(concept_arc) = Self::coding_to_value(&translation.concept) {
-            if let JsonValue::Object(concept_obj) = concept_arc.as_ref() {
+        if let FhirPathValue::Resource(concept_json) = Self::coding_to_value(&translation.concept) {
+            if let JsonValue::Object(concept_obj) = concept_json.as_ref() {
                 translation_obj.insert(
                     "concept".to_string(),
                     JsonValue::Object(concept_obj.clone()),
@@ -223,8 +223,8 @@ impl TerminologyUtils {
         }
 
         if let Some(ref use_coding) = designation.use_coding {
-            if let FhirPathValue::Resource(use_arc) = Self::coding_to_value(use_coding) {
-                if let JsonValue::Object(use_obj) = use_arc.as_ref() {
+            if let FhirPathValue::Resource(use_json) = Self::coding_to_value(use_coding) {
+                if let JsonValue::Object(use_obj) = use_json.as_ref() {
                     designation_obj.insert("use".to_string(), JsonValue::Object(use_obj.clone()));
                 }
             }

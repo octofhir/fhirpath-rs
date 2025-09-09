@@ -14,63 +14,102 @@ use super::error_code::*;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 
 /// A collection of FHIRPath values - the fundamental evaluation result type
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Collection(Vec<FhirPathValue>);
+#[derive(Debug, Clone, PartialEq)]
+pub struct Collection {
+    values: Vec<FhirPathValue>,
+    is_ordered: bool,
+}
 
 impl Collection {
-    /// Create a new empty collection
+    /// Create a new empty collection (ordered by default)
     pub fn empty() -> Self {
-        Self(Vec::new())
+        Self {
+            values: Vec::new(),
+            is_ordered: true,
+        }
     }
 
-    /// Create a collection with a single value
+    /// Create an empty collection with explicit ordering
+    pub fn empty_with_ordering(is_ordered: bool) -> Self {
+        Self {
+            values: Vec::new(),
+            is_ordered,
+        }
+    }
+
+    /// Create a collection with a single value (ordered by default)
     pub fn single(value: FhirPathValue) -> Self {
-        Self(vec![value])
+        Self {
+            values: vec![value],
+            is_ordered: true,
+        }
     }
 
-    /// Create a collection from a vector of values
+    /// Create a collection from a vector of values (ordered by default)
     pub fn from_values(values: Vec<FhirPathValue>) -> Self {
-        Self(values)
+        Self {
+            values,
+            is_ordered: true,
+        }
+    }
+
+    /// Create a collection from a vector with explicit ordering
+    pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
+        Self {
+            values,
+            is_ordered,
+        }
     }
 
     /// Check if the collection is empty
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.values.is_empty()
     }
 
     /// Get the number of items in the collection
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.values.len()
+    }
+
+    /// Check if the collection is ordered
+    pub fn is_ordered(&self) -> bool {
+        self.is_ordered
     }
 
     /// Get the first item, if any
     pub fn first(&self) -> Option<&FhirPathValue> {
-        self.0.first()
+        self.values.first()
     }
 
     /// Get the last item, if any
     pub fn last(&self) -> Option<&FhirPathValue> {
-        self.0.last()
+        self.values.last()
     }
 
     /// Get item at index
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
-        self.0.get(index)
+        self.values.get(index)
     }
 
-    /// Iterate over values
-    pub fn iter(&self) -> std::slice::Iter<FhirPathValue> {
-        self.0.iter()
+    /// Get an iterator over the values in the collection
+    pub fn iter(&self) -> std::slice::Iter<'_, FhirPathValue> {
+        self.values.iter()
     }
+
+    /// Get the underlying values as a slice
+    pub fn values(&self) -> &[FhirPathValue] {
+        &self.values
+    }
+
 
     /// Add a value to the collection
     pub fn push(&mut self, value: FhirPathValue) {
-        self.0.push(value);
+        self.values.push(value);
     }
 
     /// Convert to vector
     pub fn into_vec(self) -> Vec<FhirPathValue> {
-        self.0
+        self.values
     }
 }
 
@@ -86,11 +125,26 @@ impl From<FhirPathValue> for Collection {
     }
 }
 
+impl IntoIterator for Collection {
+    type Item = FhirPathValue;
+    type IntoIter = std::vec::IntoIter<FhirPathValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.into_iter()
+    }
+}
+
+impl std::iter::FromIterator<FhirPathValue> for Collection {
+    fn from_iter<T: IntoIterator<Item = FhirPathValue>>(iter: T) -> Self {
+        Self::from_values(iter.into_iter().collect())
+    }
+}
+
 impl std::ops::Index<usize> for Collection {
     type Output = FhirPathValue;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+        &self.values[index]
     }
 }
 
@@ -100,12 +154,12 @@ impl serde::Serialize for Collection {
         S: serde::Serializer,
     {
         // Serialize as a simple array of values
-        self.0.serialize(serializer)
+        self.values.serialize(serializer)
     }
 }
 
 /// FHIRPath value type supporting core FHIR primitive types
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FhirPathValue {
     /// Boolean value
     Boolean(bool),
@@ -135,8 +189,6 @@ pub enum FhirPathValue {
         /// The unit of measurement (e.g., "mg", "kg/m2")
         unit: Option<String>,
         /// Parsed UCUM unit for calculations (cached for performance)
-        #[serde(skip)]
-        #[serde(default)]
         ucum_unit: Option<Arc<UnitRecord>>,
         /// Calendar unit for non-UCUM time units (year, month, week, day)
         calendar_unit: Option<CalendarUnit>,
@@ -144,10 +196,10 @@ pub enum FhirPathValue {
 
     /// Complex FHIR resource or element (JSON representation)
     /// This handles all complex FHIR types like Coding, CodeableConcept, etc.
-    Resource(JsonValue),
+    Resource(Arc<JsonValue>),
 
     /// Raw JSON value for compatibility (distinct from Resource for type operations)
-    JsonValue(JsonValue),
+    JsonValue(Arc<JsonValue>),
 
     /// UUID/identifier value
     Id(Uuid),
@@ -162,7 +214,7 @@ pub enum FhirPathValue {
     Url(String),
 
     /// Collection of values (the fundamental FHIRPath concept)
-    Collection(Vec<FhirPathValue>),
+    Collection(Collection),
 
     /// Type information object for type operations
     TypeInfoObject { namespace: String, name: String },
@@ -217,7 +269,7 @@ impl serde::Serialize for FhirPathValue {
             }
             Self::Uri(uri) => serializer.serialize_str(uri),
             Self::Url(url) => serializer.serialize_str(url),
-            Self::Collection(values) => values.serialize(serializer),
+            Self::Collection(collection) => collection.serialize(serializer),
             Self::TypeInfoObject { namespace, name } => {
                 let mut map = std::collections::BTreeMap::new();
                 map.insert("namespace", namespace);
@@ -308,7 +360,11 @@ impl FhirPathValue {
 
     /// Check if this value is empty/null
     pub fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
+        match self {
+            Self::Empty => true,
+            Self::Collection(c) => c.is_empty(),
+            _ => false,
+        }
     }
 
     /// Convert to boolean (FHIRPath boolean conversion rules)
@@ -370,7 +426,7 @@ impl FhirPathValue {
 
     /// Create a resource value from JSON
     pub fn resource(json: JsonValue) -> Self {
-        Self::Resource(json)
+        Self::Resource(Arc::new(json))
     }
 
     /// Create a quantity value with UCUM unit parsing
@@ -445,7 +501,7 @@ impl FhirPathValue {
 
     /// Create a JSON value (for compatibility)
     pub fn json_value(json: JsonValue) -> Self {
-        Self::JsonValue(json)
+        Self::JsonValue(Arc::new(json))
     }
 
     /// Create a collection value
@@ -455,7 +511,18 @@ impl FhirPathValue {
         } else if values.len() == 1 {
             values.into_iter().next().unwrap()
         } else {
-            Self::Collection(values)
+            Self::Collection(Collection::from_values(values))
+        }
+    }
+
+    /// Create a collection with explicit ordering
+    pub fn collection_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
+        if values.is_empty() {
+            Self::Empty
+        } else if values.len() == 1 {
+            values.into_iter().next().unwrap()
+        } else {
+            Self::Collection(Collection::from_values_with_ordering(values, is_ordered))
         }
     }
 
@@ -506,7 +573,7 @@ impl FhirPathValue {
     /// Get the length of the value (1 for single values, n for collections, 0 for empty)
     pub fn len(&self) -> usize {
         match self {
-            Self::Collection(vec) => vec.len(),
+            Self::Collection(col) => col.len(),
             Self::Empty => 0,
             _ => 1,
         }
@@ -515,7 +582,7 @@ impl FhirPathValue {
     /// Get the first item from a collection, or the value itself if single
     pub fn first(&self) -> Option<&FhirPathValue> {
         match self {
-            Self::Collection(vec) => vec.first(),
+            Self::Collection(col) => col.first(),
             Self::Empty => None,
             single => Some(single),
         }
@@ -524,7 +591,7 @@ impl FhirPathValue {
     /// Get the last item from a collection, or the value itself if single
     pub fn last(&self) -> Option<&FhirPathValue> {
         match self {
-            Self::Collection(vec) => vec.last(),
+            Self::Collection(col) => col.last(),
             Self::Empty => None,
             single => Some(single),
         }
@@ -533,7 +600,7 @@ impl FhirPathValue {
     /// Get an item at a specific index
     pub fn get(&self, index: usize) -> Option<&FhirPathValue> {
         match self {
-            Self::Collection(vec) => vec.get(index),
+            Self::Collection(col) => col.get(index),
             Self::Empty => None,
             single if index == 0 => Some(single),
             _ => None,
@@ -543,7 +610,7 @@ impl FhirPathValue {
     /// Iterate over collection items, or a single item if not a collection
     pub fn iter(&self) -> Box<dyn Iterator<Item = &FhirPathValue> + '_> {
         match self {
-            Self::Collection(vec) => Box::new(vec.iter()),
+            Self::Collection(col) => Box::new(col.iter()),
             Self::Empty => Box::new(std::iter::empty()),
             single => Box::new(std::iter::once(single)),
         }
@@ -552,7 +619,7 @@ impl FhirPathValue {
     /// Convert to a collection (wrapping single values)
     pub fn to_collection(self) -> Vec<FhirPathValue> {
         match self {
-            Self::Collection(vec) => vec,
+            Self::Collection(col) => col.into_vec(),
             Self::Empty => Vec::new(),
             single => vec![single],
         }
@@ -561,6 +628,22 @@ impl FhirPathValue {
     /// Clone the collection items into a Vec
     pub fn cloned_collection(&self) -> Vec<FhirPathValue> {
         self.iter().cloned().collect()
+    }
+
+    /// Check if this is an ordered collection
+    pub fn is_ordered_collection(&self) -> bool {
+        match self {
+            Self::Collection(col) => col.is_ordered(),
+            _ => true, // Single values and empty are considered ordered
+        }
+    }
+
+    /// Convert to Collection struct
+    pub fn as_collection(&self) -> Option<&Collection> {
+        match self {
+            Self::Collection(col) => Some(col),
+            _ => None,
+        }
     }
 }
 
@@ -593,9 +676,9 @@ impl fmt::Display for FhirPathValue {
             Self::Base64Binary(data) => write!(f, "base64({} bytes)", data.len()),
             Self::Uri(u) => write!(f, "{}", u),
             Self::Url(u) => write!(f, "{}", u),
-            Self::Collection(values) => {
+            Self::Collection(collection) => {
                 write!(f, "Collection[")?;
-                for (i, val) in values.iter().enumerate() {
+                for (i, val) in collection.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }

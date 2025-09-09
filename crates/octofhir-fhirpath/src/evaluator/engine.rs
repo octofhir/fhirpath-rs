@@ -264,7 +264,7 @@ impl FhirPathEngine {
         &'a mut self,
         expr: &'a ExpressionNode,
         context: &'a EvaluationContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + 'a>> {
         Box::pin(async move {
             // Use unified metadata-aware evaluation and convert result to plain FhirPathValue
             let wrapped_result = self.evaluator.evaluate_with_metadata(expr, context).await?;
@@ -305,7 +305,7 @@ impl FhirPathEngine {
     fn value_to_collection(&self, value: FhirPathValue) -> Collection {
         match value {
             FhirPathValue::Empty => Collection::empty(),
-            FhirPathValue::Collection(vec) => Collection::from_values(vec),
+            FhirPathValue::Collection(collection) => collection,
             single_value => Collection::single(single_value),
         }
     }

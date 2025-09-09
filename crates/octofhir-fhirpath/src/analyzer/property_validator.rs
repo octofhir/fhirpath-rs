@@ -2206,7 +2206,7 @@ mod tests {
     /// CRITICAL TEST: Test that Pat.name generates FP0121 error for invalid resource type
     #[tokio::test]
     async fn test_invalid_resource_type_pat_generates_error() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         // Use MockModelProvider first to test the logic
@@ -2257,7 +2257,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_similarity_calculation() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2278,7 +2278,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_property_suggestions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2310,7 +2310,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_levenshtein_distance() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2327,7 +2327,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_provider_integration() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2343,7 +2343,7 @@ mod tests {
 
     #[test]
     fn test_common_typos() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2365,7 +2365,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dynamic_property_validation_with_model_provider() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2382,7 +2382,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resource_type_validation_with_schema() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2396,7 +2396,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_property_suggestions_from_schema() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2411,7 +2411,7 @@ mod tests {
 
     #[test]
     fn test_type_reflection_conversion() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         use octofhir_fhir_model::TypeReflectionInfo;
 
@@ -2438,7 +2438,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_valid_resource_type_detection() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2462,7 +2462,7 @@ mod tests {
     async fn test_invalid_resource_type_error() {
         use crate::ast::expression::{ExpressionNode, IdentifierNode};
         use crate::core::SourceLocation;
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2491,7 +2491,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resource_type_suggestions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2523,7 +2523,7 @@ mod tests {
 
     #[test]
     fn test_capitalization_detection() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2561,7 +2561,7 @@ mod tests {
     async fn test_property_access_resource_validation() {
         use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
         use crate::core::SourceLocation;
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2604,7 +2604,7 @@ mod tests {
     async fn test_valid_resource_type_no_error() {
         use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
         use crate::core::SourceLocation;
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2636,7 +2636,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_schema_based_property_suggestions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2660,7 +2660,7 @@ mod tests {
 
     #[test]
     fn test_function_name_validation() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2678,7 +2678,7 @@ mod tests {
 
     #[test]
     fn test_function_suggestions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2697,7 +2697,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_polymorphic_property_detection() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2722,7 +2722,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_property_suggestions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2747,7 +2747,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_suggestion_prioritization() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2795,7 +2795,7 @@ mod tests {
     async fn test_function_validation_in_expression() {
         use crate::ast::expression::{ExpressionNode, FunctionCallNode};
         use crate::core::SourceLocation;
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2829,7 +2829,7 @@ mod tests {
 
     #[test]
     fn test_detailed_suggestion_structure() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
@@ -2850,7 +2850,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_performance_caching() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());

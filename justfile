@@ -7,9 +7,8 @@ default:
     @echo "=================================="
     @echo ""
     @echo "🚀 Quick Start:"
-    @echo "  just server              # Start HTTP server on port 8080"
+    @echo "  just server              # Start FHIRPath Lab API server on port 8080"
     @echo "  just server-dev          # Start server with CORS for development"
-    @echo "  just server-no-ui        # Start API-only server (no web UI)"
     @echo "  just repl                # Start interactive REPL (simple)"
     @echo "  just tui                 # Start Terminal User Interface (advanced)"
     @echo "  just test                # Run all tests"
@@ -214,9 +213,6 @@ clean:
 test-case CASE:
     cargo run --package fhirpath-dev-tools --bin test-runner test-cases/{{CASE}}.json
 
-# Run specific test case with MockModelProvider (fast)
-test-case-fast CASE:
-    FHIRPATH_USE_MOCK_PROVIDER=1 cargo run --package fhirpath-dev-tools --bin test-runner test-cases/{{CASE}}.json
 
 # CLI commands
 cli-evaluate EXPRESSION FILE="":
@@ -406,120 +402,96 @@ diagnostic-demo-no-color EXPRESSION="Patient.invalid.syntax":
     @echo "==============================================="
     FHIRPATH_NO_COLOR=1 just diagnostic-demo "{{EXPRESSION}}" --output-format pretty
 
-# HTTP Server commands
+# FHIRPath Lab API Server commands
 server *ARGS:
-    @echo "🌐 Starting FHIRPath HTTP Server"
-    @echo "==============================="
+    @echo "🌐 Starting FHIRPath Lab API Server"
+    @echo "==================================="
     @echo "🔗 Server will be available at http://localhost:8080"
-    @echo "📁 Storage directory: ./storage"
-    @echo "📚 API documentation: http://localhost:8080/health for status"
+    @echo "📚 Health check: http://localhost:8080/health"
+    @echo "📚 Version info: http://localhost:8080/version"
+    @echo "⚗️  FHIRPath Lab API: POST http://localhost:8080/r4, /r4b, /r5, /r6"
     @echo "⏹️  Press Ctrl+C to stop the server"
     @echo ""
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server {{ARGS}}
 
 # Start server with custom port
 server-port PORT *ARGS:
-    @echo "🌐 Starting FHIRPath HTTP Server on port {{PORT}}"
-    @echo "============================================="
+    @echo "🌐 Starting FHIRPath Lab API Server on port {{PORT}}"
+    @echo "================================================="
     @echo "🔗 Server will be available at http://localhost:{{PORT}}"
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --port {{PORT}} {{ARGS}}
 
 # Start server in development mode with CORS enabled for all origins
 server-dev *ARGS:
-    @echo "🧪 Starting FHIRPath HTTP Server (Development Mode)"
-    @echo "=================================================="
+    @echo "🧪 Starting FHIRPath Lab API Server (Development Mode)"
+    @echo "===================================================="
     @echo "🔗 Server: http://localhost:8080"
     @echo "🌐 CORS: Enabled for all origins"
-    @echo "📁 Storage: ./storage"
-    @echo ""
-    @echo "🏗️  Building UI..."
-    cd ui && pnpm install && pnpm build
+    @echo "⚠️  Use only for development - CORS allows any origin"
     @echo "🚀 Starting server..."
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --cors-all {{ARGS}}
 
-# Start server without web UI (API-only mode)
-server-no-ui *ARGS:
-    @echo "🔧 Starting FHIRPath HTTP Server (API-Only Mode)"
-    @echo "==============================================="
-    @echo "🔗 FHIRPath Lab API: http://localhost:8080/"
-    @echo "🔗 Version endpoints: http://localhost:8080/r4, /r4b, /r5, /r6"
-    @echo "🔗 Health check: http://localhost:8080/healthz"
-    @echo "📁 Storage: ./storage"
-    @echo "🚫 Web UI: Disabled"
-    @echo "⏹️  Press Ctrl+C to stop the server"
-    @echo ""
-    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --no-ui {{ARGS}}
-
-# Start server with custom storage directory
-server-storage STORAGE_DIR *ARGS:
-    @echo "🌐 Starting FHIRPath HTTP Server"
-    @echo "📁 Custom storage directory: {{STORAGE_DIR}}"
-    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server --storage {{STORAGE_DIR}} {{ARGS}}
 
 # Test server endpoints with curl examples
 server-test:
-    @echo "🧪 Testing FHIRPath HTTP Server Endpoints"
-    @echo "=========================================="
+    @echo "🧪 Testing FHIRPath Lab API Server Endpoints"
+    @echo "============================================"
     @echo ""
     @echo "🔍 Testing health endpoint..."
     curl -s http://localhost:8080/health | head -10 || echo "❌ Server not running. Start with 'just server'"
     @echo ""
-    @echo "📁 Testing file list endpoint..."
-    curl -s http://localhost:8080/files | head -10 || echo "❌ Server not running"
+    @echo "📋 Testing version endpoint..."
+    curl -s http://localhost:8080/version | head -10 || echo "❌ Server not running"
     @echo ""
-    @echo "💡 Example evaluation request:"
+    @echo "💡 FHIRPath Lab API endpoints available at:"
+    @echo "   POST http://localhost:8080/r4    (FHIR R4)"
+    @echo "   POST http://localhost:8080/r4b   (FHIR R4B)"
+    @echo "   POST http://localhost:8080/r5    (FHIR R5)"
+    @echo "   POST http://localhost:8080/r6    (FHIR R6)"
     @echo "curl -X POST http://localhost:8080/r4/evaluate \\"
     @echo "  -H 'Content-Type: application/json' \\"
     @echo "  -d '{\"expression\": \"Patient.name.given\", \"resource\": {\"resourceType\": \"Patient\", \"name\": [{\"given\": [\"John\"]}]}}'"
 
 # Server examples with different FHIR versions
 server-examples:
-    @echo "📚 FHIRPath Server API Examples"
-    @echo "=============================="
+    @echo "📚 FHIRPath Lab API Examples"
+    @echo "==========================="
     @echo ""
-    @echo "🏥 Example Patient evaluation (R4):"
-    @echo "curl -X POST http://localhost:8080/r4/evaluate \\"
-    @echo "  -H 'Content-Type: application/json' \\"
-    @echo "  -d @storage/examples/patient-example.json"
+    @echo "🏥 Example Patient name evaluation (R4):"
+    @echo 'curl -X POST http://localhost:8080/r4 \\'
+    @echo '  -H "Content-Type: application/json" \\'
+    @echo '  -d "{\"resourceType\": \"Parameters\", \"parameter\": ["'
+    @echo '    "{\"name\": \"expression\", \"valueString\": \"Patient.name.family\"},"'
+    @echo '    "{\"name\": \"resource\", \"resource\": {\"resourceType\": \"Patient\", \"name\": [{\"family\": \"Doe\"}]}}"'
+    @echo '  "]}"'
     @echo ""
-    @echo "🔬 Example Observation evaluation (R5):" 
-    @echo "curl -X POST http://localhost:8080/r5/evaluate \\"
-    @echo "  -H 'Content-Type: application/json' \\"
-    @echo "  -d '{\"expression\": \"Observation.valueQuantity.value\", \"resource\": {...}}'"
-    @echo ""
-    @echo "📦 Bundle analysis (R4B):"
-    @echo "curl -X POST http://localhost:8080/r4b/analyze \\"
-    @echo "  -H 'Content-Type: application/json' \\"
-    @echo "  -d '{\"expression\": \"Bundle.entry.resource.where(resourceType = \\\"Patient\\\")\"}'"
-    @echo ""
-    @echo "📄 File operations:"
-    @echo "curl http://localhost:8080/files                    # List files"
-    @echo "curl http://localhost:8080/files/patient-example.json  # Get specific file"
+    @echo "🔬 Example Observation value (R5):"
+    @echo 'curl -X POST http://localhost:8080/r5 \\'
+    @echo '  -H "Content-Type: application/json" \\'
+    @echo '  -d "{\"resourceType\": \"Parameters\", \"parameter\": ["'
+    @echo '    "{\"name\": \"expression\", \"valueString\": \"Observation.valueQuantity.value\"},"'
+    @echo '    "{\"name\": \"resource\", \"resource\": {...}}"'
+    @echo '  "]}"'
 
 # Watch server logs in development
 server-watch:
     @echo "👀 Starting server with file watching for development"
     @echo "====================================================="
-    cargo watch -x 'run --package octofhir-fhirpath --bin octofhir-fhirpath --features cli -- server --cors-all'
+    cargo watch -x 'run --package fhirpath-cli --bin octofhir-fhirpath -- server --cors-all'
 
 # Create example FHIR resources for testing
 server-setup-examples:
     @echo "📁 Setting up example FHIR resources"
     @echo "===================================="
-    @mkdir -p storage/examples
-    @if [ ! -f storage/examples/patient-example.json ]; then \
-        echo "Creating patient-example.json..."; \
-    else \
-        echo "✅ Example files already exist in storage/examples/"; \
-    fi
-    @echo "📚 Available example files:"
-    @ls -la storage/examples/ 2>/dev/null || echo "📁 Run server to auto-create storage directory"
+    @mkdir -p test-cases/input
+    @echo "📚 Using existing test resources in test-cases/input/"
+    @ls -la test-cases/input/ 2>/dev/null || echo "📁 Test resources directory available"
 
 # Build server and run in background for testing
 server-background:
     @echo "🚀 Building and starting server in background"
     @echo "============================================="
-    @cargo build --package octofhir-fhirpath --bin octofhir-fhirpath --features cli
+    @cargo build --package fhirpath-cli --bin octofhir-fhirpath
     @echo "Starting server in background (PID will be shown)..."
     @nohup cargo run --package fhirpath-cli --bin octofhir-fhirpath -- server > server.log 2>&1 &
     @echo "✅ Server started in background"
@@ -542,12 +514,14 @@ server-ping:
 server-perf:
     @echo "⚡ Performance testing server endpoints"
     @echo "======================================"
-    @echo "🔍 Testing evaluation endpoint performance..."
-    @echo "POST /r4/evaluate with simple expression:"
-    @time curl -s -X POST http://localhost:8080/r4/evaluate \
-        -H 'Content-Type: application/json' \
-        -d '{"expression": "Patient.active", "resource": {"resourceType": "Patient", "active": true}}' \
-        >/dev/null || echo "❌ Server not running"
+    @echo "🔍 Testing health endpoint performance..."
+    @echo "GET /health:"
+    @time curl -s http://localhost:8080/health >/dev/null || echo "❌ Server not running"
+    @echo ""
+    @echo "GET /version:"
+    @time curl -s http://localhost:8080/version >/dev/null || echo "❌ Server not running"
+    @echo ""
+    @echo "💡 Note: FHIRPath Lab POST endpoints temporarily disabled during development"
 
 # Code coverage with tarpaulin
 coverage:

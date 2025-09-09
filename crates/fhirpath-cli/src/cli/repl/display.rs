@@ -39,7 +39,7 @@ impl DisplayFormatter {
                 } else if collection.len() == 1 {
                     self.format_single_value(collection.iter().next().unwrap(), show_types)
                 } else {
-                    self.format_collection_items(collection, show_types)
+                    self.format_collection_items(collection.values(), show_types)
                 }
             }
             FhirPathValue::Empty => self.format_empty_collection(),
@@ -306,7 +306,7 @@ impl DisplayFormatter {
         }
     }
 
-    fn format_collection_items(&self, collection: &Vec<FhirPathValue>, show_types: bool) -> String {
+    fn format_collection_items(&self, collection: &[FhirPathValue], show_types: bool) -> String {
         let items_str: Vec<String> = collection
             .iter()
             .map(|item| self.format_single_value(item, false))

@@ -29,6 +29,11 @@ impl TypeResolver {
     /// # Returns
     /// The resolved FHIR type name or an error if resolution fails
     pub async fn resolve_property_type(&self, parent_type: &str, property: &str) -> Result<String> {
+        // Handle generic/non-FHIR data - skip property validation
+        if parent_type == "generic" {
+            return Ok("generic".to_string());
+        }
+
         // Handle special cases for primitive types
         if is_primitive_type(parent_type) {
             return Err(FhirPathError::evaluation_error(

@@ -3,7 +3,7 @@ mod tests {
     use super::super::{FunctionRegistry, FunctionCategory, FunctionContext};
     use super::*;
     use crate::registry::dispatcher::FunctionDispatcher;
-    use crate::mock_provider::MockModelProvider;
+    use crate::MockModelProvider;
     use crate::core::FhirPathValue;
     use std::collections::HashMap;
 

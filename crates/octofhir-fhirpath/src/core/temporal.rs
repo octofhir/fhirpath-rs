@@ -506,6 +506,9 @@ impl PrecisionDateTime {
 
     /// Parse from ISO 8601 datetime string with timezone
     pub fn parse(s: &str) -> Option<Self> {
+        // Detect if original string has explicit timezone information
+        let has_tz = s.ends_with('Z') || s.contains('+') || s.rfind('-').map_or(false, |pos| pos > 10);
+        
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if s.ends_with('Z') {
             let mut owned = s.to_string();
@@ -533,7 +536,7 @@ impl PrecisionDateTime {
                     3 => TemporalPrecision::Hour,
                     _ => TemporalPrecision::Second,
                 };
-                return Some(Self::new(dt, precision));
+                return Some(Self::new_with_tz(dt, precision, has_tz));
             }
         }
 
@@ -556,7 +559,7 @@ impl PrecisionDateTime {
                     3 => TemporalPrecision::Hour,
                     _ => TemporalPrecision::Second,
                 };
-                return Some(Self::new(dt, precision));
+                return Some(Self::new_with_tz(dt, precision, has_tz));
             }
         }
 
@@ -575,6 +578,9 @@ impl PrecisionDateTime {
                 None,
             ));
         }
+
+        // Detect if original string has explicit timezone information
+        let has_tz = trimmed.ends_with('Z') || trimmed.contains('+') || trimmed.rfind('-').map_or(false, |pos| pos > 10);
 
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if trimmed.ends_with('Z') {
@@ -596,7 +602,7 @@ impl PrecisionDateTime {
 
         for (format, precision) in &tz_formats {
             if let Ok(dt) = DateTime::parse_from_str(&s_norm, format) {
-                return Ok(Self::new(dt, *precision));
+                return Ok(Self::new_with_tz(dt, *precision, has_tz));
             }
         }
 
@@ -613,7 +619,7 @@ impl PrecisionDateTime {
                 if let Some(offset) = FixedOffset::east_opt(0) {
                     let dt = DateTime::from_naive_utc_and_offset(ndt, offset);
                     // Additional validation can go here if needed
-                    return Ok(Self::new(dt, *precision));
+                    return Ok(Self::new_with_tz(dt, *precision, has_tz));
                 }
             }
         }
@@ -733,6 +739,12 @@ impl PartialOrd for PrecisionDateTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering;
         
+        // Check timezone compatibility per FHIRPath spec
+        // DateTime with timezone cannot be compared to DateTime without timezone
+        if self.tz_specified != other.tz_specified {
+            return None;
+        }
+        
         // Same precision - can compare normally
         if self.precision == other.precision {
             return Some(self.datetime.cmp(&other.datetime));
@@ -741,10 +753,23 @@ impl PartialOrd for PrecisionDateTime {
         // Different precisions - check if this is a wide precision gap vs narrow gap
         let precision_diff = (self.precision as i8 - other.precision as i8).abs();
         
-        // FHIRPath temporal comparison rules:
-        // Wide precision gaps (e.g. minute vs second) return undefined (None)
-        // Narrow precision gaps (e.g. second vs millisecond) representing the same moment can be compared
-        if precision_diff >= 2 {
+        // FHIRPath temporal comparison rules with common FHIR patterns:
+        // Allow Date (Day precision) vs DateTime comparisons for common use cases
+        let allows_comparison = match (self.precision, other.precision) {
+            // Allow Day precision vs any time precision (common FHIR pattern)
+            (TemporalPrecision::Day, TemporalPrecision::Hour) |
+            (TemporalPrecision::Day, TemporalPrecision::Minute) |
+            (TemporalPrecision::Day, TemporalPrecision::Second) |
+            (TemporalPrecision::Day, TemporalPrecision::Millisecond) |
+            (TemporalPrecision::Hour, TemporalPrecision::Day) |
+            (TemporalPrecision::Minute, TemporalPrecision::Day) |
+            (TemporalPrecision::Second, TemporalPrecision::Day) |
+            (TemporalPrecision::Millisecond, TemporalPrecision::Day) => true,
+            // Allow narrow precision gaps (1 level difference)
+            _ => precision_diff < 2,
+        };
+        
+        if !allows_comparison {
             // Wide precision gap - undefined comparison
             return None;
         }

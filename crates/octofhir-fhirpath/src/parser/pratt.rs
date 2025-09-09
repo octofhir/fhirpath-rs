@@ -31,10 +31,12 @@ use crate::ast::{
     IndexAccessNode, MethodCallNode, PropertyAccessNode, TypeCastNode, TypeCheckNode,
     UnaryOperationNode, UnaryOperator, UnionNode,
 };
+use crate::ast::literal::LiteralValue;
 use crate::core::{FP0001, FhirPathError};
 
 /// Strip comments, decode HTML entities, and normalize whitespace from input
-fn preprocess_input(input: &str) -> String {
+fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
+    let original_input = input;
     let mut result = String::new();
     let mut chars = input.chars().peekable();
     let mut in_string = false;
@@ -75,11 +77,22 @@ fn preprocess_input(input: &str) -> String {
                         chars.next(); // consume the *
                         result.push(' '); // Add space where comment started
                         let mut prev_char = '\0';
+                        let mut comment_closed = false;
                         while let Some(c) = chars.next() {
                             if prev_char == '*' && c == '/' {
+                                comment_closed = true;
                                 break; // End of comment
                             }
                             prev_char = c;
+                        }
+                        // Check if comment was properly closed
+                        if !comment_closed {
+                            return Err(FhirPathError::parse_error(
+                                FP0001,
+                                "Unterminated multi-line comment: found '/*' but missing closing '*/'",
+                                original_input,
+                                None,
+                            ));
                         }
                     }
                     _ => result.push(ch),
@@ -142,13 +155,13 @@ fn preprocess_input(input: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ");
 
-    normalized
+    Ok(normalized)
 }
 
 /// Parse a FHIRPath expression into an AST using Chumsky Pratt parser
 pub fn parse(input: &str) -> Result<ExpressionNode, FhirPathError> {
     // Preprocess to remove comments
-    let cleaned_input = preprocess_input(input);
+    let cleaned_input = preprocess_input(input)?;
     let parser = fhirpath_parser();
 
     let result = parser.parse(&cleaned_input).into_result();
@@ -298,39 +311,6 @@ fn fhirpath_parser<'a>()
 
         // Layer 2: High precedence operators (type, multiplicative, additive, union)
         let with_high_precedence = with_postfix.pratt((
-            // Type operators - precedence 12 (same as postfix but infix)
-            infix(left(12), just("is").padded(), |left, _, right, _| {
-                if let ExpressionNode::Identifier(ident) = right {
-                    ExpressionNode::TypeCheck(TypeCheckNode {
-                        expression: Box::new(left),
-                        target_type: ident.name,
-                        location: None,
-                    })
-                } else {
-                    ExpressionNode::BinaryOperation(BinaryOperationNode {
-                        left: Box::new(left),
-                        operator: BinaryOperator::Is,
-                        right: Box::new(right),
-                        location: None,
-                    })
-                }
-            }),
-            infix(left(12), just("as").padded(), |left, _, right, _| {
-                if let ExpressionNode::Identifier(ident) = right {
-                    ExpressionNode::TypeCast(TypeCastNode {
-                        expression: Box::new(left),
-                        target_type: ident.name,
-                        location: None,
-                    })
-                } else {
-                    ExpressionNode::BinaryOperation(BinaryOperationNode {
-                        left: Box::new(left),
-                        operator: BinaryOperator::As,
-                        right: Box::new(right),
-                        location: None,
-                    })
-                }
-            }),
             // Multiplicative operators - precedence 11
             infix(left(11), just('*').padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {
@@ -498,6 +478,39 @@ fn fhirpath_parser<'a>()
 
         // Layer 4: Low precedence logical operators (and, xor, or, implies)
         with_medium_precedence.pratt((
+            // Type operators - precedence 3.5 (lower than membership, same as XOR but evaluated first)
+            infix(left(3), just("is").padded(), |left, _, right, _| {
+                if let ExpressionNode::Identifier(ident) = right {
+                    ExpressionNode::TypeCheck(TypeCheckNode {
+                        expression: Box::new(left),
+                        target_type: ident.name,
+                        location: None,
+                    })
+                } else {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::Is,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                }
+            }),
+            infix(left(3), just("as").padded(), |left, _, right, _| {
+                if let ExpressionNode::Identifier(ident) = right {
+                    ExpressionNode::TypeCast(TypeCastNode {
+                        expression: Box::new(left),
+                        target_type: ident.name,
+                        location: None,
+                    })
+                } else {
+                    ExpressionNode::BinaryOperation(BinaryOperationNode {
+                        left: Box::new(left),
+                        operator: BinaryOperator::As,
+                        right: Box::new(right),
+                        location: None,
+                    })
+                }
+            }),
             // Logical AND - precedence 4
             infix(left(4), just("and").padded(), |left, _, right, _| {
                 ExpressionNode::BinaryOperation(BinaryOperationNode {

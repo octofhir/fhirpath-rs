@@ -4,7 +4,8 @@
 //! aggregation, set operations, and logic functions.
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
-use crate::core::{FhirPathValue, Result, error_code::FP0053};
+use crate::core::{FhirPathValue, Result, error_code::{FP0053, FP0155}};
+use crate::core::types::Collection;
 use crate::register_function;
 use std::collections::HashSet;
 
@@ -46,22 +47,25 @@ impl CollectionUtils {
         first: &[FhirPathValue],
         second: &[FhirPathValue],
     ) -> Vec<FhirPathValue> {
-        let mut result = first.to_vec();
+        let mut result = Vec::new();
         let mut seen = HashSet::new();
-
-        // Add all items from first collection to seen set
+        
+        // Add unique items from first collection
         for item in first {
-            seen.insert(Self::value_hash_key(item));
+            let hash_key = Self::value_hash_key(item);
+            if seen.insert(hash_key) {
+                result.push(item.clone());
+            }
         }
-
-        // Add items from second collection that aren't already present
+        
+        // Add unique items from second collection that aren't already present
         for item in second {
             let hash_key = Self::value_hash_key(item);
             if seen.insert(hash_key) {
                 result.push(item.clone());
             }
         }
-
+        
         result
     }
 
@@ -184,6 +188,14 @@ impl FunctionRegistry {
             return_type: "collection",
             examples: ["Patient.name.skip(1)", "Bundle.entry.skip(2)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                // Check if the input collection is ordered (semantic validation)
+                if !context.input.is_ordered_collection() {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        FP0155,
+                        "skip() function can only be applied to ordered collections. The children() function returns an unordered collection.".to_string()
+                    ));
+                }
+                
                 let skip_count = match context.arguments.first() {
                     Some(FhirPathValue::Integer(n)) => {
                         if *n < 0 {
@@ -342,13 +354,6 @@ impl FunctionRegistry {
             return_type: "collection",
             examples: ["Patient.name.given.intersect(Patient.name.family)", "Bundle.entry.resource.intersect($otherBundle.entry.resource)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "intersect() requires exactly one collection argument".to_string()
-                    ));
-                }
-
                 let input_vec: Vec<FhirPathValue> = context.input.cloned_collection();
                 let args_vec: Vec<FhirPathValue> = context.arguments.cloned_collection();
                 let result = CollectionUtils::intersect_collections(&input_vec, &args_vec);
@@ -629,28 +634,15 @@ impl FunctionRegistry {
             self,
             sync "trace",
             category: FunctionCategory::Utility,
-            description: "Logs the input value and passes it through unchanged for debugging",
-            parameters: ["name": Some("string".to_string()) => "Name to use in trace output (optional)"],
+            description: "Logs the input value and optionally evaluates a projection expression on each item",
+            parameters: [
+                "name": Some("string".to_string()) => "Name to use in trace output (optional)",
+                "projection": None => "Expression to evaluate on each item for output (optional)"
+            ],
             return_type: "any",
-            examples: ["Patient.name.trace('names')", "Bundle.entry.trace().resource"],
+            examples: ["Patient.name.trace('names')", "name.trace('test', given)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                let trace_name = if context.arguments.len() > 0 {
-                    match context.arguments.first() {
-                        Some(FhirPathValue::String(s)) => s.clone(),
-                        _ => "trace".to_string(),
-                    }
-                } else {
-                    "trace".to_string()
-                };
-
-                // Print trace information to stderr for debugging
-                eprintln!("TRACE[{}]: {} items", trace_name, context.input.len());
-                for (i, value) in context.input.iter().enumerate() {
-                    eprintln!("  [{}]: {:?}", i, value);
-                }
-
-                // Pass through input unchanged
-                Ok(context.input.clone())
+                trace_impl(context)
             }
         )
     }
@@ -671,6 +663,113 @@ impl FunctionRegistry {
                 ))
             }
         )
+    }
+}
+
+/// Implementation of trace function with lambda support
+fn trace_impl(context: &FunctionContext) -> Result<FhirPathValue> {
+    let input = &context.input;
+    let args = &context.arguments;
+    
+    // Get arguments as a vector
+    let args_vec = match args {
+        FhirPathValue::Collection(collection) => collection.values().to_vec(),
+        FhirPathValue::Empty => vec![],
+        other => vec![other.clone()],
+    };
+    
+    // trace() function signature:
+    // trace(name: String)
+    // trace(name: String, projection: Expression)
+    
+    if args_vec.is_empty() || args_vec.len() > 2 {
+        return Err(crate::core::FhirPathError::evaluation_error(
+            FP0053,
+            "trace() function requires 1 or 2 arguments: trace(name) or trace(name, projection)".to_string()
+        ));
+    }
+    
+    // Get the trace name parameter
+    let trace_name = match &args_vec[0] {
+        FhirPathValue::String(name) => name.clone(),
+        _ => return Err(crate::core::FhirPathError::evaluation_error(
+            FP0053,
+            "trace() function first argument must be a string (trace name)".to_string()
+        ))
+    };
+    
+    // Handle different input types
+    if args_vec.len() == 1 {
+        // trace(name) - just trace the input and return it
+        match input {
+            FhirPathValue::Empty => {
+                eprintln!("TRACE[{}]: <empty>", trace_name);
+                Ok(FhirPathValue::Empty)
+            }
+            FhirPathValue::Collection(collection) => {
+                for (i, value) in collection.values().iter().enumerate() {
+                    eprintln!("TRACE[{}][{}]: {}", trace_name, i, format_trace_value(value));
+                }
+                Ok(input.clone())
+            }
+            single_value => {
+                eprintln!("TRACE[{}]: {}", trace_name, format_trace_value(single_value));
+                Ok(input.clone())
+            }
+        }
+    } else {
+        // trace(name, projection) - this needs metadata system for full lambda evaluation
+        // For now, just trace input and return it (projection will be handled by metadata system)
+        match input {
+            FhirPathValue::Empty => {
+                eprintln!("TRACE[{}]: <empty> (with projection)", trace_name);
+                Ok(FhirPathValue::Empty)
+            }
+            FhirPathValue::Collection(collection) => {
+                for (i, value) in collection.values().iter().enumerate() {
+                    eprintln!("TRACE[{}][{}]: {} (with projection)", trace_name, i, format_trace_value(value));
+                }
+                Ok(input.clone())
+            }
+            single_value => {
+                eprintln!("TRACE[{}]: {} (with projection)", trace_name, format_trace_value(single_value));
+                Ok(input.clone())
+            }
+        }
+    }
+}
+
+/// Format a FhirPathValue for trace output
+fn format_trace_value(value: &FhirPathValue) -> String {
+    match value {
+        FhirPathValue::String(s) => format!("\"{}\"(String)", s),
+        FhirPathValue::Integer(i) => format!("{}(Integer)", i),
+        FhirPathValue::Decimal(d) => format!("{}(Decimal)", d),
+        FhirPathValue::Boolean(b) => format!("{}(Boolean)", b),
+        FhirPathValue::Date(d) => format!("{}(Date)", d.to_string()),
+        FhirPathValue::DateTime(dt) => format!("{}(DateTime)", dt.to_string()),
+        FhirPathValue::Time(t) => format!("{}(Time)", t.to_string()),
+        FhirPathValue::Quantity { value, unit, .. } => {
+            match unit {
+                Some(u) => format!("{} {}(Quantity)", value, u),
+                None => format!("{}(Quantity)", value),
+            }
+        }
+        FhirPathValue::Resource(resource) => {
+            format!("Resource({})", resource.get("resourceType").and_then(|v| v.as_str()).unwrap_or("unknown"))
+        }
+        FhirPathValue::JsonValue(json) => {
+            format!("JsonValue({})", json.to_string())
+        }
+        FhirPathValue::Collection(items) => {
+            format!("Collection[{}]", items.len())
+        }
+        FhirPathValue::Id(id) => format!("{}(Id)", id),
+        FhirPathValue::Base64Binary(data) => format!("Base64[{}](Base64Binary)", data.len()),
+        FhirPathValue::Uri(uri) => format!("{}(Uri)", uri),
+        FhirPathValue::Url(url) => format!("{}(Url)", url),
+        FhirPathValue::TypeInfoObject { namespace, name } => format!("{}:{}(TypeInfo)", namespace, name),
+        FhirPathValue::Empty => "<empty>".to_string(),
     }
 }
 

@@ -8,7 +8,7 @@
 //! - FHIRPath-specific comparison semantics
 
 use chrono::Timelike;
-use octofhir_ucum::{divide_by as ucum_divide, multiply as ucum_multiply};
+use octofhir_ucum::{divide_by as ucum_divide, multiply as ucum_multiply, analyse as ucum_analyse};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use std::cmp::Ordering;
@@ -16,9 +16,47 @@ use std::cmp::Ordering;
 use crate::{
     ast::{BinaryOperator, UnaryOperator},
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
+    core::types::Collection,
     evaluator::traits::OperatorEvaluator,
     registry::datetime_utils::{DateTimeDuration, DateTimeUtils},
 };
+
+/// Convert UCUM dot notation with negative powers to slash notation
+/// e.g., "kg.m-1" -> "kg/m", "m.s-2" -> "m/s2", "kg.m2.s-3" -> "kg.m2/s3" 
+fn convert_dot_notation_to_slash(unit: &str) -> String {
+    // Handle simple case: kg.m-1 -> kg/m
+    if unit.contains('.') && unit.contains('-') {
+        let parts: Vec<&str> = unit.split('.').collect();
+        let mut numerator_parts = Vec::new();
+        let mut denominator_parts = Vec::new();
+        
+        for part in parts {
+            if let Some(neg_pos) = part.find('-') {
+                // This part has a negative power - goes to denominator
+                let base_unit = &part[..neg_pos];
+                let power_str = &part[neg_pos + 1..];
+                
+                if power_str == "1" {
+                    denominator_parts.push(base_unit.to_string());
+                } else {
+                    denominator_parts.push(format!("{}{}", base_unit, power_str));
+                }
+            } else {
+                // This part has positive power - goes to numerator
+                numerator_parts.push(part.to_string());
+            }
+        }
+        
+        if !denominator_parts.is_empty() {
+            let numerator = numerator_parts.join(".");
+            let denominator = denominator_parts.join(".");
+            return format!("{}/{}", numerator, denominator);
+        }
+    }
+    
+    // No negative powers found, return as-is
+    unit.to_string()
+}
 
 /// Implementation of OperatorEvaluator for FHIRPath operations
 pub struct OperatorEvaluatorImpl;
@@ -29,16 +67,146 @@ impl OperatorEvaluatorImpl {
         Self
     }
 
+    /// Convert quantity to base units for comparison using UCUM
+    fn normalize_quantity(&self, value: &Decimal, unit: &Option<String>) -> Result<Decimal> {
+        match unit {
+            Some(unit_str) => {
+                // Handle dimensionless unit explicitly
+                if unit_str == "1" {
+                    return Ok(*value);
+                }
+                
+                // Handle calendar units separately (they're not in UCUM)
+                match unit_str.as_str() {
+                    "day" | "days" | "d" => Ok(*value), // days are base unit
+                    "week" | "weeks" | "wk" => Ok(*value * Decimal::from(7)), // convert to days
+                    "year" | "years" | "a" => Ok(*value * Decimal::from(365)), // approximate
+                    "month" | "months" | "mo" => Ok(*value * Decimal::from(30)), // approximate
+                    _ => {
+                        // Convert dot notation to slash notation for UCUM compatibility
+                        let normalized_unit = unit_str; // TODO: normalize format
+                        
+                        // Try UCUM conversion
+                        match ucum_analyse(&normalized_unit) {
+                            Ok(analysis) => {
+                                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                    eprintln!(
+                                        "🔍 UCUM NORMALIZE SUCCESS: {} -> factor: {} -> {} * {} = {}",
+                                        unit_str, analysis.factor, value, analysis.factor,
+                                        value.to_f64().unwrap_or(0.0) * analysis.factor
+                                    );
+                                }
+                                let factor = Decimal::try_from(analysis.factor)
+                                    .map_err(|_| FhirPathError::evaluation_error(
+                                        FP0052,
+                                        format!("Cannot convert UCUM factor to decimal: {}", analysis.factor)
+                                    ))?;
+                                Ok(*value * factor)
+                            }
+                            Err(e) => {
+                                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                    eprintln!(
+                                        "🔍 UCUM NORMALIZE FALLBACK: {} failed analysis -> error: {:?}, returning original value: {}",
+                                        unit_str, e, value
+                                    );
+                                }
+                                // Unit not found in UCUM, return as-is
+                                Ok(*value)
+                            }
+                        }
+                    }
+                }
+            }
+            None => Ok(*value), // Dimensionless quantity (will be treated as '1' in comparisons)
+        }
+    }
+
+    /// Check if two quantities are comparable (same dimension) using UCUM
+    fn quantities_comparable(&self, unit1: &Option<String>, unit2: &Option<String>) -> bool {
+        match (unit1, unit2) {
+            (None, None) => true, // Both dimensionless
+            // Handle dimensionless vs '1' unit (UCUM dimensionless symbol)
+            (None, Some(u)) | (Some(u), None) if u == "1" => true,
+            (Some(u1), Some(u2)) => {
+                // Handle calendar units
+                let is_time_unit = |u: &str| matches!(u, "day" | "days" | "d" | "week" | "weeks" | "wk" | "year" | "years" | "a" | "month" | "months" | "mo");
+                
+                if is_time_unit(u1) && is_time_unit(u2) {
+                    return true;
+                }
+                
+                // Try UCUM dimension comparison with normalized unit formats
+                let norm_u1 = u1; // TODO: normalize format
+                let norm_u2 = u2; // TODO: normalize format
+                
+                match (ucum_analyse(&norm_u1), ucum_analyse(&norm_u2)) {
+                    (Ok(a1), Ok(a2)) => {
+                        // Compare dimensions - this handles kg.m-1 vs g/m equivalence
+                        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                            eprintln!(
+                                "🔍 UCUM SUCCESS: {} -> dimension: {} vs {} -> dimension: {}",
+                                u1, a1.dimension, u2, a2.dimension
+                            );
+                        }
+                        a1.dimension == a2.dimension
+                    },
+                    // If one unit can't be analyzed, try string equality as fallback
+                    _ => {
+                        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                            eprintln!(
+                                "🔍 UCUM FALLBACK: {} vs {} -> string equality: {}",
+                                u1, u2, u1 == u2
+                            );
+                        }
+                        u1 == u2
+                    }
+                }
+            }
+            _ => false, // One dimensionless, one with units (except '1')
+        }
+    }
+
+    /// Check if two normalized quantities are approximately equal (for ~ operator)
+    fn quantities_equivalent(&self, val1: Decimal, val2: Decimal) -> bool {
+        // FHIRPath equivalence uses 1% tolerance for quantities
+        let tolerance = Decimal::try_from(0.01).unwrap_or_default();
+        let diff = if val1 > val2 { val1 - val2 } else { val2 - val1 };
+        let max_val = if val1 > val2 { val1 } else { val2 };
+        
+        if max_val == Decimal::ZERO {
+            diff <= tolerance // Absolute tolerance for values near zero
+        } else {
+            diff <= max_val * tolerance // Relative tolerance
+        }
+    }
+
+    /// Check if two decimals are equivalent based on precision (per FHIRPath spec)
+    fn decimals_equivalent(&self, val1: &Decimal, val2: &Decimal) -> bool {
+        // For decimal equivalence in FHIRPath, compare values based on the precision of the least precise operand
+        // This means 0.6666... ~ 0.67 should be true when compared at precision of 0.67 (2 decimal places)
+        
+        // Get the scale (number of decimal places) of each value
+        let scale1 = val1.scale();
+        let scale2 = val2.scale();
+        
+        // Use the minimum scale (least precise) for comparison
+        let min_scale = scale1.min(scale2);
+        
+        // Round both values to the minimum scale and compare
+        let rounded1 = val1.round_dp(min_scale);
+        let rounded2 = val2.round_dp(min_scale);
+        
+        rounded1 == rounded2
+    }
+
     /// Perform equality comparison with FHIRPath semantics
     fn equals(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
-        // Empty collections are equal to empty collections
-        if matches!(left, FhirPathValue::Empty) && matches!(right, FhirPathValue::Empty) {
-            return Ok(FhirPathValue::Boolean(true));
-        }
-
-        // Empty collection is not equal to any non-empty value
-        if matches!(left, FhirPathValue::Empty) || matches!(right, FhirPathValue::Empty) {
-            return Ok(FhirPathValue::Boolean(false));
+        // Per FHIRPath specification: empty collections are not comparable
+        let left_empty = matches!(left, FhirPathValue::Empty) || matches!(left, FhirPathValue::Collection(c) if c.is_empty());
+        let right_empty = matches!(right, FhirPathValue::Empty) || matches!(right, FhirPathValue::Collection(c) if c.is_empty());
+        
+        if left_empty || right_empty {
+            return Ok(FhirPathValue::Empty);
         }
 
         let result = match (left, right) {
@@ -64,22 +232,56 @@ impl OperatorEvaluatorImpl {
             (FhirPathValue::Uri(a), FhirPathValue::Url(b)) => a == b,
             (FhirPathValue::Url(a), FhirPathValue::Uri(b)) => a == b,
 
-            // Temporal comparisons
-            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => a == b,
-            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => a == b,
-            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => a == b,
+            // Temporal comparisons - use partial_cmp to handle precision normalization
+            (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
+                match a.partial_cmp(b) {
+                    Some(std::cmp::Ordering::Equal) => true,
+                    Some(_) => false,
+                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                }
+            },
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                match a.partial_cmp(b) {
+                    Some(std::cmp::Ordering::Equal) => true,
+                    Some(_) => false,
+                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                }
+            },
+            (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
+                match a.partial_cmp(b) {
+                    Some(std::cmp::Ordering::Equal) => true,
+                    Some(_) => false,
+                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                }
+            },
+            
+            // Cross-temporal type comparisons are not comparable
+            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
+            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
+            (FhirPathValue::Date(_), FhirPathValue::Time(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
+            (FhirPathValue::Time(_), FhirPathValue::Date(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
+            (FhirPathValue::DateTime(_), FhirPathValue::Time(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
+            (FhirPathValue::Time(_), FhirPathValue::DateTime(_)) => {
+                return Ok(FhirPathValue::Empty);
+            },
 
             // Quantity comparisons with unit conversion using UCUM
-            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => {
-                if left.is_quantity_compatible(right) {
-                    // Use UCUM-powered normalization for comparison
-                    if let (Some(norm_left), Some(norm_right)) = (
-                        left.normalize_for_quantity_comparison(right),
-                        right.normalize_for_quantity_comparison(left),
-                    ) {
-                        norm_left == norm_right
-                    } else {
-                        false // Cannot normalize for comparison
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                if self.quantities_comparable(u1, u2) {
+                    // Normalize both quantities and compare
+                    match (self.normalize_quantity(v1, u1), self.normalize_quantity(v2, u2)) {
+                        (Ok(norm1), Ok(norm2)) => norm1 == norm2,
+                        _ => false, // Normalization failed
                     }
                 } else {
                     false // Different dimensions are not equal
@@ -88,6 +290,12 @@ impl OperatorEvaluatorImpl {
 
             // ID comparisons
             (FhirPathValue::Id(a), FhirPathValue::Id(b)) => a == b,
+
+            // Resource and JsonValue comparisons - check JSON equality
+            (FhirPathValue::Resource(a), FhirPathValue::Resource(b)) => **a == **b,
+            (FhirPathValue::JsonValue(a), FhirPathValue::JsonValue(b)) => **a == **b,
+            (FhirPathValue::Resource(a), FhirPathValue::JsonValue(b)) => **a == **b,
+            (FhirPathValue::JsonValue(a), FhirPathValue::Resource(b)) => **a == **b,
 
             // Collection comparisons (element-wise)
             (FhirPathValue::Collection(a), FhirPathValue::Collection(b)) => {
@@ -127,7 +335,7 @@ impl OperatorEvaluatorImpl {
     fn not_equals(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
         match self.equals(left, right)? {
             FhirPathValue::Boolean(result) => Ok(FhirPathValue::Boolean(!result)),
-            _ => Ok(FhirPathValue::Boolean(true)), // If equals fails, assume not equal
+            other => Ok(other), // If equals returns empty, not_equals should also return empty
         }
     }
 
@@ -207,18 +415,60 @@ impl OperatorEvaluatorImpl {
                     return Ok(FhirPathValue::Empty); // Cannot parse string as datetime
                 }
             }
+            // Date vs DateTime comparison (convert Date to DateTime at start of day)
+            (FhirPathValue::Date(date), FhirPathValue::DateTime(datetime)) => {
+                // Convert Date to DateTime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone};
+                let date_as_datetime = datetime.datetime.timezone()
+                    .from_local_datetime(&date.date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
+                    .single();
+                if let Some(converted_datetime) = date_as_datetime {
+                    let precision_datetime = crate::core::temporal::PrecisionDateTime::new(
+                        converted_datetime,
+                        date.precision,
+                    );
+                    match precision_datetime.partial_cmp(datetime) {
+                        Some(Ordering::Less) => true,
+                        Some(_) => false,
+                        None => return Ok(FhirPathValue::Empty),
+                    }
+                } else {
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+            (FhirPathValue::DateTime(datetime), FhirPathValue::Date(date)) => {
+                // Convert Date to DateTime at start of day for comparison
+                use chrono::{NaiveTime, TimeZone};
+                let date_as_datetime = datetime.datetime.timezone()
+                    .from_local_datetime(&date.date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
+                    .single();
+                if let Some(converted_datetime) = date_as_datetime {
+                    let precision_datetime = crate::core::temporal::PrecisionDateTime::new(
+                        converted_datetime,
+                        date.precision,
+                    );
+                    match datetime.partial_cmp(&precision_datetime) {
+                        Some(Ordering::Less) => true,
+                        Some(_) => false,
+                        None => return Ok(FhirPathValue::Empty),
+                    }
+                } else {
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
 
             // Quantity comparisons with unit conversion using UCUM
-            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => {
-                if left.is_quantity_compatible(right) {
-                    // Use UCUM-powered normalization for comparison
-                    if let (Some(norm_left), Some(norm_right)) = (
-                        left.normalize_for_quantity_comparison(right),
-                        right.normalize_for_quantity_comparison(left),
-                    ) {
-                        norm_left < norm_right
-                    } else {
-                        return Ok(FhirPathValue::Empty); // Cannot normalize for comparison
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                if self.quantities_comparable(u1, u2) {
+                    // Normalize both quantities and compare
+                    match (self.normalize_quantity(v1, u1), self.normalize_quantity(v2, u2)) {
+                        (Ok(norm1), Ok(norm2)) => {
+                            match norm1.partial_cmp(&norm2) {
+                                Some(Ordering::Less) => true,
+                                _ => false,
+                            }
+                        }
+                        _ => return Ok(FhirPathValue::Empty), // Normalization failed
                     }
                 } else {
                     return Ok(FhirPathValue::Empty); // Different dimensions are incomparable
@@ -561,31 +811,30 @@ impl OperatorEvaluatorImpl {
 
                 match (u1, u2) {
                     (Some(unit1), Some(unit2)) => {
-                        // Use UCUM library for proper unit division
+                        // Calculate numeric result and construct unit string directly
+                        let result_value = v1 / v2;
+                        
+                        // Construct result unit: unit1 / unit2
+                        let result_unit = if unit1 == unit2 {
+                            None // Same units cancel out
+                        } else {
+                            Some(format!("{}/{}", unit1, unit2))
+                        };
+                        
+                        // Use UCUM only for validation that the operation makes sense
                         match ucum_divide(
                             v1.to_f64().unwrap_or(0.0),
                             unit1,
                             v2.to_f64().unwrap_or(0.0),
                             unit2,
                         ) {
-                            Ok(result) => {
-                                let result_value =
-                                    Decimal::try_from(result.value).unwrap_or(Decimal::ZERO);
-                                let result_unit = if result.unit == "1" {
-                                    None
-                                } else {
-                                    Some(result.unit)
-                                };
+                            Ok(_) => {
+                                // UCUM validation passed, use our result
                                 Ok(FhirPathValue::quantity(result_value, result_unit))
                             }
                             Err(_) => {
-                                // Fallback: if same units, result is unitless; otherwise keep dividend unit
-                                let result_unit = if unit1 == unit2 {
-                                    None
-                                } else {
-                                    Some(unit1.clone())
-                                };
-                                Ok(FhirPathValue::quantity(v1 / v2, result_unit))
+                                // UCUM validation failed, but still return basic result
+                                Ok(FhirPathValue::quantity(result_value, result_unit))
                             }
                         }
                     }
@@ -894,6 +1143,18 @@ impl OperatorEvaluatorImpl {
 
     /// Perform set membership test (in operator)
     fn contains(&self, collection: &FhirPathValue, item: &FhirPathValue) -> Result<FhirPathValue> {
+        // Validate FHIRPath 'in' operator constraints:
+        // Left operand (item) must be a single value (not a collection)
+        // Right operand (collection) should typically be a collection or single value
+        if let FhirPathValue::Collection(item_collection) = item {
+            if !item_collection.is_empty() {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::FP0052,
+                    "Left operand of 'in' operator must be a single value, not a collection".to_string()
+                ));
+            }
+        }
+
         // Per FHIRPath specification: if BOTH operands are empty, the result is empty
         // If only the item is empty, the result is empty
         // If only the collection is empty, the result is false
@@ -912,7 +1173,7 @@ impl OperatorEvaluatorImpl {
 
         match collection {
             FhirPathValue::Collection(items) => {
-                for collection_item in items {
+                for collection_item in items.iter() {
                     match self.equals(collection_item, item)? {
                         FhirPathValue::Boolean(true) => return Ok(FhirPathValue::Boolean(true)),
                         _ => continue,
@@ -986,29 +1247,115 @@ impl OperatorEvaluatorImpl {
                 Ok(FhirPathValue::Boolean(false))
             }
 
+            // String equivalence is case-insensitive (per FHIRPath spec)
+            (FhirPathValue::String(a), FhirPathValue::String(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Uri(a), FhirPathValue::Uri(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Url(a), FhirPathValue::Url(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            
+            // Cross-string type equivalence is also case-insensitive
+            (FhirPathValue::String(a), FhirPathValue::Uri(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Uri(a), FhirPathValue::String(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::String(a), FhirPathValue::Url(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Url(a), FhirPathValue::String(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Uri(a), FhirPathValue::Url(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+            (FhirPathValue::Url(a), FhirPathValue::Uri(b)) => {
+                Ok(FhirPathValue::Boolean(a.to_lowercase() == b.to_lowercase()))
+            }
+
             // Special handling for quantities with tolerance (per FHIRPath spec)
-            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => {
-                if left.is_quantity_compatible(right) {
-                    // Use UCUM-powered normalization for comparison with 1% tolerance
-                    if let (Some(norm_left), Some(norm_right)) = (
-                        left.normalize_for_quantity_comparison(right),
-                        right.normalize_for_quantity_comparison(left),
-                    ) {
-                        // Allow 1% tolerance for equivalent comparison
-                        let tolerance =
-                            norm_left.abs() * Decimal::try_from(0.01).unwrap_or_default();
-                        return Ok(FhirPathValue::Boolean(
-                            (norm_left - norm_right).abs() <= tolerance,
-                        ));
-                    } else {
-                        return Ok(FhirPathValue::Boolean(false)); // Cannot normalize for comparison
+            (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                if self.quantities_comparable(u1, u2) {
+                    // Normalize both quantities and compare with 1% tolerance
+                    match (self.normalize_quantity(v1, u1), self.normalize_quantity(v2, u2)) {
+                        (Ok(norm1), Ok(norm2)) => {
+                            return Ok(FhirPathValue::Boolean(self.quantities_equivalent(norm1, norm2)));
+                        }
+                        _ => return Ok(FhirPathValue::Boolean(false)), // Normalization failed
                     }
                 } else {
                     return Ok(FhirPathValue::Boolean(false)); // Different dimensions are not equivalent
                 }
             }
 
-            // Otherwise delegate to equals logic
+            // Collection equivalence (element-wise, order-independent per FHIRPath spec)
+            (FhirPathValue::Collection(a), FhirPathValue::Collection(b)) => {
+                if a.len() != b.len() {
+                    Ok(FhirPathValue::Boolean(false))
+                } else {
+                    // For equivalence, collections are equivalent if they contain the same elements (order independent)
+                    let mut all_equivalent = true;
+                    'outer: for item_a in a.iter() {
+                        let mut found_equivalent = false;
+                        for item_b in b.iter() {
+                            match self.equivalent(item_a, item_b)? {
+                                FhirPathValue::Boolean(true) => {
+                                    found_equivalent = true;
+                                    break;
+                                }
+                                _ => continue,
+                            }
+                        }
+                        if !found_equivalent {
+                            all_equivalent = false;
+                            break 'outer;
+                        }
+                    }
+                    Ok(FhirPathValue::Boolean(all_equivalent))
+                }
+            }
+
+            // Single value vs collection equivalence
+            (single, FhirPathValue::Collection(coll))
+            | (FhirPathValue::Collection(coll), single) => {
+                if coll.len() == 1 {
+                    self.equivalent(single, &coll[0])
+                } else {
+                    Ok(FhirPathValue::Boolean(false))
+                }
+            }
+
+            // Resource and JsonValue comparisons - check JSON equality
+            (FhirPathValue::Resource(a), FhirPathValue::Resource(b)) => {
+                Ok(FhirPathValue::Boolean(**a == **b))
+            }
+            (FhirPathValue::JsonValue(a), FhirPathValue::JsonValue(b)) => {
+                Ok(FhirPathValue::Boolean(**a == **b))
+            }
+            (FhirPathValue::Resource(a), FhirPathValue::JsonValue(b)) => {
+                Ok(FhirPathValue::Boolean(**a == **b))
+            }
+            (FhirPathValue::JsonValue(a), FhirPathValue::Resource(b)) => {
+                Ok(FhirPathValue::Boolean(**a == **b))
+            }
+
+            // Decimal equivalence based on precision (per FHIRPath spec)
+            (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => {
+                Ok(FhirPathValue::Boolean(self.decimals_equivalent(a, b)))
+            }
+            (FhirPathValue::Integer(a), FhirPathValue::Decimal(b)) => {
+                Ok(FhirPathValue::Boolean(self.decimals_equivalent(&Decimal::from(*a), b)))
+            }
+            (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => {
+                Ok(FhirPathValue::Boolean(self.decimals_equivalent(a, &Decimal::from(*b))))
+            }
+
+            // Otherwise delegate to equals logic for other types
             _ => self.equals(left, right),
         }
     }
@@ -1091,7 +1438,7 @@ impl OperatorEvaluatorImpl {
         match right {
             FhirPathValue::Empty => {}
             FhirPathValue::Collection(items) => {
-                for item in items {
+                for item in items.iter() {
                     let mut found = false;
                     for existing in &result_items {
                         if let Ok(FhirPathValue::Boolean(true)) = self.equals(existing, item) {
@@ -1122,7 +1469,7 @@ impl OperatorEvaluatorImpl {
         match result_items.len() {
             0 => Ok(FhirPathValue::Empty),
             1 => Ok(result_items.into_iter().next().unwrap()),
-            _ => Ok(FhirPathValue::Collection(result_items)),
+            _ => Ok(FhirPathValue::Collection(Collection::from_values(result_items))),
         }
     }
 

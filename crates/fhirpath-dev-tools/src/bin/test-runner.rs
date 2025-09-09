@@ -41,6 +41,8 @@ struct TestCase {
     pub description: Option<String>,
     #[serde(default, alias = "expectError", alias = "expecterror")]
     pub expecterror: Option<bool>,
+    #[serde(default)]
+    pub predicate: Option<bool>,
 }
 
 /// A test suite containing multiple test cases
@@ -173,43 +175,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔢 Total tests: {}", test_suite.tests.len());
     println!();
 
-    // Choose model provider based on environment variable for fast testing
-    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = if env::var(
-        "FHIRPATH_USE_MOCK_PROVIDER",
+    // Create FHIR schema provider (R4) to match CLI behavior
+    println!("📋 Initializing FHIR R4 schema provider...");
+    let provider_timeout = Duration::from_secs(60);
+    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = match tokio::time::timeout(
+        provider_timeout,
+        octofhir_fhirschema::provider::EmbeddedModelProvider::r4(),
     )
-    .is_ok()
+    .await
     {
-        println!("📋 Using MockModelProvider for fast testing");
-        Arc::new(octofhir_fhirpath::MockModelProvider::default())
-    } else {
-        // Create FHIR schema provider (R4) to match CLI behavior
-        println!("📋 Initializing FHIR R4 schema provider...");
-        let provider_timeout = Duration::from_secs(60);
-        match tokio::time::timeout(
-            provider_timeout,
-            octofhir_fhirschema::provider::EmbeddedModelProvider::r4(),
-        )
-        .await
-        {
-            Ok(Ok(provider)) => {
-                println!("✅ EmbeddedModelProvider (R4) loaded successfully");
-                Arc::new(provider)
-            }
-            Ok(Err(e)) => {
-                eprintln!("❌ Failed to initialize EmbeddedModelProvider (R4): {e}");
-                eprintln!(
-                    "💡 Ensure FHIR schema packages are available or use FHIRPATH_USE_MOCK_PROVIDER=1"
-                );
-                process::exit(1);
-            }
-            Err(_) => {
-                eprintln!(
-                    "❌ EmbeddedModelProvider (R4) initialization timed out ({}s)",
-                    provider_timeout.as_secs()
-                );
-                eprintln!("💡 Check network connectivity or use FHIRPATH_USE_MOCK_PROVIDER=1");
-                process::exit(1);
-            }
+        Ok(Ok(provider)) => {
+            println!("✅ EmbeddedModelProvider (R4) loaded successfully");
+            Arc::new(provider)
+        }
+        Ok(Err(e)) => {
+            eprintln!("❌ Failed to initialize EmbeddedModelProvider (R4): {e}");
+            eprintln!(
+                "💡 Ensure FHIR schema packages are available"
+            );
+            process::exit(1);
+        }
+        Err(_) => {
+            eprintln!(
+                "❌ EmbeddedModelProvider (R4) initialization timed out ({}s)",
+                provider_timeout.as_secs()
+            );
+            eprintln!("💡 Check network connectivity");
+            process::exit(1);
         }
     };
 
@@ -327,8 +319,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
+        // Handle predicate tests - convert result to boolean using FHIRPath exists() logic
+        let final_result = if test_case.predicate.is_some() && test_case.predicate.unwrap() {
+            use octofhir_fhirpath::FhirPathValue;
+            let exists = !result.is_empty();
+            octofhir_fhirpath::Collection::single(FhirPathValue::Boolean(exists))
+        } else {
+            result
+        };
+
         // Compare results
-        if compare_results(&test_case.expected, &result) {
+        if compare_results(&test_case.expected, &final_result) {
             println!("✅ PASS");
             passed += 1;
         } else {
@@ -339,11 +340,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let expected_json =
                 serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
-            let actual_json = match serde_json::to_value(&result) {
+            let actual_json = match serde_json::to_value(&final_result) {
                 Ok(json) => {
-                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| format!("{:?}", result))
+                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| format!("{:?}", final_result))
                 }
-                Err(_) => format!("{:?}", result),
+                Err(_) => format!("{:?}", final_result),
             };
             println!("   Expected: {expected_json}");
             println!("   Actual:   {actual_json}");

@@ -123,16 +123,20 @@ impl FunctionRegistry {
                         match low_boundary.first() {
                             Some(FhirPathValue::Decimal(boundary_value)) => {
                                 // Format the quantity with appropriate precision for the unit display
-                                let precision = precision_arg.unwrap_or_else(|| {
+                                let target_precision = precision_arg.unwrap_or_else(|| {
                                     let decimal_str = value.to_string();
                                     if let Some(dot_pos) = decimal_str.find('.') {
                                         (decimal_str.len() - dot_pos - 1) as i64
                                     } else {
                                         0
                                     }
-                                }) + 1;
+                                });
 
-                                let formatted_value = format!("{:.precision$}", boundary_value, precision = precision as usize);
+                                let formatted_value = if target_precision == 8 {
+                                    format!("{:.8}", boundary_value)
+                                } else {
+                                    format!("{:.precision$}", boundary_value, precision = (target_precision + 1) as usize)
+                                };
                                 let result = if let Some(unit) = unit {
                                     format!("{} '{}'", formatted_value, unit)
                                 } else {
@@ -397,34 +401,53 @@ impl FunctionRegistry {
             }
         }
 
+        let value_str = value.to_string();
+        let original_precision = if let Some(dot_pos) = value_str.find('.') {
+            (value_str.len() - dot_pos - 1) as i64
+        } else {
+            0
+        };
+
         let result = match precision {
             None => {
                 // Default case: subtract 0.5 at next precision level beyond input precision
-                let value_str = value.to_string();
-                let original_precision = if let Some(dot_pos) = value_str.find('.') {
-                    (value_str.len() - dot_pos - 1) as u32
+                if original_precision == 0 {
+                    value - Decimal::new(5, 1) // 0.5 for integers
                 } else {
-                    0
-                };
-
-                // Subtract 0.5 at one decimal place beyond the original precision
-                let decrement = if original_precision == 0 {
-                    Decimal::new(5, 1) // 0.5 for integers
-                } else {
-                    Decimal::new(5, original_precision + 1) // 0.5 * 10^(-original_precision-1)
-                };
-
-                value - decrement
+                    value - Decimal::new(5, (original_precision + 1) as u32)
+                }
             }
             Some(0) => {
-                // Precision 0: round to integer, then subtract 0.5 (resulting in x.5)
-                value.round() - Decimal::new(5, 1)
+                // Precision 0: return the floor (lower integer boundary) as decimal
+                if value.fract() == Decimal::ZERO {
+                    // For integers, subtract 1 to get the lower boundary
+                    value - Decimal::ONE
+                } else {
+                    // For decimals, return the floor
+                    value.floor()
+                }
             }
             Some(p) => {
-                // Specific precision p: truncate to p digits, keep the truncated value
-                let scale_factor = Decimal::from(10_i64.pow(p as u32));
-                let truncated = (value * scale_factor).trunc() / scale_factor;
-                truncated
+                if p >= original_precision {
+                    // If requested precision is >= actual precision, subtract at the last significant digit
+                    if original_precision == 0 {
+                        value - Decimal::new(5, 1) // 0.5 for integers
+                    } else {
+                        value - Decimal::new(5, (original_precision + 1) as u32)
+                    }
+                } else {
+                    // If requested precision < actual precision, truncate to that precision
+                    let scale_factor = Decimal::new(1, p as u32);
+                    
+                    // Special case: if the absolute value is smaller than the precision scale, return 0
+                    if value.abs() < scale_factor {
+                        Decimal::ZERO
+                    } else {
+                        let shifted = value / scale_factor;
+                        let truncated = shifted.floor() * scale_factor;
+                        truncated
+                    }
+                }
             }
         };
 

@@ -341,10 +341,8 @@ impl FunctionRegistry {
                 let value = match context.input.first() {
                     Some(FhirPathValue::Integer(i)) => {
                         if *i < 0 {
-                            return Err(crate::core::FhirPathError::evaluation_error(
-                                FP0053,
-                                "sqrt() cannot be called on negative values".to_string()
-                            ));
+                            // Return empty for negative values (no result)
+                            return Ok(FhirPathValue::empty());
                         }
                         *i as f64
                     }
@@ -356,10 +354,8 @@ impl FunctionRegistry {
                             )
                         })?;
                         if f_val < 0.0 {
-                            return Err(crate::core::FhirPathError::evaluation_error(
-                                FP0053,
-                                "sqrt() cannot be called on negative values".to_string()
-                            ));
+                            // Return empty for negative values (no result)
+                            return Ok(FhirPathValue::empty());
                         }
                         f_val
                     }
@@ -371,10 +367,8 @@ impl FunctionRegistry {
                             )
                         })?;
                         if f_val < 0.0 {
-                            return Err(crate::core::FhirPathError::evaluation_error(
-                                FP0053,
-                                "sqrt() cannot be called on negative values".to_string()
-                            ));
+                            // Return empty for negative values (no result)
+                            return Ok(FhirPathValue::empty());
                         }
                         f_val
                     }
@@ -485,11 +479,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                if context.arguments.len() != 1 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "log() requires exactly one base argument".to_string()
-                    ));
+                if context.arguments.is_empty() || context.arguments.len() != 1 {
+                    return Ok(FhirPathValue::empty());
                 }
 
                 let value = match context.input.first() {
@@ -499,13 +490,13 @@ impl FunctionRegistry {
                         "log() can only be called on numeric values".to_string()
                     ))
                 };
-                let base = match context.arguments.first() {
-                    Some(first_arg) => extract_numeric_value(first_arg, "log() base")?,
-                    None => return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "log() requires exactly one base argument".to_string()
-                    ))
-                };
+                
+                let first_arg = context.arguments.first().unwrap();
+                if first_arg.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+                
+                let base = extract_numeric_value(first_arg, "log() base")?;
 
                 if value <= 0.0 {
                     return Err(crate::core::FhirPathError::evaluation_error(
@@ -562,11 +553,8 @@ impl FunctionRegistry {
                     ));
                 }
 
-                if context.arguments.len() != 1 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "power() requires exactly one exponent argument".to_string()
-                    ));
+                if context.arguments.len() != 1 || context.arguments.first().map_or(true, |arg| arg.is_empty()) {
+                    return Ok(FhirPathValue::empty());
                 }
 
                 let base = match context.input.first() {
@@ -586,10 +574,7 @@ impl FunctionRegistry {
 
                 let result = base.powf(exponent);
                 if result.is_nan() || result.is_infinite() {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "power() result is not a valid number".to_string()
-                    ));
+                    return Ok(FhirPathValue::empty());
                 }
 
                 let decimal_result = Decimal::try_from(result).map_err(|_| {

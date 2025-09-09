@@ -301,7 +301,7 @@ impl ScopeManager {
                 // Fall back to global context start context
                 if !self.global_context.start_context.is_empty() {
                     return Some(FhirPathValue::Collection(
-                        self.global_context.start_context.clone().into_vec(),
+                        self.global_context.start_context.clone(),
                     ));
                 }
                 return None;
@@ -400,7 +400,7 @@ impl ScopeManager {
         // Build a fresh context using the current item as the start context
         let start_collection = if let Some(current_item) = current_item_opt {
             match current_item {
-                FhirPathValue::Collection(items) => Collection::from_values(items.clone()),
+                FhirPathValue::Collection(items) => items.clone(),
                 single => Collection::single(single.clone()),
             }
         } else {
@@ -445,7 +445,7 @@ impl LambdaContext {
     pub fn to_evaluation_context(&self) -> EvaluationContext {
         // Create context with current item as start context
         let current_collection = match &self.current_item {
-            FhirPathValue::Collection(items) => Collection::from_values(items.clone()),
+            FhirPathValue::Collection(collection) => collection.clone(),
             single_item => Collection::single(single_item.clone()),
         };
 

@@ -4,7 +4,7 @@
 mod tests {
     use super::super::*;
     use crate::core::{FhirPathValue, ModelProvider};
-    use crate::mock_provider::MockModelProvider;
+    use crate::MockModelProvider;
     use std::collections::HashMap;
     use rust_decimal::Decimal;
     use rust_decimal::prelude::ToPrimitive;

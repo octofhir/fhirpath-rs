@@ -13,6 +13,7 @@ use std::sync::Arc;
 use crate::{
     ast::{ExpressionNode, IdentifierNode, LiteralNode, VariableNode},
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
+    core::types::Collection,
     evaluator::metadata_core::MetadataCoreEvaluator,
     evaluator::{
         EvaluationContext,
@@ -88,7 +89,7 @@ impl CoreEvaluator {
         Ok(match results.len() {
             0 => FhirPathValue::Empty,
             1 => results.into_iter().next().unwrap(),
-            _ => FhirPathValue::Collection(results),
+            _ => FhirPathValue::Collection(Collection::from_values(results)),
         })
     }
 
@@ -156,7 +157,7 @@ impl CoreEvaluator {
                 Ok(match results.len() {
                     0 => FhirPathValue::Empty,
                     1 => results.into_iter().next().unwrap(),
-                    _ => FhirPathValue::Collection(results),
+                    _ => FhirPathValue::Collection(Collection::from_values(results)),
                 })
             }
             _ => Ok(FhirPathValue::Empty),
@@ -196,7 +197,7 @@ impl CoreEvaluator {
                     if values.len() == 1 {
                         values.into_iter().next().unwrap()
                     } else {
-                        FhirPathValue::Collection(values)
+                        FhirPathValue::Collection(Collection::from_values(values))
                     }
                 }
             }
@@ -233,9 +234,7 @@ impl CoreEvaluator {
                     Ok(context.start_context.first().unwrap().clone())
                 } else {
                     // Multiple items - return as collection
-                    let values: Vec<FhirPathValue> =
-                        context.start_context.iter().cloned().collect();
-                    Ok(FhirPathValue::Collection(values))
+                    Ok(FhirPathValue::Collection(context.start_context.clone()))
                 }
             }
             "index" => {

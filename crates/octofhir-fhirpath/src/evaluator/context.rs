@@ -105,7 +105,7 @@ impl EvaluationContext {
             let context_value = if start_context.len() == 1 {
                 start_context.first().unwrap().clone()
             } else {
-                FhirPathValue::Collection(start_context.clone().into_vec())
+                FhirPathValue::Collection(start_context.clone())
             };
 
             builtin_variables.set_context(context_value.clone());
@@ -137,7 +137,7 @@ impl EvaluationContext {
     /// * `start_value` - Input value that becomes the start context for evaluation
     pub fn from_value(start_value: FhirPathValue) -> Self {
         let start_context = match start_value {
-            FhirPathValue::Collection(vec) => Collection::from_values(vec),
+            FhirPathValue::Collection(collection) => collection,
             FhirPathValue::Empty => Collection::empty(),
             single_value => Collection::single(single_value.clone()),
         };

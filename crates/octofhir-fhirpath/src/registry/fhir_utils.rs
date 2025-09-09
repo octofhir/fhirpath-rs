@@ -2,6 +2,7 @@
 
 use serde_json::{Map, Value as JsonValue};
 use std::sync::Arc;
+use crate::core::types::Collection;
 
 use crate::core::{FhirPathValue, Result};
 
@@ -139,7 +140,7 @@ fn json_to_value(v: JsonValue) -> FhirPathValue {
         JsonValue::String(s) => FhirPathValue::string(s),
         JsonValue::Array(arr) => {
             let values = arr.into_iter().map(json_to_value).collect();
-            FhirPathValue::Collection(values)
+            FhirPathValue::Collection(Collection::from_values(values))
         }
         JsonValue::Object(_) => FhirPathValue::Resource(Arc::new(v)),
         JsonValue::Null => FhirPathValue::Empty,

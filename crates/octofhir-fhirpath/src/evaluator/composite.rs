@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use crate::{
     ast::ExpressionNode,
+    core::types::Collection,
     core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result},
     evaluator::{
         EvaluationContext, MetadataCollectionEvaluator, MetadataCoreEvaluator,
@@ -212,10 +213,10 @@ impl CompositeEvaluator {
                 // Transform each item in the collection
                 let mut selected_results = Vec::new();
 
-                for wrapped_item in object {
-                    // Create lambda context with this item as $this
+                for (index, wrapped_item) in object.iter().enumerate() {
+                    // Create lambda context with this item as $this and current index as $index
                     let lambda_context = self
-                        .create_lambda_context_for_item(wrapped_item, context)
+                        .create_lambda_context_for_item_with_index(wrapped_item, context, Some(index))
                         .await?;
 
                     // Evaluate the lambda expression in this context
@@ -249,6 +250,63 @@ impl CompositeEvaluator {
                 self.evaluate_repeat_all_method_composite(object, arguments, context)
                     .await
             }
+            "trace" => {
+                // Get the trace name from the first argument
+                let trace_name = if let crate::ast::ExpressionNode::Literal(literal) = &arguments[0] {
+                    if let crate::ast::LiteralValue::String(name) = &literal.value {
+                        name.clone()
+                    } else {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0053,
+                            "trace() first argument must be a string (trace name)".to_string()
+                        ));
+                    }
+                } else {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        "trace() first argument must be a string literal".to_string()
+                    ));
+                };
+
+                if arguments.len() == 1 {
+                    // trace(name) - trace input values and return them
+                    for (i, wrapped) in object.iter().enumerate() {
+                        let trace_output = self.format_trace_value_with_metadata(wrapped);
+                        eprintln!("TRACE[{}][{}]: {}", trace_name, i, trace_output);
+                    }
+                    Ok(object.clone())
+                } else if arguments.len() == 2 {
+                    // trace(name, projection) - evaluate projection on each item and trace the results
+                    // BUT return the original input collection unchanged (trace doesn't transform output)
+                    let projection_expression = &arguments[1];
+                    
+                    for (i, wrapped_item) in object.iter().enumerate() {
+                        // Create lambda context for each item
+                        let lambda_context = self
+                            .create_lambda_context_for_item_with_index(wrapped_item, context, Some(i))
+                            .await?;
+                        
+                        // Evaluate the projection expression in this context
+                        let projection_result = self
+                            .evaluate_expression_with_metadata(projection_expression, &lambda_context)
+                            .await?;
+                        
+                        // Trace each projected value
+                        for (j, projected) in projection_result.iter().enumerate() {
+                            let trace_output = self.format_trace_value_with_metadata(projected);
+                            eprintln!("TRACE[{}][{}:{}]: {}", trace_name, i, j, trace_output);
+                        }
+                    }
+                    
+                    // trace() always returns the original input collection unchanged
+                    Ok(object.clone())
+                } else {
+                    Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        "trace() requires 1 or 2 arguments: trace(name) or trace(name, projection)".to_string()
+                    ))
+                }
+            }
             "exists" => {
                 // Handle exists() lambda method
                 self.evaluate_exists_method_composite(object, arguments, context)
@@ -275,26 +333,108 @@ impl CompositeEvaluator {
         item: &WrappedValue,
         parent_context: &EvaluationContext,
     ) -> Result<EvaluationContext> {
+        self.create_lambda_context_for_item_with_index(item, parent_context, None).await
+    }
+
+    async fn create_lambda_context_for_item_with_index(
+        &self,
+        item: &WrappedValue,
+        parent_context: &EvaluationContext,
+        index: Option<usize>,
+    ) -> Result<EvaluationContext> {
         let mut lambda_context = parent_context.clone();
 
         // Set the start_context to this single item (this becomes $this for implicit property access)
         lambda_context.start_context = crate::core::Collection::single(item.as_plain().clone());
 
-        // Store the metadata for $this in a special variable
+        // Store the complete WrappedValue directly as a special variable
+        // We create a custom JsonValue that encodes the metadata information
+        // This allows property access within lambdas to maintain full type information
         let metadata_json = serde_json::json!({
-            "fhir_type": item.metadata().fhir_type.to_string(),
-            "resource_type": item.metadata().resource_type,
-            "path": item.metadata().path.to_string()
+            "value": item.as_plain(),
+            "metadata": {
+                "fhir_type": item.metadata().fhir_type,
+                "resource_type": item.metadata().resource_type,
+                "path": item.metadata().path.to_string(),
+                "index": item.metadata().index
+            }
         });
         lambda_context.set_variable(
-            "__$this_metadata__".to_string(),
+            "__$this_wrapped__".to_string(),
             FhirPathValue::JsonValue(metadata_json.into()),
         );
 
         // Also explicitly bind $this variable for explicit $this property access
-        lambda_context.set_variable("$this".to_string(), item.as_plain().clone());
+        lambda_context.set_variable("this".to_string(), item.as_plain().clone());
+
+        // If index is provided, bind $index variable
+        if let Some(idx) = index {
+            lambda_context.set_variable("index".to_string(), FhirPathValue::Integer(idx as i64));
+        }
 
         Ok(lambda_context)
+    }
+
+    /// Format a WrappedValue for trace output with metadata information
+    fn format_trace_value_with_metadata(&self, wrapped: &WrappedValue) -> String {
+        let value_str = match wrapped.as_plain() {
+            crate::core::FhirPathValue::String(s) => format!("\"{}\"(String)", s),
+            crate::core::FhirPathValue::Integer(i) => format!("{}(Integer)", i),
+            crate::core::FhirPathValue::Decimal(d) => format!("{}(Decimal)", d),
+            crate::core::FhirPathValue::Boolean(b) => format!("{}(Boolean)", b),
+            crate::core::FhirPathValue::Date(d) => format!("{}(Date)", d.to_string()),
+            crate::core::FhirPathValue::DateTime(dt) => format!("{}(DateTime)", dt.to_string()),
+            crate::core::FhirPathValue::Time(t) => format!("{}(Time)", t.to_string()),
+            crate::core::FhirPathValue::Quantity { value, unit, .. } => {
+                match unit {
+                    Some(u) => format!("{} {}(Quantity)", value, u),
+                    None => format!("{}(Quantity)", value),
+                }
+            }
+            crate::core::FhirPathValue::Resource(resource) => {
+                let resource_type = resource.get("resourceType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                format!("Resource({})", resource_type)
+            }
+            crate::core::FhirPathValue::JsonValue(json) => {
+                if json.is_object() {
+                    if let Some(resource_type) = json.get("resourceType").and_then(|v| v.as_str()) {
+                        format!("Resource({})", resource_type)
+                    } else {
+                        format!("Object({})", json.to_string().chars().take(50).collect::<String>())
+                    }
+                } else if json.is_array() {
+                    format!("Array[{}]", json.as_array().map(|a| a.len()).unwrap_or(0))
+                } else {
+                    format!("JsonValue({})", json.to_string())
+                }
+            }
+            crate::core::FhirPathValue::Collection(items) => {
+                format!("Collection[{}]", items.len())
+            }
+            crate::core::FhirPathValue::Id(id) => format!("{}(Id)", id),
+            crate::core::FhirPathValue::Base64Binary(data) => format!("Base64[{}](Base64Binary)", data.len()),
+            crate::core::FhirPathValue::Uri(uri) => format!("{}(Uri)", uri),
+            crate::core::FhirPathValue::Url(url) => format!("{}(Url)", url),
+            crate::core::FhirPathValue::TypeInfoObject { namespace, name } => format!("{}:{}(TypeInfo)", namespace, name),
+            crate::core::FhirPathValue::Empty => "<empty>".to_string(),
+        };
+        
+        // Add metadata information if available
+        let type_info = if wrapped.fhir_type() != "unknown" {
+            format!(" [{}]", wrapped.fhir_type())
+        } else {
+            String::new()
+        };
+        
+        let path_info = if !wrapped.path().is_empty() {
+            format!(" @{}", wrapped.path().to_string())
+        } else {
+            String::new()
+        };
+        
+        format!("{}{}{}", value_str, type_info, path_info)
     }
 
     /// Evaluate an expression with metadata in a given context
@@ -1060,24 +1200,15 @@ impl CompositeEvaluator {
                 });
 
                 if let Some(index) = index_value {
-                    let mut indexed_results = Vec::new();
-
-                    for object_wrapped in object_result {
-                        if let Some(indexed) = self
-                            .navigator
-                            .navigate_index_with_metadata(
-                                &object_wrapped,
-                                index,
-                                &self.type_resolver,
-                            )
-                            .await?
-                        {
-                            indexed_results.push(indexed);
-                        }
+                    // Index operation should select the item at the given index from the collection
+                    if let Some(selected_item) = object_result.get(index) {
+                        Ok(vec![selected_item.clone()])
+                    } else {
+                        // Index out of bounds - return empty result
+                        Ok(collection_utils::empty())
                     }
-
-                    Ok(indexed_results)
                 } else {
+                    // Invalid index (e.g., negative) - return empty result
                     Ok(collection_utils::empty())
                 }
             }
@@ -1104,6 +1235,19 @@ impl CompositeEvaluator {
                 // Check if this is a lambda method that needs special handling
                 if self.is_lambda_method(&method.method) {
                     // For lambda methods, pass the raw AST nodes instead of evaluating them
+                    return self
+                        .evaluate_lambda_method_call(
+                            &object_result,
+                            &method.method,
+                            &method.arguments,
+                            context,
+                        )
+                        .await;
+                }
+                
+                // Special handling for trace method with projection
+                if method.method == "trace" && method.arguments.len() == 2 {
+                    // trace(name, projection) needs lambda handling for the projection
                     return self
                         .evaluate_lambda_method_call(
                             &object_result,
@@ -1287,13 +1431,13 @@ impl CompositeEvaluator {
                 // Perform type check - basic implementation
                 // TODO: Implement proper type checking logic using TypeResolver
                 let result = match check.target_type.as_str() {
-                    "string" => matches!(&expr_plain, FhirPathValue::String(_)),
-                    "integer" => matches!(&expr_plain, FhirPathValue::Integer(_)),
-                    "decimal" => matches!(&expr_plain, FhirPathValue::Decimal(_)),
-                    "boolean" => matches!(&expr_plain, FhirPathValue::Boolean(_)),
-                    "date" => matches!(&expr_plain, FhirPathValue::Date(_)),
-                    "dateTime" => matches!(&expr_plain, FhirPathValue::DateTime(_)),
-                    "time" => matches!(&expr_plain, FhirPathValue::Time(_)),
+                    "string" | "String" => matches!(&expr_plain, FhirPathValue::String(_)),
+                    "integer" | "Integer" => matches!(&expr_plain, FhirPathValue::Integer(_)),
+                    "decimal" | "Decimal" => matches!(&expr_plain, FhirPathValue::Decimal(_)),
+                    "boolean" | "Boolean" => matches!(&expr_plain, FhirPathValue::Boolean(_)),
+                    "date" | "Date" => matches!(&expr_plain, FhirPathValue::Date(_)),
+                    "dateTime" | "DateTime" => matches!(&expr_plain, FhirPathValue::DateTime(_)),
+                    "time" | "Time" => matches!(&expr_plain, FhirPathValue::Time(_)),
                     _ => false, // For complex types, return false for now
                 };
                 self.wrap_plain_result(FhirPathValue::Boolean(result)).await
@@ -1315,7 +1459,7 @@ impl CompositeEvaluator {
     fn wrapped_to_plain(&self, wrapped_result: &WrappedCollection) -> FhirPathValue {
         if wrapped_result.is_empty() {
             // In FHIRPath, empty results are always represented as empty collections, never as null/Empty
-            FhirPathValue::Collection(Vec::new())
+            FhirPathValue::Collection(Collection::empty())
         } else if wrapped_result.len() == 1 {
             wrapped_result.first().unwrap().as_plain().clone()
         } else {
@@ -1323,7 +1467,7 @@ impl CompositeEvaluator {
                 .iter()
                 .map(|w| w.as_plain().clone())
                 .collect();
-            FhirPathValue::Collection(values)
+            FhirPathValue::Collection(Collection::from_values(values))
         }
     }
 
@@ -1431,13 +1575,13 @@ impl ExpressionEvaluator for CompositeEvaluator {
 
         if wrapped_result.is_empty() {
             // In FHIRPath, empty results are always represented as empty collections, never as null/Empty
-            Ok(FhirPathValue::Collection(Vec::new()))
+            Ok(FhirPathValue::Collection(Collection::empty()))
         } else if wrapped_result.len() == 1 {
             Ok(wrapped_result.into_iter().next().unwrap().into_plain())
         } else {
             let values: Vec<FhirPathValue> =
                 wrapped_result.into_iter().map(|w| w.into_plain()).collect();
-            Ok(FhirPathValue::Collection(values))
+            Ok(FhirPathValue::Collection(Collection::from_values(values)))
         }
     }
 

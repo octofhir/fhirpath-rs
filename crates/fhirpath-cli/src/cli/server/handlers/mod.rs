@@ -65,55 +65,159 @@ pub async fn health_handler(
     Ok(Json(response))
 }
 
-/// Simple test evaluation endpoint handler
-pub async fn evaluate_handler() -> Result<Json<EvaluateResponse>, ServerError> {
+/// Legacy evaluation endpoint handler
+pub async fn evaluate_handler(
+    State(registry): State<ServerRegistry>,
+    Json(request): Json<EvaluateRequest>,
+) -> impl IntoResponse {
     let start_time = Instant::now();
-    let version = ServerFhirVersion::R4;
+    let version = ServerFhirVersion::R4; // Default to R4 for legacy API
 
-    info!("🔍 Simple test evaluation for FHIR {}", version);
+    info!("🔍 Legacy evaluation request for FHIR {}", version);
+
+    // Get the evaluation engine for R4
+    let engine_arc = match registry.get_evaluation_engine(version) {
+        Some(engine) => engine,
+        None => {
+            let response = EvaluateResponse {
+                success: false,
+                result: None,
+                error: Some(ErrorInfo {
+                    code: "unsupported_version".to_string(),
+                    message: format!("FHIR version {} not supported", version),
+                    details: None,
+                    location: None,
+                }),
+                expression: request.expression,
+                fhir_version: version.to_string(),
+                metadata: ExecutionMetadata::with_duration(start_time.elapsed(), false),
+                trace: None,
+            };
+            return Json(response);
+        }
+    };
+
+    // Use provided resource or create a default test resource
+    let resource = request.resource.unwrap_or_else(|| {
+        serde_json::json!({
+            "resourceType": "Patient",
+            "id": "test",
+            "name": [{"family": "Test", "given": ["Patient"]}]
+        })
+    });
+
+    // Create a ParsedFhirPathLabRequest-like structure for evaluation
+    let parsed_request = ParsedFhirPathLabRequest {
+        expression: request.expression.clone(),
+        resource,
+        variables: request.variables,
+        validate: request.options.validate,
+        context: None,
+        terminology_server: None,
+    };
+
+    // Evaluate the expression
+    let result = {
+        let mut engine = engine_arc.lock().unwrap();
+        evaluate_fhirpath_expression(&mut engine, &parsed_request).await
+    };
 
     let execution_time = start_time.elapsed();
 
-    // Return a simple test response
-    let response = EvaluateResponse {
-        success: true,
-        result: Some(serde_json::json!({"test": "value"})),
-        error: None,
-        expression: "test expression".to_string(),
-        fhir_version: version.to_string(),
-        metadata: ExecutionMetadata::with_duration(execution_time, false),
-        trace: None,
+    let response = match result {
+        Ok(collection) => {
+            let result_json = collection_to_json(collection);
+            EvaluateResponse {
+                success: true,
+                result: Some(result_json),
+                error: None,
+                expression: request.expression,
+                fhir_version: version.to_string(),
+                metadata: ExecutionMetadata::with_duration(execution_time, false),
+                trace: if request.options.trace { Some(vec!["Evaluation completed".to_string()]) } else { None },
+            }
+        },
+        Err(e) => {
+            EvaluateResponse {
+                success: false,
+                result: None,
+                error: Some(ErrorInfo {
+                    code: "evaluation_failed".to_string(),
+                    message: format!("Evaluation failed: {}", e),
+                    details: None,
+                    location: None,
+                }),
+                expression: request.expression,
+                fhir_version: version.to_string(),
+                metadata: ExecutionMetadata::with_duration(execution_time, false),
+                trace: None,
+            }
+        }
     };
 
-    Ok(Json(response))
+    Json(response)
 }
 
-/// Simple test analysis endpoint handler
-pub async fn analyze_handler() -> Result<Json<AnalyzeResponse>, ServerError> {
+/// Legacy analysis endpoint handler
+pub async fn analyze_handler(
+    State(_registry): State<ServerRegistry>,
+    Json(request): Json<AnalyzeRequest>,
+) -> impl IntoResponse {
     let start_time = Instant::now();
-    let version = ServerFhirVersion::R4;
+    let version = ServerFhirVersion::R4; // Default to R4 for legacy API
 
-    info!("🔍 Simple test analysis for FHIR {}", version);
+    info!("🔍 Legacy analysis request for FHIR {}", version);
 
+    // Parse the expression to check syntax
+    let parse_result = parse_with_mode(&request.expression, ParsingMode::Analysis);
+    
     let execution_time = start_time.elapsed();
 
-    // Return a simple test response
-    let response = AnalyzeResponse {
-        success: true,
-        analysis: Some(crate::cli::server::models::AnalysisResult {
-            type_info: None,
-            validation_errors: Vec::new(),
-            type_annotations: 0,
-            function_calls: 0,
-            union_types: 0,
-        }),
-        error: None,
-        expression: "test expression".to_string(),
-        fhir_version: version.to_string(),
-        metadata: ExecutionMetadata::with_duration(execution_time, false),
+    let response = if parse_result.success {
+        // TODO: When analyzer is properly integrated, perform real analysis here
+        AnalyzeResponse {
+            success: true,
+            analysis: Some(crate::cli::server::models::AnalysisResult {
+                type_info: None, // TODO: Add type information when available
+                validation_errors: Vec::new(),
+                type_annotations: 0,
+                function_calls: 0,
+                union_types: 0,
+            }),
+            error: None,
+            expression: request.expression,
+            fhir_version: version.to_string(),
+            metadata: ExecutionMetadata::with_duration(execution_time, false),
+        }
+    } else {
+        let error_details: Vec<String> = parse_result
+            .diagnostics
+            .iter()
+            .map(|d| {
+                if let Some(location) = &d.location {
+                    format!("{} at {}:{}", d.code.code, location.line, location.column)
+                } else {
+                    d.code.code.clone()
+                }
+            })
+            .collect();
+
+        AnalyzeResponse {
+            success: false,
+            analysis: None,
+            error: Some(ErrorInfo {
+                code: "parse_error".to_string(),
+                message: format!("Parse errors: {}", error_details.join(", ")),
+                details: Some(error_details.join("; ")),
+                location: None,
+            }),
+            expression: request.expression,
+            fhir_version: version.to_string(),
+            metadata: ExecutionMetadata::with_duration(execution_time, false),
+        }
     };
 
-    Ok(Json(response))
+    Json(response)
 }
 
 // Helper functions
@@ -222,16 +326,14 @@ pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
             "commit": "unknown", // TODO: Add git commit info
         },
         "routes": [
+            "GET /health - Health check",
             "GET /healthz - Health check",
             "GET /version - Version and build info",
-            "POST /test/evaluate - Test evaluation endpoint",
-            "POST /test/analyze - Test analysis endpoint",
             "POST / - FHIRPath Lab API (auto-detect version)",
             "POST /r4 - FHIRPath Lab API (R4)",
             "POST /r4b - FHIRPath Lab API (R4B)",
             "POST /r5 - FHIRPath Lab API (R5)",
-            "POST /r6 - FHIRPath Lab API (R6)",
-            "GET / - Web UI root"
+            "POST /r6 - FHIRPath Lab API (R6)"
         ],
         "fhir_versions_supported": ["r4", "r4b", "r5", "r6"]
     });
@@ -244,10 +346,17 @@ pub async fn fhirpath_lab_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
 ) -> Json<FhirPathLabResponse> {
-    // Create test response with Json extractor
-    let mut response = FhirPathLabResponse::new();
-    response.add_string_parameter("status", "test working WITH Json extractor".to_string());
-    Json(response)
+    // Detect FHIR version from request or default to R4
+    let version = detect_fhir_version(&request).unwrap_or(ServerFhirVersion::R4);
+    
+    match fhirpath_lab_handler_impl(&registry, request, version).await {
+        Ok(response) => response,
+        Err(e) => {
+            let mut error_response = FhirPathLabResponse::new();
+            error_response.add_string_parameter("error", format!("Evaluation failed: {}", e));
+            Json(error_response)
+        }
+    }
 }
 
 /// FHIRPath Lab API endpoint - R4  
@@ -255,10 +364,14 @@ pub async fn fhirpath_lab_r4_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
 ) -> Json<FhirPathLabResponse> {
-    // Create test response for R4
-    let mut response = FhirPathLabResponse::new();
-    response.add_string_parameter("status", "R4 handler working".to_string());
-    Json(response)
+    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4).await {
+        Ok(response) => response,
+        Err(e) => {
+            let mut error_response = FhirPathLabResponse::new();
+            error_response.add_string_parameter("error", format!("R4 evaluation failed: {}", e));
+            Json(error_response)
+        }
+    }
 }
 
 /// FHIRPath Lab API endpoint - R4B
@@ -266,10 +379,14 @@ pub async fn fhirpath_lab_r4b_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
 ) -> Json<FhirPathLabResponse> {
-    // Create test response for R4B
-    let mut response = FhirPathLabResponse::new();
-    response.add_string_parameter("status", "R4B handler working".to_string());
-    Json(response)
+    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4B).await {
+        Ok(response) => response,
+        Err(e) => {
+            let mut error_response = FhirPathLabResponse::new();
+            error_response.add_string_parameter("error", format!("R4B evaluation failed: {}", e));
+            Json(error_response)
+        }
+    }
 }
 
 /// FHIRPath Lab API endpoint - R5
@@ -277,10 +394,14 @@ pub async fn fhirpath_lab_r5_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
 ) -> Json<FhirPathLabResponse> {
-    // Create test response for R5
-    let mut response = FhirPathLabResponse::new();
-    response.add_string_parameter("status", "R5 handler working".to_string());
-    Json(response)
+    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R5).await {
+        Ok(response) => response,
+        Err(e) => {
+            let mut error_response = FhirPathLabResponse::new();
+            error_response.add_string_parameter("error", format!("R5 evaluation failed: {}", e));
+            Json(error_response)
+        }
+    }
 }
 
 /// FHIRPath Lab API endpoint - R6
@@ -288,10 +409,14 @@ pub async fn fhirpath_lab_r6_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
 ) -> Json<FhirPathLabResponse> {
-    // Create test response for R6
-    let mut response = FhirPathLabResponse::new();
-    response.add_string_parameter("status", "R6 handler working".to_string());
-    Json(response)
+    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R6).await {
+        Ok(response) => response,
+        Err(e) => {
+            let mut error_response = FhirPathLabResponse::new();
+            error_response.add_string_parameter("error", format!("R6 evaluation failed: {}", e));
+            Json(error_response)
+        }
+    }
 }
 
 /// Core FHIRPath Lab API implementation using shared engines
@@ -356,9 +481,7 @@ async fn fhirpath_lab_handler_impl(
     // Evaluate the expression - get engine and evaluate
     let result = {
         let mut engine = engine_arc.lock().unwrap();
-        // Create a new tokio runtime handle for the async evaluation
-        let handle = tokio::runtime::Handle::current();
-        handle.block_on(evaluate_fhirpath_expression(&mut engine, &parsed_request))
+        evaluate_fhirpath_expression(&mut engine, &parsed_request).await
     };
 
     match result {

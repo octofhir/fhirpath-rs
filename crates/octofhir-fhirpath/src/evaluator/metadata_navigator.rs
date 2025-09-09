@@ -114,37 +114,58 @@ impl MetadataNavigator {
         match json.get(property) {
             Some(property_value) => {
                 // AGGRESSIVE TYPE CASTING OPTIMIZATION: If metadata indicates strong typing from resourceType filtering,
-                // skip expensive schema validation and use JSON-direct property access
+                // first try to get the proper type from ModelProvider, fall back to JSON-direct property access
                 let property_type = if source_metadata.resource_type.is_some()
                     && source_metadata.fhir_type != "unknown"
+                    && source_metadata.fhir_type != "generic"
                     && source_metadata.fhir_type != "BackboneElement"
                 {
                     if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                         eprintln!(
-                            "🚀 AGGRESSIVE TYPE CAST OPTIMIZATION: {}.{} - using JSON-direct property access",
+                            "🚀 AGGRESSIVE TYPE CAST OPTIMIZATION: {}.{} - trying ModelProvider first",
                             source_metadata.fhir_type, property
                         );
                     }
-                    // For aggressively typed resources, we trust the JSON and infer type from the property value
-                    match property_value {
-                        JsonValue::String(_) => "string".to_string(),
-                        JsonValue::Number(_) => "decimal".to_string(),
-                        JsonValue::Bool(_) => "boolean".to_string(),
-                        JsonValue::Array(_) => "array".to_string(),
-                        JsonValue::Object(obj) => {
-                            // If it has a resourceType, it's a resource reference
-                            if obj.contains_key("resourceType") {
-                                obj.get("resourceType")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("Resource")
-                                    .to_string()
-                            } else if obj.contains_key("reference") {
-                                "Reference".to_string()
-                            } else {
-                                "BackboneElement".to_string()
+                    // First try to get proper type from ModelProvider for array elements
+                    match self.get_property_type_cached(&source_metadata.fhir_type, property, resolver).await {
+                        Ok(resolved_type) => {
+                            if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                eprintln!(
+                                    "🚀 AGGRESSIVE TYPE CAST: ModelProvider returned {} for {}.{}",
+                                    resolved_type, source_metadata.fhir_type, property
+                                );
+                            }
+                            resolved_type
+                        },
+                        Err(_) => {
+                            if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                eprintln!(
+                                    "🚀 AGGRESSIVE TYPE CAST: ModelProvider failed, using JSON inference for {}.{}",
+                                    source_metadata.fhir_type, property
+                                );
+                            }
+                            // Fall back to JSON inference for aggressively typed resources
+                            match property_value {
+                                JsonValue::String(_) => "string".to_string(),
+                                JsonValue::Number(_) => "decimal".to_string(),
+                                JsonValue::Bool(_) => "boolean".to_string(),
+                                JsonValue::Array(_) => "array".to_string(),
+                                JsonValue::Object(obj) => {
+                                    // If it has a resourceType, it's a resource reference
+                                    if obj.contains_key("resourceType") {
+                                        obj.get("resourceType")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("Resource")
+                                            .to_string()
+                                    } else if obj.contains_key("reference") {
+                                        "Reference".to_string()
+                                    } else {
+                                        "BackboneElement".to_string()
+                                    }
+                                }
+                                JsonValue::Null => "unknown".to_string(),
                             }
                         }
-                        JsonValue::Null => "unknown".to_string(),
                     }
                 }
                 // SPECIAL CASES for Bundle navigation to avoid expensive type resolution
@@ -203,13 +224,106 @@ impl MetadataNavigator {
                 Ok(self.json_to_wrapped_collection(property_value, property_path, property_type))
             }
             None => {
-                // PERFORMANCE OPTIMIZATION: Property not found in JSON
-                // Instead of doing expensive schema validation for missing properties,
-                // we assume missing properties are valid (they just have no value in this instance)
-                // This matches the FHIRPath spec behavior and avoids the bottleneck
-                Ok(collection_utils::empty())
+                // Property not found in JSON - check for polymorphic choice types
+                if let Some(choice_property) = self.check_choice_type_properties(json, property, source_metadata, resolver).await? {
+                    Ok(choice_property)
+                } else {
+                    // PERFORMANCE OPTIMIZATION: Property not found and no polymorphic match
+                    // Instead of doing expensive schema validation for missing properties,
+                    // we assume missing properties are valid (they just have no value in this instance)
+                    // This matches the FHIRPath spec behavior and avoids the bottleneck
+                    Ok(collection_utils::empty())
+                }
             }
         }
+    }
+
+    /// Check for FHIR choice type properties (e.g., value[x]) using ModelProvider
+    async fn check_choice_type_properties(
+        &self,
+        json: &JsonValue,
+        property: &str,
+        source_metadata: &ValueMetadata,
+        resolver: &TypeResolver,
+    ) -> Result<Option<WrappedCollection>> {
+        let JsonValue::Object(obj) = json else {
+            return Ok(None);
+        };
+
+        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+            eprintln!(
+                "🔍 POLYMORPHIC CHECK: Looking for {}[x] choices in {}",
+                property, source_metadata.fhir_type
+            );
+        }
+
+        // Use ModelProvider to get type reflection and find choice type properties
+        let model_provider = resolver.model_provider().clone();
+        match model_provider.get_type_reflection(&source_metadata.fhir_type).await {
+            Ok(Some(octofhir_fhir_model::TypeReflectionInfo::ClassInfo { elements, .. })) => {
+                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                    eprintln!(
+                        "🔍 POLYMORPHIC SCHEMA: Got {} elements for {}",
+                        elements.len(), source_metadata.fhir_type
+                    );
+                }
+                
+                // Look for schema elements that start with the requested property name
+                // This correctly handles choice types like value[x] -> valueQuantity, valueString, etc.
+                for element in elements {
+                    if element.name.starts_with(property) && element.name.len() > property.len() {
+                        // Check if this element exists in the JSON
+                        if let Some(value) = obj.get(&element.name) {
+                            if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                eprintln!(
+                                    "🔍 POLYMORPHIC SUCCESS: {}.{} -> {} (via schema choice type)",
+                                    source_metadata.fhir_type, element.name, element.type_info.name()
+                                );
+                            }
+                            
+                            // Found matching choice type - use it
+                            let property_path = source_metadata.path.append_property(&element.name);
+                            let property_type = element.type_info.name().to_string();
+                            let wrapped_collection = self.json_to_wrapped_collection(value, property_path, property_type);
+                            return Ok(Some(wrapped_collection));
+                        }
+                    }
+                }
+            }
+            Ok(Some(_)) => {
+                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                    eprintln!(
+                        "🔍 POLYMORPHIC SKIP: {} is not a ClassInfo type",
+                        source_metadata.fhir_type
+                    );
+                }
+            }
+            Ok(None) => {
+                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                    eprintln!(
+                        "🔍 POLYMORPHIC UNKNOWN: Type {} not found in schema",
+                        source_metadata.fhir_type
+                    );
+                }
+            }
+            Err(e) => {
+                if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                    eprintln!(
+                        "🔍 POLYMORPHIC ERROR: Failed to get type reflection for {}: {}",
+                        source_metadata.fhir_type, e
+                    );
+                }
+            }
+        }
+
+        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+            eprintln!(
+                "🔍 POLYMORPHIC NONE: No valid {}[x] choice found in {}",
+                property, source_metadata.fhir_type
+            );
+        }
+
+        Ok(None)
     }
 
     /// Convert JSON value to wrapped collection with metadata
@@ -313,7 +427,24 @@ impl MetadataNavigator {
                 if let Some(_resource_type) = obj.get("resourceType").and_then(|v| v.as_str()) {
                     // This is a FHIR resource - create a Resource value to preserve type information
                     FhirPathValue::Resource(Arc::new(json.clone()))
-                } else {
+                } 
+                // CRITICAL FIX: Check if this is a FHIR Quantity data type
+                else if let (Some(value), Some(code)) = (
+                    obj.get("value").and_then(|v| v.as_f64()),
+                    obj.get("code").and_then(|c| c.as_str())
+                ) {
+                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                        eprintln!(
+                            "🔍 QUANTITY CONVERSION: Converting JSON to FhirPathValue::Quantity - value: {}, code: {}",
+                            value, code
+                        );
+                    }
+                    // Convert JSON Quantity object to proper FhirPathValue::Quantity
+                    let decimal_value = rust_decimal::Decimal::from_f64_retain(value)
+                        .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0));
+                    FhirPathValue::quantity(decimal_value, Some(code.to_string()))
+                }
+                else {
                     // Regular JSON object
                     FhirPathValue::JsonValue(Arc::new(json.clone()))
                 }
@@ -331,11 +462,8 @@ impl MetadataNavigator {
         match source.as_plain() {
             FhirPathValue::Collection(values) => {
                 if let Some(value) = values.get(index) {
-                    // Resolve element type
-                    let element_type = resolver
-                        .resolve_element_type(&source.metadata.fhir_type)
-                        .await
-                        .unwrap_or_else(|_| "unknown".to_string());
+                    // Determine the actual type of this specific element
+                    let element_type = crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
 
                     // Create indexed path
                     let indexed_path = source.metadata.path.append_index(index);
@@ -351,8 +479,8 @@ impl MetadataNavigator {
                     Ok(None) // Index out of bounds
                 }
             }
-            FhirPathValue::JsonValue(json_arc) if json_arc.is_array() => {
-                if let JsonValue::Array(array) = json_arc.as_ref() {
+            FhirPathValue::JsonValue(json_value) if json_value.is_array() => {
+                if let JsonValue::Array(array) = json_value.as_ref() {
                     if let Some(item) = array.get(index) {
                         let element_type = resolver
                             .resolve_element_type(&source.metadata.fhir_type)
@@ -407,15 +535,29 @@ impl MetadataAwareNavigator for MetadataNavigator {
 
                 for (i, value) in values.iter().enumerate() {
                     // Create temporary wrapped value for each collection element
-                    let element_metadata = source.metadata.derive_index(i, None);
+                    // Determine the actual type of this element
+                    let element_type = crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
+                    let element_metadata = source.metadata.derive_index(i, Some(element_type));
                     let wrapped_element = WrappedValue::new(value.clone(), element_metadata);
 
-                    // Navigate property on this element
-                    let property_results = self
+                    // Navigate property on this element - silently ignore errors for primitive types
+                    match self
                         .navigate_property_with_metadata(&wrapped_element, property, resolver)
-                        .await?;
-
-                    result.extend(property_results);
+                        .await
+                    {
+                        Ok(property_results) => result.extend(property_results),
+                        Err(err) => {
+                            // Check if this is a property access error on primitive type (FP0052)
+                            if err.error_code() == &crate::core::error_code::FP0052 {
+                                // Silently ignore - FHIRPath specification allows property access 
+                                // on mixed collections to ignore non-navigable items
+                                continue;
+                            } else {
+                                // Re-raise other types of errors
+                                return Err(err);
+                            }
+                        }
+                    }
                 }
 
                 Ok(result)
@@ -515,7 +657,7 @@ mod tests {
 
         let source_metadata = ValueMetadata::resource("Patient".to_string());
         let source = WrappedValue::new(
-            FhirPathValue::JsonValue(Arc::new(patient_json)),
+            FhirPathValue::JsonValue(patient_json),
             source_metadata,
         );
 
@@ -540,7 +682,7 @@ mod tests {
             CanonicalPath::parse("Patient.name.given").unwrap(),
         );
         let source = WrappedValue::new(
-            FhirPathValue::JsonValue(Arc::new(collection_json)),
+            FhirPathValue::JsonValue(collection_json),
             source_metadata,
         );
 
@@ -572,7 +714,7 @@ mod tests {
 
         let source_metadata = ValueMetadata::resource("Patient".to_string());
         let source = WrappedValue::new(
-            FhirPathValue::JsonValue(Arc::new(patient_json)),
+            FhirPathValue::JsonValue(patient_json),
             source_metadata,
         );
 
@@ -614,7 +756,19 @@ mod tests {
 mod integration_tests {
     use super::*;
     use crate::core::FhirPathValue;
+    use crate::{
+        path::CanonicalPath,
+        typing::TypeResolver,
+        wrapped::{ValueMetadata, WrappedValue},
+    };
+    use octofhir_fhir_model::EmptyModelProvider;
     use serde_json::json;
+    use std::sync::Arc;
+
+    fn create_test_resolver() -> TypeResolver {
+        let provider = Arc::new(EmptyModelProvider);
+        TypeResolver::new(provider)
+    }
 
     #[tokio::test]
     async fn test_patient_name_navigation() {
@@ -639,7 +793,7 @@ mod integration_tests {
         });
 
         let source_metadata = ValueMetadata::resource("Patient".to_string());
-        let source = WrappedValue::new(FhirPathValue::Resource(Arc::new(patient)), source_metadata);
+        let source = WrappedValue::new(FhirPathValue::Resource(patient), source_metadata);
 
         // Test: Patient.name
         let names = navigator

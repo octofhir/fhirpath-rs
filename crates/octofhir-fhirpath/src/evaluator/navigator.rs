@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{FhirPathValue, ModelProvider, Result},
+    core::types::Collection,
     evaluator::metadata_navigator::MetadataNavigator,
     evaluator::traits::MetadataAwareNavigator,
     evaluator::traits::ValueNavigator,
@@ -56,7 +57,7 @@ impl Navigator {
                 Ok(match results.len() {
                     0 => FhirPathValue::Empty,
                     1 => results.into_iter().next().unwrap(),
-                    _ => FhirPathValue::Collection(results),
+                    _ => FhirPathValue::Collection(Collection::from_values(results)),
                 })
             }
             _ => Ok(FhirPathValue::Empty),
@@ -138,7 +139,7 @@ impl Navigator {
                     if values.len() == 1 {
                         values.into_iter().next().unwrap()
                     } else {
-                        FhirPathValue::Collection(values)
+                        FhirPathValue::Collection(Collection::from_values(values))
                     }
                 }
             }
@@ -257,14 +258,18 @@ impl ValueNavigator for Navigator {
             FhirPathValue::Collection(vec) => {
                 // For collections, navigate property in each element
                 let mut results = Vec::new();
-                for item in vec {
-                    match self.navigate_property(item, property, _provider)? {
-                        FhirPathValue::Empty => {} // Skip empty results
-                        FhirPathValue::Collection(item_vec) => {
-                            results.extend(item_vec);
+                for item in vec.iter() {
+                    match self.navigate_property(item, property, _provider) {
+                        Ok(FhirPathValue::Empty) => {} // Skip empty results
+                        Ok(FhirPathValue::Collection(item_collection)) => {
+                            results.extend(item_collection.values().iter().cloned());
                         }
-                        single_value => {
+                        Ok(single_value) => {
                             results.push(single_value);
+                        }
+                        Err(_) => {
+                            // Silently ignore errors for property access on primitives
+                            // FHIRPath specification allows navigation to ignore non-navigable items
                         }
                     }
                 }
@@ -272,7 +277,7 @@ impl ValueNavigator for Navigator {
                 Ok(match results.len() {
                     0 => FhirPathValue::Empty,
                     1 => results.into_iter().next().unwrap(),
-                    _ => FhirPathValue::Collection(results),
+                    _ => FhirPathValue::Collection(Collection::from_values(results)),
                 })
             }
             _ => {
@@ -329,34 +334,7 @@ impl ValueNavigator for Navigator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    struct MockModelProvider;
-
-    impl ModelProvider for MockModelProvider {
-        async fn get_resource_type_properties(&self, _resource_type: &str) -> Result<Vec<String>> {
-            Ok(vec![])
-        }
-        async fn is_choice_type_property(
-            &self,
-            _resource_type: &str,
-            _property: &str,
-        ) -> Result<bool> {
-            Ok(false)
-        }
-        async fn resolve_reference(
-            &self,
-            _reference: &str,
-            _current_resource: Option<&FhirPathValue>,
-        ) -> Result<Option<FhirPathValue>> {
-            Ok(None)
-        }
-        async fn get_property_type(
-            &self,
-            _resource_type: &str,
-            _property: &str,
-        ) -> Result<Option<String>> {
-            Ok(None)
-        }
-    }
+    use crate::MockModelProvider;
     use serde_json::json;
 
     fn create_test_patient() -> FhirPathValue {

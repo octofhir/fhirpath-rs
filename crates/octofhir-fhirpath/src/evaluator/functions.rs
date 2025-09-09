@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{FhirPathError, FhirPathValue, Result, error_code::*},
+    core::types::Collection,
     evaluator::{
         EvaluationContext,
         metadata_functions::MetadataFunctionEvaluator,
@@ -320,7 +321,7 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                     let arguments = match args.len() {
                         0 => FhirPathValue::Empty,
                         1 => args[0].clone(),
-                        _ => FhirPathValue::Collection(args.to_vec()),
+                        _ => FhirPathValue::Collection(Collection::from_values(args.to_vec())),
                     };
 
                     let function_context = crate::registry::FunctionContext {
@@ -349,7 +350,7 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                     let arguments = match args.len() {
                         0 => FhirPathValue::Empty,
                         1 => args[0].clone(),
-                        _ => FhirPathValue::Collection(args.to_vec()),
+                        _ => FhirPathValue::Collection(Collection::from_values(args.to_vec())),
                     };
 
                     let function_context = crate::registry::FunctionContext {
@@ -500,7 +501,7 @@ impl FunctionEvaluatorImpl {
                 .into_iter()
                 .map(|wrapped| wrapped.as_plain().clone())
                 .collect();
-            Ok(FhirPathValue::Collection(plain_values))
+            Ok(FhirPathValue::Collection(Collection::from_values(plain_values)))
         }
     }
 

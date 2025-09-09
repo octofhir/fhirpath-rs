@@ -259,7 +259,7 @@ impl FunctionRegistry {
                 for v in context.input.iter() {
                     out.extend(FhirUtils::collect_children(v));
                 }
-                Ok(FhirPathValue::collection(out))
+                Ok(FhirPathValue::collection_with_ordering(out, false))
             }
         )
     }

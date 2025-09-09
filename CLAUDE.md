@@ -245,7 +245,6 @@ Current status: **60.8%** (663/1090 tests passing)
 ### Development
 - `RUST_LOG=debug` - Enable debug logging
 - `RUST_BACKTRACE=1` - Enable backtraces
-- `FHIRPATH_USE_MOCK_PROVIDER=1` - Use MockModelProvider for faster testing
 
 ### CLI Usage
 - `FHIRPATH_MODEL` - Default model provider (mock, r4, r5)

@@ -4,7 +4,7 @@
 mod tests {
     use super::super::*;
     use crate::core::{FhirPathValue, ModelProvider};
-    use crate::mock_provider::MockModelProvider;
+    use crate::MockModelProvider;
     use std::collections::HashMap;
 
     fn create_test_context_with_globals<'a>(

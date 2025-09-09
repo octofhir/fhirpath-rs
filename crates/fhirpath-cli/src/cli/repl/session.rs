@@ -359,7 +359,7 @@ impl ReplSession {
         } else if values.len() == 1 {
             values.into_iter().next().unwrap()
         } else {
-            FhirPathValue::Collection(values)
+            FhirPathValue::Collection(values.into())
         };
 
         let duration = start.elapsed();

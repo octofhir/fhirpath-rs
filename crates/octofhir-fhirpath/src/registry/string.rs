@@ -863,6 +863,11 @@ impl FunctionRegistry {
                     }
                 };
 
+                // FHIRPath spec: empty pattern should return the original string unchanged
+                if pattern.is_empty() {
+                    return Ok(FhirPathValue::String(input_str.clone()));
+                }
+
                 let regex = match StringUtils::get_cached_regex(pattern) {
                     Ok(r) => r,
                     Err(e) => {
@@ -1069,8 +1074,8 @@ impl FunctionRegistry {
                         STANDARD.encode(input_str.as_bytes())
                     },
                     "urlbase64" => {
-                        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-                        URL_SAFE_NO_PAD.encode(input_str.as_bytes())
+                        use base64::{Engine as _, engine::general_purpose::URL_SAFE};
+                        URL_SAFE.encode(input_str.as_bytes())
                     },
                     "hex" => {
                         input_str.as_bytes()
@@ -1150,8 +1155,8 @@ impl FunctionRegistry {
                         }
                     },
                     "urlbase64" => {
-                        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-                        match URL_SAFE_NO_PAD.decode(input_str.as_bytes()) {
+                        use base64::{Engine as _, engine::general_purpose::URL_SAFE};
+                        match URL_SAFE.decode(input_str.as_bytes()) {
                             Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
                             Err(_) => {
                                 return Err(crate::core::FhirPathError::evaluation_error(

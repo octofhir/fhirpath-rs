@@ -367,14 +367,14 @@ pub mod integration {
     ) -> WrappedCollection {
         match value {
             FhirPathValue::Empty => collection_utils::empty(),
-            FhirPathValue::Collection(values) => {
+            FhirPathValue::Collection(collection) => {
                 let base_metadata = ValueMetadata {
                     fhir_type: base_type,
                     resource_type: None,
                     path: base_path,
                     index: None,
                 };
-                collection_utils::from_plain_with_base_metadata(values, base_metadata)
+                collection_utils::from_plain_with_base_metadata(collection.into_vec(), base_metadata)
             }
             single_value => {
                 let metadata = ValueMetadata {
@@ -396,8 +396,8 @@ pub mod integration {
     ) -> Result<WrappedCollection> {
         match value {
             FhirPathValue::Empty => Ok(collection_utils::empty()),
-            FhirPathValue::Collection(values) => {
-                wrap_collection_with_types(values, base_path, resolver).await
+            FhirPathValue::Collection(collection) => {
+                wrap_collection_with_types(collection.into_vec(), base_path, resolver).await
             }
             single_value => {
                 let metadata = ValueMetadata::resolve_from_path(base_path, resolver).await?;
@@ -476,7 +476,7 @@ pub mod integration {
             wrapped.into_iter().next().unwrap().value
         } else {
             let values: Vec<FhirPathValue> = wrapped.into_iter().map(|w| w.value).collect();
-            FhirPathValue::Collection(values)
+            FhirPathValue::Collection(Collection::from_values(values))
         }
     }
 }

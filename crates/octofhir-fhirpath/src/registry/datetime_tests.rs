@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_current_time_functions_return_correct_types() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use std::collections::HashMap;
 
         let registry = FunctionRegistry::new();
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_component_extraction_functions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use std::collections::HashMap;
 
         let registry = FunctionRegistry::new();
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_time_component_extraction() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use std::collections::HashMap;
 
         let registry = FunctionRegistry::new();
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_datetime_timezone_functions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use rust_decimal::prelude::ToPrimitive;
         use std::collections::HashMap;
 
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_fhirpath_spec_compliance_empty_results() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use std::collections::HashMap;
 
         let registry = FunctionRegistry::new();
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_additional_datetime_functions() {
-        use crate::mock_provider::MockModelProvider;
+        use crate::MockModelProvider;
         use std::collections::HashMap;
 
         let registry = FunctionRegistry::new();

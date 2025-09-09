@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use crate::{
     ast::ExpressionNode,
     core::{FhirPathValue, Result},
+    core::types::Collection,
     evaluator::metadata_collections::MetadataCollectionEvaluator,
     evaluator::{
         EvaluationContext,
@@ -35,7 +36,7 @@ impl CollectionEvaluatorImpl {
         match value {
             FhirPathValue::Collection(items) => {
                 let mut result = Vec::new();
-                for item in items {
+                for item in items.iter() {
                     result.extend(self.flatten_collection(item));
                 }
                 result
@@ -81,7 +82,7 @@ impl CollectionEvaluator for CollectionEvaluatorImpl {
         match filtered_elements.len() {
             0 => FhirPathValue::Empty,
             1 => filtered_elements.into_iter().next().unwrap(),
-            _ => FhirPathValue::Collection(filtered_elements),
+            _ => FhirPathValue::Collection(Collection::from_values(filtered_elements)),
         }
     }
 

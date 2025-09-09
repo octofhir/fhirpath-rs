@@ -1167,12 +1167,10 @@ async fn handle_server(
     let config = ServerConfig {
         port,
         host: host.parse().unwrap_or([127, 0, 0, 1].into()),
-        storage_dir: storage,
         cors_all,
         max_body_size_mb: max_body_size,
         timeout_seconds: timeout,
         rate_limit_per_minute: rate_limit,
-        no_ui,
     };
 
     if let Err(e) = start_server(config).await {
