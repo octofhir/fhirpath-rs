@@ -40,7 +40,7 @@ impl LambdaEvaluator for LambdaEvaluatorImpl {
         match lambda.parameter.as_deref() {
             Some("$this") | None => {
                 // Standard lambda evaluation - evaluate expression for each item
-                let mut results = Vec::new();
+                let results = Vec::new();
 
                 for wrapped_value in collection {
                     // Create child context with lambda parameter bound to current item
@@ -69,7 +69,7 @@ impl LambdaEvaluator for LambdaEvaluatorImpl {
             }
             Some(param) => {
                 // Named parameter lambda evaluation
-                let mut results = Vec::new();
+                let results = Vec::new();
 
                 for wrapped_value in collection {
                     // Create child context with named parameter bound to current item
@@ -101,7 +101,7 @@ impl LambdaEvaluator for LambdaEvaluatorImpl {
         _resolver: &TypeResolver,
     ) -> Result<Vec<WrappedCollection>> {
         // Map lambda is similar to evaluate lambda but returns individual results
-        let mut results = Vec::new();
+        let results = Vec::new();
 
         for wrapped_value in collection {
             // Create child context for each item

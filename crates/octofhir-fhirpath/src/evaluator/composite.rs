@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::{
-    ast::ExpressionNode,
+    ast::{ExpressionNode, BinaryOperator},
     core::types::Collection,
     core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result},
     evaluator::{
@@ -21,7 +21,8 @@ use crate::{
     },
     registry::FunctionRegistry,
     typing::{TypeResolver, TypeResolverFactory},
-    wrapped::{WrappedCollection, WrappedValue, collection_utils},
+    wrapped::{WrappedCollection, WrappedValue, ValueMetadata, collection_utils},
+    path::CanonicalPath,
 };
 
 /// Composite evaluator with metadata support
@@ -655,7 +656,7 @@ impl CompositeEvaluator {
             let mut lambda_context = self
                 .create_lambda_context_for_item(wrapped_item, context)
                 .await?;
-            lambda_context.set_variable("$total".to_string(), total.clone());
+            lambda_context.set_variable("total".to_string(), total.clone());
 
             // Evaluate the lambda expression
             let result = self
@@ -1323,8 +1324,26 @@ impl CompositeEvaluator {
             ExpressionNode::BinaryOperation(binop) => {
                 let left_result =
                     Box::pin(self.evaluate_with_metadata(&binop.left, context)).await?;
-                let right_result =
-                    Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?;
+                
+                // Handle type literal patterns for 'is' and 'as' operators
+                let right_result = if matches!(binop.operator, BinaryOperator::Is | BinaryOperator::As) {
+                    // Check if right side is a type literal pattern like System.Integer or FHIR.code
+                    if let Some(type_name) = self.extract_type_literal(&binop.right) {
+                        // Convert type literal to string value
+                        let type_value = FhirPathValue::String(type_name);
+                        let metadata = ValueMetadata {
+                            fhir_type: "string".to_string(),
+                            resource_type: None,
+                            path: CanonicalPath::empty(),
+                            index: None,
+                        };
+                        collection_utils::single(WrappedValue::new(type_value, metadata))
+                    } else {
+                        Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
+                    }
+                } else {
+                    Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
+                };
 
                 // Convert to plain values for operator evaluation
                 let left_plain = self.wrapped_to_plain(&left_result);
@@ -1559,6 +1578,26 @@ impl CompositeEvaluator {
             _ => {}
         }
 
+        None
+    }
+
+    /// Extract type literal from expression node (e.g., System.Integer -> "System.Integer")
+    fn extract_type_literal(&self, expr: &ExpressionNode) -> Option<String> {
+        use crate::ast::{ExpressionNode, IdentifierNode, PropertyAccessNode};
+        
+        match expr {
+            // Pattern: System.Integer, System.String, FHIR.code, etc.
+            ExpressionNode::PropertyAccess(PropertyAccessNode { object, property, .. }) => {
+                if let ExpressionNode::Identifier(IdentifierNode { name, .. }) = object.as_ref() {
+                    // Check for known type literal namespaces
+                    if name == "System" || name == "FHIR" {
+                        return Some(format!("{}.{}", name, property));
+                    }
+                }
+            }
+            _ => {}
+        }
+        
         None
     }
 }

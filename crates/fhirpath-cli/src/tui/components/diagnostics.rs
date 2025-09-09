@@ -17,7 +17,7 @@
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
+use ratatui::widgets::{List, ListItem, ListState};
 use ratatui::{Frame, text::Text};
 
 use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};

@@ -156,6 +156,28 @@ impl FunctionRegistry {
                     FhirPathValue::Time(time) => {
                         Self::calculate_time_low_boundary(time, precision_arg)
                     },
+                    // String to Date/DateTime/Time conversion (similar to operators.rs pattern)
+                    FhirPathValue::String(s) => {
+                        // Try parsing as date first
+                        if let Ok(date) = crate::registry::FunctionRegistry::parse_date_string(s) {
+                            Self::calculate_date_low_boundary(&date, precision_arg)
+                        }
+                        // Try parsing as datetime
+                        else if let Ok(datetime) = crate::registry::FunctionRegistry::parse_datetime_string(s) {
+                            Self::calculate_datetime_low_boundary(&datetime, precision_arg)
+                        }
+                        // Try parsing as time (need to add this function)
+                        else if let Ok(time) = crate::registry::FunctionRegistry::parse_time_string(s) {
+                            Self::calculate_time_low_boundary(&time, precision_arg)
+                        }
+                        // Can't parse as temporal value
+                        else {
+                            Err(FhirPathError::evaluation_error(
+                                FP0053,
+                                "lowBoundary() can only be called on numeric, date, datetime, or time values".to_string()
+                            ))
+                        }
+                    },
                     _ => Err(FhirPathError::evaluation_error(
                         FP0053,
                         "lowBoundary() can only be called on numeric, date, datetime, or time values".to_string()
@@ -240,6 +262,28 @@ impl FunctionRegistry {
                     },
                     FhirPathValue::Time(time) => {
                         Self::calculate_time_high_boundary(time, precision_arg)
+                    },
+                    // String to Date/DateTime/Time conversion (similar to operators.rs pattern)
+                    FhirPathValue::String(s) => {
+                        // Try parsing as date first
+                        if let Ok(date) = crate::registry::FunctionRegistry::parse_date_string(s) {
+                            Self::calculate_date_high_boundary(&date, precision_arg)
+                        }
+                        // Try parsing as datetime
+                        else if let Ok(datetime) = crate::registry::FunctionRegistry::parse_datetime_string(s) {
+                            Self::calculate_datetime_high_boundary(&datetime, precision_arg)
+                        }
+                        // Try parsing as time
+                        else if let Ok(time) = crate::registry::FunctionRegistry::parse_time_string(s) {
+                            Self::calculate_time_high_boundary(&time, precision_arg)
+                        }
+                        // Can't parse as temporal value
+                        else {
+                            Err(FhirPathError::evaluation_error(
+                                FP0053,
+                                "highBoundary() can only be called on numeric, date, datetime, or time values".to_string()
+                            ))
+                        }
                     },
                     _ => Err(FhirPathError::evaluation_error(
                         FP0053,

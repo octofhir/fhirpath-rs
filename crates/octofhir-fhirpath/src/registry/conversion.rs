@@ -54,6 +54,7 @@ impl FunctionRegistry {
                     return Ok(FhirPathValue::empty());
                 }
 
+                // FHIRPath spec: "If the input collection contains multiple items, signal an error"
                 if context.input.len() > 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -74,7 +75,15 @@ impl FunctionRegistry {
                             format!("{} {}", value, cu)
                         } else {
                             match unit {
-                                Some(u) if !u.is_empty() => format!("{} '{}'", value, u),
+                                Some(u) if !u.is_empty() => {
+                                    // Determine if this is a UCUM unit that should be quoted
+                                    let is_ucum_unit = Self::is_ucum_unit(u);
+                                    if is_ucum_unit {
+                                        format!("{} '{}'", value, u)
+                                    } else {
+                                        format!("{} {}", value, u)
+                                    }
+                                },
                                 _ => value.to_string(),
                             }
                         }
@@ -533,7 +542,7 @@ impl FunctionRegistry {
         ))
     }
 
-    fn parse_time_string(input: &str) -> Result<PrecisionTime> {
+    pub fn parse_time_string(input: &str) -> Result<PrecisionTime> {
         let trimmed = input.trim();
 
         // Try standard time formats
@@ -853,7 +862,8 @@ impl FunctionRegistry {
                     Some(FhirPathValue::Uri(_)) |
                     Some(FhirPathValue::Url(_)) |
                     Some(FhirPathValue::Id(_)) |
-                    Some(FhirPathValue::Base64Binary(_)) => true,
+                    Some(FhirPathValue::Base64Binary(_)) |
+                    Some(FhirPathValue::Quantity { .. }) => true,
                     Some(_) => false,
                     None => false,
                 };
@@ -977,6 +987,19 @@ impl FunctionRegistry {
 
                 Ok(FhirPathValue::Boolean(can_convert))
             }
+        )
+    }
+
+    // Helper function to determine if a unit is a UCUM unit that should be quoted
+    fn is_ucum_unit(unit: &str) -> bool {
+        // Common UCUM time units that are typically quoted to distinguish from calendar units
+        matches!(unit, 
+            "s" | "min" | "h" | "d" | "wk" | "mo" | "a" | 
+            "ms" | "us" | "ns" | "ks" | "Ms" | "Gs" |
+            // Other common UCUM units
+            "m" | "cm" | "mm" | "km" | "g" | "kg" | "mg" | "L" | "mL" | 
+            "dL" | "mmHg" | "Pa" | "kPa" | "J" | "cal" | "Cel" | "degF" |
+            "%" | "1" | "/min" | "/h" | "/d" | "beats/min" | "breaths/min"
         )
     }
 }

@@ -298,7 +298,7 @@ pub mod collection_ops {
     }
 
     /// Map over a wrapped collection while preserving metadata structure
-    pub fn map<F>(collection: WrappedCollection, mut transform_fn: F) -> WrappedCollection
+    pub fn map<F>(collection: WrappedCollection, transform_fn: F) -> WrappedCollection
     where
         F: FnMut(WrappedValue) -> WrappedValue,
     {

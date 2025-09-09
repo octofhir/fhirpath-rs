@@ -28,7 +28,7 @@ use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
 use octofhir_fhirpath::analyzer::StaticAnalyzer;
 use octofhir_fhirpath::core::JsonValueExt;
-use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine, DiagnosticSeverity};
+use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::{parse, parse_with_analysis};
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 

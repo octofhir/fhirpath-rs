@@ -31,7 +31,6 @@ use crate::ast::{
     IndexAccessNode, MethodCallNode, PropertyAccessNode, TypeCastNode, TypeCheckNode,
     UnaryOperationNode, UnaryOperator, UnionNode,
 };
-use crate::ast::literal::LiteralValue;
 use crate::core::{FP0001, FhirPathError};
 
 /// Strip comments, decode HTML entities, and normalize whitespace from input

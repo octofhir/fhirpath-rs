@@ -208,29 +208,22 @@ impl FunctionRegistry {
                 }
 
                 if context.arguments.len() != 1 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "indexOf() requires exactly one substring argument".to_string()
-                    ));
+                    return Ok(FhirPathValue::empty());
                 }
 
                 let input_str = match &context.input {
                     FhirPathValue::String(s) => s,
                     _ => {
-                        return Err(crate::core::FhirPathError::evaluation_error(
-                            FP0053,
-                            "indexOf() can only be called on string values".to_string()
-                        ));
+                        // FHIRPath: return empty if called on non-string values
+                        return Ok(FhirPathValue::empty());
                     }
                 };
 
                 let substring = match &context.arguments {
                     FhirPathValue::String(s) => s,
                     _ => {
-                        return Err(crate::core::FhirPathError::evaluation_error(
-                            FP0053,
-                            "indexOf() substring argument must be a string".to_string()
-                        ));
+                        // FHIRPath: return empty if argument is not a string
+                        return Ok(FhirPathValue::empty());
                     }
                 };
 
@@ -845,6 +838,9 @@ impl FunctionRegistry {
 
                 let pattern = match &args.get(0) {
                     Some(FhirPathValue::String(s)) => s,
+                     Some(FhirPathValue::Empty) => {
+                        return Ok(FhirPathValue::Empty)
+                    }
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
@@ -855,6 +851,9 @@ impl FunctionRegistry {
 
                 let replacement = match &args.get(1) {
                     Some(FhirPathValue::String(s)) => s,
+                    Some(FhirPathValue::Empty) => {
+                        return Ok(FhirPathValue::Empty)
+                    }
                     _ => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,

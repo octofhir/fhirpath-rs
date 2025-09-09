@@ -108,28 +108,41 @@ impl FunctionRegistry {
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 use crate::core::error_code::{FP0051, FP0053};
-                if context.arguments.len() != 1 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0053,
-                        "extension() requires exactly one URL argument".to_string(),
-                    ));
-                }
+                
+                match context.arguments.len() {
+                    0 => {
+                        // extension() without arguments - return all extensions
+                        let mut out = Vec::new();
+                        for v in context.input.iter() {
+                            out.extend(FhirUtils::get_extensions(v));
+                        }
+                        Ok(FhirPathValue::collection(out))
+                    }
+                    1 => {
+                        // extension('url') with URL argument - return extensions matching the URL
+                        let url = match context.arguments.first() {
+                            Some(FhirPathValue::String(s)) => s.as_str(),
+                            _ => {
+                                return Err(FhirPathError::evaluation_error(
+                                    FP0051,
+                                    "extension() URL argument must be a string".to_string(),
+                                ));
+                            }
+                        };
 
-                let url = match context.arguments.first() {
-                    Some(FhirPathValue::String(s)) => s.as_str(),
+                        let mut out = Vec::new();
+                        for v in context.input.iter() {
+                            out.extend(FhirUtils::filter_extensions_by_url(v, url));
+                        }
+                        Ok(FhirPathValue::collection(out))
+                    }
                     _ => {
                         return Err(FhirPathError::evaluation_error(
-                            FP0051,
-                            "extension() URL argument must be a string".to_string(),
+                            FP0053,
+                            "extension() requires 0 or 1 URL argument".to_string(),
                         ));
                     }
-                };
-
-                let mut out = Vec::new();
-                for v in context.input.iter() {
-                    out.extend(FhirUtils::filter_extensions_by_url(v, url));
                 }
-                Ok(FhirPathValue::collection(out))
             }
         )
     }

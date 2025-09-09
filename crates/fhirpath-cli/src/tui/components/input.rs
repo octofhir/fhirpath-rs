@@ -18,7 +18,6 @@ use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, Paragraph};
 use tui_textarea::TextArea;
 
 use super::{ComponentResult, SizeConstraints, TuiComponent, utils};

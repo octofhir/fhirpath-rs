@@ -737,7 +737,7 @@ impl fmt::Display for PrecisionDateTime {
 
 impl PartialOrd for PrecisionDateTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering;
+        
         
         // Check timezone compatibility per FHIRPath spec
         // DateTime with timezone cannot be compared to DateTime without timezone
@@ -776,8 +776,8 @@ impl PartialOrd for PrecisionDateTime {
         
         // Narrow precision gap (1 level difference)
         // Check if they represent the exact same moment when normalized
-        let self_normalized = self.datetime.timestamp_millis();
-        let other_normalized = other.datetime.timestamp_millis();
+        let _self_normalized = self.datetime.timestamp_millis();
+        let _other_normalized = other.datetime.timestamp_millis();
         
         // For narrow precision differences, if they're within the same precision window, compare
         match (self.precision, other.precision) {
@@ -961,7 +961,7 @@ impl fmt::Display for PrecisionTime {
 
 impl PartialOrd for PrecisionTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering;
+        
         
         // Same precision - can compare normally
         if self.precision == other.precision {

@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use crossterm::event::{self, Event, KeyEvent, MouseEvent};
+use crossterm::event::{self, Event, MouseEvent};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
 use ratatui::{Frame, Terminal};
@@ -949,7 +949,7 @@ impl TuiApp {
 
     /// Render the menu overlay
     fn render_menu_overlay(frame: &mut Frame, state: &AppState, theme: &TuiTheme) {
-        use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+        use ratatui::layout::Alignment;
         use ratatui::style::{Color, Modifier, Style};
         use ratatui::text::{Line, Span};
         use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};

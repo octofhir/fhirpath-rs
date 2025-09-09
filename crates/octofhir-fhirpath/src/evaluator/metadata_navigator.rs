@@ -563,6 +563,58 @@ impl MetadataAwareNavigator for MetadataNavigator {
                 Ok(result)
             }
             FhirPathValue::Empty => Ok(collection_utils::empty()),
+            FhirPathValue::Quantity { value, unit, .. } => {
+                // Support property access on Quantity types
+                match property {
+                    "value" => {
+                        let property_path = source.metadata.path.append_property(property);
+                        let metadata = ValueMetadata {
+                            fhir_type: "decimal".to_string(),
+                            resource_type: None,
+                            path: property_path,
+                            index: None,
+                        };
+                        let quantity_value = FhirPathValue::Decimal(*value);
+                        Ok(collection_utils::single(WrappedValue::new(quantity_value, metadata)))
+                    }
+                    "unit" | "code" => {
+                        let property_path = source.metadata.path.append_property(property);
+                        let metadata = ValueMetadata {
+                            fhir_type: "string".to_string(),
+                            resource_type: None,
+                            path: property_path,
+                            index: None,
+                        };
+                        if let Some(unit_str) = unit {
+                            let unit_value = FhirPathValue::String(unit_str.clone());
+                            Ok(collection_utils::single(WrappedValue::new(unit_value, metadata)))
+                        } else {
+                            Ok(collection_utils::empty())
+                        }
+                    }
+                    "system" => {
+                        // For FHIR Quantity, system is typically UCUM
+                        let property_path = source.metadata.path.append_property(property);
+                        let metadata = ValueMetadata {
+                            fhir_type: "string".to_string(),
+                            resource_type: None,
+                            path: property_path,
+                            index: None,
+                        };
+                        // Return UCUM system URI if unit is present
+                        if unit.is_some() {
+                            let system_value = FhirPathValue::String("http://unitsofmeasure.org".to_string());
+                            Ok(collection_utils::single(WrappedValue::new(system_value, metadata)))
+                        } else {
+                            Ok(collection_utils::empty())
+                        }
+                    }
+                    _ => {
+                        // Property not found on Quantity
+                        Ok(collection_utils::empty())
+                    }
+                }
+            }
             _ => {
                 // Cannot navigate property on primitive values
                 Err(FhirPathError::evaluation_error(

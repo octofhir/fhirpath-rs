@@ -1120,7 +1120,7 @@ impl TypeChecker {
                 }
                 true
             }
-            TypeInfo::Collection(_) => actual_count >= 0, // Collections can be empty
+            TypeInfo::Collection(_) => true, // Collections can be empty (count >= 0 is always true)
             _ => actual_count == 1,                       // Single values must have exactly 1 item
         }
     }

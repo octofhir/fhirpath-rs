@@ -7,7 +7,6 @@ use crate::analyzer::{
     AnalysisWarning, OptimizationKind, OptimizationSuggestion, StaticAnalysisResult,
 };
 use crate::core::error_code::{ErrorCode, FP0001, FP0010, FP0055, FP0101};
-use crate::core::error::SourceLocation;
 use crate::diagnostics::{
     AriadneDiagnostic, DiagnosticEngine, DiagnosticSeverity, RelatedDiagnostic,
 };

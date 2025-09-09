@@ -5,7 +5,6 @@
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
 use crate::core::{FhirPathValue, Result, error_code::{FP0053, FP0155}};
-use crate::core::types::Collection;
 use crate::register_function;
 use std::collections::HashSet;
 

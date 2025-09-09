@@ -237,6 +237,13 @@ impl MetadataCoreEvaluator {
         context: &EvaluationContext,
         resolver: &TypeResolver,
     ) -> Result<WrappedCollection> {
+        // Handle special FHIRPath namespaces (System, FHIR) that are not FHIR resource types
+        if resource_type == "System" || resource_type == "FHIR" {
+            // These are type namespaces used in expressions like "1 is System.Integer"
+            // They should return empty collections when used as filters, as they don't represent actual resources
+            return Ok(collection_utils::empty());
+        }
+
         // First, validate that the resource type exists in the model provider
         if !resolver
             .model_provider()

@@ -18,12 +18,12 @@ use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
 use ratatui::widgets::{
-    Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
 };
 use ratatui::{Frame, text::Text};
 use std::sync::Arc;
 
-use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};
+use super::{ComponentResult, ScrollState, TuiComponent, utils};
 use crate::tui::app::AppState;
 use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;

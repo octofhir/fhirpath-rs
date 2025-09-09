@@ -19,7 +19,6 @@
 //! visibility toggling.
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use serde::{Deserialize, Serialize};
 
 /// Panel types supported by the TUI
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

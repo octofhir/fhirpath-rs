@@ -14,9 +14,8 @@ use octofhir_fhirpath::{Collection, FhirPathValue};
 // Analysis types - will be added when analyzer is properly integrated
 
 use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{IntoResponse, Json, Response},
+    extract::{State, Query},
+    response::{IntoResponse, Json},
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -285,6 +284,100 @@ fn json_to_fhirpath_value(json: serde_json::Value) -> FhirPathValue {
     }
 }
 
+/// Convert GET query parameters to FHIRPath Lab request format
+fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Result<FhirPathLabRequest, String> {
+    let mut parameters = Vec::new();
+    
+    // Add expression parameter (required)
+    if let Some(expression) = params.get("expression") {
+        parameters.push(FhirPathLabParameter {
+            name: "expression".to_string(),
+            value_string: Some(expression.clone()),
+            value_boolean: None,
+            resource: None,
+            part: None,
+        });
+    } else {
+        return Err("Missing required 'expression' parameter".to_string());
+    }
+    
+    // Add resource parameter - handle either direct resource or resource URL
+    if let Some(resource) = params.get("resource") {
+        // Try to parse as JSON first, if not treat as resource URL/ID
+        if let Ok(json_resource) = serde_json::from_str::<serde_json::Value>(resource) {
+            parameters.push(FhirPathLabParameter {
+                name: "resource".to_string(),
+                value_string: None,
+                value_boolean: None,
+                resource: Some(json_resource),
+                part: None,
+            });
+        } else {
+            // Treat as resource ID/URL
+            parameters.push(FhirPathLabParameter {
+                name: "resource".to_string(),
+                value_string: Some(resource.clone()),
+                value_boolean: None,
+                resource: None,
+                part: None,
+            });
+        }
+    } else {
+        // Use default test resource if none provided
+        let default_resource = serde_json::json!({
+            "resourceType": "Patient",
+            "id": "test",
+            "name": [{"family": "Test", "given": ["Patient"]}]
+        });
+        parameters.push(FhirPathLabParameter {
+            name: "resource".to_string(),
+            value_string: None,
+            value_boolean: None,
+            resource: Some(default_resource),
+            part: None,
+        });
+    }
+    
+    // Add context parameter (optional)
+    if let Some(context) = params.get("context") {
+        parameters.push(FhirPathLabParameter {
+            name: "context".to_string(),
+            value_string: Some(context.clone()),
+            value_boolean: None,
+            resource: None,
+            part: None,
+        });
+    }
+    
+    // Add validate parameter (optional)
+    if let Some(validate) = params.get("validate") {
+        let validate_bool = validate.parse::<bool>().unwrap_or(false);
+        parameters.push(FhirPathLabParameter {
+            name: "validate".to_string(),
+            value_string: None,
+            value_boolean: Some(validate_bool),
+            resource: None,
+            part: None,
+        });
+    }
+    
+    // Add terminology server parameter (optional)
+    if let Some(terminology_server) = params.get("terminologyserver") {
+        parameters.push(FhirPathLabParameter {
+            name: "terminologyServer".to_string(),
+            value_string: Some(terminology_server.clone()),
+            value_boolean: None,
+            resource: None,
+            part: None,
+        });
+    }
+    
+    Ok(FhirPathLabRequest {
+        resource_type: "Parameters".to_string(),
+        parameter: parameters,
+    })
+}
+
 /// Convert Collection to JSON for API response
 fn collection_to_json(collection: octofhir_fhirpath::Collection) -> serde_json::Value {
     let values: Vec<serde_json::Value> = collection
@@ -314,6 +407,31 @@ fn convert_analysis_result(
     }
 }
 
+/// CapabilityStatement endpoint - .NET compatible
+pub async fn capability_statement_handler() -> Json<serde_json::Value> {
+    let capability_statement = serde_json::json!({
+        "resourceType": "CapabilityStatement",
+        "title": "FHIRPath Lab Rust expression evaluator",
+        "status": "active",
+        "date": "2024-09-09",
+        "kind": "instance",
+        "fhirVersion": "4.0.1",
+        "format": ["application/fhir+json"],
+        "rest": [{
+            "mode": "server",
+            "security": {
+                "cors": true
+            },
+            "operation": [{
+                "name": "fhirpath",
+                "definition": "http://fhirpath-lab.org/OperationDefinition/fhirpath"
+            }]
+        }]
+    });
+    
+    Json(capability_statement)
+}
+
 /// Version endpoint - required by task specification
 pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
     tracing::info!("🔖 Version info requested");
@@ -341,7 +459,7 @@ pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
     Ok(Json(version_response))
 }
 
-/// FHIRPath Lab API endpoint - auto-detect FHIR version
+/// FHIRPath Lab API endpoint - auto-detect FHIR version (POST request)
 pub async fn fhirpath_lab_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
@@ -358,6 +476,8 @@ pub async fn fhirpath_lab_handler(
         }
     }
 }
+
+// GET handler removed for simplicity - focus on POST compatibility first
 
 /// FHIRPath Lab API endpoint - R4  
 pub async fn fhirpath_lab_r4_handler(

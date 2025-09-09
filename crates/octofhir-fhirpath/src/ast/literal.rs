@@ -8,7 +8,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 use crate::core::{FP0001, FP0006, FhirPathError};
 
 /// Literal values that can appear directly in FHIRPath expressions

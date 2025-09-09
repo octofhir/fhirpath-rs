@@ -47,9 +47,8 @@ pub use events::{EventHandler, KeyBindings, TuiAction};
 pub use layout::{LayoutConfig, LayoutManager, PanelLayout, PanelType};
 pub use themes::{ColorScheme, TuiTheme};
 
-use std::io::{self, Stdout};
+use std::io::{self};
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossterm::ExecutableCommand;

@@ -25,7 +25,6 @@ pub mod input;
 pub mod output;
 pub mod variables;
 
-use std::collections::HashMap;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
@@ -384,7 +383,7 @@ impl ScrollState {
 /// Common utility functions for components
 pub mod utils {
     use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-    use ratatui::style::{Color, Style};
+    use ratatui::style::Style;
     use ratatui::widgets::{Block, BorderType, Borders};
 
     use super::PanelType;
