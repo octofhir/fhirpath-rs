@@ -11,7 +11,7 @@ use crate::cli::server::{
 };
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::{FunctionRegistry, create_standard_registry};
-use std::collections::HashMap;
+use papaya::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 
@@ -30,8 +30,8 @@ pub struct ServerRegistry {
 impl ServerRegistry {
     /// Create a new server registry with engines for all FHIR versions
     pub async fn new() -> ServerResult<Self> {
-        let mut evaluation_engines = HashMap::new();
-        let mut model_providers = HashMap::new();
+        let evaluation_engines = HashMap::new();
+        let model_providers = HashMap::new();
 
         // Create shared function registry once
         let function_registry: Arc<FunctionRegistry> = Arc::new(create_standard_registry().await);
@@ -54,7 +54,7 @@ impl ServerRegistry {
             );
 
             // Store shared model provider for per-request engine creation
-            model_providers.insert(version, model_provider_arc.clone());
+            model_providers.pin().insert(version, model_provider_arc.clone());
 
             // Create evaluation engine
             let engine_start = std::time::Instant::now();
@@ -63,7 +63,7 @@ impl ServerRegistry {
             let engine_time = engine_start.elapsed();
             info!("📊 Engine for {} created in {:?}", version, engine_time);
 
-            evaluation_engines.insert(version, Arc::new(Mutex::new(eval_engine)));
+            evaluation_engines.pin().insert(version, Arc::new(Mutex::new(eval_engine)));
 
             let total_time = start_time.elapsed();
             info!(
@@ -89,27 +89,27 @@ impl ServerRegistry {
         &self,
         version: ServerFhirVersion,
     ) -> Option<Arc<Mutex<FhirPathEngine>>> {
-        self.evaluation_engines.get(&version).cloned()
+        self.evaluation_engines.pin().get(&version).map(|guard| guard.clone())
     }
     /// Get the number of FHIR versions supported
     pub fn version_count(&self) -> usize {
-        self.evaluation_engines.len()
+        self.evaluation_engines.pin().len()
     }
 
     /// Get all supported FHIR versions
     pub fn supported_versions(&self) -> Vec<ServerFhirVersion> {
-        self.evaluation_engines.keys().copied().collect()
+        self.evaluation_engines.pin().keys().copied().collect()
     }
 
     /// Check if a FHIR version is supported
     pub fn supports_version(&self, version: ServerFhirVersion) -> bool {
-        self.evaluation_engines.contains_key(&version)
+        self.evaluation_engines.pin().contains_key(&version)
     }
 
     /// Check if analysis is supported for a FHIR version
     pub fn supports_analysis(&self, version: ServerFhirVersion) -> bool {
         // TODO: Add proper analysis support when analyzer is integrated
-        self.evaluation_engines.contains_key(&version)
+        self.evaluation_engines.pin().contains_key(&version)
     }
 
     /// Create a new engine for the given FHIR version (per-request)
@@ -120,12 +120,14 @@ impl ServerRegistry {
     ) -> ServerResult<(FhirPathEngine, std::time::Duration)> {
         let start_time = std::time::Instant::now();
 
-        let model_provider =
-            self.model_providers
-                .get(&version)
-                .ok_or_else(|| ServerError::BadRequest {
-                    message: format!("FHIR version {} not supported", version),
-                })?;
+        let model_provider = self
+            .model_providers
+            .pin()
+            .get(&version)
+            .map(|guard| guard.clone())
+            .ok_or_else(|| ServerError::BadRequest {
+                message: format!("FHIR version {} not supported", version),
+            })?;
 
         let engine =
             FhirPathEngine::new(self.function_registry.clone(), model_provider.clone()).await?;
@@ -143,8 +145,8 @@ impl ServerRegistry {
     pub fn get_model_provider(
         &self,
         version: ServerFhirVersion,
-    ) -> Option<&Arc<EmbeddedModelProvider>> {
-        self.model_providers.get(&version)
+    ) -> Option<Arc<EmbeddedModelProvider>> {
+        self.model_providers.pin().get(&version).map(|guard| guard.clone())
     }
 }
 

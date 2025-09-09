@@ -264,7 +264,8 @@ impl FhirPathEngine {
         &'a mut self,
         expr: &'a ExpressionNode,
         context: &'a EvaluationContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + 'a>>
+    {
         Box::pin(async move {
             // Use unified metadata-aware evaluation and convert result to plain FhirPathValue
             let wrapped_result = self.evaluator.evaluate_with_metadata(expr, context).await?;
@@ -301,15 +302,6 @@ impl FhirPathEngine {
         Ok(ast_arc)
     }
 
-    /// Helper to convert FhirPathValue to Collection for backward compatibility
-    fn value_to_collection(&self, value: FhirPathValue) -> Collection {
-        match value {
-            FhirPathValue::Empty => Collection::empty(),
-            FhirPathValue::Collection(collection) => collection,
-            single_value => Collection::single(single_value),
-        }
-    }
-
     /// Get engine configuration
     pub fn config(&self) -> &EngineConfig {
         &self.config
@@ -339,65 +331,6 @@ impl FhirPathEngine {
         })?;
         cache.clear();
         Ok(())
-    }
-
-    /// Validate identifier if it represents a resource type
-    async fn validate_identifier_resource_type(
-        &self,
-        identifier: &crate::ast::IdentifierNode,
-        context: &EvaluationContext,
-    ) -> Result<()> {
-        let name = &identifier.name;
-
-        // Only validate if identifier starts with capital letter (potential resource type)
-        if let Some(first_char) = name.chars().next() {
-            if first_char.is_uppercase() {
-                // Check if this is a valid resource type
-                if self
-                    .evaluator
-                    .model_provider()
-                    .resource_type_exists(name)
-                    .unwrap_or(false)
-                {
-                    // This is a resource type - validate against context data
-                    if let Some(resource_type_from_data) =
-                        self.extract_resource_type_from_context(context)
-                    {
-                        if name != &resource_type_from_data {
-                            return Err(FhirPathError::evaluation_error(
-                                crate::core::error_code::FP0002,
-                                format!(
-                                    "Resource type mismatch: expression expects '{}' but input data has '{}'",
-                                    name, resource_type_from_data
-                                ),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Extract resource type from evaluation context data
-    fn extract_resource_type_from_context(&self, context: &EvaluationContext) -> Option<String> {
-        // Get the first value from start context
-        let root_value = context.start_context.first()?;
-
-        // Extract resourceType from Resource or JsonValue
-        match root_value {
-            FhirPathValue::Resource(json) => json
-                .as_object()?
-                .get("resourceType")?
-                .as_str()
-                .map(|s| s.to_string()),
-            FhirPathValue::JsonValue(json) => json
-                .as_object()?
-                .get("resourceType")?
-                .as_str()
-                .map(|s| s.to_string()),
-            _ => None,
-        }
     }
 
     /// Evaluate expression with comprehensive metadata

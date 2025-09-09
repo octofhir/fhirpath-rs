@@ -103,14 +103,15 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
         // Health check endpoints
         .route("/health", get(health_handler))
         .route("/healthz", get(health_handler))
-        .route("/version", get(version_handler));
-        // FHIRPath Lab API endpoints (temporarily disabled)
-        // .route("/r4", post(fhirpath_lab_r4_handler))
+        .route("/version", get(version_handler))
+        // FHIRPath Lab API endpoints (.NET compatible) - now thread-safe with papaya  
+        .route("/$fhirpath", post(fhirpath_lab_handler))
+        .route("/", post(fhirpath_lab_handler))
+        .route("/r4", post(fhirpath_lab_r4_handler))
         // .route("/r4b", post(fhirpath_lab_r4b_handler))
         // .route("/r5", post(fhirpath_lab_r5_handler))
         // .route("/r6", post(fhirpath_lab_r6_handler))
-        // Root endpoint for auto-detection
-        // .route("/", post(fhirpath_lab_handler));
+        ;
 
     // Apply middleware
     let app = app

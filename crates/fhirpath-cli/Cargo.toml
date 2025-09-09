@@ -30,9 +30,10 @@ octofhir-fhirschema = { workspace = true, features = ["embedded-providers", "dyn
 octofhir-fhir-model = { workspace = true }
 
 # Server dependencies  
-axum = { version = "0.8", features = ["multipart"] }
+axum = { version = "0.8", features = ["multipart", "macros"] }
 axum-macros = "0.4"
 tower-http = { version = "0.6", features = ["cors", "catch-panic", "trace"] }
+papaya = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { workspace = true }

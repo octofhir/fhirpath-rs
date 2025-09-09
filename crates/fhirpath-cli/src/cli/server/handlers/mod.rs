@@ -1,7 +1,5 @@
 //! HTTP request handlers for the FHIRPath server
 
-pub mod files_handler;
-
 use crate::cli::server::{
     error::{ServerError, ServerResult},
     models::*,
@@ -14,7 +12,7 @@ use octofhir_fhirpath::{Collection, FhirPathValue};
 // Analysis types - will be added when analyzer is properly integrated
 
 use axum::{
-    extract::{State, Query},
+    extract::{Query, State},
     response::{IntoResponse, Json},
 };
 use serde::Deserialize;
@@ -133,25 +131,27 @@ pub async fn evaluate_handler(
                 expression: request.expression,
                 fhir_version: version.to_string(),
                 metadata: ExecutionMetadata::with_duration(execution_time, false),
-                trace: if request.options.trace { Some(vec!["Evaluation completed".to_string()]) } else { None },
-            }
-        },
-        Err(e) => {
-            EvaluateResponse {
-                success: false,
-                result: None,
-                error: Some(ErrorInfo {
-                    code: "evaluation_failed".to_string(),
-                    message: format!("Evaluation failed: {}", e),
-                    details: None,
-                    location: None,
-                }),
-                expression: request.expression,
-                fhir_version: version.to_string(),
-                metadata: ExecutionMetadata::with_duration(execution_time, false),
-                trace: None,
+                trace: if request.options.trace {
+                    Some(vec!["Evaluation completed".to_string()])
+                } else {
+                    None
+                },
             }
         }
+        Err(e) => EvaluateResponse {
+            success: false,
+            result: None,
+            error: Some(ErrorInfo {
+                code: "evaluation_failed".to_string(),
+                message: format!("Evaluation failed: {}", e),
+                details: None,
+                location: None,
+            }),
+            expression: request.expression,
+            fhir_version: version.to_string(),
+            metadata: ExecutionMetadata::with_duration(execution_time, false),
+            trace: None,
+        },
     };
 
     Json(response)
@@ -169,7 +169,7 @@ pub async fn analyze_handler(
 
     // Parse the expression to check syntax
     let parse_result = parse_with_mode(&request.expression, ParsingMode::Analysis);
-    
+
     let execution_time = start_time.elapsed();
 
     let response = if parse_result.success {
@@ -285,9 +285,11 @@ fn json_to_fhirpath_value(json: serde_json::Value) -> FhirPathValue {
 }
 
 /// Convert GET query parameters to FHIRPath Lab request format
-fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Result<FhirPathLabRequest, String> {
+fn convert_get_to_fhirpath_lab_request(
+    params: HashMap<String, String>,
+) -> Result<FhirPathLabRequest, String> {
     let mut parameters = Vec::new();
-    
+
     // Add expression parameter (required)
     if let Some(expression) = params.get("expression") {
         parameters.push(FhirPathLabParameter {
@@ -300,7 +302,7 @@ fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Resul
     } else {
         return Err("Missing required 'expression' parameter".to_string());
     }
-    
+
     // Add resource parameter - handle either direct resource or resource URL
     if let Some(resource) = params.get("resource") {
         // Try to parse as JSON first, if not treat as resource URL/ID
@@ -337,7 +339,7 @@ fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Resul
             part: None,
         });
     }
-    
+
     // Add context parameter (optional)
     if let Some(context) = params.get("context") {
         parameters.push(FhirPathLabParameter {
@@ -348,7 +350,7 @@ fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Resul
             part: None,
         });
     }
-    
+
     // Add validate parameter (optional)
     if let Some(validate) = params.get("validate") {
         let validate_bool = validate.parse::<bool>().unwrap_or(false);
@@ -360,7 +362,7 @@ fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Resul
             part: None,
         });
     }
-    
+
     // Add terminology server parameter (optional)
     if let Some(terminology_server) = params.get("terminologyserver") {
         parameters.push(FhirPathLabParameter {
@@ -371,7 +373,7 @@ fn convert_get_to_fhirpath_lab_request(params: HashMap<String, String>) -> Resul
             part: None,
         });
     }
-    
+
     Ok(FhirPathLabRequest {
         resource_type: "Parameters".to_string(),
         parameter: parameters,
@@ -428,7 +430,7 @@ pub async fn capability_statement_handler() -> Json<serde_json::Value> {
             }]
         }]
     });
-    
+
     Json(capability_statement)
 }
 
@@ -463,17 +465,13 @@ pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
 pub async fn fhirpath_lab_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
-) -> Json<FhirPathLabResponse> {
+) -> impl IntoResponse {
     // Detect FHIR version from request or default to R4
     let version = detect_fhir_version(&request).unwrap_or(ServerFhirVersion::R4);
-    
+
     match fhirpath_lab_handler_impl(&registry, request, version).await {
-        Ok(response) => response,
-        Err(e) => {
-            let mut error_response = FhirPathLabResponse::new();
-            error_response.add_string_parameter("error", format!("Evaluation failed: {}", e));
-            Json(error_response)
-        }
+        Ok(response) => response.into_response(),
+        Err(error) => error.into_response(),
     }
 }
 
@@ -483,60 +481,32 @@ pub async fn fhirpath_lab_handler(
 pub async fn fhirpath_lab_r4_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
-) -> Json<FhirPathLabResponse> {
-    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4).await {
-        Ok(response) => response,
-        Err(e) => {
-            let mut error_response = FhirPathLabResponse::new();
-            error_response.add_string_parameter("error", format!("R4 evaluation failed: {}", e));
-            Json(error_response)
-        }
-    }
+) -> impl IntoResponse {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4).await
 }
 
 /// FHIRPath Lab API endpoint - R4B
 pub async fn fhirpath_lab_r4b_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
-) -> Json<FhirPathLabResponse> {
-    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4B).await {
-        Ok(response) => response,
-        Err(e) => {
-            let mut error_response = FhirPathLabResponse::new();
-            error_response.add_string_parameter("error", format!("R4B evaluation failed: {}", e));
-            Json(error_response)
-        }
-    }
+) -> impl IntoResponse {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R4B).await
 }
 
 /// FHIRPath Lab API endpoint - R5
 pub async fn fhirpath_lab_r5_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
-) -> Json<FhirPathLabResponse> {
-    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R5).await {
-        Ok(response) => response,
-        Err(e) => {
-            let mut error_response = FhirPathLabResponse::new();
-            error_response.add_string_parameter("error", format!("R5 evaluation failed: {}", e));
-            Json(error_response)
-        }
-    }
+) -> impl IntoResponse {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R5).await
 }
 
 /// FHIRPath Lab API endpoint - R6
 pub async fn fhirpath_lab_r6_handler(
     State(registry): State<ServerRegistry>,
     Json(request): Json<FhirPathLabRequest>,
-) -> Json<FhirPathLabResponse> {
-    match fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R6).await {
-        Ok(response) => response,
-        Err(e) => {
-            let mut error_response = FhirPathLabResponse::new();
-            error_response.add_string_parameter("error", format!("R6 evaluation failed: {}", e));
-            Json(error_response)
-        }
-    }
+) -> impl IntoResponse {
+    fhirpath_lab_handler_impl(&registry, request, ServerFhirVersion::R6).await
 }
 
 /// Core FHIRPath Lab API implementation using shared engines
