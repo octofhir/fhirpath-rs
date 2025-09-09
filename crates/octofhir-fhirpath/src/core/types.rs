@@ -111,6 +111,17 @@ impl Collection {
     pub fn into_vec(self) -> Vec<FhirPathValue> {
         self.values
     }
+
+    /// Convert to serde_json::Value
+    pub fn to_json_value(&self) -> JsonValue {
+        match self.values.len() {
+            0 => JsonValue::Null,
+            1 => self.values[0].to_json_value(),
+            _ => JsonValue::Array(
+                self.values.iter().map(|v| v.to_json_value()).collect()
+            ),
+        }
+    }
 }
 
 impl From<Vec<FhirPathValue>> for Collection {
@@ -645,6 +656,59 @@ impl FhirPathValue {
             _ => None,
         }
     }
+
+    /// Convert to serde_json::Value
+    pub fn to_json_value(&self) -> JsonValue {
+        match self {
+            Self::Boolean(b) => JsonValue::Bool(*b),
+            Self::Integer(i) => JsonValue::Number(serde_json::Number::from(*i)),
+            Self::Decimal(d) => {
+                if let Ok(f) = d.to_string().parse::<f64>() {
+                    if let Some(n) = serde_json::Number::from_f64(f) {
+                        JsonValue::Number(n)
+                    } else {
+                        JsonValue::String(d.to_string())
+                    }
+                } else {
+                    JsonValue::String(d.to_string())
+                }
+            }
+            Self::String(s) => JsonValue::String(s.clone()),
+            Self::Date(date) => JsonValue::String(date.to_string()),
+            Self::DateTime(dt) => JsonValue::String(dt.to_string()),
+            Self::Time(time) => JsonValue::String(time.to_string()),
+            Self::Quantity { value, unit, .. } => {
+                let mut map = serde_json::Map::new();
+                if let Ok(f) = value.to_string().parse::<f64>() {
+                    if let Some(n) = serde_json::Number::from_f64(f) {
+                        map.insert("value".to_string(), JsonValue::Number(n));
+                    } else {
+                        map.insert("value".to_string(), JsonValue::String(value.to_string()));
+                    }
+                } else {
+                    map.insert("value".to_string(), JsonValue::String(value.to_string()));
+                }
+                if let Some(unit) = unit {
+                    map.insert("unit".to_string(), JsonValue::String(unit.clone()));
+                }
+                JsonValue::Object(map)
+            }
+            Self::Resource(json) => (**json).clone(),
+            Self::JsonValue(json) => (**json).clone(),
+            Self::Id(id) => JsonValue::String(id.to_string()),
+            Self::Base64Binary(data) => JsonValue::String(format!("base64({} bytes)", data.len())),
+            Self::Uri(uri) => JsonValue::String(uri.clone()),
+            Self::Url(url) => JsonValue::String(url.clone()),
+            Self::Collection(collection) => collection.to_json_value(),
+            Self::TypeInfoObject { namespace, name } => {
+                let mut map = serde_json::Map::new();
+                map.insert("namespace".to_string(), JsonValue::String(namespace.clone()));
+                map.insert("name".to_string(), JsonValue::String(name.clone()));
+                JsonValue::Object(map)
+            }
+            Self::Empty => JsonValue::Null,
+        }
+    }
 }
 
 impl fmt::Display for FhirPathValue {
@@ -696,6 +760,266 @@ impl fmt::Display for FhirPathValue {
             Self::JsonValue(json) => write!(f, "JsonValue({})", json),
             Self::Empty => write!(f, "{{}}"),
         }
+    }
+}
+
+/// Evaluation result that preserves type information and metadata
+/// Used for advanced tooling and API compatibility
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResultWithMetadata {
+    /// The actual FHIRPath value
+    pub value: FhirPathValue,
+    /// Type information for this value
+    pub type_info: ValueTypeInfo,
+    /// Source location information (if available)
+    pub source_location: Option<ValueSourceLocation>,
+    /// Additional metadata for this result
+    pub metadata: Option<JsonValue>,
+}
+
+/// Type information for FHIRPath values
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ValueTypeInfo {
+    /// The primary type name (e.g., "String", "Integer", "Patient")
+    pub type_name: String,
+    /// Expected return type from static analysis
+    pub expected_return_type: Option<String>,
+    /// Cardinality information (0..1, 0..*, 1..1, etc.)
+    pub cardinality: Option<String>,
+    /// Type constraints or additional type information
+    pub constraints: Vec<String>,
+    /// Whether this is a FHIR resource type
+    pub is_fhir_type: bool,
+    /// Namespace for the type (e.g., "FHIR" for FHIR types)
+    pub namespace: Option<String>,
+}
+
+/// Source location information for values (distinct from diagnostics SourceLocation)
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ValueSourceLocation {
+    /// Line number (1-indexed)
+    pub line: usize,
+    /// Column number (1-indexed) 
+    pub column: usize,
+    /// Character offset in source
+    pub offset: usize,
+    /// Optional source identifier (e.g., expression name)
+    pub source: Option<String>,
+}
+
+/// Collection of results with type information preserved
+#[derive(Debug, Clone, PartialEq)]
+pub struct CollectionWithMetadata {
+    /// The results with metadata
+    results: Vec<ResultWithMetadata>,
+    /// Whether the collection is ordered
+    is_ordered: bool,
+    /// Collection-level type information
+    collection_type: Option<ValueTypeInfo>,
+}
+
+impl ResultWithMetadata {
+    /// Create a new result with metadata
+    pub fn new(value: FhirPathValue, type_info: ValueTypeInfo) -> Self {
+        Self {
+            value,
+            type_info,
+            source_location: None,
+            metadata: None,
+        }
+    }
+
+    /// Create a result with source location
+    pub fn with_location(value: FhirPathValue, type_info: ValueTypeInfo, location: ValueSourceLocation) -> Self {
+        Self {
+            value,
+            type_info,
+            source_location: Some(location),
+            metadata: None,
+        }
+    }
+
+    /// Add metadata to this result
+    pub fn with_metadata(mut self, metadata: JsonValue) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+
+    /// Convert to JSON representation for APIs - should return the actual value with metadata as separate structure
+    pub fn to_json_parts(&self) -> JsonValue {
+        // For FHIRPath Lab API, we want the actual value with metadata enrichment
+        // The value should be the primary result, with type info as additional structure
+        self.value.to_json_value()
+    }
+
+    /// Get the metadata as a separate structure for API responses
+    pub fn get_type_metadata(&self) -> JsonValue {
+        use serde_json::json;
+        
+        let mut metadata = serde_json::Map::new();
+
+        // Add type information
+        metadata.insert("type".to_string(), JsonValue::String(self.type_info.type_name.clone()));
+
+        // Add expected return type if available
+        if let Some(expected_type) = &self.type_info.expected_return_type {
+            metadata.insert("expectedReturnType".to_string(), JsonValue::String(expected_type.clone()));
+        }
+
+        // Add cardinality if available
+        if let Some(cardinality) = &self.type_info.cardinality {
+            metadata.insert("cardinality".to_string(), JsonValue::String(cardinality.clone()));
+        }
+
+        // Add namespace if available
+        if let Some(namespace) = &self.type_info.namespace {
+            metadata.insert("namespace".to_string(), JsonValue::String(namespace.clone()));
+        }
+
+        // Add constraints
+        if !self.type_info.constraints.is_empty() {
+            metadata.insert("constraints".to_string(), JsonValue::Array(
+                self.type_info.constraints.iter().map(|c| JsonValue::String(c.clone())).collect()
+            ));
+        }
+
+        JsonValue::Object(metadata)
+    }
+}
+
+impl ValueTypeInfo {
+    /// Create type info from a FhirPathValue
+    pub fn from_value(value: &FhirPathValue) -> Self {
+        let type_name = value.type_name().to_string();
+        let is_fhir_type = matches!(value, FhirPathValue::Resource(_));
+        
+        Self {
+            type_name,
+            expected_return_type: None,
+            cardinality: Some("0..1".to_string()),
+            constraints: Vec::new(),
+            is_fhir_type,
+            namespace: if is_fhir_type { Some("FHIR".to_string()) } else { None },
+        }
+    }
+
+    /// Create type info with expected return type
+    pub fn with_expected_type(value: &FhirPathValue, expected_type: String) -> Self {
+        let mut info = Self::from_value(value);
+        info.expected_return_type = Some(expected_type);
+        info
+    }
+
+    /// Add a constraint to this type info
+    pub fn add_constraint(mut self, constraint: String) -> Self {
+        self.constraints.push(constraint);
+        self
+    }
+
+    /// Set cardinality information
+    pub fn with_cardinality(mut self, cardinality: String) -> Self {
+        self.cardinality = Some(cardinality);
+        self
+    }
+}
+
+impl CollectionWithMetadata {
+    /// Create a new empty collection with metadata
+    pub fn empty() -> Self {
+        Self {
+            results: Vec::new(),
+            is_ordered: true,
+            collection_type: None,
+        }
+    }
+
+    /// Create a collection from a single result
+    pub fn single(result: ResultWithMetadata) -> Self {
+        Self {
+            results: vec![result],
+            is_ordered: true,
+            collection_type: None,
+        }
+    }
+
+    /// Create from multiple results
+    pub fn from_results(results: Vec<ResultWithMetadata>) -> Self {
+        Self {
+            results,
+            is_ordered: true,
+            collection_type: None,
+        }
+    }
+
+    /// Convert to regular Collection (loses type information)
+    pub fn to_collection(&self) -> Collection {
+        let values = self.results.iter().map(|r| r.value.clone()).collect();
+        Collection::from_values_with_ordering(values, self.is_ordered)
+    }
+
+    /// Add a result to the collection
+    pub fn push(&mut self, result: ResultWithMetadata) {
+        self.results.push(result);
+    }
+
+    /// Get iterator over results
+    pub fn iter(&self) -> std::slice::Iter<'_, ResultWithMetadata> {
+        self.results.iter()
+    }
+
+    /// Check if collection is empty
+    pub fn is_empty(&self) -> bool {
+        self.results.is_empty()
+    }
+
+    /// Get length of collection
+    pub fn len(&self) -> usize {
+        self.results.len()
+    }
+
+    /// Convert to JSON representation for APIs - returns just the values
+    pub fn to_json_parts(&self) -> JsonValue {
+        let values: Vec<JsonValue> = self.results
+            .iter()
+            .map(|result| result.value.to_json_value())
+            .collect();
+
+        // Return single value if collection has only one item
+        match values.len() {
+            0 => JsonValue::Null,
+            1 => values.into_iter().next().unwrap(),
+            _ => JsonValue::Array(values),
+        }
+    }
+
+    /// Get type metadata for all results in the collection
+    pub fn get_type_metadata_array(&self) -> JsonValue {
+        let metadata_array: Vec<JsonValue> = self.results
+            .iter()
+            .map(|result| result.get_type_metadata())
+            .collect();
+
+        JsonValue::Array(metadata_array)
+    }
+}
+
+impl From<Collection> for CollectionWithMetadata {
+    fn from(collection: Collection) -> Self {
+        let results = collection
+            .into_iter()
+            .map(|value| {
+                let type_info = ValueTypeInfo::from_value(&value);
+                ResultWithMetadata::new(value, type_info)
+            })
+            .collect();
+
+        Self::from_results(results)
+    }
+}
+
+impl From<CollectionWithMetadata> for Collection {
+    fn from(collection_with_metadata: CollectionWithMetadata) -> Self {
+        collection_with_metadata.to_collection()
     }
 }
 

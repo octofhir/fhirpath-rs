@@ -12,7 +12,8 @@ use crate::cli::server::{
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::{FunctionRegistry, create_standard_registry};
 use papaya::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 /// Shared registry containing pre-initialized FhirPathEngines for all FHIR versions
@@ -54,7 +55,9 @@ impl ServerRegistry {
             );
 
             // Store shared model provider for per-request engine creation
-            model_providers.pin().insert(version, model_provider_arc.clone());
+            model_providers
+                .pin()
+                .insert(version, model_provider_arc.clone());
 
             // Create evaluation engine
             let engine_start = std::time::Instant::now();
@@ -63,7 +66,9 @@ impl ServerRegistry {
             let engine_time = engine_start.elapsed();
             info!("📊 Engine for {} created in {:?}", version, engine_time);
 
-            evaluation_engines.pin().insert(version, Arc::new(Mutex::new(eval_engine)));
+            evaluation_engines
+                .pin()
+                .insert(version, Arc::new(Mutex::new(eval_engine)));
 
             let total_time = start_time.elapsed();
             info!(
@@ -89,7 +94,10 @@ impl ServerRegistry {
         &self,
         version: ServerFhirVersion,
     ) -> Option<Arc<Mutex<FhirPathEngine>>> {
-        self.evaluation_engines.pin().get(&version).map(|guard| guard.clone())
+        self.evaluation_engines
+            .pin()
+            .get(&version)
+            .map(|guard| guard.clone())
     }
     /// Get the number of FHIR versions supported
     pub fn version_count(&self) -> usize {
@@ -146,7 +154,10 @@ impl ServerRegistry {
         &self,
         version: ServerFhirVersion,
     ) -> Option<Arc<EmbeddedModelProvider>> {
-        self.model_providers.pin().get(&version).map(|guard| guard.clone())
+        self.model_providers
+            .pin()
+            .get(&version)
+            .map(|guard| guard.clone())
     }
 }
 

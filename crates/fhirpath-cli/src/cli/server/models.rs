@@ -233,6 +233,12 @@ pub struct FhirPathLabResponseParameter {
     /// String value (for simple results)
     #[serde(rename = "valueString", skip_serializing_if = "Option::is_none")]
     pub value_string: Option<String>,
+    /// Code value (for issue severity/code fields)
+    #[serde(rename = "valueCode", skip_serializing_if = "Option::is_none")]
+    pub value_code: Option<String>,
+    /// Decimal value (for timing metrics)
+    #[serde(rename = "valueDecimal", skip_serializing_if = "Option::is_none")]
+    pub value_decimal: Option<f64>,
     /// Resource value (for complex results)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<JsonValue>,
@@ -328,6 +334,8 @@ impl FhirPathLabResponse {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
             value_string: Some(value),
+            value_code: None,
+            value_decimal: None,
             resource: None,
             part: None,
         });
@@ -338,9 +346,89 @@ impl FhirPathLabResponse {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
             value_string: None,
+            value_code: None,
+            value_decimal: None,
             resource: Some(resource),
             part: None,
         });
+    }
+
+    /// Add a parameter with JSON extension for complex types (FHIRPath Lab API compatibility)
+    pub fn add_json_extension_parameter(&mut self, name: &str, value: JsonValue) {
+        // Create a parameter with the json-value extension for complex types
+        let param = FhirPathLabResponseParameter {
+            name: name.to_string(),
+            value_string: None,
+            value_code: None,
+            value_decimal: None,
+            resource: Some(serde_json::json!({
+                "extension": [{
+                    "url": "http://fhir.forms-lab.com/StructureDefinition/json-value",
+                    "valueString": value.to_string()
+                }]
+            })),
+            part: None,
+        };
+        self.parameter.push(param);
+    }
+
+    /// Add a result parameter with enhanced type information (FHIRPath Lab API format)
+    pub fn add_result_with_metadata(&mut self, result_json: JsonValue) {
+        let mut result_parts = Vec::new();
+        
+        // Add trace information
+        result_parts.push(FhirPathLabResponseParameter {
+            name: "trace".to_string(),
+            value_string: Some("Evaluation completed with type metadata".to_string()),
+            value_code: None,
+            value_decimal: None,
+            resource: None,
+            part: None,
+        });
+
+        // For FHIRPath Lab API, we should return the structured metadata directly
+        // The JSON extension is only needed for values that can't be represented in FHIR
+        result_parts.push(FhirPathLabResponseParameter {
+            name: "result".to_string(),
+            value_string: None,
+            value_code: None,
+            value_decimal: None,
+            resource: Some(result_json),
+            part: None,
+        });
+
+        self.add_complex_parameter("result", result_parts);
+    }
+
+    /// Add a result with JSON extension for truly complex non-FHIR data
+    pub fn add_result_with_json_extension(&mut self, result_json: JsonValue) {
+        let mut result_parts = Vec::new();
+        
+        result_parts.push(FhirPathLabResponseParameter {
+            name: "trace".to_string(),
+            value_string: Some("Evaluation completed with JSON extension".to_string()),
+            value_code: None,
+            value_decimal: None,
+            resource: None,
+            part: None,
+        });
+
+        // Use JSON extension only for complex data that doesn't fit FHIR structure
+        result_parts.push(FhirPathLabResponseParameter {
+            name: "result".to_string(),
+            value_string: None,
+            value_code: None,
+            value_decimal: None,
+            resource: Some(serde_json::json!({
+                "extension": [{
+                    "url": "http://fhir.forms-lab.com/StructureDefinition/json-value",
+                    "valueString": result_json.to_string()
+                }]
+            })),
+            part: None,
+        });
+
+        self.add_complex_parameter("result", result_parts);
     }
 
     /// Add a complex parameter with nested parts
@@ -348,6 +436,8 @@ impl FhirPathLabResponse {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
             value_string: None,
+            value_code: None,
+            value_decimal: None,
             resource: None,
             part: Some(parts),
         });

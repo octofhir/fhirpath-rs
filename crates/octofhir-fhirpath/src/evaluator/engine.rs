@@ -224,6 +224,47 @@ impl FhirPathEngine {
         })
     }
 
+    /// Evaluate expression and return results with type information and metadata preserved
+    /// This is ideal for API responses that need type information
+    pub async fn evaluate_with_metadata(
+        &mut self,
+        expression: &str,
+        context: &EvaluationContext,
+    ) -> Result<crate::core::CollectionWithMetadata> {
+        use crate::core::{CollectionWithMetadata, ResultWithMetadata, ValueTypeInfo};
+        
+        let start_time = std::time::Instant::now();
+        let mut type_stats = TypeResolutionStats::default();
+
+        // Parse expression (with caching)
+        let ast = self.parse_or_cached(expression)?;
+
+        // Setup context with terminology service if available
+        let context_with_terminology = self.setup_context_with_terminology(context);
+
+        let wrapped_values = self
+            .evaluate_ast_with_metadata(&ast, &context_with_terminology, &mut type_stats)
+            .await?;
+
+        // Convert WrappedCollection to CollectionWithMetadata preserving all type information
+        let mut results = Vec::new();
+        for wrapped_value in wrapped_values {
+            let type_info = ValueTypeInfo {
+                type_name: wrapped_value.value.type_name().to_string(),
+                expected_return_type: Some(wrapped_value.metadata.fhir_type.clone()),
+                cardinality: Some("0..1".to_string()),
+                constraints: Vec::new(),
+                is_fhir_type: matches!(wrapped_value.value, crate::core::FhirPathValue::Resource(_)),
+                namespace: wrapped_value.metadata.resource_type.as_ref().map(|_| "FHIR".to_string()),
+            };
+
+            let result = ResultWithMetadata::new(wrapped_value.value, type_info);
+            results.push(result);
+        }
+
+        Ok(CollectionWithMetadata::from_results(results))
+    }
+
     /// Evaluate expression with variables
     pub async fn evaluate_with_variables(
         &mut self,

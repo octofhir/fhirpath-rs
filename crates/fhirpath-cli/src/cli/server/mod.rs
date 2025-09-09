@@ -33,9 +33,8 @@ use tracing::{info, warn};
 use crate::cli::server::{
     config::ServerConfig,
     handlers::{
-        fhirpath_lab_handler, fhirpath_lab_r4_handler,
-        fhirpath_lab_r4b_handler, fhirpath_lab_r5_handler, fhirpath_lab_r6_handler,
-        health_handler, version_handler,
+        fhirpath_lab_handler, fhirpath_lab_r4_handler, fhirpath_lab_r4b_handler,
+        fhirpath_lab_r5_handler, fhirpath_lab_r6_handler, health_handler, version_handler,
     },
     registry::ServerRegistry,
 };
@@ -52,8 +51,7 @@ pub async fn start_server(config: ServerConfig) -> anyhow::Result<()> {
 
     info!(
         "🚀 Starting FHIRPath Lab API server on {}:{}",
-        config.host,
-        config.port
+        config.host, config.port
     );
 
     // Initialize server registry with all FHIR versions
@@ -104,14 +102,11 @@ async fn create_app(registry: ServerRegistry, config: ServerConfig) -> anyhow::R
         .route("/health", get(health_handler))
         .route("/healthz", get(health_handler))
         .route("/version", get(version_handler))
-        // FHIRPath Lab API endpoints (.NET compatible) - now thread-safe with papaya  
-        .route("/$fhirpath", post(fhirpath_lab_handler))
         .route("/", post(fhirpath_lab_handler))
         .route("/r4", post(fhirpath_lab_r4_handler))
-        // .route("/r4b", post(fhirpath_lab_r4b_handler))
-        // .route("/r5", post(fhirpath_lab_r5_handler))
-        // .route("/r6", post(fhirpath_lab_r6_handler))
-        ;
+        .route("/r4b", post(fhirpath_lab_r4b_handler))
+        .route("/r5", post(fhirpath_lab_r5_handler))
+        .route("/r6", post(fhirpath_lab_r6_handler));
 
     // Apply middleware
     let app = app

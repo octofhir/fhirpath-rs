@@ -115,7 +115,7 @@ pub async fn evaluate_handler(
 
     // Evaluate the expression
     let result = {
-        let mut engine = engine_arc.lock().unwrap();
+        let mut engine = engine_arc.lock_owned().await;
         evaluate_fhirpath_expression(&mut engine, &parsed_request).await
     };
 
@@ -123,10 +123,10 @@ pub async fn evaluate_handler(
 
     let response = match result {
         Ok(collection) => {
-            let result_json = collection_to_json(collection);
+            let result_json = collection;
             EvaluateResponse {
                 success: true,
-                result: Some(result_json),
+                result: Some(result_json.to_json_value()),
                 error: None,
                 expression: request.expression,
                 fhir_version: version.to_string(),
@@ -380,60 +380,6 @@ fn convert_get_to_fhirpath_lab_request(
     })
 }
 
-/// Convert Collection to JSON for API response
-fn collection_to_json(collection: octofhir_fhirpath::Collection) -> serde_json::Value {
-    let values: Vec<serde_json::Value> = collection
-        .iter()
-        .map(|v| crate::cli::server::models::fhir_value_to_json(v.clone()))
-        .collect();
-
-    // If single value, return it directly; otherwise return as array
-    if values.len() == 1 {
-        values.into_iter().next().unwrap()
-    } else {
-        serde_json::Value::Array(values)
-    }
-}
-
-/// Convert analysis result to API format
-fn convert_analysis_result(
-    _analysis: String, // Simplified for now
-    _options: &AnalysisOptions,
-) -> crate::cli::server::models::AnalysisResult {
-    crate::cli::server::models::AnalysisResult {
-        type_info: None,
-        validation_errors: Vec::new(), // TODO: Add real validation errors when analyzer is integrated
-        type_annotations: 0,
-        function_calls: 0,
-        union_types: 0,
-    }
-}
-
-/// CapabilityStatement endpoint - .NET compatible
-pub async fn capability_statement_handler() -> Json<serde_json::Value> {
-    let capability_statement = serde_json::json!({
-        "resourceType": "CapabilityStatement",
-        "title": "FHIRPath Lab Rust expression evaluator",
-        "status": "active",
-        "date": "2024-09-09",
-        "kind": "instance",
-        "fhirVersion": "4.0.1",
-        "format": ["application/fhir+json"],
-        "rest": [{
-            "mode": "server",
-            "security": {
-                "cors": true
-            },
-            "operation": [{
-                "name": "fhirpath",
-                "definition": "http://fhirpath-lab.org/OperationDefinition/fhirpath"
-            }]
-        }]
-    });
-
-    Json(capability_statement)
-}
-
 /// Version endpoint - required by task specification
 pub async fn version_handler() -> Result<Json<serde_json::Value>, ServerError> {
     tracing::info!("🔖 Version info requested");
@@ -515,7 +461,9 @@ async fn fhirpath_lab_handler_impl(
     request: FhirPathLabRequest,
     version: ServerFhirVersion,
 ) -> ServerResult<Json<FhirPathLabResponse>> {
-    let start_time = Instant::now();
+    use octofhir_fhirpath::evaluator::EvaluationContext;
+
+    let total_start = Instant::now();
 
     info!("🔍 FHIRPath Lab API request for FHIR {}", version);
 
@@ -540,77 +488,201 @@ async fn fhirpath_lab_handler_impl(
         format!("octofhir-fhirpath-{}", env!("CARGO_PKG_VERSION")),
     );
 
-    // Add input parameters echo
+    // Echo input parameters
     response.add_string_parameter("expression", parsed_request.expression.clone());
     response.add_resource_parameter("resource", parsed_request.resource.clone());
-
     if let Some(context) = &parsed_request.context {
         response.add_string_parameter("context", context.clone());
     }
 
-    // Perform validation if requested
-    if parsed_request.validate {
-        // TODO: Add proper validation when analyzer is integrated
-        response.add_string_parameter("validation", "Expression syntax is valid".to_string());
-    }
-
-    // Add AST representation as parseDebugTree
+    // Parse expression and collect diagnostics
+    let parse_start = Instant::now();
     let parse_result = parse_with_mode(&parsed_request.expression, ParsingMode::Analysis);
-    if parse_result.success {
-        if let Some(ref ast) = parse_result.ast {
-            // Convert AST to JSON for debug tree representation
-            let ast_json = serde_json::to_string_pretty(ast).unwrap_or_else(|_| "{}".to_string());
-            response.add_string_parameter("parseDebugTree", ast_json);
-        } else {
-            response.add_string_parameter("parseDebugTree", "{}".to_string());
-        }
+    let parse_time = parse_start.elapsed();
+
+    // Add AST debug tree if available
+    if let Some(ref ast) = parse_result.ast {
+        let ast_json = serde_json::to_string_pretty(ast).unwrap_or_else(|_| "{}".to_string());
+        response.add_string_parameter("parseDebugTree", ast_json);
     } else {
         response.add_string_parameter("parseDebugTree", "{}".to_string());
     }
 
-    // Evaluate the expression - get engine and evaluate
-    let result = {
-        let mut engine = engine_arc.lock().unwrap();
-        evaluate_fhirpath_expression(&mut engine, &parsed_request).await
-    };
-
-    match result {
-        Ok(result) => {
-            // Convert result to FHIR Parameters format
-            let result_json = collection_to_json(result);
-
-            // Create result parameter
-            let mut result_parts = Vec::new();
-            result_parts.push(FhirPathLabResponseParameter {
-                name: "trace".to_string(),
-                value_string: Some(format!(
-                    "Evaluated expression: {}",
-                    parsed_request.expression
-                )),
+    // Add diagnostics as issues
+    for diag in &parse_result.diagnostics {
+        let mut parts = Vec::new();
+        parts.push(FhirPathLabResponseParameter {
+            name: "severity".to_string(),
+            value_string: None,
+            value_code: Some(match diag.severity {
+                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error => "error".to_string(),
+                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Warning => {
+                    "warning".to_string()
+                }
+                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Info => {
+                    "information".to_string()
+                }
+                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Hint => {
+                    "information".to_string()
+                }
+            }),
+            value_decimal: None,
+            resource: None,
+            part: None,
+        });
+        parts.push(FhirPathLabResponseParameter {
+            name: "code".to_string(),
+            value_string: None,
+            value_code: Some(diag.code.code.clone()),
+            value_decimal: None,
+            resource: None,
+            part: None,
+        });
+        parts.push(FhirPathLabResponseParameter {
+            name: "details".to_string(),
+            value_string: Some(diag.message.clone()),
+            value_code: None,
+            value_decimal: None,
+            resource: None,
+            part: None,
+        });
+        if let Some(loc) = &diag.location {
+            parts.push(FhirPathLabResponseParameter {
+                name: "location".to_string(),
+                value_string: Some(format!("{}:{}", loc.line, loc.column)),
+                value_code: None,
+                value_decimal: None,
                 resource: None,
                 part: None,
             });
-
-            result_parts.push(FhirPathLabResponseParameter {
-                name: "result".to_string(),
-                value_string: None,
-                resource: Some(result_json),
-                part: None,
-            });
-
-            response.add_complex_parameter("result", result_parts);
-
-            info!(
-                "✅ FHIRPath Lab evaluation completed in {:?}",
-                start_time.elapsed()
-            );
         }
-        Err(e) => {
-            let error_msg = format!("Evaluation failed: {}", e);
-            response.add_string_parameter("error", error_msg);
-            info!("❌ FHIRPath Lab evaluation failed: {}", e);
+        response.add_complex_parameter("issue", parts);
+    }
+    // Add basic validation result if requested
+    if parsed_request.validate && !parse_result.has_errors() {
+        response.add_string_parameter("validation", "Expression syntax is valid".to_string());
+    }
+
+    // If parsing failed, skip evaluation but still report timing
+    let mut eval_time = std::time::Duration::from_millis(0);
+    if parse_result.success {
+        if let Some(ast) = parse_result.ast {
+            // Convert resource to FhirPathValue
+            let resource_value =
+                octofhir_fhirpath::FhirPathValue::resource(parsed_request.resource.clone());
+            let context_collection = Collection::single(resource_value);
+
+            let mut eval_context = EvaluationContext::new(context_collection);
+            for (name, value) in &parsed_request.variables {
+                eval_context.set_variable(name.clone(), json_to_fhirpath_value(value.clone()));
+            }
+
+            let mut engine = engine_arc.lock_owned().await;
+            let eval_start = Instant::now();
+            match engine.evaluate_with_metadata(&parsed_request.expression, &eval_context).await {
+                Ok(collection_with_metadata) => {
+                    eval_time = eval_start.elapsed();
+                    
+                    // Get the actual values and separate type metadata
+                    let result_values = collection_with_metadata.to_json_parts();
+                    let type_metadata = collection_with_metadata.get_type_metadata_array();
+                    
+                    let mut result_parts = Vec::new();
+                    result_parts.push(FhirPathLabResponseParameter {
+                        name: "trace".to_string(),
+                        value_string: Some(format!(
+                            "Evaluated expression: {} with type metadata preserved",
+                            parsed_request.expression
+                        )),
+                        value_code: None,
+                        value_decimal: None,
+                        resource: None,
+                        part: None,
+                    });
+
+                    // Add the result value directly
+                    result_parts.push(FhirPathLabResponseParameter {
+                        name: "result".to_string(),
+                        value_string: None,
+                        value_code: None,
+                        value_decimal: None,
+                        resource: Some(result_values),
+                        part: None,
+                    });
+
+                    // Add type metadata as a separate parameter for tools that need it
+                    result_parts.push(FhirPathLabResponseParameter {
+                        name: "typeInfo".to_string(),
+                        value_string: None,
+                        value_code: None,
+                        value_decimal: None,
+                        resource: Some(type_metadata),
+                        part: None,
+                    });
+                    
+                    response.add_complex_parameter("result", result_parts);
+                }
+                Err(e) => {
+                    eval_time = eval_start.elapsed();
+                    let mut parts = Vec::new();
+                    parts.push(FhirPathLabResponseParameter {
+                        name: "severity".to_string(),
+                        value_string: None,
+                        value_code: Some("error".to_string()),
+                        value_decimal: None,
+                        resource: None,
+                        part: None,
+                    });
+                    parts.push(FhirPathLabResponseParameter {
+                        name: "code".to_string(),
+                        value_string: None,
+                        value_code: Some("exception".to_string()),
+                        value_decimal: None,
+                        resource: None,
+                        part: None,
+                    });
+                    parts.push(FhirPathLabResponseParameter {
+                        name: "details".to_string(),
+                        value_string: Some(format!("{}", e)),
+                        value_code: None,
+                        value_decimal: None,
+                        resource: None,
+                        part: None,
+                    });
+                    response.add_complex_parameter("issue", parts);
+                }
+            }
         }
     }
+
+    // Timing metrics
+    let total_time = total_start.elapsed();
+    let mut timing_parts = Vec::new();
+    timing_parts.push(FhirPathLabResponseParameter {
+        name: "total".to_string(),
+        value_string: None,
+        value_code: None,
+        value_decimal: Some(total_time.as_secs_f64() * 1000.0),
+        resource: None,
+        part: None,
+    });
+    timing_parts.push(FhirPathLabResponseParameter {
+        name: "parse".to_string(),
+        value_string: None,
+        value_code: None,
+        value_decimal: Some(parse_time.as_secs_f64() * 1000.0),
+        resource: None,
+        part: None,
+    });
+    timing_parts.push(FhirPathLabResponseParameter {
+        name: "evaluation".to_string(),
+        value_string: None,
+        value_code: None,
+        value_decimal: Some(eval_time.as_secs_f64() * 1000.0),
+        resource: None,
+        part: None,
+    });
+    response.add_complex_parameter("timing", timing_parts);
 
     Ok(Json(response))
 }
@@ -701,7 +773,7 @@ async fn fhirpath_lab_handler_impl_per_request(
     match result {
         Ok(result) => {
             // Convert result to FHIR Parameters format
-            let result_json = collection_to_json(result);
+            let result_json = result;
 
             // Create result parameter
             let mut result_parts = Vec::new();
@@ -711,6 +783,8 @@ async fn fhirpath_lab_handler_impl_per_request(
                     "Evaluated expression: {} (engine creation: {:?}, evaluation: {:?})",
                     parsed_request.expression, engine_creation_time, evaluation_time
                 )),
+                value_code: None,
+                value_decimal: None,
                 resource: None,
                 part: None,
             });
@@ -718,7 +792,9 @@ async fn fhirpath_lab_handler_impl_per_request(
             result_parts.push(FhirPathLabResponseParameter {
                 name: "result".to_string(),
                 value_string: None,
-                resource: Some(result_json),
+                value_code: None,
+                value_decimal: None,
+                resource: Some(result_json.to_json_value()),
                 part: None,
             });
 

@@ -13,9 +13,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 113 | 100% |
 | **Total Individual Tests** | 1110 | 100% |
-| **Passing Tests** | 972 | 87.6% |
-| **Failing Tests** | 88 | 7.9% |
-| **Error Tests** | 50 | 4.5% |
+| **Passing Tests** | 981 | 88.4% |
+| **Failing Tests** | 92 | 8.3% |
+| **Error Tests** | 37 | 3.3% |
 
 ## Test Results by Suite
 
@@ -34,6 +34,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **resolve.json** - 3/3 tests
 - **second-of.json** - 5/5 tests
 - **testAbs.json** - 4/4 tests
+- **testAggregate.json** - 4/4 tests
 - **testAll.json** - 4/4 tests
 - **testBooleanImplies.json** - 9/9 tests
 - **testBooleanLogicAnd.json** - 9/9 tests
@@ -58,6 +59,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testGreaterThan.json** - 30/30 tests
 - **testGreatorOrEqual.json** - 30/30 tests
 - **testIn.json** - 8/8 tests
+- **testIndexOf.json** - 6/6 tests
 - **testIndexer.json** - 2/2 tests
 - **testIntersect.json** - 4/4 tests
 - **testJoin.json** - 1/1 tests
@@ -75,8 +77,8 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testPlus.json** - 34/34 tests
 - **testPower.json** - 6/6 tests
 - **testPrecedence.json** - 6/6 tests
-- **testQuantity.json** - 11/11 tests
 - **testReplace.json** - 6/6 tests
+- **testReplaceMatches.json** - 7/7 tests
 - **testRound.json** - 3/3 tests
 - **testSelect.json** - 3/3 tests
 - **testSingle.json** - 2/2 tests
@@ -108,16 +110,15 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testEquality.json** - 96.4% (27/28 tests)
 - **testEquivalent.json** - 95.8% (23/24 tests)
 - **testNEquality.json** - 95.8% (23/24 tests)
+- **testLiterals.json** - 91.5% (75/82 tests)
+- **testQuantity.json** - 90.9% (10/11 tests)
 - **testSort.json** - 90.0% (9/10 tests)
-- **testTypes.json** - 87.9% (87/99 tests)
-- **testLiterals.json** - 87.8% (72/82 tests)
+- **testTypes.json** - 88.9% (88/99 tests)
 - **testBasics.json** - 85.7% (6/7 tests)
 - **testCollectionBoolean.json** - 83.3% (5/6 tests)
-- **testIndexOf.json** - 83.3% (5/6 tests)
 - **testDollar.json** - 80.0% (4/5 tests)
 - **testVariables.json** - 75.0% (3/4 tests)
 - **repeat-all.json** - 73.7% (14/19 tests)
-- **testReplaceMatches.json** - 71.4% (5/7 tests)
 
 ### 🟠 Partially Implemented (30-70%)
 
@@ -125,35 +126,34 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testMiscellaneousAccessorTests.json** - 66.7% (2/3 tests)
 - **HighBoundary.json** - 58.3% (14/24 tests)
 - **miscEngineTests.json** - 50.0% (1/2 tests)
+- **period.json** - 50.0% (1/2 tests)
 - **polymorphics.json** - 50.0% (1/2 tests)
 - **testIif.json** - 50.0% (6/12 tests)
 - **testInheritance.json** - 50.0% (12/24 tests)
-- **testObservations.json** - 50.0% (5/10 tests)
-- **testType.json** - 40.0% (12/30 tests)
+- **testType.json** - 43.3% (13/30 tests)
 - **Comparable.json** - 33.3% (1/3 tests)
 - **cdaTests.json** - 33.3% (1/3 tests)
 - **testConformsTo.json** - 33.3% (1/3 tests)
 - **testDistinct.json** - 33.3% (2/6 tests)
 - **testExtension.json** - 33.3% (1/3 tests)
+- **testObservations.json** - 30.0% (3/10 tests)
 
 ### 🔴 Major Issues (0-30%)
 
-- **testAggregate.json** - 25.0% (1/4 tests) - Issues
 - **defineVariable.json** - 4.8% (1/21 tests) - Issues
 - **TerminologyTests.json** - 0.0% (0/3 tests) - Missing
-- **period.json** - 0.0% (0/2 tests) - Missing
 - **testRepeat.json** - 0.0% (0/5 tests) - Missing
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **87.6% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **88.4% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 113
 - **Total Tests**: 1110
-- **Pass Rate**: 87.6%
+- **Pass Rate**: 88.4%
 
 ---
 
-*Report generated on: 2025-09-09 13:30:29*
+*Report generated on: 2025-09-09 19:01:02*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*
