@@ -9,7 +9,7 @@ homepage.workspace = true
 description = "Command-line interface for FHIRPath expression evaluation and testing"
 readme = "../../README.md"
 keywords = ["fhir", "fhirpath", "cli", "healthcare", "hl7"]
-categories = ["command-line-utilities", "parser-implementations", "science"]
+categories = ["command-line-utilities", "healthcare", "science"]
 publish = false
 
 [features]

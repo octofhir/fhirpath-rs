@@ -868,23 +868,6 @@ impl TuiApp {
         Ok(())
     }
 
-    /// Render the TUI (legacy method, kept for compatibility)
-    fn render(&mut self, frame: &mut Frame) {
-        let render_start = Instant::now();
-
-        // Calculate layout
-        let chunks = self.layout.calculate_layout(frame.area());
-
-        // Render each component in its assigned area
-        self.components
-            .render_all(frame, &chunks, &self.state, &self.theme);
-
-        // Render status line
-        self.render_status_line(frame, chunks.status_line);
-
-        self.state.performance.last_render_time = Some(render_start.elapsed());
-    }
-
     /// Render the status line (static version for use in closures)
     fn render_status_line_static(
         frame: &mut Frame,

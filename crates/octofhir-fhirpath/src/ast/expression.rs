@@ -63,6 +63,9 @@ pub enum ExpressionNode {
 
     /// Path expression (advanced path navigation)
     Path(PathNode),
+
+    /// Type information (e.g., "System.Integer", "FHIR.Patient")
+    TypeInfo(TypeInfoNode),
 }
 
 /// Literal value with source location
@@ -237,6 +240,17 @@ pub struct PathNode {
     pub location: Option<SourceLocation>,
 }
 
+/// Type information node for type expressions like System.Integer or FHIR.Patient
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeInfoNode {
+    /// Type namespace (e.g., "System", "FHIR")
+    pub namespace: String,
+    /// Type name (e.g., "Integer", "Patient")
+    pub name: String,
+    /// Source location
+    pub location: Option<SourceLocation>,
+}
+
 impl ExpressionNode {
     /// Get the source location for this node, if available
     pub fn location(&self) -> Option<&SourceLocation> {
@@ -257,6 +271,7 @@ impl ExpressionNode {
             Self::TypeCheck(n) => n.location.as_ref(),
             Self::Variable(n) => n.location.as_ref(),
             Self::Path(n) => n.location.as_ref(),
+            Self::TypeInfo(n) => n.location.as_ref(),
             Self::Parenthesized(_) => None,
         }
     }
@@ -280,6 +295,7 @@ impl ExpressionNode {
             Self::TypeCheck(n) => n.location = Some(location),
             Self::Variable(n) => n.location = Some(location),
             Self::Path(n) => n.location = Some(location),
+            Self::TypeInfo(n) => n.location = Some(location),
             Self::Parenthesized(_) => {}
         }
         self
@@ -305,6 +321,7 @@ impl ExpressionNode {
             Self::TypeCheck(_) => "type check",
             Self::Variable(_) => "variable",
             Self::Path(_) => "path",
+            Self::TypeInfo(_) => "type info",
         }
     }
 
@@ -436,6 +453,24 @@ impl ExpressionNode {
                     ));
                 }
             }
+            Self::TypeInfo(type_info) => {
+                if type_info.namespace.is_empty() {
+                    return Err(FhirPathError::parse_error(
+                        FP0001,
+                        "Type namespace cannot be empty",
+                        "empty type namespace",
+                        type_info.location.clone(),
+                    ));
+                }
+                if type_info.name.is_empty() {
+                    return Err(FhirPathError::parse_error(
+                        FP0001,
+                        "Type name cannot be empty",
+                        "empty type name",
+                        type_info.location.clone(),
+                    ));
+                }
+            }
             Self::Parenthesized(expr) => {
                 expr.validate()?;
             }
@@ -466,6 +501,7 @@ impl ExpressionNode {
             Self::TypeCheck(n) => n.expression.node_count(),
             Self::Variable(_) => 0,
             Self::Path(n) => n.base.node_count(),
+            Self::TypeInfo(_) => 0,
             _ => 0,
         }
     }
@@ -522,6 +558,7 @@ impl fmt::Display for ExpressionNode {
             Self::TypeCheck(n) => write!(f, "{} is {}", n.expression, n.target_type),
             Self::Variable(n) => write!(f, "${}", n.name),
             Self::Path(n) => write!(f, "{}.{}", n.base, n.path),
+            Self::TypeInfo(n) => write!(f, "{}.{}", n.namespace, n.name),
             Self::Parenthesized(expr) => write!(f, "({})", expr),
             Self::TypeCast(n) => write!(f, "{} as {}", n.expression, n.target_type),
         }
@@ -582,6 +619,15 @@ impl ExpressionNode {
         Self::Path(PathNode {
             base: Box::new(base),
             path: path.into(),
+            location: None,
+        })
+    }
+
+    /// Create a type info node for type expressions like System.Integer
+    pub fn type_info(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+        Self::TypeInfo(TypeInfoNode {
+            namespace: namespace.into(),
+            name: name.into(),
             location: None,
         })
     }

@@ -13,9 +13,6 @@
 // limitations under the License.
 
 //! TUI Configuration System
-//!
-//! This module provides comprehensive configuration management for the TUI,
-//! including layout preferences, key bindings, themes, and feature flags.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -31,25 +28,12 @@ use super::themes::TuiTheme;
 /// Complete TUI configuration
 #[derive(Debug, Clone)]
 pub struct TuiConfig {
-    /// Configuration metadata
     pub metadata: ConfigMetadata,
-
-    /// Layout configuration
     pub layout: LayoutConfig,
-
-    /// Theme configuration
     pub theme: TuiTheme,
-
-    /// Key bindings configuration
     pub key_bindings: HashMap<String, String>,
-
-    /// Feature flags
     pub features: FeatureFlags,
-
-    /// Performance settings
     pub performance: PerformanceConfig,
-
-    /// User interface preferences
     pub ui_preferences: UiPreferences,
 }
 
@@ -132,34 +116,18 @@ pub enum RenderOptimization {
 /// User interface preferences
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiPreferences {
-    /// Show line numbers in input
     pub show_line_numbers: bool,
-
-    /// Show cursor position in status
     pub show_cursor_position: bool,
-
-    /// Show performance metrics in status
     pub show_performance_info: bool,
-
-    /// Auto-focus input panel on startup
     pub auto_focus_input: bool,
-
-    /// Confirm before exiting
     pub confirm_exit: bool,
-
-    /// Save window state on exit
     pub save_window_state: bool,
 
     /// Default output format
     pub default_output_format: String,
 
-    /// Panel animation duration (ms)
     pub animation_duration_ms: u64,
-
-    /// Show tooltips
     pub show_tooltips: bool,
-
-    /// Tooltip delay (ms)
     pub tooltip_delay_ms: u64,
 }
 

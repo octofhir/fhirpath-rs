@@ -25,7 +25,6 @@ pub mod input;
 pub mod output;
 pub mod variables;
 
-
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;

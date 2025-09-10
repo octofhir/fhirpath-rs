@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Simple CLI for FHIRPath evaluation
-//!
-//! A command-line interface for evaluating FHIRPath expressions against FHIR resources.
+//! FHIRPath CLI
 
 use clap::Parser;
 use fhirpath_cli::EmbeddedModelProvider;

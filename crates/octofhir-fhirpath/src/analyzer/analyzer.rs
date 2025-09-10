@@ -572,6 +572,10 @@ impl<'a> ExpressionVisitor for SyntaxAnalysisVisitor<'a> {
     fn visit_path(&mut self, path: &PathNode) -> Self::Output {
         self.visit_expression(&path.base)
     }
+
+    fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Self::Output {
+        Ok(())
+    }
 }
 
 /// Visitor for semantic analysis
@@ -668,6 +672,10 @@ impl<'a> ExpressionVisitor for SemanticAnalysisVisitor<'a> {
     }
     fn visit_path(&mut self, path: &PathNode) -> Self::Output {
         self.visit_expression(&path.base)
+    }
+
+    fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Self::Output {
+        Ok(())
     }
 }
 
@@ -815,6 +823,10 @@ impl ExpressionVisitor for ComplexityCalculator {
     }
     fn visit_path(&mut self, path: &PathNode) -> Self::Output {
         self.visit_expression(&path.base)
+    }
+
+    fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Self::Output {
+        Ok(())
     }
 }
 

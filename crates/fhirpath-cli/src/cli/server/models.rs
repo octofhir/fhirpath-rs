@@ -230,6 +230,9 @@ pub struct FhirPathLabResponse {
 pub struct FhirPathLabResponseParameter {
     /// Parameter name
     pub name: String,
+    /// Extensions (for resource paths, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extension: Option<Vec<JsonValue>>,
     /// String value (for simple results)
     #[serde(rename = "valueString", skip_serializing_if = "Option::is_none")]
     pub value_string: Option<String>,
@@ -239,6 +242,18 @@ pub struct FhirPathLabResponseParameter {
     /// Decimal value (for timing metrics)
     #[serde(rename = "valueDecimal", skip_serializing_if = "Option::is_none")]
     pub value_decimal: Option<f64>,
+    /// HumanName value (for HumanName results)
+    #[serde(rename = "valueHumanName", skip_serializing_if = "Option::is_none")]
+    pub value_human_name: Option<JsonValue>,
+    /// Identifier value (for Identifier results)
+    #[serde(rename = "valueIdentifier", skip_serializing_if = "Option::is_none")]
+    pub value_identifier: Option<JsonValue>,
+    /// Address value (for Address results)
+    #[serde(rename = "valueAddress", skip_serializing_if = "Option::is_none")]
+    pub value_address: Option<JsonValue>,
+    /// ContactPoint value (for telecom results)
+    #[serde(rename = "valueContactPoint", skip_serializing_if = "Option::is_none")]
+    pub value_contact_point: Option<JsonValue>,
     /// Resource value (for complex results)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<JsonValue>,
@@ -333,9 +348,14 @@ impl FhirPathLabResponse {
     pub fn add_string_parameter(&mut self, name: &str, value: String) {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
+            extension: None,
             value_string: Some(value),
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: None,
             part: None,
         });
@@ -345,9 +365,14 @@ impl FhirPathLabResponse {
     pub fn add_resource_parameter(&mut self, name: &str, resource: JsonValue) {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
+            extension: None,
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: Some(resource),
             part: None,
         });
@@ -358,9 +383,14 @@ impl FhirPathLabResponse {
         // Create a parameter with the json-value extension for complex types
         let param = FhirPathLabResponseParameter {
             name: name.to_string(),
+            extension: None,
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: Some(serde_json::json!({
                 "extension": [{
                     "url": "http://fhir.forms-lab.com/StructureDefinition/json-value",
@@ -375,13 +405,18 @@ impl FhirPathLabResponse {
     /// Add a result parameter with enhanced type information (FHIRPath Lab API format)
     pub fn add_result_with_metadata(&mut self, result_json: JsonValue) {
         let mut result_parts = Vec::new();
-        
+
         // Add trace information
         result_parts.push(FhirPathLabResponseParameter {
             name: "trace".to_string(),
+            extension: None,
             value_string: Some("Evaluation completed with type metadata".to_string()),
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: None,
             part: None,
         });
@@ -390,9 +425,14 @@ impl FhirPathLabResponse {
         // The JSON extension is only needed for values that can't be represented in FHIR
         result_parts.push(FhirPathLabResponseParameter {
             name: "result".to_string(),
+            extension: None,
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: Some(result_json),
             part: None,
         });
@@ -403,12 +443,17 @@ impl FhirPathLabResponse {
     /// Add a result with JSON extension for truly complex non-FHIR data
     pub fn add_result_with_json_extension(&mut self, result_json: JsonValue) {
         let mut result_parts = Vec::new();
-        
+
         result_parts.push(FhirPathLabResponseParameter {
             name: "trace".to_string(),
+            extension: None,
             value_string: Some("Evaluation completed with JSON extension".to_string()),
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: None,
             part: None,
         });
@@ -416,9 +461,14 @@ impl FhirPathLabResponse {
         // Use JSON extension only for complex data that doesn't fit FHIR structure
         result_parts.push(FhirPathLabResponseParameter {
             name: "result".to_string(),
+            extension: None,
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: Some(serde_json::json!({
                 "extension": [{
                     "url": "http://fhir.forms-lab.com/StructureDefinition/json-value",
@@ -435,9 +485,14 @@ impl FhirPathLabResponse {
     pub fn add_complex_parameter(&mut self, name: &str, parts: Vec<FhirPathLabResponseParameter>) {
         self.parameter.push(FhirPathLabResponseParameter {
             name: name.to_string(),
+            extension: None,
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
             resource: None,
             part: Some(parts),
         });
@@ -656,6 +711,56 @@ impl ExecutionMetadata {
             ast_nodes: 0,
             memory_used: 0,
             engine_reused,
+        }
+    }
+}
+
+// ===== OPERATION OUTCOME MODELS =====
+
+/// OperationOutcome response for errors
+#[derive(Debug, Serialize)]
+pub struct OperationOutcome {
+    /// FHIR resource type (always "OperationOutcome")
+    #[serde(rename = "resourceType")]
+    pub resource_type: String,
+    /// Issues array
+    pub issue: Vec<OperationOutcomeIssue>,
+}
+
+/// Issue within OperationOutcome
+#[derive(Debug, Serialize)]
+pub struct OperationOutcomeIssue {
+    /// Severity of the issue
+    pub severity: String, // "error", "warning", "information"
+    /// Issue type code
+    pub code: String, // "exception", "invalid", etc.
+    /// Details with text message
+    pub details: OperationOutcomeDetails,
+    /// Optional diagnostics info
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<String>,
+}
+
+/// Details structure for OperationOutcome issues
+#[derive(Debug, Serialize)]
+pub struct OperationOutcomeDetails {
+    /// Text description of the issue
+    pub text: String,
+}
+
+impl OperationOutcome {
+    /// Create a new OperationOutcome with a single error issue
+    pub fn error(code: &str, message: &str, diagnostics: Option<String>) -> Self {
+        Self {
+            resource_type: "OperationOutcome".to_string(),
+            issue: vec![OperationOutcomeIssue {
+                severity: "error".to_string(),
+                code: code.to_string(),
+                details: OperationOutcomeDetails {
+                    text: message.to_string(),
+                },
+                diagnostics,
+            }],
         }
     }
 }

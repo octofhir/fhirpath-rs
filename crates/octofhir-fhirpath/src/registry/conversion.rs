@@ -993,7 +993,8 @@ impl FunctionRegistry {
     // Helper function to determine if a unit is a UCUM unit that should be quoted
     fn is_ucum_unit(unit: &str) -> bool {
         // Common UCUM time units that are typically quoted to distinguish from calendar units
-        matches!(unit, 
+        matches!(
+            unit,
             "s" | "min" | "h" | "d" | "wk" | "mo" | "a" | 
             "ms" | "us" | "ns" | "ks" | "Ms" | "Gs" |
             // Other common UCUM units

@@ -31,6 +31,7 @@ pub trait ExpressionVisitor {
             ExpressionNode::TypeCheck(node) => self.visit_type_check(node),
             ExpressionNode::Variable(node) => self.visit_variable(node),
             ExpressionNode::Path(node) => self.visit_path(node),
+            ExpressionNode::TypeInfo(node) => self.visit_type_info(node),
         }
     }
 
@@ -84,6 +85,9 @@ pub trait ExpressionVisitor {
 
     /// Visit a path expression
     fn visit_path(&mut self, path: &PathNode) -> Self::Output;
+
+    /// Visit a type info expression
+    fn visit_type_info(&mut self, type_info: &TypeInfoNode) -> Self::Output;
 }
 
 /// Default implementation for ExpressionVisitor that does nothing
@@ -186,6 +190,11 @@ pub trait DefaultExpressionVisitor: ExpressionVisitor<Output = Result<()>> {
     fn visit_path(&mut self, path: &PathNode) -> Result<()> {
         self.visit_expression(&path.base)
     }
+
+    /// Visit a type info expression (default implementation does nothing)
+    fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// A collecting visitor that accumulates results
@@ -256,7 +265,8 @@ pub trait CollectingVisitor<T> {
             // Leaf nodes don't have children to visit
             ExpressionNode::Literal(_)
             | ExpressionNode::Identifier(_)
-            | ExpressionNode::Variable(_) => {}
+            | ExpressionNode::Variable(_)
+            | ExpressionNode::TypeInfo(_) => {}
         }
 
         Ok(results)
@@ -360,6 +370,10 @@ macro_rules! impl_default_visitor {
 
             fn visit_path(&mut self, path: &PathNode) -> Self::Output {
                 let _ = self.visit_expression(&path.base);
+                $default
+            }
+
+            fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Self::Output {
                 $default
             }
         }

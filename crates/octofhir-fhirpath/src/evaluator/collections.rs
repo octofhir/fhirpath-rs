@@ -11,8 +11,8 @@ use std::collections::HashSet;
 
 use crate::{
     ast::ExpressionNode,
-    core::{FhirPathValue, Result},
     core::types::Collection,
+    core::{FhirPathValue, Result},
     evaluator::metadata_collections::MetadataCollectionEvaluator,
     evaluator::{
         EvaluationContext,

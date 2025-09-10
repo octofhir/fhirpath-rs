@@ -300,7 +300,7 @@ impl FhirPathCompleter {
             }
         }
 
-        // Get from model provider (this would be async in real implementation)
+        // Get from model provider
         let resource_types = vec![
             "Patient".to_string(),
             "Bundle".to_string(),

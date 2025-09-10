@@ -23,7 +23,6 @@ use std::sync::Arc;
 /// This always uses EmbeddedModelProvider for production-quality testing
 /// Exits the process if EmbeddedModelProvider cannot be initialized
 pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
-
     let fhir_version = env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
 
     log::info!(

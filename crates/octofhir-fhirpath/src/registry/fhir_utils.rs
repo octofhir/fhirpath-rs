@@ -1,8 +1,8 @@
 //! FHIR utilities for registry functions
 
+use crate::core::types::Collection;
 use serde_json::{Map, Value as JsonValue};
 use std::sync::Arc;
-use crate::core::types::Collection;
 
 use crate::core::{FhirPathValue, Result};
 

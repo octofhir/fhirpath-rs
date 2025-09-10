@@ -4,7 +4,10 @@
 //! aggregation, set operations, and logic functions.
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
-use crate::core::{FhirPathValue, Result, error_code::{FP0053, FP0155}};
+use crate::core::{
+    FhirPathValue, Result,
+    error_code::{FP0053, FP0155},
+};
 use crate::register_function;
 use std::collections::HashSet;
 
@@ -48,7 +51,7 @@ impl CollectionUtils {
     ) -> Vec<FhirPathValue> {
         let mut result = Vec::new();
         let mut seen = HashSet::new();
-        
+
         // Add unique items from first collection
         for item in first {
             let hash_key = Self::value_hash_key(item);
@@ -56,7 +59,7 @@ impl CollectionUtils {
                 result.push(item.clone());
             }
         }
-        
+
         // Add unique items from second collection that aren't already present
         for item in second {
             let hash_key = Self::value_hash_key(item);
@@ -64,7 +67,7 @@ impl CollectionUtils {
                 result.push(item.clone());
             }
         }
-        
+
         result
     }
 
@@ -194,7 +197,7 @@ impl FunctionRegistry {
                         "skip() function can only be applied to ordered collections. The children() function returns an unordered collection.".to_string()
                     ));
                 }
-                
+
                 let skip_count = match context.arguments.first() {
                     Some(FhirPathValue::Integer(n)) => {
                         if *n < 0 {
@@ -669,34 +672,37 @@ impl FunctionRegistry {
 fn trace_impl(context: &FunctionContext) -> Result<FhirPathValue> {
     let input = &context.input;
     let args = &context.arguments;
-    
+
     // Get arguments as a vector
     let args_vec = match args {
         FhirPathValue::Collection(collection) => collection.values().to_vec(),
         FhirPathValue::Empty => vec![],
         other => vec![other.clone()],
     };
-    
+
     // trace() function signature:
     // trace(name: String)
     // trace(name: String, projection: Expression)
-    
+
     if args_vec.is_empty() || args_vec.len() > 2 {
         return Err(crate::core::FhirPathError::evaluation_error(
             FP0053,
-            "trace() function requires 1 or 2 arguments: trace(name) or trace(name, projection)".to_string()
+            "trace() function requires 1 or 2 arguments: trace(name) or trace(name, projection)"
+                .to_string(),
         ));
     }
-    
+
     // Get the trace name parameter
     let trace_name = match &args_vec[0] {
         FhirPathValue::String(name) => name.clone(),
-        _ => return Err(crate::core::FhirPathError::evaluation_error(
-            FP0053,
-            "trace() function first argument must be a string (trace name)".to_string()
-        ))
+        _ => {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                FP0053,
+                "trace() function first argument must be a string (trace name)".to_string(),
+            ));
+        }
     };
-    
+
     // Handle different input types
     if args_vec.len() == 1 {
         // trace(name) - just trace the input and return it
@@ -707,12 +713,21 @@ fn trace_impl(context: &FunctionContext) -> Result<FhirPathValue> {
             }
             FhirPathValue::Collection(collection) => {
                 for (i, value) in collection.values().iter().enumerate() {
-                    eprintln!("TRACE[{}][{}]: {}", trace_name, i, format_trace_value(value));
+                    eprintln!(
+                        "TRACE[{}][{}]: {}",
+                        trace_name,
+                        i,
+                        format_trace_value(value)
+                    );
                 }
                 Ok(input.clone())
             }
             single_value => {
-                eprintln!("TRACE[{}]: {}", trace_name, format_trace_value(single_value));
+                eprintln!(
+                    "TRACE[{}]: {}",
+                    trace_name,
+                    format_trace_value(single_value)
+                );
                 Ok(input.clone())
             }
         }
@@ -726,12 +741,21 @@ fn trace_impl(context: &FunctionContext) -> Result<FhirPathValue> {
             }
             FhirPathValue::Collection(collection) => {
                 for (i, value) in collection.values().iter().enumerate() {
-                    eprintln!("TRACE[{}][{}]: {} (with projection)", trace_name, i, format_trace_value(value));
+                    eprintln!(
+                        "TRACE[{}][{}]: {} (with projection)",
+                        trace_name,
+                        i,
+                        format_trace_value(value)
+                    );
                 }
                 Ok(input.clone())
             }
             single_value => {
-                eprintln!("TRACE[{}]: {} (with projection)", trace_name, format_trace_value(single_value));
+                eprintln!(
+                    "TRACE[{}]: {} (with projection)",
+                    trace_name,
+                    format_trace_value(single_value)
+                );
                 Ok(input.clone())
             }
         }
@@ -748,14 +772,18 @@ fn format_trace_value(value: &FhirPathValue) -> String {
         FhirPathValue::Date(d) => format!("{}(Date)", d.to_string()),
         FhirPathValue::DateTime(dt) => format!("{}(DateTime)", dt.to_string()),
         FhirPathValue::Time(t) => format!("{}(Time)", t.to_string()),
-        FhirPathValue::Quantity { value, unit, .. } => {
-            match unit {
-                Some(u) => format!("{} {}(Quantity)", value, u),
-                None => format!("{}(Quantity)", value),
-            }
-        }
+        FhirPathValue::Quantity { value, unit, .. } => match unit {
+            Some(u) => format!("{} {}(Quantity)", value, u),
+            None => format!("{}(Quantity)", value),
+        },
         FhirPathValue::Resource(resource) => {
-            format!("Resource({})", resource.get("resourceType").and_then(|v| v.as_str()).unwrap_or("unknown"))
+            format!(
+                "Resource({})",
+                resource
+                    .get("resourceType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown")
+            )
         }
         FhirPathValue::JsonValue(json) => {
             format!("JsonValue({})", json.to_string())
@@ -767,7 +795,9 @@ fn format_trace_value(value: &FhirPathValue) -> String {
         FhirPathValue::Base64Binary(data) => format!("Base64[{}](Base64Binary)", data.len()),
         FhirPathValue::Uri(uri) => format!("{}(Uri)", uri),
         FhirPathValue::Url(url) => format!("{}(Url)", url),
-        FhirPathValue::TypeInfoObject { namespace, name } => format!("{}:{}(TypeInfo)", namespace, name),
+        FhirPathValue::TypeInfoObject { namespace, name } => {
+            format!("{}:{}(TypeInfo)", namespace, name)
+        }
         FhirPathValue::Empty => "<empty>".to_string(),
     }
 }

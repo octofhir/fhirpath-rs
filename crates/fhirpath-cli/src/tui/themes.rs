@@ -574,8 +574,7 @@ pub mod utils {
 
     /// Blend two colors (simple average)
     pub fn blend_colors(color1: Color, color2: Color, ratio: f32) -> Color {
-        // This is a simplified color blending - in a real implementation
-        // you'd want to convert to RGB, blend, and convert back
+        // Simplified color blending
         if ratio <= 0.0 {
             color1
         } else if ratio >= 1.0 {
@@ -647,7 +646,6 @@ pub mod utils {
 
     fn has_adequate_contrast(theme: &TuiTheme) -> bool {
         // Simplified contrast check
-        // In a real implementation, you'd calculate luminance ratios
         theme.colors.normal_text != theme.colors.background
     }
 }

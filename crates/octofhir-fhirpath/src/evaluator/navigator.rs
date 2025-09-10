@@ -10,8 +10,8 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 use crate::{
-    core::{FhirPathValue, ModelProvider, Result},
     core::types::Collection,
+    core::{FhirPathValue, ModelProvider, Result},
     evaluator::metadata_navigator::MetadataNavigator,
     evaluator::traits::MetadataAwareNavigator,
     evaluator::traits::ValueNavigator,

@@ -190,9 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Ok(Err(e)) => {
             eprintln!("❌ Failed to initialize EmbeddedModelProvider (R4): {e}");
-            eprintln!(
-                "💡 Ensure FHIR schema packages are available"
-            );
+            eprintln!("💡 Ensure FHIR schema packages are available");
             process::exit(1);
         }
         Err(_) => {
@@ -341,9 +339,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let expected_json =
                 serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
             let actual_json = match serde_json::to_value(&final_result) {
-                Ok(json) => {
-                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| format!("{:?}", final_result))
-                }
+                Ok(json) => serde_json::to_string_pretty(&json)
+                    .unwrap_or_else(|_| format!("{:?}", final_result)),
                 Err(_) => format!("{:?}", final_result),
             };
             println!("   Expected: {expected_json}");

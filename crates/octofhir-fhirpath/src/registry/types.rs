@@ -6,8 +6,8 @@
 use super::type_utils::TypeUtils;
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
 use crate::core::error_code::FP0055;
-use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::core::types::Collection;
+use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::register_function;
 
 /// Complete FHIRPath type system with proper FHIR type hierarchy

@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::{
-    ast::{ExpressionNode, BinaryOperator},
+    ast::{BinaryOperator, ExpressionNode},
     core::types::Collection,
     core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result},
     evaluator::{
@@ -19,10 +19,10 @@ use crate::{
             MetadataAwareFunctionEvaluator, MetadataAwareNavigator,
         },
     },
+    path::CanonicalPath,
     registry::FunctionRegistry,
     typing::{TypeResolver, TypeResolverFactory},
-    wrapped::{WrappedCollection, WrappedValue, ValueMetadata, collection_utils},
-    path::CanonicalPath,
+    wrapped::{ValueMetadata, WrappedCollection, WrappedValue, collection_utils},
 };
 
 /// Composite evaluator with metadata support
@@ -106,6 +106,39 @@ impl CompositeEvaluator {
                 // Convert identifier to string value for type names
                 let type_name = &identifier.name;
                 let string_value = crate::core::FhirPathValue::String(type_name.clone());
+                let metadata = crate::wrapped::ValueMetadata::primitive(
+                    "string".to_string(),
+                    crate::path::CanonicalPath::empty(),
+                );
+                let wrapped_value = WrappedValue::new(string_value, metadata);
+                Ok(vec![wrapped_value])
+            }
+            ExpressionNode::PropertyAccess(property_access) => {
+                // Handle property access patterns like System.Integer or FHIR.Patient
+                if let ExpressionNode::Identifier(base_identifier) = &*property_access.object {
+                    // Check if this looks like a type expression (namespace.type)
+                    if matches!(base_identifier.name.as_str(), "System" | "FHIR") {
+                        let type_name = format!("{}.{}", base_identifier.name, property_access.property);
+                        let string_value = crate::core::FhirPathValue::String(type_name);
+                        let metadata = crate::wrapped::ValueMetadata::primitive(
+                            "string".to_string(),
+                            crate::path::CanonicalPath::empty(),
+                        );
+                        let wrapped_value = WrappedValue::new(string_value, metadata);
+                        Ok(vec![wrapped_value])
+                    } else {
+                        // For non-type property access, evaluate normally
+                        Box::pin(self.evaluate_with_metadata(arg, context)).await
+                    }
+                } else {
+                    // For complex property access, evaluate normally
+                    Box::pin(self.evaluate_with_metadata(arg, context)).await
+                }
+            }
+            ExpressionNode::TypeInfo(type_info) => {
+                // Handle TypeInfo nodes directly
+                let type_name = format!("{}.{}", type_info.namespace, type_info.name);
+                let string_value = crate::core::FhirPathValue::String(type_name);
                 let metadata = crate::wrapped::ValueMetadata::primitive(
                     "string".to_string(),
                     crate::path::CanonicalPath::empty(),
@@ -217,7 +250,11 @@ impl CompositeEvaluator {
                 for (index, wrapped_item) in object.iter().enumerate() {
                     // Create lambda context with this item as $this and current index as $index
                     let lambda_context = self
-                        .create_lambda_context_for_item_with_index(wrapped_item, context, Some(index))
+                        .create_lambda_context_for_item_with_index(
+                            wrapped_item,
+                            context,
+                            Some(index),
+                        )
                         .await?;
 
                     // Evaluate the lambda expression in this context
@@ -253,19 +290,20 @@ impl CompositeEvaluator {
             }
             "trace" => {
                 // Get the trace name from the first argument
-                let trace_name = if let crate::ast::ExpressionNode::Literal(literal) = &arguments[0] {
+                let trace_name = if let crate::ast::ExpressionNode::Literal(literal) = &arguments[0]
+                {
                     if let crate::ast::LiteralValue::String(name) = &literal.value {
                         name.clone()
                     } else {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             crate::core::error_code::FP0053,
-                            "trace() first argument must be a string (trace name)".to_string()
+                            "trace() first argument must be a string (trace name)".to_string(),
                         ));
                     }
                 } else {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         crate::core::error_code::FP0053,
-                        "trace() first argument must be a string literal".to_string()
+                        "trace() first argument must be a string literal".to_string(),
                     ));
                 };
 
@@ -280,31 +318,39 @@ impl CompositeEvaluator {
                     // trace(name, projection) - evaluate projection on each item and trace the results
                     // BUT return the original input collection unchanged (trace doesn't transform output)
                     let projection_expression = &arguments[1];
-                    
+
                     for (i, wrapped_item) in object.iter().enumerate() {
                         // Create lambda context for each item
                         let lambda_context = self
-                            .create_lambda_context_for_item_with_index(wrapped_item, context, Some(i))
+                            .create_lambda_context_for_item_with_index(
+                                wrapped_item,
+                                context,
+                                Some(i),
+                            )
                             .await?;
-                        
+
                         // Evaluate the projection expression in this context
                         let projection_result = self
-                            .evaluate_expression_with_metadata(projection_expression, &lambda_context)
+                            .evaluate_expression_with_metadata(
+                                projection_expression,
+                                &lambda_context,
+                            )
                             .await?;
-                        
+
                         // Trace each projected value
                         for (j, projected) in projection_result.iter().enumerate() {
                             let trace_output = self.format_trace_value_with_metadata(projected);
                             eprintln!("TRACE[{}][{}:{}]: {}", trace_name, i, j, trace_output);
                         }
                     }
-                    
+
                     // trace() always returns the original input collection unchanged
                     Ok(object.clone())
                 } else {
                     Err(crate::core::FhirPathError::evaluation_error(
                         crate::core::error_code::FP0053,
-                        "trace() requires 1 or 2 arguments: trace(name) or trace(name, projection)".to_string()
+                        "trace() requires 1 or 2 arguments: trace(name) or trace(name, projection)"
+                            .to_string(),
                     ))
                 }
             }
@@ -334,7 +380,8 @@ impl CompositeEvaluator {
         item: &WrappedValue,
         parent_context: &EvaluationContext,
     ) -> Result<EvaluationContext> {
-        self.create_lambda_context_for_item_with_index(item, parent_context, None).await
+        self.create_lambda_context_for_item_with_index(item, parent_context, None)
+            .await
     }
 
     async fn create_lambda_context_for_item_with_index(
@@ -386,14 +433,13 @@ impl CompositeEvaluator {
             crate::core::FhirPathValue::Date(d) => format!("{}(Date)", d.to_string()),
             crate::core::FhirPathValue::DateTime(dt) => format!("{}(DateTime)", dt.to_string()),
             crate::core::FhirPathValue::Time(t) => format!("{}(Time)", t.to_string()),
-            crate::core::FhirPathValue::Quantity { value, unit, .. } => {
-                match unit {
-                    Some(u) => format!("{} {}(Quantity)", value, u),
-                    None => format!("{}(Quantity)", value),
-                }
-            }
+            crate::core::FhirPathValue::Quantity { value, unit, .. } => match unit {
+                Some(u) => format!("{} {}(Quantity)", value, u),
+                None => format!("{}(Quantity)", value),
+            },
             crate::core::FhirPathValue::Resource(resource) => {
-                let resource_type = resource.get("resourceType")
+                let resource_type = resource
+                    .get("resourceType")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
                 format!("Resource({})", resource_type)
@@ -403,7 +449,10 @@ impl CompositeEvaluator {
                     if let Some(resource_type) = json.get("resourceType").and_then(|v| v.as_str()) {
                         format!("Resource({})", resource_type)
                     } else {
-                        format!("Object({})", json.to_string().chars().take(50).collect::<String>())
+                        format!(
+                            "Object({})",
+                            json.to_string().chars().take(50).collect::<String>()
+                        )
                     }
                 } else if json.is_array() {
                     format!("Array[{}]", json.as_array().map(|a| a.len()).unwrap_or(0))
@@ -415,26 +464,30 @@ impl CompositeEvaluator {
                 format!("Collection[{}]", items.len())
             }
             crate::core::FhirPathValue::Id(id) => format!("{}(Id)", id),
-            crate::core::FhirPathValue::Base64Binary(data) => format!("Base64[{}](Base64Binary)", data.len()),
+            crate::core::FhirPathValue::Base64Binary(data) => {
+                format!("Base64[{}](Base64Binary)", data.len())
+            }
             crate::core::FhirPathValue::Uri(uri) => format!("{}(Uri)", uri),
             crate::core::FhirPathValue::Url(url) => format!("{}(Url)", url),
-            crate::core::FhirPathValue::TypeInfoObject { namespace, name } => format!("{}:{}(TypeInfo)", namespace, name),
+            crate::core::FhirPathValue::TypeInfoObject { namespace, name } => {
+                format!("{}:{}(TypeInfo)", namespace, name)
+            }
             crate::core::FhirPathValue::Empty => "<empty>".to_string(),
         };
-        
+
         // Add metadata information if available
         let type_info = if wrapped.fhir_type() != "unknown" {
             format!(" [{}]", wrapped.fhir_type())
         } else {
             String::new()
         };
-        
+
         let path_info = if !wrapped.path().is_empty() {
             format!(" @{}", wrapped.path().to_string())
         } else {
             String::new()
         };
-        
+
         format!("{}{}{}", value_str, type_info, path_info)
     }
 
@@ -1245,7 +1298,7 @@ impl CompositeEvaluator {
                         )
                         .await;
                 }
-                
+
                 // Special handling for trace method with projection
                 if method.method == "trace" && method.arguments.len() == 2 {
                     // trace(name, projection) needs lambda handling for the projection
@@ -1324,26 +1377,27 @@ impl CompositeEvaluator {
             ExpressionNode::BinaryOperation(binop) => {
                 let left_result =
                     Box::pin(self.evaluate_with_metadata(&binop.left, context)).await?;
-                
+
                 // Handle type literal patterns for 'is' and 'as' operators
-                let right_result = if matches!(binop.operator, BinaryOperator::Is | BinaryOperator::As) {
-                    // Check if right side is a type literal pattern like System.Integer or FHIR.code
-                    if let Some(type_name) = self.extract_type_literal(&binop.right) {
-                        // Convert type literal to string value
-                        let type_value = FhirPathValue::String(type_name);
-                        let metadata = ValueMetadata {
-                            fhir_type: "string".to_string(),
-                            resource_type: None,
-                            path: CanonicalPath::empty(),
-                            index: None,
-                        };
-                        collection_utils::single(WrappedValue::new(type_value, metadata))
+                let right_result =
+                    if matches!(binop.operator, BinaryOperator::Is | BinaryOperator::As) {
+                        // Check if right side is a type literal pattern like System.Integer or FHIR.code
+                        if let Some(type_name) = self.extract_type_literal(&binop.right) {
+                            // Convert type literal to string value
+                            let type_value = FhirPathValue::String(type_name);
+                            let metadata = ValueMetadata {
+                                fhir_type: "string".to_string(),
+                                resource_type: None,
+                                path: CanonicalPath::empty(),
+                                index: None,
+                            };
+                            collection_utils::single(WrappedValue::new(type_value, metadata))
+                        } else {
+                            Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
+                        }
                     } else {
                         Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
-                    }
-                } else {
-                    Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
-                };
+                    };
 
                 // Convert to plain values for operator evaluation
                 let left_plain = self.wrapped_to_plain(&left_result);
@@ -1584,10 +1638,12 @@ impl CompositeEvaluator {
     /// Extract type literal from expression node (e.g., System.Integer -> "System.Integer")
     fn extract_type_literal(&self, expr: &ExpressionNode) -> Option<String> {
         use crate::ast::{ExpressionNode, IdentifierNode, PropertyAccessNode};
-        
+
         match expr {
             // Pattern: System.Integer, System.String, FHIR.code, etc.
-            ExpressionNode::PropertyAccess(PropertyAccessNode { object, property, .. }) => {
+            ExpressionNode::PropertyAccess(PropertyAccessNode {
+                object, property, ..
+            }) => {
                 if let ExpressionNode::Identifier(IdentifierNode { name, .. }) = object.as_ref() {
                     // Check for known type literal namespaces
                     if name == "System" || name == "FHIR" {
@@ -1597,7 +1653,7 @@ impl CompositeEvaluator {
             }
             _ => {}
         }
-        
+
         None
     }
 }

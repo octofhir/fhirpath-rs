@@ -7,8 +7,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::{
-    core::{FhirPathError, FhirPathValue, Result, error_code::*},
     core::types::Collection,
+    core::{FhirPathError, FhirPathValue, Result, error_code::*},
     evaluator::{
         EvaluationContext,
         metadata_functions::MetadataFunctionEvaluator,
@@ -501,7 +501,9 @@ impl FunctionEvaluatorImpl {
                 .into_iter()
                 .map(|wrapped| wrapped.as_plain().clone())
                 .collect();
-            Ok(FhirPathValue::Collection(Collection::from_values(plain_values)))
+            Ok(FhirPathValue::Collection(Collection::from_values(
+                plain_values,
+            )))
         }
     }
 

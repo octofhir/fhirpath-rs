@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use crate::{
     ast::{ExpressionNode, IdentifierNode, LiteralNode, VariableNode},
-    core::{FhirPathError, FhirPathValue, Result, error_code::*},
     core::types::Collection,
+    core::{FhirPathError, FhirPathValue, Result, error_code::*},
     evaluator::metadata_core::MetadataCoreEvaluator,
     evaluator::{
         EvaluationContext,

@@ -172,8 +172,8 @@ impl FunctionDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{FhirPathValue, ModelProvider};
     use crate::MockModelProvider;
+    use crate::core::{FhirPathValue, ModelProvider};
     use std::collections::HashMap;
     use std::sync::Arc;
 

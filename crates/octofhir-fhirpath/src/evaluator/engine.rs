@@ -232,7 +232,7 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<crate::core::CollectionWithMetadata> {
         use crate::core::{CollectionWithMetadata, ResultWithMetadata, ValueTypeInfo};
-        
+
         let start_time = std::time::Instant::now();
         let mut type_stats = TypeResolutionStats::default();
 
@@ -254,11 +254,27 @@ impl FhirPathEngine {
                 expected_return_type: Some(wrapped_value.metadata.fhir_type.clone()),
                 cardinality: Some("0..1".to_string()),
                 constraints: Vec::new(),
-                is_fhir_type: matches!(wrapped_value.value, crate::core::FhirPathValue::Resource(_)),
-                namespace: wrapped_value.metadata.resource_type.as_ref().map(|_| "FHIR".to_string()),
+                is_fhir_type: matches!(
+                    wrapped_value.value,
+                    crate::core::FhirPathValue::Resource(_)
+                ),
+                namespace: wrapped_value
+                    .metadata
+                    .resource_type
+                    .as_ref()
+                    .map(|_| "FHIR".to_string()),
             };
 
-            let result = ResultWithMetadata::new(wrapped_value.value, type_info);
+            // Create metadata JSON with path information
+            let metadata_json = serde_json::json!({
+                "path": wrapped_value.metadata.path.to_string(),
+                "fhir_type": wrapped_value.metadata.fhir_type,
+                "resource_type": wrapped_value.metadata.resource_type,
+                "index": wrapped_value.metadata.index
+            });
+
+            let result = ResultWithMetadata::new(wrapped_value.value, type_info)
+                .with_metadata(metadata_json);
             results.push(result);
         }
 

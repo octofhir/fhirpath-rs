@@ -2460,9 +2460,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_resource_type_error() {
+        use crate::MockModelProvider;
         use crate::ast::expression::{ExpressionNode, IdentifierNode};
         use crate::core::SourceLocation;
-        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2559,9 +2559,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_property_access_resource_validation() {
+        use crate::MockModelProvider;
         use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
         use crate::core::SourceLocation;
-        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2602,9 +2602,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_valid_resource_type_no_error() {
+        use crate::MockModelProvider;
         use crate::ast::expression::{ExpressionNode, IdentifierNode, PropertyAccessNode};
         use crate::core::SourceLocation;
-        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());
@@ -2793,9 +2793,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_function_validation_in_expression() {
+        use crate::MockModelProvider;
         use crate::ast::expression::{ExpressionNode, FunctionCallNode};
         use crate::core::SourceLocation;
-        use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
 
         let model_provider = Arc::new(MockModelProvider::new());

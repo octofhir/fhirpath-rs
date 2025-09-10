@@ -482,7 +482,7 @@ impl FunctionRegistry {
                 } else {
                     // If requested precision < actual precision, truncate to that precision
                     let scale_factor = Decimal::new(1, p as u32);
-                    
+
                     // Special case: if the absolute value is smaller than the precision scale, return 0
                     if value.abs() < scale_factor {
                         Decimal::ZERO

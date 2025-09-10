@@ -127,7 +127,10 @@ impl MetadataNavigator {
                         );
                     }
                     // First try to get proper type from ModelProvider for array elements
-                    match self.get_property_type_cached(&source_metadata.fhir_type, property, resolver).await {
+                    match self
+                        .get_property_type_cached(&source_metadata.fhir_type, property, resolver)
+                        .await
+                    {
                         Ok(resolved_type) => {
                             if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                                 eprintln!(
@@ -136,7 +139,7 @@ impl MetadataNavigator {
                                 );
                             }
                             resolved_type
-                        },
+                        }
                         Err(_) => {
                             if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                                 eprintln!(
@@ -225,7 +228,10 @@ impl MetadataNavigator {
             }
             None => {
                 // Property not found in JSON - check for polymorphic choice types
-                if let Some(choice_property) = self.check_choice_type_properties(json, property, source_metadata, resolver).await? {
+                if let Some(choice_property) = self
+                    .check_choice_type_properties(json, property, source_metadata, resolver)
+                    .await?
+                {
                     Ok(choice_property)
                 } else {
                     // PERFORMANCE OPTIMIZATION: Property not found and no polymorphic match
@@ -259,15 +265,19 @@ impl MetadataNavigator {
 
         // Use ModelProvider to get type reflection and find choice type properties
         let model_provider = resolver.model_provider().clone();
-        match model_provider.get_type_reflection(&source_metadata.fhir_type).await {
+        match model_provider
+            .get_type_reflection(&source_metadata.fhir_type)
+            .await
+        {
             Ok(Some(octofhir_fhir_model::TypeReflectionInfo::ClassInfo { elements, .. })) => {
                 if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                     eprintln!(
                         "🔍 POLYMORPHIC SCHEMA: Got {} elements for {}",
-                        elements.len(), source_metadata.fhir_type
+                        elements.len(),
+                        source_metadata.fhir_type
                     );
                 }
-                
+
                 // Look for schema elements that start with the requested property name
                 // This correctly handles choice types like value[x] -> valueQuantity, valueString, etc.
                 for element in elements {
@@ -277,14 +287,20 @@ impl MetadataNavigator {
                             if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                                 eprintln!(
                                     "🔍 POLYMORPHIC SUCCESS: {}.{} -> {} (via schema choice type)",
-                                    source_metadata.fhir_type, element.name, element.type_info.name()
+                                    source_metadata.fhir_type,
+                                    element.name,
+                                    element.type_info.name()
                                 );
                             }
-                            
+
                             // Found matching choice type - use it
                             let property_path = source_metadata.path.append_property(&element.name);
                             let property_type = element.type_info.name().to_string();
-                            let wrapped_collection = self.json_to_wrapped_collection(value, property_path, property_type);
+                            let wrapped_collection = self.json_to_wrapped_collection(
+                                value,
+                                property_path,
+                                property_type,
+                            );
                             return Ok(Some(wrapped_collection));
                         }
                     }
@@ -427,11 +443,11 @@ impl MetadataNavigator {
                 if let Some(_resource_type) = obj.get("resourceType").and_then(|v| v.as_str()) {
                     // This is a FHIR resource - create a Resource value to preserve type information
                     FhirPathValue::Resource(Arc::new(json.clone()))
-                } 
+                }
                 // CRITICAL FIX: Check if this is a FHIR Quantity data type
                 else if let (Some(value), Some(code)) = (
                     obj.get("value").and_then(|v| v.as_f64()),
-                    obj.get("code").and_then(|c| c.as_str())
+                    obj.get("code").and_then(|c| c.as_str()),
                 ) {
                     if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                         eprintln!(
@@ -443,8 +459,7 @@ impl MetadataNavigator {
                     let decimal_value = rust_decimal::Decimal::from_f64_retain(value)
                         .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0));
                     FhirPathValue::quantity(decimal_value, Some(code.to_string()))
-                }
-                else {
+                } else {
                     // Regular JSON object
                     FhirPathValue::JsonValue(Arc::new(json.clone()))
                 }
@@ -463,7 +478,8 @@ impl MetadataNavigator {
             FhirPathValue::Collection(values) => {
                 if let Some(value) = values.get(index) {
                     // Determine the actual type of this specific element
-                    let element_type = crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
+                    let element_type =
+                        crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
 
                     // Create indexed path
                     let indexed_path = source.metadata.path.append_index(index);
@@ -536,7 +552,8 @@ impl MetadataAwareNavigator for MetadataNavigator {
                 for (i, value) in values.iter().enumerate() {
                     // Create temporary wrapped value for each collection element
                     // Determine the actual type of this element
-                    let element_type = crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
+                    let element_type =
+                        crate::typing::type_utils::fhirpath_value_to_fhir_type(value);
                     let element_metadata = source.metadata.derive_index(i, Some(element_type));
                     let wrapped_element = WrappedValue::new(value.clone(), element_metadata);
 
@@ -549,7 +566,7 @@ impl MetadataAwareNavigator for MetadataNavigator {
                         Err(err) => {
                             // Check if this is a property access error on primitive type (FP0052)
                             if err.error_code() == &crate::core::error_code::FP0052 {
-                                // Silently ignore - FHIRPath specification allows property access 
+                                // Silently ignore - FHIRPath specification allows property access
                                 // on mixed collections to ignore non-navigable items
                                 continue;
                             } else {
@@ -575,7 +592,10 @@ impl MetadataAwareNavigator for MetadataNavigator {
                             index: None,
                         };
                         let quantity_value = FhirPathValue::Decimal(*value);
-                        Ok(collection_utils::single(WrappedValue::new(quantity_value, metadata)))
+                        Ok(collection_utils::single(WrappedValue::new(
+                            quantity_value,
+                            metadata,
+                        )))
                     }
                     "unit" | "code" => {
                         let property_path = source.metadata.path.append_property(property);
@@ -587,7 +607,9 @@ impl MetadataAwareNavigator for MetadataNavigator {
                         };
                         if let Some(unit_str) = unit {
                             let unit_value = FhirPathValue::String(unit_str.clone());
-                            Ok(collection_utils::single(WrappedValue::new(unit_value, metadata)))
+                            Ok(collection_utils::single(WrappedValue::new(
+                                unit_value, metadata,
+                            )))
                         } else {
                             Ok(collection_utils::empty())
                         }
@@ -603,8 +625,12 @@ impl MetadataAwareNavigator for MetadataNavigator {
                         };
                         // Return UCUM system URI if unit is present
                         if unit.is_some() {
-                            let system_value = FhirPathValue::String("http://unitsofmeasure.org".to_string());
-                            Ok(collection_utils::single(WrappedValue::new(system_value, metadata)))
+                            let system_value =
+                                FhirPathValue::String("http://unitsofmeasure.org".to_string());
+                            Ok(collection_utils::single(WrappedValue::new(
+                                system_value,
+                                metadata,
+                            )))
                         } else {
                             Ok(collection_utils::empty())
                         }
@@ -708,10 +734,7 @@ mod tests {
         });
 
         let source_metadata = ValueMetadata::resource("Patient".to_string());
-        let source = WrappedValue::new(
-            FhirPathValue::JsonValue(patient_json),
-            source_metadata,
-        );
+        let source = WrappedValue::new(FhirPathValue::JsonValue(patient_json), source_metadata);
 
         let name_results = navigator
             .navigate_property_with_metadata(&source, "name", &resolver)
@@ -733,10 +756,7 @@ mod tests {
             "Array<string>".to_string(),
             CanonicalPath::parse("Patient.name.given").unwrap(),
         );
-        let source = WrappedValue::new(
-            FhirPathValue::JsonValue(collection_json),
-            source_metadata,
-        );
+        let source = WrappedValue::new(FhirPathValue::JsonValue(collection_json), source_metadata);
 
         let indexed_result = navigator
             .navigate_index_with_metadata(&source, 1, &resolver)
@@ -765,10 +785,7 @@ mod tests {
         });
 
         let source_metadata = ValueMetadata::resource("Patient".to_string());
-        let source = WrappedValue::new(
-            FhirPathValue::JsonValue(patient_json),
-            source_metadata,
-        );
+        let source = WrappedValue::new(FhirPathValue::JsonValue(patient_json), source_metadata);
 
         let path_segments = vec!["name", "given"];
         let results = navigator

@@ -524,8 +524,7 @@ impl LayoutManager {
 
     /// Get panel type at given screen coordinates
     pub fn get_panel_at_position(&self, x: u16, y: u16) -> Option<PanelType> {
-        // This is a simplified implementation - in a real app you'd use the current layout
-        // For now, just return the focused panel or determine based on rough screen areas
+        // Return the focused panel or determine based on rough screen areas
         let (width, height) = self.terminal_size;
 
         // Rough panel detection based on layout mode

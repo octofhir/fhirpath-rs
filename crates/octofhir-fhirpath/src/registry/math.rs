@@ -490,12 +490,12 @@ impl FunctionRegistry {
                         "log() can only be called on numeric values".to_string()
                     ))
                 };
-                
+
                 let first_arg = context.arguments.first().unwrap();
                 if first_arg.is_empty() {
                     return Ok(FhirPathValue::empty());
                 }
-                
+
                 let base = extract_numeric_value(first_arg, "log() base")?;
 
                 if value <= 0.0 {

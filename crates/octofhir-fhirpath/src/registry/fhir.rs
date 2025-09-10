@@ -108,7 +108,7 @@ impl FunctionRegistry {
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 use crate::core::error_code::{FP0051, FP0053};
-                
+
                 match context.arguments.len() {
                     0 => {
                         // extension() without arguments - return all extensions

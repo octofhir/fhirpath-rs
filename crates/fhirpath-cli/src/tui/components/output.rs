@@ -17,9 +17,7 @@
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
-use ratatui::widgets::{
-    Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-};
+use ratatui::widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 use ratatui::{Frame, text::Text};
 
 use super::{ComponentResult, ScrollState, SizeConstraints, TuiComponent, utils};

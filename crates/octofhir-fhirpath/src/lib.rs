@@ -103,9 +103,9 @@ pub use crate::evaluator::{
     CacheEfficiency,
     CacheMetrics,
     CacheStats,
-    EngineConfig,
     // Composite evaluator types
     CompositeEvaluator,
+    EngineConfig,
     // Context system
     EvaluationContext,
     EvaluationContextBuilder,

@@ -379,7 +379,8 @@ impl PrecisionDate {
                 (start, end)
             }
             TemporalPrecision::Month => {
-                let start = NaiveDate::from_ymd_opt(self.date.year(), self.date.month(), 1).unwrap();
+                let start =
+                    NaiveDate::from_ymd_opt(self.date.year(), self.date.month(), 1).unwrap();
                 // Last day of the month
                 let next_month = if self.date.month() == 12 {
                     NaiveDate::from_ymd_opt(self.date.year() + 1, 1, 1).unwrap()
@@ -415,14 +416,14 @@ impl fmt::Display for PrecisionDate {
 impl PartialOrd for PrecisionDate {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering;
-        
+
         // FHIRPath temporal comparison rules:
         // When two dates have different precisions and overlap, comparison is undefined (return None)
         // When they don't overlap, we can compare the ranges
-        
+
         let self_range = self.to_date_range();
         let other_range = other.to_date_range();
-        
+
         // Check if ranges overlap
         if self_range.0 <= other_range.1 && other_range.0 <= self_range.1 {
             // Ranges overlap
@@ -433,7 +434,7 @@ impl PartialOrd for PrecisionDate {
             // Same precision, can compare normally
             return Some(self.date.cmp(&other.date));
         }
-        
+
         // No overlap, can compare the ranges
         if self_range.1 < other_range.0 {
             Some(Ordering::Less)
@@ -507,8 +508,9 @@ impl PrecisionDateTime {
     /// Parse from ISO 8601 datetime string with timezone
     pub fn parse(s: &str) -> Option<Self> {
         // Detect if original string has explicit timezone information
-        let has_tz = s.ends_with('Z') || s.contains('+') || s.rfind('-').map_or(false, |pos| pos > 10);
-        
+        let has_tz =
+            s.ends_with('Z') || s.contains('+') || s.rfind('-').map_or(false, |pos| pos > 10);
+
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if s.ends_with('Z') {
             let mut owned = s.to_string();
@@ -580,7 +582,9 @@ impl PrecisionDateTime {
         }
 
         // Detect if original string has explicit timezone information
-        let has_tz = trimmed.ends_with('Z') || trimmed.contains('+') || trimmed.rfind('-').map_or(false, |pos| pos > 10);
+        let has_tz = trimmed.ends_with('Z')
+            || trimmed.contains('+')
+            || trimmed.rfind('-').map_or(false, |pos| pos > 10);
 
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if trimmed.ends_with('Z') {
@@ -649,57 +653,131 @@ impl PrecisionDateTime {
     /// Convert this precision datetime to a datetime range (start, end) representing all possible datetimes at this precision
     pub fn to_datetime_range(&self) -> (DateTime<FixedOffset>, DateTime<FixedOffset>) {
         use chrono::Timelike;
-        
+
         match self.precision {
             TemporalPrecision::Year => {
-                let start = self.datetime.with_month(1).unwrap().with_day(1).unwrap()
-                    .with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
-                let end = self.datetime.with_month(12).unwrap().with_day(31).unwrap()
-                    .with_hour(23).unwrap().with_minute(59).unwrap().with_second(59).unwrap()
-                    .with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .datetime
+                    .with_month(1)
+                    .unwrap()
+                    .with_day(1)
+                    .unwrap()
+                    .with_hour(0)
+                    .unwrap()
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .datetime
+                    .with_month(12)
+                    .unwrap()
+                    .with_day(31)
+                    .unwrap()
+                    .with_hour(23)
+                    .unwrap()
+                    .with_minute(59)
+                    .unwrap()
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Month => {
-                let start = self.datetime.with_day(1).unwrap()
-                    .with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
+                let start = self
+                    .datetime
+                    .with_day(1)
+                    .unwrap()
+                    .with_hour(0)
+                    .unwrap()
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
                 // Last day of the month
                 let next_month = if self.datetime.month() == 12 {
-                    self.datetime.with_year(self.datetime.year() + 1).unwrap().with_month(1).unwrap()
+                    self.datetime
+                        .with_year(self.datetime.year() + 1)
+                        .unwrap()
+                        .with_month(1)
+                        .unwrap()
                 } else {
                     self.datetime.with_month(self.datetime.month() + 1).unwrap()
                 };
-                let end = next_month.with_day(1).unwrap().with_hour(0).unwrap()
-                    .with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap()
+                let end = next_month
+                    .with_day(1)
+                    .unwrap()
+                    .with_hour(0)
+                    .unwrap()
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap()
                     - chrono::Duration::nanoseconds(1);
                 (start, end)
             }
             TemporalPrecision::Day => {
-                let start = self.datetime
-                    .with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
-                let end = self.datetime
-                    .with_hour(23).unwrap().with_minute(59).unwrap().with_second(59).unwrap()
-                    .with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .datetime
+                    .with_hour(0)
+                    .unwrap()
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .datetime
+                    .with_hour(23)
+                    .unwrap()
+                    .with_minute(59)
+                    .unwrap()
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Hour => {
-                let start = self.datetime
-                    .with_minute(0).unwrap().with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
-                let end = self.datetime
-                    .with_minute(59).unwrap().with_second(59).unwrap()
-                    .with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .datetime
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .datetime
+                    .with_minute(59)
+                    .unwrap()
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Minute => {
-                let start = self.datetime
-                    .with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
-                let end = self.datetime
-                    .with_second(59).unwrap()
-                    .with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .datetime
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .datetime
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Second => {
@@ -737,61 +815,59 @@ impl fmt::Display for PrecisionDateTime {
 
 impl PartialOrd for PrecisionDateTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        
-        
         // Check timezone compatibility per FHIRPath spec
         // DateTime with timezone cannot be compared to DateTime without timezone
         if self.tz_specified != other.tz_specified {
             return None;
         }
-        
+
         // Same precision - can compare normally
         if self.precision == other.precision {
             return Some(self.datetime.cmp(&other.datetime));
         }
-        
+
         // Different precisions - check if this is a wide precision gap vs narrow gap
         let precision_diff = (self.precision as i8 - other.precision as i8).abs();
-        
+
         // FHIRPath temporal comparison rules with common FHIR patterns:
         // Allow Date (Day precision) vs DateTime comparisons for common use cases
         let allows_comparison = match (self.precision, other.precision) {
             // Allow Day precision vs any time precision (common FHIR pattern)
-            (TemporalPrecision::Day, TemporalPrecision::Hour) |
-            (TemporalPrecision::Day, TemporalPrecision::Minute) |
-            (TemporalPrecision::Day, TemporalPrecision::Second) |
-            (TemporalPrecision::Day, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Hour, TemporalPrecision::Day) |
-            (TemporalPrecision::Minute, TemporalPrecision::Day) |
-            (TemporalPrecision::Second, TemporalPrecision::Day) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Day) => true,
+            (TemporalPrecision::Day, TemporalPrecision::Hour)
+            | (TemporalPrecision::Day, TemporalPrecision::Minute)
+            | (TemporalPrecision::Day, TemporalPrecision::Second)
+            | (TemporalPrecision::Day, TemporalPrecision::Millisecond)
+            | (TemporalPrecision::Hour, TemporalPrecision::Day)
+            | (TemporalPrecision::Minute, TemporalPrecision::Day)
+            | (TemporalPrecision::Second, TemporalPrecision::Day)
+            | (TemporalPrecision::Millisecond, TemporalPrecision::Day) => true,
             // Allow narrow precision gaps (1 level difference)
             _ => precision_diff < 2,
         };
-        
+
         if !allows_comparison {
             // Wide precision gap - undefined comparison
             return None;
         }
-        
+
         // Narrow precision gap (1 level difference)
         // Check if they represent the exact same moment when normalized
         let _self_normalized = self.datetime.timestamp_millis();
         let _other_normalized = other.datetime.timestamp_millis();
-        
+
         // For narrow precision differences, if they're within the same precision window, compare
         match (self.precision, other.precision) {
             // Second vs Millisecond comparisons (most common narrow gap)
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
                 // For second vs millisecond, check if they represent the same time window
                 // Second precision represents a range (e.g., 10:30:00.000 to 10:30:00.999)
                 // Millisecond precision represents an exact moment within that range
-                
+
                 // Normalize both to the same precision (truncate to seconds)
                 let self_truncated = self.datetime.with_nanosecond(0).unwrap();
                 let other_truncated = other.datetime.with_nanosecond(0).unwrap();
-                
+
                 if self_truncated == other_truncated {
                     // They represent the same second - for comparisons within the same second,
                     // the more precise value can be compared directly
@@ -816,29 +892,27 @@ impl PartialOrd for PrecisionDateTime {
                                 Some(std::cmp::Ordering::Greater)
                             }
                         }
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     // Different seconds, compare normally
                     Some(self.datetime.cmp(&other.datetime))
                 }
             }
-            
+
             // Minute vs Second comparisons (wide gap - should be undefined)
-            (TemporalPrecision::Minute, TemporalPrecision::Second) |
-            (TemporalPrecision::Second, TemporalPrecision::Minute) => {
+            (TemporalPrecision::Minute, TemporalPrecision::Second)
+            | (TemporalPrecision::Second, TemporalPrecision::Minute) => {
                 // Wide precision gap - undefined comparison
                 None
             }
-            
+
             // Hour vs Minute comparisons (wide gap)
-            (TemporalPrecision::Hour, TemporalPrecision::Minute) |
-            (TemporalPrecision::Minute, TemporalPrecision::Hour) => {
-                None
-            }
-            
+            (TemporalPrecision::Hour, TemporalPrecision::Minute)
+            | (TemporalPrecision::Minute, TemporalPrecision::Hour) => None,
+
             // Other combinations - compare normally
-            _ => Some(self.datetime.cmp(&other.datetime))
+            _ => Some(self.datetime.cmp(&other.datetime)),
         }
     }
 }
@@ -917,15 +991,37 @@ impl PrecisionTime {
     pub fn to_time_range(&self) -> (NaiveTime, NaiveTime) {
         match self.precision {
             TemporalPrecision::Hour => {
-                let start = self.time.with_minute(0).unwrap().with_second(0).unwrap()
-                    .with_nanosecond(0).unwrap();
-                let end = self.time.with_minute(59).unwrap().with_second(59).unwrap()
-                    .with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .time
+                    .with_minute(0)
+                    .unwrap()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .time
+                    .with_minute(59)
+                    .unwrap()
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Minute => {
-                let start = self.time.with_second(0).unwrap().with_nanosecond(0).unwrap();
-                let end = self.time.with_second(59).unwrap().with_nanosecond(999_999_999).unwrap();
+                let start = self
+                    .time
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
+                let end = self
+                    .time
+                    .with_second(59)
+                    .unwrap()
+                    .with_nanosecond(999_999_999)
+                    .unwrap();
                 (start, end)
             }
             TemporalPrecision::Second => {
@@ -961,16 +1057,14 @@ impl fmt::Display for PrecisionTime {
 
 impl PartialOrd for PrecisionTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        
-        
         // Same precision - can compare normally
         if self.precision == other.precision {
             return Some(self.time.cmp(&other.time));
         }
-        
+
         // Different precisions - check if this is a wide precision gap vs narrow gap
         let precision_diff = (self.precision as i8 - other.precision as i8).abs();
-        
+
         // FHIRPath temporal comparison rules:
         // Wide precision gaps (e.g. minute vs second) return undefined (None)
         // Narrow precision gaps (e.g. second vs millisecond) representing the same moment can be compared
@@ -978,21 +1072,21 @@ impl PartialOrd for PrecisionTime {
             // Wide precision gap - undefined comparison
             return None;
         }
-        
+
         // Narrow precision gap (1 level difference)
         // For narrow precision differences, if they're within the same precision window, compare
         match (self.precision, other.precision) {
             // Second vs Millisecond comparisons (most common narrow gap)
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
                 // For second vs millisecond, check if they represent the same time window
                 // Second precision represents a range (e.g., 10:30:00.000 to 10:30:00.999)
                 // Millisecond precision represents an exact moment within that range
-                
+
                 // Normalize both to the same precision (truncate to seconds)
                 let self_truncated = self.time.with_nanosecond(0).unwrap();
                 let other_truncated = other.time.with_nanosecond(0).unwrap();
-                
+
                 if self_truncated == other_truncated {
                     // They represent the same second - for comparisons within the same second,
                     // the more precise value can be compared directly
@@ -1017,29 +1111,27 @@ impl PartialOrd for PrecisionTime {
                                 Some(std::cmp::Ordering::Greater)
                             }
                         }
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     // Different seconds, compare normally
                     Some(self.time.cmp(&other.time))
                 }
             }
-            
+
             // Minute vs Second comparisons (wide gap - should be undefined)
-            (TemporalPrecision::Minute, TemporalPrecision::Second) |
-            (TemporalPrecision::Second, TemporalPrecision::Minute) => {
+            (TemporalPrecision::Minute, TemporalPrecision::Second)
+            | (TemporalPrecision::Second, TemporalPrecision::Minute) => {
                 // Wide precision gap - undefined comparison
                 None
             }
-            
+
             // Hour vs Minute comparisons (wide gap)
-            (TemporalPrecision::Hour, TemporalPrecision::Minute) |
-            (TemporalPrecision::Minute, TemporalPrecision::Hour) => {
-                None
-            }
-            
+            (TemporalPrecision::Hour, TemporalPrecision::Minute)
+            | (TemporalPrecision::Minute, TemporalPrecision::Hour) => None,
+
             // Other combinations - compare normally
-            _ => Some(self.time.cmp(&other.time))
+            _ => Some(self.time.cmp(&other.time)),
         }
     }
 }

@@ -1071,26 +1071,29 @@ impl MetadataFunctionEvaluator {
         if args.is_empty() || args.len() > 2 {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "trace() requires 1 or 2 arguments: trace(name) or trace(name, projection)".to_string()
+                "trace() requires 1 or 2 arguments: trace(name) or trace(name, projection)"
+                    .to_string(),
             ));
         }
-        
+
         // Get the trace name parameter
         let trace_name = if let Some(first_arg) = args[0].first() {
             match first_arg.as_plain() {
                 FhirPathValue::String(name) => name.clone(),
-                _ => return Err(crate::core::FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    "trace() first argument must be a string (trace name)".to_string()
-                ))
+                _ => {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        "trace() first argument must be a string (trace name)".to_string(),
+                    ));
+                }
             }
         } else {
             return Err(crate::core::FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "trace() requires a trace name".to_string()
+                "trace() requires a trace name".to_string(),
             ));
         };
-        
+
         if args.len() == 1 {
             // trace(name) - trace input values and return them
             for (i, wrapped) in object.iter().enumerate() {
@@ -1100,22 +1103,25 @@ impl MetadataFunctionEvaluator {
         } else {
             // trace(name, projection) - evaluate projection expression on each item
             // The projection should be evaluated in the context of each item
-            
+
             for (i, wrapped) in object.iter().enumerate() {
                 let item_trace = self.format_trace_value_with_metadata(wrapped);
-                
+
                 // For the projection evaluation, we need to get the expression AST from args[1]
                 // For now, we'll show a simplified trace indicating projection was requested
                 // The actual projection evaluation would be done by the engine's lambda evaluator
-                
-                eprintln!("TRACE[{}][{}]: {} (with projection)", trace_name, i, item_trace);
+
+                eprintln!(
+                    "TRACE[{}][{}]: {} (with projection)",
+                    trace_name, i, item_trace
+                );
             }
         }
-        
+
         // trace() always returns the original input collection unchanged
         Ok(Some(object.clone()))
     }
-    
+
     /// Format a WrappedValue for trace output with metadata information
     fn format_trace_value_with_metadata(&self, wrapped: &WrappedValue) -> String {
         let value_str = match wrapped.as_plain() {
@@ -1126,14 +1132,13 @@ impl MetadataFunctionEvaluator {
             FhirPathValue::Date(d) => format!("{}(Date)", d.to_string()),
             FhirPathValue::DateTime(dt) => format!("{}(DateTime)", dt.to_string()),
             FhirPathValue::Time(t) => format!("{}(Time)", t.to_string()),
-            FhirPathValue::Quantity { value, unit, .. } => {
-                match unit {
-                    Some(u) => format!("{} {}(Quantity)", value, u),
-                    None => format!("{}(Quantity)", value),
-                }
-            }
+            FhirPathValue::Quantity { value, unit, .. } => match unit {
+                Some(u) => format!("{} {}(Quantity)", value, u),
+                None => format!("{}(Quantity)", value),
+            },
             FhirPathValue::Resource(resource) => {
-                let resource_type = resource.get("resourceType")
+                let resource_type = resource
+                    .get("resourceType")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
                 format!("Resource({})", resource_type)
@@ -1143,7 +1148,10 @@ impl MetadataFunctionEvaluator {
                     if let Some(resource_type) = json.get("resourceType").and_then(|v| v.as_str()) {
                         format!("Resource({})", resource_type)
                     } else {
-                        format!("Object({})", json.to_string().chars().take(50).collect::<String>())
+                        format!(
+                            "Object({})",
+                            json.to_string().chars().take(50).collect::<String>()
+                        )
                     }
                 } else if json.is_array() {
                     format!("Array[{}]", json.as_array().map(|a| a.len()).unwrap_or(0))
@@ -1158,23 +1166,25 @@ impl MetadataFunctionEvaluator {
             FhirPathValue::Base64Binary(data) => format!("Base64[{}](Base64Binary)", data.len()),
             FhirPathValue::Uri(uri) => format!("{}(Uri)", uri),
             FhirPathValue::Url(url) => format!("{}(Url)", url),
-            FhirPathValue::TypeInfoObject { namespace, name } => format!("{}:{}(TypeInfo)", namespace, name),
+            FhirPathValue::TypeInfoObject { namespace, name } => {
+                format!("{}:{}(TypeInfo)", namespace, name)
+            }
             FhirPathValue::Empty => "<empty>".to_string(),
         };
-        
+
         // Add metadata information if available
         let type_info = if wrapped.fhir_type() != "unknown" {
             format!(" [{}]", wrapped.fhir_type())
         } else {
             String::new()
         };
-        
+
         let path_info = if !wrapped.path().is_empty() {
             format!(" @{}", wrapped.path().to_string())
         } else {
             String::new()
         };
-        
+
         format!("{}{}{}", value_str, type_info, path_info)
     }
 

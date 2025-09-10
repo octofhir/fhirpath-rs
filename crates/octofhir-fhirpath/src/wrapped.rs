@@ -374,7 +374,10 @@ pub mod integration {
                     path: base_path,
                     index: None,
                 };
-                collection_utils::from_plain_with_base_metadata(collection.into_vec(), base_metadata)
+                collection_utils::from_plain_with_base_metadata(
+                    collection.into_vec(),
+                    base_metadata,
+                )
             }
             single_value => {
                 let metadata = ValueMetadata {

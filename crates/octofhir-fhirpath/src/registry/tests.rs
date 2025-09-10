@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::core::{FhirPathValue, ModelProvider};
     use crate::MockModelProvider;
+    use crate::core::{FhirPathValue, ModelProvider};
     use std::collections::HashMap;
     use std::future::Future;
     use std::pin::Pin;

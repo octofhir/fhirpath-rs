@@ -456,13 +456,13 @@ impl MetadataCoreEvaluator {
         resolver: &TypeResolver,
     ) -> Result<WrappedCollection> {
         let start_collection = &context.start_context;
-        
+
         // Check if we have stored WrappedValue metadata for $this (in lambda contexts)
         if let Some(wrapped_var) = context.get_variable("__$this_wrapped__") {
             if let FhirPathValue::JsonValue(wrapped_json) = wrapped_var {
                 if start_collection.len() == 1 {
                     let value = start_collection.first().unwrap();
-                    
+
                     // Extract metadata from the stored JSON structure
                     if let Some(metadata_obj) = wrapped_json.get("metadata") {
                         let fhir_type = metadata_obj
@@ -470,39 +470,39 @@ impl MetadataCoreEvaluator {
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown")
                             .to_string();
-                            
+
                         let resource_type = metadata_obj
                             .get("resource_type")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
-                            
+
                         let path_str = metadata_obj
                             .get("path")
                             .and_then(|v| v.as_str())
                             .unwrap_or("");
-                            
+
                         let path = CanonicalPath::parse(path_str)
                             .unwrap_or_else(|_| CanonicalPath::empty());
-                            
+
                         let index = metadata_obj
                             .get("index")
                             .and_then(|v| v.as_u64())
                             .map(|i| i as usize);
-                        
+
                         let metadata = ValueMetadata {
                             fhir_type,
                             resource_type,
                             path,
                             index,
                         };
-                        
+
                         let wrapped = WrappedValue::new(value.clone(), metadata);
                         return Ok(vec![wrapped]);
                     }
                 }
             }
         }
-        
+
         self.collection_to_wrapped(start_collection, resolver).await
     }
 

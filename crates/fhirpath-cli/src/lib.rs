@@ -13,9 +13,6 @@
 // limitations under the License.
 
 //! FHIRPath CLI Library
-//!
-//! This crate provides the command-line interface functionality for the FHIRPath implementation.
-//! It includes REPL, TUI, server, output formatting, and various CLI utilities.
 
 pub mod cli;
 pub mod tui;

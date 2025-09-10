@@ -55,10 +55,7 @@ impl Collection {
 
     /// Create a collection from a vector with explicit ordering
     pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
-        Self {
-            values,
-            is_ordered,
-        }
+        Self { values, is_ordered }
     }
 
     /// Check if the collection is empty
@@ -101,7 +98,6 @@ impl Collection {
         &self.values
     }
 
-
     /// Add a value to the collection
     pub fn push(&mut self, value: FhirPathValue) {
         self.values.push(value);
@@ -117,9 +113,7 @@ impl Collection {
         match self.values.len() {
             0 => JsonValue::Null,
             1 => self.values[0].to_json_value(),
-            _ => JsonValue::Array(
-                self.values.iter().map(|v| v.to_json_value()).collect()
-            ),
+            _ => JsonValue::Array(self.values.iter().map(|v| v.to_json_value()).collect()),
         }
     }
 }
@@ -702,7 +696,10 @@ impl FhirPathValue {
             Self::Collection(collection) => collection.to_json_value(),
             Self::TypeInfoObject { namespace, name } => {
                 let mut map = serde_json::Map::new();
-                map.insert("namespace".to_string(), JsonValue::String(namespace.clone()));
+                map.insert(
+                    "namespace".to_string(),
+                    JsonValue::String(namespace.clone()),
+                );
                 map.insert("name".to_string(), JsonValue::String(name.clone()));
                 JsonValue::Object(map)
             }
@@ -799,7 +796,7 @@ pub struct ValueTypeInfo {
 pub struct ValueSourceLocation {
     /// Line number (1-indexed)
     pub line: usize,
-    /// Column number (1-indexed) 
+    /// Column number (1-indexed)
     pub column: usize,
     /// Character offset in source
     pub offset: usize,
@@ -830,7 +827,11 @@ impl ResultWithMetadata {
     }
 
     /// Create a result with source location
-    pub fn with_location(value: FhirPathValue, type_info: ValueTypeInfo, location: ValueSourceLocation) -> Self {
+    pub fn with_location(
+        value: FhirPathValue,
+        type_info: ValueTypeInfo,
+        location: ValueSourceLocation,
+    ) -> Self {
         Self {
             value,
             type_info,
@@ -855,32 +856,51 @@ impl ResultWithMetadata {
     /// Get the metadata as a separate structure for API responses
     pub fn get_type_metadata(&self) -> JsonValue {
         use serde_json::json;
-        
+
         let mut metadata = serde_json::Map::new();
 
         // Add type information
-        metadata.insert("type".to_string(), JsonValue::String(self.type_info.type_name.clone()));
+        metadata.insert(
+            "type".to_string(),
+            JsonValue::String(self.type_info.type_name.clone()),
+        );
 
         // Add expected return type if available
         if let Some(expected_type) = &self.type_info.expected_return_type {
-            metadata.insert("expectedReturnType".to_string(), JsonValue::String(expected_type.clone()));
+            metadata.insert(
+                "expectedReturnType".to_string(),
+                JsonValue::String(expected_type.clone()),
+            );
         }
 
         // Add cardinality if available
         if let Some(cardinality) = &self.type_info.cardinality {
-            metadata.insert("cardinality".to_string(), JsonValue::String(cardinality.clone()));
+            metadata.insert(
+                "cardinality".to_string(),
+                JsonValue::String(cardinality.clone()),
+            );
         }
 
         // Add namespace if available
         if let Some(namespace) = &self.type_info.namespace {
-            metadata.insert("namespace".to_string(), JsonValue::String(namespace.clone()));
+            metadata.insert(
+                "namespace".to_string(),
+                JsonValue::String(namespace.clone()),
+            );
         }
 
         // Add constraints
         if !self.type_info.constraints.is_empty() {
-            metadata.insert("constraints".to_string(), JsonValue::Array(
-                self.type_info.constraints.iter().map(|c| JsonValue::String(c.clone())).collect()
-            ));
+            metadata.insert(
+                "constraints".to_string(),
+                JsonValue::Array(
+                    self.type_info
+                        .constraints
+                        .iter()
+                        .map(|c| JsonValue::String(c.clone()))
+                        .collect(),
+                ),
+            );
         }
 
         JsonValue::Object(metadata)
@@ -892,14 +912,18 @@ impl ValueTypeInfo {
     pub fn from_value(value: &FhirPathValue) -> Self {
         let type_name = value.type_name().to_string();
         let is_fhir_type = matches!(value, FhirPathValue::Resource(_));
-        
+
         Self {
             type_name,
             expected_return_type: None,
             cardinality: Some("0..1".to_string()),
             constraints: Vec::new(),
             is_fhir_type,
-            namespace: if is_fhir_type { Some("FHIR".to_string()) } else { None },
+            namespace: if is_fhir_type {
+                Some("FHIR".to_string())
+            } else {
+                None
+            },
         }
     }
 
@@ -977,9 +1001,15 @@ impl CollectionWithMetadata {
         self.results.len()
     }
 
+    /// Get access to the individual results with their metadata
+    pub fn results(&self) -> &[ResultWithMetadata] {
+        &self.results
+    }
+
     /// Convert to JSON representation for APIs - returns just the values
     pub fn to_json_parts(&self) -> JsonValue {
-        let values: Vec<JsonValue> = self.results
+        let values: Vec<JsonValue> = self
+            .results
             .iter()
             .map(|result| result.value.to_json_value())
             .collect();
@@ -994,7 +1024,8 @@ impl CollectionWithMetadata {
 
     /// Get type metadata for all results in the collection
     pub fn get_type_metadata_array(&self) -> JsonValue {
-        let metadata_array: Vec<JsonValue> = self.results
+        let metadata_array: Vec<JsonValue> = self
+            .results
             .iter()
             .map(|result| result.get_type_metadata())
             .collect();

@@ -5,5 +5,8 @@
 
 fn main() {
     // No build steps required for API-only server
-    println!("cargo:warning=fhirpath-cli@{}: Building API-only server", env!("CARGO_PKG_VERSION"));
+    println!(
+        "cargo:warning=fhirpath-cli@{}: Building API-only server",
+        env!("CARGO_PKG_VERSION")
+    );
 }

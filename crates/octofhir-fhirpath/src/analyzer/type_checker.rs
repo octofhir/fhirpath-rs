@@ -1121,7 +1121,7 @@ impl TypeChecker {
                 true
             }
             TypeInfo::Collection(_) => true, // Collections can be empty (count >= 0 is always true)
-            _ => actual_count == 1,                       // Single values must have exactly 1 item
+            _ => actual_count == 1,          // Single values must have exactly 1 item
         }
     }
 
@@ -1701,6 +1701,17 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
 
         self.record_type(node_id, path_type.clone());
         Ok(path_type)
+    }
+
+    fn visit_type_info(&mut self, type_info: &TypeInfoNode) -> Self::Output {
+        let node_id = self.next_node_id();
+
+        // TypeInfo represents a type literal like System.Integer
+        // For now, treat type literals as String type
+        let type_info_type = TypeInfo::String;
+
+        self.record_type(node_id, type_info_type.clone());
+        Ok(type_info_type)
     }
 }
 
