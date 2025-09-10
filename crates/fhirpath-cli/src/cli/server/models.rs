@@ -497,6 +497,25 @@ impl FhirPathLabResponse {
             part: Some(parts),
         });
     }
+    
+    /// Add trace information from collected traces
+    pub fn add_trace_from_collection(&mut self, traces: Vec<String>) {
+        if traces.is_empty() {
+            return;
+        }
+        
+        // Combine all traces into a single trace string
+        let combined_trace = traces.join("\n");
+        self.add_string_parameter("trace", combined_trace);
+    }
+    
+    /// Add AST debug information with proper structure
+    pub fn add_ast_debug_info(&mut self, parse_debug: String, parse_debug_tree: serde_json::Value) {
+        self.add_string_parameter("parseDebug", parse_debug);
+        // parseDebugTree should be a JSON string, not a resource parameter according to API spec
+        let tree_json = serde_json::to_string_pretty(&parse_debug_tree).unwrap_or_else(|_| "{}".to_string());
+        self.add_string_parameter("parseDebugTree", tree_json);
+    }
 }
 
 // ===== COMMON MODELS =====

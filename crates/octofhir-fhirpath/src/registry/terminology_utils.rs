@@ -76,15 +76,26 @@ pub enum PropertyValue {
 pub struct TerminologyUtils;
 
 impl TerminologyUtils {
-    /// Extract a Coding from a FhirPathValue. Supports Coding objects, and CodeableConcept (takes first coding).
+    /// Extract a Coding from a FhirPathValue. Supports Coding objects, CodeableConcept (takes first coding), and strings (code-only).
     pub fn extract_coding(value: &FhirPathValue) -> Result<Coding> {
         match value {
             FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
                 Self::extract_coding_from_json(j)
             }
+            FhirPathValue::String(code_string) => {
+                // For string values, create a simple code-only Coding without system
+                // For most operations like validateVS, the server can infer the system
+                // For translate operations, the caller may need to provide context about the expected system
+                Ok(Coding {
+                    system: String::new(), // Empty system - let server infer or caller handle
+                    code: code_string.clone(),
+                    version: None,
+                    display: None,
+                })
+            }
             _ => Err(FhirPathError::evaluation_error(
                 FP0051,
-                "Expected Coding or CodeableConcept value".to_string(),
+                "Expected Coding, CodeableConcept, or string value".to_string(),
             )),
         }
     }

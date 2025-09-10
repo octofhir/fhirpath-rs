@@ -4,11 +4,13 @@ pub mod error;
 pub mod error_code;
 pub mod model_provider;
 pub mod temporal;
+pub mod trace;
 pub mod types;
 pub mod value;
 
 pub use error::*;
 pub use temporal::*;
+pub use trace::*;
 pub use types::*;
 
 // Re-export specific items from model_provider (avoiding utils conflict)

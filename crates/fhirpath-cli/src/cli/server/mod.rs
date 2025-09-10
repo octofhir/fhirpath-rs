@@ -14,6 +14,8 @@ pub mod error;
 pub mod handlers;
 pub mod models;
 pub mod registry;
+pub mod response;
+pub mod trace;
 pub mod version;
 
 use axum::{

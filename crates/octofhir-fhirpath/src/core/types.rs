@@ -857,8 +857,6 @@ impl ResultWithMetadata {
 
     /// Get the metadata as a separate structure for API responses
     pub fn get_type_metadata(&self) -> JsonValue {
-        use serde_json::json;
-
         let mut metadata = serde_json::Map::new();
 
         // Add type information

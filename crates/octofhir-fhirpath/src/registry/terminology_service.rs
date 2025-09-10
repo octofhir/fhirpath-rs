@@ -84,7 +84,7 @@ impl ConcreteTerminologyService {
             "parameter": [
                 {
                     "name": "result",
-                    "valueBoolean": result
+                    "value": result
                 }
             ]
         })
@@ -119,11 +119,31 @@ impl ConcreteTerminologyService {
         let mut parameters = Vec::new();
 
         for translation in translations {
-            // Each translation should be a Parameters resource with match parts
+            // Each translation contains equivalence and concept data
             if let FhirPathValue::Resource(resource) = translation {
+                // Create the parameter structure expected by the test
+                // .parameter.where(name = 'match').part.where(name = 'concept').value.code
+                let mut parts = Vec::new();
+                
+                // Extract concept from the translation
+                if let Some(concept) = resource.get("concept") {
+                    parts.push(json!({
+                        "name": "concept",
+                        "value": concept
+                    }));
+                }
+                
+                // Add equivalence if present
+                if let Some(equivalence) = resource.get("equivalence") {
+                    parts.push(json!({
+                        "name": "equivalence",
+                        "value": equivalence
+                    }));
+                }
+                
                 parameters.push(json!({
                     "name": "match",
-                    "part": resource.as_array().unwrap_or(&vec![]).clone()
+                    "part": parts
                 }));
             }
         }

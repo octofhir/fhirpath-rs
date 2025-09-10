@@ -1703,7 +1703,7 @@ impl<'a> ExpressionVisitor for TypeInferenceVisitor<'a> {
         Ok(path_type)
     }
 
-    fn visit_type_info(&mut self, type_info: &TypeInfoNode) -> Self::Output {
+    fn visit_type_info(&mut self, _type_info: &TypeInfoNode) -> Self::Output {
         let node_id = self.next_node_id();
 
         // TypeInfo represents a type literal like System.Integer

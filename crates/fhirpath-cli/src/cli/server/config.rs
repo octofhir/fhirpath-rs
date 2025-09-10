@@ -4,6 +4,23 @@
 
 use std::net::IpAddr;
 
+/// Trace provider configuration
+#[derive(Debug, Clone)]
+pub enum TraceConfig {
+    /// No trace output (silent)
+    None,
+    /// Output traces to stderr (CLI mode)
+    Cli,
+    /// Collect traces for API responses (server mode)
+    Server,
+}
+
+impl Default for TraceConfig {
+    fn default() -> Self {
+        Self::Cli
+    }
+}
+
 /// Configuration for the FHIRPath Lab API server
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
@@ -19,17 +36,20 @@ pub struct ServerConfig {
     pub timeout_seconds: u64,
     /// Rate limit: requests per minute per IP
     pub rate_limit_per_minute: u32,
+    /// Trace provider configuration
+    pub trace_config: TraceConfig,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            port: 8080,
+            port: 8084,
             host: [127, 0, 0, 1].into(),
             cors_all: false,
             max_body_size_mb: 60,
             timeout_seconds: 30,
             rate_limit_per_minute: 100,
+            trace_config: TraceConfig::Server, // Default to server mode for API responses
         }
     }
 }
@@ -43,6 +63,7 @@ impl ServerConfig {
         max_body_size_mb: u64,
         timeout_seconds: u64,
         rate_limit_per_minute: u32,
+        trace_config: TraceConfig,
     ) -> Self {
         Self {
             port,
@@ -51,6 +72,16 @@ impl ServerConfig {
             max_body_size_mb,
             timeout_seconds,
             rate_limit_per_minute,
+            trace_config,
+        }
+    }
+
+    /// Create the appropriate trace provider based on configuration
+    pub fn create_trace_provider(&self) -> octofhir_fhirpath::core::SharedTraceProvider {
+        match self.trace_config {
+            TraceConfig::None => octofhir_fhirpath::core::trace::create_noop_provider(),
+            TraceConfig::Cli => octofhir_fhirpath::core::trace::create_cli_provider(),
+            TraceConfig::Server => crate::cli::server::trace::ServerApiTraceProvider::create_shared(),
         }
     }
 

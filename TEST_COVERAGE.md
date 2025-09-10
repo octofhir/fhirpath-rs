@@ -13,9 +13,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 |--------|-------|------------|
 | **Total Test Suites** | 113 | 100% |
 | **Total Individual Tests** | 1110 | 100% |
-| **Passing Tests** | 995 | 89.6% |
-| **Failing Tests** | 89 | 8.0% |
-| **Error Tests** | 26 | 2.3% |
+| **Passing Tests** | 1009 | 90.9% |
+| **Failing Tests** | 92 | 8.3% |
+| **Error Tests** | 9 | 0.8% |
 
 ## Test Results by Suite
 
@@ -30,7 +30,9 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **index-part.json** - 1/1 tests
 - **minimal.json** - 1/1 tests
 - **minute-of.json** - 5/5 tests
+- **miscEngineTests.json** - 2/2 tests
 - **month-of.json** - 7/7 tests
+- **polymorphics.json** - 2/2 tests
 - **resolve.json** - 3/3 tests
 - **second-of.json** - 5/5 tests
 - **testAbs.json** - 4/4 tests
@@ -44,6 +46,7 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testCase.json** - 4/4 tests
 - **testCeiling.json** - 4/4 tests
 - **testCollectionBoolean.json** - 6/6 tests
+- **testCombine--.json** - 3/3 tests
 - **testConcatenate.json** - 4/4 tests
 - **testContainsCollection.json** - 9/9 tests
 - **testContainsString.json** - 12/12 tests
@@ -52,24 +55,18 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testDivide.json** - 9/9 tests
 - **testEncodeDecode.json** - 8/8 tests
 - **testEndsWith.json** - 12/12 tests
-- **testEquality.json** - 28/28 tests
-- **testEquivalent.json** - 24/24 tests
 - **testEscapeUnescape.json** - 4/4 tests
 - **testExclude.json** - 4/4 tests
 - **testExists.json** - 5/5 tests
 - **testExp.json** - 3/3 tests
 - **testFirstLast.json** - 2/2 tests
 - **testFloor.json** - 4/4 tests
-- **testGreaterThan.json** - 30/30 tests
-- **testGreatorOrEqual.json** - 30/30 tests
 - **testIn.json** - 8/8 tests
 - **testIndexOf.json** - 6/6 tests
 - **testIndexer.json** - 2/2 tests
 - **testIntersect.json** - 4/4 tests
 - **testJoin.json** - 1/1 tests
 - **testLength.json** - 6/6 tests
-- **testLessOrEqual.json** - 30/30 tests
-- **testLessThan.json** - 30/30 tests
 - **testLn.json** - 3/3 tests
 - **testLog.json** - 5/5 tests
 - **testMatches.json** - 16/16 tests
@@ -77,7 +74,6 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 - **testMiscellaneousAccessorTests.json** - 3/3 tests
 - **testMod.json** - 8/8 tests
 - **testMultiply.json** - 6/6 tests
-- **testNEquality.json** - 24/24 tests
 - **testNotEquivalent.json** - 22/22 tests
 - **testNow.json** - 2/2 tests
 - **testPlus.json** - 34/34 tests
@@ -116,44 +112,49 @@ This report provides a comprehensive analysis of the current FHIRPath implementa
 
 ### 🟡 Well Implemented (70%+)
 
-- **testTypes.json** - 93.9% (93/99 tests)
+- **testGreaterThan.json** - 96.7% (29/30 tests)
+- **testGreatorOrEqual.json** - 96.7% (29/30 tests)
+- **testLessOrEqual.json** - 96.7% (29/30 tests)
+- **testLessThan.json** - 96.7% (29/30 tests)
+- **testEquality.json** - 96.4% (27/28 tests)
+- **testEquivalent.json** - 95.8% (23/24 tests)
+- **testNEquality.json** - 95.8% (23/24 tests)
+- **testTypes.json** - 92.9% (92/99 tests)
 - **testLiterals.json** - 91.5% (75/82 tests)
 - **testDollar.json** - 80.0% (4/5 tests)
 - **repeat-all.json** - 73.7% (14/19 tests)
 
 ### 🟠 Partially Implemented (30-70%)
 
-- **testCombine--.json** - 66.7% (2/3 tests)
+- **testDistinct.json** - 66.7% (4/6 tests)
+- **testRepeat.json** - 60.0% (3/5 tests)
 - **HighBoundary.json** - 54.2% (13/24 tests)
-- **miscEngineTests.json** - 50.0% (1/2 tests)
+- **testInheritance.json** - 54.2% (13/24 tests)
 - **period.json** - 50.0% (1/2 tests)
-- **polymorphics.json** - 50.0% (1/2 tests)
 - **testIif.json** - 50.0% (6/12 tests)
-- **testInheritance.json** - 50.0% (12/24 tests)
-- **testType.json** - 46.7% (14/30 tests)
+- **testObservations.json** - 50.0% (5/10 tests)
+- **testType.json** - 50.0% (15/30 tests)
+- **defineVariable.json** - 47.6% (10/21 tests)
 - **Comparable.json** - 33.3% (1/3 tests)
+- **TerminologyTests.json** - 33.3% (1/3 tests)
 - **cdaTests.json** - 33.3% (1/3 tests)
 - **testConformsTo.json** - 33.3% (1/3 tests)
-- **testDistinct.json** - 33.3% (2/6 tests)
 - **testExtension.json** - 33.3% (1/3 tests)
-- **testObservations.json** - 30.0% (3/10 tests)
 
 ### 🔴 Major Issues (0-30%)
 
-- **defineVariable.json** - 4.8% (1/21 tests) - Issues
-- **TerminologyTests.json** - 0.0% (0/3 tests) - Missing
-- **testRepeat.json** - 0.0% (0/5 tests) - Missing
+None currently.
 
 ## Summary
 
-The fhirpath-rs implementation currently passes approximately **89.6% of all FHIRPath tests**.
+The fhirpath-rs implementation currently passes approximately **90.9% of all FHIRPath tests**.
 
 ### Key Statistics
 - **Test Suites**: 113
 - **Total Tests**: 1110
-- **Pass Rate**: 89.6%
+- **Pass Rate**: 90.9%
 
 ---
 
-*Report generated on: 2025-09-10 14:01:08*
+*Report generated on: 2025-09-10 22:39:16*
 *Command: `just test-coverage` or `cargo run --package octofhir-fhirpath --bin test-coverage`*

@@ -1820,6 +1820,17 @@ impl OperatorEvaluator for OperatorEvaluatorImpl {
             return true;
         }
 
+        // For FHIR resources, check the resourceType field
+        if let FhirPathValue::Resource(resource) | FhirPathValue::JsonValue(resource) = value {
+            if let Some(resource_type_value) = resource.get("resourceType") {
+                if let Some(resource_type) = resource_type_value.as_str() {
+                    if resource_type.to_lowercase() == target {
+                        return true;
+                    }
+                }
+            }
+        }
+
         // Handle type hierarchy and compatibility
         match target.as_str() {
             "system.any" => true, // All values are of type System.Any
@@ -1836,6 +1847,8 @@ impl OperatorEvaluator for OperatorEvaluatorImpl {
             "system.datetime" => matches!(value, FhirPathValue::DateTime(_)),
             "system.time" => matches!(value, FhirPathValue::Time(_)),
             "system.quantity" => matches!(value, FhirPathValue::Quantity { .. }),
+            // Generic resource type check
+            "resource" => matches!(value, FhirPathValue::Resource(_)),
             _ => false,
         }
     }

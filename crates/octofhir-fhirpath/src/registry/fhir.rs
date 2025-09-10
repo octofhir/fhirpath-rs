@@ -411,6 +411,13 @@ fn find_contained_resource(ctx: &FhirPathValue, id: &str) -> Option<FhirPathValu
                 {
                     return Some(FhirPathValue::Resource(Arc::new(entry.clone())));
                 }
+
+                // Recurse into nested contained resources to support multi-level containment
+                if let Some(found) =
+                    find_contained_resource(&FhirPathValue::Resource(Arc::new(entry.clone())), id)
+                {
+                    return Some(found);
+                }
             }
             None
         }

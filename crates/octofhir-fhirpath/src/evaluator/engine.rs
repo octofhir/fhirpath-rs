@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     ast::ExpressionNode,
-    core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result},
+    core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result, SharedTraceProvider},
     parser::parse_ast,
     path::CanonicalPath,
     registry::{FunctionRegistry, create_standard_registry},
@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::{
-    CollectionEvaluatorImpl, CoreEvaluator, FunctionEvaluatorImpl, LambdaEvaluatorImpl, Navigator,
+    CollectionEvaluatorImpl, CoreEvaluator, FunctionEvaluatorImpl, LambdaEvaluatorImpl,
     OperatorEvaluatorImpl, composite::CompositeEvaluator, config::EngineConfig,
     context::EvaluationContext, metrics::EvaluationMetrics,
 };
@@ -88,9 +88,23 @@ impl FhirPathEngine {
         model_provider: Arc<dyn ModelProvider>,
         fhir_version: &str,
     ) -> Result<Self> {
+        Self::new_with_trace_provider(
+            function_registry,
+            model_provider,
+            fhir_version,
+            crate::core::trace::create_cli_provider(), // Default to CLI provider
+        ).await
+    }
+
+    /// Create new engine with custom trace provider
+    pub async fn new_with_trace_provider(
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+        fhir_version: &str,
+        trace_provider: SharedTraceProvider,
+    ) -> Result<Self> {
         // Create specialized evaluators
         let core_evaluator = Box::new(CoreEvaluator::new());
-        let navigator = Box::new(Navigator::new());
         let function_evaluator = Box::new(FunctionEvaluatorImpl::new(
             function_registry.clone(),
             model_provider.clone(),
@@ -99,9 +113,8 @@ impl FhirPathEngine {
         let collection_evaluator = Box::new(CollectionEvaluatorImpl::new());
         let lambda_evaluator = Box::new(LambdaEvaluatorImpl::new());
 
-        let evaluator = CompositeEvaluator::new(
+        let evaluator = CompositeEvaluator::with_trace_provider(
             core_evaluator,
-            navigator,
             function_evaluator,
             operator_evaluator,
             collection_evaluator,
@@ -109,6 +122,7 @@ impl FhirPathEngine {
             model_provider,
             function_registry,
             EngineConfig::default(),
+            trace_provider,
         )
         .await;
 
@@ -145,7 +159,6 @@ impl FhirPathEngine {
     ) -> Result<Self> {
         // Create specialized evaluators
         let core_evaluator = Box::new(CoreEvaluator::new());
-        let navigator = Box::new(Navigator::new());
         let function_evaluator = Box::new(FunctionEvaluatorImpl::new(
             function_registry.clone(),
             model_provider.clone(),
@@ -156,7 +169,6 @@ impl FhirPathEngine {
 
         let evaluator = CompositeEvaluator::new(
             core_evaluator,
-            navigator,
             function_evaluator,
             operator_evaluator,
             collection_evaluator,
@@ -235,7 +247,7 @@ impl FhirPathEngine {
     ) -> Result<crate::core::CollectionWithMetadata> {
         use crate::core::{CollectionWithMetadata, ResultWithMetadata, ValueTypeInfo};
 
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
         let mut type_stats = TypeResolutionStats::default();
 
         // Auto-detect FHIR context and transform root expressions
@@ -493,6 +505,11 @@ impl FhirPathEngine {
         self.evaluator.function_registry().clone()
     }
 
+    /// Get trace provider from evaluator for collecting traces
+    pub fn get_trace_provider(&self) -> &SharedTraceProvider {
+        self.evaluator.trace_provider()
+    }
+
     /// Setup evaluation context with terminology service and %terminologies variable
     fn setup_context_with_terminology(&self, context: &EvaluationContext) -> EvaluationContext {
         let mut context_with_terminology = context.clone();
@@ -510,7 +527,22 @@ impl FhirPathEngine {
             context_with_terminology.set_variable("%terminologies".to_string(), terminologies_var);
         }
 
+        // Set up standard FHIRPath built-in variables
+        self.setup_standard_builtin_variables(&mut context_with_terminology);
+
         context_with_terminology
+    }
+
+    /// Setup standard FHIRPath built-in variables
+    fn setup_standard_builtin_variables(&self, context: &mut EvaluationContext) {
+        use crate::core::FhirPathValue;
+
+        // Standard code system URLs
+        context.set_variable("%sct".to_string(), FhirPathValue::String("http://snomed.info/sct".to_string()));
+        context.set_variable("%loinc".to_string(), FhirPathValue::String("http://loinc.org".to_string()));
+        context.set_variable("%ucum".to_string(), FhirPathValue::String("http://unitsofmeasure.org".to_string()));
+
+        // Note: %vs-* variables are handled dynamically in variable resolution
     }
 
     /// Auto-detect FHIR context and transform root expressions

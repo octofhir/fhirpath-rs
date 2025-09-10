@@ -451,8 +451,59 @@ impl MetadataCoreEvaluator {
             let wrapped = WrappedValue::new(var_value.clone(), metadata);
             Ok(collection_utils::single(wrapped))
         } else {
-            // Variable not found - return empty
-            Ok(collection_utils::empty())
+            // Try with % prefix for built-in variables
+            let prefixed_name = format!("%{}", var_name);
+            if let Some(var_value) = context.get_variable(&prefixed_name) {
+                // Infer metadata from variable value
+                let fhir_type = type_utils::fhirpath_value_to_fhir_type(var_value);
+                let path = CanonicalPath::parse(&format!("${}", var_name))
+                    .unwrap_or_else(|_| CanonicalPath::empty());
+
+                let metadata = ValueMetadata {
+                    fhir_type,
+                    resource_type: None,
+                    path,
+                    index: None,
+                    is_ordered: None,
+                };
+
+                let wrapped = WrappedValue::new(var_value.clone(), metadata);
+                Ok(collection_utils::single(wrapped))
+            } else {
+                // Check for dynamic variable patterns like %vs-name
+                if let Some(dynamic_value) = self.resolve_dynamic_variable(var_name) {
+                    // Infer metadata from variable value
+                    let fhir_type = type_utils::fhirpath_value_to_fhir_type(&dynamic_value);
+                    let path = CanonicalPath::parse(&format!("${}", var_name))
+                        .unwrap_or_else(|_| CanonicalPath::empty());
+
+                    let metadata = ValueMetadata {
+                        fhir_type,
+                        resource_type: None,
+                        path,
+                        index: None,
+                        is_ordered: None,
+                    };
+
+                    let wrapped = WrappedValue::new(dynamic_value, metadata);
+                    Ok(collection_utils::single(wrapped))
+                } else {
+                    // Variable not found - return empty
+                    Ok(collection_utils::empty())
+                }
+            }
+        }
+    }
+
+    /// Resolve dynamic variable patterns like %vs-name
+    fn resolve_dynamic_variable(&self, var_name: &str) -> Option<FhirPathValue> {
+        if var_name.starts_with("vs-") {
+            // Extract the part after "vs-" and construct ValueSet URL
+            let valueset_name = &var_name[3..]; // Remove "vs-" prefix
+            let url = format!("http://hl7.org/fhir/ValueSet/{}", valueset_name);
+            Some(FhirPathValue::String(url))
+        } else {
+            None
         }
     }
 

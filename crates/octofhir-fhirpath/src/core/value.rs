@@ -62,6 +62,40 @@ impl JsonValueExt for JsonValue {
 pub mod utils {
     use super::*;
 
+    /// Infer FHIR type from JSON object structure
+    fn infer_fhir_type_from_json(obj: &serde_json::Map<String, JsonValue>) -> Option<String> {
+        // Look for Quantity pattern
+        if obj.contains_key("value") && (obj.contains_key("unit") || obj.contains_key("code")) {
+            return Some("Quantity".to_string());
+        }
+        
+        // Could add other FHIR types here in the future
+        None
+    }
+
+    /// Convert JSON object to Quantity FhirPathValue
+    fn convert_json_to_quantity(obj: &serde_json::Map<String, JsonValue>) -> FhirPathValue {
+        // Extract value
+        let value = obj.get("value")
+            .and_then(|v| v.as_f64())
+            .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
+            .unwrap_or_default();
+
+        // For unit, prefer "unit" field over "code" field for display
+        // This matches FHIRPath expectation that .unit returns human-readable unit
+        let unit = obj.get("unit")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                // Fallback to code if no unit field
+                obj.get("code")
+                    .and_then(|c| c.as_str())
+                    .map(|s| s.to_string())
+            });
+
+        FhirPathValue::quantity(value, unit)
+    }
+
     /// Convert a JsonValue to a FhirPathValue
     pub fn json_to_fhirpath_value(json: JsonValue) -> FhirPathValue {
         match json {
@@ -81,7 +115,17 @@ pub mod utils {
                     arr.into_iter().map(json_to_fhirpath_value).collect();
                 FhirPathValue::collection(values)
             }
-            JsonValue::Object(_) => FhirPathValue::resource(json),
+            JsonValue::Object(ref obj) => {
+                // Check if this is a special FHIR type that should be converted to a specific FhirPathValue
+                if let Some(fhir_type) = infer_fhir_type_from_json(obj) {
+                    match fhir_type.as_str() {
+                        "Quantity" => convert_json_to_quantity(obj),
+                        _ => FhirPathValue::resource(json),
+                    }
+                } else {
+                    FhirPathValue::resource(json)
+                }
+            }
             JsonValue::Null => FhirPathValue::Empty,
         }
     }

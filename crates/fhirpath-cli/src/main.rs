@@ -1169,6 +1169,7 @@ async fn handle_server(
         max_body_size_mb: max_body_size,
         timeout_seconds: timeout,
         rate_limit_per_minute: rate_limit,
+        trace_config: fhirpath_cli::cli::server::config::TraceConfig::Server, // Server mode for API
     };
 
     if let Err(e) = start_server(config).await {

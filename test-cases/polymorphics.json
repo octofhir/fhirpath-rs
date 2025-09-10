@@ -22,14 +22,12 @@
       "input": null,
       "inputfile": "observation-example.json",
       "expected": [
-        false
+        true
       ],
       "tags": [
         "r5-xml",
         "polymorphics"
-      ],
-      "expectError": true,
-      "invalidKind": "semantic"
+      ]
     }
   ]
 }

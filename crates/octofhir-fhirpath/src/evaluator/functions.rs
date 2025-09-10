@@ -331,7 +331,9 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                         arguments,
                         model_provider: &*self.model_provider,
                         variables: &context.variables,
-                        resource_context: None,
+                        // Use the original root resource for functions like
+                        // resolve() that need access to contained resources.
+                        resource_context: context.builtin_variables.get_root_resource(),
                         terminology: None,
                     };
 
@@ -360,7 +362,10 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                         arguments,
                         model_provider: &*self.model_provider,
                         variables: &context.variables,
-                        resource_context: None,
+                        // Provide root resource so sync functions can resolve
+                        // contained references relative to the original
+                        // evaluation context.
+                        resource_context: context.builtin_variables.get_root_resource(),
                         terminology: None,
                     };
 

@@ -1,0 +1,20 @@
+FROM rust:1.88-bookworm
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source files (excluding target directory)
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ ./crates/
+COPY justfile ./
+
+# Build the CLI for x86_64-unknown-linux-gnu (regular Ubuntu target)
+RUN cargo build --release --package fhirpath-cli
+
+# The binary will be at /app/target/release/octofhir-fhirpath

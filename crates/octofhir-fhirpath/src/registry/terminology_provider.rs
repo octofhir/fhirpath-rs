@@ -163,9 +163,17 @@ impl DefaultTerminologyProvider {
     /// # Arguments
     /// * `server_url` - Base URL of the FHIR terminology server
     pub fn with_server_url(server_url: impl Into<String>) -> Self {
+        // Build a client that's more tolerant of SSL issues for public terminology servers
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(false) // Keep secure by default
+            .timeout(std::time::Duration::from_secs(30))
+            .user_agent("fhirpath-rs/0.4.22")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+            
         Self {
             server_url: server_url.into(),
-            client: reqwest::Client::new(),
+            client,
         }
     }
 
@@ -428,27 +436,50 @@ impl Default for DefaultTerminologyProvider {
 impl TerminologyProvider for DefaultTerminologyProvider {
     async fn check_valueset_membership(&self, coding: &Coding, valueset_url: &str) -> Result<bool> {
         // Build parameters for $validate-code operation
+        // Build parameters based on whether we have a system or not
+        let mut params_array = vec![
+            json!({
+                "name": "url",
+                "valueUri": valueset_url
+            })
+        ];
+
+        if coding.system.is_empty() {
+            // For codes without system, use code parameter and request system inference
+            params_array.push(json!({
+                "name": "code",
+                "valueCode": coding.code
+            }));
+            params_array.push(json!({
+                "name": "inferSystem",
+                "valueBoolean": true
+            }));
+        } else {
+            // For codes with system, use system and code parameters
+            params_array.push(json!({
+                "name": "system",
+                "valueUri": coding.system
+            }));
+            params_array.push(json!({
+                "name": "code",
+                "valueCode": coding.code
+            }));
+        }
+
         let params = json!({
             "resourceType": "Parameters",
-            "parameter": [
-                {
-                    "name": "url",
-                    "valueUri": valueset_url
-                },
-                {
-                    "name": "system",
-                    "valueUri": coding.system
-                },
-                {
-                    "name": "code",
-                    "valueCode": coding.code
-                }
-            ]
+            "parameter": params_array
         });
 
         let url = format!("{}/ValueSet/$validate-code", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -499,31 +530,39 @@ impl TerminologyProvider for DefaultTerminologyProvider {
         conceptmap_url: &str,
         reverse: bool,
     ) -> Result<Vec<FhirPathValue>> {
+        // For translate operations, use coding parameter if we have a system, otherwise use code only
+        let mut params_array = vec![
+            json!({
+                "name": "url",
+                "valueUri": conceptmap_url
+            })
+        ];
+
+        // Always use code parameter for simplicity, let the server match from ConceptMap
+        params_array.push(json!({
+            "name": "code",
+            "valueCode": coding.code
+        }));
+        
+        params_array.push(json!({
+            "name": "reverse",
+            "valueBoolean": reverse
+        }));
+
         let params = json!({
             "resourceType": "Parameters",
-            "parameter": [
-                {
-                    "name": "url",
-                    "valueUri": conceptmap_url
-                },
-                {
-                    "name": "system",
-                    "valueUri": coding.system
-                },
-                {
-                    "name": "code",
-                    "valueCode": coding.code
-                },
-                {
-                    "name": "reverse",
-                    "valueBoolean": reverse
-                }
-            ]
+            "parameter": params_array
         });
 
         let url = format!("{}/ConceptMap/$translate", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -594,7 +633,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/CodeSystem/$validate-code", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -659,7 +704,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/CodeSystem/$subsumes", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -735,7 +786,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -825,7 +882,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -892,7 +955,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/ValueSet/$expand", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {
@@ -962,7 +1031,13 @@ impl TerminologyProvider for DefaultTerminologyProvider {
 
         let url = format!("{}/CodeSystem/$lookup", self.server_url);
 
-        match self.client.post(&url).json(&params).send().await {
+        match self.client
+            .post(&url)
+            .header("Accept", "application/fhir+json")
+            .header("Content-Type", "application/fhir+json")
+            .json(&params)
+            .send()
+            .await {
             Ok(response) => {
                 if response.status().is_success() {
                     let result: Value = response.json().await.map_err(|e| {

@@ -14,6 +14,7 @@
 
 //! CLI module for FHIRPath evaluation and analysis
 
+pub mod ast;
 pub mod diagnostics;
 pub mod output;
 pub mod repl;
@@ -167,7 +168,7 @@ pub enum Commands {
     /// Start HTTP server with web interface
     Server {
         /// Port to bind the server to
-        #[arg(short, long, default_value = "8080")]
+        #[arg(short, long, default_value = "8084")]
         port: u16,
         /// Directory for JSON file storage
         #[arg(short, long, default_value = "./storage")]

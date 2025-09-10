@@ -12,7 +12,7 @@ impl FunctionRegistry {
     /// provided via the evaluation context. If not available, they return an error.
     pub fn register_terminology_functions(&self) -> Result<()> {
         self.register_member_of_function()?;
-        self.register_translate_function()?;
+        // self.register_translate_function()?; // Commented out to avoid conflict with %terminologies.translate
         self.register_validate_code_function()?;
         self.register_subsumes_function()?;
         self.register_designation_function()?;
@@ -21,6 +21,7 @@ impl FunctionRegistry {
         // Register %terminologies built-in functions
         self.register_expand_function()?;
         self.register_validate_vs_function()?;
+        self.register_terminologies_translate_function()?;
 
         Ok(())
     }
@@ -568,6 +569,79 @@ impl FunctionRegistry {
                         Ok(FhirPathValue::Empty)
                     } else {
                         Ok(validation_result.first().unwrap().clone())
+                    }
+                })
+            }
+        )
+    }
+
+    fn register_terminologies_translate_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            async "translate",
+            category: FunctionCategory::Terminology,
+            description: "Translate coding using ConceptMap (called on %terminologies)",
+            parameters: [
+                "conceptmap": Some("string".to_string()) => "ConceptMap URL or identifier",
+                "coded": Some("coding".to_string()) => "Coding or code to translate"
+            ],
+            return_type: "resource",
+            examples: [
+                "%terminologies.translate('http://hl7.org/fhir/ConceptMap/cm-address-use-v2', $this.address.use)"
+            ],
+            implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
+                Box::pin(async move {
+                    // This function should only be called on %terminologies
+                    if !Self::is_terminologies_input(&context.input) {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0051,
+                            "translate() can only be called on %terminologies".to_string(),
+                        ));
+                    }
+
+                    if context.arguments.len() != 2 {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0053,
+                            "translate() requires exactly two arguments (ConceptMap URL and coded value)".to_string(),
+                        ));
+                    }
+
+                    let conceptmap_url = match context.arguments.first() {
+                        Some(FhirPathValue::String(s)) => s.as_str(),
+                        _ => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0051,
+                                "translate() ConceptMap argument must be a string".to_string(),
+                            ));
+                        }
+                    };
+
+                    let coded_value = context.arguments.get(1).ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            FP0053,
+                            "translate() requires second argument (coded value)".to_string(),
+                        )
+                    })?;
+
+                    // Get terminology service from context
+                    let svc = match context.terminology {
+                        Some(s) => s,
+                        None => {
+                            return Err(FhirPathError::evaluation_error(
+                                FP0200,
+                                "Terminology service is not configured".to_string(),
+                            ));
+                        }
+                    };
+
+                    // Call translate and return the result
+                    let translation_result = svc.translate(conceptmap_url, coded_value, None).await?;
+
+                    // Return the translation Parameters result
+                    if translation_result.is_empty() {
+                        Ok(FhirPathValue::Empty)
+                    } else {
+                        Ok(translation_result.first().unwrap().clone())
                     }
                 })
             }

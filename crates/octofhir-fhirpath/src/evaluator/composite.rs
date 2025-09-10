@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::{
     ast::{BinaryOperator, ExpressionNode},
     core::types::Collection,
-    core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result},
+    core::{FP0001, FP0051, FP0200, FhirPathError, FhirPathValue, ModelProvider, Result, SharedTraceProvider},
     evaluator::{
         EvaluationContext, MetadataCollectionEvaluator, MetadataCoreEvaluator,
         MetadataFunctionEvaluator, MetadataNavigator,
@@ -47,12 +47,13 @@ pub struct CompositeEvaluator {
     type_resolver: TypeResolver,
     /// Engine configuration
     config: EngineConfig,
+    /// Trace provider for trace() function output
+    trace_provider: SharedTraceProvider,
 }
 
 impl CompositeEvaluator {
     pub async fn new(
         _core_evaluator: Box<dyn ExpressionEvaluator + Send + Sync>,
-        _navigator: Box<dyn crate::evaluator::ValueNavigator + Send + Sync>,
         _function_evaluator: Box<dyn crate::evaluator::FunctionEvaluator + Send + Sync>,
         operator_evaluator: Box<dyn crate::evaluator::OperatorEvaluator + Send + Sync>,
         _collection_evaluator: Box<dyn crate::evaluator::CollectionEvaluator + Send + Sync>,
@@ -61,14 +62,40 @@ impl CompositeEvaluator {
         function_registry: Arc<FunctionRegistry>,
         config: EngineConfig,
     ) -> Self {
+        Self::with_trace_provider(
+            _core_evaluator,
+            _function_evaluator,
+            operator_evaluator,
+            _collection_evaluator,
+            lambda_evaluator,
+            model_provider,
+            function_registry,
+            config,
+            crate::core::trace::create_cli_provider(), // Default to CLI provider
+        ).await
+    }
+
+    /// Create a CompositeEvaluator with custom trace provider
+    pub async fn with_trace_provider(
+        _core_evaluator: Box<dyn ExpressionEvaluator + Send + Sync>,
+        _function_evaluator: Box<dyn crate::evaluator::FunctionEvaluator + Send + Sync>,
+        operator_evaluator: Box<dyn crate::evaluator::OperatorEvaluator + Send + Sync>,
+        _collection_evaluator: Box<dyn crate::evaluator::CollectionEvaluator + Send + Sync>,
+        lambda_evaluator: Box<dyn crate::evaluator::LambdaEvaluator + Send + Sync>,
+        model_provider: Arc<dyn ModelProvider>,
+        function_registry: Arc<FunctionRegistry>,
+        config: EngineConfig,
+        trace_provider: SharedTraceProvider,
+    ) -> Self {
         let type_resolver = TypeResolverFactory::create(model_provider.clone());
 
         Self {
             core_evaluator: MetadataCoreEvaluator::new(),
             navigator: MetadataNavigator::new(),
-            function_evaluator: MetadataFunctionEvaluator::new(
+            function_evaluator: MetadataFunctionEvaluator::with_trace_provider(
                 function_registry.clone(),
                 model_provider.clone(),
+                trace_provider.clone(),
             ),
             operator_evaluator,
             collection_evaluator: MetadataCollectionEvaluator::new(),
@@ -77,7 +104,13 @@ impl CompositeEvaluator {
             function_registry,
             type_resolver,
             config,
+            trace_provider,
         }
+    }
+
+    /// Get the trace provider for collecting traces
+    pub fn trace_provider(&self) -> &SharedTraceProvider {
+        &self.trace_provider
     }
 
     /// Check if a method name represents a lambda method that needs special handling
@@ -1199,9 +1232,24 @@ impl CompositeEvaluator {
 
         // Dispatch to metadata-aware evaluation based on expression type
         match expr {
+            ExpressionNode::Variable(var) => {
+                // Check scope manager for variables defined by defineVariable first
+                if let Some(scoped_value) = self.function_evaluator.get_scoped_variable(&var.name).await {
+                    // Found variable in scope manager - return it wrapped
+                    let wrapped_value = crate::wrapped::WrappedValue::new(
+                        scoped_value,
+                        crate::wrapped::ValueMetadata::unknown(crate::path::CanonicalPath::empty()),
+                    );
+                    Ok(vec![wrapped_value])
+                } else {
+                    // Fall back to core evaluator for built-in variables
+                    self.core_evaluator
+                        .evaluate_with_metadata(expr, context, &self.type_resolver)
+                        .await
+                }
+            }
             ExpressionNode::Identifier(_)
-            | ExpressionNode::Literal(_)
-            | ExpressionNode::Variable(_) => {
+            | ExpressionNode::Literal(_) => {
                 self.core_evaluator
                     .evaluate_with_metadata(expr, context, &self.type_resolver)
                     .await
@@ -1239,15 +1287,28 @@ impl CompositeEvaluator {
                 let mut combined_result = Vec::new();
 
                 for object_wrapped in object_result {
-                    let nav_result = self
+                    match self
                         .navigator
                         .navigate_property_with_metadata(
                             &object_wrapped,
                             &prop.property,
                             &self.type_resolver,
                         )
-                        .await?;
-                    combined_result.extend(nav_result);
+                        .await
+                    {
+                        Ok(nav_result) => combined_result.extend(nav_result),
+                        Err(err) => {
+                            // Check if this is a property access error on primitive type (FP0052)
+                            if err.error_code() == &crate::core::error_code::FP0052 {
+                                // Silently ignore - FHIRPath specification allows property access
+                                // on mixed collections to ignore non-navigable items
+                                continue;
+                            } else {
+                                // Re-raise other types of errors
+                                return Err(err);
+                            }
+                        }
+                    }
                 }
 
                 Ok(combined_result)
@@ -1278,6 +1339,11 @@ impl CompositeEvaluator {
                 }
             }
             ExpressionNode::FunctionCall(func) => {
+                // Special handling for defineVariable function
+                if func.name == "defineVariable" {
+                    return self.evaluate_define_variable_impl(func, context).await;
+                }
+
                 let mut wrapped_args = Vec::new();
                 for arg in &func.arguments {
                     let arg_result = Box::pin(self.evaluate_with_metadata(arg, context)).await?;
@@ -1524,7 +1590,23 @@ impl CompositeEvaluator {
                     "date" | "Date" => matches!(&expr_plain, FhirPathValue::Date(_)),
                     "dateTime" | "DateTime" => matches!(&expr_plain, FhirPathValue::DateTime(_)),
                     "time" | "Time" => matches!(&expr_plain, FhirPathValue::Time(_)),
-                    _ => false, // For complex types, return false for now
+                    // Handle FHIR resource types
+                    _ => {
+                        // For FHIR resources, check the resourceType field
+                        if let FhirPathValue::Resource(resource) | FhirPathValue::JsonValue(resource) = &expr_plain {
+                            if let Some(resource_type_value) = resource.get("resourceType") {
+                                if let Some(resource_type) = resource_type_value.as_str() {
+                                    resource_type.eq_ignore_ascii_case(&check.target_type)
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    }
                 };
                 self.wrap_plain_result(FhirPathValue::Boolean(result)).await
             }
@@ -1666,6 +1748,13 @@ impl CompositeEvaluator {
                     }
                 }
             }
+            // Pattern: Plain resource type identifiers like Patient, Observation, etc.
+            ExpressionNode::Identifier(IdentifierNode { name, .. }) => {
+                // Check if this looks like a FHIR resource type (starts with uppercase)
+                if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    return Some(name.clone());
+                }
+            }
             _ => {}
         }
 
@@ -1701,6 +1790,80 @@ impl ExpressionEvaluator for CompositeEvaluator {
 
     fn evaluator_name(&self) -> &'static str {
         "CompositeEvaluator"
+    }
+}
+
+impl CompositeEvaluator {
+    /// Special evaluation for defineVariable function
+    /// 
+    /// defineVariable(name, value) stores the current context as a variable
+    /// and returns the current context unchanged for chaining.
+    async fn evaluate_define_variable_impl(
+        &mut self,
+        func: &crate::ast::FunctionCallNode,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        use crate::core::{FP0053, FhirPathError};
+
+        // Validate arguments
+        if func.arguments.is_empty() {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "defineVariable() requires at least 1 argument (variable name)".to_string(),
+            ));
+        }
+        if func.arguments.len() > 2 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "defineVariable() accepts at most 2 arguments (variable name and optional value expression)".to_string(),
+            ));
+        }
+
+        // Evaluate the variable name argument - must be a string
+        let name_result = Box::pin(self.evaluate_with_metadata(&func.arguments[0], context)).await?;
+        let var_name = if name_result.len() == 1 {
+            let name_value = &name_result.first().unwrap().value;
+            match name_value {
+                crate::core::FhirPathValue::String(s) => s.clone(),
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "defineVariable() variable name must be a string".to_string(),
+                    ));
+                }
+            }
+        } else {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "defineVariable() variable name must be a single string value".to_string(),
+            ));
+        };
+
+        // Determine the value to store
+        let var_value = if func.arguments.len() == 2 {
+            // Use the provided expression value
+            let value_result = Box::pin(self.evaluate_with_metadata(&func.arguments[1], context)).await?;
+            if value_result.is_empty() {
+                crate::core::FhirPathValue::Empty
+            } else if value_result.len() == 1 {
+                value_result.first().unwrap().clone().into_plain()
+            } else {
+                let values: Vec<_> = value_result.into_iter().map(|w| w.into_plain()).collect();
+                crate::core::FhirPathValue::Collection(crate::core::Collection::from_values(values))
+            }
+        } else {
+            // Use current context as the value (this is the standard FHIRPath behavior)
+            if context.start_context.is_empty() {
+                crate::core::FhirPathValue::Empty
+            } else if context.start_context.len() == 1 {
+                context.start_context.first().unwrap().clone()
+            } else {
+                crate::core::FhirPathValue::Collection(context.start_context.clone())
+            }
+        };
+
+        // Delegate to the function evaluator to handle the scope management
+        self.function_evaluator.handle_define_variable(var_name, var_value, context).await
     }
 }
 

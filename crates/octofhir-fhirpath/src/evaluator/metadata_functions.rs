@@ -8,7 +8,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     ast::{BinaryOperator, ExpressionNode, LiteralValue},
-    core::{Collection, FhirPathValue, ModelProvider, Result},
+    core::{Collection, FhirPathValue, ModelProvider, Result, SharedTraceProvider},
     evaluator::{EvaluationContext, ScopeManager, traits::MetadataAwareFunctionEvaluator},
     path::{CanonicalPath, PathBuilder},
     registry::{FunctionContext, FunctionMetadata, FunctionRegistry},
@@ -75,6 +75,7 @@ pub struct MetadataFunctionEvaluator {
     function_registry: Arc<FunctionRegistry>,
     model_provider: Arc<dyn ModelProvider>,
     scope_manager: ScopeManager,
+    trace_provider: SharedTraceProvider,
 }
 
 impl MetadataFunctionEvaluator {
@@ -89,7 +90,70 @@ impl MetadataFunctionEvaluator {
             function_registry,
             model_provider,
             scope_manager: ScopeManager::new(empty_context),
+            trace_provider: crate::core::trace::create_cli_provider(), // Default to CLI provider
         }
+    }
+    
+    /// Create a new metadata-aware function evaluator with custom trace provider
+    pub fn with_trace_provider(
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+        trace_provider: SharedTraceProvider,
+    ) -> Self {
+        // Create a basic evaluation context for scope manager initialization
+        let empty_context = Arc::new(EvaluationContext::new(Collection::empty()));
+        Self {
+            function_registry,
+            model_provider,
+            scope_manager: ScopeManager::new(empty_context),
+            trace_provider,
+        }
+    }
+
+    /// Handle defineVariable function call with scope management
+    /// 
+    /// defineVariable(name, value) defines a variable in the current scope
+    /// and returns the input context unchanged for chaining.
+    pub async fn handle_define_variable(
+        &mut self,
+        var_name: String,
+        var_value: FhirPathValue,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        // Ensure we have a scope to work with - push global scope if none exists
+        if self.scope_manager.scope_depth() == 0 {
+            self.scope_manager.push_scope(crate::evaluator::ScopeType::Global);
+        }
+
+        // Store the variable in the current scope
+        self.scope_manager.set_variable(var_name, var_value);
+
+        // Return the current context unchanged (for chaining)
+        self.convert_evaluation_context_to_wrapped(context).await
+    }
+
+    /// Convert EvaluationContext to WrappedCollection
+    async fn convert_evaluation_context_to_wrapped(
+        &self,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        let values: Vec<WrappedValue> = context
+            .start_context
+            .iter()
+            .enumerate()
+            .map(|(_index, value)| {
+                WrappedValue::new(
+                    value.clone(),
+                    ValueMetadata::unknown(CanonicalPath::empty()),
+                )
+            })
+            .collect();
+        Ok(values)
+    }
+
+    /// Get variable from scope manager (for variable resolution)
+    pub async fn get_scoped_variable(&self, name: &str) -> Option<FhirPathValue> {
+        self.scope_manager.get_variable(name).await
     }
 
     // Lambda evaluation helper functions from lambda.rs reference
@@ -412,6 +476,10 @@ impl MetadataFunctionEvaluator {
     ) -> Result<String> {
         // If function metadata specifies return type, use it
         if let Some(return_type) = func_metadata.return_type {
+            // Special case: "Collection" means mixed types, not a primitive type
+            if return_type == "Collection" {
+                return Ok("mixed".to_string());
+            }
             return Ok(return_type);
         }
 
@@ -515,8 +583,14 @@ impl MetadataFunctionEvaluator {
                     .enumerate()
                     .map(|(i, value)| {
                         let indexed_path = result_path.append_index(i);
+                        // For mixed collections, determine the individual type of each element
+                        let element_type = if result_type == "mixed" {
+                            crate::typing::type_utils::fhirpath_value_to_fhir_type(&value)
+                        } else {
+                            result_type.clone()
+                        };
                         let metadata = ValueMetadata {
-                            fhir_type: result_type.clone(),
+                            fhir_type: element_type,
                             resource_type: None,
                             path: indexed_path,
                             index: Some(i),
@@ -574,8 +648,46 @@ impl MetadataFunctionEvaluator {
                 self.evaluate_trace_method(object, args, context, resolver)
                     .await
             }
+            // Handle terminology functions that need to preserve TypeInfoObject
+            "expand" | "translate" | "validateVS" => {
+                self.evaluate_terminology_method(object, method, args, context, resolver)
+                    .await
+            }
             _ => Ok(None), // Not a special method
         }
+    }
+
+    /// Evaluate terminology methods that need to preserve TypeInfoObject
+    async fn evaluate_terminology_method(
+        &mut self,
+        object: &WrappedCollection,
+        method: &str,
+        args: &[WrappedCollection],
+        context: &EvaluationContext,
+        resolver: &TypeResolver,
+    ) -> Result<Option<WrappedCollection>> {
+        // Check if the object is a TypeInfoObject representing %terminologies
+        if object.len() == 1 {
+            if let FhirPathValue::TypeInfoObject { name, .. } = object[0].as_plain() {
+                if name == "terminologies" {
+                    // For terminology methods, preserve the TypeInfoObject as input
+                    let plain_args = self.unwrap_arguments(args);
+                    let input = object[0].as_plain().clone(); // Keep the TypeInfoObject
+                    
+                    // Call the function with proper context setup
+                    let result = self
+                        .call_function_with_context(method, input, plain_args, context)
+                        .await?;
+
+                    // Wrap the result with appropriate metadata
+                    let wrapped_result = self.wrap_function_result(result, method, Some(object), resolver).await?;
+                    return Ok(Some(wrapped_result));
+                }
+            }
+        }
+        
+        // Not a terminology method on %terminologies - let normal handling take over
+        Ok(None)
     }
 
     /// Evaluate the where() method with proper metadata propagation and property validation
@@ -1102,7 +1214,7 @@ impl MetadataFunctionEvaluator {
             // trace(name) - trace input values and return them
             for (i, wrapped) in object.iter().enumerate() {
                 let trace_output = self.format_trace_value_with_metadata(wrapped);
-                eprintln!("TRACE[{}][{}]: {}", trace_name, i, trace_output);
+                self.trace_provider.trace(&trace_name, i, &trace_output);
             }
         } else {
             // trace(name, projection) - evaluate projection expression on each item
@@ -1115,10 +1227,7 @@ impl MetadataFunctionEvaluator {
                 // For now, we'll show a simplified trace indicating projection was requested
                 // The actual projection evaluation would be done by the engine's lambda evaluator
 
-                eprintln!(
-                    "TRACE[{}][{}]: {} (with projection)",
-                    trace_name, i, item_trace
-                );
+                self.trace_provider.trace(&trace_name, i, &format!("{} (with projection)", item_trace));
             }
         }
 

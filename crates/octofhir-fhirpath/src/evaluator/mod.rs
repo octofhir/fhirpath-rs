@@ -21,7 +21,6 @@ pub mod metadata_collections;
 pub mod metadata_core;
 pub mod metadata_functions;
 pub mod metadata_navigator;
-pub mod navigator;
 pub mod operators;
 pub mod traits;
 
@@ -61,7 +60,6 @@ pub use metadata_collections::{MetadataCollectionEvaluator, collection_ops};
 pub use metadata_core::MetadataCoreEvaluator;
 pub use metadata_functions::MetadataFunctionEvaluator;
 pub use metadata_navigator::MetadataNavigator;
-pub use navigator::Navigator;
 // Re-export the main engine type
 pub use engine::{FhirPathEngine, TypeResolutionStats, create_engine_with_mock_provider};
 pub use operators::OperatorEvaluatorImpl;

@@ -364,7 +364,7 @@ impl MetadataNavigator {
                     .enumerate()
                     .map(|(i, item)| {
                         let indexed_path = path.append_index(i);
-                        let fhir_path_value = self.json_to_fhir_path_value(item);
+                        let fhir_path_value = self.json_to_fhir_path_value_with_type(item, &fhir_type);
 
                         // IMPORTANT FIX: Detect actual FHIR resource type from JSON
                         let actual_fhir_type = if let JsonValue::Object(obj) = item {
@@ -396,7 +396,7 @@ impl MetadataNavigator {
             }
             _ => {
                 // Single value
-                let fhir_path_value = self.json_to_fhir_path_value(json);
+                let fhir_path_value = self.json_to_fhir_path_value_with_type(json, &fhir_type);
 
                 // IMPORTANT FIX: Detect actual FHIR resource type from JSON
                 let actual_fhir_type = if let JsonValue::Object(obj) = json {
@@ -422,6 +422,24 @@ impl MetadataNavigator {
                 };
                 collection_utils::single(WrappedValue::new(fhir_path_value, metadata))
             }
+        }
+    }
+
+    /// Convert JSON value to FhirPathValue with type awareness
+    fn json_to_fhir_path_value_with_type(&self, json: &JsonValue, expected_fhir_type: &str) -> FhirPathValue {
+        // Handle type coercion based on FHIR schema information
+        match expected_fhir_type {
+            "string" => {
+                // For string types, convert numbers to strings
+                match json {
+                    JsonValue::String(s) => FhirPathValue::String(s.clone()),
+                    JsonValue::Number(n) => FhirPathValue::String(n.to_string()),
+                    JsonValue::Bool(b) => FhirPathValue::String(b.to_string()),
+                    JsonValue::Null => FhirPathValue::Empty,
+                    _ => self.json_to_fhir_path_value(json), // Fall back to default handling
+                }
+            }
+            _ => self.json_to_fhir_path_value(json), // Use default handling for other types
         }
     }
 
@@ -454,20 +472,28 @@ impl MetadataNavigator {
                     FhirPathValue::Resource(Arc::new(json.clone()))
                 }
                 // CRITICAL FIX: Check if this is a FHIR Quantity data type
-                else if let (Some(value), Some(code)) = (
-                    obj.get("value").and_then(|v| v.as_f64()),
-                    obj.get("code").and_then(|c| c.as_str()),
-                ) {
-                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
-                        eprintln!(
-                            "🔍 QUANTITY CONVERSION: Converting JSON to FhirPathValue::Quantity - value: {}, code: {}",
-                            value, code
-                        );
+                else if obj.get("value").is_some() && (obj.contains_key("unit") || obj.contains_key("code")) {
+                    if let Some(value) = obj.get("value").and_then(|v| v.as_f64()) {
+                        // For unit field, prefer "unit" over "code" for FHIRPath .unit property
+                        // This matches the expectation that .unit returns human-readable units
+                        let unit_str = obj.get("unit")
+                            .and_then(|u| u.as_str())
+                            .or_else(|| obj.get("code").and_then(|c| c.as_str()));
+
+                        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                            eprintln!(
+                                "🔍 QUANTITY CONVERSION: Converting JSON to FhirPathValue::Quantity - value: {}, unit: {:?}",
+                                value, unit_str
+                            );
+                        }
+                        // Convert JSON Quantity object to proper FhirPathValue::Quantity
+                        let decimal_value = rust_decimal::Decimal::from_f64_retain(value)
+                            .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0));
+                        FhirPathValue::quantity(decimal_value, unit_str.map(|s| s.to_string()))
+                    } else {
+                        // Invalid value field, treat as regular JSON object
+                        FhirPathValue::JsonValue(Arc::new(json.clone()))
                     }
-                    // Convert JSON Quantity object to proper FhirPathValue::Quantity
-                    let decimal_value = rust_decimal::Decimal::from_f64_retain(value)
-                        .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0));
-                    FhirPathValue::quantity(decimal_value, Some(code.to_string()))
                 } else {
                     // Regular JSON object
                     FhirPathValue::JsonValue(Arc::new(json.clone()))
