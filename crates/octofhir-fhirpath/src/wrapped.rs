@@ -20,6 +20,10 @@ pub struct ValueMetadata {
     /// Canonical path representation
     pub path: CanonicalPath,
 
+    /// Whether this value represents an ordered collection
+    /// This preserves ordering semantics through the evaluation pipeline
+    pub is_ordered: Option<bool>,
+
     /// Array index if this value is from an array access
     /// Used for generating indexed paths like "name[0]", "given[1]"
     pub index: Option<usize>,
@@ -33,6 +37,7 @@ impl ValueMetadata {
             fhir_type: resource_type.clone(),
             resource_type: Some(resource_type),
             path,
+            is_ordered: None, // Single resources don't have ordering semantics
             index: None,
         }
     }
@@ -43,6 +48,7 @@ impl ValueMetadata {
             fhir_type,
             resource_type: None,
             path,
+            is_ordered: None, // Primitives don't have ordering semantics
             index: None,
         }
     }
@@ -53,6 +59,7 @@ impl ValueMetadata {
             fhir_type,
             resource_type: None,
             path,
+            is_ordered: None, // Complex types don't have ordering semantics
             index: None,
         }
     }
@@ -63,6 +70,7 @@ impl ValueMetadata {
             fhir_type: "unknown".to_string(),
             resource_type: None,
             path,
+            is_ordered: None, // Unknown types don't have ordering semantics
             index: None,
         }
     }
@@ -74,6 +82,7 @@ impl ValueMetadata {
             fhir_type: child_type,
             resource_type: None, // Child properties are not resource roots
             path: new_path,
+            is_ordered: None, // Property access doesn't change ordering semantics
             index: None,
         }
     }
@@ -94,6 +103,7 @@ impl ValueMetadata {
             fhir_type,
             resource_type: None,
             path: new_path,
+            is_ordered: None, // Index access doesn't change ordering semantics
             index: Some(index),
         }
     }
@@ -115,6 +125,17 @@ impl ValueMetadata {
         self.path.to_string()
     }
 
+    /// Create metadata for a collection with explicit ordering
+    pub fn collection(fhir_type: String, path: CanonicalPath, is_ordered: bool) -> Self {
+        Self {
+            fhir_type,
+            resource_type: None,
+            path,
+            is_ordered: Some(is_ordered),
+            index: None,
+        }
+    }
+
     /// Create metadata with type resolution from ModelProvider
     pub async fn resolve_from_path(path: CanonicalPath, resolver: &TypeResolver) -> Result<Self> {
         let fhir_type = resolver.resolve_type_by_path(&path).await?;
@@ -133,6 +154,7 @@ impl ValueMetadata {
             resource_type,
             path,
             index: None,
+            is_ordered: None,
         })
     }
 
@@ -144,6 +166,7 @@ impl ValueMetadata {
             fhir_type,
             resource_type: None, // Will be resolved later if needed
             path,
+            is_ordered: None, // Will be inferred from value type if needed
             index: None,
         }
     }
@@ -297,8 +320,13 @@ pub mod collection_utils {
 
     /// Convert wrapped collection back to plain values
     pub fn to_plain_collection(wrapped: WrappedCollection) -> Collection {
+        // Extract ordering information from metadata if available
+        let is_ordered = wrapped.first()
+            .and_then(|w| w.metadata.is_ordered)
+            .unwrap_or(true); // Default to ordered for backward compatibility
+            
         let values: Vec<FhirPathValue> = wrapped.into_iter().map(|w| w.value).collect();
-        Collection::from_values(values)
+        Collection::from_values_with_ordering(values, is_ordered)
     }
 
     /// Convert plain collection to wrapped with inferred metadata
@@ -307,11 +335,13 @@ pub mod collection_utils {
         base_path: CanonicalPath,
         base_type: String,
     ) -> WrappedCollection {
+        let is_ordered = collection.is_ordered();
         let values = collection.into_vec();
         let base_metadata = ValueMetadata {
             fhir_type: base_type,
             resource_type: None,
             path: base_path,
+            is_ordered: Some(is_ordered),
             index: None,
         };
 
@@ -368,10 +398,12 @@ pub mod integration {
         match value {
             FhirPathValue::Empty => collection_utils::empty(),
             FhirPathValue::Collection(collection) => {
+                let is_ordered = collection.is_ordered();
                 let base_metadata = ValueMetadata {
                     fhir_type: base_type,
                     resource_type: None,
                     path: base_path,
+                    is_ordered: Some(is_ordered),
                     index: None,
                 };
                 collection_utils::from_plain_with_base_metadata(
@@ -384,6 +416,7 @@ pub mod integration {
                     fhir_type: base_type,
                     resource_type: None,
                     path: base_path,
+                    is_ordered: None, // Single values don't have ordering semantics
                     index: None,
                 };
                 collection_utils::single(WrappedValue::new(single_value, metadata))
@@ -438,6 +471,7 @@ pub mod integration {
                     resource_type: None,
                     path: indexed_path,
                     index: Some(i),
+                    is_ordered: None,
                 }
             } else {
                 // Single value - use base metadata
@@ -446,6 +480,7 @@ pub mod integration {
                     resource_type: None,
                     path: base_path.clone(),
                     index: None,
+                    is_ordered: None,
                 }
             };
 
@@ -468,6 +503,7 @@ pub mod integration {
             resource_type: Some(resource_type),
             path,
             index: None,
+            is_ordered: None,
         })
     }
 
@@ -478,8 +514,13 @@ pub mod integration {
         } else if wrapped.len() == 1 {
             wrapped.into_iter().next().unwrap().value
         } else {
+            // Extract ordering information from metadata if available
+            let is_ordered = wrapped.first()
+                .and_then(|w| w.metadata.is_ordered)
+                .unwrap_or(true); // Default to ordered for backward compatibility
+                
             let values: Vec<FhirPathValue> = wrapped.into_iter().map(|w| w.value).collect();
-            FhirPathValue::Collection(Collection::from_values(values))
+            FhirPathValue::Collection(Collection::from_values_with_ordering(values, is_ordered))
         }
     }
 }

@@ -313,6 +313,7 @@ impl CoreEvaluator {
             resource_type: None,
             path,
             index: if index > 0 { Some(index) } else { None },
+            is_ordered: None,
         };
 
         Ok(WrappedValue::new(value, metadata))

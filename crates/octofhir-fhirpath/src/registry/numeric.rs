@@ -558,22 +558,23 @@ impl FunctionRegistry {
 
         match target_precision {
             17 => {
-                // Millisecond precision: return end of minute with maximum timezone offset
+                // Millisecond precision: return end of current minute
                 let dt = datetime.datetime;
                 let high_boundary = dt
-                    .with_hour(dt.hour())
-                    .unwrap()
-                    .with_minute(dt.minute())
-                    .unwrap()
                     .with_second(59)
                     .unwrap()
                     .with_nanosecond(999_000_000)
                     .unwrap(); // 999 milliseconds
 
-                // Use maximum negative timezone offset (-12:00)
-                let formatted = high_boundary
-                    .format("%Y-%m-%dT%H:%M:%S%.3f-12:00")
-                    .to_string();
+                // Preserve original timezone if specified, otherwise use maximum negative offset
+                let adjusted = if datetime.tz_specified {
+                    high_boundary
+                } else {
+                    use chrono::FixedOffset;
+                    high_boundary.with_timezone(&FixedOffset::west_opt(12 * 3600).unwrap())
+                };
+
+                let formatted = adjusted.format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
                 Ok(FhirPathValue::String(formatted))
             }
             _ => {

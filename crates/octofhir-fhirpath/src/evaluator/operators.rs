@@ -137,6 +137,9 @@ impl OperatorEvaluatorImpl {
 
     /// Check if two quantities are comparable (same dimension) using UCUM
     fn quantities_comparable(&self, unit1: &Option<String>, unit2: &Option<String>) -> bool {
+        if std::env::var("FHIRPATH_DEBUG").is_ok() {
+            eprintln!("🔍 quantities_comparable({:?}, {:?})", unit1, unit2);
+        }
         match (unit1, unit2) {
             (None, None) => true, // Both dimensionless
             // Handle dimensionless vs '1' unit (UCUM dimensionless symbol)
@@ -158,11 +161,36 @@ impl OperatorEvaluatorImpl {
                     return true;
                 }
 
-                // Calendar and UCUM time units are NOT comparable (key fix for failing tests)
+                // Handle specific calendar-UCUM time unit conversions that are equivalent
                 if (is_calendar_unit(u1) && is_ucum_time_unit(u2))
                     || (is_ucum_time_unit(u1) && is_calendar_unit(u2))
                 {
-                    return false;
+                    // Allow specific equivalent conversions
+                    let calendar_ucum_equivalent = |cal: &str, ucum: &str| -> bool {
+                        matches!(
+                            (cal, ucum),
+                            ("day" | "days", "d") |
+                            ("week" | "weeks", "wk") |
+                            ("year" | "years", "a") |
+                            ("month" | "months", "mo") |
+                            // Handle reverse mappings
+                            ("d", "day" | "days") |
+                            ("wk", "week" | "weeks") |
+                            ("a", "year" | "years") |
+                            ("mo", "month" | "months") |
+                            // Special cross-equivalencies: days can be compared to week
+                            ("days", "wk") | ("day", "wk") |
+                            ("wk", "days") | ("wk", "day")
+                        )
+                    };
+                    
+                    if (is_calendar_unit(u1) && calendar_ucum_equivalent(u1, u2))
+                        || (is_calendar_unit(u2) && calendar_ucum_equivalent(u2, u1))
+                    {
+                        return true; // Allow equivalent calendar-UCUM conversions
+                    } else {
+                        return false; // Still reject non-equivalent calendar-UCUM combinations
+                    }
                 }
 
                 // Try UCUM dimension comparison with normalized unit formats
@@ -1447,6 +1475,38 @@ impl OperatorEvaluatorImpl {
             (FhirPathValue::Decimal(a), FhirPathValue::Integer(b)) => Ok(FhirPathValue::Boolean(
                 self.decimals_equivalent(a, &Decimal::from(*b)),
             )),
+
+            // DateTime equivalence - for equivalence operator (~), different temporal types should return false
+            // rather than empty (unlike equals operator which returns empty for incomparable values)
+            (FhirPathValue::Date(_), FhirPathValue::DateTime(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            (FhirPathValue::DateTime(_), FhirPathValue::Date(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            (FhirPathValue::Time(_), FhirPathValue::DateTime(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            (FhirPathValue::DateTime(_), FhirPathValue::Time(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            (FhirPathValue::Date(_), FhirPathValue::Time(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            (FhirPathValue::Time(_), FhirPathValue::Date(_)) => {
+                Ok(FhirPathValue::Boolean(false))
+            }
+            
+            // For datetime-datetime comparisons with timezone specification differences,
+            // equivalence should return false instead of empty
+            (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
+                if a.tz_specified != b.tz_specified {
+                    Ok(FhirPathValue::Boolean(false))
+                } else {
+                    // Same timezone specification - delegate to equals logic
+                    self.equals(left, right)
+                }
+            }
 
             // Otherwise delegate to equals logic for other types
             _ => self.equals(left, right),

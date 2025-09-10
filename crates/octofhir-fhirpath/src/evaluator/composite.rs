@@ -584,11 +584,10 @@ impl CompositeEvaluator {
             for (_i, ((key_a, desc_a), (key_b, _desc_b))) in
                 keys_a.iter().zip(keys_b.iter()).enumerate()
             {
-                let cmp = self.compare_fhirpath_values_naturally(key_a, key_b);
-                let result = if *desc_a { cmp.reverse() } else { cmp };
-
-                if result != std::cmp::Ordering::Equal {
-                    return result;
+                let cmp = self.compare_fhirpath_values_for_sorting(key_a, key_b, *desc_a);
+                
+                if cmp != std::cmp::Ordering::Equal {
+                    return cmp;
                 }
             }
 
@@ -659,14 +658,26 @@ impl CompositeEvaluator {
             (FhirPathValue::String(_), FhirPathValue::Boolean(_)) => Ordering::Less,
             (FhirPathValue::Boolean(_), FhirPathValue::String(_)) => Ordering::Greater,
 
-            // Empty values sort first
+            // Empty values are treated as largest (sort last in ascending, first in descending)
             (FhirPathValue::Empty, FhirPathValue::Empty) => Ordering::Equal,
-            (FhirPathValue::Empty, _) => Ordering::Less,
-            (_, FhirPathValue::Empty) => Ordering::Greater,
+            (FhirPathValue::Empty, _) => Ordering::Greater,
+            (_, FhirPathValue::Empty) => Ordering::Less,
 
             // All other cases - fallback to string comparison
             _ => format!("{:?}", a).cmp(&format!("{:?}", b)),
         }
+    }
+
+    /// Compare FhirPathValues for sorting with proper empty value handling based on sort direction
+    fn compare_fhirpath_values_for_sorting(
+        &self,
+        a: &crate::core::FhirPathValue,
+        b: &crate::core::FhirPathValue,
+        descending: bool,
+    ) -> std::cmp::Ordering {
+        // For sorting, we always use natural comparison and handle descending by reversing
+        let cmp = self.compare_fhirpath_values_naturally(a, b);
+        if descending { cmp.reverse() } else { cmp }
     }
 
     /// Handle aggregate method with lambda expressions
@@ -1390,6 +1401,7 @@ impl CompositeEvaluator {
                                 resource_type: None,
                                 path: CanonicalPath::empty(),
                                 index: None,
+                                is_ordered: None,
                             };
                             collection_utils::single(WrappedValue::new(type_value, metadata))
                         } else {
@@ -1449,6 +1461,7 @@ impl CompositeEvaluator {
                                 resource_type: None,
                                 path,
                                 index: Some(i),
+                                is_ordered: None,
                             };
                             WrappedValue::new(value.clone(), metadata)
                         })
@@ -1564,6 +1577,7 @@ impl CompositeEvaluator {
                             resource_type: None,
                             path,
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(value, metadata)
                     })
@@ -1577,6 +1591,7 @@ impl CompositeEvaluator {
                     resource_type: None,
                     path: CanonicalPath::empty(),
                     index: None,
+                    is_ordered: None,
                 };
                 Ok(collection_utils::single(WrappedValue::new(
                     single_value,

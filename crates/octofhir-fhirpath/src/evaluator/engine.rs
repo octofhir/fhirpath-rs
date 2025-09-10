@@ -190,8 +190,11 @@ impl FhirPathEngine {
         let start_time = std::time::Instant::now();
         let mut type_stats = TypeResolutionStats::default();
 
-        // Parse expression (with caching)
-        let ast = self.parse_or_cached(expression)?;
+        // Auto-detect FHIR context and transform root expressions
+        let processed_expression = self.auto_detect_fhir_context(expression, context).await?;
+
+        // Parse expression (with caching) - using processed expression
+        let ast = self.parse_or_cached(&processed_expression)?;
 
         // Setup context with terminology service if available
         let context_with_terminology = self.setup_context_with_terminology(context);
@@ -212,9 +215,8 @@ impl FhirPathEngine {
         };
 
         // Convert WrappedCollection to Collection (always a Collection per FHIRPath spec)
-        let collection_values: Vec<FhirPathValue> =
-            wrapped_values.into_iter().map(|w| w.value).collect();
-        let result_collection = Collection::from_values(collection_values);
+        // Use the collection_utils to preserve ordering information from metadata
+        let result_collection = crate::wrapped::collection_utils::to_plain_collection(wrapped_values);
 
         Ok(EvaluationResult {
             value: result_collection,
@@ -236,8 +238,11 @@ impl FhirPathEngine {
         let start_time = std::time::Instant::now();
         let mut type_stats = TypeResolutionStats::default();
 
-        // Parse expression (with caching)
-        let ast = self.parse_or_cached(expression)?;
+        // Auto-detect FHIR context and transform root expressions
+        let processed_expression = self.auto_detect_fhir_context(expression, context).await?;
+
+        // Parse expression (with caching) - using processed expression
+        let ast = self.parse_or_cached(&processed_expression)?;
 
         // Setup context with terminology service if available
         let context_with_terminology = self.setup_context_with_terminology(context);
@@ -421,12 +426,18 @@ impl FhirPathEngine {
                     .enumerate()
                     .map(|(i, value)| {
                         let fhir_type = type_utils::fhirpath_value_to_fhir_type(&value);
-                        let path = CanonicalPath::parse(&format!("[{}]", i)).unwrap();
+                        let resource_type = self.extract_resource_type(&value);
+                        let path = if let Some(ref res_type) = resource_type {
+                            CanonicalPath::root(res_type.clone())
+                        } else {
+                            CanonicalPath::parse(&format!("[{}]", i)).unwrap()
+                        };
                         let metadata = ValueMetadata {
-                            fhir_type,
-                            resource_type: None,
+                            fhir_type: resource_type.as_ref().unwrap_or(&fhir_type).clone(),
+                            resource_type: resource_type.clone(),
                             path,
-                            index: Some(i),
+                            index: if resource_type.is_some() { None } else { Some(i) },
+                            is_ordered: None,
                         };
                         WrappedValue::new(value, metadata)
                     })
@@ -435,17 +446,40 @@ impl FhirPathEngine {
             }
             single_value => {
                 let fhir_type = type_utils::fhirpath_value_to_fhir_type(&single_value);
+                let resource_type = self.extract_resource_type(&single_value);
+                let path = if let Some(ref res_type) = resource_type {
+                    CanonicalPath::root(res_type.clone())
+                } else {
+                    CanonicalPath::empty()
+                };
                 let metadata = ValueMetadata {
-                    fhir_type,
-                    resource_type: None,
-                    path: CanonicalPath::empty(),
+                    fhir_type: resource_type.as_ref().unwrap_or(&fhir_type).clone(),
+                    resource_type: resource_type.clone(),
+                    path,
                     index: None,
+                    is_ordered: None,
                 };
                 Ok(collection_utils::single(WrappedValue::new(
                     single_value,
                     metadata,
                 )))
             }
+        }
+    }
+
+    /// Extract resourceType from FhirPathValue if it's a FHIR resource
+    fn extract_resource_type(&self, value: &FhirPathValue) -> Option<String> {
+        match value {
+            FhirPathValue::JsonValue(json) | FhirPathValue::Resource(json) => {
+                if let serde_json::Value::Object(obj) = json.as_ref() {
+                    obj.get("resourceType")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -477,6 +511,87 @@ impl FhirPathEngine {
         }
 
         context_with_terminology
+    }
+
+    /// Auto-detect FHIR context and transform root expressions
+    /// This enables property validation for expressions like "name.given1" by
+    /// transforming them to "Patient.name.given1" based on the input resourceType
+    async fn auto_detect_fhir_context(
+        &self,
+        expression: &str,
+        context: &EvaluationContext,
+    ) -> Result<String> {
+        // Only process non-empty expressions
+        if expression.trim().is_empty() {
+            return Ok(expression.to_string());
+        }
+
+        // Extract resourceType from input JSON if available
+        let resource_type = self.extract_resource_type_from_context(context);
+        
+        if let Some(resource_type) = resource_type {
+            // Check if this is a root expression that doesn't already start with a resource type
+            if self.is_root_expression_without_context(expression, &resource_type) {
+                // Transform "name.given" to "Patient.name.given"
+                return Ok(format!("{}.{}", resource_type, expression.trim()));
+            }
+        }
+
+        // Return original expression if no transformation needed
+        Ok(expression.to_string())
+    }
+
+    /// Extract resourceType from the evaluation context's start_context JSON
+    fn extract_resource_type_from_context(&self, context: &EvaluationContext) -> Option<String> {
+        // Get the first item in the collection (the root resource)
+        if let Some(first_value) = context.start_context.first() {
+            if let crate::core::FhirPathValue::JsonValue(json_val) = first_value {
+                // Try to extract resourceType property from JSON
+                if let Some(resource_type) = json_val.get("resourceType") {
+                    if let Some(resource_type_str) = resource_type.as_str() {
+                        return Some(resource_type_str.to_string());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Check if this is a root expression that needs FHIR context transformation
+    /// Returns true for expressions like "name.given" but false for "Patient.name.given"
+    fn is_root_expression_without_context(&self, expression: &str, resource_type: &str) -> bool {
+        let trimmed = expression.trim();
+        
+        // Skip if already has resource type prefix
+        if trimmed.starts_with(&format!("{}.", resource_type)) {
+            return false;
+        }
+        
+        // Skip if starts with other common FHIR resource types (basic check)
+        let common_resource_types = [
+            "Patient", "Observation", "Encounter", "Practitioner", 
+            "Organization", "Medication", "Bundle", "DiagnosticReport",
+            "Condition", "Procedure", "AllergyIntolerance", "Device"
+        ];
+        
+        for res_type in &common_resource_types {
+            if trimmed.starts_with(&format!("{}.", res_type)) {
+                return false;
+            }
+        }
+        
+        // Skip expressions that start with special characters or functions
+        if trimmed.starts_with('(') || trimmed.starts_with('"') || trimmed.starts_with('\'') {
+            return false;
+        }
+        
+        // Skip expressions that are resolve() calls or contain resolve()
+        if trimmed.contains("resolve(") {
+            return false;
+        }
+        
+        // This looks like a root property access that needs context
+        true
     }
 }
 

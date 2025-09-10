@@ -524,9 +524,11 @@ impl FhirPathValue {
     pub fn collection_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
         if values.is_empty() {
             Self::Empty
-        } else if values.len() == 1 {
+        } else if values.len() == 1 && is_ordered {
+            // Only return single value for ordered collections (FHIRPath optimization)
             values.into_iter().next().unwrap()
         } else {
+            // Always return Collection for unordered collections to preserve ordering info
             Self::Collection(Collection::from_values_with_ordering(values, is_ordered))
         }
     }

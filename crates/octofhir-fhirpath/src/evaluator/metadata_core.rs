@@ -186,6 +186,7 @@ impl MetadataCoreEvaluator {
                             resource_type: None,
                             path: indexed_path,
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(fhir_path_value, metadata)
                     })
@@ -199,6 +200,7 @@ impl MetadataCoreEvaluator {
                     resource_type: None,
                     path,
                     index: None,
+                    is_ordered: None,
                 };
                 collection_utils::single(WrappedValue::new(fhir_path_value, metadata))
             }
@@ -316,6 +318,7 @@ impl MetadataCoreEvaluator {
             resource_type: None,
             path,
             index: None,
+            is_ordered: None,
         };
 
         let wrapped = WrappedValue::new(fhir_path_value, metadata);
@@ -365,6 +368,7 @@ impl MetadataCoreEvaluator {
                             resource_type,
                             path,
                             index: None,
+                            is_ordered: None,
                         };
 
                         let wrapped = WrappedValue::new(value.clone(), metadata);
@@ -394,6 +398,7 @@ impl MetadataCoreEvaluator {
                     resource_type,
                     path,
                     index: None,
+                    is_ordered: None,
                 };
 
                 let wrapped = WrappedValue::new(value.clone(), metadata);
@@ -419,6 +424,7 @@ impl MetadataCoreEvaluator {
                         resource_type,
                         path,
                         index: Some(i),
+                        is_ordered: None,
                     };
 
                     let wrapped = WrappedValue::new(value.clone(), metadata);
@@ -439,6 +445,7 @@ impl MetadataCoreEvaluator {
                 resource_type: None,
                 path,
                 index: None,
+                is_ordered: None,
             };
 
             let wrapped = WrappedValue::new(var_value.clone(), metadata);
@@ -494,6 +501,7 @@ impl MetadataCoreEvaluator {
                             resource_type,
                             path,
                             index,
+                            is_ordered: None,
                         };
 
                         let wrapped = WrappedValue::new(value.clone(), metadata);
@@ -542,6 +550,7 @@ impl MetadataCoreEvaluator {
                         resource_type: Some(resource_type.to_string()),
                         path,
                         index: if index > 0 { Some(index) } else { None },
+                        is_ordered: None,
                     };
 
                     Ok(WrappedValue::new(value.clone(), metadata))
@@ -558,6 +567,7 @@ impl MetadataCoreEvaluator {
                         resource_type: None,
                         path,
                         index: if index > 0 { Some(index) } else { None },
+                        is_ordered: None,
                     };
 
                     Ok(WrappedValue::new(value.clone(), metadata))
@@ -577,6 +587,7 @@ impl MetadataCoreEvaluator {
                     resource_type: None,
                     path,
                     index: if index > 0 { Some(index) } else { None },
+                    is_ordered: None,
                 };
 
                 Ok(WrappedValue::new(value.clone(), metadata))

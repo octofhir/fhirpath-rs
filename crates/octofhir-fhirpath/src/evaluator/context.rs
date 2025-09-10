@@ -313,6 +313,12 @@ impl BuiltinVariables {
             FhirPathValue::String("http://unitsofmeasure.org".to_string()),
         );
 
+        // Add commonly used administrative-gender value set
+        env_vars.insert(
+            "%vs-administrative-gender".to_string(),
+            FhirPathValue::String("http://hl7.org/fhir/ValueSet/administrative-gender".to_string()),
+        );
+
         Self {
             terminology_server,
             terminologies: None,

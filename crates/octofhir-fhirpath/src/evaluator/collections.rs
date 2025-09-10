@@ -182,6 +182,7 @@ impl CollectionEvaluatorImpl {
                             resource_type: None,
                             path,
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(value, metadata)
                     })
@@ -195,6 +196,7 @@ impl CollectionEvaluatorImpl {
                     resource_type: None,
                     path: CanonicalPath::empty(),
                     index: None,
+                    is_ordered: None,
                 };
                 Ok(collection_utils::single(WrappedValue::new(
                     single_value,

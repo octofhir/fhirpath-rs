@@ -266,6 +266,7 @@ impl FunctionEvaluatorImpl {
                             resource_type: None,
                             path: result_path.append_index(i),
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(value, metadata)
                     })
@@ -278,6 +279,7 @@ impl FunctionEvaluatorImpl {
                     resource_type: None,
                     path: result_path,
                     index: None,
+                    is_ordered: None,
                 };
                 Ok(collection_utils::single(WrappedValue::new(
                     single_value,
@@ -456,6 +458,7 @@ impl FunctionEvaluatorImpl {
             resource_type: None,
             path: crate::path::CanonicalPath::empty(), // TODO: derive from context
             index: None,
+            is_ordered: None,
         };
 
         let wrapped_values = match value {
@@ -467,6 +470,7 @@ impl FunctionEvaluatorImpl {
                         resource_type: None,
                         path: metadata.path.clone(),
                         index: None,
+                        is_ordered: None,
                     };
                     crate::wrapped::WrappedValue::new(item.clone(), item_metadata)
                 })

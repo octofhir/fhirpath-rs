@@ -95,10 +95,18 @@ impl FunctionRegistry {
                             Ok(FhirPathValue::empty())
                         }
                     },
-                    FhirPathValue::Empty => Ok(FhirPathValue::empty()),
+                    FhirPathValue::Empty => {
+                        // According to FHIRPath spec, empty collections are falsy in boolean context
+                        // so iif({}, then, else) should return else, not empty
+                        if let Some(else_val) = else_value {
+                            Ok(else_val.clone())
+                        } else {
+                            Ok(FhirPathValue::empty())
+                        }
+                    },
                     _ => Err(FhirPathError::evaluation_error(
                         FP0053,
-                        "iif() first argument must be a boolean".to_string()
+                        "iif() first argument must be a boolean or empty".to_string()
                     ))
                 }
             }

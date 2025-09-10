@@ -25,9 +25,10 @@ use std::path::PathBuf;
 
 // Integration test runner functionality
 mod integration_test_runner {
-    use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
-    use octofhir_fhirpath::{FhirPathEngine, create_standard_registry};
+    use octofhir_fhirpath::core::error_code::FP0053;
+    use octofhir_fhirpath::{Collection, FhirPathEngine, create_standard_registry};
+    use octofhir_fhirpath::{FhirPathError, FhirPathValue};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::collections::HashMap;
@@ -490,6 +491,30 @@ mod integration_test_runner {
                         }
                     },
                 };
+
+            // If test marked as predicate, convert result to boolean using FHIRPath rules
+            let result = if test.predicate.unwrap_or(false) {
+                let bool_val = if result.is_empty() {
+                    Ok(false)
+                } else if result.len() == 1 {
+                    result.get(0).unwrap().to_boolean()
+                } else {
+                    Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "Predicate evaluation requires a singleton collection".to_string(),
+                    ))
+                };
+                match bool_val {
+                    Ok(b) => Collection::single(FhirPathValue::Boolean(b)),
+                    Err(e) => {
+                        return TestResult::Error {
+                            error: format!("{e}"),
+                        };
+                    }
+                }
+            } else {
+                result
+            };
 
             // Check if test expects an error but we got a result
             if test.expect_error.unwrap_or(false) {

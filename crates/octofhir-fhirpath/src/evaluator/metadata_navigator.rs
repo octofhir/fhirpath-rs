@@ -140,14 +140,14 @@ impl MetadataNavigator {
                             }
                             resolved_type
                         }
-                        Err(_) => {
+                        Err(err) => {
                             if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
                                 eprintln!(
-                                    "🚀 AGGRESSIVE TYPE CAST: ModelProvider failed, using JSON inference for {}.{}",
-                                    source_metadata.fhir_type, property
+                                    "🚀 AGGRESSIVE TYPE CAST: ModelProvider failed for {}.{}: {}",
+                                    source_metadata.fhir_type, property, err
                                 );
                             }
-                            // Fall back to JSON inference for aggressively typed resources
+                            // Fall back to JSON inference for performance and compatibility
                             match property_value {
                                 JsonValue::String(_) => "string".to_string(),
                                 JsonValue::Number(_) => "decimal".to_string(),
@@ -234,10 +234,17 @@ impl MetadataNavigator {
                 {
                     Ok(choice_property)
                 } else {
-                    // PERFORMANCE OPTIMIZATION: Property not found and no polymorphic match
-                    // Instead of doing expensive schema validation for missing properties,
-                    // we assume missing properties are valid (they just have no value in this instance)
-                    // This matches the FHIRPath spec behavior and avoids the bottleneck
+                    // Property not found in JSON - check for obvious typos before returning empty
+                    // This catches likely mistakes like "given1" while allowing valid but empty properties
+                    if self.looks_like_property_typo(property) {
+                        return Err(crate::core::FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0055,
+                            format!("Property '{}' appears to be a typo. Check spelling or use valid FHIR properties", property)
+                        ));
+                    }
+                    
+                    // PERFORMANCE OPTIMIZATION: Property not found and no obvious typo
+                    // Return empty collection without expensive schema validation
                     Ok(collection_utils::empty())
                 }
             }
@@ -381,6 +388,7 @@ impl MetadataNavigator {
                             },
                             path: indexed_path,
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(fhir_path_value, metadata)
                     })
@@ -410,6 +418,7 @@ impl MetadataNavigator {
                     },
                     path,
                     index: None,
+                    is_ordered: None,
                 };
                 collection_utils::single(WrappedValue::new(fhir_path_value, metadata))
             }
@@ -488,6 +497,7 @@ impl MetadataNavigator {
                         resource_type: None,
                         path: indexed_path,
                         index: Some(index),
+                        is_ordered: None,
                     };
 
                     Ok(Some(WrappedValue::new(value.clone(), metadata)))
@@ -510,6 +520,7 @@ impl MetadataNavigator {
                             resource_type: None,
                             path: indexed_path,
                             index: Some(index),
+                            is_ordered: None,
                         };
 
                         Ok(Some(WrappedValue::new(fhir_path_value, metadata)))
@@ -529,6 +540,35 @@ impl MetadataNavigator {
                 }
             }
         }
+    }
+
+    /// Detect if a property name looks like a typo that should trigger validation
+    /// This focuses on obvious mistakes while avoiding false positives on valid properties
+    fn looks_like_property_typo(&self, property: &str) -> bool {
+        // Check for common typo patterns that suggest invalid property names
+        
+        // Pattern 1: Numbers appended to common FHIR properties (likely typos)
+        let common_properties = ["given", "family", "use", "system", "code", "display", "value"];
+        for base_prop in &common_properties {
+            if property.starts_with(base_prop) && property.len() > base_prop.len() {
+                let suffix = &property[base_prop.len()..];
+                // If it's a number suffix, it's likely a typo
+                if suffix.chars().all(|c| c.is_ascii_digit()) {
+                    return true;
+                }
+            }
+        }
+        
+        // Pattern 2: Common misspellings or variations
+        let suspicious_properties = [
+            "given1", "given2", "family1", "family2", // numbered variants
+            "givens", "familys",                       // plural forms
+            "nam", "nme",                             // truncated "name"
+            "cod", "cde",                             // truncated "code" 
+            "valu", "val",                            // truncated "value"
+        ];
+        
+        suspicious_properties.contains(&property)
     }
 }
 
@@ -590,6 +630,7 @@ impl MetadataAwareNavigator for MetadataNavigator {
                             resource_type: None,
                             path: property_path,
                             index: None,
+                            is_ordered: None,
                         };
                         let quantity_value = FhirPathValue::Decimal(*value);
                         Ok(collection_utils::single(WrappedValue::new(
@@ -604,6 +645,7 @@ impl MetadataAwareNavigator for MetadataNavigator {
                             resource_type: None,
                             path: property_path,
                             index: None,
+                            is_ordered: None,
                         };
                         if let Some(unit_str) = unit {
                             let unit_value = FhirPathValue::String(unit_str.clone());
@@ -622,6 +664,7 @@ impl MetadataAwareNavigator for MetadataNavigator {
                             resource_type: None,
                             path: property_path,
                             index: None,
+                            is_ordered: None,
                         };
                         // Return UCUM system URI if unit is present
                         if unit.is_some() {
@@ -696,6 +739,7 @@ impl MetadataAwareNavigator for MetadataNavigator {
             Ok(final_results)
         }
     }
+
 }
 
 impl Default for MetadataNavigator {

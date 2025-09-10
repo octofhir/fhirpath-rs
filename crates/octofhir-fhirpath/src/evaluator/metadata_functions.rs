@@ -309,6 +309,7 @@ impl MetadataFunctionEvaluator {
                             resource_type: None,
                             path: result_path,
                             index: None,
+                            is_ordered: None,
                         };
 
                         let wrapped_result = WrappedValue::new(fhir_value, metadata);
@@ -519,6 +520,7 @@ impl MetadataFunctionEvaluator {
                             resource_type: None,
                             path: indexed_path,
                             index: Some(i),
+                            is_ordered: None,
                         };
                         WrappedValue::new(value, metadata)
                     })
@@ -531,6 +533,7 @@ impl MetadataFunctionEvaluator {
                     resource_type: None,
                     path: result_path,
                     index: None,
+                    is_ordered: None,
                 };
                 Ok(collection_utils::single(WrappedValue::new(
                     single_value,
@@ -1019,6 +1022,7 @@ impl MetadataFunctionEvaluator {
                 resource_type: None,
                 path: CanonicalPath::empty(),
                 index: None,
+                is_ordered: None,
             };
             Ok(WrappedValue::new(FhirPathValue::Empty, metadata))
         }

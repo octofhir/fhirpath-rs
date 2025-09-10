@@ -510,7 +510,7 @@ fn datetime_date_or_full_parser<'a>()
                             _ => crate::core::temporal::TemporalPrecision::Day,
                         };
                         Ok(ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::DateTime(PrecisionDateTime::new(dt, precision)),
+                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(dt, precision, false)),
                             location: None,
                         }))
                     } else {
@@ -601,7 +601,7 @@ fn datetime_date_or_full_parser<'a>()
                         let dt: DateTime<FixedOffset> =
                             DateTime::from_naive_utc_and_offset(ndt, offset);
                         Ok(ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::DateTime(PrecisionDateTime::new(dt, precision)),
+                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(dt, precision, false)),
                             location: None,
                         }))
                     }
