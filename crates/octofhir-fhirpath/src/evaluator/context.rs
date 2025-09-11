@@ -69,6 +69,9 @@ pub struct EvaluationContext {
     pub server_context: Option<ServerContext>,
     /// Current evaluation depth (for recursion protection)
     pub depth: usize,
+    /// Track whether current evaluation is within FHIR navigation context
+    /// true = values came from FHIR property navigation, false = literal evaluation
+    pub is_fhir_navigation: bool,
 }
 
 impl EvaluationContext {
@@ -125,6 +128,7 @@ impl EvaluationContext {
             builtin_variables,
             server_context: None,
             depth: 0,
+            is_fhir_navigation: false, // Start with literal context (no navigation)
         }
     }
 
@@ -161,6 +165,7 @@ impl EvaluationContext {
             builtin_variables: BuiltinVariables::default(),
             server_context: None,
             depth: 0,
+            is_fhir_navigation: false,
         }
     }
 
@@ -185,6 +190,7 @@ impl EvaluationContext {
             builtin_variables,
             server_context: None,
             depth: 0,
+            is_fhir_navigation: false,
         }
     }
 
@@ -228,6 +234,7 @@ impl EvaluationContext {
             builtin_variables: self.builtin_variables.clone(),
             server_context: self.server_context.clone(),
             depth: self.depth + 1,
+            is_fhir_navigation: self.is_fhir_navigation, // Inherit navigation state
         }
     }
 
@@ -244,6 +251,19 @@ impl EvaluationContext {
     /// Get the type factory if configured
     pub fn get_type_factory(&self) -> Option<&Arc<dyn TypeFactory>> {
         self.builtin_variables.factory.as_ref()
+    }
+
+    /// Create a new context with FHIR navigation enabled
+    /// This is used when evaluating property navigation on FHIR resources
+    pub fn with_fhir_navigation(&self) -> Self {
+        let mut new_context = self.clone();
+        new_context.is_fhir_navigation = true;
+        new_context
+    }
+
+    /// Check if current context is within FHIR navigation
+    pub fn is_fhir_navigation(&self) -> bool {
+        self.is_fhir_navigation
     }
 }
 

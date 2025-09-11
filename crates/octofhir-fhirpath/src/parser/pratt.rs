@@ -689,6 +689,8 @@ mod tests {
 
     #[test]
     fn test_literals() {
+        use crate::ast::literal::LiteralValue;
+        
         // Single quote strings
         let result = parse("'hello world'").unwrap();
         assert!(matches!(result, ExpressionNode::Literal(_)));

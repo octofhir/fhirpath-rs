@@ -386,48 +386,93 @@ impl FunctionRegistry {
             }
         }
 
-        // Determine if the input is an integer (no decimal places)
-        let value_str = value.to_string();
-        let is_integer = !value_str.contains('.');
-
         let result = match precision {
             None => {
-                // Default case: add 0.5 at next precision level beyond input precision
+                // Default case: use implicit precision of the input value
+                let value_str = value.to_string();
                 let original_precision = if let Some(dot_pos) = value_str.find('.') {
-                    (value_str.len() - dot_pos - 1) as u32
+                    (value_str.len() - dot_pos - 1) as i64
+                } else {
+                    0
+                };
+                Self::calculate_high_boundary_implicit_precision(value, original_precision)
+            }
+            Some(p) => {
+                // Determine implicit precision from input
+                let value_str = value.to_string();
+                let implicit_precision = if let Some(dot_pos) = value_str.find('.') {
+                    (value_str.len() - dot_pos - 1) as i64
                 } else {
                     0
                 };
 
-                // Add 0.5 at one decimal place beyond the original precision
-                let increment = if original_precision == 0 {
-                    Decimal::new(5, 1) // 0.5 for integers
+                // If explicit precision > implicit precision, use implicit precision approach
+                // When they are equal, we should use explicit precision approach
+                if p > implicit_precision {
+                    Self::calculate_high_boundary_implicit_precision(value, implicit_precision)
                 } else {
-                    Decimal::new(5, original_precision + 1) // 0.5 * 10^(-original_precision-1)
-                };
-
-                value + increment
-            }
-            Some(0) => {
-                // Precision 0: round to integer, then add 0.5 (resulting in x.5)
-                value.round() + Decimal::new(5, 1)
-            }
-            Some(p) => {
-                if is_integer {
-                    // For integers, add 0.5 regardless of specified precision
-                    value + Decimal::new(5, 1)
-                } else {
-                    // For decimals: truncate to p digits, then add smallest increment at that precision
-                    let scale_factor = Decimal::from(10_i64.pow(p as u32));
-                    let truncated = (value * scale_factor).trunc() / scale_factor;
-                    // Add the smallest unit at precision level p (1 * 10^(-p))
-                    let increment = Decimal::new(1, p as u32);
-                    truncated + increment
+                    Self::calculate_high_boundary_explicit_precision(value, p)
                 }
             }
         };
 
         Ok(FhirPathValue::Decimal(result))
+    }
+
+    fn calculate_high_boundary_implicit_precision(value: Decimal, precision: i64) -> Decimal {
+        // For default (implicit) precision: add half a unit at the NEXT precision level
+        // Examples from FHIRPath spec:
+        // - 1.0.highBoundary() = 1.05000000000 (add 0.05 at next level)
+        // - 1.587.highBoundary() = 1.5875 (add 0.0005 at next level)
+        
+        let half_unit = Decimal::new(5, precision as u32 + 1); // 5 * 10^(-precision-1)
+        value + half_unit
+    }
+
+    fn calculate_high_boundary_explicit_precision(value: Decimal, precision: i64) -> Decimal {
+        // For explicit precision: different behavior based on precision level
+        if precision == 0 {
+            // Precision 0: work with integers - return next integer
+            if value >= Decimal::ZERO {
+                // For positive: ceiling if not integer, or value + 1 if integer
+                if value.fract() == Decimal::ZERO {
+                    value + Decimal::ONE  // Already integer, go to next
+                } else {
+                    value.ceil()  // Not integer, go to ceiling
+                }
+            } else {
+                // For negative: ceiling (moves toward zero)
+                value.ceil()
+            }
+        } else {
+            // For precision > 0: 
+            let scale = Decimal::from(10_i64.pow(precision as u32));
+            
+            if value >= Decimal::ZERO {
+                // For positive: truncate, then add smallest unit
+                let truncated = (value * scale).trunc() / scale;
+                
+                // Special case: if truncated value is zero, high boundary is also zero
+                if truncated == Decimal::ZERO {
+                    Decimal::ZERO
+                } else {
+                    let unit = Decimal::ONE / scale;
+                    truncated + unit
+                }
+            } else {
+                // For negative numbers: use ceiling (toward zero) at the precision level
+                let scaled_value = value * scale;
+                let ceiling_scaled = scaled_value.ceil();
+                let result = ceiling_scaled / scale;
+                
+                // Special case: if ceiling result is zero, high boundary is also zero
+                if result == Decimal::ZERO {
+                    Decimal::ZERO
+                } else {
+                    result
+                }
+            }
+        }
     }
 
     fn calculate_decimal_low_boundary(

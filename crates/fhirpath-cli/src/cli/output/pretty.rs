@@ -79,7 +79,45 @@ impl OutputFormatter for PrettyFormatter {
                 self.colorize(&output.expression, colored::Color::Blue)
             ));
 
-            if let Some(ref collection) = output.result {
+            if let Some(ref collection_with_metadata) = output.result_with_metadata {
+                // Use rich metadata when available
+                let results = collection_with_metadata.results();
+                result.push_str(&format!(
+                    "🎯 Results ({} items):\n",
+                    self.colorize(&results.len().to_string(), colored::Color::Yellow)
+                ));
+                for (i, result_metadata) in results.iter().enumerate().take(10) {
+                    // Use the expected return type if available, otherwise use the type name
+                    let type_name = result_metadata
+                        .type_info
+                        .expected_return_type
+                        .as_ref()
+                        .unwrap_or(&result_metadata.type_info.type_name);
+                    
+                    let value_str = format_fhir_value_pretty(&result_metadata.value);
+                    
+                    // Show additional type information when available
+                    let type_display = if let Some(namespace) = &result_metadata.type_info.namespace {
+                        format!("{}.{}", namespace, type_name)
+                    } else {
+                        type_name.clone()
+                    };
+                    
+                    result.push_str(&format!(
+                        "   [{}] {}: {}\n",
+                        self.colorize(&i.to_string(), colored::Color::Cyan),
+                        self.colorize(&type_display, colored::Color::Green),
+                        value_str
+                    ));
+                }
+                if results.len() > 10 {
+                    result.push_str(&format!(
+                        "   ... and {} more items\n",
+                        self.colorize(&(results.len() - 10).to_string(), colored::Color::Yellow)
+                    ));
+                }
+            } else if let Some(ref collection) = output.result {
+                // Fall back to basic formatting for backward compatibility
                 let values: Vec<&FhirPathValue> = collection.iter().collect();
                 result.push_str(&format!(
                     "🎯 Results ({} items):\n",

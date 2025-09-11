@@ -1327,6 +1327,7 @@ impl MetadataFunctionEvaluator {
             variables: &variables,
             resource_context: context.builtin_variables.get_root_resource(), // Pass the root Bundle resource for resolve()
             terminology: context.get_terminology_service().map(|t| t.as_ref()),
+            is_fhir_navigation: context.is_fhir_navigation(),
         };
 
         self.call_registry_function(name, &func_context).await

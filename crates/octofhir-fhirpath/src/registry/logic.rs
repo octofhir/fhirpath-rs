@@ -69,46 +69,13 @@ impl FunctionRegistry {
                 "iif(true, 'yes', 'no')",
                 "iif(false, 'yes')"
             ],
-            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() < 2 || context.arguments.len() > 3 {
-                    return Err(FhirPathError::evaluation_error(
-                        FP0053,
-                        "iif() requires 2 or 3 arguments".to_string()
-                    ));
-                }
-
-                let args = context.arguments.cloned_collection();
-                let condition = &args[0];
-                let then_value = &args[1];
-                let else_value = if args.len() > 2 {
-                    Some(&args[2])
-                } else {
-                    None
-                };
-
-                match condition {
-                    FhirPathValue::Boolean(true) => Ok(then_value.clone()),
-                    FhirPathValue::Boolean(false) => {
-                        if let Some(else_val) = else_value {
-                            Ok(else_val.clone())
-                        } else {
-                            Ok(FhirPathValue::empty())
-                        }
-                    },
-                    FhirPathValue::Empty => {
-                        // According to FHIRPath spec, empty collections are falsy in boolean context
-                        // so iif({}, then, else) should return else, not empty
-                        if let Some(else_val) = else_value {
-                            Ok(else_val.clone())
-                        } else {
-                            Ok(FhirPathValue::empty())
-                        }
-                    },
-                    _ => Err(FhirPathError::evaluation_error(
-                        FP0053,
-                        "iif() first argument must be a boolean or empty".to_string()
-                    ))
-                }
+            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
+                // This function is handled specially by the composite evaluator for lazy evaluation
+                // This implementation should never be called in practice
+                Err(FhirPathError::evaluation_error(
+                    FP0053,
+                    "iif() function should be handled by lazy evaluation in composite evaluator".to_string()
+                ))
             }
         )
     }

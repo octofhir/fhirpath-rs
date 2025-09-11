@@ -108,6 +108,8 @@ pub struct FunctionContext<'a> {
     pub resource_context: Option<&'a FhirPathValue>,
     /// Optional terminology service available to functions needing terminology operations
     pub terminology: Option<&'a dyn TerminologyService>,
+    /// Track whether current evaluation is within FHIR navigation context
+    pub is_fhir_navigation: bool,
 }
 
 /// Sync function signature

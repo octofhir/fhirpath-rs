@@ -335,6 +335,7 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                         // resolve() that need access to contained resources.
                         resource_context: context.builtin_variables.get_root_resource(),
                         terminology: None,
+                        is_fhir_navigation: context.is_fhir_navigation(),
                     };
 
                     // Call the async registry function
@@ -367,6 +368,7 @@ impl FunctionEvaluator for FunctionEvaluatorImpl {
                         // evaluation context.
                         resource_context: context.builtin_variables.get_root_resource(),
                         terminology: None,
+                        is_fhir_navigation: context.is_fhir_navigation(),
                     };
 
                     // Call the sync registry function

@@ -344,6 +344,8 @@ mod tests {
 
     #[test]
     fn test_date_parsing() {
+        use crate::core::TemporalPrecision;
+        
         let literal = LiteralValue::parse_date("@2023-12-25").unwrap();
         match literal {
             LiteralValue::Date(date) => {

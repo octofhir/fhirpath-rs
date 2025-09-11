@@ -90,8 +90,8 @@ impl OperatorEvaluatorImpl {
                     "a" => Ok(*value * Decimal::from(365)), // UCUM year (365.25 days exactly)
                     "mo" => Ok(*value * Decimal::from(30)), // UCUM month (30 days exactly)
                     _ => {
-                        // Convert dot notation to slash notation for UCUM compatibility
-                        let normalized_unit = unit_str; // TODO: normalize format
+                        // Normalize unit aliases and convert dot notation for UCUM compatibility  
+                        let normalized_unit = Self::normalize_unit_for_ucum(unit_str);
 
                         // Try UCUM conversion
                         match ucum_analyse(&normalized_unit) {
@@ -132,6 +132,32 @@ impl OperatorEvaluatorImpl {
                 }
             }
             None => Ok(*value), // Dimensionless quantity (will be treated as '1' in comparisons)
+        }
+    }
+
+    /// Normalize common unit aliases to their UCUM equivalents
+    fn normalize_unit_for_ucum(unit: &str) -> String {
+        match unit {
+            // Common pound aliases to UCUM avoirdupois pound
+            "lbs" | "lb" | "pounds" | "pound" => "[lb_av]".to_string(),
+            // Common kilogram aliases
+            "kg" | "kilograms" | "kilogram" => "kg".to_string(),
+            // Common gram aliases  
+            "g" | "grams" | "gram" => "g".to_string(),
+            // Common meter aliases
+            "m" | "meters" | "meter" | "metres" | "metre" => "m".to_string(),
+            // Common inch aliases
+            "in" | "inches" | "inch" => "[in_i]".to_string(),
+            // Common foot aliases
+            "ft" | "feet" | "foot" => "[ft_i]".to_string(),
+            // Common yard aliases  
+            "yd" | "yards" | "yard" => "[yd_i]".to_string(),
+            // Common mile aliases
+            "mi" | "miles" | "mile" => "[mi_i]".to_string(),
+            // Common ounce aliases
+            "oz" | "ounces" | "ounce" => "[oz_av]".to_string(),
+            // Return as-is for units that are already valid UCUM or don't need normalization
+            _ => unit.to_string(),
         }
     }
 
@@ -194,8 +220,8 @@ impl OperatorEvaluatorImpl {
                 }
 
                 // Try UCUM dimension comparison with normalized unit formats
-                let norm_u1 = u1; // TODO: normalize format
-                let norm_u2 = u2; // TODO: normalize format
+                let norm_u1 = Self::normalize_unit_for_ucum(u1);
+                let norm_u2 = Self::normalize_unit_for_ucum(u2);
 
                 match (ucum_analyse(&norm_u1), ucum_analyse(&norm_u2)) {
                     (Ok(a1), Ok(a2)) => {

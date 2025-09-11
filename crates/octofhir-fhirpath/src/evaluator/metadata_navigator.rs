@@ -110,6 +110,15 @@ impl MetadataNavigator {
         source_metadata: &ValueMetadata,
         resolver: &TypeResolver,
     ) -> Result<WrappedCollection> {
+        // Debug: Show what metadata we have
+        if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+            eprintln!(
+                "🔍 PROPERTY EXTRACTION: {}.{} with metadata: fhir_type={}, resource_type={:?}, path={}",
+                source_metadata.fhir_type, property, source_metadata.fhir_type,
+                source_metadata.resource_type, source_metadata.path
+            );
+        }
+        
         // OPTIMIZATION: First check if property exists in JSON (fast operation)
         match json.get(property) {
             Some(property_value) => {
@@ -138,7 +147,29 @@ impl MetadataNavigator {
                                     resolved_type, source_metadata.fhir_type, property
                                 );
                             }
-                            resolved_type
+                            
+                            // ENHANCEMENT: If ModelProvider returns "array", resolve the element type
+                            if resolved_type == "array" && property_value.is_array() {
+                                // Try to determine the element type from the array contents and FHIR knowledge
+                                if let Some(element_type) = self.resolve_array_element_type(
+                                    &source_metadata.fhir_type,
+                                    property,
+                                    property_value,
+                                    resolver
+                                ).await {
+                                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                        eprintln!(
+                                            "🚀 ARRAY ELEMENT RESOLVED: {}.{} array -> {}",
+                                            source_metadata.fhir_type, property, element_type
+                                        );
+                                    }
+                                    element_type
+                                } else {
+                                    resolved_type
+                                }
+                            } else {
+                                resolved_type
+                            }
                         }
                         Err(err) => {
                             if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
@@ -595,6 +626,81 @@ impl MetadataNavigator {
         ];
         
         suspicious_properties.contains(&property)
+    }
+
+    /// Resolve array element type using ModelProvider schema information
+    async fn resolve_array_element_type(
+        &self,
+        parent_type: &str,
+        property: &str,
+        json_array: &JsonValue,
+        resolver: &TypeResolver,
+    ) -> Option<String> {
+        // Use ModelProvider to get detailed type information for the array property
+        // This should query the FHIR schema to get element type information
+        if let Ok(element_type) = resolver.resolve_element_type(&format!("Array<{}>", parent_type)).await {
+            if element_type != parent_type {
+                return Some(element_type);
+            }
+        }
+        
+        // If ModelProvider has element type information, use it
+        if let Ok(detailed_type_info) = resolver.model_provider().get_type_reflection(parent_type).await {
+            if let Some(type_reflection) = detailed_type_info {
+                use octofhir_fhir_model::TypeReflectionInfo;
+                match type_reflection {
+                    // Handle List types - extract element type from List<ElementType>
+                    TypeReflectionInfo::ListType { element_type } => {
+                        // For list types, return the element type directly
+                        return Some(element_type.name().to_string());
+                    }
+                    
+                    // Handle Simple types - these are not arrays, so fallback to ClassInfo
+                    TypeReflectionInfo::SimpleType { .. } => {
+                        // Simple types don't contain arrays, continue to fallback logic
+                    }
+                    
+                    // Handle Tuple types - these are not typical FHIR arrays, fallback to ClassInfo
+                    TypeReflectionInfo::TupleType { .. } => {
+                        // Tuple types don't contain arrays, continue to fallback logic
+                    }
+                    
+                    // Keep ClassInfo for backward compatibility
+                    TypeReflectionInfo::ClassInfo { elements, .. } => {
+                        // Find the property element and get its actual type information
+                        for element in elements.iter() {
+                            if element.name == property {
+                                // Try to get type information from the element's definition
+                                // This should contain the actual element type for arrays
+                                let type_name = element.type_info.name();
+                                if type_name != "array" {
+                                    return Some(type_name.to_string());
+                                }
+                                
+                                // Check for type definitions or references in the element
+                                // The FHIR schema should have this information
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If we still can't resolve from schema, analyze JSON for embedded resources
+        let array_elements = json_array.as_array()?;
+        if !array_elements.is_empty() {
+            let first_element = &array_elements[0];
+            if let Some(obj) = first_element.as_object() {
+                if let Some(resource_type) = obj.get("resourceType") {
+                    if let Some(type_str) = resource_type.as_str() {
+                        return Some(type_str.to_string());
+                    }
+                }
+            }
+        }
+        
+        None
     }
 }
 

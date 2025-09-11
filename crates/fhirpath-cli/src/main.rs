@@ -547,20 +547,20 @@ async fn handle_evaluate(
         EvaluationOutput {
             success: false,
             result: None,
+            result_with_metadata: None,
             error: Some(error),
             expression: expression.to_string(),
             execution_time,
             metadata: OutputMetadata::default(),
         }
     } else {
-        // Parse successful - now evaluate using the AST
-        let ast = parse_result.ast.unwrap();
-        let result = engine.evaluate_ast(&ast, &eval_context).await;
+        // Parse successful - now evaluate with metadata preservation
+        let result = engine.evaluate_with_metadata(expression, &eval_context).await;
 
         let execution_time = start_time.elapsed();
         match result {
-            Ok(fhir_path_value) => EvaluationOutput::from_fhir_path_value(
-                fhir_path_value,
+            Ok(collection_with_metadata) => EvaluationOutput::from_collection_with_metadata(
+                collection_with_metadata,
                 expression.to_string(),
                 execution_time,
             ),
@@ -581,6 +581,7 @@ async fn handle_evaluate(
                 EvaluationOutput {
                     success: false,
                     result: None,
+                    result_with_metadata: None,
                     error: Some(e),
                     expression: expression.to_string(),
                     execution_time,

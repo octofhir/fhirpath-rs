@@ -60,6 +60,7 @@ pub enum FormatError {
 pub struct EvaluationOutput {
     pub success: bool,
     pub result: Option<Collection>,
+    pub result_with_metadata: Option<octofhir_fhirpath::core::CollectionWithMetadata>,
     pub error: Option<FhirPathError>,
     pub expression: String,
     pub execution_time: Duration,
@@ -77,12 +78,35 @@ impl EvaluationOutput {
         Self {
             success: true,
             result: Some(collection),
+            result_with_metadata: None,
             error: None,
             expression,
             execution_time,
             metadata: OutputMetadata {
                 cache_hits: 0,
                 ast_nodes: 0,
+                memory_used: 0,
+            },
+        }
+    }
+
+    /// Create evaluation output from CollectionWithMetadata (preserves rich type information)
+    pub fn from_collection_with_metadata(
+        collection_with_metadata: octofhir_fhirpath::core::CollectionWithMetadata,
+        expression: String,
+        execution_time: Duration,
+    ) -> Self {
+        let collection = collection_with_metadata.to_collection();
+        Self {
+            success: true,
+            result: Some(collection),
+            result_with_metadata: Some(collection_with_metadata),
+            error: None,
+            expression,
+            execution_time,
+            metadata: OutputMetadata {
+                cache_hits: 0,
+                ast_nodes: 0, // Will be set based on collection metadata
                 memory_used: 0,
             },
         }

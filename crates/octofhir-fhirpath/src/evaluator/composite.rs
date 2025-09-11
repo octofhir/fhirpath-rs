@@ -126,6 +126,16 @@ impl CompositeEvaluator {
         matches!(method_name, "is" | "as" | "ofType")
     }
 
+    /// Check if a function requires special evaluation (lazy evaluation, context handling, etc.)
+    fn is_special_function(&self, function_name: &str) -> bool {
+        matches!(function_name, "iif" | "select" | "where" | "all" | "exists" | "defineVariable")
+    }
+    
+    /// Check if a function is a lambda function that works on collections
+    fn is_lambda_function(&self, function_name: &str) -> bool {
+        matches!(function_name, "select" | "where" | "all" | "exists" | "sort" | "aggregate" | "repeat" | "repeatAll")
+    }
+
     /// Evaluate an argument for type functions, converting identifiers to strings
     async fn evaluate_type_function_argument(
         &mut self,
@@ -1339,9 +1349,9 @@ impl CompositeEvaluator {
                 }
             }
             ExpressionNode::FunctionCall(func) => {
-                // Special handling for defineVariable function
-                if func.name == "defineVariable" {
-                    return self.evaluate_define_variable_impl(func, context).await;
+                // Special handling for functions that require custom evaluation
+                if self.is_special_function(&func.name) {
+                    return self.evaluate_special_function_impl(&func.name, &func.arguments, context, None).await;
                 }
 
                 let mut wrapped_args = Vec::new();
@@ -1376,6 +1386,11 @@ impl CompositeEvaluator {
                         .await;
                 }
 
+                // Special handling for functions that require custom evaluation
+                if self.is_special_function(&method.method) {
+                    return self.evaluate_special_function_impl(&method.method, &method.arguments, context, Some(&object_result)).await;
+                }
+
                 // Special handling for trace method with projection
                 if method.method == "trace" && method.arguments.len() == 2 {
                     // trace(name, projection) needs lambda handling for the projection
@@ -1401,12 +1416,20 @@ impl CompositeEvaluator {
                     wrapped_args.push(arg_result);
                 }
 
+                // Check if the object came from FHIR property navigation
+                // If so, enable FHIR navigation context for method calls
+                let method_context = if self.is_fhir_navigation_result(&object_result) {
+                    context.with_fhir_navigation()
+                } else {
+                    context.clone()
+                };
+
                 self.function_evaluator
                     .call_method_with_metadata(
                         &object_result,
                         &method.method,
                         &wrapped_args,
-                        context,
+                        &method_context,
                         &self.type_resolver,
                     )
                     .await
@@ -1794,6 +1817,24 @@ impl ExpressionEvaluator for CompositeEvaluator {
 }
 
 impl CompositeEvaluator {
+    /// Check if a wrapped collection result came from FHIR property navigation
+    /// 
+    /// This is determined by checking if any value in the collection has metadata
+    /// indicating it came from a non-root path (i.e., property navigation).
+    fn is_fhir_navigation_result(&self, wrapped_collection: &WrappedCollection) -> bool {
+        // Check if any value in the collection has a path indicating FHIR navigation
+        wrapped_collection.iter().any(|wrapped_value| {
+            let metadata = wrapped_value.metadata();
+            // If the path has depth > 1, it came from property navigation
+            // Examples: "Patient" (root) vs "Patient.active" (navigation)
+            metadata.path.depth() > 1 || 
+            // Or if it has a known FHIR type and is not a resource root
+            (metadata.resource_type.is_none() && 
+             !metadata.fhir_type.is_empty() && 
+             metadata.path.depth() > 0)
+        })
+    }
+
     /// Special evaluation for defineVariable function
     /// 
     /// defineVariable(name, value) stores the current context as a variable
@@ -1864,6 +1905,303 @@ impl CompositeEvaluator {
 
         // Delegate to the function evaluator to handle the scope management
         self.function_evaluator.handle_define_variable(var_name, var_value, context).await
+    }
+
+    /// iif(condition, then, else?) with lazy evaluation
+    /// Only evaluates the branch that will be returned based on the condition
+    async fn evaluate_iif_impl(
+        &mut self,
+        func: &crate::ast::FunctionCallNode,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        use crate::core::{FP0053, FhirPathError, FhirPathValue};
+
+        // Validate arguments
+        if func.arguments.len() < 2 || func.arguments.len() > 3 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "iif() requires 2 or 3 arguments (condition, then, else?)".to_string(),
+            ));
+        }
+
+        // Evaluate the condition first
+        let condition_result = Box::pin(self.evaluate_with_metadata(&func.arguments[0], context)).await?;
+        
+        // Convert condition to boolean
+        let condition_bool = if condition_result.is_empty() {
+            // Empty is falsy in FHIRPath
+            false
+        } else if condition_result.len() > 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "iif() condition must be a single boolean value or empty".to_string(),
+            ));
+        } else {
+            let condition_value = &condition_result.first().unwrap().value;
+            match condition_value {
+                FhirPathValue::Boolean(b) => *b,
+                FhirPathValue::Empty => false,
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "iif() condition must be a boolean value".to_string(),
+                    ));
+                }
+            }
+        };
+
+        // Lazy evaluation: only evaluate the branch that will be returned
+        if condition_bool {
+            // Evaluate and return the 'then' branch
+            Box::pin(self.evaluate_with_metadata(&func.arguments[1], context)).await
+        } else {
+            // Evaluate and return the 'else' branch if provided, otherwise return empty
+            if func.arguments.len() > 2 {
+                Box::pin(self.evaluate_with_metadata(&func.arguments[2], context)).await
+            } else {
+                Ok(crate::wrapped::collection_utils::empty())
+            }
+        }
+    }
+
+    /// iif method call with lazy evaluation: object.iif(condition, then, else?)
+    /// Delegates to the function implementation by creating a synthetic function call
+    async fn evaluate_iif_method_impl(
+        &mut self,
+        object: &WrappedCollection,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        use crate::core::{FP0053, FhirPathError};
+
+        // For method calls, the object becomes the context, but we need to check if it's valid
+        // iif() method should work on single items, not collections
+        if object.len() > 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "iif() method can only be called on a single item".to_string(),
+            ));
+        }
+
+        // Create new context with the object as the start context
+        let method_context = if object.is_empty() {
+            context.clone()
+        } else {
+            let object_collection: crate::core::Collection = object.iter()
+                .map(|wrapped| wrapped.value.clone())
+                .collect::<Vec<_>>()
+                .into();
+            
+            crate::evaluator::EvaluationContext {
+                start_context: object_collection.clone(),
+                root_context: context.root_context.clone(),
+                variables: context.variables.clone(),
+                builtin_variables: context.builtin_variables.clone(),
+                server_context: context.server_context.clone(),
+                depth: context.depth,
+                is_fhir_navigation: context.is_fhir_navigation,
+            }
+        };
+
+        // Create a synthetic function call node and delegate to the function implementation
+        let func_call = crate::ast::FunctionCallNode {
+            name: "iif".to_string(),
+            arguments: arguments.to_vec(),
+            location: None,
+        };
+
+        self.evaluate_iif_impl(&func_call, &method_context).await
+    }
+
+    /// select function call implementation: select(expression)
+    /// Applies the expression to each item in the current context
+    async fn evaluate_select_function_impl(
+        &mut self,
+        func: &crate::ast::FunctionCallNode,
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        use crate::core::{FP0053, FhirPathError};
+
+        // Validate arguments
+        if func.arguments.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "select() requires exactly 1 argument (expression)".to_string(),
+            ));
+        }
+
+        // If context is empty, return empty
+        if context.start_context.is_empty() {
+            return Ok(crate::wrapped::collection_utils::empty());
+        }
+
+        // Apply the expression to each item in the current context
+        let mut results = Vec::new();
+        for item in context.start_context.iter() {
+            // Create a new context with just this item
+            let item_context = crate::evaluator::EvaluationContext {
+                start_context: vec![item.clone()].into(),
+                root_context: context.root_context.clone(),
+                variables: context.variables.clone(),
+                builtin_variables: context.builtin_variables.clone(),
+                server_context: context.server_context.clone(),
+                depth: context.depth + 1,
+                is_fhir_navigation: context.is_fhir_navigation,
+            };
+            
+            // Evaluate the expression in this item's context
+            let item_result = Box::pin(self.evaluate_with_metadata(&func.arguments[0], &item_context)).await?;
+            
+            // Add all results from this item
+            results.extend(item_result.into_iter());
+        }
+
+        Ok(results.into())
+    }
+
+    /// Unified handler for special functions that can be called as both functions and methods
+    /// object_context: Some for method calls, None for function calls
+    async fn evaluate_special_function_impl(
+        &mut self,
+        function_name: &str,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+        object_context: Option<&WrappedCollection>,
+    ) -> Result<WrappedCollection> {
+        match function_name {
+            "defineVariable" => {
+                // defineVariable only works as function call
+                if object_context.is_some() {
+                    return Err(crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        "defineVariable() cannot be called as a method".to_string(),
+                    ));
+                }
+                let func_call = crate::ast::FunctionCallNode {
+                    name: "defineVariable".to_string(),
+                    arguments: arguments.to_vec(),
+                    location: None,
+                };
+                self.evaluate_define_variable_impl(&func_call, context).await
+            }
+            "iif" => {
+                if let Some(object) = object_context {
+                    // Method call: object.iif(condition, then, else?)
+                    self.evaluate_iif_method_impl(object, arguments, context).await
+                } else {
+                    // Function call: iif(condition, then, else?)
+                    let func_call = crate::ast::FunctionCallNode {
+                        name: "iif".to_string(),
+                        arguments: arguments.to_vec(),
+                        location: None,
+                    };
+                    self.evaluate_iif_impl(&func_call, context).await
+                }
+            }
+            "select" => {
+                if let Some(object) = object_context {
+                    // Method call: object.select(expression) - delegate to lambda system
+                    if self.is_lambda_method("select") {
+                        return self.evaluate_lambda_method_call(object, "select", arguments, context).await;
+                    }
+                    // Fallback to function implementation
+                    self.evaluate_select_with_object(arguments, context, object).await
+                } else {
+                    // Function call: select(expression) - work on current context
+                    let func_call = crate::ast::FunctionCallNode {
+                        name: "select".to_string(),
+                        arguments: arguments.to_vec(),
+                        location: None,
+                    };
+                    self.evaluate_select_function_impl(&func_call, context).await
+                }
+            }
+            "where" | "all" | "exists" => {
+                // These are primarily lambda methods, but can be called as functions
+                if let Some(object) = object_context {
+                    // Method call: use lambda system
+                    self.evaluate_lambda_method_call(object, function_name, arguments, context).await
+                } else {
+                    // Function call: work on current context like select
+                    self.evaluate_lambda_function_with_context(function_name, arguments, context).await
+                }
+            }
+            _ => {
+                Err(crate::core::FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0053,
+                    format!("Unknown special function: {}", function_name),
+                ))
+            }
+        }
+    }
+
+    /// Helper for lambda functions called as functions (not methods) 
+    async fn evaluate_lambda_function_with_context(
+        &mut self,
+        function_name: &str,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+    ) -> Result<WrappedCollection> {
+        // Convert current context to WrappedCollection for lambda evaluation
+        let current_wrapped: WrappedCollection = context.start_context.iter()
+            .map(|value| {
+                let metadata = crate::wrapped::ValueMetadata::primitive(
+                    "unknown".to_string(),
+                    crate::path::CanonicalPath::empty(),
+                );
+                crate::wrapped::WrappedValue::new(value.clone(), metadata)
+            })
+            .collect::<Vec<_>>()
+            .into();
+        
+        // Delegate to lambda method system
+        self.evaluate_lambda_method_call(&current_wrapped, function_name, arguments, context).await
+    }
+
+    /// Helper for select with explicit object context
+    async fn evaluate_select_with_object(
+        &mut self,
+        arguments: &[crate::ast::ExpressionNode],
+        context: &EvaluationContext,
+        object: &WrappedCollection,
+    ) -> Result<WrappedCollection> {
+        use crate::core::{FP0053, FhirPathError};
+
+        // Validate arguments
+        if arguments.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                FP0053,
+                "select() requires exactly 1 argument (expression)".to_string(),
+            ));
+        }
+
+        // If object is empty, return empty
+        if object.is_empty() {
+            return Ok(crate::wrapped::collection_utils::empty());
+        }
+
+        // Apply the expression to each item in the object
+        let mut results = Vec::new();
+        for item in object.iter() {
+            // Create a new context with just this item
+            let item_context = crate::evaluator::EvaluationContext {
+                start_context: vec![item.value.clone()].into(),
+                root_context: context.root_context.clone(),
+                variables: context.variables.clone(),
+                builtin_variables: context.builtin_variables.clone(),
+                server_context: context.server_context.clone(),
+                depth: context.depth + 1,
+                is_fhir_navigation: context.is_fhir_navigation,
+            };
+            
+            // Evaluate the expression in this item's context
+            let item_result = Box::pin(self.evaluate_with_metadata(&arguments[0], &item_context)).await?;
+            
+            // Add all results from this item
+            results.extend(item_result.into_iter());
+        }
+
+        Ok(results.into())
     }
 }
 

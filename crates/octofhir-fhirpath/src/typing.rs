@@ -45,16 +45,44 @@ impl TypeResolver {
             ));
         }
 
-        // Use ModelProvider to get type reflection
-        match self.model_provider.get_type_reflection(parent_type).await {
-            Ok(Some(type_reflection)) => {
+        // Use ModelProvider navigation to get correct type information
+        match self.model_provider.navigate_typed_path(parent_type, property).await {
+            Ok(navigation_result) => {
                 use octofhir_fhir_model::TypeReflectionInfo;
-                match type_reflection {
-                    TypeReflectionInfo::ClassInfo { elements, .. } => {
+                
+                // The navigation result contains the correct type information
+                match navigation_result.result_type {
+                    // Handle List types - extract element type from List<ElementType>
+                    TypeReflectionInfo::ListType { element_type } => {
+                        // For list types, get the actual element type name
+                        return Ok(element_type.name().to_string());
+                    }
+                    
+                    // Handle Simple types - return the type directly  
+                    TypeReflectionInfo::SimpleType { name, .. } => {
+                        // For simple types, return the type name directly
+                        return Ok(name);
+                    }
+                    
+                    // Handle class types  
+                    TypeReflectionInfo::ClassInfo { name, .. } => {
+                        return Ok(name);
+                    }
+                    
+                    // Handle tuple types
+                    TypeReflectionInfo::TupleType { .. } => {
+                        return Ok("Tuple".to_string());
+                    }
+                }
+            }
+            Err(_) => {
+                // Fallback to the old approach if navigation fails
+                match self.model_provider.get_type_reflection(parent_type).await {
+                    Ok(Some(octofhir_fhir_model::TypeReflectionInfo::ClassInfo { elements, .. })) => {
                         // Look for the property in elements
                         for element in elements.iter() {
                             if element.name == property {
-                                // Found the property - return its type
+                                // Found the property - return element type as fallback
                                 return Ok(element.type_info.name().to_string());
                             }
                         }
@@ -75,31 +103,31 @@ impl TypeResolver {
                             ))
                         }
                     }
+                    Ok(None) => {
+                        // Type not found in fallback
+                        Err(FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0052,
+                            format!("Unknown type '{}'", parent_type),
+                        ))
+                    }
+                    Err(_) => {
+                        // Error getting type reflection in fallback
+                        Err(FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0052,
+                            format!("Failed to resolve type '{}'", parent_type),
+                        ))
+                    }
                     _ => {
-                        // Not a class type - cannot access properties
+                        // Other type reflection variants - cannot access properties
                         Err(FhirPathError::evaluation_error(
                             crate::core::error_code::FP0052,
                             format!(
-                                "Cannot access property '{}' on non-class type '{}'",
+                                "Cannot access property '{}' on type '{}'",
                                 property, parent_type
                             ),
                         ))
                     }
                 }
-            }
-            Ok(None) => {
-                // Type not found
-                Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0052,
-                    format!("Unknown type '{}'", parent_type),
-                ))
-            }
-            Err(_) => {
-                // Error getting type reflection
-                Err(FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0052,
-                    format!("Failed to resolve type '{}'", parent_type),
-                ))
             }
         }
     }

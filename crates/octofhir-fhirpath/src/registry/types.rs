@@ -404,6 +404,13 @@ impl FunctionRegistry {
         Ok(())
     }
 
+    fn is_fhir_primitive_type_name(type_name: &str) -> bool {
+        matches!(type_name, 
+            "boolean" | "integer" | "string" | "decimal" | "uri" | "url" | "canonical" |
+            "base64Binary" | "instant" | "date" | "dateTime" | "time" | "code" | "oid" |
+            "id" | "markdown" | "unsignedInt" | "positiveInt" | "uuid" | "xhtml")
+    }
+
     fn register_is_function(&self) -> Result<()> {
         register_function!(
             self,
@@ -443,61 +450,32 @@ impl FunctionRegistry {
                     let mut results = Vec::new();
                     
                     for input_value in context.input.iter() {
-                        // Determine if we're in a FHIR context
-                        // For primitive values extracted from FHIR resources, we need to check if they have metadata
-                        // indicating they came from a FHIR resource property
+                        // Use the same logic as type() function for determining FHIR vs System namespace
                         let is_fhir_context = match input_value {
-                            // For primitive values, check if we have a resource context AND the value comes from property navigation
+                            // Resources always use FHIR namespace
+                            FhirPathValue::Resource(_) => true,
+                            
+                            // For JsonValue, check if it contains a FHIR resource
+                            FhirPathValue::JsonValue(json) => {
+                                // If it has a resourceType, it's a FHIR resource
+                                json.get("resourceType").is_some()
+                            },
+                            
+                            // For primitive values: use navigation context flag
                             FhirPathValue::Boolean(_) | 
                             FhirPathValue::Integer(_) |
                             FhirPathValue::String(_) |
                             FhirPathValue::Decimal(_) |
                             FhirPathValue::Date(_) |
                             FhirPathValue::DateTime(_) |
-                            FhirPathValue::Time(_) => {
-                                // Only use FHIR context if we have a resource context
-                                // This ensures literal values (no resource context) use System namespace
-                                context.resource_context
-                                    .map(|res| {
-                                        match res {
-                                            FhirPathValue::Resource(json) => {
-                                                json.get("resourceType")
-                                                    .and_then(|rt| rt.as_str())
-                                                    .is_some()
-                                            },
-                                            _ => false
-                                        }
-                                    })
-                                    .unwrap_or(false)
+                            FhirPathValue::Time(_) |
+                            FhirPathValue::Quantity { .. } => {
+                                // Use the navigation context flag to determine namespace
+                                context.is_fhir_navigation
                             },
-                            // For JsonValue, check if we're in a FHIR resource context
-                            FhirPathValue::JsonValue(_) => {
-                                context.resource_context
-                                    .map(|res| {
-                                        match res {
-                                            FhirPathValue::Resource(json) => {
-                                                json.get("resourceType")
-                                                    .and_then(|rt| rt.as_str())
-                                                    .is_some()
-                                            },
-                                            _ => false
-                                        }
-                                    })
-                                    .unwrap_or(false)
-                            },
-                            // Resources and other complex types can use FHIR context
-                            _ => context.resource_context
-                                .map(|res| {
-                                    match res {
-                                        FhirPathValue::Resource(json) => {
-                                            json.get("resourceType")
-                                                .and_then(|rt| rt.as_str())
-                                                .is_some()
-                                        },
-                                        _ => false
-                                    }
-                                })
-                                .unwrap_or(false)
+                            
+                            // Other types default to non-FHIR
+                            _ => false
                         };
                         
                         // Parse the target type name, handling namespaced types
@@ -506,8 +484,10 @@ impl FunctionRegistry {
                         } else if let Some(stripped) = type_name.strip_prefix("System.") {
                             ("System", stripped)
                         } else {
-                            // Unqualified type name - infer namespace based on context
-                            if is_fhir_context {
+                            // Unqualified type name - determine namespace based on naming convention
+                            // FHIR primitive types are lowercase: boolean, string, integer, etc.
+                            // System types are capitalized: Boolean, String, Integer, etc.
+                            if Self::is_fhir_primitive_type_name(type_name) {
                                 ("FHIR", type_name.as_str())
                             } else {
                                 ("System", type_name.as_str())
@@ -581,10 +561,11 @@ impl FunctionRegistry {
                         };
                         
                         // Check if the namespaces and types match
-                        let is_compatible = value_namespace == target_namespace && 
+                        let is_exact_match = value_namespace == target_namespace && 
                                            value_name.eq_ignore_ascii_case(target_type);
                         
-                        results.push(FhirPathValue::Boolean(is_compatible));
+                        // For now, just use exact match until ModelProvider type resolution is improved
+                        results.push(FhirPathValue::Boolean(is_exact_match));
                     }
                     
                     if results.len() == 1 {
@@ -783,61 +764,38 @@ impl FunctionRegistry {
                 for input_value in context.input.iter() {
                     let value_type = TypeChecker::get_type(input_value);
                     
-                    // Determine if we're in a FHIR context
-                    // For primitive values extracted from FHIR resources, we need to check if they have metadata
-                    // indicating they came from a FHIR resource property
+                    // Determine namespace based on value origin:
+                    // - FHIR resources and their properties use "FHIR" namespace  
+                    // - Literal values in expressions use "System" namespace
+                    // 
+                    // We use the is_fhir_navigation flag from the evaluation context to distinguish:
+                    // - If is_fhir_navigation=true, primitives use FHIR namespace (came from property navigation)
+                    // - If is_fhir_navigation=false, primitives use System namespace (literals)
                     let is_fhir_context = match input_value {
-                        // For primitive values, check if we have a resource context AND the value comes from property navigation
+                        // Resources always use FHIR namespace
+                        FhirPathValue::Resource(_) => true,
+                        
+                        // For JsonValue, check if it contains a FHIR resource
+                        FhirPathValue::JsonValue(json) => {
+                            // If it has a resourceType, it's a FHIR resource
+                            json.get("resourceType").is_some()
+                        },
+                        
+                        // For primitive values: use navigation context flag
                         FhirPathValue::Boolean(_) | 
                         FhirPathValue::Integer(_) |
                         FhirPathValue::String(_) |
                         FhirPathValue::Decimal(_) |
                         FhirPathValue::Date(_) |
                         FhirPathValue::DateTime(_) |
-                        FhirPathValue::Time(_) => {
-                            // Only use FHIR context if we have a resource context
-                            // This ensures literal values (no resource context) use System namespace
-                            context.resource_context
-                                .map(|res| {
-                                    match res {
-                                        FhirPathValue::Resource(json) => {
-                                            json.get("resourceType")
-                                                .and_then(|rt| rt.as_str())
-                                                .is_some()
-                                        },
-                                        _ => false
-                                    }
-                                })
-                                .unwrap_or(false)
+                        FhirPathValue::Time(_) |
+                        FhirPathValue::Quantity { .. } => {
+                            // Use the navigation context flag to determine namespace
+                            context.is_fhir_navigation
                         },
-                        // For JsonValue, check if we're in a FHIR resource context
-                        FhirPathValue::JsonValue(_) => {
-                            context.resource_context
-                                .map(|res| {
-                                    match res {
-                                        FhirPathValue::Resource(json) => {
-                                            json.get("resourceType")
-                                                .and_then(|rt| rt.as_str())
-                                                .is_some()
-                                        },
-                                        _ => false
-                                    }
-                                })
-                                .unwrap_or(false)
-                        },
-                        // Resources and other complex types can use FHIR context
-                        _ => context.resource_context
-                            .map(|res| {
-                                match res {
-                                    FhirPathValue::Resource(json) => {
-                                        json.get("resourceType")
-                                            .and_then(|rt| rt.as_str())
-                                            .is_some()
-                                    },
-                                    _ => false
-                                }
-                            })
-                            .unwrap_or(false)
+                        
+                        // Other types default to non-FHIR
+                        _ => false
                     };
                     
                     // Determine namespace and name based on value type and context
