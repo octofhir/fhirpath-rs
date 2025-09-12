@@ -324,26 +324,143 @@ impl OperatorEvaluatorImpl {
             (FhirPathValue::Uri(a), FhirPathValue::Url(b)) => a == b,
             (FhirPathValue::Url(a), FhirPathValue::Uri(b)) => a == b,
 
-            // Temporal comparisons - use partial_cmp to handle precision normalization
+            // Temporal equality per FHIRPath: compare as intervals; equal if ranges overlap
             (FhirPathValue::Date(a), FhirPathValue::Date(b)) => {
-                match a.partial_cmp(b) {
-                    Some(std::cmp::Ordering::Equal) => true,
-                    Some(_) => false,
-                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                if a.precision == b.precision {
+                    // Same precision: direct equality
+                    a == b
+                } else {
+                    // Different precisions: equality is false; use '~' for equivalence
+                    false
                 }
             }
             (FhirPathValue::DateTime(a), FhirPathValue::DateTime(b)) => {
-                match a.partial_cmp(b) {
-                    Some(std::cmp::Ordering::Equal) => true,
-                    Some(_) => false,
-                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                // If timezone specified differs, equality is indeterminate
+                if a.tz_specified != b.tz_specified {
+                    return Ok(FhirPathValue::Empty);
+                }
+                use crate::core::temporal::TemporalPrecision as TP;
+                let target = std::cmp::min(a.precision, b.precision);
+                match target {
+                    TP::Millisecond => a == b,
+                    TP::Second => {
+                        // Exact same second, and more precise operand must have 0 ms
+                        let (as_, ae) = a.to_datetime_range();
+                        let (bs, be) = b.to_datetime_range();
+                        // Ranges must be in the same second boundary
+                        let same_second = as_.with_nanosecond(0) == bs.with_nanosecond(0);
+                        let ms_zero = (a.precision == TP::Second || a.datetime.nanosecond() == 0)
+                            && (b.precision == TP::Second || b.datetime.nanosecond() == 0);
+                        same_second && ms_zero
+                    }
+                    TP::Minute => {
+                        let ah = a.datetime.time();
+                        let bh = b.datetime.time();
+                        let same_minute = a.datetime.date_naive() == b.datetime.date_naive()
+                            && ah.hour() == bh.hour()
+                            && ah.minute() == bh.minute();
+                        let rest_zero = |dt: &crate::core::temporal::PrecisionDateTime| {
+                            dt.precision <= TP::Minute
+                                || (dt.datetime.time().second() == 0
+                                    && dt.datetime.nanosecond() == 0)
+                        };
+                        same_minute && rest_zero(a) && rest_zero(b)
+                    }
+                    TP::Hour => {
+                        let at = a.datetime.time();
+                        let bt = b.datetime.time();
+                        let same_hour = a.datetime.date_naive() == b.datetime.date_naive()
+                            && at.hour() == bt.hour();
+                        let rest_zero = |dt: &crate::core::temporal::PrecisionDateTime| {
+                            dt.precision <= TP::Hour
+                                || (dt.datetime.time().minute() == 0
+                                    && dt.datetime.time().second() == 0
+                                    && dt.datetime.nanosecond() == 0)
+                        };
+                        same_hour && rest_zero(a) && rest_zero(b)
+                    }
+                    TP::Day => {
+                        // For DateTime at day precision: must be same date and exactly midnight 00:00:00.000
+                        let same_date = a.datetime.date_naive() == b.datetime.date_naive();
+                        let rest_zero = |dt: &crate::core::temporal::PrecisionDateTime| {
+                            dt.precision <= TP::Day
+                                || (dt.datetime.time().hour() == 0
+                                    && dt.datetime.time().minute() == 0
+                                    && dt.datetime.time().second() == 0
+                                    && dt.datetime.time().nanosecond() == 0)
+                        };
+                        same_date && rest_zero(a) && rest_zero(b)
+                    }
+                    // Year/Month are not used in DateTime parsing here; default to strict equality fallback
+                    _ => a == b,
                 }
             }
             (FhirPathValue::Time(a), FhirPathValue::Time(b)) => {
-                match a.partial_cmp(b) {
-                    Some(std::cmp::Ordering::Equal) => true,
-                    Some(_) => false,
-                    None => return Ok(FhirPathValue::Empty), // Incomparable precisions
+                use crate::core::temporal::TemporalPrecision as TP;
+                let target = std::cmp::min(a.precision, b.precision);
+                match target {
+                    TP::Millisecond => a == b,
+                    TP::Second => {
+                        let same_second = a.time.with_nanosecond(0).unwrap()
+                            == b.time.with_nanosecond(0).unwrap();
+                        let ms_zero = (a.precision == TP::Second || a.time.nanosecond() == 0)
+                            && (b.precision == TP::Second || b.time.nanosecond() == 0);
+                        same_second && ms_zero
+                    }
+                    TP::Minute => {
+                        let same_minute = a.time.hour() == b.time.hour()
+                            && a.time.minute() == b.time.minute();
+                        let rest_zero = |t: &crate::core::temporal::PrecisionTime| {
+                            t.precision <= TP::Minute
+                                || (t.time.second() == 0 && t.time.nanosecond() == 0)
+                        };
+                        same_minute && rest_zero(a) && rest_zero(b)
+                    }
+                    TP::Hour => {
+                        let same_hour = a.time.hour() == b.time.hour();
+                        let rest_zero = |t: &crate::core::temporal::PrecisionTime| {
+                            t.precision <= TP::Hour
+                                || (t.time.minute() == 0
+                                    && t.time.second() == 0
+                                    && t.time.nanosecond() == 0)
+                        };
+                        same_hour && rest_zero(a) && rest_zero(b)
+                    }
+                    _ => a == b,
+                }
+            }
+
+            // String vs Date/DateTime equality with implicit parsing per FHIRPath rules
+            (FhirPathValue::String(s), FhirPathValue::Date(date))
+            | (FhirPathValue::Date(date), FhirPathValue::String(s)) => {
+                if let Ok(parsed_date) = crate::registry::FunctionRegistry::parse_date_string(s) {
+                    if parsed_date.precision == date.precision {
+                        parsed_date == *date
+                    } else {
+                        false
+                    }
+                } else {
+                    return Ok(FhirPathValue::Empty);
+                }
+            }
+            (FhirPathValue::String(s), FhirPathValue::DateTime(dt))
+            | (FhirPathValue::DateTime(dt), FhirPathValue::String(s)) => {
+                // Try parse as full DateTime first
+                if let Ok(parsed_dt) = crate::registry::FunctionRegistry::parse_datetime_string(s) {
+                    if parsed_dt.tz_specified != dt.tz_specified {
+                        return Ok(FhirPathValue::Empty);
+                    }
+                    if parsed_dt.precision == dt.precision {
+                        parsed_dt == *dt
+                    } else {
+                        false
+                    }
+                } else if let Ok(parsed_date) = crate::registry::FunctionRegistry::parse_date_string(s) {
+                    // Date vs DateTime equality across types is not exact equality
+                    // Use '~' for equivalence; here, return false
+                    false
+                } else {
+                    return Ok(FhirPathValue::Empty);
                 }
             }
 
@@ -448,6 +565,18 @@ impl OperatorEvaluatorImpl {
     /// Perform less than comparison
     fn less_than(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<FhirPathValue> {
         let result = match (left, right) {
+            // Explicit type error: comparing numeric to string with '<' is invalid
+            (FhirPathValue::Integer(_) | FhirPathValue::Decimal(_), FhirPathValue::String(_))
+            | (FhirPathValue::String(_), FhirPathValue::Integer(_) | FhirPathValue::Decimal(_)) => {
+                return Err(FhirPathError::evaluation_error(
+                    FP0052,
+                    format!(
+                        "Cannot compare {} and {} with '<'",
+                        left.type_name(),
+                        right.type_name()
+                    ),
+                ));
+            }
             // Numeric comparisons
             (FhirPathValue::Integer(a), FhirPathValue::Integer(b)) => a < b,
             (FhirPathValue::Decimal(a), FhirPathValue::Decimal(b)) => a < b,
@@ -1655,6 +1784,12 @@ impl OperatorEvaluatorImpl {
     }
 
     fn is_type(&self, value: &FhirPathValue, type_name: &FhirPathValue) -> Result<FhirPathValue> {
+        // According to FHIRPath specification: if the input is empty, return empty
+        if matches!(value, FhirPathValue::Empty) 
+            || matches!(value, FhirPathValue::Collection(coll) if coll.is_empty()) {
+            return Ok(FhirPathValue::Empty);
+        }
+
         // Extract type name from right operand
         let target_type = match type_name {
             FhirPathValue::String(s) => s,
@@ -1680,28 +1815,78 @@ impl OperatorEvaluatorImpl {
     }
 
     fn as_type(&self, value: &FhirPathValue, type_name: &FhirPathValue) -> Result<FhirPathValue> {
-        // Extract type name from right operand
-        let target_type = match type_name {
-            FhirPathValue::String(s) => s,
-            FhirPathValue::Empty => {
-                // Special case: When the type name expression evaluates to empty,
-                // it might be a namespace type reference like System.Integer or FHIR.code
-                // For now, return empty to indicate the cast failed rather than erroring
-                return Ok(FhirPathValue::Empty);
-            }
-            FhirPathValue::Collection(coll) if coll.is_empty() => {
-                // Also handle empty collections (same as Empty)
-                return Ok(FhirPathValue::Empty);
-            }
+        // COMPLETELY REWRITTEN as_type method for binary 'as' operator
+        // This MUST work correctly according to FHIRPath specification
+        
+        // Extract target type name
+        let target_type_str = match type_name {
+            FhirPathValue::String(s) => s.as_str(),
+            FhirPathValue::Empty => return Ok(FhirPathValue::Empty),
+            FhirPathValue::Collection(coll) if coll.is_empty() => return Ok(FhirPathValue::Empty),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     FP0052,
-                    "Type name must be a string".to_string(),
+                    "Binary 'as' operator requires string type name".to_string(),
                 ));
             }
         };
 
-        self.cast_to_type(value, target_type)
+        // Get current value type
+        let source_type = value.type_name();
+        
+        // CRITICAL: Based on testObservations test cases, binary 'as' behavior:
+        // 1. Same type cast: return original value (e.g., Quantity as Quantity) 
+        // 2. Compatible cast: return original value (e.g., Integer as string)
+        // 3. Incompatible cast: THROW SEMANTIC ERROR (e.g., Quantity as Period)
+        
+        // Same type - always succeeds
+        if source_type.eq_ignore_ascii_case(target_type_str) {
+            return Ok(value.clone());
+        }
+        
+        // Check for primitive type conversions using built-in cast_to_type
+        // This handles: integer->string, boolean->string, etc.
+        match self.cast_to_type(value, target_type_str) {
+            Ok(cast_result) => {
+                // Successfully cast - return the cast result
+                Ok(cast_result)
+            }
+            Err(_) => {
+                // Cast failed - for binary 'as' this is a SEMANTIC ERROR
+                // This is the key difference from functional as() which returns empty
+                Err(FhirPathError::evaluation_error(
+                    FP0052,
+                    format!(
+                        "Invalid type cast in binary 'as' operator: cannot cast '{}' to '{}'", 
+                        source_type, 
+                        target_type_str
+                    )
+                ))
+            }
+        }
+    }
+
+    /// Basic type compatibility check for FHIR types (simplified version)
+    fn basic_type_compatibility(&self, value: &FhirPathValue, target_type: &str) -> bool {
+        let current_type = value.type_name();
+
+        // Direct type match
+        if current_type == target_type {
+            return true;
+        }
+
+        // Basic inheritance relationships for essential types
+        match (current_type, target_type) {
+            // All FHIR resources are Resources
+            ("Resource" | "JsonValue", "Resource") => true,
+            // System type compatibility
+            ("Boolean", "boolean") | ("boolean", "Boolean") => true,
+            ("Integer", "integer") | ("integer", "Integer") => true,
+            ("String", "string") | ("string", "String") => true,
+            ("Decimal", "decimal") | ("decimal", "Decimal") => true,
+            ("Quantity", "Quantity") => true,
+            _ => false,
+        }
     }
 }
 

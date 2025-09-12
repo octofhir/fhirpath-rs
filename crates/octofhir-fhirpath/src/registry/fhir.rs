@@ -120,7 +120,7 @@ impl FunctionRegistry {
                     }
                     1 => {
                         // extension('url') with URL argument - return extensions matching the URL
-                        let url = match context.arguments.first() {
+                        let url_arg = match context.arguments.first() {
                             Some(FhirPathValue::String(s)) => s.as_str(),
                             _ => {
                                 return Err(FhirPathError::evaluation_error(
@@ -130,9 +130,20 @@ impl FunctionRegistry {
                             }
                         };
 
+                        // Resolve the URL - could be direct URL or variable reference
+                        let resolved_url = Self::resolve_extension_url(url_arg, context.variables);
+
                         let mut out = Vec::new();
                         for v in context.input.iter() {
-                            out.extend(FhirUtils::filter_extensions_by_url(v, url));
+                            // First look for extensions directly on this element
+                            out.extend(FhirUtils::filter_extensions_by_url(v, &resolved_url));
+                            
+                            // For primitive values, also check underscore-prefixed fields in resource context
+                            if Self::is_primitive_value(v) {
+                                if let Some(resource_context) = context.resource_context {
+                                    out.extend(Self::find_primitive_extensions(resource_context, &resolved_url));
+                                }
+                            }
                         }
                         Ok(FhirPathValue::collection(out))
                     }
@@ -582,5 +593,76 @@ impl FunctionRegistry {
                 }
             }
         )
+    }
+
+    /// Resolve extension URL from argument, handling dynamic variables like %ext-name
+    fn resolve_extension_url(url_arg: &str, variables: &std::collections::HashMap<String, FhirPathValue>) -> String {
+        // Check if this looks like a variable reference
+        if url_arg.starts_with("%ext-") {
+            let var_name = url_arg.trim_start_matches('%');
+            
+            // First check if the variable is explicitly set in context
+            if let Some(value) = variables.get(url_arg) {
+                if let FhirPathValue::String(s) = value {
+                    return s.clone();
+                }
+            }
+            
+            // If not explicitly set, resolve dynamically using ext- pattern
+            if var_name.starts_with("ext-") {
+                let extension_name = &var_name[4..]; // Remove "ext-" prefix
+                return format!("http://hl7.org/fhir/StructureDefinition/{}", extension_name);
+            }
+        }
+        
+        // Return the URL as-is (direct URL or other variable patterns)
+        url_arg.to_string()
+    }
+
+    /// Check if a value is a primitive FHIR value (not a complex object or resource)
+    fn is_primitive_value(value: &FhirPathValue) -> bool {
+        matches!(value, 
+            FhirPathValue::String(_) | 
+            FhirPathValue::Boolean(_) | 
+            FhirPathValue::Integer(_) | 
+            FhirPathValue::Decimal(_) | 
+            FhirPathValue::DateTime(_) | 
+            FhirPathValue::Date(_) | 
+            FhirPathValue::Time(_) | 
+            FhirPathValue::Quantity { .. }
+        )
+    }
+
+    /// Find extensions for a primitive value by looking for underscore-prefixed fields in resource context
+    fn find_primitive_extensions(resource_context: &FhirPathValue, url: &str) -> Vec<FhirPathValue> {
+        let mut out = Vec::new();
+        
+        match resource_context {
+            FhirPathValue::Resource(json) => {
+                if let Some(obj) = json.as_object() {
+                    // Look through all underscore-prefixed fields for extensions
+                    for (key, value) in obj.iter() {
+                        if key.starts_with('_') {
+                            if let Some(extension_obj) = value.as_object() {
+                                if let Some(extensions) = extension_obj.get("extension").and_then(|v| v.as_array()) {
+                                    for ext in extensions.iter() {
+                                        // Work directly with JsonValue to avoid unnecessary conversion
+                                        if let Some(ext_url) = ext.get("url").and_then(|v| v.as_str()) {
+                                            if ext_url == url {
+                                                // Only convert to FhirPathValue when we have a match
+                                                out.push(FhirPathValue::Resource(Arc::new(ext.clone())));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        
+        out
     }
 }

@@ -126,6 +126,18 @@ impl CoreEvaluator {
                     return Ok(self.json_to_fhir_path_value(property_value.clone()));
                 }
 
+                // Handle choice elements like value[x] when accessing base name (e.g., 'value')
+                if identifier == "value" {
+                    // Find the first key that matches value[A-Z]\w*
+                    if let Some((_, found)) = obj.iter().find(|(k, _)| {
+                        k.starts_with("value")
+                            && k.len() > 5
+                            && k.chars().nth(5).map(|c| c.is_ascii_uppercase()).unwrap_or(false)
+                    }) {
+                        return Ok(self.json_to_fhir_path_value(found.clone()));
+                    }
+                }
+
                 // Check for resourceType match (special FHIR case)
                 if let Some(resource_type) = obj.get("resourceType") {
                     if let Some(type_str) = resource_type.as_str() {
@@ -248,6 +260,11 @@ impl CoreEvaluator {
                 Ok(FhirPathValue::Empty)
             }
             _ => {
+                // Try dynamic variable resolution for patterns like ext-name, vs-name
+                if let Some(dynamic_value) = self.resolve_dynamic_variable(name) {
+                    return Ok(dynamic_value);
+                }
+                
                 // Unknown variable
                 Err(FhirPathError::evaluation_error(
                     FP0055,
@@ -317,6 +334,23 @@ impl CoreEvaluator {
         };
 
         Ok(WrappedValue::new(value, metadata))
+    }
+
+    /// Resolve dynamic variable patterns like ext-name and vs-name
+    fn resolve_dynamic_variable(&self, var_name: &str) -> Option<FhirPathValue> {
+        if var_name.starts_with("vs-") {
+            // Extract the part after "vs-" and construct ValueSet URL
+            let valueset_name = &var_name[3..]; // Remove "vs-" prefix
+            let url = format!("http://hl7.org/fhir/ValueSet/{}", valueset_name);
+            Some(FhirPathValue::String(url))
+        } else if var_name.starts_with("ext-") {
+            // Extract the part after "ext-" and construct StructureDefinition URL
+            let extension_name = &var_name[4..]; // Remove "ext-" prefix
+            let url = format!("http://hl7.org/fhir/StructureDefinition/{}", extension_name);
+            Some(FhirPathValue::String(url))
+        } else {
+            None
+        }
     }
 }
 

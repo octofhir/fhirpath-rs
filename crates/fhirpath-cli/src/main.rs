@@ -555,7 +555,9 @@ async fn handle_evaluate(
         }
     } else {
         // Parse successful - now evaluate with metadata preservation
-        let result = engine.evaluate_with_metadata(expression, &eval_context).await;
+        let result = engine
+            .evaluate_with_metadata(expression, &eval_context)
+            .await;
 
         let execution_time = start_time.elapsed();
         match result {
@@ -856,7 +858,6 @@ async fn handle_repl(
     use serde_json::Value as JsonValue;
     use std::path::PathBuf;
 
-    // Create FhirSchemaModelProvider
     let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
         Ok(provider) => std::sync::Arc::new(provider),
         Err(e) => {
@@ -1248,7 +1249,7 @@ async fn handle_tui(
         }
     }
 
-    // Create FhirSchemaModelProvider
+    // Create ModelProvider
     let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
         Ok(provider) => std::sync::Arc::new(provider),
         Err(e) => {

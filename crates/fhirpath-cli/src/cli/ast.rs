@@ -97,7 +97,22 @@ pub fn add_type_information<'a>(
             // Get return type from function registry if available
             if let Some(registry) = function_registry {
                 if let Some(function_info) = registry.get_function_metadata(&node.name) {
+                    // Use the more precise return type information from the registry
                     ast_node.return_type = function_info.return_type.clone();
+                    
+                    // If the function returns a generic type like "Collection", try to be more specific
+                    // based on the argument types
+                    if let Some(ref return_type) = function_info.return_type {
+                        if return_type == "Collection" && !node.arguments.is_empty() {
+                            // For functions that return collections, try to infer the element type
+                            // from the first argument if available
+                            if let Some(first_arg) = ast_node.arguments.as_ref().and_then(|args| args.first()) {
+                                if let Some(ref arg_type) = first_arg.return_type {
+                                    ast_node.return_type = Some(format!("{}[]", arg_type.trim_end_matches("[]")));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -130,10 +145,33 @@ pub fn add_type_information<'a>(
                 }
             }
             
-            // Get return type from function registry if available
+            // Get return type from function registry if available with enhanced type inference
             if let Some(registry) = function_registry {
                 if let Some(function_info) = registry.get_function_metadata(&node.method) {
                     ast_node.return_type = function_info.return_type.clone();
+                    
+                    // Enhanced return type inference for method calls
+                    if let Some(ref return_type) = function_info.return_type {
+                        match return_type.as_str() {
+                            "Collection" => {
+                                // For collection-returning methods, infer element type from object
+                                if let Some(object_arg) = ast_node.arguments.as_ref().and_then(|args| args.first()) {
+                                    if let Some(ref object_type) = object_arg.return_type {
+                                        // Methods like select(), where() return collections of the same type
+                                        if matches!(node.method.as_str(), "select" | "where" | "all" | "exists") {
+                                            ast_node.return_type = Some(format!("{}[]", object_type.trim_end_matches("[]")));
+                                        }
+                                    }
+                                }
+                            },
+                            "boolean" => {
+                                // Methods that return boolean are already correctly typed
+                            },
+                            _ => {
+                                // Use the registry type as-is for other specific types
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -333,14 +371,39 @@ async fn infer_property_access_type_async(
     property_name: &str,
     model_provider: &dyn octofhir_fhirpath::ModelProvider,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    // Use ModelProvider to get property type information
-    // TODO: Replace with actual ModelProvider method call when API is available
-    // Example: model_provider.get_property_type(object_type, property_name).await
-    
-    // For now, return None since we don't have access to the ModelProvider API
-    // The ModelProvider should provide the type information or we return nothing
-    let _ = (object_type, property_name, model_provider);
-    Ok(None)
+    // Use ModelProvider navigation to get correct type information (same as metadata_navigator)
+    match model_provider.navigate_typed_path(object_type, property_name).await {
+        Ok(navigation_result) => {
+            use octofhir_fhir_model::TypeReflectionInfo;
+            
+            // Extract type information from navigation result
+            match navigation_result.result_type {
+                // Handle List types - return as array notation
+                TypeReflectionInfo::ListType { element_type } => {
+                    Ok(Some(format!("{}[]", element_type.name())))
+                }
+                
+                // Handle Simple types - return the type directly  
+                TypeReflectionInfo::SimpleType { name, .. } => {
+                    Ok(Some(name))
+                }
+                
+                // Handle class types  
+                TypeReflectionInfo::ClassInfo { name, .. } => {
+                    Ok(Some(name))
+                }
+                
+                // Handle tuple types
+                TypeReflectionInfo::TupleType { .. } => {
+                    Ok(Some("Tuple".to_string()))
+                }
+            }
+        }
+        Err(_) => {
+            // If navigation fails, return None to let other mechanisms handle it
+            Ok(None)
+        }
+    }
 }
 
 /// Convert Rust AST to FHIRPath Lab format with type information

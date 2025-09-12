@@ -8,6 +8,7 @@ use crate::core::error_code::FP0053;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::register_function;
 use rust_decimal::Decimal;
+use octofhir_ucum::analyse as ucum_analyse;
 
 impl FunctionRegistry {
     pub fn register_numeric_functions(&self) -> Result<()> {
@@ -61,10 +62,8 @@ impl FunctionRegistry {
                     (FhirPathValue::Boolean(_), FhirPathValue::Boolean(_)) => true,
 
                     // Quantities are comparable if they have compatible units
-                    (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => {
-                        // Simplified: assume quantities with same unit are comparable
-                        // In full implementation, would check UCUM unit compatibility
-                        true
+                    (FhirPathValue::Quantity { unit: unit1, .. }, FhirPathValue::Quantity { unit: unit2, .. }) => {
+                        Self::quantities_comparable(unit1, unit2)
                     },
 
                     // Everything else is not comparable
@@ -83,7 +82,7 @@ impl FunctionRegistry {
             category: FunctionCategory::Math,
             description: "Returns the lowest possible value for the input given its precision",
             parameters: ["precision": Some("integer".to_string()) => "Optional precision level"],
-            return_type: "any",
+            return_type: "decimal", // Returns decimal for numeric inputs, same input type for date/time
             examples: ["1.5.lowBoundary()", "@2023-12-25.lowBoundary()", "1.lowBoundary(1)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
@@ -194,7 +193,7 @@ impl FunctionRegistry {
             category: FunctionCategory::Math,
             description: "Returns the highest possible value for the input given its precision",
             parameters: ["precision": Some("integer".to_string()) => "Optional precision level"],
-            return_type: "any",
+            return_type: "decimal", // Returns decimal for numeric inputs, same input type for date/time
             examples: ["1.5.highBoundary()", "@2023-12-25.highBoundary()", "1.highBoundary(1)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 if context.input.len() != 1 {
@@ -740,6 +739,76 @@ impl FunctionRegistry {
                 // For other precisions, return the time as-is (simplified)
                 Ok(FhirPathValue::String(time.to_string()))
             }
+        }
+    }
+
+    /// Check if two quantity units are comparable (have compatible dimensions)
+    /// Based on the implementation from evaluator/operators.rs
+    fn quantities_comparable(unit1: &Option<String>, unit2: &Option<String>) -> bool {
+        match (unit1, unit2) {
+            (None, None) => true, // Both dimensionless
+            // Handle dimensionless vs '1' unit (UCUM dimensionless symbol)
+            (None, Some(u)) | (Some(u), None) if u == "1" => true,
+            (Some(u1), Some(u2)) => {
+                // Calendar units and UCUM units are NOT interchangeable
+                let is_calendar_unit = |u: &str| {
+                    matches!(
+                        u,
+                        "day" | "days" | "week" | "weeks" | "year" | "years" | "month" | "months"
+                    )
+                };
+                let is_ucum_time_unit = |u: &str| matches!(u, "d" | "wk" | "a" | "mo");
+
+                // Same type of units can be compared
+                if (is_calendar_unit(u1) && is_calendar_unit(u2))
+                    || (is_ucum_time_unit(u1) && is_ucum_time_unit(u2))
+                {
+                    return true;
+                }
+
+                // Handle specific calendar-UCUM time unit conversions that are equivalent
+                if (is_calendar_unit(u1) && is_ucum_time_unit(u2))
+                    || (is_ucum_time_unit(u1) && is_calendar_unit(u2))
+                {
+                    // Allow specific equivalent conversions
+                    let calendar_ucum_equivalent = |cal: &str, ucum: &str| -> bool {
+                        matches!(
+                            (cal, ucum),
+                            ("day" | "days", "d") |
+                            ("week" | "weeks", "wk") |
+                            ("year" | "years", "a") |
+                            ("month" | "months", "mo") |
+                            // Handle reverse mappings
+                            ("d", "day" | "days") |
+                            ("wk", "week" | "weeks") |
+                            ("a", "year" | "years") |
+                            ("mo", "month" | "months") |
+                            // Special cross-equivalencies: days can be compared to week
+                            ("days", "wk") | ("day", "wk") |
+                            ("wk", "days") | ("wk", "day")
+                        )
+                    };
+                    
+                    if (is_calendar_unit(u1) && calendar_ucum_equivalent(u1, u2))
+                        || (is_calendar_unit(u2) && calendar_ucum_equivalent(u2, u1))
+                    {
+                        return true; // Allow equivalent calendar-UCUM conversions
+                    } else {
+                        return false; // Still reject non-equivalent calendar-UCUM combinations
+                    }
+                }
+
+                // Use UCUM dimension analysis directly - no hardcoding needed
+                match (ucum_analyse(u1), ucum_analyse(u2)) {
+                    (Ok(a1), Ok(a2)) => {
+                        // Compare dimensions - UCUM handles all unit conversions automatically
+                        a1.dimension == a2.dimension
+                    }
+                    // If one unit can't be analyzed, try string equality as fallback
+                    _ => u1 == u2
+                }
+            }
+            _ => false, // One dimensionless, one with units (except '1')
         }
     }
 }

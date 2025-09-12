@@ -129,12 +129,20 @@ impl FhirPathType {
         };
         match name {
             "Boolean" => Some(FhirPathType::Boolean),
+            "boolean" => Some(FhirPathType::Boolean),
             "Integer" => Some(FhirPathType::Integer),
+            "integer" => Some(FhirPathType::Integer),
             "Decimal" => Some(FhirPathType::Decimal),
+            "decimal" => Some(FhirPathType::Decimal),
             "String" => Some(FhirPathType::String),
+            "string" => Some(FhirPathType::String),
             "Date" => Some(FhirPathType::Date),
+            "date" => Some(FhirPathType::Date),
             "DateTime" => Some(FhirPathType::DateTime),
+            "dateTime" => Some(FhirPathType::DateTime),
+            "datetime" => Some(FhirPathType::DateTime),
             "Time" => Some(FhirPathType::Time),
+            "time" => Some(FhirPathType::Time),
             "Quantity" => Some(FhirPathType::Quantity),
             "code" => Some(FhirPathType::Code),
             "uri" => Some(FhirPathType::Uri),
@@ -209,6 +217,11 @@ impl FhirPathType {
             (FhirPathType::Markdown, FhirPathType::String) => true,
             (FhirPathType::Base64Binary, FhirPathType::String) => true,
             (FhirPathType::Instant, FhirPathType::DateTime) => true,
+            // Primitives specialization hierarchy (uuid/url/canonical/oid are specific kinds of uri)
+            (FhirPathType::Url, FhirPathType::Uri) => true,
+            (FhirPathType::Canonical, FhirPathType::Uri) => true,
+            (FhirPathType::Oid, FhirPathType::Uri) => true,
+            (FhirPathType::Uuid, FhirPathType::Uri) => true,
 
             _ => false,
         }
@@ -248,7 +261,16 @@ impl TypeChecker {
             }
             FhirPathValue::Id(_) => FhirPathType::Id,
             FhirPathValue::Base64Binary(_) => FhirPathType::Base64Binary,
-            FhirPathValue::Uri(_) => FhirPathType::Uri,
+            FhirPathValue::Uri(u) => {
+                // Heuristic: urn:uuid:* is a UUID subtype
+                if u.starts_with("urn:uuid:") {
+                    FhirPathType::Uuid
+                } else if u.starts_with("urn:oid:") {
+                    FhirPathType::Oid
+                } else {
+                    FhirPathType::Uri
+                }
+            }
             FhirPathValue::Url(_) => FhirPathType::Url,
             FhirPathValue::Collection(_) => FhirPathType::Collection,
             FhirPathValue::TypeInfoObject { .. } => FhirPathType::TypeInfo,
@@ -442,132 +464,138 @@ impl FunctionRegistry {
                             ));
                         }
                     };
-                    
+
                     if context.input.is_empty() {
                         return Ok(FhirPathValue::Collection(Vec::new().into()));
                     }
-                    
+
+                    // Parse namespaced type
+                    let (target_namespace_opt, target_stripped) = if let Some(s) = type_name.strip_prefix("FHIR.") {
+                        (Some("FHIR"), s)
+                    } else if let Some(s) = type_name.strip_prefix("System.") {
+                        (Some("System"), s)
+                    } else {
+                        (None, type_name.as_str())
+                    };
+
+                    let fhir_path_type = if target_namespace_opt == Some("System") {
+                        // Only allow System primitive names for System namespace
+                        match target_stripped {
+                            "Any" | "System" | "Boolean" | "Integer" | "Decimal" | "String" | "Date" | "DateTime" | "Time" =>
+                                FhirPathType::from_type_name(target_stripped),
+                            _ => None,
+                        }
+                    } else {
+                        FhirPathType::from_type_name(target_stripped)
+                    };
+
                     let mut results = Vec::new();
-                    
-                    for input_value in context.input.iter() {
-                        // Use the same logic as type() function for determining FHIR vs System namespace
+                    // Clone input to avoid holding non-Send borrows across await
+                    let input_values: Vec<FhirPathValue> = context.input.cloned_collection();
+                    for input_value in input_values.iter() {
+                        // Determine if this input value comes from FHIR navigation context
                         let is_fhir_context = match input_value {
-                            // Resources always use FHIR namespace
                             FhirPathValue::Resource(_) => true,
-                            
-                            // For JsonValue, check if it contains a FHIR resource
-                            FhirPathValue::JsonValue(json) => {
-                                // If it has a resourceType, it's a FHIR resource
-                                json.get("resourceType").is_some()
-                            },
-                            
-                            // For primitive values: use navigation context flag
-                            FhirPathValue::Boolean(_) | 
-                            FhirPathValue::Integer(_) |
-                            FhirPathValue::String(_) |
-                            FhirPathValue::Decimal(_) |
-                            FhirPathValue::Date(_) |
-                            FhirPathValue::DateTime(_) |
-                            FhirPathValue::Time(_) |
-                            FhirPathValue::Quantity { .. } => {
-                                // Use the navigation context flag to determine namespace
-                                context.is_fhir_navigation
-                            },
-                            
-                            // Other types default to non-FHIR
-                            _ => false
+                            FhirPathValue::JsonValue(json) => json.get("resourceType").is_some(),
+                            // Primitives: rely on evaluation context flag
+                            FhirPathValue::Boolean(_)
+                            | FhirPathValue::Integer(_)
+                            | FhirPathValue::String(_)
+                            | FhirPathValue::Decimal(_)
+                            | FhirPathValue::Date(_)
+                            | FhirPathValue::DateTime(_)
+                            | FhirPathValue::Time(_)
+                            | FhirPathValue::Quantity { .. } => context.is_fhir_navigation,
+                            _ => false,
                         };
-                        
-                        // Parse the target type name, handling namespaced types
-                        let (target_namespace, target_type) = if let Some(stripped) = type_name.strip_prefix("FHIR.") {
-                            ("FHIR", stripped)
-                        } else if let Some(stripped) = type_name.strip_prefix("System.") {
-                            ("System", stripped)
-                        } else {
-                            // Unqualified type name - determine namespace based on naming convention
-                            // FHIR primitive types are lowercase: boolean, string, integer, etc.
-                            // System types are capitalized: Boolean, String, Integer, etc.
-                            if Self::is_fhir_primitive_type_name(type_name) {
-                                ("FHIR", type_name.as_str())
+
+                        let mut is_match = if let Some(t) = &fhir_path_type {
+                            // For core primitives, preserve namespace semantics with exact-name checks
+                            let is_core_primitive = matches!(
+                                t,
+                                FhirPathType::Boolean
+                                    | FhirPathType::Integer
+                                    | FhirPathType::Decimal
+                                    | FhirPathType::String
+                                    | FhirPathType::Date
+                                    | FhirPathType::DateTime
+                                    | FhirPathType::Time
+                            );
+                            if is_core_primitive {
+                                // If target explicitly FHIR.* or implied FHIR by lowercase name, use type checker directly
+                                let target_is_implied_fhir = target_namespace_opt.is_none() && target_stripped.chars().next().map(|c| c.is_lowercase()).unwrap_or(false);
+                                if target_namespace_opt == Some("FHIR") || target_is_implied_fhir {
+                                    // Use hierarchy-aware check for FHIR primitives
+                                    TypeChecker::is_type(input_value, t)
+                                } else {
+                                    // Determine value namespace+name similar to type()
+                                    let value_type = TypeChecker::get_type(input_value);
+                                    let (value_namespace, value_name) = match &value_type {
+                                        FhirPathType::Boolean => {
+                                            if is_fhir_context { ("FHIR", "boolean") } else { ("System", "Boolean") }
+                                        }
+                                        FhirPathType::Integer => {
+                                            if is_fhir_context { ("FHIR", "integer") } else { ("System", "Integer") }
+                                        }
+                                        FhirPathType::String => {
+                                            if is_fhir_context { ("FHIR", "string") } else { ("System", "String") }
+                                        }
+                                        FhirPathType::Decimal => {
+                                            if is_fhir_context { ("FHIR", "decimal") } else { ("System", "Decimal") }
+                                        }
+                                        FhirPathType::Date => {
+                                            if is_fhir_context { ("FHIR", "date") } else { ("System", "Date") }
+                                        }
+                                        FhirPathType::DateTime => {
+                                            if is_fhir_context { ("FHIR", "dateTime") } else { ("System", "DateTime") }
+                                        }
+                                        FhirPathType::Time => {
+                                            if is_fhir_context { ("FHIR", "time") } else { ("System", "Time") }
+                                        }
+                                        _ => {
+                                            let type_name = value_type.type_name();
+                                            if TypeUtils::is_fhir_primitive_type(&value_type) || !TypeUtils::is_primitive_type(&value_type) {
+                                                ("FHIR", type_name)
+                                            } else {
+                                                ("System", type_name)
+                                            }
+                                        }
+                                    };
+
+                                    // Determine target namespace and type name
+                                    let (target_namespace, target_type_name) = if let Some(ns) = target_namespace_opt {
+                                        (ns, target_stripped)
+                                    } else if Self::is_fhir_primitive_type_name(target_stripped) {
+                                        ("FHIR", target_stripped)
+                                    } else {
+                                        ("System", target_stripped)
+                                    };
+
+                                    value_namespace == target_namespace && value_name.eq_ignore_ascii_case(target_type_name)
+                                }
                             } else {
-                                ("System", type_name.as_str())
+                                // Non-core or specialized types: use hierarchy-aware check
+                                TypeChecker::is_type(input_value, t)
+                            }
+                        } else if target_namespace_opt == Some("System") {
+                            // Unknown System.* type (e.g., System.Patient) must be false
+                            false
+                        } else {
+                            // Fallback for resource types via ModelProvider
+                            let current_value_type = Self::get_value_type_name(input_value);
+                            match context
+                                .model_provider
+                                .is_type_compatible(&current_value_type, target_stripped)
+                                .await
+                            {
+                                Ok(compatible) => compatible,
+                                Err(_) => Self::basic_type_compatibility(input_value, target_stripped),
                             }
                         };
-                        
-                        // Get the current value's type information
-                        let value_type = TypeChecker::get_type(input_value);
-                        
-                        // Determine the actual namespace and name of the current value
-                        let (value_namespace, value_name) = match &value_type {
-                            FhirPathType::Boolean => {
-                                if is_fhir_context {
-                                    ("FHIR", "boolean")
-                                } else {
-                                    ("System", "Boolean")
-                                }
-                            },
-                            FhirPathType::Integer => {
-                                if is_fhir_context {
-                                    ("FHIR", "integer")  
-                                } else {
-                                    ("System", "Integer")
-                                }
-                            },
-                            FhirPathType::String => {
-                                if is_fhir_context {
-                                    ("FHIR", "string")
-                                } else {
-                                    ("System", "String")
-                                }
-                            },
-                            FhirPathType::Decimal => {
-                                if is_fhir_context {
-                                    ("FHIR", "decimal")
-                                } else {
-                                    ("System", "Decimal")
-                                }
-                            },
-                            FhirPathType::Date => {
-                                if is_fhir_context {
-                                    ("FHIR", "date")
-                                } else {
-                                    ("System", "Date")
-                                }
-                            },
-                            FhirPathType::DateTime => {
-                                if is_fhir_context {
-                                    ("FHIR", "dateTime")
-                                } else {
-                                    ("System", "DateTime")
-                                }
-                            },
-                            FhirPathType::Time => {
-                                if is_fhir_context {
-                                    ("FHIR", "time")
-                                } else {
-                                    ("System", "Time")
-                                }
-                            },
-                            // All other types use standard logic
-                            _ => {
-                                let type_name = value_type.type_name();
-                                if TypeUtils::is_fhir_primitive_type(&value_type) || 
-                                   !TypeUtils::is_primitive_type(&value_type) {
-                                    ("FHIR", type_name)
-                                } else {
-                                    ("System", type_name)
-                                }
-                            }
-                        };
-                        
-                        // Check if the namespaces and types match
-                        let is_exact_match = value_namespace == target_namespace && 
-                                           value_name.eq_ignore_ascii_case(target_type);
-                        
-                        // For now, just use exact match until ModelProvider type resolution is improved
-                        results.push(FhirPathValue::Boolean(is_exact_match));
+
+                        results.push(FhirPathValue::Boolean(is_match));
                     }
-                    
+
                     if results.len() == 1 {
                         Ok(results.into_iter().next().unwrap())
                     } else {

@@ -218,6 +218,9 @@ pub struct FhirPathLabParameter {
 /// FHIRPath Lab API response in FHIR Parameters format
 #[derive(Debug, Serialize)]
 pub struct FhirPathLabResponse {
+    /// Resource id (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     /// FHIR resource type (always "Parameters")
     #[serde(rename = "resourceType")]
     pub resource_type: String,
@@ -242,6 +245,21 @@ pub struct FhirPathLabResponseParameter {
     /// Decimal value (for timing metrics)
     #[serde(rename = "valueDecimal", skip_serializing_if = "Option::is_none")]
     pub value_decimal: Option<f64>,
+    /// Boolean value (for boolean results)
+    #[serde(rename = "valueBoolean", skip_serializing_if = "Option::is_none")]
+    pub value_boolean: Option<bool>,
+    /// Integer value (for integer results)
+    #[serde(rename = "valueInteger", skip_serializing_if = "Option::is_none")]
+    pub value_integer: Option<i32>,
+    /// URI value (for URI results)
+    #[serde(rename = "valueUri", skip_serializing_if = "Option::is_none")]
+    pub value_uri: Option<String>,
+    /// DateTime value (for dateTime results)
+    #[serde(rename = "valueDateTime", skip_serializing_if = "Option::is_none")]
+    pub value_date_time: Option<String>,
+    /// Date value (for date results)
+    #[serde(rename = "valueDate", skip_serializing_if = "Option::is_none")]
+    pub value_date: Option<String>,
     /// HumanName value (for HumanName results)
     #[serde(rename = "valueHumanName", skip_serializing_if = "Option::is_none")]
     pub value_human_name: Option<JsonValue>,
@@ -339,6 +357,7 @@ impl FhirPathLabResponse {
     /// Create a new FHIRPath Lab response
     pub fn new() -> Self {
         Self {
+            id: None,
             resource_type: "Parameters".to_string(),
             parameter: Vec::new(),
         }
@@ -352,6 +371,11 @@ impl FhirPathLabResponse {
             value_string: Some(value),
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -369,6 +393,11 @@ impl FhirPathLabResponse {
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -387,6 +416,11 @@ impl FhirPathLabResponse {
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -413,6 +447,11 @@ impl FhirPathLabResponse {
             value_string: Some("Evaluation completed with type metadata".to_string()),
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -429,6 +468,11 @@ impl FhirPathLabResponse {
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -450,6 +494,11 @@ impl FhirPathLabResponse {
             value_string: Some("Evaluation completed with JSON extension".to_string()),
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -465,6 +514,11 @@ impl FhirPathLabResponse {
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -489,6 +543,11 @@ impl FhirPathLabResponse {
             value_string: None,
             value_code: None,
             value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
             value_human_name: None,
             value_identifier: None,
             value_address: None,
@@ -497,24 +556,82 @@ impl FhirPathLabResponse {
             part: Some(parts),
         });
     }
-    
+
     /// Add trace information from collected traces
     pub fn add_trace_from_collection(&mut self, traces: Vec<String>) {
         if traces.is_empty() {
             return;
         }
-        
+
         // Combine all traces into a single trace string
         let combined_trace = traces.join("\n");
         self.add_string_parameter("trace", combined_trace);
     }
-    
+
     /// Add AST debug information with proper structure
     pub fn add_ast_debug_info(&mut self, parse_debug: String, parse_debug_tree: serde_json::Value) {
         self.add_string_parameter("parseDebug", parse_debug);
         // parseDebugTree should be a JSON string, not a resource parameter according to API spec
-        let tree_json = serde_json::to_string_pretty(&parse_debug_tree).unwrap_or_else(|_| "{}".to_string());
+        let tree_json =
+            serde_json::to_string_pretty(&parse_debug_tree).unwrap_or_else(|_| "{}".to_string());
         self.add_string_parameter("parseDebugTree", tree_json);
+    }
+
+    pub fn add_structured_trace_parameter(&mut self, name: &str, values: Vec<JsonValue>) {
+        let mut trace_parts = Vec::new();
+
+        // Convert each trace value to a parameter
+        for (index, value) in values.iter().enumerate() {
+            trace_parts.push(FhirPathLabResponseParameter {
+                name: format!("value{}", index),
+                extension: None,
+                value_string: if value.is_string() {
+                    Some(value.as_str().unwrap_or("").to_string())
+                } else {
+                    None
+                },
+                value_code: None,
+                value_decimal: if value.is_number() {
+                    value.as_f64()
+                } else {
+                    None
+                },
+                value_boolean: None,
+                value_integer: None,
+                value_uri: None,
+                value_date_time: None,
+                value_date: None,
+                value_human_name: None,
+                value_identifier: None,
+                value_address: None,
+                value_contact_point: None,
+                resource: if value.is_object() || value.is_array() {
+                    Some(value.clone())
+                } else {
+                    None
+                },
+                part: None,
+            });
+        }
+
+        self.parameter.push(FhirPathLabResponseParameter {
+            name: "trace".to_string(),
+            extension: None,
+            value_string: Some(name.to_string()),
+            value_code: None,
+            value_decimal: None,
+            value_boolean: None,
+            value_integer: None,
+            value_uri: None,
+            value_date_time: None,
+            value_date: None,
+            value_human_name: None,
+            value_identifier: None,
+            value_address: None,
+            value_contact_point: None,
+            resource: None,
+            part: Some(trace_parts),
+        });
     }
 }
 

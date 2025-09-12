@@ -1475,30 +1475,48 @@ impl CompositeEvaluator {
                     .await
             }
             ExpressionNode::BinaryOperation(binop) => {
-                let left_result =
-                    Box::pin(self.evaluate_with_metadata(&binop.left, context)).await?;
+                // For union operations, evaluate each side with isolated variable scopes
+                // to prevent variables defined in one side from being accessible in the other
+                let (left_result, right_result) = if matches!(binop.operator, BinaryOperator::Union) {
+                    // Create isolated contexts for each side of the union
+                    let left_context = context.create_isolated_context();
+                    let right_context = context.create_isolated_context();
+                    
+                    let left_result = 
+                        Box::pin(self.evaluate_with_metadata(&binop.left, &left_context)).await?;
+                    let right_result = 
+                        Box::pin(self.evaluate_with_metadata(&binop.right, &right_context)).await?;
+                    
+                    (left_result, right_result)
+                } else {
+                    // For non-union operations, use the same context for both sides
+                    let left_result =
+                        Box::pin(self.evaluate_with_metadata(&binop.left, context)).await?;
 
-                // Handle type literal patterns for 'is' and 'as' operators
-                let right_result =
-                    if matches!(binop.operator, BinaryOperator::Is | BinaryOperator::As) {
-                        // Check if right side is a type literal pattern like System.Integer or FHIR.code
-                        if let Some(type_name) = self.extract_type_literal(&binop.right) {
-                            // Convert type literal to string value
-                            let type_value = FhirPathValue::String(type_name);
-                            let metadata = ValueMetadata {
-                                fhir_type: "string".to_string(),
-                                resource_type: None,
-                                path: CanonicalPath::empty(),
-                                index: None,
-                                is_ordered: None,
-                            };
-                            collection_utils::single(WrappedValue::new(type_value, metadata))
+                    // Handle type literal patterns for 'is' and 'as' operators
+                    let right_result =
+                        if matches!(binop.operator, BinaryOperator::Is | BinaryOperator::As) {
+                            // Check if right side is a type literal pattern like System.Integer or FHIR.code
+                            if let Some(type_name) = self.extract_type_literal(&binop.right) {
+                                // Convert type literal to string value
+                                let type_value = FhirPathValue::String(type_name);
+                                let metadata = ValueMetadata {
+                                    fhir_type: "string".to_string(),
+                                    resource_type: None,
+                                    path: CanonicalPath::empty(),
+                                    index: None,
+                                    is_ordered: None,
+                                };
+                                collection_utils::single(WrappedValue::new(type_value, metadata))
+                            } else {
+                                Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
+                            }
                         } else {
                             Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
-                        }
-                    } else {
-                        Box::pin(self.evaluate_with_metadata(&binop.right, context)).await?
-                    };
+                        };
+                        
+                    (left_result, right_result)
+                };
 
                 // Convert to plain values for operator evaluation
                 let left_plain = self.wrapped_to_plain(&left_result);
@@ -1582,18 +1600,14 @@ impl CompositeEvaluator {
                 // Convert to plain value for type cast evaluation
                 let expr_plain = self.wrapped_to_plain(&expr_result);
 
-                // Perform type cast - for now, return the original value
-                // TODO: Implement proper type casting logic
-                let result = match cast.target_type.as_str() {
-                    "string" => match &expr_plain {
-                        FhirPathValue::String(s) => FhirPathValue::String(s.clone()),
-                        FhirPathValue::Integer(i) => FhirPathValue::String(i.to_string()),
-                        FhirPathValue::Decimal(d) => FhirPathValue::String(d.to_string()),
-                        FhirPathValue::Boolean(b) => FhirPathValue::String(b.to_string()),
-                        _ => expr_plain,
-                    },
-                    _ => expr_plain, // For now, return as-is for other casts
-                };
+                // TypeCast represents binary 'as' operator - should throw semantic errors for invalid casts
+                // This is different from functional as() which returns empty collections
+                let type_name_value = FhirPathValue::String(cast.target_type.clone());
+                let result = self.operator_evaluator.evaluate_binary_op(
+                    &expr_plain,
+                    &crate::ast::BinaryOperator::As,
+                    &type_name_value,
+                )?;
                 self.wrap_plain_result(result).await
             }
             ExpressionNode::TypeCheck(check) => {

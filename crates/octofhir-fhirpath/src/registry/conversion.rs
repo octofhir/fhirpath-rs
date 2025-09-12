@@ -71,20 +71,24 @@ impl FunctionRegistry {
                     Some(FhirPathValue::DateTime(dt)) => dt.to_string(),
                     Some(FhirPathValue::Time(t)) => t.to_string(),
                     Some(FhirPathValue::Quantity { value, unit, calendar_unit, .. }) => {
-                        if let Some(cu) = calendar_unit {
-                            format!("{} {}", value, cu)
-                        } else {
-                            match unit {
-                                Some(u) if !u.is_empty() => {
-                                    // Determine if this is a UCUM unit that should be quoted
-                                    let is_ucum_unit = Self::is_ucum_unit(u);
-                                    if is_ucum_unit {
-                                        format!("{} '{}'", value, u)
-                                    } else {
-                                        format!("{} {}", value, u)
-                                    }
-                                },
-                                _ => value.to_string(),
+                        // Prioritize original unit string to preserve format (e.g., 'wk' instead of 'week')
+                        match unit {
+                            Some(u) if !u.is_empty() => {
+                                // Determine if this is a UCUM unit that should be quoted
+                                let is_ucum_unit = Self::is_ucum_unit(u);
+                                if is_ucum_unit {
+                                    format!("{} '{}'", value, u)
+                                } else {
+                                    format!("{} {}", value, u)
+                                }
+                            },
+                            _ => {
+                                // Fallback to calendar unit if no original unit string
+                                if let Some(cu) = calendar_unit {
+                                    format!("{} {}", value, cu)
+                                } else {
+                                    value.to_string()
+                                }
                             }
                         }
                     }

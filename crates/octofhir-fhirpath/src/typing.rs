@@ -82,8 +82,15 @@ impl TypeResolver {
                         // Look for the property in elements
                         for element in elements.iter() {
                             if element.name == property {
-                                // Found the property - return element type as fallback
-                                return Ok(element.type_info.name().to_string());
+                                // Found the property - extract element type properly
+                                use octofhir_fhir_model::TypeReflectionInfo as TRI;
+                                let resolved: String = match &element.type_info {
+                                    TRI::ListType { element_type } => element_type.name().to_string(),
+                                    TRI::SimpleType { name, .. } => name.to_string(),
+                                    TRI::ClassInfo { name, .. } => name.to_string(),
+                                    other => other.name().to_string(),
+                                };
+                                return Ok(resolved);
                             }
                         }
 

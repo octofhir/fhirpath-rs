@@ -27,9 +27,7 @@
       "tags": [
         "r5-xml",
         "testObservations"
-      ],
-      "expectError": true,
-      "invalidKind": "semantic"
+      ]
     },
     {
       "name": "testPolymorphismIsA1",

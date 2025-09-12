@@ -815,105 +815,29 @@ impl fmt::Display for PrecisionDateTime {
 
 impl PartialOrd for PrecisionDateTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Check timezone compatibility per FHIRPath spec
-        // DateTime with timezone cannot be compared to DateTime without timezone
+        // Different timezone specification → indeterminate
         if self.tz_specified != other.tz_specified {
             return None;
         }
 
-        // Same precision - can compare normally
+        // Same precision → compare exact instants
         if self.precision == other.precision {
             return Some(self.datetime.cmp(&other.datetime));
         }
 
-        // Different precisions - check if this is a wide precision gap vs narrow gap
-        let precision_diff = (self.precision as i8 - other.precision as i8).abs();
+        // Range-based comparison for differing precisions per FHIRPath
+        let (self_start, self_end) = self.to_datetime_range();
+        let (other_start, other_end) = other.to_datetime_range();
 
-        // FHIRPath temporal comparison rules with common FHIR patterns:
-        // Allow Date (Day precision) vs DateTime comparisons for common use cases
-        let allows_comparison = match (self.precision, other.precision) {
-            // Allow Day precision vs any time precision (common FHIR pattern)
-            (TemporalPrecision::Day, TemporalPrecision::Hour)
-            | (TemporalPrecision::Day, TemporalPrecision::Minute)
-            | (TemporalPrecision::Day, TemporalPrecision::Second)
-            | (TemporalPrecision::Day, TemporalPrecision::Millisecond)
-            | (TemporalPrecision::Hour, TemporalPrecision::Day)
-            | (TemporalPrecision::Minute, TemporalPrecision::Day)
-            | (TemporalPrecision::Second, TemporalPrecision::Day)
-            | (TemporalPrecision::Millisecond, TemporalPrecision::Day) => true,
-            // Allow narrow precision gaps (1 level difference)
-            _ => precision_diff < 2,
-        };
-
-        if !allows_comparison {
-            // Wide precision gap - undefined comparison
-            return None;
+        if self_end < other_start {
+            return Some(std::cmp::Ordering::Less);
+        }
+        if self_start > other_end {
+            return Some(std::cmp::Ordering::Greater);
         }
 
-        // Narrow precision gap (1 level difference)
-        // Check if they represent the exact same moment when normalized
-        let _self_normalized = self.datetime.timestamp_millis();
-        let _other_normalized = other.datetime.timestamp_millis();
-
-        // For narrow precision differences, if they're within the same precision window, compare
-        match (self.precision, other.precision) {
-            // Second vs Millisecond comparisons (most common narrow gap)
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
-            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
-                // For second vs millisecond, check if they represent the same time window
-                // Second precision represents a range (e.g., 10:30:00.000 to 10:30:00.999)
-                // Millisecond precision represents an exact moment within that range
-
-                // Normalize both to the same precision (truncate to seconds)
-                let self_truncated = self.datetime.with_nanosecond(0).unwrap();
-                let other_truncated = other.datetime.with_nanosecond(0).unwrap();
-
-                if self_truncated == other_truncated {
-                    // They represent the same second - for comparisons within the same second,
-                    // the more precise value can be compared directly
-                    match (self.precision, other.precision) {
-                        (TemporalPrecision::Second, TemporalPrecision::Millisecond) => {
-                            // Second precision vs millisecond precision within same second
-                            // If millisecond is at the start of the second (e.g., 00.0), they're equal
-                            // If millisecond is later in the second, second precision encompasses it
-                            if other.datetime.nanosecond() == 0 {
-                                // Exact match at the start of the second
-                                Some(std::cmp::Ordering::Equal)
-                            } else {
-                                // Millisecond is later in the second, so second precision is "less" (starts earlier)
-                                Some(std::cmp::Ordering::Less)
-                            }
-                        }
-                        (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
-                            // Inverse of the above
-                            if self.datetime.nanosecond() == 0 {
-                                Some(std::cmp::Ordering::Equal)
-                            } else {
-                                Some(std::cmp::Ordering::Greater)
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // Different seconds, compare normally
-                    Some(self.datetime.cmp(&other.datetime))
-                }
-            }
-
-            // Minute vs Second comparisons (wide gap - should be undefined)
-            (TemporalPrecision::Minute, TemporalPrecision::Second)
-            | (TemporalPrecision::Second, TemporalPrecision::Minute) => {
-                // Wide precision gap - undefined comparison
-                None
-            }
-
-            // Hour vs Minute comparisons (wide gap)
-            (TemporalPrecision::Hour, TemporalPrecision::Minute)
-            | (TemporalPrecision::Minute, TemporalPrecision::Hour) => None,
-
-            // Other combinations - compare normally
-            _ => Some(self.datetime.cmp(&other.datetime)),
-        }
+        // Overlapping ranges → indeterminate
+        None
     }
 }
 

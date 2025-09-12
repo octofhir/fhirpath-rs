@@ -258,6 +258,39 @@ impl MetadataNavigator {
                 Ok(self.json_to_wrapped_collection(property_value, property_path, property_type))
             }
             None => {
+                // Simple fallback for choice elements like value[x] when accessing 'value'
+                if property == "value" {
+                    if let JsonValue::Object(obj) = json {
+                        if let Some((k, v)) = obj.iter().find(|(k, _)| {
+                            k.starts_with("value")
+                                && k.len() > 5
+                                && k.chars().nth(5).map(|c| c.is_ascii_uppercase()).unwrap_or(false)
+                        }) {
+                            let inferred_type = k
+                                .strip_prefix("value")
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| "unknown".to_string());
+                            let inferred_type_lc = {
+                                let mut s = inferred_type.clone();
+                                if let Some(ch) = s.get_mut(0..1) { ch.make_ascii_lowercase(); }
+                                s
+                            };
+                            let property_path = source_metadata.path.append_property(property);
+                            let fhir_value = self.json_to_fhir_path_value_with_type(v, &inferred_type_lc);
+                            let wrapped = WrappedValue::new(
+                                fhir_value,
+                                ValueMetadata {
+                                    fhir_type: inferred_type_lc,
+                                    resource_type: None,
+                                    path: property_path,
+                                    index: None,
+                                    is_ordered: None,
+                                },
+                            );
+                            return Ok(collection_utils::single(wrapped));
+                        }
+                    }
+                }
                 // Property not found in JSON - check for polymorphic choice types
                 if let Some(choice_property) = self
                     .check_choice_type_properties(json, property, source_metadata, resolver)
@@ -333,7 +366,57 @@ impl MetadataNavigator {
 
                             // Found matching choice type - use it
                             let property_path = source_metadata.path.append_property(&element.name);
-                            let property_type = element.type_info.name().to_string();
+                            
+                            // Use fhirschema's data-aware polymorphic resolution
+                            // Extract the choice base (e.g., valueQuantity -> value) and use value[x] pattern
+                            let choice_base = extract_choice_base_from_element_name(&element.name);
+                            let choice_path = format!("{}[x]", choice_base);
+                            
+                            if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                eprintln!(
+                                    "🔍 CHOICE BASE: {} -> {} -> {}",
+                                    element.name, choice_base, choice_path
+                                );
+                            }
+                            
+                            let property_type = match model_provider
+                                .navigate_typed_path_with_data(&source_metadata.fhir_type, &choice_path, value)
+                                .await
+                            {
+                                Ok(nav_result) => {
+                                    use octofhir_fhir_model::TypeReflectionInfo;
+                                    let resolved_type = match nav_result.result_type {
+                                        TypeReflectionInfo::SimpleType { name, .. } => name,
+                                        TypeReflectionInfo::ClassInfo { name, .. } => name,
+                                        TypeReflectionInfo::ListType { element_type } => element_type.name().to_string(),
+                                        _ => "Element".to_string(), // fallback
+                                    };
+                                    
+                                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                        eprintln!(
+                                            "🔍 POLYMORPHIC TYPE RESOLVED: {}.{} -> {} (from data-aware navigation: {})",
+                                            source_metadata.fhir_type,
+                                            element.name,
+                                            resolved_type,
+                                            choice_path
+                                        );
+                                    }
+                                    
+                                    resolved_type
+                                }
+                                Err(e) => {
+                                    if std::env::var("FHIRPATH_DEBUG_PERF").is_ok() {
+                                        eprintln!(
+                                            "🔍 POLYMORPHIC NAV WITH DATA FAILED: {}.{} -> fallback to Element (error: {})",
+                                            source_metadata.fhir_type,
+                                            element.name,
+                                            e
+                                        );
+                                    }
+                                    "Element".to_string() // fallback
+                                }
+                            };
+                            
                             let wrapped_collection = self.json_to_wrapped_collection(
                                 value,
                                 property_path,
@@ -470,6 +553,48 @@ impl MetadataNavigator {
                     _ => self.json_to_fhir_path_value(json), // Fall back to default handling
                 }
             }
+            "integer" => {
+                match json {
+                    JsonValue::Number(n) => n
+                        .as_i64()
+                        .map(FhirPathValue::Integer)
+                        .unwrap_or_else(|| self.json_to_fhir_path_value(json)),
+                    JsonValue::String(s) => s
+                        .parse::<i64>()
+                        .map(FhirPathValue::Integer)
+                        .unwrap_or_else(|_| FhirPathValue::String(s.clone())),
+                    _ => self.json_to_fhir_path_value(json),
+                }
+            }
+            "decimal" => {
+                match json {
+                    JsonValue::Number(n) => {
+                        if let Some(f) = n.as_f64() {
+                            FhirPathValue::Decimal(
+                                rust_decimal::Decimal::from_f64_retain(f)
+                                    .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0)),
+                            )
+                        } else {
+                            self.json_to_fhir_path_value(json)
+                        }
+                    }
+                    JsonValue::String(s) => s
+                        .parse::<rust_decimal::Decimal>()
+                        .map(FhirPathValue::Decimal)
+                        .unwrap_or_else(|_| FhirPathValue::String(s.clone())),
+                    _ => self.json_to_fhir_path_value(json),
+                }
+            }
+            "uuid" => {
+                match json {
+                    JsonValue::String(s) => FhirPathValue::Uri(s.clone()),
+                    _ => self.json_to_fhir_path_value(json),
+                }
+            }
+            "uri" => match json {
+                JsonValue::String(s) => FhirPathValue::Uri(s.clone()),
+                _ => self.json_to_fhir_path_value(json),
+            },
             _ => self.json_to_fhir_path_value(json), // Use default handling for other types
         }
     }
@@ -670,16 +795,25 @@ impl MetadataNavigator {
                         // Find the property element and get its actual type information
                         for element in elements.iter() {
                             if element.name == property {
-                                // Try to get type information from the element's definition
-                                // This should contain the actual element type for arrays
-                                let type_name = element.type_info.name();
-                                if type_name != "array" {
-                                    return Some(type_name.to_string());
+                                // Extract element type from type_info; handle ListType explicitly
+                                match &element.type_info {
+                                    TypeReflectionInfo::ListType { element_type } => {
+                                        return Some(element_type.name().to_string());
+                                    }
+                                    TypeReflectionInfo::SimpleType { name, .. } => {
+                                        return Some(name.to_string());
+                                    }
+                                    TypeReflectionInfo::ClassInfo { name, .. } => {
+                                        return Some(name.to_string());
+                                    }
+                                    other => {
+                                        let name = other.name();
+                                        if name != "array" {
+                                            return Some(name.to_string());
+                                        }
+                                        // Otherwise continue fallback
+                                    }
                                 }
-                                
-                                // Check for type definitions or references in the element
-                                // The FHIR schema should have this information
-                                break;
                             }
                         }
                     }
@@ -878,6 +1012,27 @@ impl Default for MetadataNavigator {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Extract choice base from element name (e.g., valueQuantity -> value)
+/// Uses simple pattern matching to detect common FHIR choice prefixes
+fn extract_choice_base_from_element_name(element_name: &str) -> &str {
+    // Common FHIR choice element prefixes - these are well-established patterns in FHIR
+    let known_prefixes = ["value", "multipleBirth", "deceased", "onset", "effective", "occurs"];
+    
+    for prefix in &known_prefixes {
+        if element_name.starts_with(prefix) && element_name.len() > prefix.len() {
+            // Check if the next character is uppercase (indicating a type suffix)
+            if let Some(next_char) = element_name.chars().nth(prefix.len()) {
+                if next_char.is_uppercase() {
+                    return prefix;
+                }
+            }
+        }
+    }
+    
+    // If no known prefix matches, return the full element name
+    element_name
 }
 
 #[cfg(test)]

@@ -125,7 +125,7 @@ impl FhirUtils {
     }
 }
 
-fn json_to_value(v: JsonValue) -> FhirPathValue {
+pub fn json_to_value(v: JsonValue) -> FhirPathValue {
     match v {
         JsonValue::Bool(b) => FhirPathValue::boolean(b),
         JsonValue::Number(n) => {

@@ -248,6 +248,22 @@ impl EvaluationContext {
         self.builtin_variables.server.as_ref()
     }
 
+    /// Create context without user-defined variables for isolated evaluation
+    /// 
+    /// This is used for union operations where variables defined in one side
+    /// should not be accessible in the other side, following FHIRPath scoping rules.
+    pub fn create_isolated_context(&self) -> Self {
+        Self {
+            start_context: self.start_context.clone(),
+            root_context: self.root_context.clone(),
+            variables: HashMap::new(), // Empty variables
+            builtin_variables: self.builtin_variables.clone(), // Keep builtin variables
+            server_context: self.server_context.clone(),
+            depth: self.depth,
+            is_fhir_navigation: self.is_fhir_navigation,
+        }
+    }
+
     /// Get the type factory if configured
     pub fn get_type_factory(&self) -> Option<&Arc<dyn TypeFactory>> {
         self.builtin_variables.factory.as_ref()

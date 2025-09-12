@@ -142,6 +142,50 @@ impl MetadataCoreEvaluator {
                 Ok(self.json_to_wrapped_collection(property_value, property_path, property_type))
             }
             None => {
+                // Handle choice elements like value[x] when accessing 'value'
+                if property == "value" {
+                    if let Some(obj) = json.as_object() {
+                        if let Some((k, v)) = obj.iter().find(|(k, _)| {
+                            k.starts_with("value")
+                                && k.len() > 5
+                                && k.chars()
+                                    .nth(5)
+                                    .map(|c| c.is_ascii_uppercase())
+                                    .unwrap_or(false)
+                        }) {
+                            // Use the suffix to infer primitive type name when possible
+                            // e.g., valueString -> string, valueInteger -> integer
+                            let inferred_type = k
+                                .strip_prefix("value")
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| "unknown".to_string());
+                            let inferred_type_lc = {
+                                let mut s = inferred_type.clone();
+                                if let Some(ch) = s.get_mut(0..1) {
+                                    ch.make_ascii_lowercase();
+                                }
+                                s
+                            };
+
+                            let fhir_value = self.json_to_fhir_path_value_typed(
+                                v,
+                                &inferred_type_lc,
+                            );
+                            let property_path = source_metadata.path.append_property(property);
+                            let wrapped = WrappedValue::new(
+                                fhir_value,
+                                ValueMetadata {
+                                    fhir_type: inferred_type_lc,
+                                    resource_type: None,
+                                    path: property_path,
+                                    index: None,
+                                    is_ordered: None,
+                                },
+                            );
+                            return Ok(collection_utils::single(wrapped));
+                        }
+                    }
+                }
                 // Property not found - check if property should exist on this type
                 let property_check = resolver
                     .model_provider()
@@ -180,7 +224,8 @@ impl MetadataCoreEvaluator {
                     .enumerate()
                     .map(|(i, item)| {
                         let indexed_path = path.append_index(i);
-                        let fhir_path_value = self.json_to_fhir_path_value(item);
+                        let fhir_path_value =
+                            self.json_to_fhir_path_value_typed(item, &fhir_type);
                         let metadata = ValueMetadata {
                             fhir_type: fhir_type.clone(),
                             resource_type: None,
@@ -194,7 +239,7 @@ impl MetadataCoreEvaluator {
             }
             _ => {
                 // Single value
-                let fhir_path_value = self.json_to_fhir_path_value(json);
+                let fhir_path_value = self.json_to_fhir_path_value_typed(json, &fhir_type);
                 let metadata = ValueMetadata {
                     fhir_type,
                     resource_type: None,
@@ -207,7 +252,66 @@ impl MetadataCoreEvaluator {
         }
     }
 
-    /// Convert JSON value to FhirPathValue (duplicated from MetadataNavigator for internal use)
+    /// Convert JSON value to FhirPathValue using available FHIR type information
+    /// If the type is a temporal primitive (date, dateTime, time), parse accordingly.
+    fn json_to_fhir_path_value_typed(
+        &self,
+        json: &serde_json::Value,
+        fhir_type: &str,
+    ) -> FhirPathValue {
+        match json {
+            serde_json::Value::Null => FhirPathValue::Empty,
+            serde_json::Value::Bool(b) => FhirPathValue::Boolean(*b),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    FhirPathValue::Integer(i)
+                } else if let Some(f) = n.as_f64() {
+                    FhirPathValue::Decimal(
+                        rust_decimal::Decimal::from_f64_retain(f)
+                            .unwrap_or_else(|| rust_decimal::Decimal::new(0, 0)),
+                    )
+                } else {
+                    FhirPathValue::String(n.to_string())
+                }
+            }
+            serde_json::Value::String(s) => {
+                // Parse based on declared FHIR type when possible
+                match fhir_type {
+                    // FHIR primitive types are typically lowercase in model provider
+                    t if t.eq_ignore_ascii_case("date") => {
+                        if let Ok(pd) = crate::core::temporal::PrecisionDate::parse_with_validation(s) {
+                            FhirPathValue::Date(pd)
+                        } else {
+                            FhirPathValue::String(s.clone())
+                        }
+                    }
+                    t if t.eq_ignore_ascii_case("dateTime") || t.eq_ignore_ascii_case("datetime") => {
+                        if let Ok(pdt) = crate::core::temporal::PrecisionDateTime::parse_with_validation(s) {
+                            FhirPathValue::DateTime(pdt)
+                        } else {
+                            FhirPathValue::String(s.clone())
+                        }
+                    }
+                    t if t.eq_ignore_ascii_case("uuid") => FhirPathValue::Uri(s.clone()),
+                    t if t.eq_ignore_ascii_case("uri") => FhirPathValue::Uri(s.clone()),
+                    t if t.eq_ignore_ascii_case("time") => {
+                        if let Some(pt) = crate::core::temporal::PrecisionTime::parse(s) {
+                            FhirPathValue::Time(pt)
+                        } else {
+                            FhirPathValue::String(s.clone())
+                        }
+                    }
+                    _ => FhirPathValue::String(s.clone()),
+                }
+            }
+            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                // Complex values remain as JSON for now
+                FhirPathValue::JsonValue(Arc::new(json.clone()))
+            }
+        }
+    }
+
+    /// Convert JSON value to FhirPathValue (generic fallback; prefers JSON/primitive without schema info)
     fn json_to_fhir_path_value(&self, json: &serde_json::Value) -> FhirPathValue {
         match json {
             serde_json::Value::Null => FhirPathValue::Empty,
@@ -495,12 +599,17 @@ impl MetadataCoreEvaluator {
         }
     }
 
-    /// Resolve dynamic variable patterns like %vs-name
+    /// Resolve dynamic variable patterns like %vs-name and %ext-name
     fn resolve_dynamic_variable(&self, var_name: &str) -> Option<FhirPathValue> {
         if var_name.starts_with("vs-") {
             // Extract the part after "vs-" and construct ValueSet URL
             let valueset_name = &var_name[3..]; // Remove "vs-" prefix
             let url = format!("http://hl7.org/fhir/ValueSet/{}", valueset_name);
+            Some(FhirPathValue::String(url))
+        } else if var_name.starts_with("ext-") {
+            // Extract the part after "ext-" and construct StructureDefinition URL
+            let extension_name = &var_name[4..]; // Remove "ext-" prefix
+            let url = format!("http://hl7.org/fhir/StructureDefinition/{}", extension_name);
             Some(FhirPathValue::String(url))
         } else {
             None

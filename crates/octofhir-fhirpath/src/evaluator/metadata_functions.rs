@@ -1150,24 +1150,35 @@ impl MetadataFunctionEvaluator {
             return Ok(Some(collection_utils::empty()));
         }
 
-        // Get the target type from arguments
-        let target_type = if let Some(first_arg) = args[0].first() {
+        // Get the target type from arguments (string or namespaced type)
+        let target_type_raw = if let Some(first_arg) = args[0].first() {
             match first_arg.as_plain() {
                 FhirPathValue::String(type_name) => type_name.clone(),
+                // Allow passing a TypeInfoObject (e.g., from %vars) by converting to string
+                FhirPathValue::TypeInfoObject { namespace, name } => {
+                    format!("{}.{}", namespace, name)
+                }
                 _ => return Ok(Some(collection_utils::empty())),
             }
         } else {
             return Ok(Some(collection_utils::empty()));
         };
 
+        // Normalize namespaces: accept "FHIR.X" or "System.X" and strip the prefix
+        let target_type = target_type_raw
+            .strip_prefix("FHIR.")
+            .or_else(|| target_type_raw.strip_prefix("System."))
+            .unwrap_or(&target_type_raw)
+            .to_string();
+
         // Filter objects that match the target type
         let filtered_results: Vec<WrappedValue> = object
             .iter()
             .filter(|wrapped| {
-                wrapped.fhir_type() == target_type
+                wrapped.fhir_type().eq_ignore_ascii_case(&target_type)
                     || wrapped
                         .resource_type()
-                        .map(|rt| rt == target_type)
+                        .map(|rt| rt.eq_ignore_ascii_case(&target_type))
                         .unwrap_or(false)
             })
             .cloned()

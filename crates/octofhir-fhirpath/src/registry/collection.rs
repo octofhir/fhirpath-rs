@@ -18,9 +18,23 @@ impl CollectionUtils {
     /// Generate a hash key for a FhirPathValue for use in collections
     pub fn value_hash_key(value: &FhirPathValue) -> String {
         match value {
-            FhirPathValue::String(s) => format!("str:{}", s),
-            FhirPathValue::Integer(i) => format!("int:{}", i),
-            FhirPathValue::Decimal(d) => format!("dec:{}", d),
+            FhirPathValue::String(s) => {
+                // Lenient numeric string normalization for set ops: "1" == 1
+                if let Ok(i) = s.parse::<i64>() {
+                    let d = rust_decimal::Decimal::from(i).normalize();
+                    format!("num:{}", d)
+                } else if let Ok(d) = s.parse::<rust_decimal::Decimal>() {
+                    format!("num:{}", d.normalize())
+                } else {
+                    format!("str:{}", s)
+                }
+            }
+            // Normalize numeric types so that 1 and 1.0 are treated equivalently
+            FhirPathValue::Integer(i) => {
+                let d = rust_decimal::Decimal::from(*i).normalize();
+                format!("num:{}", d)
+            }
+            FhirPathValue::Decimal(d) => format!("num:{}", d.normalize()),
             FhirPathValue::Boolean(b) => format!("bool:{}", b),
             FhirPathValue::Date(d) => format!("date:{}", d.to_string()),
             FhirPathValue::DateTime(dt) => format!("datetime:{}", dt.to_string()),
@@ -578,10 +592,20 @@ impl FunctionRegistry {
                     ));
                 }
 
-                // Build set of items in the other collection
+                // Build set of items in the other collection (flatten arguments)
                 let mut other_set = HashSet::new();
-                for item in context.arguments.iter() {
-                    other_set.insert(CollectionUtils::value_hash_key(item));
+                for arg in context.arguments.iter() {
+                    match arg {
+                        FhirPathValue::Collection(coll) => {
+                            for item in coll.iter() {
+                                other_set.insert(CollectionUtils::value_hash_key(item));
+                            }
+                        }
+                        FhirPathValue::Empty => {}
+                        other => {
+                            other_set.insert(CollectionUtils::value_hash_key(other));
+                        }
+                    }
                 }
 
                 // Check if all items in input are in other collection
@@ -619,10 +643,22 @@ impl FunctionRegistry {
                     this_set.insert(CollectionUtils::value_hash_key(item));
                 }
 
-                // Check if all items in other collection are in this collection
-                for value in context.arguments.iter() {
-                    if !this_set.contains(&CollectionUtils::value_hash_key(value)) {
-                        return Ok(FhirPathValue::Boolean(false));
+                // Check if all items in other collection are in this collection (flatten arguments)
+                for arg in context.arguments.iter() {
+                    match arg {
+                        FhirPathValue::Collection(coll) => {
+                            for value in coll.iter() {
+                                if !this_set.contains(&CollectionUtils::value_hash_key(value)) {
+                                    return Ok(FhirPathValue::Boolean(false));
+                                }
+                            }
+                        }
+                        FhirPathValue::Empty => {}
+                        other => {
+                            if !this_set.contains(&CollectionUtils::value_hash_key(other)) {
+                                return Ok(FhirPathValue::Boolean(false));
+                            }
+                        }
                     }
                 }
 
