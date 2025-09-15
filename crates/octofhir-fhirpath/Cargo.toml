@@ -86,7 +86,7 @@ colored = { workspace = true }
 divan = "0.1"
 pretty_assertions = "1.4.1"
 rstest = "0.26"
-rust_decimal_macros = "1.36"
+rust_decimal_macros = "1.38"
 
 [features]
 default = []
