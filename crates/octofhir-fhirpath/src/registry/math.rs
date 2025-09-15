@@ -723,9 +723,9 @@ impl ArithmeticOperations {
 
                 // Parse calendar unit
                 let calendar_unit = match unit.as_str() {
-                    "year" | "years" | "yr" | "a" => Some(CalendarUnit::Year),
-                    "month" | "months" | "mo" => Some(CalendarUnit::Month),
-                    "week" | "weeks" | "wk" => Some(CalendarUnit::Week),
+                    "year" | "years" | "yr" | "yrs" | "a" => Some(CalendarUnit::Year),
+                    "month" | "months" | "mo" | "mos" => Some(CalendarUnit::Month),
+                    "week" | "weeks" | "wk" | "wks" => Some(CalendarUnit::Week),
                     "day" | "days" | "d" => Some(CalendarUnit::Day),
                     "1" => None, // Unitless quantity
                     _ => None,
@@ -741,9 +741,9 @@ impl ArithmeticOperations {
             (FhirPathValue::Decimal(val), FhirPathValue::String(unit)) => {
                 // Parse calendar unit
                 let calendar_unit = match unit.as_str() {
-                    "year" | "years" | "yr" | "a" => Some(CalendarUnit::Year),
-                    "month" | "months" | "mo" => Some(CalendarUnit::Month),
-                    "week" | "weeks" | "wk" => Some(CalendarUnit::Week),
+                    "year" | "years" | "yr" | "yrs" | "a" => Some(CalendarUnit::Year),
+                    "month" | "months" | "mo" | "mos" => Some(CalendarUnit::Month),
+                    "week" | "weeks" | "wk" | "wks" => Some(CalendarUnit::Week),
                     "day" | "days" | "d" => Some(CalendarUnit::Day),
                     "1" => None, // Unitless quantity
                     _ => None,

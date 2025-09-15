@@ -11,8 +11,12 @@ use crate::register_function;
 impl FunctionRegistry {
     pub fn register_logic_functions(&self) -> Result<()> {
         self.register_not_function()?;
-        self.register_iif_function()?;
-        self.register_define_variable_function()?;
+        self.register_iif_function()?; // Keep metadata for function discovery
+        self.register_and_function()?;
+        self.register_or_function()?;
+        self.register_xor_function()?;
+        self.register_implies_function()?;
+        // defineVariable() function is now implemented through lambda functions module
         Ok(())
     }
 
@@ -57,75 +61,204 @@ impl FunctionRegistry {
             self,
             sync "iif",
             category: FunctionCategory::Logic,
-            description: "Conditional function: returns the 'then' value if condition is true, 'else' value if false, empty if condition is empty",
+            description: "Conditional function with lazy evaluation: evaluates condition first, then only the selected branch (then/else). Provides short-circuit evaluation.",
             parameters: [
                 "condition": Some("boolean".to_string()) => "The condition to evaluate",
-                "then": Some("any".to_string()) => "Value to return if condition is true",
-                "else": Some("any".to_string()) => "Value to return if condition is false (optional)"
+                "then": Some("any".to_string()) => "Expression to evaluate if condition is true",
+                "else": Some("any".to_string()) => "Expression to evaluate if condition is false (optional)"
             ],
             return_type: "any",
             examples: [
                 "iif(Patient.active, 'active', 'inactive')",
                 "iif(true, 'yes', 'no')",
-                "iif(false, 'yes')"
+                "iif(false, 'yes')",
+                "iif(Patient.gender = 'male', Patient.name.given[0], Patient.name.family)"
             ],
             implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
-                // This function is handled specially by the composite evaluator for lazy evaluation
-                // This implementation should never be called in practice
+                // iif() is handled by the evaluator with lazy evaluation and short-circuiting
+                // This implementation should not be called - the evaluator intercepts iif() calls
                 Err(FhirPathError::evaluation_error(
                     FP0053,
-                    "iif() function should be handled by lazy evaluation in composite evaluator".to_string()
+                    "iif() function uses lazy evaluation - handled directly by evaluator".to_string()
                 ))
             }
         )
     }
 
-    fn register_define_variable_function(&self) -> Result<()> {
+    fn register_and_function(&self) -> Result<()> {
         register_function!(
             self,
-            sync "defineVariable",
+            sync "and",
             category: FunctionCategory::Logic,
-            description: "Defines a variable in the current scope that can be accessed using %name syntax (placeholder implementation)",
-            parameters: ["name": Some("string".to_string()) => "Variable name to define"],
-            return_type: "any",
+            description: "Logical AND operation. Returns true if both operands are true, false if either is false, empty if either is empty and the other is not false",
+            parameters: ["right": Some("boolean".to_string()) => "Right operand"],
+            return_type: "boolean",
             examples: [
-                "Patient.defineVariable('pat').name.family",
-                "Bundle.entry.resource.defineVariable('res').id"
+                "true and true",
+                "false and true",
+                "Patient.active and Patient.name.exists()"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() < 1 || context.arguments.len() > 2 {
+                if context.input.len() != 1 || context.arguments.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
-                        "defineVariable() requires 1 or 2 arguments (variable name and optional expression)".to_string()
+                        "and() requires exactly two boolean operands".to_string()
                     ));
                 }
 
-                let _var_name = match context.arguments.first() {
-                    Some(FhirPathValue::String(s)) => s,
-                    Some(_) => {
-                        return Err(FhirPathError::evaluation_error(
-                            FP0053,
-                            "defineVariable() variable name must be a string".to_string()
-                        ));
-                    }
-                    None => {
-                        return Err(FhirPathError::evaluation_error(
-                            FP0053,
-                            "defineVariable() requires exactly one argument (variable name)".to_string()
-                        ));
-                    }
-                };
+                let left = context.input.first().unwrap();
+                let right = context.arguments.first().unwrap();
 
-                // Placeholder implementation: defineVariable requires full variable scoping system
-                // For now, just pass through the input unchanged
-                // In full implementation, this would store the input value in a variable scope
-                // that can be accessed later using %variableName
-
-                match context.input.first() {
-                    Some(value) => Ok(value.clone()),
-                    None => Ok(FhirPathValue::empty())
+                match (left, right) {
+                    // True if both are true
+                    (FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+                    // False if either is explicitly false
+                    (FhirPathValue::Boolean(false), _) => Ok(FhirPathValue::Boolean(false)),
+                    (_, FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+                    // Empty if either is empty and the other is not false
+                    (FhirPathValue::Empty, FhirPathValue::Boolean(true)) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Boolean(true), FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    // Type error for non-boolean operands
+                    _ => Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "and() can only be applied to boolean values".to_string()
+                    ))
                 }
             }
         )
     }
+
+    fn register_or_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "or",
+            category: FunctionCategory::Logic,
+            description: "Logical OR operation. Returns true if either operand is true, false if both are false, empty if either is empty and the other is not true",
+            parameters: ["right": Some("boolean".to_string()) => "Right operand"],
+            return_type: "boolean",
+            examples: [
+                "true or false",
+                "false or false",
+                "Patient.active or Patient.deceased.exists()"
+            ],
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.len() != 1 || context.arguments.len() != 1 {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "or() requires exactly two boolean operands".to_string()
+                    ));
+                }
+
+                let left = context.input.first().unwrap();
+                let right = context.arguments.first().unwrap();
+
+                match (left, right) {
+                    // True if either is true
+                    (FhirPathValue::Boolean(true), _) => Ok(FhirPathValue::Boolean(true)),
+                    (_, FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+                    // False if both are explicitly false
+                    (FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+                    // Empty if either is empty and the other is not true
+                    (FhirPathValue::Empty, FhirPathValue::Boolean(false)) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Boolean(false), FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    // Type error for non-boolean operands
+                    _ => Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "or() can only be applied to boolean values".to_string()
+                    ))
+                }
+            }
+        )
+    }
+
+    fn register_xor_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "xor",
+            category: FunctionCategory::Logic,
+            description: "Logical XOR operation. Returns true if exactly one operand is true, false if both are the same, empty if either is empty",
+            parameters: ["right": Some("boolean".to_string()) => "Right operand"],
+            return_type: "boolean",
+            examples: [
+                "true xor false",
+                "false xor false",
+                "Patient.active xor Patient.deceased"
+            ],
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.len() != 1 || context.arguments.len() != 1 {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "xor() requires exactly two boolean operands".to_string()
+                    ));
+                }
+
+                let left = context.input.first().unwrap();
+                let right = context.arguments.first().unwrap();
+
+                match (left, right) {
+                    // XOR logic: true if exactly one is true
+                    (FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(true)),
+                    (FhirPathValue::Boolean(false), FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+                    (FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(false)),
+                    (FhirPathValue::Boolean(false), FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+                    // Empty if either is empty
+                    (FhirPathValue::Empty, _) => Ok(FhirPathValue::empty()),
+                    (_, FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    // Type error for non-boolean operands
+                    _ => Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "xor() can only be applied to boolean values".to_string()
+                    ))
+                }
+            }
+        )
+    }
+
+    fn register_implies_function(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "implies",
+            category: FunctionCategory::Logic,
+            description: "Logical implication. Returns false only when left is true and right is false, true otherwise, empty if either is empty and result cannot be determined",
+            parameters: ["right": Some("boolean".to_string()) => "Right operand (consequent)"],
+            return_type: "boolean",
+            examples: [
+                "true implies false",
+                "false implies true",
+                "Patient.active implies Patient.name.exists()"
+            ],
+            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                if context.input.len() != 1 || context.arguments.len() != 1 {
+                    return Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "implies() requires exactly two boolean operands".to_string()
+                    ));
+                }
+
+                let left = context.input.first().unwrap();
+                let right = context.arguments.first().unwrap();
+
+                match (left, right) {
+                    // Implication logic: false only when true implies false
+                    (FhirPathValue::Boolean(true), FhirPathValue::Boolean(false)) => Ok(FhirPathValue::Boolean(false)),
+                    (FhirPathValue::Boolean(true), FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+                    (FhirPathValue::Boolean(false), _) => Ok(FhirPathValue::Boolean(true)),
+                    // Handle empty values according to FHIRPath three-valued logic
+                    (FhirPathValue::Boolean(true), FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Boolean(false), FhirPathValue::Empty) => Ok(FhirPathValue::Boolean(true)),
+                    (FhirPathValue::Empty, FhirPathValue::Boolean(true)) => Ok(FhirPathValue::Boolean(true)),
+                    (FhirPathValue::Empty, FhirPathValue::Boolean(false)) => Ok(FhirPathValue::empty()),
+                    (FhirPathValue::Empty, FhirPathValue::Empty) => Ok(FhirPathValue::empty()),
+                    // Type error for non-boolean operands
+                    _ => Err(FhirPathError::evaluation_error(
+                        FP0053,
+                        "implies() can only be applied to boolean values".to_string()
+                    ))
+                }
+            }
+        )
+    }
+
 }

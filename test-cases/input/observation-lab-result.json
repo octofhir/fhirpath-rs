@@ -1,0 +1,63 @@
+{
+  "resourceType": "Observation",
+  "id": "example-lab",
+  "status": "final",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "laboratory"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "33747-0",
+        "display": "General laboratory studies"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/example"
+  },
+  "effectiveDateTime": "2023-12-01T08:30:00Z",
+  "valueString": "NEGATIVE for glucose, protein, and ketones",
+  "valueCodeableConcept": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "260385009",
+        "display": "Negative (qualifier value)"
+      }
+    ]
+  },
+  "_valueString": {
+    "id": "string-value-id",
+    "extension": [
+      {
+        "url": "http://example.com/fhir/extension/lab-method",
+        "valueString": "dipstick"
+      },
+      {
+        "url": "http://example.com/fhir/extension/verified-by",
+        "valueReference": {
+          "reference": "Practitioner/example"
+        }
+      }
+    ]
+  },
+  "referenceRange": [
+    {
+      "text": "Negative"
+    }
+  ],
+  "note": [
+    {
+      "text": "Patient fasted for 12 hours prior to specimen collection"
+    }
+  ]
+}

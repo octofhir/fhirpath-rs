@@ -1,202 +1,171 @@
-# FHIRPath for Rust 🚀
+# FHIRPath for Rust
 
-[![Crates.io](https://img.shields.io/crates/v/octofhir-fhirpath.svg)](https://crates.io/crates/octofhir-fhirpath)
-[![Documentation](https://docs.rs/octofhir-fhirpath/badge.svg)](https://docs.rs/octofhir-fhirpath)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/octofhir/fhirpath-rs/blob/main/LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.87+-blue.svg)](https://www.rust-lang.org)
+A focused, spec-first FHIRPath implementation in Rust. No fluff. The goal is correctness, clarity, and predictable behavior when evaluating FHIRPath over JSON FHIR resources.
 
-**Fast, safe, and production-ready FHIRPath implementation in Rust.**
+**Docs**: https://docs.rs/octofhir-fhirpath
 
-FHIRPath is the standard query language for navigating FHIR healthcare data. This library provides high-performance evaluation with **90.9% specification compliance**.
+**Spec coverage**: see TEST_COVERAGE.md in this repo for the current report.
 
-## ✨ Quick Example
+**CLI reference**: CLI.md in this repo.
+
+**License**: MIT OR Apache-2.0
+
+**Rust**: 1.87+ (edition 2024)
+
+**Spec target**: FHIRPath 3.0.0
+
+## Core Principles
+
+- Spec-first: implement the FHIRPath 3.0.0 spec faithfully and transparently.
+- Deterministic: evaluation is pure and predictable; no hidden state.
+- Safety: no unsafe code; thread-safe and async-ready.
+- Separation of concerns: engine, model provider, and terminology are decoupled.
+- Minimal API: make the simple path easy; advanced use explicit.
+- Transparent diagnostics: clear errors and optional detailed metadata.
+- Performance matters, but never at the expense of correctness.
+
+## Install
+
+- Library: add `octofhir-fhirpath = "0.4"` to your Cargo.toml.
+- CLI from source:
+  - `cargo run -p fhirpath-cli -- --help` (from this repo), or
+  - `cargo install --git https://github.com/octofhir/fhirpath-rs --bin octofhir-fhirpath`
+
+## Quick Start
+
+### Minimal evaluation (convenience API)
 
 ```rust
-use octofhir_fhirpath::FhirPathEngine;
+use octofhir_fhirpath::evaluate;
+use octofhir_fhirpath::core::value::utils::json_to_fhirpath_value;
 use serde_json::json;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let engine = FhirPathEngine::with_mock_provider().await?;
-    
+async fn main() -> octofhir_fhirpath::Result<()> {
     let patient = json!({
         "resourceType": "Patient",
-        "name": [
-            {"given": ["Alice"], "family": "Smith"},
-            {"given": ["Dr. Alice"], "family": "Smith", "use": "professional"}
-        ],
+        "name": [{"family": "Smith", "given": ["Alice", "A."]}],
         "active": true
     });
-    
-    // Get all given names
-    let names = engine.evaluate("Patient.name.given", patient.clone()).await?;
-    println!("Names: {}", names); // ["Alice", "Dr. Alice"]
-    
-    // Filter by use and get family name
-    let professional = engine.evaluate(
-        "Patient.name.where(use = 'professional').family.first()", 
-        patient.clone()
-    ).await?;
-    println!("Professional name: {}", professional); // "Smith"
-    
+
+    // Convert JSON to FHIRPath value and evaluate
+    let ctx = json_to_fhirpath_value(patient);
+    let out = evaluate("Patient.name.given", &ctx).await?;
+    println!("{:?}", out);
     Ok(())
 }
 ```
 
-## 🚀 Installation
-
-### As a Library
-
-```toml
-[dependencies]
-octofhir-fhirpath = "0.4"
-tokio = { version = "1.0", features = ["full"] }
-serde_json = "1.0"
-```
-
-### As a CLI Tool
-
-```bash
-cargo install octofhir-fhirpath
-```
-
-## 📖 Getting Started
-
-### Basic Library Usage
+### Full control (engine + context)
 
 ```rust
-use octofhir_fhirpath::FhirPathEngine;
+use octofhir_fhirpath::{FhirPathEngine, create_standard_registry};
+use octofhir_fhirpath::evaluator::EvaluationContext;
+use octofhir_fhirpath::core::value::utils::json_to_fhirpath_value;
+use octofhir_fhir_model::EmptyModelProvider;
 use serde_json::json;
+use std::sync::Arc;
 
-// Create engine (use MockModelProvider for simple cases)
-let engine = FhirPathEngine::with_mock_provider().await?;
+#[tokio::main]
+async fn main() -> octofhir_fhirpath::Result<()> {
+    // Engine is explicit about function registry and model provider
+    let registry = Arc::new(create_standard_registry().await);
+    let provider = Arc::new(EmptyModelProvider);
+    let mut engine = FhirPathEngine::new(registry, provider).await?;
 
-// Your FHIR data
-let patient = json!({"resourceType": "Patient", "active": true});
+    // Context can be any FHIR JSON; engine auto-detects root resourceType
+    let ctx_val = json_to_fhirpath_value(json!({
+        "resourceType": "Patient",
+        "name": [{"given": ["Alice"], "family": "Smith"}]
+    }));
+    let ctx = EvaluationContext::from_value(ctx_val);
 
-// Evaluate expressions
-let result = engine.evaluate("Patient.active", patient).await?;
-println!("Active: {}", result); // [true]
+    // "name.given" is automatically treated as "Patient.name.given"
+    let result = engine.evaluate("name.given", &ctx).await?;
+    println!("{:?}", result.value);
+    Ok(())
+}
 ```
 
-### Production Usage with Full FHIR Support
+## CLI
 
-```rust
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
-use octofhir_fhirpath_model::FhirSchemaModelProvider;
+- From this repo:
+  - `cargo run -p fhirpath-cli -- evaluate "Patient.name.given" --input patient.json`
+  - `cargo run -p fhirpath-cli -- repl --input patient.json`
+  - `cargo run -p fhirpath-cli -- server --port 8080`
+- Installed binary:
+  - `octofhir-fhirpath evaluate "Patient.active" --input patient.json`
+  - See CLI.md for options and output formats.
 
-// Create engine with full FHIR R5 schema support
-let model_provider = FhirSchemaModelProvider::r5().await?;
-let engine = FhirPathEngine::with_model_provider(Box::new(model_provider)).await?;
+## Workspace
 
-// Now supports advanced features like type checking, resolve(), etc.
-let result = engine.evaluate("Patient.active is Boolean", patient).await?;
-```
+- `crates/octofhir-fhirpath`: library crate (published)
+- `crates/fhirpath-cli`: CLI crate (not published)
+- `crates/fhirpath-dev-tools`: dev/test/bench tools (not published)
 
-### Command Line Usage
+## Architecture
 
-```bash
-# Evaluate expression against JSON file
-octofhir-fhirpath evaluate "Patient.name.given" --input patient.json
+- Parser
+  - `parse`, `parse_ast`, `validate` with configurable `ParserConfig`/`ParsingMode`.
+  - Produces an AST (`ast::ExpressionNode`) used by the evaluator.
+- Evaluator
+  - `FhirPathEngine` orchestrates a `CompositeEvaluator` composed of Core/Function/Operator/Collection/Lambda evaluators.
+  - AST cache avoids re-parsing hot expressions; auto-detects root FHIR context ("name.given" → "Patient.name.given").
+  - Two paths: `evaluate` (plain `Collection`) and `evaluate_with_metadata` (preserves type/path metadata).
+- Values and Types
+  - `FhirPathValue` covers primitives, precise temporal types, UCUM-backed `Quantity`, `Collection`, and JSON-backed complex values via `Arc<serde_json::Value>`.
+  - Helpers in `core::value::utils` convert JSON to `FhirPathValue` and back when needed.
+- Context and Variables
+  - `EvaluationContext` carries the start/root collections, user variables, and built-ins.
+  - Built-ins include `%context`, `%resource`, `%rootResource`, `%terminologies` placeholder, and shortcuts like `%sct`, `%loinc`, `%ucum`.
+- Model and Terminology
+  - `ModelProvider` is a trait for type/structure info; you can start with `EmptyModelProvider` and plug richer providers externally.
+  - Terminology is opt-in and provided through the context; the core library does not make hidden network calls.
 
-# Interactive REPL for rapid prototyping
-octofhir-fhirpath repl --input patient.json
+## Design Trade-offs
 
-# Enhanced output formats
-octofhir-fhirpath evaluate "Patient.name" --output-format pretty --input patient.json
-octofhir-fhirpath evaluate "Patient.name.given" --output-format table --input patient.json
+- Arc<JsonValue> for complex values
+  - Pro: eliminates cloning of large Bundles/resources; cheap sharing across contexts/threads.
+  - Con: you must treat JSON as immutable; deep mutation is intentionally not supported.
+- No implicit IO in the library
+  - Pro: deterministic, testable, and predictable evaluation.
+  - Con: external setup is required for terminology/server-backed behaviors.
+- Auto root-context transformation
+  - Pro: writing `name.given` against a Patient JSON “just works”.
+  - Con: if the input is not a FHIR resource or already fully qualified, we keep it as-is; be explicit when needed.
+- AST cache
+  - Pro: significant speed-up for repeated expressions.
+  - Con: memory usage proportional to unique expressions; you control lifecycle by engine lifetime.
+- JSON as interchange
+  - Pro: ubiquitous, simple integration; matches real-world FHIR payloads.
+  - Con: no compile-time schema guarantees; use a ModelProvider when you need type checks.
+- Quantities and temporals
+  - UCUM-backed quantities and calendar units are supported; conversions follow UCUM where applicable.
+  - Temporal types keep precision; operations may be more strict than ad-hoc implementations.
+- Metadata-aware evaluation
+  - Pro: preserves type/path/index info for tooling and rich outputs.
+  - Con: slightly higher overhead than plain evaluation; use plain `evaluate` when you only need values.
 
-# Pipe JSON data
-echo '{"resourceType":"Patient","active":true}' | \
-  octofhir-fhirpath evaluate "Patient.active"
+## What This Library Provides
 
-# Use environment variables
-octofhir-fhirpath evaluate "age > %minAge" \
-  --input patient.json \
-  --variable "minAge=18"
+- Parser for FHIRPath 3.0.0 with analysis helpers.
+- Evaluator with AST caching, metrics, and metadata-aware evaluation.
+- Rich value system: precise temporals, UCUM quantities, collections, and JSON-backed resources.
+- Pluggable ModelProvider and Terminology integration (e.g., tx.fhir.org via CLI tooling).
+- Built-in variables and context: `%context`, `%resource`, `%rootResource`, `%terminologies`, and standard code system shortcuts.
 
-# Web interface and HTTP server
-octofhir-fhirpath server --port 8080
-```
+## Non‑Goals / Clarifications
 
-See **[CLI.md](CLI.md)** for complete command-line reference.
+- No hidden network calls in the core library; external services are opt-in via context/CLI.
+- JSON is the interchange type (`serde_json::Value`); no alternative JSON backends.
+- Compliance numbers change; refer to TEST_COVERAGE.md rather than this file.
 
-## 🎯 Key Features
+## References
 
-- **Fast**: High-performance tokenizer, parser, and evaluator
-- **Safe**: 100% memory-safe Rust with zero unsafe blocks
-- **Compliant**: 90.9% FHIRPath specification compliance (1003/1104 tests)
-- **Production Ready**: Thread-safe, async-first, comprehensive error handling
-- **FHIR Support**: Full R4/R5 support with Bundle resolution and type checking
-- **Interactive**: Rich REPL with auto-completion, history, and help system
-- **Developer Friendly**: Multiple output formats, web interface, extensive documentation
-
-## 🔧 Common Use Cases
-
-### Healthcare Data Query
-```rust
-// Find all active patients over 18
-engine.evaluate("Bundle.entry.resource.where(resourceType='Patient' and active=true and birthDate < today()-18 'years')", bundle).await?
-
-// Get medication names from prescriptions
-engine.evaluate("Bundle.entry.resource.where(resourceType='MedicationRequest').medicationReference.resolve().code.coding.display", bundle).await?
-```
-
-### Data Validation
-```rust
-// Check if patient has required fields
-engine.evaluate("Patient.name.exists() and Patient.birthDate.exists()", patient).await?
-
-// Validate phone number format
-engine.evaluate("Patient.telecom.where(system='phone').value.matches('[0-9-()]+')", patient).await?
-```
-
-### Clinical Decision Support
-```rust
-// Find high-risk patients
-engine.evaluate("Patient.extension.where(url='http://example.org/risk-score').valueInteger > 8", patient).await?
-
-// Calculate medication dosage
-engine.evaluate("MedicationRequest.dosageInstruction.doseAndRate.doseQuantity.value * 2", medication).await?
-```
-
-## 📚 Documentation
-
-| Guide | Description |
-|-------|-------------|
-| **[CLI.md](CLI.md)** | Complete command-line tool reference with REPL and server docs |
-| **[API Documentation](https://docs.rs/octofhir-fhirpath)** | Full Rust API documentation |
-| **[Examples](examples/)** | Code examples and patterns |
-| **[Specification Compliance](TEST_COVERAGE.md)** | Detailed compliance report |
-| **[Architecture Guide](docs/ARCHITECTURE.md)** | Technical architecture and design patterns |
-| **[Development Guide](docs/DEVELOPMENT.md)** | Contributing and development setup |
-
-## 🧪 Test Runners (Dev Tools)
-
-- Convert official R5 XML suite to grouped JSON:
-  - `cargo run --bin convert-r5-xml-to-json -- specs/fhirpath/tests/tests-fhir-r5.xml`
-- Run existing JSON test suites:
-  - `cargo run --bin test-runner -- specs/fhirpath/tests/<suite>.json`
-
-## ⚡ Performance
-
-Built for high-throughput healthcare applications with optimized parsing and evaluation engine designed for production workloads.
-
-## 🤝 Contributing
-
-We welcome contributions! 
-
-```bash
-# Get started
-git clone https://github.com/octofhir/fhirpath-rs.git
-cd fhirpath-rs
-just test
-
-# See development guide
-just --list
-```
-
-## 📋 Specification Compliance: 90.9%
+- API docs: https://docs.rs/octofhir-fhirpath
+- CLI usage: CLI.md
+- Spec compliance report: TEST_COVERAGE.md
+- Benchmarks and notes: benchmark.md
 
 ✅ **Fully Supported (100%)**
 - Path navigation and filtering

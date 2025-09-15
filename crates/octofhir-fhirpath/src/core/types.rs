@@ -12,12 +12,14 @@ use uuid::Uuid;
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use super::wrapped::FhirPathWrapped;
 
 /// A collection of FHIRPath values - the fundamental evaluation result type
 #[derive(Debug, Clone, PartialEq)]
 pub struct Collection {
     values: Vec<FhirPathValue>,
     is_ordered: bool,
+    mixed: bool, // Flag indicating this collection contains mixed types
 }
 
 impl Collection {
@@ -26,6 +28,7 @@ impl Collection {
         Self {
             values: Vec::new(),
             is_ordered: true,
+            mixed: false,
         }
     }
 
@@ -34,6 +37,7 @@ impl Collection {
         Self {
             values: Vec::new(),
             is_ordered,
+            mixed: false,
         }
     }
 
@@ -42,6 +46,7 @@ impl Collection {
         Self {
             values: vec![value],
             is_ordered: true,
+            mixed: false,
         }
     }
 
@@ -50,12 +55,26 @@ impl Collection {
         Self {
             values,
             is_ordered: true,
+            mixed: false,
         }
     }
 
     /// Create a collection from a vector with explicit ordering
     pub fn from_values_with_ordering(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
-        Self { values, is_ordered }
+        Self {
+            values,
+            is_ordered,
+            mixed: false,
+        }
+    }
+
+    /// Create a mixed collection (for collections containing different types)
+    pub fn from_values_mixed(values: Vec<FhirPathValue>, is_ordered: bool) -> Self {
+        Self {
+            values,
+            is_ordered,
+            mixed: true,
+        }
     }
 
     /// Check if the collection is empty
@@ -71,6 +90,11 @@ impl Collection {
     /// Check if the collection is ordered
     pub fn is_ordered(&self) -> bool {
         self.is_ordered
+    }
+
+    /// Check if the collection contains mixed types
+    pub fn is_mixed(&self) -> bool {
+        self.mixed
     }
 
     /// Get the first item, if any
@@ -206,6 +230,12 @@ pub enum FhirPathValue {
     /// Raw JSON value for compatibility (distinct from Resource for type operations)
     JsonValue(Arc<JsonValue>),
 
+    /// Wrapped value for complex data with type preservation and zero-copy sharing
+    Wrapped(FhirPathWrapped<JsonValue>),
+    
+    /// Wrapped FHIR resource with type metadata and primitive element support
+    ResourceWrapped(FhirPathWrapped<JsonValue>),
+
     /// UUID/identifier value
     Id(Uuid),
 
@@ -249,24 +279,17 @@ impl serde::Serialize for FhirPathValue {
             Self::DateTime(dt) => serializer.serialize_str(&dt.to_string()),
             Self::Time(time) => serializer.serialize_str(&time.to_string()),
             Self::Quantity { value, unit, .. } => {
-                let mut map = std::collections::BTreeMap::new();
-                // Convert decimal value to JSON number or string
-                if let Ok(f) = value.to_string().parse::<f64>() {
-                    map.insert(
-                        "value",
-                        serde_json::Value::Number(
-                            serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
-                        ),
-                    );
+                // Serialize Quantity as its FHIRPath literal string form: "<value> '<unit>'" or just "<value>"
+                let s = if let Some(unit) = unit {
+                    format!("{} '{}'", value, unit)
                 } else {
-                    map.insert("value", serde_json::Value::String(value.to_string()));
-                }
-                if let Some(unit) = unit {
-                    map.insert("unit", serde_json::Value::String(unit.clone()));
-                }
-                map.serialize(serializer)
+                    value.to_string()
+                };
+                serializer.serialize_str(&s)
             }
             Self::Resource(json) => json.serialize(serializer),
+            Self::Wrapped(wrapped) => wrapped.unwrap().serialize(serializer),
+            Self::ResourceWrapped(wrapped) => wrapped.unwrap().serialize(serializer),
             Self::Id(id) => serializer.serialize_str(&id.to_string()),
             Self::Base64Binary(data) => {
                 // For now, serialize as string representation since we removed base64 dependency
@@ -314,9 +337,9 @@ impl CalendarUnit {
     /// Parse from string
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "year" | "years" | "a" => Some(Self::Year),
-            "month" | "months" | "mo" => Some(Self::Month),
-            "week" | "weeks" | "wk" => Some(Self::Week),
+            "year" | "years" | "yr" | "yrs" | "a" => Some(Self::Year),
+            "month" | "months" | "mo" | "mos" => Some(Self::Month),
+            "week" | "weeks" | "wk" | "wks" => Some(Self::Week),
             "day" | "days" | "d" => Some(Self::Day),
             _ => None,
         }
@@ -340,6 +363,11 @@ impl fmt::Display for CalendarUnit {
 }
 
 impl FhirPathValue {
+    /// Create an integer value
+    pub fn integer(value: i64) -> Self {
+        Self::Integer(value)
+    }
+
     /// Get the FHIRPath type name for this value
     pub fn type_name(&self) -> &'static str {
         match self {
@@ -352,6 +380,8 @@ impl FhirPathValue {
             Self::Time(_) => "Time",
             Self::Quantity { .. } => "Quantity",
             Self::Resource(_) => "Resource",
+            Self::Wrapped(_) => "Wrapped",
+            Self::ResourceWrapped(_) => "Resource", // Same as Resource for FHIRPath type operations
             Self::Id(_) => "id",
             Self::Base64Binary(_) => "base64Binary",
             Self::Uri(_) => "uri",
@@ -414,10 +444,6 @@ impl FhirPathValue {
         Self::String(s.into())
     }
 
-    /// Create an integer value
-    pub fn integer(i: i64) -> Self {
-        Self::Integer(i)
-    }
 
     /// Create a decimal value
     pub fn decimal(d: impl Into<Decimal>) -> Self {
@@ -432,6 +458,16 @@ impl FhirPathValue {
     /// Create a resource value from JSON
     pub fn resource(json: JsonValue) -> Self {
         Self::Resource(Arc::new(json))
+    }
+
+    /// Create a wrapped resource value with type preservation
+    pub fn resource_wrapped(json: JsonValue) -> Self {
+        Self::ResourceWrapped(FhirPathWrapped::resource(json))
+    }
+
+    /// Create a wrapped value with type information
+    pub fn wrapped(data: JsonValue, type_info: Option<crate::core::model_provider::TypeInfo>) -> Self {
+        Self::Wrapped(FhirPathWrapped::new(data, type_info))
     }
 
     /// Create a quantity value with UCUM unit parsing
@@ -536,6 +572,44 @@ impl FhirPathValue {
     /// Create an empty value
     pub fn empty() -> Self {
         Self::Empty
+    }
+
+    /// Get the wrapped JSON value if this is a wrapped value
+    pub fn unwrap_json(&self) -> Option<&JsonValue> {
+        match self {
+            Self::Wrapped(wrapped) => Some(wrapped.unwrap()),
+            Self::ResourceWrapped(wrapped) => Some(wrapped.unwrap()),
+            Self::Resource(json) => Some(json),
+            Self::JsonValue(json) => Some(json),
+            _ => None,
+        }
+    }
+
+    /// Get type information from wrapped values
+    pub fn get_type_info(&self) -> Option<&crate::core::model_provider::TypeInfo> {
+        match self {
+            Self::Wrapped(wrapped) => wrapped.get_type_info(),
+            Self::ResourceWrapped(wrapped) => wrapped.get_type_info(),
+            _ => None,
+        }
+    }
+
+    /// Check if this value has primitive extensions
+    pub fn has_primitive_extensions(&self) -> bool {
+        match self {
+            Self::Wrapped(wrapped) => wrapped.has_extensions(),
+            Self::ResourceWrapped(wrapped) => wrapped.has_extensions(),
+            _ => false,
+        }
+    }
+
+    /// Get primitive element (if any)
+    pub fn get_primitive_element(&self) -> Option<&crate::core::wrapped::PrimitiveElement> {
+        match self {
+            Self::Wrapped(wrapped) => wrapped.get_primitive_element(),
+            Self::ResourceWrapped(wrapped) => wrapped.get_primitive_element(),
+            _ => None,
+        }
     }
 
     /// Check if this quantity is compatible with another for arithmetic operations
@@ -691,6 +765,8 @@ impl FhirPathValue {
             }
             Self::Resource(json) => (**json).clone(),
             Self::JsonValue(json) => (**json).clone(),
+            Self::Wrapped(wrapped) => wrapped.unwrap().clone(),
+            Self::ResourceWrapped(wrapped) => wrapped.unwrap().clone(),
             Self::Id(id) => JsonValue::String(id.to_string()),
             Self::Base64Binary(data) => JsonValue::String(format!("base64({} bytes)", data.len())),
             Self::Uri(uri) => JsonValue::String(uri.clone()),
@@ -735,6 +811,8 @@ impl fmt::Display for FhirPathValue {
                     write!(f, "Resource({})", json)
                 }
             }
+            Self::Wrapped(wrapped) => write!(f, "{}", wrapped),
+            Self::ResourceWrapped(wrapped) => write!(f, "{}", wrapped),
             Self::Id(id) => write!(f, "{}", id),
             Self::Base64Binary(data) => write!(f, "base64({} bytes)", data.len()),
             Self::Uri(u) => write!(f, "{}", u),

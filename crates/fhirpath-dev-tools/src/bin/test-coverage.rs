@@ -153,36 +153,33 @@ mod integration_test_runner {
     impl IntegrationTestRunner {
         /// Create a new integration test runner with FHIR R4 ModelProvider (same as test-runner)
         pub async fn new() -> Self {
-            println!("🔄 Loading FHIR R4 ModelProvider (using schema packages)...");
+            println!("🔄 Loading FHIR R5 ModelProvider (using schema packages)...");
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
                 // Add timeout to prevent hanging
                 let timeout_duration = std::time::Duration::from_secs(60);
-                match tokio::time::timeout(
-                    timeout_duration,
-                    octofhir_fhirschema::provider::EmbeddedModelProvider::r4(),
-                )
-                .await
-                {
-                    Ok(Ok(provider)) => {
-                        println!("✅ EmbeddedModelProvider (R4) loaded successfully");
-                        std::sync::Arc::new(provider)
-                    }
-                    Ok(Err(e)) => {
-                        panic!("❌ Failed to load EmbeddedModelProvider (R4): {e}");
-                    }
-                    Err(_) => {
-                        panic!(
-                            "❌ EmbeddedModelProvider (R4) initialization timed out ({}s)",
-                            timeout_duration.as_secs()
-                        );
-                    }
-                }
+                let provider = octofhir_fhirschema::EmbeddedSchemaProvider::r5();
+                println!("✅ EmbeddedModelProvider (R5) loaded successfully");
+                std::sync::Arc::new(provider)
             };
 
             let registry = Arc::new(create_standard_registry().await);
-            let engine = FhirPathEngine::new(registry.clone(), model_provider.clone())
+            let mut engine = FhirPathEngine::new(registry.clone(), model_provider.clone())
                 .await
                 .expect("cannot create engine");
+            // Attach real terminology provider (tx.fhir.org) by default, matching model provider version
+            let provider_version = model_provider.get_fhir_version().await.unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
+            let tx_path = match provider_version {
+                octofhir_fhirschema::ModelFhirVersion::R4 => "r4",
+                octofhir_fhirschema::ModelFhirVersion::R4B => "r4b",
+                octofhir_fhirschema::ModelFhirVersion::R5 => "r5",
+                octofhir_fhirschema::ModelFhirVersion::R6 => "r6",
+                _ => "r4",
+            };
+            let tx_base = format!("https://tx.fhir.org/{}", tx_path);
+            if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base) {
+                let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = std::sync::Arc::new(tx);
+                engine = engine.with_terminology_provider(tx_arc.clone());
+            }
 
             Self {
                 engine,
@@ -451,7 +448,12 @@ mod integration_test_runner {
 
             // Convert input_data to FhirPathValue and create context - same as test-runner
             let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
-            let context = octofhir_fhirpath::EvaluationContext::from_value(input_value);
+            let input_collection = octofhir_fhirpath::Collection::single(input_value);
+            let context = octofhir_fhirpath::EvaluationContext::new(
+                input_collection,
+                self.model_provider.clone(),
+                self.engine.get_terminology_provider(),
+            ).await;
 
             // Use single root evaluation method (parse + evaluate in one call) - same as test-runner
             let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -533,6 +535,12 @@ mod integration_test_runner {
         pub async fn run_test_suite(&mut self, suite: &TestSuite) -> HashMap<String, TestResult> {
             let mut results = HashMap::new();
 
+            // Optional hard timeout per test case to catch hangs outside evaluation
+            let case_timeout_ms: u64 = std::env::var("FHIRPATH_TEST_CASE_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(15_000);
+
             if self.verbose {
                 println!("Running test suite: {}", suite.name);
                 if let Some(desc) = &suite.description {
@@ -543,7 +551,11 @@ mod integration_test_runner {
             }
 
             for test in &suite.tests {
-                let result = self.run_test(test).await;
+                // Wrap the entire test in an outer timeout so file I/O or other steps cannot hang
+                let result = match tokio::time::timeout(std::time::Duration::from_millis(case_timeout_ms), self.run_test(test)).await {
+                    Ok(r) => r,
+                    Err(_) => TestResult::Error { error: format!("Test '{}' timed out after {}ms (outer)", test.name, case_timeout_ms) },
+                };
                 results.insert(test.name.clone(), result);
             }
 
@@ -652,19 +664,27 @@ async fn main() -> Result<()> {
 
     let mut test_results = Vec::new();
     let mut processed = 0;
+    // Optional per-suite timeout (milliseconds) to avoid hangs
+    let suite_timeout_ms: u64 = std::env::var("FHIRPATH_TEST_SUITE_TIMEOUT_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(120_000);
 
     for test_file in &test_files {
         if let Some(filename) = test_file.file_stem().and_then(|s| s.to_str()) {
             processed += 1;
-            print!(
-                "({:2}/{:2}) Testing {:<25}",
+            // Print suite filename before execution to help identify hangs
+            println!(
+                "▶ ({:2}/{:2}) Starting suite: {}",
                 processed,
                 test_files.len(),
-                format!("{}.json", filename)
+                test_file.display()
             );
+            // Ensure the line is flushed even if subsequent work blocks
+            let _ = std::io::Write::flush(&mut std::io::stdout());
 
-            match runner.run_and_report_quiet(test_file).await {
-                Ok(stats) => {
+            match tokio::time::timeout(std::time::Duration::from_millis(suite_timeout_ms), runner.run_and_report_quiet(test_file)).await {
+                Ok(Ok(stats)) => {
                     // Show ERROR status if there are parse errors, otherwise show pass/fail info
                     if stats.errored > 0 {
                         println!(
@@ -694,18 +714,12 @@ async fn main() -> Result<()> {
                             "🔴"
                         };
 
-                        println!(
-                            " {} {}/{} ({:.1}%)",
-                            emoji,
-                            stats.passed,
-                            stats.total,
-                            stats.pass_rate()
-                        );
+                        println!(" {} {}/{} ({:.1}%)", emoji, stats.passed, stats.total, stats.pass_rate());
                     }
 
                     test_results.push((filename.to_string(), stats));
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     println!(" ❌ Error: {e}");
                     test_results.push((
                         filename.to_string(),
@@ -716,6 +730,29 @@ async fn main() -> Result<()> {
                             errored: 1,
                             skipped: 0,
                             error_details: vec![format!("File load error: {}", e)],
+                        },
+                    ));
+                }
+                Err(_) => {
+                    // Suite-level timeout
+                    println!(" ⏳ TIMEOUT after {}ms", suite_timeout_ms);
+                    // Try to load to count total tests for reporting
+                    let total = runner
+                        .load_test_suite(test_file)
+                        .map(|s| s.tests.len())
+                        .unwrap_or(0);
+                    test_results.push((
+                        filename.to_string(),
+                        TestStats {
+                            total,
+                            passed: 0,
+                            failed: 0,
+                            errored: total,
+                            skipped: 0,
+                            error_details: vec![format!(
+                                "Suite '{}' timed out after {}ms",
+                                filename, suite_timeout_ms
+                            )],
                         },
                     ));
                 }

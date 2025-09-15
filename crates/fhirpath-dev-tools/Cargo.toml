@@ -12,9 +12,7 @@ categories = ["development-tools", "science"]
 publish = false
 
 [features]
-default = ["embedded-providers", "dynamic-caching"]
-embedded-providers = ["octofhir-fhirschema/embedded-providers"]
-dynamic-caching = ["octofhir-fhirschema/dynamic-caching"]
+default = []
 
 [[bin]]
 name = "test-runner"
@@ -37,7 +35,7 @@ workspace = true
 
 [dependencies]
 octofhir-fhirpath = { path = "../octofhir-fhirpath" }
-octofhir-fhirschema = { workspace = true, features = ["embedded-providers", "dynamic-caching"] }
+octofhir-fhirschema = { path = "../../../fhirschema/octofhir-fhirschema" }
 octofhir-fhir-model = { workspace = true }
 
 # Dev tools dependencies

@@ -122,22 +122,20 @@ impl FunctionRegistry {
         self.register_union_function()?;
         self.register_intersect_function()?;
 
-        // Register lambda functions with metadata (deferred implementation)
-        self.register_where_function_metadata()?;
-        self.register_select_function_metadata()?;
-        self.register_all_function_metadata()?;
+        // Lambda functions (where, select, all, exists, aggregate) now handled by lambda functions module
 
         // Register missing collection functions
         self.register_alltrue_function()?;
         self.register_combine_function()?;
         self.register_isdistinct_function()?;
         self.register_exclude_function()?;
-        self.register_aggregate_function()?;
+        // aggregate() function is now implemented through lambda functions module
         self.register_sort_function()?;
         self.register_subsetof_function()?;
         self.register_supersetof_function()?;
         self.register_trace_function()?;
         self.register_repeat_function_metadata()?;
+        self.register_repeat_all_function_metadata()?;
 
         Ok(())
     }
@@ -345,12 +343,8 @@ impl FunctionRegistry {
             return_type: "collection",
             examples: ["Patient.name.given.union(Patient.name.family)", "Bundle.entry.resource.union($otherBundle.entry.resource)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "union() requires exactly one collection argument".to_string()
-                    ));
-                }
+                // Note: union() function always gets exactly one argument due to function signature
+                // The context.arguments contains the evaluated result of that single argument
 
                 let input_vec: Vec<FhirPathValue> = context.input.cloned_collection();
                 let args_vec: Vec<FhirPathValue> = context.arguments.cloned_collection();
@@ -379,62 +373,6 @@ impl FunctionRegistry {
     }
 
     // Lambda functions with metadata registration but deferred implementation
-    // These require lambda expression evaluation system to be built first
-
-    fn register_where_function_metadata(&self) -> Result<()> {
-        register_function!(
-            self,
-            sync "where",
-            category: FunctionCategory::Collection,
-            description: "Returns items from the collection where the given expression evaluates to true",
-            parameters: ["criteria": Some("expression".to_string()) => "Boolean expression to filter by"],
-            return_type: "collection",
-            examples: ["Patient.name.where(use = 'official')", "Bundle.entry.where(resource.active = true)"],
-            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
-                Err(crate::core::FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    "where() function is implemented through metadata-aware lambda evaluation system".to_string()
-                ))
-            }
-        )
-    }
-
-    fn register_select_function_metadata(&self) -> Result<()> {
-        register_function!(
-            self,
-            sync "select",
-            category: FunctionCategory::Collection,
-            description: "Projects each item in the collection through the given expression",
-            parameters: ["projection": Some("expression".to_string()) => "Expression to apply to each item"],
-            return_type: "collection",
-            examples: ["Patient.name.select(family + ', ' + given.first())", "Bundle.entry.select(resource.id)"],
-            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
-                Err(crate::core::FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    "select() function is implemented through metadata-aware lambda evaluation system".to_string()
-                ))
-            }
-        )
-    }
-
-    fn register_all_function_metadata(&self) -> Result<()> {
-        register_function!(
-            self,
-            sync "all",
-            category: FunctionCategory::Collection,
-            description: "Returns true if the given expression evaluates to true for all items in the collection",
-            parameters: ["criteria": Some("expression".to_string()) => "Boolean expression to evaluate for each item"],
-            return_type: "boolean",
-            examples: ["Patient.name.all(use = 'official')", "Bundle.entry.all(resource.exists())"],
-            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
-                Err(crate::core::FhirPathError::evaluation_error(
-                    FP0053,
-                    "all() function requires lambda expression evaluation system (not yet implemented)".to_string()
-                ))
-            }
-        )
-    }
-
     fn register_alltrue_function(&self) -> Result<()> {
         register_function!(
             self,
@@ -478,7 +416,11 @@ impl FunctionRegistry {
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
                 // Combine collections preserving duplicates (unlike union which removes them)
                 let mut result: Vec<FhirPathValue> = context.input.cloned_collection();
-                result.extend(context.arguments.iter().cloned());
+
+                // Add the argument collection to the result
+                let other_collection = context.arguments.cloned_collection();
+                result.extend(other_collection);
+
                 Ok(FhirPathValue::collection(result))
             }
         )
@@ -536,26 +478,6 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_aggregate_function(&self) -> Result<()> {
-        register_function!(
-            self,
-            sync "aggregate",
-            category: FunctionCategory::Collection,
-            description: "Performs aggregation over a collection using lambda expressions (placeholder implementation)",
-            parameters: [
-                "initial": Some("any".to_string()) => "Initial value for aggregation",
-                "expression": Some("expression".to_string()) => "Lambda expression for aggregation"
-            ],
-            return_type: "any",
-            examples: ["(1 | 2 | 3).aggregate($total + $this, 0)"],
-            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
-                Err(crate::core::FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0053,
-                    "aggregate() function is implemented through metadata-aware lambda evaluation system".to_string()
-                ))
-            }
-        )
-    }
 
     fn register_sort_function(&self) -> Result<()> {
         register_function!(
@@ -585,12 +507,8 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["(1 | 2).subsetOf(1 | 2 | 3)", "Patient.name.given.subsetOf(Patient.name.family)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "subsetOf() requires at least one argument".to_string()
-                    ));
-                }
+                // Note: subsetOf() function always gets exactly one argument due to function signature
+                // The context.arguments contains the evaluated result of that single argument
 
                 // Build set of items in the other collection (flatten arguments)
                 let mut other_set = HashSet::new();
@@ -630,12 +548,8 @@ impl FunctionRegistry {
             return_type: "boolean",
             examples: ["(1 | 2 | 3).supersetOf(1 | 2)", "Patient.telecom.supersetOf(Patient.telecom.where(system = 'phone'))"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() == 0 {
-                    return Err(crate::core::FhirPathError::evaluation_error(
-                        FP0053,
-                        "supersetOf() requires at least one argument".to_string()
-                    ));
-                }
+                // Note: supersetOf() function always gets exactly one argument due to function signature
+                // The context.arguments contains the evaluated result of that single argument
 
                 // Build set of items in this collection
                 let mut this_set = HashSet::new();
@@ -702,6 +616,25 @@ impl FunctionRegistry {
             }
         )
     }
+
+    fn register_repeat_all_function_metadata(&self) -> Result<()> {
+        register_function!(
+            self,
+            sync "repeatAll",
+            category: FunctionCategory::Collection,
+            description: "Repeatedly evaluates a lambda expression allowing duplicate items in the result, unlike repeat() which deduplicates",
+            parameters: ["expression": Some("expression".to_string()) => "Lambda expression to repeat recursively"],
+            return_type: "collection",
+            examples: ["ValueSet.expansion.repeatAll(contains)", "Questionnaire.repeatAll(item)", "Bundle.entry.resource.repeatAll(reference.resolve())"],
+            implementation: |_context: &FunctionContext| -> Result<FhirPathValue> {
+                Err(crate::core::FhirPathError::evaluation_error(
+                    FP0053,
+                    "repeatAll() function requires lambda expression evaluation system (handled by evaluator engine)".to_string()
+                ))
+            }
+        )
+    }
+
 }
 
 /// Implementation of trace function with lambda support
@@ -833,6 +766,12 @@ fn format_trace_value(value: &FhirPathValue) -> String {
         FhirPathValue::Url(url) => format!("{}(Url)", url),
         FhirPathValue::TypeInfoObject { namespace, name } => {
             format!("{}:{}(TypeInfo)", namespace, name)
+        }
+        FhirPathValue::Wrapped(wrapped) => {
+            format!("Wrapped({})", wrapped.get_type_info().map(|t| t.type_name.clone()).unwrap_or_else(|| "Any".to_string()))
+        }
+        FhirPathValue::ResourceWrapped(wrapped) => {
+            format!("ResourceWrapped({})", wrapped.get_type_info().map(|t| t.type_name.clone()).unwrap_or_else(|| "Resource".to_string()))
         }
         FhirPathValue::Empty => "<empty>".to_string(),
     }

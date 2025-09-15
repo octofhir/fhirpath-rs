@@ -1161,6 +1161,15 @@ impl TerminologyProvider for MockTerminologyProvider {
     }
 
     async fn expand_valueset(&self, _valueset_url: &str) -> Result<Vec<Coding>> {
+        // Provide a deterministic mock for common test cases
+        if _valueset_url.contains("administrative-gender") {
+            return Ok(vec![
+                Coding::new("http://hl7.org/fhir/administrative-gender", "male").with_display("Male"),
+                Coding::new("http://hl7.org/fhir/administrative-gender", "female").with_display("Female"),
+                Coding::new("http://hl7.org/fhir/administrative-gender", "other").with_display("Other"),
+                Coding::new("http://hl7.org/fhir/administrative-gender", "unknown").with_display("Unknown"),
+            ]);
+        }
         Ok(vec![])
     }
 

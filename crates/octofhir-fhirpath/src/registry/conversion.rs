@@ -671,17 +671,18 @@ impl FunctionRegistry {
                 // Handle calendar unit keywords
                 let unit_lc = unit_str.to_lowercase();
                 let (unit_opt, cal_unit_opt) = match unit_lc.as_str() {
-                    "day" | "days" => (Some("d".to_string()), CalendarUnit::from_str("day")),
-                    "week" | "weeks" => (Some("wk".to_string()), CalendarUnit::from_str("week")),
-                    "month" | "months" => (Some("mo".to_string()), CalendarUnit::from_str("month")),
-                    "year" | "years" => (Some("a".to_string()), CalendarUnit::from_str("year")),
-                    // Reject bare UCUM abbreviations without quotes for certain units
+                    // Reject bare UCUM abbreviations without quotes for certain units (check first)
                     "wk" | "mo" | "a" | "d" => {
                         return Err(FhirPathError::evaluation_error(
                             FP0058,
                             &format!("Unit '{}' must be quoted as a UCUM unit", unit_str),
                         ));
                     }
+                    // Handle calendar unit keywords
+                    "day" | "days" => (Some("d".to_string()), CalendarUnit::from_str("day")),
+                    "week" | "weeks" | "wks" => (Some("wk".to_string()), CalendarUnit::from_str("week")),
+                    "month" | "months" | "mos" => (Some("mo".to_string()), CalendarUnit::from_str("month")),
+                    "year" | "years" | "yr" | "yrs" => (Some("a".to_string()), CalendarUnit::from_str("year")),
                     _ => {
                         // Handle quoted UCUM units like 'wk'
                         if (unit_str.starts_with('\'') && unit_str.ends_with('\''))
@@ -689,9 +690,9 @@ impl FunctionRegistry {
                         {
                             let inner = unit_str[1..unit_str.len() - 1].to_string();
                             let cal = match inner.as_str() {
-                                "wk" => CalendarUnit::from_str("week"),
-                                "mo" => CalendarUnit::from_str("month"),
-                                "a" => CalendarUnit::from_str("year"),
+                                "wk" | "wks" => CalendarUnit::from_str("week"),
+                                "mo" | "mos" => CalendarUnit::from_str("month"),
+                                "a" | "yr" | "yrs" => CalendarUnit::from_str("year"),
                                 "d" => CalendarUnit::from_str("day"),
                                 _ => None,
                             };
@@ -716,28 +717,59 @@ impl FunctionRegistry {
         }
 
         // Try common patterns like "10kg" (no space)
-        let mut chars = trimmed.chars();
-        let mut numeric_part = String::new();
-
-        // Extract numeric part
-        for ch in &mut chars {
-            if ch.is_ascii_digit() || ch == '.' || ch == '-' || ch == '+' {
-                numeric_part.push(ch);
+        // Parse a valid decimal prefix: ^[+-]?\d+(?:\.\d+)?
+        let s = trimmed.as_bytes();
+        let mut i = 0usize;
+        // optional sign
+        if i < s.len() && (s[i] == b'+' || s[i] == b'-') {
+            i += 1;
+        }
+        // at least one digit
+        let start_digits = i;
+        while i < s.len() && s[i].is_ascii_digit() {
+            i += 1;
+        }
+        let mut has_number = i > start_digits;
+        // optional decimal part with at least one digit
+        if i < s.len() && s[i] == b'.' {
+            let dot_pos = i;
+            i += 1; // skip '.'
+            let frac_start = i;
+            while i < s.len() && s[i].is_ascii_digit() {
+                i += 1;
+            }
+            // require at least one fractional digit
+            if i == frac_start {
+                // rollback: treat '.' as not part of number
+                i = dot_pos; // keep integer part only
             } else {
-                break;
+                has_number = true;
             }
         }
 
-        if !numeric_part.is_empty() {
-            let unit_part: String = chars.collect();
+        if has_number {
+            let numeric_part = &trimmed[..i];
+            let unit_part = trimmed[i..].trim();
 
-            if let Ok(value) = Decimal::from_str(&numeric_part) {
+            // Reject obviously invalid unit forms like a leading '.' (e.g., input "1.a")
+            if !unit_part.is_empty() {
+                if let Some(first) = unit_part.chars().next() {
+                    if first == '.' {
+                        return Err(FhirPathError::evaluation_error(
+                            FP0058,
+                            &format!("Unable to parse '{}' as a quantity", input),
+                        ));
+                    }
+                }
+            }
+
+            if let Ok(value) = Decimal::from_str(numeric_part) {
                 return Ok(FhirPathValue::Quantity {
                     value,
-                    unit: if unit_part.trim().is_empty() {
+                    unit: if unit_part.is_empty() {
                         None
                     } else {
-                        Some(unit_part.trim().to_string())
+                        Some(unit_part.to_string())
                     },
                     ucum_unit: None,
                     calendar_unit: None,
@@ -982,6 +1014,7 @@ impl FunctionRegistry {
                     Some(FhirPathValue::Quantity { .. }) => true,
                     Some(FhirPathValue::Integer(_)) => true,
                     Some(FhirPathValue::Decimal(_)) => true,
+                    Some(FhirPathValue::Boolean(_)) => true,
                     Some(FhirPathValue::String(s)) => {
                         Self::parse_quantity_string(s).is_ok()
                     },

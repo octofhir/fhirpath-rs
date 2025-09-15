@@ -7,11 +7,13 @@ pub mod temporal;
 pub mod trace;
 pub mod types;
 pub mod value;
+pub mod wrapped;
 
 pub use error::*;
 pub use temporal::*;
 pub use trace::*;
 pub use types::*;
+pub use wrapped::*;
 
 // Re-export specific items from model_provider (avoiding utils conflict)
 pub use model_provider::ModelProvider;

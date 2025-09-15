@@ -69,7 +69,7 @@ impl fmt::Display for TemporalPrecision {
 }
 
 /// A date with precision tracking
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct PrecisionDate {
     /// The date value
     pub date: NaiveDate,
@@ -456,7 +456,7 @@ impl Ord for PrecisionDate {
 }
 
 /// A datetime with precision tracking
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct PrecisionDateTime {
     /// The datetime value (always stored with timezone)
     pub datetime: DateTime<FixedOffset>,
@@ -825,6 +825,15 @@ impl PartialOrd for PrecisionDateTime {
             return Some(self.datetime.cmp(&other.datetime));
         }
 
+        // Special case: Second and Millisecond are considered the same precision per FHIR spec
+        if matches!(
+            (self.precision, other.precision),
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second)
+        ) {
+            return Some(self.datetime.cmp(&other.datetime));
+        }
+
         // Range-based comparison for differing precisions per FHIRPath
         let (self_start, self_end) = self.to_datetime_range();
         let (other_start, other_end) = other.to_datetime_range();
@@ -852,7 +861,7 @@ impl Ord for PrecisionDateTime {
 }
 
 /// A time with precision tracking
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct PrecisionTime {
     /// The time value
     pub time: NaiveTime,
@@ -986,77 +995,17 @@ impl PartialOrd for PrecisionTime {
             return Some(self.time.cmp(&other.time));
         }
 
-        // Different precisions - check if this is a wide precision gap vs narrow gap
-        let precision_diff = (self.precision as i8 - other.precision as i8).abs();
-
-        // FHIRPath temporal comparison rules:
-        // Wide precision gaps (e.g. minute vs second) return undefined (None)
-        // Narrow precision gaps (e.g. second vs millisecond) representing the same moment can be compared
-        if precision_diff >= 2 {
-            // Wide precision gap - undefined comparison
-            return None;
+        // Special case: Second and Millisecond are considered the same precision per FHIR spec
+        if matches!(
+            (self.precision, other.precision),
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second)
+        ) {
+            return Some(self.time.cmp(&other.time));
         }
 
-        // Narrow precision gap (1 level difference)
-        // For narrow precision differences, if they're within the same precision window, compare
-        match (self.precision, other.precision) {
-            // Second vs Millisecond comparisons (most common narrow gap)
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
-            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
-                // For second vs millisecond, check if they represent the same time window
-                // Second precision represents a range (e.g., 10:30:00.000 to 10:30:00.999)
-                // Millisecond precision represents an exact moment within that range
-
-                // Normalize both to the same precision (truncate to seconds)
-                let self_truncated = self.time.with_nanosecond(0).unwrap();
-                let other_truncated = other.time.with_nanosecond(0).unwrap();
-
-                if self_truncated == other_truncated {
-                    // They represent the same second - for comparisons within the same second,
-                    // the more precise value can be compared directly
-                    match (self.precision, other.precision) {
-                        (TemporalPrecision::Second, TemporalPrecision::Millisecond) => {
-                            // Second precision vs millisecond precision within same second
-                            // If millisecond is at the start of the second (e.g., 00.0), they're equal
-                            // If millisecond is later in the second, second precision encompasses it
-                            if other.time.nanosecond() == 0 {
-                                // Exact match at the start of the second
-                                Some(std::cmp::Ordering::Equal)
-                            } else {
-                                // Millisecond is later in the second, so second precision is "less" (starts earlier)
-                                Some(std::cmp::Ordering::Less)
-                            }
-                        }
-                        (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
-                            // Inverse of the above
-                            if self.time.nanosecond() == 0 {
-                                Some(std::cmp::Ordering::Equal)
-                            } else {
-                                Some(std::cmp::Ordering::Greater)
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // Different seconds, compare normally
-                    Some(self.time.cmp(&other.time))
-                }
-            }
-
-            // Minute vs Second comparisons (wide gap - should be undefined)
-            (TemporalPrecision::Minute, TemporalPrecision::Second)
-            | (TemporalPrecision::Second, TemporalPrecision::Minute) => {
-                // Wide precision gap - undefined comparison
-                None
-            }
-
-            // Hour vs Minute comparisons (wide gap)
-            (TemporalPrecision::Hour, TemporalPrecision::Minute)
-            | (TemporalPrecision::Minute, TemporalPrecision::Hour) => None,
-
-            // Other combinations - compare normally
-            _ => Some(self.time.cmp(&other.time)),
-        }
+        // Different precisions - return None (indeterminate)
+        None
     }
 }
 
@@ -1119,6 +1068,87 @@ pub mod parsing {
         PrecisionDate::parse_with_validation(s)
     }
 }
+
+// FHIR-compliant equality implementations
+// According to FHIR spec: "seconds and milliseconds are considered a single precision using a decimal, with decimal equality semantics"
+
+impl PartialEq for PrecisionDate {
+    fn eq(&self, other: &Self) -> bool {
+        // For dates, precision must match exactly (no special second/millisecond rule for dates)
+        if self.precision != other.precision {
+            return false;
+        }
+        self.date == other.date
+    }
+}
+
+impl PartialEq for PrecisionDateTime {
+    fn eq(&self, other: &Self) -> bool {
+        // Check if precisions are compatible according to FHIR spec
+        let precision_compatible = match (self.precision, other.precision) {
+            // Exact match
+            (a, b) if a == b => true,
+            // Second and Millisecond are considered the same precision with decimal semantics
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) => true,
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => true,
+            _ => false,
+        };
+
+        if !precision_compatible {
+            return false;
+        }
+
+        // Compare the datetime values considering precision
+        match (self.precision, other.precision) {
+            // Both have same precision
+            (a, b) if a == b => self.datetime == other.datetime,
+            // Second vs Millisecond: use decimal semantics
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+                // Compare truncated to seconds precision
+                self.datetime.timestamp() == other.datetime.timestamp() &&
+                self.datetime.timestamp_subsec_millis() == other.datetime.timestamp_subsec_millis()
+            }
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq for PrecisionTime {
+    fn eq(&self, other: &Self) -> bool {
+        // Check if precisions are compatible according to FHIR spec
+        let precision_compatible = match (self.precision, other.precision) {
+            // Exact match
+            (a, b) if a == b => true,
+            // Second and Millisecond are considered the same precision with decimal semantics
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) => true,
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => true,
+            _ => false,
+        };
+
+        if !precision_compatible {
+            return false;
+        }
+
+        // Compare the time values considering precision
+        match (self.precision, other.precision) {
+            // Both have same precision
+            (a, b) if a == b => self.time == other.time,
+            // Second vs Millisecond: use decimal semantics
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
+            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+                // Compare hours, minutes, and seconds
+                self.time.hour() == other.time.hour() &&
+                self.time.minute() == other.time.minute() &&
+                self.time.second() == other.time.second() &&
+                // For second/millisecond compatibility, compare nanoseconds as milliseconds
+                (self.time.nanosecond() / 1_000_000) == (other.time.nanosecond() / 1_000_000)
+            }
+            _ => false,
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

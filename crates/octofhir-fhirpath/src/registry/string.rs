@@ -949,39 +949,48 @@ impl FunctionRegistry {
             self,
             sync "join",
             category: FunctionCategory::String,
-            description: "Joins a collection of strings using the specified separator",
-            parameters: ["separator": Some("string".to_string()) => "String to join with"],
+            description: "Joins a collection of strings using the specified separator (or empty string if no separator)",
+            parameters: ["separator": None => "String to join with (optional)"],
             return_type: "string",
             examples: [
                 "Patient.name.given.join(' ')",
                 "('a', 'b', 'c').join(',')"
             ],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                if context.arguments.len() != 1 {
+                // Empty input returns empty
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
+                if context.arguments.len() > 1 {
                     return Err(crate::core::FhirPathError::evaluation_error(
                         FP0053,
-                        "join() requires exactly one separator argument".to_string()
+                        "join() accepts at most one separator argument".to_string()
                     ));
                 }
 
-                let separator = match &context.arguments {
-                    FhirPathValue::String(s) => s,
-                    _ => {
+                let separator = match context.arguments.first() {
+                    Some(FhirPathValue::String(s)) => s.clone(),
+                    Some(_) => {
                         return Err(crate::core::FhirPathError::evaluation_error(
                             FP0053,
                             "join() separator argument must be a string".to_string()
                         ));
-                    }
+                    },
+                    None => String::new() // Default to empty separator
                 };
 
                 // Convert all input values to strings
                 let string_values: Result<Vec<String>> = context.input
                     .iter()
-                    .map(|v| StringUtils::to_string_value(v))
+                    .map(|v| match v {
+                        FhirPathValue::Empty => Ok(String::new()),
+                        _ => StringUtils::to_string_value(v)
+                    })
                     .collect();
 
                 let strings = string_values?;
-                let result = strings.join(separator);
+                let result = strings.join(&separator);
                 Ok(FhirPathValue::String(result))
             }
         )

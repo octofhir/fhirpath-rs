@@ -835,7 +835,19 @@ pub fn fhir_value_to_json(value: FhirPathValue) -> JsonValue {
         FhirPathValue::Uri(uri) => JsonValue::String(uri),
         FhirPathValue::Url(url) => JsonValue::String(url),
         FhirPathValue::Empty => JsonValue::Array(vec![]), // Empty collection
+        FhirPathValue::Wrapped(wrapped) => (*wrapped.value).clone(),
+        FhirPathValue::ResourceWrapped(wrapped) => (*wrapped.value).clone(),
     }
+}
+
+/// Convert Collection to JsonValue array for API responses
+pub fn collection_to_json(collection: &octofhir_fhirpath::Collection) -> JsonValue {
+    JsonValue::Array(
+        collection
+            .iter()
+            .map(|v| fhir_value_to_json(v.clone()))
+            .collect(),
+    )
 }
 
 impl ExecutionMetadata {

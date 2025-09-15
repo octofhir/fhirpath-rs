@@ -176,32 +176,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     // Create FHIR schema provider (R4) to match CLI behavior
-    println!("📋 Initializing FHIR R4 schema provider...");
+    println!("📋 Initializing FHIR R5 schema provider...");
     let provider_timeout = Duration::from_secs(60);
-    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = match tokio::time::timeout(
-        provider_timeout,
-        octofhir_fhirschema::provider::EmbeddedModelProvider::r4(),
-    )
-    .await
-    {
-        Ok(Ok(provider)) => {
-            println!("✅ EmbeddedModelProvider (R4) loaded successfully");
-            Arc::new(provider)
-        }
-        Ok(Err(e)) => {
-            eprintln!("❌ Failed to initialize EmbeddedModelProvider (R4): {e}");
-            eprintln!("💡 Ensure FHIR schema packages are available");
-            process::exit(1);
-        }
-        Err(_) => {
-            eprintln!(
-                "❌ EmbeddedModelProvider (R4) initialization timed out ({}s)",
-                provider_timeout.as_secs()
-            );
-            eprintln!("💡 Check network connectivity");
-            process::exit(1);
-        }
-    };
+    let provider = octofhir_fhirschema::EmbeddedSchemaProvider::r5();
+    println!("✅ EmbeddedModelProvider (R5) loaded successfully");
+    let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = Arc::new(provider);
 
     // Create function registry
     println!("📋 Creating function registry...");
@@ -216,13 +195,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create the FhirPathEngine with model provider
     println!("📋 Creating FhirPathEngine...");
     let engine_start = std::time::Instant::now();
-    let fhir_version = std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
-    let mut engine = octofhir_fhirpath::FhirPathEngine::new_with_fhir_version(
+    // Detect FHIR version from the model provider to align terminology server
+    let provider_version = model_provider.get_fhir_version().await.unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
+    let fhir_version = match provider_version {
+        octofhir_fhirschema::ModelFhirVersion::R4 => "r4".to_string(),
+        octofhir_fhirschema::ModelFhirVersion::R4B => "r4b".to_string(),
+        octofhir_fhirschema::ModelFhirVersion::R5 => "r5".to_string(),
+        octofhir_fhirschema::ModelFhirVersion::R6 => "r6".to_string(),
+        _ => "r4".to_string(),
+    };
+    let mut engine = octofhir_fhirpath::FhirPathEngine::new(
         registry,
         model_provider.clone(),
-        &fhir_version,
     )
     .await?;
+    // Attach real terminology provider (tx.fhir.org) by default for integration tests
+    let tx_base = match fhir_version.as_str() {
+        "r6" => "https://tx.fhir.org/r6",
+        "r5" => "https://tx.fhir.org/r5",
+        "r4b" => "https://tx.fhir.org/r4b",
+        _ => "https://tx.fhir.org/r4",
+    };
+    if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
+        let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = std::sync::Arc::new(tx);
+        engine = engine.with_terminology_provider(tx_arc.clone());
+    }
     let engine_time = engine_start.elapsed();
     println!("✅ FhirPathEngine created in {}ms", engine_time.as_millis());
     let mut passed = 0;
@@ -252,7 +249,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Convert input to FhirPathValue and create evaluation context
         let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
-        let mut context = octofhir_fhirpath::EvaluationContext::from_value(input_value);
+        let input_collection = octofhir_fhirpath::Collection::single(input_value);
+        let mut context = octofhir_fhirpath::EvaluationContext::new(
+            input_collection,
+            model_provider.clone(),
+            engine.get_terminology_provider(),
+        ).await;
 
         // Log terminology setup only for tests that actually use it (engine handles terminology setup automatically)
         if test_suite.name.contains("Terminology")

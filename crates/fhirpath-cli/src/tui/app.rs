@@ -36,7 +36,7 @@ use super::events::{EventHandler, KeyBindings, TuiAction};
 use super::layout::{LayoutManager, PanelType};
 use super::themes::TuiTheme;
 
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
+// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::core::ModelProvider;
 use octofhir_fhirpath::diagnostics::{AriadneDiagnostic, DiagnosticEngine};
 use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
@@ -63,7 +63,7 @@ pub struct TuiApp {
     engine: FhirPathEngine,
 
     /// Static analyzer for real-time validation
-    analyzer: StaticAnalyzer,
+    // analyzer: StaticAnalyzer, // Removed
 
     /// Diagnostic engine for error formatting
     diagnostic_engine: DiagnosticEngine,
@@ -203,7 +203,7 @@ impl TuiApp {
         // Create engine and analyzer
         let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone()).await?;
-        let analyzer = StaticAnalyzer::new(registry, model_provider);
+        // let analyzer = StaticAnalyzer::new(registry, model_provider); // Removed
 
         // Create diagnostic engine with theme support
         let diagnostic_engine =
@@ -211,7 +211,7 @@ impl TuiApp {
 
         // Initialize layout and components
         let layout = LayoutManager::new(config.layout.clone());
-        let components = ComponentManager::new(&config, &engine, &analyzer).await?;
+        let components = ComponentManager::new(&config, &engine /*, &analyzer*/).await?;
 
         // Set up event handling
         let event_handler = EventHandler::new(KeyBindings::default());
@@ -239,7 +239,7 @@ impl TuiApp {
             components,
             event_handler,
             engine,
-            analyzer,
+            // analyzer,
             diagnostic_engine,
             terminal,
             state,
@@ -483,8 +483,9 @@ impl TuiApp {
             Some(resource) => {
                 // Create evaluation context with resource
                 let context_collection = octofhir_fhirpath::Collection::single(resource.clone());
+                let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
                 let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection);
+                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -511,8 +512,9 @@ impl TuiApp {
             None => {
                 // Create empty evaluation context
                 let context_collection = octofhir_fhirpath::Collection::empty();
+                let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
                 let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection);
+                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -553,8 +555,7 @@ impl TuiApp {
         // Store result and add to history
         let history_entry = match &result {
             Ok(value) => {
-                let collection_result =
-                    octofhir_fhirpath::Collection::from_values(value.clone().to_collection());
+                let collection_result = value.value.clone();
                 self.state.last_result = Some(collection_result.clone());
                 HistoryEntry {
                     timestamp: Instant::now(),
@@ -595,49 +596,16 @@ impl TuiApp {
             &self.state.current_expression,
             octofhir_fhirpath::parser::ParsingMode::Analysis,
         );
-        let analysis_result = if parse_result.success && parse_result.ast.is_some() {
-            let ast = parse_result.ast.unwrap();
-            self.analyzer.analyze(&ast).await
-        } else {
-            // Parse failed, return error
-            Err(octofhir_fhirpath::core::FhirPathError::parse_error(
-                octofhir_fhirpath::core::error_code::FP0001,
-                "Parse error",
-                &self.state.current_expression,
-                None,
-            ))
-        };
+        // Static analysis not available (StaticAnalyzer removed)
+        let analysis_result: Result<(), octofhir_fhirpath::core::FhirPathError> = Ok(());
 
         self.state.performance.last_analysis_time = Some(start_time.elapsed());
 
         // Convert analysis results to diagnostics
         self.state.diagnostics = match analysis_result {
-            Ok(analysis) => {
-                // Convert from analyzer Diagnostic to AriadneDiagnostic
-                analysis
-                    .diagnostics
-                    .into_iter()
-                    .map(|diag| {
-                        let location = diag.location.unwrap_or_else(|| {
-                            octofhir_fhirpath::core::SourceLocation {
-                                line: 1,
-                                column: 1,
-                                offset: 0,
-                                length: 1,
-                            }
-                        });
-
-                        octofhir_fhirpath::diagnostics::AriadneDiagnostic {
-                            severity: diag.severity,
-                            error_code: octofhir_fhirpath::core::error_code::FP0001, // Default error code for now
-                            message: diag.message,
-                            span: location.offset..location.offset + location.length,
-                            help: None,
-                            note: None,
-                            related: Vec::new(), // Convert later if needed
-                        }
-                    })
-                    .collect()
+            Ok(_) => {
+                // Analysis succeeded, no diagnostics
+                Vec::new()
             }
             Err(_) => {
                 // Parse error - create basic AriadneDiagnostic

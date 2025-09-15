@@ -26,23 +26,23 @@ use crate::tui::config::TuiConfig;
 use crate::tui::layout::PanelType;
 use crate::tui::themes::TuiTheme;
 
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
+// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 
 /// Input panel for FHIRPath expression editing
 pub struct InputPanel {
     text_area: TextArea<'static>,
-    _analyzer: Option<std::sync::Arc<StaticAnalyzer>>,
+    // _analyzer: Option<std::sync::Arc<StaticAnalyzer>>, // Removed
 }
 
 impl InputPanel {
     /// Create a new input panel
-    pub async fn new(_config: &TuiConfig, _analyzer: &StaticAnalyzer) -> Result<Self> {
+    pub async fn new(_config: &TuiConfig /*, _analyzer: &StaticAnalyzer*/) -> Result<Self> {
         let mut text_area = TextArea::default();
         text_area.set_placeholder_text("Enter FHIRPath expression...");
 
         Ok(Self {
             text_area,
-            _analyzer: None,
+            // _analyzer: None,
         })
     }
 

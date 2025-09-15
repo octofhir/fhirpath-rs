@@ -9,13 +9,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
-use crate::core::{FhirPathError, FhirPathValue, ModelProvider, Result, error_code::FP0054};
-use crate::evaluator::TerminologyService;
+use crate::core::{FhirPathError, FhirPathValue, Result, error_code::FP0054};
 
 pub use terminology_provider::{
     ConceptDetails, DefaultTerminologyProvider, MockTerminologyProvider, TerminologyProvider,
 };
-pub use terminology_service::ConcreteTerminologyService;
+// ConcreteTerminologyService removed - using terminology provider from fhir-model instead
 pub use terminology_utils::{
     Coding, ConceptDesignation, ConceptProperty, ConceptTranslation, PropertyValue,
     TerminologyUtils,
@@ -30,6 +29,7 @@ pub mod datetime_utils;
 pub mod defaults;
 pub mod dispatcher;
 pub mod fhir;
+pub mod lambda_functions;
 pub mod fhir_utils;
 pub mod logic;
 pub mod math;
@@ -37,7 +37,7 @@ pub mod numeric;
 pub mod string;
 pub mod terminology;
 pub mod terminology_provider;
-pub mod terminology_service;
+// terminology_service removed - using terminology provider from fhir-model instead
 pub mod terminology_utils;
 pub mod type_utils;
 pub mod types;
@@ -75,6 +75,12 @@ pub struct FunctionMetadata {
     pub return_type: Option<String>,
     pub is_async: bool,
     pub examples: Vec<String>,
+    /// Function requires ModelProvider access
+    pub requires_model_provider: bool,
+    /// Function requires TerminologyProvider access
+    pub requires_terminology_provider: bool,
+    /// Function does not propagate empty (returns non-empty even with empty input)
+    pub does_not_propagate_empty: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -99,15 +105,11 @@ pub enum FunctionCategory {
     Utility,
 }
 
-/// Function execution context
+/// Function execution context with provider access through EvaluationContext
 pub struct FunctionContext<'a> {
     pub input: FhirPathValue,
     pub arguments: FhirPathValue,
-    pub model_provider: &'a dyn ModelProvider,
-    pub variables: &'a HashMap<String, FhirPathValue>,
-    pub resource_context: Option<&'a FhirPathValue>,
-    /// Optional terminology service available to functions needing terminology operations
-    pub terminology: Option<&'a dyn TerminologyService>,
+    pub context: &'a crate::evaluator::EvaluationContext,
     /// Track whether current evaluation is within FHIR navigation context
     pub is_fhir_navigation: bool,
 }
@@ -241,11 +243,134 @@ impl FunctionRegistry {
         functions
     }
 
+    /// Evaluate a function with providers (legacy method - use evaluate_function_with_args)
+    pub async fn evaluate_function(
+        &self,
+        name: &str,
+        input: &crate::core::Collection,
+        _args: &[crate::ast::ExpressionNode],
+        context: &crate::evaluator::EvaluationContext,
+    ) -> Result<crate::core::Collection> {
+        // Legacy method - delegate to new method with empty args for compatibility
+        let empty_args = Vec::new();
+        self.evaluate_function_with_args(name, input, &empty_args, context).await
+    }
+
+    /// Evaluate a function with pre-evaluated arguments
+    pub async fn evaluate_function_with_args(
+        &self,
+        name: &str,
+        input: &crate::core::Collection,
+        args: &[crate::core::Collection],
+        context: &crate::evaluator::EvaluationContext,
+    ) -> Result<crate::core::Collection> {
+        // Convert input collection to FhirPathValue
+        let input_value = if input.is_empty() {
+            FhirPathValue::Empty
+        } else if input.len() == 1 {
+            input.first().unwrap().clone()
+        } else {
+            FhirPathValue::Collection(input.clone())
+        };
+
+        // Convert evaluated arguments to FhirPathValue
+        let args_value = if args.is_empty() {
+            FhirPathValue::Collection(crate::core::Collection::empty())
+        } else if args.len() == 1 {
+            if args[0].is_empty() {
+                FhirPathValue::Empty
+            } else if args[0].len() == 1 {
+                args[0].first().unwrap().clone()
+            } else {
+                FhirPathValue::Collection(args[0].clone())
+            }
+        } else {
+            // Multiple arguments - convert to collection of collections
+            let arg_values: Vec<FhirPathValue> = args.iter()
+                .map(|arg_collection| {
+                    if arg_collection.is_empty() {
+                        FhirPathValue::Empty
+                    } else if arg_collection.len() == 1 {
+                        arg_collection.first().unwrap().clone()
+                    } else {
+                        FhirPathValue::Collection(arg_collection.clone())
+                    }
+                })
+                .collect();
+            FhirPathValue::Collection(crate::core::Collection::from_values(arg_values))
+        };
+
+        // Create function context
+        let function_context = FunctionContext {
+            input: input_value,
+            arguments: args_value,
+            context,
+            is_fhir_navigation: false,
+        };
+
+        // Try sync function first
+        if let Some((function, _metadata)) = self.get_sync_function(name) {
+            let result = function(&function_context)?;
+            return Ok(self.fhirpath_value_to_collection(result));
+        }
+
+        // Try async function
+        if let Some((function, _metadata)) = self.get_async_function(name) {
+            let result = function(&function_context).await?;
+            return Ok(self.fhirpath_value_to_collection(result));
+        }
+
+        // Function not found
+        Err(FhirPathError::evaluation_error(
+            FP0054,
+            format!("Unknown function: {}", name),
+        ))
+    }
+
+    /// Convert FhirPathValue to Collection
+    fn fhirpath_value_to_collection(&self, value: FhirPathValue) -> crate::core::Collection {
+        match value {
+            FhirPathValue::Empty => crate::core::Collection::empty(),
+            FhirPathValue::Collection(collection) => collection,
+            single_value => crate::core::Collection::single(single_value),
+        }
+    }
+
     pub fn list_functions_by_category(&self, category: FunctionCategory) -> Vec<FunctionMetadata> {
         self.list_functions()
             .into_iter()
             .filter(|metadata| metadata.category == category)
             .collect()
+    }
+
+    /// Validate that context provides required providers for a function
+    pub fn validate_function_providers(&self, function_name: &str, context: &crate::evaluator::EvaluationContext) -> Result<()> {
+        let metadata = self.get_function_metadata(function_name)
+            .ok_or_else(|| FhirPathError::evaluation_error(
+                FP0054,
+                format!("Unknown function: '{}'", function_name)
+            ))?;
+
+        // Validate ModelProvider requirement (always available)
+        if metadata.requires_model_provider {
+            // ModelProvider is always available through context, so no check needed
+        }
+
+        // Validate TerminologyProvider requirement
+        if metadata.requires_terminology_provider && !context.has_terminology_provider() {
+            return Err(FhirPathError::evaluation_error(
+                FP0054,
+                format!("Function '{}' requires terminology provider but none configured", function_name)
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Check if function requires providers
+    pub fn requires_providers(&self, function_name: &str) -> Option<(bool, bool)> {
+        self.get_function_metadata(function_name)
+            .map(|m| (m.requires_model_provider, m.requires_terminology_provider))
     }
 }
 

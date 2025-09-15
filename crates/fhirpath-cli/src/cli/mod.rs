@@ -18,7 +18,7 @@ pub mod ast;
 pub mod diagnostics;
 pub mod output;
 pub mod repl;
-pub mod server;
+// pub mod server; // Commented out temporarily - will return later
 
 use clap::{Parser, Subcommand};
 use output::OutputFormat;
@@ -165,61 +165,61 @@ pub enum Commands {
         #[arg(long, default_value = "1000")]
         history_size: usize,
     },
-    /// Start HTTP server with web interface
-    Server {
-        /// Port to bind the server to
-        #[arg(short, long, default_value = "8084")]
-        port: u16,
-        /// Directory for JSON file storage
-        #[arg(short, long, default_value = "./storage")]
-        storage: std::path::PathBuf,
-        /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-        /// Enable CORS for all origins (development mode)
-        #[arg(long)]
-        cors_all: bool,
-        /// Maximum request body size in MB
-        #[arg(long, default_value = "60")]
-        max_body_size: u64,
-        /// Expression execution timeout in seconds
-        #[arg(long, default_value = "30")]
-        timeout: u64,
-        /// Rate limit: requests per minute per IP
-        #[arg(long, default_value = "100")]
-        rate_limit: u32,
-        /// Run server without web UI (API-only mode)
-        #[arg(long)]
-        no_ui: bool,
-    },
-    /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
-    Tui {
-        /// JSON file containing FHIR resource to load initially
-        #[arg(short, long)]
-        input: Option<String>,
-        /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
-        variables: Vec<String>,
-        /// Configuration file path (default: ~/.config/fhirpath-tui/config.toml)
-        #[arg(long)]
-        config: Option<String>,
-        /// Theme to use (dark, light, high_contrast)
-        #[arg(long, default_value = "dark")]
-        theme: String,
-        /// Disable mouse support
-        #[arg(long)]
-        no_mouse: bool,
-        /// Disable syntax highlighting
-        #[arg(long)]
-        no_syntax_highlighting: bool,
-        /// Disable auto-completion
-        #[arg(long)]
-        no_auto_completion: bool,
-        /// Enable performance monitoring
-        #[arg(long)]
-        performance_monitoring: bool,
-        /// Check terminal capabilities and exit
-        #[arg(long)]
-        check_terminal: bool,
-    },
+    // /// Start HTTP server with web interface
+    // Server {
+    //     /// Port to bind the server to
+    //     #[arg(short, long, default_value = "8084")]
+    //     port: u16,
+    //     /// Directory for JSON file storage
+    //     #[arg(short, long, default_value = "./storage")]
+    //     storage: std::path::PathBuf,
+    //     /// Host to bind to
+    //     #[arg(long, default_value = "127.0.0.1")]
+    //     host: String,
+    //     /// Enable CORS for all origins (development mode)
+    //     #[arg(long)]
+    //     cors_all: bool,
+    //     /// Maximum request body size in MB
+    //     #[arg(long, default_value = "60")]
+    //     max_body_size: u64,
+    //     /// Expression execution timeout in seconds
+    //     #[arg(long, default_value = "30")]
+    //     timeout: u64,
+    //     /// Rate limit: requests per minute per IP
+    //     #[arg(long, default_value = "100")]
+    //     rate_limit: u32,
+    //     /// Run server without web UI (API-only mode)
+    //     #[arg(long)]
+    //     no_ui: bool,
+    // },
+    // /// Start Terminal User Interface (TUI) - Advanced multi-panel REPL
+    // Tui {
+    //     /// JSON file containing FHIR resource to load initially
+    //     #[arg(short, long)]
+    //     input: Option<String>,
+    //     /// Initial variables to set in format var=value (can be used multiple times)
+    //     #[arg(short, long = "variable")]
+    //     variables: Vec<String>,
+    //     /// Configuration file path (default: ~/.config/fhirpath-tui/config.toml)
+    //     #[arg(long)]
+    //     config: Option<String>,
+    //     /// Theme to use (dark, light, high_contrast)
+    //     #[arg(long, default_value = "dark")]
+    //     theme: String,
+    //     /// Disable mouse support
+    //     #[arg(long)]
+    //     no_mouse: bool,
+    //     /// Disable syntax highlighting
+    //     #[arg(long)]
+    //     no_syntax_highlighting: bool,
+    //     /// Disable auto-completion
+    //     #[arg(long)]
+    //     no_auto_completion: bool,
+    //     /// Enable performance monitoring
+    //     #[arg(long)]
+    //     performance_monitoring: bool,
+    //     /// Check terminal capabilities and exit
+    //     #[arg(long)]
+    //     check_terminal: bool,
+    // },
 }

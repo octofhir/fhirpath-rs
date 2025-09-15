@@ -274,6 +274,24 @@ impl TypeChecker {
             FhirPathValue::Url(_) => FhirPathType::Url,
             FhirPathValue::Collection(_) => FhirPathType::Collection,
             FhirPathValue::TypeInfoObject { .. } => FhirPathType::TypeInfo,
+            FhirPathValue::Wrapped(wrapped) => {
+                // Try to get the wrapped type info, default to Any
+                if let Some(type_info) = wrapped.get_type_info() {
+                    match type_info.type_name.as_str() {
+                        "String" => FhirPathType::String,
+                        "Integer" => FhirPathType::Integer,
+                        "Decimal" => FhirPathType::Decimal,
+                        "Boolean" => FhirPathType::Boolean,
+                        "Date" => FhirPathType::Date,
+                        "DateTime" => FhirPathType::DateTime,
+                        "Time" => FhirPathType::Time,
+                        _ => FhirPathType::Any,
+                    }
+                } else {
+                    FhirPathType::Any
+                }
+            }
+            FhirPathValue::ResourceWrapped(_) => FhirPathType::Any, // Resource-wrapped values are complex types
             FhirPathValue::Empty => FhirPathType::Empty,
         }
     }
@@ -509,7 +527,7 @@ impl FunctionRegistry {
                             _ => false,
                         };
 
-                        let mut is_match = if let Some(t) = &fhir_path_type {
+                        let is_match = if let Some(t) = &fhir_path_type {
                             // For core primitives, preserve namespace semantics with exact-name checks
                             let is_core_primitive = matches!(
                                 t,
@@ -582,15 +600,10 @@ impl FunctionRegistry {
                             false
                         } else {
                             // Fallback for resource types via ModelProvider
-                            let current_value_type = Self::get_value_type_name(input_value);
-                            match context
-                                .model_provider
-                                .is_type_compatible(&current_value_type, target_stripped)
-                                .await
-                            {
-                                Ok(compatible) => compatible,
-                                Err(_) => Self::basic_type_compatibility(input_value, target_stripped),
-                            }
+                            let _current_value_type = Self::get_value_type_name(input_value);
+                            // TODO: Re-enable ModelProvider type compatibility check after refactor
+                            // For now, use basic type compatibility
+                            Self::basic_type_compatibility(input_value, target_stripped)
                         };
 
                         results.push(FhirPathValue::Boolean(is_match));
@@ -667,24 +680,13 @@ impl FunctionRegistry {
                         }
                     } else {
                         // Use ModelProvider for FHIR resource types
-                        let current_value_type = Self::get_value_type_name(input_value);
-                        match context.model_provider.is_type_compatible(&current_value_type, type_name).await {
-                            Ok(true) => {
-                                // Cast is possible, return the original value (most cases in FHIRPath)
-                                Ok(input_value.clone())
-                            },
-                            Ok(false) => {
-                                // Cast not possible, return empty per FHIRPath spec
-                                Ok(FhirPathValue::empty())
-                            },
-                            Err(_) => {
-                                // Fallback to basic casting logic
-                                if Self::basic_type_compatibility(input_value, type_name) {
-                                    Ok(input_value.clone())
-                                } else {
-                                    Ok(FhirPathValue::empty())
-                                }
-                            }
+                        let _current_value_type = Self::get_value_type_name(input_value);
+                        // TODO: Re-enable ModelProvider type compatibility check after refactor
+                        // For now, use basic type compatibility
+                        if Self::basic_type_compatibility(input_value, type_name) {
+                            Ok(input_value.clone())
+                        } else {
+                            Ok(FhirPathValue::empty())
                         }
                     }
                 })
@@ -747,15 +749,11 @@ impl FunctionRegistry {
                     } else {
                         // Use ModelProvider for FHIR resource types
                         for value in input_values {
-                            let current_value_type = Self::get_value_type_name(&value);
+                            let _current_value_type = Self::get_value_type_name(&value);
 
-                            let is_compatible = match context.model_provider.is_type_compatible(&current_value_type, actual_type_name).await {
-                                Ok(compatible) => compatible,
-                                Err(_) => {
-                                    // Fallback to basic type checking
-                                    Self::basic_type_compatibility(&value, actual_type_name)
-                                }
-                            };
+                            // TODO: Re-enable ModelProvider type compatibility check after refactor
+                            // For now, use basic type compatibility
+                            let is_compatible = Self::basic_type_compatibility(&value, actual_type_name);
 
                             if is_compatible {
                                 result.push(value);
@@ -933,6 +931,16 @@ impl FunctionRegistry {
             FhirPathValue::Collection(_) => "Collection".to_string(),
             FhirPathValue::TypeInfoObject { namespace, name } => {
                 format!("{}.{}", namespace, name)
+            }
+            FhirPathValue::Wrapped(wrapped) => {
+                wrapped.get_type_info()
+                    .map(|t| t.name.clone().unwrap_or_else(|| t.type_name.clone()))
+                    .unwrap_or_else(|| "Any".to_string())
+            }
+            FhirPathValue::ResourceWrapped(wrapped) => {
+                wrapped.get_type_info()
+                    .map(|t| t.name.clone().unwrap_or_else(|| t.type_name.clone()))
+                    .unwrap_or_else(|| "Resource".to_string())
             }
             FhirPathValue::Empty => "Empty".to_string(),
         }

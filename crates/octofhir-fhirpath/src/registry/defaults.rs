@@ -8,7 +8,7 @@ impl FunctionRegistry {
     pub fn register_default_functions(&self) -> Result<()> {
         // Register basic utility functions
         self.register_empty_function()?;
-        self.register_exists_function()?;
+        // exists() is now handled by lambda functions module
 
         // Register collection functions
         self.register_collection_functions()?;
@@ -31,6 +31,9 @@ impl FunctionRegistry {
         // Register FHIR-specific functions
         self.register_fhir_functions()?;
         self.register_fhir_extension_functions()?;
+        
+        // Register provider-dependent functions
+        self.register_provider_dependent_functions()?;
 
         // Register terminology functions
         self.register_terminology_functions()?;
@@ -43,6 +46,9 @@ impl FunctionRegistry {
 
         // Register numeric functions
         self.register_numeric_functions()?;
+
+        // Register lambda functions (where, select, aggregate, etc.)
+        self.register_lambda_functions()?;
 
         Ok(())
     }
@@ -63,19 +69,28 @@ impl FunctionRegistry {
         )
     }
 
-    fn register_exists_function(&self) -> Result<()> {
-        register_function!(
-            self,
-            sync "exists",
-            category: FunctionCategory::Utility,
-            description: "Returns true if the input collection is not empty",
-            parameters: [],
-            return_type: "boolean",
-            examples: ["Patient.name.exists()", "Bundle.entry.exists()"],
-            implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
-                let exists = !context.input.is_empty();
-                Ok(FhirPathValue::boolean(exists))
-            }
-        )
+    // exists() function moved to lambda_functions.rs to handle both parameterless and lambda versions
+
+    /// Register functions that demonstrate provider access
+    fn register_provider_dependent_functions(&self) -> Result<()> {
+        // resolve() function is registered in fhir.rs to avoid duplication
+
+        // memberOf() function is registered in terminology.rs to avoid duplication
+
+        Ok(())
+    }
+}
+
+/// Helper function to extract reference string from FhirPathValue
+fn extract_reference_string(value: &FhirPathValue) -> Option<String> {
+    match value {
+        FhirPathValue::String(s) => Some(s.clone()),
+        FhirPathValue::JsonValue(json) => {
+            // Try to extract reference from Reference resource
+            json.get("reference")
+                .and_then(|r| r.as_str())
+                .map(|s| s.to_string())
+        }
+        _ => None,
     }
 }

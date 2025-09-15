@@ -130,7 +130,7 @@ pub async fn evaluate_handler(
             let result_json = collection;
             EvaluateResponse {
                 success: true,
-                result: Some(result_json.to_json_parts()),
+                result: Some(collection_to_json(&result_json.value)),
                 error: None,
                 expression: request.expression,
                 fhir_version: version.to_string(),
@@ -943,7 +943,8 @@ async fn fhirpath_lab_handler_impl(
                 let resource_value =
                     octofhir_fhirpath::FhirPathValue::resource(parsed_request.resource.clone());
                 let initial_context_collection = Collection::single(resource_value);
-                let mut context_eval_context = EvaluationContext::new(initial_context_collection);
+                let embedded_provider = crate::EmbeddedModelProvider::r4();
+                let mut context_eval_context = EvaluationContext::new(initial_context_collection, std::sync::Arc::new(embedded_provider), None).await;
 
                 // Set variables for context evaluation
                 for (name, value) in &parsed_request.variables {
@@ -957,7 +958,7 @@ async fn fhirpath_lab_handler_impl(
                     .await
                 {
                     Ok(context_collection_with_metadata) => {
-                        let context_collection = context_collection_with_metadata.to_collection();
+                        let context_collection = context_collection_with_metadata.value;
                         if context_collection.is_empty() {
                             // Context expression returned empty - no results to evaluate main expression against
                             vec![]
@@ -988,7 +989,8 @@ async fn fhirpath_lab_handler_impl(
 
             for context_value in context_results {
                 let context_collection = Collection::single(context_value);
-                let mut eval_context = EvaluationContext::new(context_collection);
+                let embedded_provider = crate::EmbeddedModelProvider::r4();
+                let mut eval_context = EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
 
                 // Set variables for main expression evaluation
                 for (name, value) in &parsed_request.variables {
@@ -1001,7 +1003,7 @@ async fn fhirpath_lab_handler_impl(
                     .await
                 {
                     Ok(collection_with_metadata) => {
-                        all_results.extend(collection_with_metadata.results().iter().cloned());
+                        all_results.extend(collection_with_metadata.value.iter().cloned());
                     }
                     Err(e) => {
                         eval_time = eval_start.elapsed();
@@ -1017,14 +1019,13 @@ async fn fhirpath_lab_handler_impl(
 
             eval_time = eval_start.elapsed();
 
-            // Create a combined CollectionWithMetadata from all results
-            let combined_collection_with_metadata =
-                CollectionWithMetadata::from_results(all_results);
+            // Create a combined Collection from all results
+            let combined_collection = Collection::from_values(all_results);
 
             // Format results
             format_fhirpath_results(
                 &mut response,
-                combined_collection_with_metadata,
+                combined_collection,
                 &parsed_request.expression,
             );
         }
@@ -1117,16 +1118,16 @@ async fn fhirpath_lab_handler_impl(
 /// Format FHIRPath evaluation results as a result parameter with parts
 fn format_fhirpath_results(
     response: &mut FhirPathLabResponse,
-    collection_with_metadata: CollectionWithMetadata,
+    collection: Collection,
     expression: &str,
 ) {
-    // Access the individual results with their metadata
-    let results = collection_with_metadata.results();
+    // Access the individual results
+    let results: Vec<&FhirPathValue> = collection.iter().collect();
 
     // Create result parts for each evaluation result
     let mut result_parts = Vec::new();
     for (index, result) in results.iter().enumerate() {
-        let result_param = create_single_result_parameter_with_metadata(result, index, expression);
+        let result_param = create_single_result_parameter(result, index, expression);
         result_parts.push(result_param);
     }
 
@@ -1296,13 +1297,35 @@ fn create_single_result_parameter_with_metadata(
     param
 }
 
-/// Determine the appropriate parameter name based on FHIR type (from string)
+/// Determine the appropriate parameter name based on FHIR type (from metadata)
 fn determine_fhir_type_name_from_string(
     _item: &JsonValue,
-    _fhir_type: &str,
-    index: usize,
+    fhir_type: &str,
+    _index: usize,
 ) -> String {
-    format!("item{}", index)
+    // Use FHIR type name directly from metadata - don't inspect JSON properties for arrays
+    match fhir_type {
+        // Primitive types - map to standard FHIR parameter names
+        "string" | "id" | "oid" | "uuid" | "markdown" | "xhtml" => "string".to_string(),
+        "integer" | "positiveInt" | "unsignedInt" => "integer".to_string(),
+        "decimal" => "decimal".to_string(),
+        "boolean" => "boolean".to_string(),
+        "uri" | "url" | "canonical" => "uri".to_string(),
+        "code" => "code".to_string(),
+        "dateTime" | "instant" => "dateTime".to_string(),
+        "date" => "date".to_string(),
+        "time" => "time".to_string(),
+        
+        // Complex types - use exact type name
+        "HumanName" => "HumanName".to_string(),
+        "Identifier" => "Identifier".to_string(),  
+        "Address" => "Address".to_string(),
+        "ContactPoint" => "ContactPoint".to_string(),
+        "Quantity" => "Quantity".to_string(),
+        
+        // Use the metadata type directly for any other types
+        other => other.to_string(),
+    }
 }
 
 /// Create a resource path string for trace information
@@ -1547,7 +1570,7 @@ async fn fhirpath_lab_handler_impl_per_request(
                 value_identifier: None,
                 value_address: None,
                 value_contact_point: None,
-                resource: Some(result_json.to_json_parts()),
+                resource: Some(collection_to_json(&result_json.value)),
                 part: None,
             });
 
@@ -1580,11 +1603,12 @@ fn detect_fhir_version(_request: &FhirPathLabRequest) -> Option<ServerFhirVersio
 async fn evaluate_fhirpath_expression(
     engine: &mut octofhir_fhirpath::FhirPathEngine,
     request: &ParsedFhirPathLabRequest,
-) -> Result<octofhir_fhirpath::core::CollectionWithMetadata, Box<dyn std::error::Error>> {
+) -> Result<octofhir_fhirpath::EvaluationResult, Box<dyn std::error::Error>> {
     // Create evaluation context with the resource
     let resource_value = octofhir_fhirpath::FhirPathValue::resource(request.resource.clone());
     let collection = octofhir_fhirpath::Collection::single(resource_value);
-    let mut context = octofhir_fhirpath::EvaluationContext::new(collection);
+    let embedded_provider = crate::EmbeddedModelProvider::r4();
+    let mut context = octofhir_fhirpath::EvaluationContext::new(collection, std::sync::Arc::new(embedded_provider), None).await;
 
     // Set variables
     for (name, value) in &request.variables {

@@ -85,6 +85,11 @@ impl FunctionRegistry {
             return_type: "decimal", // Returns decimal for numeric inputs, same input type for date/time
             examples: ["1.5.lowBoundary()", "@2023-12-25.lowBoundary()", "1.lowBoundary(1)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                // Empty input returns empty
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -196,6 +201,11 @@ impl FunctionRegistry {
             return_type: "decimal", // Returns decimal for numeric inputs, same input type for date/time
             examples: ["1.5.highBoundary()", "@2023-12-25.highBoundary()", "1.highBoundary(1)"],
             implementation: |context: &FunctionContext| -> Result<FhirPathValue> {
+                // Empty input returns empty
+                if context.input.is_empty() {
+                    return Ok(FhirPathValue::empty());
+                }
+
                 if context.input.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         FP0053,
@@ -240,7 +250,7 @@ impl FunctionRegistry {
                                     } else {
                                         0
                                     }
-                                }) + 1;
+                                });
 
                                 let formatted_value = format!("{:.precision$}", boundary_value, precision = precision as usize);
                                 let result = if let Some(unit) = unit {
@@ -610,12 +620,19 @@ impl FunctionRegistry {
                     .with_nanosecond(999_000_000)
                     .unwrap(); // 999 milliseconds
 
-                // Preserve original timezone if specified, otherwise use maximum negative offset
+                // Preserve original timezone if specified. If timezone is unspecified,
+                // construct a datetime with the SAME local date/time components and
+                // the maximum negative offset (-12:00), rather than converting the
+                // instant (which would change the displayed local time).
                 let adjusted = if datetime.tz_specified {
                     high_boundary
                 } else {
-                    use chrono::FixedOffset;
-                    high_boundary.with_timezone(&FixedOffset::west_opt(12 * 3600).unwrap())
+                    use chrono::{FixedOffset, TimeZone};
+                    let offset = FixedOffset::west_opt(12 * 3600).unwrap();
+                    offset
+                        .from_local_datetime(&high_boundary.naive_local())
+                        .single()
+                        .unwrap_or_else(|| high_boundary.with_timezone(&offset))
                 };
 
                 let formatted = adjusted.format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();

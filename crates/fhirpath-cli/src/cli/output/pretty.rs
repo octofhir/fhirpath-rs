@@ -318,6 +318,35 @@ fn get_fhir_type_name(value: &FhirPathValue) -> String {
         FhirPathValue::Base64Binary(_) => "Base64Binary".to_string(),
         FhirPathValue::Uri(_) => "Uri".to_string(),
         FhirPathValue::Url(_) => "Url".to_string(),
+        FhirPathValue::Wrapped(wrapped) => {
+            if let Some(type_info) = wrapped.get_type_info() {
+                // Prefer the specific FHIR type name if available
+                if let Some(ref name) = type_info.name {
+                    name.clone()
+                } else {
+                    type_info.type_name.clone()
+                }
+            } else {
+                "Unknown".to_string()
+            }
+        },
+        FhirPathValue::ResourceWrapped(wrapped) => {
+            if let Some(type_info) = wrapped.get_type_info() {
+                // Prefer the specific FHIR type name if available
+                if let Some(ref name) = type_info.name {
+                    name.clone()
+                } else {
+                    type_info.type_name.clone()
+                }
+            } else {
+                // Fallback to resourceType from JSON
+                if let Some(resource_type) = wrapped.value.get("resourceType").and_then(|v| v.as_str()) {
+                    resource_type.to_string()
+                } else {
+                    "Resource".to_string()
+                }
+            }
+        },
     }
 }
 

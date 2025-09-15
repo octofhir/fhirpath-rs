@@ -45,98 +45,54 @@ impl TypeResolver {
             ));
         }
 
-        // Use ModelProvider navigation to get correct type information
-        match self.model_provider.navigate_typed_path(parent_type, property).await {
-            Ok(navigation_result) => {
-                use octofhir_fhir_model::TypeReflectionInfo;
-                
-                // The navigation result contains the correct type information
-                match navigation_result.result_type {
-                    // Handle List types - extract element type from List<ElementType>
-                    TypeReflectionInfo::ListType { element_type } => {
-                        // For list types, get the actual element type name
-                        return Ok(element_type.name().to_string());
-                    }
-                    
-                    // Handle Simple types - return the type directly  
-                    TypeReflectionInfo::SimpleType { name, .. } => {
-                        // For simple types, return the type name directly
-                        return Ok(name);
-                    }
-                    
-                    // Handle class types  
-                    TypeReflectionInfo::ClassInfo { name, .. } => {
-                        return Ok(name);
-                    }
-                    
-                    // Handle tuple types
-                    TypeReflectionInfo::TupleType { .. } => {
-                        return Ok("Tuple".to_string());
-                    }
+        // Use simplified ModelProvider to get element type information
+        let parent_type_info = octofhir_fhir_model::TypeInfo {
+            type_name: parent_type.to_string(),
+            singleton: true,
+            namespace: Some("FHIR".to_string()),
+            name: Some(parent_type.to_string()),
+            is_empty: None,
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+
+        match self.model_provider.get_element_type(&parent_type_info, property).await {
+            Ok(Some(element_type_info)) => {
+                // Return the type name from the TypeInfo
+                return Ok(element_type_info.type_name);
+            }
+            Ok(None) => {
+                // Property not found with standard navigation, try choice element resolution
+                if let Some(choice_type) = self.resolve_choice_element(parent_type, property).await? {
+                    return Ok(choice_type);
                 }
+                // If no choice element found, fall through to error
             }
             Err(_) => {
-                // Fallback to the old approach if navigation fails
-                match self.model_provider.get_type_reflection(parent_type).await {
-                    Ok(Some(octofhir_fhir_model::TypeReflectionInfo::ClassInfo { elements, .. })) => {
-                        // Look for the property in elements
-                        for element in elements.iter() {
-                            if element.name == property {
-                                // Found the property - extract element type properly
-                                use octofhir_fhir_model::TypeReflectionInfo as TRI;
-                                let resolved: String = match &element.type_info {
-                                    TRI::ListType { element_type } => element_type.name().to_string(),
-                                    TRI::SimpleType { name, .. } => name.to_string(),
-                                    TRI::ClassInfo { name, .. } => name.to_string(),
-                                    other => other.name().to_string(),
-                                };
-                                return Ok(resolved);
-                            }
-                        }
-
-                        // Property not found - check if it's a choice element
-                        if let Some(choice_type) =
-                            self.resolve_choice_element(parent_type, property).await?
-                        {
-                            Ok(choice_type)
-                        } else {
-                            // Property doesn't exist
-                            Err(FhirPathError::evaluation_error(
-                                crate::core::error_code::FP0052,
-                                format!(
-                                    "Property '{}' not found on type '{}'",
-                                    property, parent_type
-                                ),
-                            ))
-                        }
-                    }
-                    Ok(None) => {
-                        // Type not found in fallback
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0052,
-                            format!("Unknown type '{}'", parent_type),
-                        ))
-                    }
-                    Err(_) => {
-                        // Error getting type reflection in fallback
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0052,
-                            format!("Failed to resolve type '{}'", parent_type),
-                        ))
-                    }
-                    _ => {
-                        // Other type reflection variants - cannot access properties
-                        Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0052,
-                            format!(
-                                "Cannot access property '{}' on type '{}'",
-                                property, parent_type
-                            ),
-                        ))
-                    }
+                // Property navigation failed, check if it's a choice element
+                if let Some(choice_type) = self.resolve_choice_element(parent_type, property).await? {
+                    return Ok(choice_type);
+                } else {
+                    // Property doesn't exist
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0052,
+                        format!(
+                            "Property '{}' not found on type '{}'",
+                            property, parent_type
+                        ),
+                    ));
                 }
             }
         }
+
+        // If we get here, all navigation attempts failed
+        Err(FhirPathError::evaluation_error(
+            crate::core::error_code::FP0052,
+            format!(
+                "Property '{}' not found on type '{}'",
+                property, parent_type
+            ),
+        ))
     }
 
     /// Resolve the element type for collection access
@@ -169,17 +125,20 @@ impl TypeResolver {
                 let type_suffix = &property[base.len()..];
 
                 // Check if the base element exists as a choice element
-                if let Ok(Some(type_reflection)) =
-                    self.model_provider.get_type_reflection(parent_type).await
-                {
-                    use octofhir_fhir_model::TypeReflectionInfo;
-                    if let TypeReflectionInfo::ClassInfo { elements, .. } = type_reflection {
-                        for element in elements.iter() {
-                            if element.name == *base {
-                                // The element exists as a choice - resolve the specific type
-                                return Ok(Some(type_suffix.to_string()));
-                            }
-                        }
+                let parent_type_info = octofhir_fhir_model::TypeInfo {
+                    type_name: parent_type.to_string(),
+                    singleton: true,
+                    namespace: Some("FHIR".to_string()),
+                    name: Some(parent_type.to_string()),
+                    is_empty: None,
+                    is_union_type: Some(false),
+                    union_choices: None,
+                };
+                
+                if let Ok(element_names) = self.model_provider.get_element_names(&parent_type_info).await {
+                    if element_names.contains(&base.to_string()) {
+                        // The element exists as a choice - resolve the specific type
+                        return Ok(Some(type_suffix.to_string()));
                     }
                 }
             }
@@ -204,6 +163,7 @@ impl TypeResolver {
                 if self
                     .model_provider
                     .resource_type_exists(resource_type)
+                    .await
                     .unwrap_or(false)
                 {
                     resource_type.clone()
@@ -248,6 +208,7 @@ impl TypeResolver {
             if self
                 .model_provider
                 .resource_type_exists(resource_type)
+                .await
                 .unwrap_or(false)
             {
                 Ok(resource_type.to_string())
@@ -268,6 +229,7 @@ impl TypeResolver {
     pub async fn is_resource_type(&self, type_name: &str) -> bool {
         self.model_provider
             .resource_type_exists(type_name)
+            .await
             .unwrap_or(false)
     }
 
@@ -279,8 +241,15 @@ impl TypeResolver {
 
 /// Check if a type name represents a FHIR primitive type
 pub fn is_primitive_type(type_name: &str) -> bool {
+    // Normalize optional namespaces and casing: e.g., System.Boolean -> boolean
+    let mut t = type_name;
+    if let Some(stripped) = t.strip_prefix("System.") { t = stripped; }
+    if let Some(stripped) = t.strip_prefix("FHIR.") { t = stripped; }
+    let t = t;
+
+    // Accept canonical primitive spellings (case-sensitive as per spec), plus a few tolerant aliases
     matches!(
-        type_name,
+        t,
         "boolean"
             | "integer"
             | "string"
@@ -357,8 +326,8 @@ pub mod type_utils {
             return true;
         }
 
-        // Numeric types are compatible with each other
-        let numeric_types = ["integer", "decimal", "unsignedInt", "positiveInt"];
+        // Numeric types are compatible with each other (allow Number alias)
+        let numeric_types = ["integer", "decimal", "unsignedInt", "positiveInt", "Number", "System.Number"];
         let type1_numeric = numeric_types.contains(&type1);
         let type2_numeric = numeric_types.contains(&type2);
         if type1_numeric && type2_numeric {
@@ -458,6 +427,16 @@ pub mod type_utils {
             crate::core::FhirPathValue::Url(_) => "url".to_string(),
             crate::core::FhirPathValue::Collection(_) => "Collection".to_string(),
             crate::core::FhirPathValue::TypeInfoObject { .. } => "TypeInfo".to_string(),
+            crate::core::FhirPathValue::Wrapped(wrapped) => {
+                wrapped.get_type_info()
+                    .and_then(|t| t.name.clone())
+                    .unwrap_or_else(|| "Any".to_string())
+            }
+            crate::core::FhirPathValue::ResourceWrapped(wrapped) => {
+                wrapped.get_type_info()
+                    .and_then(|t| t.name.clone())
+                    .unwrap_or_else(|| "Resource".to_string())
+            }
             crate::core::FhirPathValue::Empty => "empty".to_string(),
         }
     }

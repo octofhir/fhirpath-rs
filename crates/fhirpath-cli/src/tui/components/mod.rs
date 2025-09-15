@@ -36,7 +36,7 @@ use super::layout::{PanelLayout, PanelType};
 use super::themes::TuiTheme;
 
 use octofhir_fhirpath::FhirPathEngine;
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
+// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 
 pub use diagnostics::DiagnosticsPanel;
 pub use help::HelpPanel;
@@ -144,10 +144,10 @@ impl ComponentManager {
     pub async fn new(
         config: &TuiConfig,
         engine: &FhirPathEngine,
-        analyzer: &StaticAnalyzer,
+        // analyzer: &StaticAnalyzer,
     ) -> Result<Self> {
         Ok(Self {
-            input: InputPanel::new(config, analyzer).await?,
+            input: InputPanel::new(config /*, analyzer*/).await?,
             output: OutputPanel::new(config).await?,
             diagnostics: DiagnosticsPanel::new(config).await?,
             variables: VariablesPanel::new(config).await?,

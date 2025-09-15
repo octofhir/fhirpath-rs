@@ -16,10 +16,11 @@
 
 use clap::Parser;
 use fhirpath_cli::EmbeddedModelProvider;
+use octofhir_fhir_model::provider::EmptyModelProvider;
+use octofhir_fhir_model::HttpTerminologyProvider;
 use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput};
 use fhirpath_cli::cli::{Cli, Commands};
-use octofhir_fhirpath;
-use octofhir_fhirpath::create_standard_registry;
+use octofhir_fhirpath::{self, create_standard_registry};
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
 use serde_json::{Value as JsonValue, from_str as parse_json};
@@ -30,9 +31,7 @@ use std::time::Instant;
 
 /// Create a shared EmbeddedModelProvider instance for all commands
 async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvider>> {
-    let provider = EmbeddedModelProvider::r4()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to initialize FHIR schema: {}", e))?;
+    let provider = EmbeddedModelProvider::r4();
     Ok(Arc::new(provider))
 }
 
@@ -41,8 +40,7 @@ async fn create_fhirpath_engine(
     model_provider: Arc<EmbeddedModelProvider>,
 ) -> anyhow::Result<FhirPathEngine> {
     let registry = Arc::new(create_standard_registry().await);
-    let fhir_version = std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
-    let engine = FhirPathEngine::new_with_fhir_version(registry, model_provider, &fhir_version)
+    let engine = FhirPathEngine::new(registry, model_provider)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
     Ok(engine)
@@ -303,54 +301,54 @@ async fn main() {
             )
             .await;
         }
-        Commands::Server {
-            port,
-            ref storage,
-            ref host,
-            cors_all,
-            max_body_size,
-            timeout,
-            rate_limit,
-            no_ui,
-        } => {
-            handle_server(
-                port,
-                storage.clone(),
-                host.clone(),
-                cors_all,
-                max_body_size,
-                timeout,
-                rate_limit,
-                no_ui,
-                &cli,
-            )
-            .await;
-        }
-        Commands::Tui {
-            ref input,
-            ref variables,
-            ref config,
-            ref theme,
-            no_mouse,
-            no_syntax_highlighting,
-            no_auto_completion,
-            performance_monitoring,
-            check_terminal,
-        } => {
-            handle_tui(
-                input.as_deref(),
-                variables,
-                config.as_deref(),
-                theme,
-                no_mouse,
-                no_syntax_highlighting,
-                no_auto_completion,
-                performance_monitoring,
-                check_terminal,
-                &cli,
-            )
-            .await;
-        }
+        // Commands::Server {
+        //     port,
+        //     ref storage,
+        //     ref host,
+        //     cors_all,
+        //     max_body_size,
+        //     timeout,
+        //     rate_limit,
+        //     no_ui,
+        // } => {
+        //     handle_server(
+        //         port,
+        //         storage.clone(),
+        //         host.clone(),
+        //         cors_all,
+        //         max_body_size,
+        //         timeout,
+        //         rate_limit,
+        //         no_ui,
+        //         &cli,
+        //     )
+        //     .await;
+        // }
+        // Commands::Tui {
+        //     ref input,
+        //     ref variables,
+        //     ref config,
+        //     ref theme,
+        //     no_mouse,
+        //     no_syntax_highlighting,
+        //     no_auto_completion,
+        //     performance_monitoring,
+        //     check_terminal,
+        // } => {
+        //     handle_tui(
+        //         input.as_deref(),
+        //         variables,
+        //         config.as_deref(),
+        //         theme,
+        //         no_mouse,
+        //         no_syntax_highlighting,
+        //         no_auto_completion,
+        //         performance_monitoring,
+        //         check_terminal,
+        //         &cli,
+        //     )
+        //     .await;
+        // }
     }
 }
 
@@ -448,6 +446,20 @@ async fn handle_evaluate(
         }
     };
 
+    // Attach default terminology provider (tx.fhir.org) matching model provider's FHIR version
+    let tx_path = match model_provider.version() {
+        octofhir_fhirschema::ModelFhirVersion::R4 => "r4",
+        octofhir_fhirschema::ModelFhirVersion::R4B => "r4b",
+        octofhir_fhirschema::ModelFhirVersion::R5 => "r5",
+        octofhir_fhirschema::ModelFhirVersion::R6 => "r6",
+        _ => "r4",
+    };
+    let tx_url = format!("https://tx.fhir.org/{}", tx_path);
+    if let Ok(tx) = HttpTerminologyProvider::new(tx_url) {
+        let tx_arc: Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = Arc::new(tx);
+        engine = engine.with_terminology_provider(tx_arc);
+    }
+
     // Engine initialized successfully - now start timing for actual execution
     let start_time = Instant::now();
 
@@ -476,14 +488,20 @@ async fn handle_evaluate(
     let variables: std::collections::HashMap<String, octofhir_fhirpath::FhirPathValue> =
         initial_variables.into_iter().collect();
 
-    // Create evaluation context with the resource
+    // Create NEW async evaluation context with the resource and variables
     let context_collection =
         octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource));
-    let mut eval_context = octofhir_fhirpath::EvaluationContext::new(context_collection);
+    let model_provider_arc = model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
+    let mut eval_context = octofhir_fhirpath::EvaluationContext::new(
+        context_collection,
+        model_provider_arc,
+        engine.get_terminology_provider(),
+    ).await;
 
+    // Add variables if provided - support multiple variables
     if !variables.is_empty() {
-        for (name, value) in variables {
-            eval_context.set_variable(name, value);
+        if let Err(e) = eval_context.add_variables(variables) {
+            eprintln!("Warning: Failed to set variables: {}", e);
         }
     }
 
@@ -554,18 +572,22 @@ async fn handle_evaluate(
             metadata: OutputMetadata::default(),
         }
     } else {
-        // Parse successful - now evaluate with metadata preservation
+        // Parse successful - now evaluate with metadata
         let result = engine
             .evaluate_with_metadata(expression, &eval_context)
             .await;
 
         let execution_time = start_time.elapsed();
         match result {
-            Ok(collection_with_metadata) => EvaluationOutput::from_collection_with_metadata(
-                collection_with_metadata,
-                expression.to_string(),
+            Ok(eval_result) => EvaluationOutput {
+                success: true,
+                result: Some(eval_result.value.clone()),
+                result_with_metadata: None, // TODO: Fix metadata format
+                error: None,
+                expression: expression.to_string(),
                 execution_time,
-            ),
+                metadata: OutputMetadata::default(),
+            },
             Err(e) => {
                 // Report diagnostic for evaluation error
                 let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
@@ -858,13 +880,7 @@ async fn handle_repl(
     use serde_json::Value as JsonValue;
     use std::path::PathBuf;
 
-    let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
-        Ok(provider) => std::sync::Arc::new(provider),
-        Err(e) => {
-            eprintln!("Failed to create FHIR schema model provider: {}", e);
-            return;
-        }
-    };
+    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::r4());
 
     // Parse initial variables
     let mut initial_variables = Vec::new();
@@ -923,7 +939,7 @@ async fn handle_analyze_multi_error(
     model_provider: &Arc<EmbeddedModelProvider>,
 ) {
     use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
-    use octofhir_fhirpath::analyzer::StaticAnalyzer;
+    // use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
     use std::io::{stderr, stdout};
 
     // Create diagnostic handler for unified error reporting
@@ -947,39 +963,12 @@ async fn handle_analyze_multi_error(
 
     if parse_result.success && parse_result.ast.is_some() {
         // Phase 2: Run static analysis with shared model provider (UNIFIED)
-        let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
-        let analyzer = StaticAnalyzer::new(registry, model_provider.clone());
+        // let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
+        // let analyzer = StaticAnalyzer::new(registry, model_provider.clone()); // Analyzer removed
 
         // Run the analysis on the parsed AST
-        match analyzer.analyze(parse_result.ast.as_ref().unwrap()).await {
-            Ok(analysis_result) => {
-                // Add static analysis diagnostics (Ariadne diagnostics are already in the result)
-                let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
-
-                // Fix missing spans by calculating them from expression text
-                for diagnostic in &mut static_diagnostics {
-                    if diagnostic.span == (0..0) {
-                        if let Some(span) =
-                            calculate_span_from_message(&diagnostic.message, expression)
-                        {
-                            diagnostic.span = span;
-                        }
-                    }
-                }
-
-                all_diagnostics.extend(static_diagnostics);
-            }
-            Err(e) => {
-                // Convert analysis error to diagnostic
-                let error_diagnostic = handler.create_diagnostic_from_error(
-                    octofhir_fhirpath::core::error_code::FP0001,
-                    format!("Static analysis failed: {}", e),
-                    0..expression.len(),
-                    None,
-                );
-                all_diagnostics.push(error_diagnostic);
-            }
-        }
+        // Static analysis disabled (StaticAnalyzer removed)
+        // match analyzer.analyze(...) { ... }
     }
 
     // Sort diagnostics before deduplication to ensure consistent ordering
@@ -1151,34 +1140,34 @@ fn open_browser(url: &str) {
     }
 }
 
-async fn handle_server(
-    port: u16,
-    storage: std::path::PathBuf,
-    host: String,
-    cors_all: bool,
-    max_body_size: u64,
-    timeout: u64,
-    rate_limit: u32,
-    no_ui: bool,
-    _cli: &Cli,
-) {
-    use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
+// async fn handle_server(
+//     port: u16,
+//     storage: std::path::PathBuf,
+//     host: String,
+//     cors_all: bool,
+//     max_body_size: u64,
+//     timeout: u64,
+//     rate_limit: u32,
+//     no_ui: bool,
+//     _cli: &Cli,
+// ) {
+//     use fhirpath_cli::cli::server::{config::ServerConfig, start_server};
 
-    let config = ServerConfig {
-        port,
-        host: host.parse().unwrap_or([127, 0, 0, 1].into()),
-        cors_all,
-        max_body_size_mb: max_body_size,
-        timeout_seconds: timeout,
-        rate_limit_per_minute: rate_limit,
-        trace_config: fhirpath_cli::cli::server::config::TraceConfig::Server, // Server mode for API
-    };
+//     let config = ServerConfig {
+//         port,
+//         host: host.parse().unwrap_or([127, 0, 0, 1].into()),
+//         cors_all,
+//         max_body_size_mb: max_body_size,
+//         timeout_seconds: timeout,
+//         rate_limit_per_minute: rate_limit,
+//         trace_config: fhirpath_cli::cli::server::config::TraceConfig::Server, // Server mode for API
+//     };
 
-    if let Err(e) = start_server(config).await {
-        eprintln!("❌ Server error: {}", e);
-        std::process::exit(1);
-    }
-}
+//     if let Err(e) = start_server(config).await {
+//         eprintln!("❌ Server error: {}", e);
+//         std::process::exit(1);
+//     }
+// }
 
 /// Calculate span from diagnostic message by finding tokens in expression
 fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
@@ -1216,8 +1205,8 @@ fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::o
     None
 }
 
-/// Handle the TUI command
-async fn handle_tui(
+// Handle the TUI command
+/* async fn handle_tui(
     input: Option<&str>,
     variables: &[String],
     config_path: Option<&str>,
@@ -1250,13 +1239,7 @@ async fn handle_tui(
     }
 
     // Create ModelProvider
-    let model_provider = match fhirpath_cli::EmbeddedModelProvider::r4().await {
-        Ok(provider) => std::sync::Arc::new(provider),
-        Err(e) => {
-            eprintln!("Failed to create FHIR schema model provider: {}", e);
-            return;
-        }
-    };
+    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::r4());
 
     // Load configuration
     let mut config = if let Some(config_path) = config_path {
@@ -1364,3 +1347,4 @@ fn load_resource_from_input(input: &str) -> anyhow::Result<JsonValue> {
         serde_json::from_str(&content).context("Failed to parse file content as JSON")
     }
 }
+*/

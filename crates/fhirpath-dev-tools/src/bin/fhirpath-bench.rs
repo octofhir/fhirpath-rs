@@ -229,7 +229,7 @@ async fn profile_expression(
     use_bundle: bool,
 ) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
-    use octofhir_fhirschema::provider::EmbeddedModelProvider;
+    use octofhir_fhirschema::EmbeddedSchemaProvider;
     use std::sync::Arc;
 
     // Create output directory if it doesn't exist
@@ -240,11 +240,10 @@ async fn profile_expression(
     // Initialize engine
     let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
     let model_provider = Arc::new(
-        EmbeddedModelProvider::r5()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
+        EmbeddedSchemaProvider::r5()
+,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
-    let mut engine = FhirPathEngine::new(registry, model_provider).await?;
+    let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
 
     // Get test data
     let data = if use_bundle {
@@ -264,7 +263,7 @@ async fn profile_expression(
         let collection = octofhir_fhirpath::Collection::single(
             octofhir_fhirpath::FhirPathValue::resource(data.clone()),
         );
-        let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
+        let ctx = octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None).await;
         let _ = engine.evaluate(expression, &ctx).await;
     }
     let duration = start.elapsed();
@@ -328,7 +327,7 @@ fn list_expressions() {
 async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirpath::parse_expression;
-    use octofhir_fhirschema::provider::EmbeddedModelProvider;
+    use octofhir_fhirschema::EmbeddedSchemaProvider;
 
     use std::sync::Arc;
     use std::time::Instant;
@@ -345,12 +344,11 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing EmbeddedModelProvider R5...");
     let model_provider = Arc::new(
-        EmbeddedModelProvider::r5()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create R5 FHIR Schema Provider: {}", e))?,
+        EmbeddedSchemaProvider::r5()
+,
     ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
 
-    let mut engine = FhirPathEngine::new(registry, model_provider).await?;
+    let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
     let patient_data = get_sample_patient();
     let bundle_data = get_sample_bundle();
 
@@ -403,6 +401,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
         expressions: &[&str],
         data: &serde_json::Value,
         engine: &mut FhirPathEngine,
+        model_provider: Arc<dyn octofhir_fhir_model::ModelProvider>,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();
         println!("  Running {name} benchmarks...");
@@ -415,7 +414,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
                 let collection = octofhir_fhirpath::Collection::single(
                     octofhir_fhirpath::FhirPathValue::resource(data.clone()),
                 );
-                let ctx = octofhir_fhirpath::EvaluationContext::new(collection);
+                let ctx = octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None).await;
                 let _ = engine.evaluate(expr, &ctx).await;
             }
 
@@ -457,6 +456,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             &expressions.simple,
             &patient_data,
             &mut engine,
+            model_provider.clone(),
         )
         .await,
     );
@@ -466,6 +466,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             &expressions.medium,
             &patient_data,
             &mut engine,
+            model_provider.clone(),
         )
         .await,
     );
@@ -475,6 +476,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             &expressions.complex,
             &bundle_data,
             &mut engine,
+            model_provider.clone(),
         )
         .await,
     );

@@ -11,7 +11,6 @@ use crate::core::error_code::{ErrorCode, FP0054, FP0055, FP0121, FP0124, FP0125}
 use crate::core::{ModelProvider, Result, SourceLocation};
 use crate::diagnostics::{AriadneDiagnostic, DiagnosticSeverity};
 use crate::registry::FunctionRegistry;
-use octofhir_fhir_model::TypeReflectionInfo;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -101,6 +100,17 @@ pub enum Cardinality {
     OneToMany,
 }
 
+/// Validation mode for property access
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValidationMode {
+    /// Strict validation - all properties must exist
+    Strict,
+    /// Tolerant validation - unknown properties generate warnings, not errors
+    Tolerant,
+    /// Mixed collection validation - very lenient for mixed resource types
+    Mixed,
+}
+
 /// Property validator for FHIRPath expressions
 pub struct PropertyValidator {
     /// Common typos mapping to correct properties
@@ -133,8 +143,8 @@ impl PropertyValidator {
         validator
     }
 
-    /// Convert TypeReflectionInfo from ModelProvider to TypeInfo used by PropertyValidator
-    fn convert_reflection_to_typeinfo(&self, reflection: &TypeReflectionInfo) -> TypeInfo {
+    /// Convert TypeInfo from ModelProvider to TypeInfo used by PropertyValidator
+    fn convert_model_typeinfo_to_analyzer_typeinfo(&self, type_info: &octofhir_fhir_model::TypeInfo) -> TypeInfo {
         match reflection {
             TypeReflectionInfo::SimpleType {
                 namespace,
@@ -701,6 +711,81 @@ impl PropertyValidator {
         })
     }
 
+    /// Extract the full path context from a property access node
+    async fn extract_full_path(
+        &self,
+        access_node: &PropertyAccessNode,
+        context: &AnalysisContext,
+    ) -> Result<Vec<String>> {
+        use crate::parser::ast::ExpressionNode;
+
+        let mut path_parts = Vec::new();
+
+        // Walk the object chain to build the full path
+        let mut current_node = &access_node.object;
+        loop {
+            match current_node.as_ref() {
+                ExpressionNode::PropertyAccess { object, property, .. } => {
+                    path_parts.push(property.clone());
+                    current_node = object;
+                }
+                ExpressionNode::Identifier { name, .. } => {
+                    path_parts.push(name.clone());
+                    break;
+                }
+                _ => break,
+            }
+        }
+
+        // Reverse to get correct order (root first)
+        path_parts.reverse();
+        Ok(path_parts)
+    }
+
+    /// Determine the appropriate validation mode for a property access
+    async fn determine_validation_mode(
+        &self,
+        parent_type: &TypeInfo,
+        property: &str,
+        access_node: &PropertyAccessNode,
+        context: &AnalysisContext,
+    ) -> Result<ValidationMode> {
+        // Try to get the actual FHIR context by analyzing the full path
+        let full_path = self.extract_full_path(access_node, context).await?;
+
+        // For BackboneElement, try to determine the specific type from context
+        if let Some(type_name) = &parent_type.name {
+            // If we have a full path like "Bundle.entry", use that for ModelProvider queries
+            let effective_type = if type_name == "BackboneElement" && !full_path.is_empty() {
+                // Use the path context (e.g., "Bundle.entry" instead of just "BackboneElement")
+                full_path.join(".")
+            } else {
+                type_name.clone()
+            };
+
+            let is_mixed = self.model_provider
+                .is_mixed_collection(&effective_type, property)
+                .await
+                .unwrap_or(false);
+
+            if is_mixed {
+                return Ok(ValidationMode::Mixed);
+            }
+
+            let is_polymorphic = self.model_provider
+                .is_polymorphic_property(&effective_type, property)
+                .await
+                .unwrap_or(false);
+
+            if is_polymorphic {
+                return Ok(ValidationMode::Tolerant);
+            }
+        }
+
+        // Default to strict validation
+        Ok(ValidationMode::Strict)
+    }
+
     async fn validate_property_access(
         &self,
         access: &PropertyAccessNode,
@@ -711,27 +796,35 @@ impl PropertyValidator {
         // Determine the type of the object being accessed
         let object_type = self.infer_object_type(&access.object, context).await?;
 
+        // Determine validation mode based on collection type
+        let validation_mode = self.determine_validation_mode(&object_type, &access.property, access, context).await?;
+
         match &object_type {
             TypeInfo::Resource { resource_type } => {
-                self.validate_resource_property(
+                self.validate_resource_property_with_mode(
                     resource_type,
                     &access.property,
                     access.location.clone(),
+                    validation_mode,
                     warnings,
                     suggestions,
                 )
                 .await;
             }
             TypeInfo::BackboneElement { properties } => {
-                self.validate_backbone_property(
+                self.validate_backbone_property_with_mode(
                     &access.property,
                     properties,
                     access.location.clone(),
+                    validation_mode,
                     warnings,
                     suggestions,
                 );
             }
             TypeInfo::Collection(inner_type) => {
+                // For collection validation, determine mode based on inner type
+                let collection_validation_mode = self.determine_validation_mode(inner_type, &access.property).await?;
+
                 // Validate property access on collection elements
                 match inner_type.as_ref() {
                     TypeInfo::Resource { resource_type } => {
@@ -739,16 +832,18 @@ impl PropertyValidator {
                             resource_type,
                             &access.property,
                             access.location.clone(),
+                            collection_validation_mode,
                             warnings,
                             suggestions,
                         )
                         .await;
                     }
                     TypeInfo::BackboneElement { properties } => {
-                        self.validate_backbone_property(
+                        self.validate_backbone_property_with_mode(
                             &access.property,
                             properties,
                             access.location.clone(),
+                            collection_validation_mode,
                             warnings,
                             suggestions,
                         );
@@ -802,11 +897,38 @@ impl PropertyValidator {
         Ok(())
     }
 
+    async fn validate_resource_property_with_mode(
+        &self,
+        resource_name: &str,
+        property: &str,
+        location: Option<SourceLocation>,
+        validation_mode: ValidationMode,
+        warnings: &mut Vec<AnalysisWarning>,
+        suggestions: &mut Vec<PropertySuggestion>,
+    ) {
+        // For mixed collections, be very tolerant
+        if validation_mode == ValidationMode::Mixed {
+            // Don't generate errors for unknown properties in mixed collections
+            return;
+        }
+
+        self.validate_resource_property(
+            resource_name,
+            property,
+            location,
+            validation_mode,
+            warnings,
+            suggestions,
+        )
+        .await;
+    }
+
     async fn validate_resource_property(
         &self,
         resource_name: &str,
         property: &str,
         location: Option<SourceLocation>,
+        validation_mode: ValidationMode,
         warnings: &mut Vec<AnalysisWarning>,
         suggestions: &mut Vec<PropertySuggestion>,
     ) {
@@ -816,17 +938,23 @@ impl PropertyValidator {
                 .iter()
                 .any(|p| p.name == property || p.aliases.contains(&property.to_string()))
             {
-                // Property not found - generate suggestions
+                // Property not found - adjust severity based on validation mode
                 let similar_properties = self.find_similar_properties(property, &properties);
+
+                let (severity, message_prefix) = match validation_mode {
+                    ValidationMode::Strict => (DiagnosticSeverity::Error, "Unknown property"),
+                    ValidationMode::Tolerant => (DiagnosticSeverity::Warning, "Property may not exist"),
+                    ValidationMode::Mixed => return, // Already handled above
+                };
 
                 warnings.push(AnalysisWarning {
                     code: "FP0117".to_string(),
                     message: format!(
-                        "Unknown property '{}' on resource '{}'",
-                        property, resource_name
+                        "{} '{}' on resource '{}'",
+                        message_prefix, property, resource_name
                     ),
                     location: location.clone(),
-                    severity: DiagnosticSeverity::Error,
+                    severity,
                     suggestion: if !similar_properties.is_empty() {
                         Some(format!("Did you mean: {}?", similar_properties.join(", ")))
                     } else {
@@ -870,11 +998,37 @@ impl PropertyValidator {
         }
     }
 
+    fn validate_backbone_property_with_mode(
+        &self,
+        property: &str,
+        properties: &HashMap<String, TypeInfo>,
+        location: Option<SourceLocation>,
+        validation_mode: ValidationMode,
+        warnings: &mut Vec<AnalysisWarning>,
+        suggestions: &mut Vec<PropertySuggestion>,
+    ) {
+        // For mixed collections, be very tolerant
+        if validation_mode == ValidationMode::Mixed {
+            // Don't generate errors for unknown properties in mixed collections
+            return;
+        }
+
+        self.validate_backbone_property(
+            property,
+            properties,
+            location,
+            validation_mode,
+            warnings,
+            suggestions,
+        );
+    }
+
     fn validate_backbone_property(
         &self,
         property: &str,
         properties: &HashMap<String, TypeInfo>,
         location: Option<SourceLocation>,
+        validation_mode: ValidationMode,
         warnings: &mut Vec<AnalysisWarning>,
         suggestions: &mut Vec<PropertySuggestion>,
     ) {
@@ -882,11 +1036,17 @@ impl PropertyValidator {
             let property_names: Vec<String> = properties.keys().cloned().collect();
             let similar_properties = self.find_similar_property_names(property, &property_names);
 
+            let (severity, message_prefix) = match validation_mode {
+                ValidationMode::Strict => (DiagnosticSeverity::Error, "Unknown property"),
+                ValidationMode::Tolerant => (DiagnosticSeverity::Warning, "Property may not exist"),
+                ValidationMode::Mixed => return, // Already handled above
+            };
+
             warnings.push(AnalysisWarning {
                 code: "FP0119".to_string(),
-                message: format!("Unknown property '{}' on backbone element", property),
+                message: format!("{} '{}' on backbone element", message_prefix, property),
                 location: location.clone(),
-                severity: DiagnosticSeverity::Error,
+                severity,
                 suggestion: if !similar_properties.is_empty() {
                     Some(format!("Did you mean: {}?", similar_properties.join(", ")))
                 } else {
@@ -2413,8 +2573,7 @@ mod tests {
     fn test_type_reflection_conversion() {
         use crate::MockModelProvider;
         use crate::registry::FunctionRegistry;
-        use octofhir_fhir_model::TypeReflectionInfo;
-
+        
         let model_provider = Arc::new(MockModelProvider::new());
         let function_registry = Arc::new(FunctionRegistry::default());
         let validator = PropertyValidator::new(model_provider, function_registry);

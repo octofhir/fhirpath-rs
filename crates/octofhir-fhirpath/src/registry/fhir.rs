@@ -1,7 +1,7 @@
 //! FHIR-specific function registrations
 
 use super::{FunctionCategory, FunctionContext, FunctionRegistry};
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{FhirPathError, FhirPathValue, Result, Collection};
 use crate::register_function;
 
 use serde_json::Value as JsonValue;
@@ -46,6 +46,7 @@ impl FunctionRegistry {
             ],
             implementation: |context: &FunctionContext| -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<FhirPathValue>> + Send + '_>> {
                 Box::pin(async move {
+                    // debug: input type/len
                     if context.input.is_empty() {
                         return Ok(FhirPathValue::empty());
                     }
@@ -53,14 +54,51 @@ impl FunctionRegistry {
                     let mut resolved_resources = Vec::new();
 
                     for input_value in context.input.iter() {
+                        // eprintln!("[resolve] input type: {}", input_value.type_name());
                         // Extract reference string or Reference object
                         let reference = match input_value {
                             FhirPathValue::String(s) => Some(s.clone()),
                             FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
-                                j.as_object()
-                                    .and_then(|obj| obj.get("reference"))
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
+                                if let Some(obj) = j.as_object() {
+                                    // Direct reference field
+                                    if let Some(s) = obj.get("reference").and_then(|v| v.as_str()) {
+                                        Some(s.to_string())
+                                    } else {
+                                        // Heuristic: search one level deep for a nested reference field
+                                        let mut found: Option<String> = None;
+                                        for (_k, v) in obj {
+                                            if let Some(s) = v.get("reference").and_then(|vv| vv.as_str()) {
+                                                found = Some(s.to_string());
+                                                break;
+                                            }
+                                        }
+                                        found
+                                    }
+                                } else {
+                                    None
+                                }
+                            }
+                            FhirPathValue::Wrapped(w) => {
+                                match w.value.as_ref() {
+                                    serde_json::Value::Object(obj) => {
+                                        obj.get("reference")
+                                            .and_then(|v| v.as_str())
+                                            .map(|s| s.to_string())
+                                    }
+                                    serde_json::Value::String(s) => Some(s.clone()),
+                                    _ => None
+                                }
+                            }
+                            FhirPathValue::ResourceWrapped(w) => {
+                                match w.unwrap() {
+                                    serde_json::Value::Object(obj) => {
+                                        obj.get("reference")
+                                            .and_then(|v| v.as_str())
+                                            .map(|s| s.to_string())
+                                    }
+                                    serde_json::Value::String(s) => Some(s.clone()),
+                                    _ => None,
+                                }
                             }
                             _ => None,
                         };
@@ -70,24 +108,48 @@ impl FunctionRegistry {
                             None => continue, // Skip invalid references
                         };
 
+                        // Debug: show the reference being resolved
+                        // debug: extracted reference
+
                         // Handle contained references ("#id")
                         if let Some(stripped) = reference.strip_prefix('#') {
-                            if let Some(ctx_res) = context.resource_context {
-                                if let Some(found) = find_contained_resource(ctx_res, stripped) {
-                                    resolved_resources.push(found);
+                            // Try environment variables first, then fall back to context
+                            let root_collection = if let Some(root_resource) = context.context.get_variable("%rootResource") {
+                                match root_resource {
+                                    FhirPathValue::Collection(collection) => collection.clone(),
+                                    single_value => Collection::single(single_value.clone()),
                                 }
+                            } else if !context.context.get_root_context().is_empty() {
+                                context.context.get_root_context().clone()
+                            } else {
+                                continue;
+                            };
+
+                            if let Some(found) = Self::find_contained_resource_in_collection(&root_collection, stripped) {
+                                resolved_resources.push(found);
                             }
                             continue;
                         }
 
                         // Handle bundle and external references
-                        if let Some(ctx_res) = context.resource_context {
-                            if let Some(found) = resolve_reference(ctx_res, &reference) {
-                                resolved_resources.push(found);
+                        // Try environment variables first, then fall back to context
+                        let root_collection = if let Some(root_resource) = context.context.get_variable("%rootResource") {
+                            match root_resource {
+                                FhirPathValue::Collection(collection) => collection.clone(),
+                                single_value => Collection::single(single_value.clone()),
                             }
+                        } else if !context.context.get_root_context().is_empty() {
+                            context.context.get_root_context().clone()
+                        } else {
+                            continue;
+                        };
+
+                        if let Some(found) = Self::resolve_reference_in_collection(&root_collection, &reference) {
+                            resolved_resources.push(found);
                         }
                     }
 
+                    // debug: total resolved
                     Ok(FhirPathValue::collection(resolved_resources))
                 })
             }
@@ -130,8 +192,8 @@ impl FunctionRegistry {
                             }
                         };
 
-                        // Resolve the URL - could be direct URL or variable reference
-                        let resolved_url = Self::resolve_extension_url(url_arg, context.variables);
+                        // Resolve the URL - simplified implementation without variable resolution
+                        let resolved_url = url_arg.to_string();
 
                         let mut out = Vec::new();
                         for v in context.input.iter() {
@@ -140,8 +202,9 @@ impl FunctionRegistry {
                             
                             // For primitive values, also check underscore-prefixed fields in resource context
                             if Self::is_primitive_value(v) {
-                                if let Some(resource_context) = context.resource_context {
-                                    out.extend(Self::find_primitive_extensions(resource_context, &resolved_url));
+                                if !context.context.get_root_context().is_empty() {
+                                    let resource_context = context.context.get_root_context();
+                                    out.extend(Self::find_primitive_extensions_in_collection(resource_context, &resolved_url));
                                 }
                             }
                         }
@@ -432,6 +495,27 @@ fn find_contained_resource(ctx: &FhirPathValue, id: &str) -> Option<FhirPathValu
             }
             None
         }
+        FhirPathValue::Wrapped(w) | FhirPathValue::ResourceWrapped(w) => {
+            let obj = w.unwrap().as_object()?;
+            let contained = obj.get("contained")?.as_array()?;
+            for entry in contained {
+                if entry
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == id)
+                    .unwrap_or(false)
+                {
+                    return Some(FhirPathValue::Resource(Arc::new(entry.clone())));
+                }
+
+                if let Some(found) =
+                    find_contained_resource(&FhirPathValue::Resource(Arc::new(entry.clone())), id)
+                {
+                    return Some(found);
+                }
+            }
+            None
+        }
         _ => None,
     }
 }
@@ -450,15 +534,17 @@ fn split_ref(reference: &str) -> (Option<String>, Option<String>) {
 // ---------------- Bundle reference resolution ----------------
 
 fn resolve_reference(ctx: &FhirPathValue, reference: &str) -> Option<FhirPathValue> {
-    let j = match ctx {
-        FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => j,
+    // Obtain a JSON view of the context (Bundle or Resource)
+    let (json_ref, is_wrapped): (&JsonValue, bool) = match ctx {
+        FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => (j, false),
+        FhirPathValue::Wrapped(w) | FhirPathValue::ResourceWrapped(w) => (w.unwrap(), true),
         _ => return None,
     };
 
     // Handle contained resources (references starting with #)
     if reference.starts_with('#') {
         let contained_id = &reference[1..]; // Remove the # prefix
-        if let Some(contained) = j.get("contained").and_then(|c| c.as_array()) {
+        if let Some(contained) = json_ref.get("contained").and_then(|c| c.as_array()) {
             for resource in contained {
                 if let Some(id) = resource.get("id").and_then(|id| id.as_str()) {
                     if id == contained_id {
@@ -470,8 +556,34 @@ fn resolve_reference(ctx: &FhirPathValue, reference: &str) -> Option<FhirPathVal
         return None;
     }
 
+    // Handle simple id-only references like "1" by looking for contained or bundle resources with matching id
+    if !reference.contains('/') && !reference.starts_with('#') {
+        // Check contained on current context
+        if let Some(contained) = json_ref.get("contained").and_then(|c| c.as_array()) {
+            for resource in contained {
+                if let Some(id) = resource.get("id").and_then(|id| id.as_str()) {
+                    if id == reference {
+                        return Some(FhirPathValue::Resource(Arc::new(resource.clone())));
+                    }
+                }
+            }
+        }
+        // Check bundle entries by id alone (non-standard but seen in the wild)
+        if let Some(entries) = json_ref.get("entry").and_then(|e| e.as_array()) {
+            for entry in entries {
+                if let Some(resource) = entry.get("resource") {
+                    if let Some(resource_id) = resource.get("id").and_then(|id| id.as_str()) {
+                        if resource_id == reference {
+                            return Some(FhirPathValue::Resource(Arc::new(resource.clone())));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Handle Bundle entry resolution
-    if let Some(entries) = j.get("entry").and_then(|e| e.as_array()) {
+    if let Some(entries) = json_ref.get("entry").and_then(|e| e.as_array()) {
         for entry in entries {
             // Try fullUrl match first
             if let Some(full_url) = entry.get("fullUrl").and_then(|u| u.as_str()) {
@@ -663,6 +775,80 @@ impl FunctionRegistry {
             _ => {}
         }
         
+        out
+    }
+
+    /// Wrapper to find contained resource in a Collection
+    fn find_contained_resource_in_collection(
+        collection: &crate::core::Collection,
+        id: &str,
+    ) -> Option<FhirPathValue> {
+        for value in collection.iter() {
+            if let Some(found) = find_contained_resource(value, id) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    /// Wrapper to resolve reference in a Collection
+    fn resolve_reference_in_collection(
+        collection: &crate::core::Collection,
+        reference: &str,
+    ) -> Option<FhirPathValue> {
+        // First pass: attempt context-aware resolution per item
+        for value in collection.iter() {
+            if let Some(found) = resolve_reference(value, reference) {
+                return Some(found);
+            }
+        }
+
+        // Fallback: global scan within the collection for ResourceType/id match
+        if let Some(pos) = reference.find('/') {
+            let (rt, id) = reference.split_at(pos);
+            let id = &id[1..];
+            for value in collection.iter() {
+                match value {
+                    FhirPathValue::Resource(j) | FhirPathValue::JsonValue(j) => {
+                        if let (Some(rtype), Some(rid)) = (
+                            j.get("resourceType").and_then(|v| v.as_str()),
+                            j.get("id").and_then(|v| v.as_str()),
+                        ) {
+                            if rtype == rt && rid == id {
+                                return Some(FhirPathValue::Resource(Arc::new((**j).clone())));
+                            }
+                        }
+                    }
+                    FhirPathValue::Wrapped(w) | FhirPathValue::ResourceWrapped(w) => {
+                        let jw = w.unwrap();
+                        if let Some(obj) = jw.as_object() {
+                            if let (Some(rtype), Some(rid)) = (
+                                obj.get("resourceType").and_then(|v| v.as_str()),
+                                obj.get("id").and_then(|v| v.as_str()),
+                            ) {
+                                if rtype == rt && rid == id {
+                                    return Some(FhirPathValue::Resource(Arc::new(jw.clone())));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Wrapper to find primitive extensions in a Collection
+    fn find_primitive_extensions_in_collection(
+        collection: &crate::core::Collection,
+        url: &str,
+    ) -> Vec<FhirPathValue> {
+        let mut out = Vec::new();
+        for value in collection.iter() {
+            out.extend(Self::find_primitive_extensions(value, url));
+        }
         out
     }
 }

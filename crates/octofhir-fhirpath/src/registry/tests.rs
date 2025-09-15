@@ -26,6 +26,9 @@ mod tests {
             return_type: Some("boolean".to_string()),
             is_async: false,
             examples: vec![],
+            requires_model_provider: false,
+            requires_terminology_provider: false,
+            does_not_propagate_empty: false,
         };
 
         assert!(
@@ -57,6 +60,9 @@ mod tests {
             return_type: Some("boolean".to_string()),
             is_async: false,
             examples: vec![],
+            requires_model_provider: false,
+            requires_terminology_provider: false,
+            does_not_propagate_empty: false,
         };
 
         assert!(
@@ -87,6 +93,9 @@ mod tests {
             return_type: Some("string".to_string()),
             is_async: true,
             examples: vec![],
+            requires_model_provider: false,
+            requires_terminology_provider: false,
+            does_not_propagate_empty: false,
         };
 
         assert!(

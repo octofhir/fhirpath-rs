@@ -15,7 +15,7 @@
 //! Common utilities for development tools
 
 use octofhir_fhirpath::ModelProvider;
-use octofhir_fhirschema::provider::EmbeddedModelProvider;
+use octofhir_fhirschema::model_provider::EmbeddedSchemaProvider;
 use std::env;
 use std::sync::Arc;
 
@@ -31,46 +31,13 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
     );
 
     let provider = match fhir_version.to_lowercase().as_str() {
-        "r4" => match EmbeddedModelProvider::r4().await {
-            Ok(provider) => provider,
-            Err(e) => {
-                eprintln!("❌ CRITICAL: Failed to initialize FHIR R4 schema provider: {e}");
-                eprintln!("💡 This is required for proper FHIR operations.");
-                eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
-                std::process::exit(1);
-            }
-        },
-        "r4b" => match EmbeddedModelProvider::r4b().await {
-            Ok(provider) => provider,
-            Err(e) => {
-                eprintln!("❌ CRITICAL: Failed to initialize FHIR R4B schema provider: {e}");
-                eprintln!("💡 This is required for proper FHIR operations.");
-                eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
-                std::process::exit(1);
-            }
-        },
-        "r5" => match EmbeddedModelProvider::r5().await {
-            Ok(provider) => provider,
-            Err(e) => {
-                eprintln!("❌ CRITICAL: Failed to initialize FHIR R5 schema provider: {e}");
-                eprintln!("💡 This is required for proper FHIR operations.");
-                eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
-                std::process::exit(1);
-            }
-        },
+        "r4" => EmbeddedSchemaProvider::r4(),
+        "r4b" => EmbeddedSchemaProvider::r4b(),
+        "r5" => EmbeddedSchemaProvider::r5(),
+        "r6" => EmbeddedSchemaProvider::r6(),
         _ => {
             log::warn!("Unknown FHIR version '{}', defaulting to R4", fhir_version);
-            match EmbeddedModelProvider::r4().await {
-                Ok(provider) => provider,
-                Err(e) => {
-                    eprintln!(
-                        "❌ CRITICAL: Failed to initialize FHIR R4 schema provider (fallback): {e}"
-                    );
-                    eprintln!("💡 This is required for proper FHIR operations.");
-                    eprintln!("🔧 Please ensure FHIR schema data is available and try again.");
-                    std::process::exit(1);
-                }
-            }
+            EmbeddedSchemaProvider::r4()
         }
     };
 

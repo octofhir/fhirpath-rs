@@ -26,7 +26,7 @@ use super::completion::FhirPathCompleter;
 use super::display::DisplayFormatter;
 use super::help::HelpSystem;
 use super::{ReplCommand, ReplConfig};
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
+// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::{parse, parse_with_analysis};
@@ -35,7 +35,7 @@ use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
 /// Main REPL session that handles user interaction
 pub struct ReplSession {
     engine: FhirPathEngine,
-    analyzer: StaticAnalyzer,
+    // analyzer: StaticAnalyzer, // Removed
     diagnostic_engine: DiagnosticEngine,
     editor: Editor<FhirPathCompleter, FileHistory>,
     current_resource: Option<FhirPathValue>,
@@ -50,10 +50,10 @@ impl ReplSession {
     /// Create a new REPL session with a pre-created engine
     pub async fn new(engine: FhirPathEngine, config: ReplConfig) -> Result<Self> {
         // Create analyzer
-        let analyzer = StaticAnalyzer::new(
-            engine.get_function_registry().clone(),
-            engine.get_model_provider().clone(),
-        );
+        // let analyzer = StaticAnalyzer::new(
+        //     engine.get_function_registry().clone(),
+        //     engine.get_model_provider().clone(),
+        // ); // Removed
 
         // Initialize editor with history
         let mut editor = Editor::<FhirPathCompleter, FileHistory>::new()
@@ -85,7 +85,7 @@ impl ReplSession {
 
         Ok(Self {
             engine,
-            analyzer,
+            // analyzer,
             diagnostic_engine,
             editor,
             current_resource: None,
@@ -346,7 +346,7 @@ impl ReplSession {
         let variables = HashMap::new();
         let result = self
             .engine
-            .evaluate_with_variables(expression, &collection, variables, None, None)
+            .evaluate_with_variables(expression, &collection, variables)
             .await
             .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
 
@@ -493,7 +493,7 @@ impl ReplSession {
         let variables = HashMap::new();
         let result = self
             .engine
-            .evaluate_with_variables(expression, &collection, variables, None, None)
+            .evaluate_with_variables(expression, &collection, variables)
             .await
             .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))?;
 
@@ -552,86 +552,22 @@ impl ReplSession {
 
     /// Get type information for an expression
     async fn get_expression_type(&self, expression: &str) -> Result<String> {
-        let parse_result = parse(expression);
-        let parsed_expr = parse_result.into_result()?;
-        match self.analyzer.analyze(&parsed_expr).await {
-            Ok(analysis) => {
-                if analysis.type_info.is_empty() {
-                    Ok(format!(
-                        "No type information available for '{}'",
-                        expression
-                    ))
-                } else {
-                    let types: Vec<String> = analysis
-                        .type_info
-                        .values()
-                        .map(|info| format!("{:?}", info))
-                        .collect();
-                    if types.is_empty() {
-                        Ok(format!(
-                            "Type information available but no FHIRPath types resolved for '{}'",
-                            expression
-                        ))
-                    } else if types.len() == 1 {
-                        Ok(format!("{}: {}", expression, types[0]))
-                    } else {
-                        Ok(format!("{}: {}", expression, types.join(" | ")))
-                    }
-                }
-            }
-            Err(e) => Ok(format!("Type analysis failed for '{}': {}", expression, e)),
-        }
+        // Type analysis not available (StaticAnalyzer removed)
+        Ok(format!("Type analysis not available for '{}'", expression))
     }
 
     /// Explain expression evaluation steps
     async fn explain_expression(&mut self, expression: &str) -> Result<String> {
-        // Try to parse and analyze the expression to provide insights
-        let parse_result = parse(expression);
-        let parsed_expr = match parse_result.into_result() {
-            Ok(expr) => expr,
-            Err(e) => return Ok(format!("Parse error: {}", e)),
-        };
-        match self.analyzer.analyze(&parsed_expr).await {
-            Ok(analysis) => {
-                let mut explanation = vec![
-                    format!("Expression analysis for: {}", expression),
-                    "─".repeat(50),
-                ];
-
-                if !analysis.type_info.is_empty() {
-                    let types: Vec<String> = analysis
-                        .type_info
-                        .values()
-                        .map(|info| format!("{:?}", info))
-                        .collect();
-                    if !types.is_empty() {
-                        explanation.push(format!("Return type(s): {}", types.join(" | ")));
-                    }
-                }
-
-                if !analysis.diagnostics.is_empty() {
-                    explanation.push("Validation issues:".to_string());
-                    for error in &analysis.diagnostics {
-                        explanation.push(format!("  ⚠️  {}", error.message));
-                    }
-                }
-
-                if analysis.complexity_metrics.function_calls > 0 {
-                    explanation.push(format!(
-                        "Function calls: {}",
-                        analysis.complexity_metrics.function_calls
-                    ));
-                }
-
-                // Try to evaluate and show result
-                if let Ok(result) = self.evaluate_expression(expression).await {
-                    explanation.push("Evaluation result:".to_string());
-                    explanation.push(format!("  ▶️  {}", result));
-                }
-
-                Ok(explanation.join("\n"))
-            }
-            Err(e) => Ok(format!("Expression explanation failed: {}", e)),
+        // Expression explanation not available (StaticAnalyzer removed)
+        // Try to evaluate and show result
+        if let Ok(result) = self.evaluate_expression(expression).await {
+            Ok(format!(
+                "Expression: {}\nResult: {}",
+                expression,
+                result
+            ))
+        } else {
+            Ok(format!("Expression explanation not available for '{}'", expression))
         }
     }
 
@@ -699,41 +635,10 @@ impl ReplSession {
         }
 
         // Run static analysis if parsing succeeded (same logic as CLI)
-        if parse_result.success && parse_result.ast.is_some() {
-            match self
-                .analyzer
-                .analyze(parse_result.ast.as_ref().unwrap())
-                .await
-            {
-                Ok(analysis_result) => {
-                    // Add static analysis diagnostics (using Ariadne diagnostics from analyzer)
-                    let mut static_diagnostics = analysis_result.ariadne_diagnostics.clone();
-
-                    // Fix missing spans by calculating them from expression text (same as CLI)
-                    for diagnostic in &mut static_diagnostics {
-                        if diagnostic.span == (0..0) {
-                            if let Some(span) =
-                                self.calculate_span_from_message(&diagnostic.message, expression)
-                            {
-                                diagnostic.span = span;
-                            }
-                        }
-                    }
-
-                    all_diagnostics.extend(static_diagnostics);
-                }
-                Err(e) => {
-                    // Convert analysis error to diagnostic
-                    let error_diagnostic = handler.create_diagnostic_from_error(
-                        octofhir_fhirpath::core::error_code::FP0001,
-                        format!("Static analysis failed: {}", e),
-                        0..expression.len(),
-                        None,
-                    );
-                    all_diagnostics.push(error_diagnostic);
-                }
-            }
-        }
+        // Static analysis not available (StaticAnalyzer removed)
+        // if parse_result.success && parse_result.ast.is_some() {
+        //     ...
+        // }
 
         // Sort and deduplicate diagnostics (same as CLI)
         all_diagnostics.sort_by(|a, b| {

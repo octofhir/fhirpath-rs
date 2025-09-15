@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use octofhir_fhirpath::analyzer::StaticAnalyzer;
+// use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::core::ModelProvider;
 use octofhir_fhirpath::registry::FunctionRegistry;
 
@@ -12,7 +12,7 @@ use crate::tui::app::{AppState, CompletionItem, CompletionKind};
 pub struct CompletionEngine {
     model_provider: Arc<dyn ModelProvider>,
     function_registry: Option<Arc<FunctionRegistry>>,
-    analyzer: Arc<StaticAnalyzer>,
+    // analyzer: Arc<StaticAnalyzer>, // Removed
     cache: CompletionCache,
 }
 
@@ -38,12 +38,12 @@ impl CompletionEngine {
     pub async fn new(
         model_provider: Arc<dyn ModelProvider>,
         function_registry: Arc<FunctionRegistry>,
-        analyzer: Arc<StaticAnalyzer>,
+        // analyzer: Arc<StaticAnalyzer>, // Removed
     ) -> anyhow::Result<Self> {
         let mut engine = Self {
             model_provider,
             function_registry: Some(function_registry),
-            analyzer,
+            // analyzer,
             cache: CompletionCache::default(),
         };
 

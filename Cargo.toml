@@ -29,9 +29,9 @@ lru = "0.16"
 nom = "8.0.0"
 nom_locate = "5.0.0-beta.5"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
-octofhir-fhir-model = { path = "../fhir-model-rs", features = ["serde"] }
+octofhir-fhir-model = { path = "../fhir-model-rs", features = ["serde", "http-client"] }
 octofhir-fhirschema = { path = "../fhirschema" }
-octofhir-canonical-manager = { version = "0.1.7" }
+octofhir-canonical-manager = { version = "0.1.8" }
 papaya = "0.2"
 url = "2.5"
 percent-encoding = "2.3"

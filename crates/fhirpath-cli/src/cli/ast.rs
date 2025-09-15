@@ -372,38 +372,9 @@ async fn infer_property_access_type_async(
     model_provider: &dyn octofhir_fhirpath::ModelProvider,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     // Use ModelProvider navigation to get correct type information (same as metadata_navigator)
-    match model_provider.navigate_typed_path(object_type, property_name).await {
-        Ok(navigation_result) => {
-            use octofhir_fhir_model::TypeReflectionInfo;
-            
-            // Extract type information from navigation result
-            match navigation_result.result_type {
-                // Handle List types - return as array notation
-                TypeReflectionInfo::ListType { element_type } => {
-                    Ok(Some(format!("{}[]", element_type.name())))
-                }
-                
-                // Handle Simple types - return the type directly  
-                TypeReflectionInfo::SimpleType { name, .. } => {
-                    Ok(Some(name))
-                }
-                
-                // Handle class types  
-                TypeReflectionInfo::ClassInfo { name, .. } => {
-                    Ok(Some(name))
-                }
-                
-                // Handle tuple types
-                TypeReflectionInfo::TupleType { .. } => {
-                    Ok(Some("Tuple".to_string()))
-                }
-            }
-        }
-        Err(_) => {
-            // If navigation fails, return None to let other mechanisms handle it
-            Ok(None)
-        }
-    }
+    // navigate_typed_path method no longer available in new ModelProvider API
+    // Return None for now - type inference not supported with simplified provider
+    Ok(None)
 }
 
 /// Convert Rust AST to FHIRPath Lab format with type information

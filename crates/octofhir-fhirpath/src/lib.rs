@@ -74,7 +74,8 @@ pub mod parser;
 pub mod registry;
 
 // Support modules
-pub mod analyzer;
+// TODO: Re-enable analyzer after fixing ModelProvider refactor issues
+// pub mod analyzer;
 pub mod diagnostics;
 pub mod path;
 pub mod typing;
@@ -82,7 +83,7 @@ pub mod wrapped;
 
 // Re-export core types for convenience
 pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
-pub use octofhir_fhir_model::EmptyModelProvider as MockModelProvider;
+pub use crate::core::model_provider::MockModelProvider;
 
 // Re-export wrapped types for rich metadata support
 pub use crate::wrapped::{
@@ -99,43 +100,33 @@ pub use crate::typing::{
 
 // Re-export main engine types
 pub use crate::evaluator::{
-    BuiltinVariables,
-    CacheEfficiency,
-    CacheMetrics,
-    CacheStats,
-    // Composite evaluator types
-    CompositeEvaluator,
-    EngineConfig,
+    // New clean evaluator
+    Evaluator,
+    FhirPathEvaluator,
+    FhirPathEngine,
+    EvaluationResult,
+    EvaluationWarning,
+    EvaluationMetrics,
+
     // Context system
     EvaluationContext,
     EvaluationContextBuilder,
-    EvaluationMetrics,
-    // Performance and caching types
-    EvaluationResult,
-    EvaluationWarning,
-    FhirPathEngine,
-    MetadataAwareCollectionEvaluator,
-    MetadataAwareEvaluator,
-    MetadataAwareFunctionEvaluator,
-    MetadataAwareNavigator,
-    // Collection types
-    MetadataCollectionEvaluator,
-    // Evaluator types
-    MetadataCoreEvaluator,
-    MetadataFunctionEvaluator,
-    // Navigator types
-    MetadataNavigator,
+    ContextManager,
+
+    // Configuration and metrics
+    EngineConfig,
+    CacheEfficiency,
+    CacheMetrics,
+    CacheStats,
     MetricsCollector,
     PerformanceLevel,
-    PropertyDefinition,
-    ServerApi,
-    ServerContext,
-    TerminologyService,
-    TypeDefinition,
-    TypeFactory,
-    TypeKind,
-    TypeResolutionStats,
-    collection_ops,
+
+    // Support types that remain useful
+    ChoiceTypeDetector,
+    ChoiceProperty,
+    ChoiceResolution,
+    PropertyNavigator,
+
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
@@ -256,7 +247,20 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 /// ```
 pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirPathValue> {
     let mut engine = create_engine_with_mock_provider().await?;
-    let eval_context = EvaluationContext::from_value(context.clone());
+    
+    // Convert FhirPathValue to Collection
+    let collection = match context {
+        FhirPathValue::Collection(collection) => collection.clone(),
+        FhirPathValue::Empty => Collection::empty(),
+        single_value => Collection::single(single_value.clone()),
+    };
+    
+    let eval_context = EvaluationContext::new(
+        collection,
+        engine.get_model_provider(),
+        None, // TODO: Convert TerminologyService to TerminologyProvider
+    ).await;
+    
     let result = engine.evaluate(expression, &eval_context).await?;
     // Convert Collection to FhirPathValue for convenience function
     let values = result.value.into_vec();

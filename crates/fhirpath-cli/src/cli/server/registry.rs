@@ -168,25 +168,20 @@ async fn create_model_provider_for_version(
     let _model_version = version.to_model_version();
 
     match version {
-        ServerFhirVersion::R4 => crate::EmbeddedModelProvider::r4().await.map_err(|e| {
-            error!("Failed to create R4 model provider: {}", e);
-            ServerError::Internal(e.into())
-        }),
-        ServerFhirVersion::R4B => crate::EmbeddedModelProvider::r4b().await.map_err(|e| {
-            error!("Failed to create R4B model provider: {}", e);
-            ServerError::Internal(e.into())
-        }),
-        ServerFhirVersion::R5 => crate::EmbeddedModelProvider::r5().await.map_err(|e| {
-            error!("Failed to create R5 model provider: {}", e);
-            ServerError::Internal(e.into())
-        }),
+        ServerFhirVersion::R4 => {
+            Ok(crate::EmbeddedModelProvider::r4())
+        }
+        ServerFhirVersion::R4B => {
+            // Use R4 for R4B as they are compatible
+            Ok(crate::EmbeddedModelProvider::r4())
+        }
+        ServerFhirVersion::R5 => {
+            Ok(crate::EmbeddedModelProvider::r5())
+        }
         ServerFhirVersion::R6 => {
             // R6 uses R5 schema for now since R6 is still in development
             warn!("FHIR R6 is using R5 schema as R6 is still in development");
-            crate::EmbeddedModelProvider::r5().await.map_err(|e| {
-                error!("Failed to create R6 (R5 schema) model provider: {}", e);
-                ServerError::Internal(e.into())
-            })
+            Ok(crate::EmbeddedModelProvider::r5())
         }
     }
 }
