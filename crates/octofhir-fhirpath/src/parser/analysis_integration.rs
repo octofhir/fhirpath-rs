@@ -220,7 +220,7 @@ impl ComprehensiveAnalyzer {
         let end = (span.end + 10).min(expression.len());
 
         let context = &expression[start..end];
-        format!("...{}...", context)
+        format!("...{context}...")
     }
 
     /// Attempt partial parsing for error recovery
@@ -234,7 +234,7 @@ impl ComprehensiveAnalyzer {
             if let Ok(result) = crate::parser::parse_ast(token) {
                 self.collector.note(
                     FP0154,
-                    format!("Partial recovery: successfully parsed '{}'", token),
+                    format!("Partial recovery: successfully parsed '{token}'"),
                     0..token.len(),
                 );
                 return Some(result);

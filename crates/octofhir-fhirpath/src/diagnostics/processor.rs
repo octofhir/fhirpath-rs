@@ -238,8 +238,8 @@ impl DiagnosticProcessor {
         processor
     }
 
-    /// Process analysis results into rich diagnostics
-    /// TODO: Re-enable after fixing ModelProvider refactor
+    // /// Process analysis results into rich diagnostics
+    // /// TODO: Re-enable after fixing ModelProvider refactor
     // pub fn process_analysis(
     //     &mut self,
     //     result: &StaticAnalysisResult,
@@ -524,8 +524,8 @@ impl DiagnosticProcessor {
             .collect()
     }
 
-    /// Convert analysis warning to diagnostic
-    /// TODO: Re-enable after fixing ModelProvider refactor
+    // /// Convert analysis warning to diagnostic
+    // /// TODO: Re-enable after fixing ModelProvider refactor
     // fn convert_warning_to_diagnostic(
     //     &self,
     //     warning: &AnalysisWarning,
@@ -543,8 +543,8 @@ impl DiagnosticProcessor {
     //     diagnostic
     // }
 
-    /// Convert optimization suggestion to diagnostic
-    /// TODO: Re-enable after fixing ModelProvider refactor
+    // /// Convert optimization suggestion to diagnostic
+    // /// TODO: Re-enable after fixing ModelProvider refactor
     // fn convert_optimization_to_diagnostic(
     //     &self,
     //     suggestion: &OptimizationSuggestion,
@@ -604,12 +604,12 @@ impl DiagnosticProcessor {
 
             // Add help text
             if let Some(help) = &processed.help_text {
-                output.push_str(&format!("\n💡 Help: {}", help));
+                output.push_str(&format!("\n💡 Help: {help}"));
             }
 
             // Add documentation URL
             if let Some(url) = &processed.documentation_url {
-                output.push_str(&format!("\n📚 Documentation: {}", url));
+                output.push_str(&format!("\n📚 Documentation: {url}"));
             }
 
             // Add related diagnostics
@@ -912,7 +912,6 @@ impl RelationshipDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyzer::ComplexityMetrics;
     use crate::core::error_code::*;
 
     #[test]

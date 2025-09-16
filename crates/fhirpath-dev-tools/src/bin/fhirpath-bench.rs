@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use octofhir_fhir_model::FhirVersion;
 use std::fs;
 use std::path::PathBuf;
 
@@ -239,10 +240,8 @@ async fn profile_expression(
 
     // Initialize engine
     let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
-    let model_provider = Arc::new(
-        EmbeddedSchemaProvider::r5()
-,
-    ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
+    let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
+        as Arc<dyn octofhir_fhir_model::ModelProvider>;
     let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
 
     // Get test data
@@ -263,7 +262,9 @@ async fn profile_expression(
         let collection = octofhir_fhirpath::Collection::single(
             octofhir_fhirpath::FhirPathValue::resource(data.clone()),
         );
-        let ctx = octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None).await;
+        let ctx =
+            octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None)
+                .await;
         let _ = engine.evaluate(expression, &ctx).await;
     }
     let duration = start.elapsed();
@@ -343,10 +344,8 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
 
     // Use real FhirSchemaModelProvider with R5 for accurate benchmarks
     println!("Initializing EmbeddedModelProvider R5...");
-    let model_provider = Arc::new(
-        EmbeddedSchemaProvider::r5()
-,
-    ) as Arc<dyn octofhir_fhir_model::ModelProvider>;
+    let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
+        as Arc<dyn octofhir_fhir_model::ModelProvider>;
 
     let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
     let patient_data = get_sample_patient();
@@ -414,7 +413,12 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
                 let collection = octofhir_fhirpath::Collection::single(
                     octofhir_fhirpath::FhirPathValue::resource(data.clone()),
                 );
-                let ctx = octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None).await;
+                let ctx = octofhir_fhirpath::EvaluationContext::new(
+                    collection,
+                    model_provider.clone(),
+                    None,
+                )
+                .await;
                 let _ = engine.evaluate(expr, &ctx).await;
             }
 

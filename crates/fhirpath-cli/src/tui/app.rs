@@ -201,7 +201,7 @@ impl TuiApp {
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> Result<Self> {
         // Create engine and analyzer
-        let registry = Arc::new(octofhir_fhirpath::create_standard_registry().await);
+        let registry = Arc::new(octofhir_fhirpath::create_empty_registry());
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone()).await?;
         // let analyzer = StaticAnalyzer::new(registry, model_provider); // Removed
 
@@ -377,27 +377,27 @@ impl TuiApp {
                 // Parse the value as FhirPathValue
                 if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&value) {
                     let fhirpath_value = match json_value {
-                        serde_json::Value::String(s) => FhirPathValue::String(s),
+                        serde_json::Value::String(s) => FhirPathValue::String(s.into(), None, None),
                         serde_json::Value::Number(n) => {
                             if let Some(i) = n.as_i64() {
-                                FhirPathValue::Integer(i)
+                                FhirPathValue::Integer(i, None, None)
                             } else if let Some(f) = n.as_f64() {
                                 FhirPathValue::Decimal(
-                                    Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)),
+                                    Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)), None, None
                                 )
                             } else {
-                                FhirPathValue::String(value)
+                                FhirPathValue::String(value.into(), None, None)
                             }
                         }
-                        serde_json::Value::Bool(b) => FhirPathValue::Boolean(b),
-                        _ => FhirPathValue::String(value),
+                        serde_json::Value::Bool(b) => FhirPathValue::Boolean(b, None, None),
+                        _ => FhirPathValue::String(value.into(), None, None),
                     };
                     self.state.variables.insert(name, fhirpath_value);
                 } else {
                     // Fallback to string value
                     self.state
                         .variables
-                        .insert(name, FhirPathValue::String(value));
+                        .insert(name, FhirPathValue::String(value.into(), None, None));
                 }
                 Ok(false)
             }
@@ -649,23 +649,23 @@ impl TuiApp {
     /// Convert JSON value to FhirPathValue
     fn json_to_fhirpath_value(&self, json: &serde_json::Value) -> FhirPathValue {
         match json {
-            serde_json::Value::Null => FhirPathValue::String("null".to_string()),
-            serde_json::Value::Bool(b) => FhirPathValue::Boolean(*b),
+            serde_json::Value::Null => FhirPathValue::String("null".to_string().into(), None, None),
+            serde_json::Value::Bool(b) => FhirPathValue::Boolean(*b, None, None),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
-                    FhirPathValue::Integer(i)
+                    FhirPathValue::Integer(i, None, None)
                 } else if let Some(f) = n.as_f64() {
                     FhirPathValue::Decimal(
-                        Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)),
+                        Decimal::try_from(f).unwrap_or_else(|_| Decimal::from(0)), None, None
                     )
                 } else {
-                    FhirPathValue::String(n.to_string())
+                    FhirPathValue::String(n.to_string().into(), None, None)
                 }
             }
-            serde_json::Value::String(s) => FhirPathValue::String(s.clone()),
+            serde_json::Value::String(s) => FhirPathValue::String(s.clone().into(), None, None),
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
                 // For complex objects, create a Resource value
-                FhirPathValue::Resource(std::sync::Arc::new(json.clone()))
+                FhirPathValue::Resource(std::sync::Arc::new(json.clone()), None, None)
             }
         }
     }

@@ -64,7 +64,7 @@ impl LiteralValue {
         input.parse::<i64>().map(Self::Integer).map_err(|_| {
             FhirPathError::parse_error(
                 FP0006,
-                format!("Invalid integer literal: {}", input),
+                format!("Invalid integer literal: {input}"),
                 input.to_string(),
                 None,
             )
@@ -76,7 +76,7 @@ impl LiteralValue {
         input.parse::<Decimal>().map(Self::Decimal).map_err(|_| {
             FhirPathError::parse_error(
                 FP0006,
-                format!("Invalid decimal literal: {}", input),
+                format!("Invalid decimal literal: {input}"),
                 input.to_string(),
                 None,
             )
@@ -101,7 +101,7 @@ impl LiteralValue {
         } else {
             Err(FhirPathError::parse_error(
                 FP0001,
-                format!("Invalid date literal: {}", input),
+                format!("Invalid date literal: {input}"),
                 input.to_string(),
                 None,
             ))
@@ -126,7 +126,7 @@ impl LiteralValue {
         } else {
             Err(FhirPathError::parse_error(
                 FP0001,
-                format!("Invalid datetime literal: {}", input),
+                format!("Invalid datetime literal: {input}"),
                 input.to_string(),
                 None,
             ))
@@ -151,7 +151,7 @@ impl LiteralValue {
         } else {
             Err(FhirPathError::parse_error(
                 FP0001,
-                format!("Invalid time literal: {}", input),
+                format!("Invalid time literal: {input}"),
                 input.to_string(),
                 None,
             ))
@@ -163,7 +163,7 @@ impl LiteralValue {
         let value = value_str.parse::<Decimal>().map_err(|_| {
             FhirPathError::parse_error(
                 FP0006,
-                format!("Invalid quantity value: {}", value_str),
+                format!("Invalid quantity value: {value_str}"),
                 value_str.to_string(),
                 None,
             )
@@ -247,19 +247,19 @@ impl fmt::Display for LiteralValue {
                     .replace('\r', "\\r")
                     .replace('\n', "\\n")
                     .replace('\t', "\\t");
-                write!(f, "'{}'", escaped)
+                write!(f, "'{escaped}'")
             }
-            Self::Integer(i) => write!(f, "{}", i),
-            Self::Decimal(d) => write!(f, "{}", d),
-            Self::Boolean(b) => write!(f, "{}", b),
-            Self::Date(d) => write!(f, "@{}", d),
-            Self::DateTime(dt) => write!(f, "@{}", dt),
-            Self::Time(t) => write!(f, "@T{}", t),
+            Self::Integer(i) => write!(f, "{i}"),
+            Self::Decimal(d) => write!(f, "{d}"),
+            Self::Boolean(b) => write!(f, "{b}"),
+            Self::Date(d) => write!(f, "@{d}"),
+            Self::DateTime(dt) => write!(f, "@{dt}"),
+            Self::Time(t) => write!(f, "@T{t}"),
             Self::Quantity { value, unit } => {
                 if let Some(unit) = unit {
-                    write!(f, "{} '{}'", value, unit)
+                    write!(f, "{value} '{unit}'")
                 } else {
-                    write!(f, "{}", value)
+                    write!(f, "{value}")
                 }
             }
         }
@@ -293,8 +293,8 @@ impl LiteralValue {
         let naive_date = NaiveDate::from_ymd_opt(year, month, day).ok_or_else(|| {
             FhirPathError::parse_error(
                 FP0001,
-                format!("Invalid date: {}-{:02}-{:02}", year, month, day),
-                format!("{}-{:02}-{:02}", year, month, day),
+                format!("Invalid date: {year}-{month:02}-{day:02}"),
+                format!("{year}-{month:02}-{day:02}"),
                 None,
             )
         })?;
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn test_date_parsing() {
         use crate::core::TemporalPrecision;
-        
+
         let literal = LiteralValue::parse_date("@2023-12-25").unwrap();
         match literal {
             LiteralValue::Date(date) => {

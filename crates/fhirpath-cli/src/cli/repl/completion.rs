@@ -281,11 +281,8 @@ impl FhirPathCompleter {
     fn get_functions_from_registry(&self) -> Vec<String> {
         if let Ok(registry_guard) = self.registry.read() {
             if let Some(ref registry) = *registry_guard {
-                return registry
-                    .list_functions()
-                    .iter()
-                    .map(|f| f.name.clone())
-                    .collect();
+                // FunctionRegistry is currently a placeholder, so return empty list
+                return Vec::new();
             }
         }
         Vec::new()

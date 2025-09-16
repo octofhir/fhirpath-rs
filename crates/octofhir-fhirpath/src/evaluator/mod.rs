@@ -1,47 +1,37 @@
 //! FHIRPath expression evaluator
 //!
-//! Clean evaluator architecture for FHIRPath expressions
+//! This module provides the complete FHIRPath evaluation engine with registry-based
+//! architecture for operators and functions.
 
-// Core evaluation modules
-pub mod cache;
-pub mod config;
-pub mod context_manager;
-pub mod metrics;
-
-// New clean evaluator architecture
+// Core evaluator modules
 pub mod evaluator;
+pub mod context;
+pub mod operator_registry;
+pub mod function_registry;
 pub mod engine;
-pub mod lambda_functions;
+pub mod operations;
 
-// Support modules that remain useful
-pub mod choice_types;
-pub mod choice_types_performance_tests;
-pub mod property_navigator;
-pub mod property_navigator_choice_tests;
-pub mod real_fhir_data_tests;
+// Backward compatibility stub (temporary)
+pub mod stub;
 
-// Re-export the context system
-pub use context_manager::{ContextManager, EvaluationContext, EvaluationContextBuilder};
-
-// Re-export the main engine types
-pub use engine::{EvaluationResult, EvaluationWarning};
-
-// Re-export configuration types
-pub use config::EngineConfig;
-
-// Re-export metrics types
-pub use metrics::{EvaluationMetrics, MetricsCollector, PerformanceLevel};
-
-// Re-export cache types
-pub use cache::{CacheEfficiency, CacheMetrics, CacheStats};
-
-// Re-export new clean evaluator
-pub use evaluator::{Evaluator, FhirPathEvaluator};
-pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
-pub use lambda_functions::{
-    LambdaFunctionEvaluator, where_function_metadata, aggregate_function_metadata, define_variable_function_metadata
+// Re-export main types
+pub use evaluator::{Evaluator, AsyncNodeEvaluator};
+pub use context::{EvaluationContext, VariableStack, SystemVariables, EvaluationContextExt};
+pub use operator_registry::{
+    OperatorRegistry, OperationEvaluator, OperatorMetadata, OperatorSignature,
+    EmptyPropagation, Associativity, create_default_operator_registry,
+};
+pub use function_registry::{
+    FunctionRegistry, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    FunctionParameter, FunctionCategory, create_default_function_registry,
+    create_basic_function_registry,
 };
 
-// Re-export choice type support
-pub use choice_types::{ChoiceTypeDetector, ChoiceProperty, ChoiceResolution};
-pub use property_navigator::PropertyNavigator;
+// Re-export engine types
+pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
+
+// Re-export stub types for backward compatibility
+pub use stub::{
+    EvaluationResult,
+    EvaluationResultWithMetadata,
+};

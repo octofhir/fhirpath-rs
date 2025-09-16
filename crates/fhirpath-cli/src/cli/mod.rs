@@ -85,23 +85,6 @@ pub enum Commands {
         #[arg(long, short = 'v')]
         verbose: bool,
     },
-    /// Parse and validate FHIRPath expression syntax
-    Parse {
-        /// FHIRPath expression to parse
-        expression: String,
-        /// Output format
-        #[arg(long, short = 'o', value_enum)]
-        output_format: Option<OutputFormat>,
-        /// Disable colored output
-        #[arg(long)]
-        no_color: bool,
-        /// Suppress informational messages
-        #[arg(long, short = 'q')]
-        quiet: bool,
-        /// Verbose output with additional details
-        #[arg(long, short = 'v')]
-        verbose: bool,
-    },
     /// Validate FHIRPath expression syntax (alias for parse)
     Validate {
         /// FHIRPath expression to validate
@@ -150,20 +133,25 @@ pub enum Commands {
         /// Error code to get documentation for (e.g., FP0001, FP0055)
         error_code: String,
     },
-    /// Start interactive FHIRPath REPL
-    Repl {
-        /// JSON file containing FHIR resource to load initially
-        #[arg(short, long)]
-        input: Option<String>,
-        /// Initial variables to set in format var=value (can be used multiple times)
-        #[arg(short, long = "variable")]
-        variables: Vec<String>,
-        /// History file to use (default: ~/.fhirpath_history)
-        #[arg(long)]
-        history_file: Option<String>,
-        /// Maximum number of history entries (default: 1000)
-        #[arg(long, default_value = "1000")]
-        history_size: usize,
+    // /// Start interactive FHIRPath REPL (commented out during Phase 1)
+    // Repl {
+    //     /// JSON file containing FHIR resource to load initially
+    //     #[arg(short, long)]
+    //     input: Option<String>,
+    //     /// Initial variables to set in format var=value (can be used multiple times)
+    //     #[arg(short, long = "variable")]
+    //     variables: Vec<String>,
+    //     /// History file to use (default: ~/.fhirpath_history)
+    //     #[arg(long)]
+    //     history_file: Option<String>,
+    //     /// Maximum number of history entries (default: 1000)
+    //     #[arg(long, default_value = "1000")]
+    //     history_size: usize,
+    // },
+    /// Registry information for functions and operators
+    Registry {
+        #[command(subcommand)]
+        command: RegistryCommands,
     },
     // /// Start HTTP server with web interface
     // Server {
@@ -222,4 +210,65 @@ pub enum Commands {
     //     #[arg(long)]
     //     check_terminal: bool,
     // },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum RegistryCommands {
+    /// List available functions or operators
+    List {
+        /// What to list: functions or operators
+        #[arg(value_enum)]
+        target: RegistryTarget,
+        /// Filter by category (e.g., Collection, Math, Logical)
+        #[arg(long)]
+        category: Option<String>,
+        /// Search pattern to filter by name or description
+        #[arg(long)]
+        search: Option<String>,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
+    },
+    /// Show detailed information about a specific function or operator
+    Show {
+        /// Name of the function or operator to show
+        name: String,
+        /// Whether to show function or operator details
+        #[arg(long, value_enum, default_value = "auto")]
+        target: RegistryShowTarget,
+        /// Output format
+        #[arg(long, short = 'o', value_enum)]
+        output_format: Option<OutputFormat>,
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+        /// Suppress informational messages
+        #[arg(long, short = 'q')]
+        quiet: bool,
+        /// Verbose output with additional details
+        #[arg(long, short = 'v')]
+        verbose: bool,
+    },
+}
+
+#[derive(clap::ValueEnum, Clone)]
+pub enum RegistryTarget {
+    Functions,
+    Operators,
+}
+
+#[derive(clap::ValueEnum, Clone)]
+pub enum RegistryShowTarget {
+    Auto,
+    Function,
+    Operator,
 }

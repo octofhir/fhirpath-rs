@@ -30,6 +30,10 @@ path = "src/bin/fhirpath-bench.rs"
 name = "generate-docs"
 path = "src/bin/generate-docs.rs"
 
+[[bin]]
+name = "test-export"
+path = "src/bin/test-export.rs"
+
 [lints]
 workspace = true
 

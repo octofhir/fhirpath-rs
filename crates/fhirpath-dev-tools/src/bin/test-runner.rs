@@ -16,6 +16,7 @@
 //!
 //! Usage: cargo run --bin test-runner <test_file.json>
 
+use octofhir_fhir_model::FhirVersion;
 use octofhir_fhirpath::FhirPathValue;
 use serde_json::Value;
 use std::env;
@@ -43,6 +44,8 @@ struct TestCase {
     pub expecterror: Option<bool>,
     #[serde(default)]
     pub predicate: Option<bool>,
+    #[serde(default, alias = "invalidKind")]
+    pub invalidkind: Option<String>,
 }
 
 /// A test suite containing multiple test cases
@@ -178,14 +181,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create FHIR schema provider (R4) to match CLI behavior
     println!("📋 Initializing FHIR R5 schema provider...");
     let provider_timeout = Duration::from_secs(60);
-    let provider = octofhir_fhirschema::EmbeddedSchemaProvider::r5();
+    let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(FhirVersion::R5);
     println!("✅ EmbeddedModelProvider (R5) loaded successfully");
     let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = Arc::new(provider);
 
     // Create function registry
     println!("📋 Creating function registry...");
     let registry_start = std::time::Instant::now();
-    let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
+    let registry = std::sync::Arc::new(octofhir_fhirpath::create_empty_registry());
     let registry_time = registry_start.elapsed();
     println!(
         "✅ Function registry created in {}ms",
@@ -196,7 +199,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📋 Creating FhirPathEngine...");
     let engine_start = std::time::Instant::now();
     // Detect FHIR version from the model provider to align terminology server
-    let provider_version = model_provider.get_fhir_version().await.unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
+    let provider_version = model_provider
+        .get_fhir_version()
+        .await
+        .unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
     let fhir_version = match provider_version {
         octofhir_fhirschema::ModelFhirVersion::R4 => "r4".to_string(),
         octofhir_fhirschema::ModelFhirVersion::R4B => "r4b".to_string(),
@@ -204,11 +210,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         octofhir_fhirschema::ModelFhirVersion::R6 => "r6".to_string(),
         _ => "r4".to_string(),
     };
-    let mut engine = octofhir_fhirpath::FhirPathEngine::new(
-        registry,
-        model_provider.clone(),
-    )
-    .await?;
+    let mut engine =
+        octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
     // Attach real terminology provider (tx.fhir.org) by default for integration tests
     let tx_base = match fhir_version.as_str() {
         "r6" => "https://tx.fhir.org/r6",
@@ -217,7 +220,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => "https://tx.fhir.org/r4",
     };
     if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base.to_string()) {
-        let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = std::sync::Arc::new(tx);
+        let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> =
+            std::sync::Arc::new(tx);
         engine = engine.with_terminology_provider(tx_arc.clone());
     }
     let engine_time = engine_start.elapsed();
@@ -226,7 +230,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut failed = 0;
     let mut errors = 0;
 
-    for test_case in &test_suite.tests {
+    'test_loop: for test_case in &test_suite.tests {
         print!("Running {} ... ", test_case.name);
 
         // (Debug block removed; keeping runner output lean for CI)
@@ -247,14 +251,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Value::Null
         };
 
+        // Check for semantic errors first if test expects an error (before consuming input_data)
+        if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
+            if let Some(ref invalid_kind) = test_case.invalidkind {
+                if invalid_kind == "semantic" {
+                    // Extract context type from input data if available
+                    let context_type = if input_data != Value::Null {
+                        // Try to determine FHIR resource type from input
+                        if let Some(resource_type) = input_data.get("resourceType").and_then(|v| v.as_str()) {
+                            model_provider.get_type(resource_type).await.ok().flatten()
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                        &test_case.expression,
+                        model_provider.clone(),
+                        context_type,
+                    ).await;
+
+                    if !semantic_result.analysis.success {
+                        // Found semantic error as expected
+                        for diagnostic in &semantic_result.analysis.diagnostics {
+                            if matches!(diagnostic.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error) {
+                                println!("✅ PASS: Semantic error detected: {}", diagnostic.message);
+                                passed += 1;
+                                continue 'test_loop;
+                            }
+                        }
+                    }
+                    // If we get here, no semantic error was found
+                    println!("❌ FAIL: Expected semantic error but none found");
+                    failed += 1;
+                    continue;
+                }
+            }
+        }
+
         // Convert input to FhirPathValue and create evaluation context
         let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
         let input_collection = octofhir_fhirpath::Collection::single(input_value);
-        let mut context = octofhir_fhirpath::EvaluationContext::new(
+        let context = octofhir_fhirpath::EvaluationContext::new(
             input_collection,
             model_provider.clone(),
             engine.get_terminology_provider(),
-        ).await;
+        )
+        .await;
 
         // Log terminology setup only for tests that actually use it (engine handles terminology setup automatically)
         if test_suite.name.contains("Terminology")
@@ -267,6 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fhir_version, test_case.name
             );
         }
+
 
         // Use single root evaluation method (parse + evaluate in one call)
         let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -323,7 +369,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let final_result = if test_case.predicate.is_some() && test_case.predicate.unwrap() {
             use octofhir_fhirpath::FhirPathValue;
             let exists = !result.is_empty();
-            octofhir_fhirpath::Collection::single(FhirPathValue::Boolean(exists))
+            octofhir_fhirpath::Collection::single(FhirPathValue::Boolean(exists, octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true), None))
         } else {
             result
         };

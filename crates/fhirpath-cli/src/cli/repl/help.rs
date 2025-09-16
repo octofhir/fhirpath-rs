@@ -70,12 +70,9 @@ impl HelpSystem {
 
     /// Get function names from registry if available (async version)
     pub async fn get_available_functions(&self) -> Vec<String> {
-        if let Some(registry) = &self.registry {
-            registry
-                .list_functions()
-                .iter()
-                .map(|f| f.name.clone())
-                .collect()
+        if let Some(_registry) = &self.registry {
+            // FunctionRegistry is currently a placeholder, so use built-in help
+            self.function_help.keys().cloned().collect()
         } else {
             self.function_help.keys().cloned().collect()
         }
@@ -87,8 +84,9 @@ impl HelpSystem {
             return true;
         }
 
-        if let Some(registry) = &self.registry {
-            registry.get_function_metadata(name).is_some()
+        if let Some(_registry) = &self.registry {
+            // FunctionRegistry is currently a placeholder, so use built-in help
+            self.function_help.contains_key(name)
         } else {
             false
         }

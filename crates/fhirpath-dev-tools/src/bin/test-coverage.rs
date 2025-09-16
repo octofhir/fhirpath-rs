@@ -25,9 +25,10 @@ use std::path::PathBuf;
 
 // Integration test runner functionality
 mod integration_test_runner {
-    use octofhir_fhirpath::ModelProvider;
-    use octofhir_fhirpath::{Collection, FhirPathEngine, create_standard_registry};
+    use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
+    use octofhir_fhirpath::ModelProvider;
+    use octofhir_fhirpath::{Collection, FhirPathEngine, create_empty_registry};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::collections::HashMap;
@@ -157,17 +158,20 @@ mod integration_test_runner {
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
                 // Add timeout to prevent hanging
                 let timeout_duration = std::time::Duration::from_secs(60);
-                let provider = octofhir_fhirschema::EmbeddedSchemaProvider::r5();
+                let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(FhirVersion::R5);
                 println!("✅ EmbeddedModelProvider (R5) loaded successfully");
                 std::sync::Arc::new(provider)
             };
 
-            let registry = Arc::new(create_standard_registry().await);
+            let registry = Arc::new(create_empty_registry());
             let mut engine = FhirPathEngine::new(registry.clone(), model_provider.clone())
                 .await
                 .expect("cannot create engine");
             // Attach real terminology provider (tx.fhir.org) by default, matching model provider version
-            let provider_version = model_provider.get_fhir_version().await.unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
+            let provider_version = model_provider
+                .get_fhir_version()
+                .await
+                .unwrap_or(octofhir_fhirschema::ModelFhirVersion::R4);
             let tx_path = match provider_version {
                 octofhir_fhirschema::ModelFhirVersion::R4 => "r4",
                 octofhir_fhirschema::ModelFhirVersion::R4B => "r4b",
@@ -177,7 +181,9 @@ mod integration_test_runner {
             };
             let tx_base = format!("https://tx.fhir.org/{}", tx_path);
             if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base) {
-                let tx_arc: std::sync::Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = std::sync::Arc::new(tx);
+                let tx_arc: std::sync::Arc<
+                    dyn octofhir_fhir_model::terminology::TerminologyProvider,
+                > = std::sync::Arc::new(tx);
                 engine = engine.with_terminology_provider(tx_arc.clone());
             }
 
@@ -278,7 +284,7 @@ mod integration_test_runner {
 
         /// Convert expected JSON value to FhirPathValue for comparison
         fn convert_expected_value(&self, expected: &Value) -> FhirPathValue {
-            FhirPathValue::JsonValue(Arc::new(expected.clone()))
+            FhirPathValue::json_value(expected.clone())
         }
 
         /// Compare actual collection result with expected result
@@ -446,6 +452,45 @@ mod integration_test_runner {
                 serde_json::Value::Null
             };
 
+            // Check for semantic errors first if test expects an error (before consuming input_data)
+            if test.expect_error.unwrap_or(false) {
+                if let Some(ref invalid_kind) = test.invalid_kind {
+                    if invalid_kind == "semantic" {
+                        // Extract context type from input data if available
+                        let context_type = if input_data != serde_json::Value::Null {
+                            // Try to determine FHIR resource type from input
+                            if let Some(resource_type) = input_data.get("resourceType").and_then(|v| v.as_str()) {
+                                self.model_provider.get_type(resource_type).await.ok().flatten()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                            &test.expression,
+                            self.model_provider.clone(),
+                            context_type,
+                        ).await;
+
+                        if !semantic_result.analysis.success {
+                            // Found semantic error as expected
+                            for diagnostic in &semantic_result.analysis.diagnostics {
+                                if matches!(diagnostic.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error) {
+                                    return TestResult::Passed;
+                                }
+                            }
+                        }
+                        // If we get here, no semantic error was found
+                        return TestResult::Failed {
+                            expected: serde_json::Value::String("Semantic error expected".to_string()),
+                            actual: serde_json::Value::String("No semantic error detected".to_string()),
+                        };
+                    }
+                }
+            }
+
             // Convert input_data to FhirPathValue and create context - same as test-runner
             let input_value = octofhir_fhirpath::FhirPathValue::resource(input_data);
             let input_collection = octofhir_fhirpath::Collection::single(input_value);
@@ -453,7 +498,8 @@ mod integration_test_runner {
                 input_collection,
                 self.model_provider.clone(),
                 self.engine.get_terminology_provider(),
-            ).await;
+            )
+            .await;
 
             // Use single root evaluation method (parse + evaluate in one call) - same as test-runner
             let timeout_ms: u64 = std::env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -496,7 +542,7 @@ mod integration_test_runner {
             // Handle predicate tests - convert result to boolean using FHIRPath exists() logic
             let result = if test.predicate.unwrap_or(false) {
                 let exists = !result.is_empty();
-                Collection::single(FhirPathValue::Boolean(exists))
+                Collection::single(FhirPathValue::Boolean(exists, octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true), None))
             } else {
                 result
             };
@@ -552,9 +598,19 @@ mod integration_test_runner {
 
             for test in &suite.tests {
                 // Wrap the entire test in an outer timeout so file I/O or other steps cannot hang
-                let result = match tokio::time::timeout(std::time::Duration::from_millis(case_timeout_ms), self.run_test(test)).await {
+                let result = match tokio::time::timeout(
+                    std::time::Duration::from_millis(case_timeout_ms),
+                    self.run_test(test),
+                )
+                .await
+                {
                     Ok(r) => r,
-                    Err(_) => TestResult::Error { error: format!("Test '{}' timed out after {}ms (outer)", test.name, case_timeout_ms) },
+                    Err(_) => TestResult::Error {
+                        error: format!(
+                            "Test '{}' timed out after {}ms (outer)",
+                            test.name, case_timeout_ms
+                        ),
+                    },
                 };
                 results.insert(test.name.clone(), result);
             }
@@ -683,7 +739,12 @@ async fn main() -> Result<()> {
             // Ensure the line is flushed even if subsequent work blocks
             let _ = std::io::Write::flush(&mut std::io::stdout());
 
-            match tokio::time::timeout(std::time::Duration::from_millis(suite_timeout_ms), runner.run_and_report_quiet(test_file)).await {
+            match tokio::time::timeout(
+                std::time::Duration::from_millis(suite_timeout_ms),
+                runner.run_and_report_quiet(test_file),
+            )
+            .await
+            {
                 Ok(Ok(stats)) => {
                     // Show ERROR status if there are parse errors, otherwise show pass/fail info
                     if stats.errored > 0 {
@@ -714,7 +775,13 @@ async fn main() -> Result<()> {
                             "🔴"
                         };
 
-                        println!(" {} {}/{} ({:.1}%)", emoji, stats.passed, stats.total, stats.pass_rate());
+                        println!(
+                            " {} {}/{} ({:.1}%)",
+                            emoji,
+                            stats.passed,
+                            stats.total,
+                            stats.pass_rate()
+                        );
                     }
 
                     test_results.push((filename.to_string(), stats));

@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::cmp::Ordering;
 use std::fmt;
-use std::sync::Arc;
-use uuid::Uuid;
+use std::sync::{Arc, LazyLock};
 
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
+use super::model_provider::TypeInfo;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
-use super::wrapped::FhirPathWrapped;
+// New wrapped primitive element for Phase 1 implementation
 
 /// A collection of FHIRPath values - the fundamental evaluation result type
 #[derive(Debug, Clone, PartialEq)]
@@ -187,31 +187,102 @@ impl serde::Serialize for Collection {
     }
 }
 
-/// FHIRPath value type supporting core FHIR primitive types
+/// Wrapped primitive element for FHIR primitive type extensions
+/// Replaces the old wrapped module approach with direct embedding
+#[derive(Debug, Clone, PartialEq)]
+pub struct WrappedPrimitiveElement {
+    /// Element ID for FHIR primitive types
+    pub id: Option<String>,
+    /// Extensions for primitive types
+    pub extensions: Vec<WrappedExtension>,
+}
+
+/// Extension for wrapped primitive elements
+#[derive(Debug, Clone, PartialEq)]
+pub struct WrappedExtension {
+    /// Extension URL
+    pub url: String,
+    /// Extension value
+    pub value: Option<JsonValue>,
+    /// Nested extensions
+    pub extensions: Vec<WrappedExtension>,
+}
+
+impl WrappedPrimitiveElement {
+    /// Create new wrapped primitive element
+    pub fn new() -> Self {
+        Self {
+            id: None,
+            extensions: Vec::new(),
+        }
+    }
+
+    /// Create with ID
+    pub fn with_id(id: String) -> Self {
+        Self {
+            id: Some(id),
+            extensions: Vec::new(),
+        }
+    }
+
+    /// Add extension
+    pub fn add_extension(mut self, extension: WrappedExtension) -> Self {
+        self.extensions.push(extension);
+        self
+    }
+
+    /// Check if has any content
+    pub fn is_empty(&self) -> bool {
+        self.id.is_none() && self.extensions.is_empty()
+    }
+}
+
+impl WrappedExtension {
+    /// Create new extension
+    pub fn new(url: String) -> Self {
+        Self {
+            url,
+            value: None,
+            extensions: Vec::new(),
+        }
+    }
+
+    /// Create with value
+    pub fn with_value(url: String, value: JsonValue) -> Self {
+        Self {
+            url,
+            value: Some(value),
+            extensions: Vec::new(),
+        }
+    }
+}
+
+/// FHIRPath value type with wrapped terminology and TypeInfo integration
+/// Phase 1: New design with wrapped value system and ModelProvider integration
 #[derive(Debug, Clone, PartialEq)]
 pub enum FhirPathValue {
-    /// Boolean value
-    Boolean(bool),
+    /// Boolean value with TypeInfo and optional wrapped primitive element
+    Boolean(bool, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// Integer value (64-bit signed)
-    Integer(i64),
+    /// Integer value (64-bit signed) with TypeInfo and optional wrapped primitive element
+    Integer(i64, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// Decimal value (high-precision)
-    Decimal(Decimal),
+    /// Decimal value (high-precision) with TypeInfo and optional wrapped primitive element
+    Decimal(Decimal, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// String value
-    String(String),
+    /// String value with TypeInfo and optional wrapped primitive element
+    String(String, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// Date value with precision tracking
-    Date(PrecisionDate),
+    /// Date value with precision tracking, TypeInfo and optional wrapped primitive element
+    Date(PrecisionDate, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// DateTime value with timezone and precision tracking
-    DateTime(PrecisionDateTime),
+    /// DateTime value with timezone and precision tracking, TypeInfo and optional wrapped primitive element
+    DateTime(PrecisionDateTime, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// Time value with precision tracking
-    Time(PrecisionTime),
+    /// Time value with precision tracking, TypeInfo and optional wrapped primitive element
+    Time(PrecisionTime, TypeInfo, Option<WrappedPrimitiveElement>),
 
-    /// Quantity value with UCUM unit support
+    /// Quantity value with UCUM unit support, TypeInfo and optional wrapped primitive element
     Quantity {
         /// The numeric value of the quantity
         value: Decimal,
@@ -221,38 +292,17 @@ pub enum FhirPathValue {
         ucum_unit: Option<Arc<UnitRecord>>,
         /// Calendar unit for non-UCUM time units (year, month, week, day)
         calendar_unit: Option<CalendarUnit>,
+        /// Type information from ModelProvider
+        type_info: TypeInfo,
+        /// Optional wrapped primitive element
+        primitive_element: Option<WrappedPrimitiveElement>,
     },
 
-    /// Complex FHIR resource or element (JSON representation)
-    /// This handles all complex FHIR types like Coding, CodeableConcept, etc.
-    Resource(Arc<JsonValue>),
-
-    /// Raw JSON value for compatibility (distinct from Resource for type operations)
-    JsonValue(Arc<JsonValue>),
-
-    /// Wrapped value for complex data with type preservation and zero-copy sharing
-    Wrapped(FhirPathWrapped<JsonValue>),
-    
-    /// Wrapped FHIR resource with type metadata and primitive element support
-    ResourceWrapped(FhirPathWrapped<JsonValue>),
-
-    /// UUID/identifier value
-    Id(Uuid),
-
-    /// Binary data (base64 encoded)
-    Base64Binary(Vec<u8>),
-
-    /// URI value
-    Uri(String),
-
-    /// URL value (subset of URI)
-    Url(String),
+    /// Resource/complex type with TypeInfo for FHIR schema validation
+    Resource(Arc<JsonValue>, TypeInfo, Option<WrappedPrimitiveElement>),
 
     /// Collection of values (the fundamental FHIRPath concept)
     Collection(Collection),
-
-    /// Type information object for type operations
-    TypeInfoObject { namespace: String, name: String },
 
     /// Null/empty value (represents absence)
     Empty,
@@ -264,9 +314,9 @@ impl serde::Serialize for FhirPathValue {
         S: serde::Serializer,
     {
         match self {
-            Self::Boolean(b) => serializer.serialize_bool(*b),
-            Self::Integer(i) => serializer.serialize_i64(*i),
-            Self::Decimal(d) => {
+            Self::Boolean(b, _, _) => serializer.serialize_bool(*b),
+            Self::Integer(i, _, _) => serializer.serialize_i64(*i),
+            Self::Decimal(d, _, _) => {
                 // Try to serialize as number, fall back to string if precision issues
                 if let Ok(f) = d.to_string().parse::<f64>() {
                     serializer.serialize_f64(f)
@@ -274,37 +324,21 @@ impl serde::Serialize for FhirPathValue {
                     serializer.serialize_str(&d.to_string())
                 }
             }
-            Self::String(s) => serializer.serialize_str(s),
-            Self::Date(date) => serializer.serialize_str(&date.to_string()),
-            Self::DateTime(dt) => serializer.serialize_str(&dt.to_string()),
-            Self::Time(time) => serializer.serialize_str(&time.to_string()),
+            Self::String(s, _, _) => serializer.serialize_str(s),
+            Self::Date(date, _, _) => serializer.serialize_str(&date.to_string()),
+            Self::DateTime(dt, _, _) => serializer.serialize_str(&dt.to_string()),
+            Self::Time(time, _, _) => serializer.serialize_str(&time.to_string()),
             Self::Quantity { value, unit, .. } => {
                 // Serialize Quantity as its FHIRPath literal string form: "<value> '<unit>'" or just "<value>"
                 let s = if let Some(unit) = unit {
-                    format!("{} '{}'", value, unit)
+                    format!("{value} '{unit}'")
                 } else {
                     value.to_string()
                 };
                 serializer.serialize_str(&s)
             }
-            Self::Resource(json) => json.serialize(serializer),
-            Self::Wrapped(wrapped) => wrapped.unwrap().serialize(serializer),
-            Self::ResourceWrapped(wrapped) => wrapped.unwrap().serialize(serializer),
-            Self::Id(id) => serializer.serialize_str(&id.to_string()),
-            Self::Base64Binary(data) => {
-                // For now, serialize as string representation since we removed base64 dependency
-                serializer.serialize_str(&format!("base64({} bytes)", data.len()))
-            }
-            Self::Uri(uri) => serializer.serialize_str(uri),
-            Self::Url(url) => serializer.serialize_str(url),
+            Self::Resource(json, _, _) => json.serialize(serializer),
             Self::Collection(collection) => collection.serialize(serializer),
-            Self::TypeInfoObject { namespace, name } => {
-                let mut map = std::collections::BTreeMap::new();
-                map.insert("namespace", namespace);
-                map.insert("name", name);
-                map.serialize(serializer)
-            }
-            Self::JsonValue(json) => json.serialize(serializer),
             Self::Empty => serializer.serialize_unit(),
         }
     }
@@ -363,37 +397,182 @@ impl fmt::Display for CalendarUnit {
 }
 
 impl FhirPathValue {
-    /// Create an integer value
+    /// Create an integer value with default TypeInfo
     pub fn integer(value: i64) -> Self {
-        Self::Integer(value)
+        let type_info = TypeInfo {
+            type_name: "Integer".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Integer".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Integer(value, type_info, None)
+    }
+
+    /// Get TypeInfo for this value (always available in Phase 1)
+    pub fn type_info(&self) -> &TypeInfo {
+        match self {
+            Self::Boolean(_, type_info, _)
+            | Self::Integer(_, type_info, _)
+            | Self::Decimal(_, type_info, _)
+            | Self::String(_, type_info, _)
+            | Self::Date(_, type_info, _)
+            | Self::DateTime(_, type_info, _)
+            | Self::Time(_, type_info, _)
+            | Self::Resource(_, type_info, _) => type_info,
+            Self::Quantity { type_info, .. } => type_info,
+            Self::Collection(_) => {
+                // Return a reference to a static lazy TypeInfo
+                static COLLECTION_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
+                    type_name: "Collection".to_string(),
+                    singleton: false,
+                    namespace: Some("System".to_string()),
+                    name: Some("Collection".to_string()),
+                    is_empty: Some(false),
+                    is_union_type: Some(false),
+                    union_choices: None,
+                });
+                &COLLECTION_TYPE
+            }
+            Self::Empty => {
+                // Return a reference to a static lazy TypeInfo
+                static EMPTY_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
+                    type_name: "Empty".to_string(),
+                    singleton: true,
+                    namespace: Some("System".to_string()),
+                    name: Some("Empty".to_string()),
+                    is_empty: Some(true),
+                    is_union_type: Some(false),
+                    union_choices: None,
+                });
+                &EMPTY_TYPE
+            }
+        }
+    }
+
+    /// Get wrapped primitive element if available
+    pub fn wrapped_primitive_element(&self) -> Option<&WrappedPrimitiveElement> {
+        match self {
+            Self::Boolean(_, _, element)
+            | Self::Integer(_, _, element)
+            | Self::Decimal(_, _, element)
+            | Self::String(_, _, element)
+            | Self::Date(_, _, element)
+            | Self::DateTime(_, _, element)
+            | Self::Time(_, _, element)
+            | Self::Resource(_, _, element) => element.as_ref(),
+            Self::Quantity { primitive_element, .. } => primitive_element.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Check if this value has primitive extensions
+    pub fn has_primitive_extensions(&self) -> bool {
+        self.wrapped_primitive_element()
+            .is_some_and(|pe| !pe.extensions.is_empty())
+    }
+
+    /// Wrap a value with TypeInfo and optional primitive element
+    pub fn wrap_value(value: Self, type_info: TypeInfo, primitive_element: Option<WrappedPrimitiveElement>) -> Self {
+        match value {
+            Self::Boolean(v, _, _) => Self::Boolean(v, type_info, primitive_element),
+            Self::Integer(v, _, _) => Self::Integer(v, type_info, primitive_element),
+            Self::Decimal(v, _, _) => Self::Decimal(v, type_info, primitive_element),
+            Self::String(v, _, _) => Self::String(v, type_info, primitive_element),
+            Self::Date(v, _, _) => Self::Date(v, type_info, primitive_element),
+            Self::DateTime(v, _, _) => Self::DateTime(v, type_info, primitive_element),
+            Self::Time(v, _, _) => Self::Time(v, type_info, primitive_element),
+            Self::Resource(v, _, _) => Self::Resource(v, type_info, primitive_element),
+            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+                value,
+                unit,
+                ucum_unit,
+                calendar_unit,
+                type_info,
+                primitive_element,
+            },
+            other => other, // Collection and Empty don't change
+        }
+    }
+
+    /// Unwrap the raw value without TypeInfo or primitive element
+    pub fn unwrap_value(&self) -> Self {
+        let default_type_info = TypeInfo {
+            type_name: "Unknown".to_string(),
+            singleton: true,
+            namespace: None,
+            name: Some("Unknown".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+
+        match self {
+            Self::Boolean(v, _, _) => Self::Boolean(*v, default_type_info.clone(), None),
+            Self::Integer(v, _, _) => Self::Integer(*v, default_type_info.clone(), None),
+            Self::Decimal(v, _, _) => Self::Decimal(v.clone(), default_type_info.clone(), None),
+            Self::String(v, _, _) => Self::String(v.clone(), default_type_info.clone(), None),
+            Self::Date(v, _, _) => Self::Date(v.clone(), default_type_info.clone(), None),
+            Self::DateTime(v, _, _) => Self::DateTime(v.clone(), default_type_info.clone(), None),
+            Self::Time(v, _, _) => Self::Time(v.clone(), default_type_info.clone(), None),
+            Self::Resource(v, _, _) => Self::Resource(v.clone(), default_type_info.clone(), None),
+            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+                value: value.clone(),
+                unit: unit.clone(),
+                ucum_unit: ucum_unit.clone(),
+                calendar_unit: *calendar_unit,
+                type_info: default_type_info,
+                primitive_element: None,
+            },
+            other => other.clone(),
+        }
+    }
+
+    /// Ensure value is wrapped with proper TypeInfo (from ModelProvider)
+    pub fn ensure_wrapped(&self, _model_provider: &dyn crate::core::ModelProvider) -> Self {
+        // In a real implementation, this would use the ModelProvider to get proper TypeInfo
+        // For now, return a clone with the existing TypeInfo
+        self.clone()
     }
 
     /// Get the FHIRPath type name for this value
     pub fn type_name(&self) -> &'static str {
         match self {
-            Self::Boolean(_) => "Boolean",
-            Self::Integer(_) => "Integer",
-            Self::Decimal(_) => "Decimal",
-            Self::String(_) => "String",
-            Self::Date(_) => "Date",
-            Self::DateTime(_) => "DateTime",
-            Self::Time(_) => "Time",
+            Self::Boolean(_, _, _) => "Boolean",
+            Self::Integer(_, _, _) => "Integer",
+            Self::Decimal(_, _, _) => "Decimal",
+            Self::String(_, _, _) => "String",
+            Self::Date(_, _, _) => "Date",
+            Self::DateTime(_, _, _) => "DateTime",
+            Self::Time(_, _, _) => "Time",
             Self::Quantity { .. } => "Quantity",
-            Self::Resource(_) => "Resource",
-            Self::Wrapped(_) => "Wrapped",
-            Self::ResourceWrapped(_) => "Resource", // Same as Resource for FHIRPath type operations
-            Self::Id(_) => "id",
-            Self::Base64Binary(_) => "base64Binary",
-            Self::Uri(_) => "uri",
-            Self::Url(_) => "url",
+            Self::Resource(_, _, _) => "Resource",
             Self::Collection(_) => "Collection",
-            Self::TypeInfoObject { .. } => "TypeInfo",
-            Self::JsonValue(_) => "JsonValue",
             Self::Empty => "empty",
         }
     }
 
-    /// Check if this value is empty/null
+    /// Check if this value is a singleton (not a collection)
+    pub fn is_singleton(&self) -> bool {
+        !matches!(self, Self::Collection(_) | Self::Empty)
+    }
+
+    // TODO: has_type method will be reimplemented when registry is redesigned
+    // /// Check if this value matches a specific FHIRPath type
+    // pub fn has_type(&self, fhir_type: &FhirPathType) -> bool { ... }
+
+    /// Get the length of this value (1 for singletons, actual length for collections)
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Collection(collection) => collection.len(),
+            Self::Empty => 0,
+            _ => 1,
+        }
+    }
+
+    /// Check if this value is empty
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Empty => true,
@@ -405,10 +584,10 @@ impl FhirPathValue {
     /// Convert to boolean (FHIRPath boolean conversion rules)
     pub fn to_boolean(&self) -> Result<bool> {
         match self {
-            Self::Boolean(b) => Ok(*b),
-            Self::Integer(i) => Ok(*i != 0),
-            Self::Decimal(d) => Ok(!d.is_zero()),
-            Self::String(s) => Ok(!s.is_empty()),
+            Self::Boolean(b, _, _) => Ok(*b),
+            Self::Integer(i, _, _) => Ok(*i != 0),
+            Self::Decimal(d, _, _) => Ok(!d.is_zero()),
+            Self::String(s, _, _) => Ok(!s.is_empty()),
             Self::Empty => Ok(false),
             _ => Err(FhirPathError::evaluation_error(
                 FP0051,
@@ -417,21 +596,49 @@ impl FhirPathValue {
         }
     }
 
+    /// Extract boolean value directly (returns None if not a boolean or conversion fails)
+    pub fn as_boolean(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(b, _, _) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// Extract integer value directly (returns None if not an integer)
+    pub fn as_integer(&self) -> Option<i64> {
+        match self {
+            Self::Integer(i, _, _) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// Extract decimal value directly (returns None if not a decimal)
+    pub fn as_decimal(&self) -> Option<Decimal> {
+        match self {
+            Self::Decimal(d, _, _) => Some(*d),
+            _ => None,
+        }
+    }
+
+    /// Extract string value directly (returns None if not a string)
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Self::String(s, _, _) => Some(s),
+            _ => None,
+        }
+    }
+
     /// Convert to string (FHIRPath string conversion rules)
     pub fn to_string(&self) -> Result<String> {
         match self {
-            Self::String(s) => Ok(s.clone()),
-            Self::Integer(i) => Ok(i.to_string()),
-            Self::Decimal(d) => Ok(d.to_string()),
-            Self::Boolean(b) => Ok(b.to_string()),
-            Self::Date(d) => Ok(d.to_string()),
-            Self::DateTime(dt) => Ok(dt.to_string()),
-            Self::Time(t) => Ok(t.to_string()),
-            Self::Uri(u) => Ok(u.clone()),
-            Self::Url(u) => Ok(u.clone()),
-            Self::Id(id) => Ok(id.to_string()),
+            Self::String(s, _, _) => Ok(s.clone()),
+            Self::Integer(i, _, _) => Ok(i.to_string()),
+            Self::Decimal(d, _, _) => Ok(d.to_string()),
+            Self::Boolean(b, _, _) => Ok(b.to_string()),
+            Self::Date(d, _, _) => Ok(d.to_string()),
+            Self::DateTime(dt, _, _) => Ok(dt.to_string()),
+            Self::Time(t, _, _) => Ok(t.to_string()),
             Self::Empty => Ok(String::new()),
-            Self::JsonValue(json) => Ok(json.to_string()),
             _ => Err(FhirPathError::evaluation_error(
                 FP0051,
                 format!("Cannot convert {} to string", self.type_name()),
@@ -439,38 +646,76 @@ impl FhirPathValue {
         }
     }
 
-    /// Create a string value
+    /// Create a string value with default TypeInfo
     pub fn string(s: impl Into<String>) -> Self {
-        Self::String(s.into())
+        let type_info = TypeInfo {
+            type_name: "String".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("String".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::String(s.into(), type_info, None)
     }
 
-
-    /// Create a decimal value
+    /// Create a decimal value with default TypeInfo
     pub fn decimal(d: impl Into<Decimal>) -> Self {
-        Self::Decimal(d.into())
+        let type_info = TypeInfo {
+            type_name: "Decimal".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Decimal".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Decimal(d.into(), type_info, None)
     }
 
-    /// Create a boolean value
+    /// Create a boolean value with default TypeInfo
     pub fn boolean(b: bool) -> Self {
-        Self::Boolean(b)
+        let type_info = TypeInfo {
+            type_name: "Boolean".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Boolean".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Boolean(b, type_info, None)
     }
 
-    /// Create a resource value from JSON
+    /// Create a resource value from JSON with default TypeInfo
     pub fn resource(json: JsonValue) -> Self {
-        Self::Resource(Arc::new(json))
+        let type_info = TypeInfo {
+            type_name: "Resource".to_string(),
+            singleton: true,
+            namespace: Some("FHIR".to_string()),
+            name: Some("Resource".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Resource(Arc::new(json), type_info, None)
     }
 
-    /// Create a wrapped resource value with type preservation
-    pub fn resource_wrapped(json: JsonValue) -> Self {
-        Self::ResourceWrapped(FhirPathWrapped::resource(json))
+    /// Create a resource value with TypeInfo
+    pub fn resource_wrapped(json: JsonValue, type_info: TypeInfo) -> Self {
+        Self::Resource(Arc::new(json), type_info, None)
     }
 
     /// Create a wrapped value with type information
-    pub fn wrapped(data: JsonValue, type_info: Option<crate::core::model_provider::TypeInfo>) -> Self {
-        Self::Wrapped(FhirPathWrapped::new(data, type_info))
+    pub fn wrapped_with_type_info(
+        data: JsonValue,
+        type_info: TypeInfo,
+    ) -> Self {
+        Self::Resource(Arc::new(data), type_info, None)
     }
 
-    /// Create a quantity value with UCUM unit parsing
+    /// Create a quantity value with UCUM unit parsing and default TypeInfo
     pub fn quantity(value: Decimal, unit: Option<String>) -> Self {
         let (ucum_unit, calendar_unit) = if let Some(ref unit_str) = unit {
             // Try parsing as calendar unit first (year, month, week, day)
@@ -487,11 +732,23 @@ impl FhirPathValue {
             (None, None)
         };
 
+        let type_info = TypeInfo {
+            type_name: "Quantity".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Quantity".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+
         Self::Quantity {
             value,
             unit,
             ucum_unit,
             calendar_unit,
+            type_info,
+            primitive_element: None,
         }
     }
 
@@ -507,42 +764,102 @@ impl FhirPathValue {
             (None, None)
         };
 
+        let type_info = TypeInfo {
+            type_name: "Quantity".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Quantity".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+
         Self::Quantity {
             value,
             unit,
             ucum_unit,
             calendar_unit,
+            type_info,
+            primitive_element: None,
         }
     }
 
     /// Create a quantity value with explicit calendar unit
     pub fn calendar_quantity(value: Decimal, calendar_unit: CalendarUnit) -> Self {
+        let type_info = TypeInfo {
+            type_name: "Quantity".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Quantity".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+
         Self::Quantity {
             value,
             unit: Some(calendar_unit.to_string()),
             ucum_unit: None,
             calendar_unit: Some(calendar_unit),
+            type_info,
+            primitive_element: None,
         }
     }
 
-    /// Create a date value
+    /// Create a date value with default TypeInfo
     pub fn date(date: PrecisionDate) -> Self {
-        Self::Date(date)
+        let type_info = TypeInfo {
+            type_name: "Date".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Date".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Date(date, type_info, None)
     }
 
-    /// Create a datetime value
+    /// Create a datetime value with default TypeInfo
     pub fn datetime(datetime: PrecisionDateTime) -> Self {
-        Self::DateTime(datetime)
+        let type_info = TypeInfo {
+            type_name: "DateTime".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("DateTime".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::DateTime(datetime, type_info, None)
     }
 
-    /// Create a time value
+    /// Create a time value with default TypeInfo
     pub fn time(time: PrecisionTime) -> Self {
-        Self::Time(time)
+        let type_info = TypeInfo {
+            type_name: "Time".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Time".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Time(time, type_info, None)
     }
 
-    /// Create a JSON value (for compatibility)
+    /// Create a JSON value (for compatibility) with default TypeInfo
     pub fn json_value(json: JsonValue) -> Self {
-        Self::JsonValue(Arc::new(json))
+        let type_info = TypeInfo {
+            type_name: "Json".to_string(),
+            singleton: true,
+            namespace: Some("System".to_string()),
+            name: Some("Json".to_string()),
+            is_empty: Some(false),
+            is_union_type: Some(false),
+            union_choices: None,
+        };
+        Self::Resource(Arc::new(json), type_info, None)
     }
 
     /// Create a collection value
@@ -574,40 +891,10 @@ impl FhirPathValue {
         Self::Empty
     }
 
-    /// Get the wrapped JSON value if this is a wrapped value
+    /// Get the wrapped JSON value if this is a resource value
     pub fn unwrap_json(&self) -> Option<&JsonValue> {
         match self {
-            Self::Wrapped(wrapped) => Some(wrapped.unwrap()),
-            Self::ResourceWrapped(wrapped) => Some(wrapped.unwrap()),
-            Self::Resource(json) => Some(json),
-            Self::JsonValue(json) => Some(json),
-            _ => None,
-        }
-    }
-
-    /// Get type information from wrapped values
-    pub fn get_type_info(&self) -> Option<&crate::core::model_provider::TypeInfo> {
-        match self {
-            Self::Wrapped(wrapped) => wrapped.get_type_info(),
-            Self::ResourceWrapped(wrapped) => wrapped.get_type_info(),
-            _ => None,
-        }
-    }
-
-    /// Check if this value has primitive extensions
-    pub fn has_primitive_extensions(&self) -> bool {
-        match self {
-            Self::Wrapped(wrapped) => wrapped.has_extensions(),
-            Self::ResourceWrapped(wrapped) => wrapped.has_extensions(),
-            _ => false,
-        }
-    }
-
-    /// Get primitive element (if any)
-    pub fn get_primitive_element(&self) -> Option<&crate::core::wrapped::PrimitiveElement> {
-        match self {
-            Self::Wrapped(wrapped) => wrapped.get_primitive_element(),
-            Self::ResourceWrapped(wrapped) => wrapped.get_primitive_element(),
+            Self::Resource(json, _, _) => Some(json),
             _ => None,
         }
     }
@@ -648,15 +935,6 @@ impl FhirPathValue {
                 true
             }
             _ => false,
-        }
-    }
-
-    /// Get the length of the value (1 for single values, n for collections, 0 for empty)
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Collection(col) => col.len(),
-            Self::Empty => 0,
-            _ => 1,
         }
     }
 
@@ -730,9 +1008,9 @@ impl FhirPathValue {
     /// Convert to serde_json::Value
     pub fn to_json_value(&self) -> JsonValue {
         match self {
-            Self::Boolean(b) => JsonValue::Bool(*b),
-            Self::Integer(i) => JsonValue::Number(serde_json::Number::from(*i)),
-            Self::Decimal(d) => {
+            Self::Boolean(b, _, _) => JsonValue::Bool(*b),
+            Self::Integer(i, _, _) => JsonValue::Number(serde_json::Number::from(*i)),
+            Self::Decimal(d, _, _) => {
                 if let Ok(f) = d.to_string().parse::<f64>() {
                     if let Some(n) = serde_json::Number::from_f64(f) {
                         JsonValue::Number(n)
@@ -743,10 +1021,10 @@ impl FhirPathValue {
                     JsonValue::String(d.to_string())
                 }
             }
-            Self::String(s) => JsonValue::String(s.clone()),
-            Self::Date(date) => JsonValue::String(date.to_string()),
-            Self::DateTime(dt) => JsonValue::String(dt.to_string()),
-            Self::Time(time) => JsonValue::String(time.to_string()),
+            Self::String(s, _, _) => JsonValue::String(s.clone()),
+            Self::Date(date, _, _) => JsonValue::String(date.to_string()),
+            Self::DateTime(dt, _, _) => JsonValue::String(dt.to_string()),
+            Self::Time(time, _, _) => JsonValue::String(time.to_string()),
             Self::Quantity { value, unit, .. } => {
                 let mut map = serde_json::Map::new();
                 if let Ok(f) = value.to_string().parse::<f64>() {
@@ -763,24 +1041,8 @@ impl FhirPathValue {
                 }
                 JsonValue::Object(map)
             }
-            Self::Resource(json) => (**json).clone(),
-            Self::JsonValue(json) => (**json).clone(),
-            Self::Wrapped(wrapped) => wrapped.unwrap().clone(),
-            Self::ResourceWrapped(wrapped) => wrapped.unwrap().clone(),
-            Self::Id(id) => JsonValue::String(id.to_string()),
-            Self::Base64Binary(data) => JsonValue::String(format!("base64({} bytes)", data.len())),
-            Self::Uri(uri) => JsonValue::String(uri.clone()),
-            Self::Url(url) => JsonValue::String(url.clone()),
+            Self::Resource(json, _, _) => (**json).clone(),
             Self::Collection(collection) => collection.to_json_value(),
-            Self::TypeInfoObject { namespace, name } => {
-                let mut map = serde_json::Map::new();
-                map.insert(
-                    "namespace".to_string(),
-                    JsonValue::String(namespace.clone()),
-                );
-                map.insert("name".to_string(), JsonValue::String(name.clone()));
-                JsonValue::Object(map)
-            }
             Self::Empty => JsonValue::Null,
         }
     }
@@ -789,52 +1051,38 @@ impl FhirPathValue {
 impl fmt::Display for FhirPathValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Boolean(b) => write!(f, "{}", b),
-            Self::Integer(i) => write!(f, "{}", i),
-            Self::Decimal(d) => write!(f, "{}", d),
-            Self::String(s) => write!(f, "'{}'", s),
-            Self::Date(d) => write!(f, "@{}", d),
-            Self::DateTime(dt) => write!(f, "@{}", dt),
-            Self::Time(t) => write!(f, "@T{}", t),
+            Self::Boolean(b, _, _) => write!(f, "{b}"),
+            Self::Integer(i, _, _) => write!(f, "{i}"),
+            Self::Decimal(d, _, _) => write!(f, "{d}"),
+            Self::String(s, _, _) => write!(f, "'{s}'"),
+            Self::Date(d, _, _) => write!(f, "@{d}"),
+            Self::DateTime(dt, _, _) => write!(f, "@{dt}"),
+            Self::Time(t, _, _) => write!(f, "@T{t}"),
             Self::Quantity { value, unit, .. } => {
                 if let Some(unit) = unit {
-                    write!(f, "{} '{}'", value, unit)
+                    write!(f, "{value} '{unit}'")
                 } else {
-                    write!(f, "{}", value)
+                    write!(f, "{value}")
                 }
             }
-            Self::Resource(json) => {
+            Self::Resource(json, type_info, _) => {
                 // Try to extract resource type for better display
                 if let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str()) {
-                    write!(f, "{}({})", resource_type, json)
+                    write!(f, "{resource_type}({json})")
                 } else {
-                    write!(f, "Resource({})", json)
+                    write!(f, "{}({json})", type_info.name.as_deref().unwrap_or(&type_info.type_name))
                 }
             }
-            Self::Wrapped(wrapped) => write!(f, "{}", wrapped),
-            Self::ResourceWrapped(wrapped) => write!(f, "{}", wrapped),
-            Self::Id(id) => write!(f, "{}", id),
-            Self::Base64Binary(data) => write!(f, "base64({} bytes)", data.len()),
-            Self::Uri(u) => write!(f, "{}", u),
-            Self::Url(u) => write!(f, "{}", u),
             Self::Collection(collection) => {
                 write!(f, "Collection[")?;
                 for (i, val) in collection.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", val)?;
+                    write!(f, "{val}")?;
                 }
                 write!(f, "]")
             }
-            Self::TypeInfoObject { namespace, name } => {
-                if namespace.is_empty() {
-                    write!(f, "TypeInfo({})", name)
-                } else {
-                    write!(f, "TypeInfo({}.{})", namespace, name)
-                }
-            }
-            Self::JsonValue(json) => write!(f, "JsonValue({})", json),
             Self::Empty => write!(f, "{{}}"),
         }
     }
@@ -989,7 +1237,7 @@ impl ValueTypeInfo {
     /// Create type info from a FhirPathValue
     pub fn from_value(value: &FhirPathValue) -> Self {
         let type_name = value.type_name().to_string();
-        let is_fhir_type = matches!(value, FhirPathValue::Resource(_));
+        let is_fhir_type = matches!(value, FhirPathValue::Resource(json, type_info, _) if json.get("resourceType").is_some() || type_info.namespace.as_deref() == Some("FHIR"));
 
         Self {
             type_name,
@@ -1136,23 +1384,21 @@ impl PartialOrd for FhirPathValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             // Numeric comparisons
-            (Self::Integer(a), Self::Integer(b)) => a.partial_cmp(b),
-            (Self::Decimal(a), Self::Decimal(b)) => a.partial_cmp(b),
-            (Self::Integer(a), Self::Decimal(b)) => Decimal::from(*a).partial_cmp(b),
-            (Self::Decimal(a), Self::Integer(b)) => a.partial_cmp(&Decimal::from(*b)),
+            (Self::Integer(a, _, _), Self::Integer(b, _, _)) => a.partial_cmp(b),
+            (Self::Decimal(a, _, _), Self::Decimal(b, _, _)) => a.partial_cmp(b),
+            (Self::Integer(a, _, _), Self::Decimal(b, _, _)) => Decimal::from(*a).partial_cmp(b),
+            (Self::Decimal(a, _, _), Self::Integer(b, _, _)) => a.partial_cmp(&Decimal::from(*b)),
 
             // String comparisons
-            (Self::String(a), Self::String(b)) => a.partial_cmp(b),
-            (Self::Uri(a), Self::Uri(b)) => a.partial_cmp(b),
-            (Self::Url(a), Self::Url(b)) => a.partial_cmp(b),
+            (Self::String(a, _, _), Self::String(b, _, _)) => a.partial_cmp(b),
 
             // Boolean comparison
-            (Self::Boolean(a), Self::Boolean(b)) => a.partial_cmp(b),
+            (Self::Boolean(a, _, _), Self::Boolean(b, _, _)) => a.partial_cmp(b),
 
             // Temporal comparisons
-            (Self::Date(a), Self::Date(b)) => a.partial_cmp(b),
-            (Self::DateTime(a), Self::DateTime(b)) => a.partial_cmp(b),
-            (Self::Time(a), Self::Time(b)) => a.partial_cmp(b),
+            (Self::Date(a, _, _), Self::Date(b, _, _)) => a.partial_cmp(b),
+            (Self::DateTime(a, _, _), Self::DateTime(b, _, _)) => a.partial_cmp(b),
+            (Self::Time(a, _, _), Self::Time(b, _, _)) => a.partial_cmp(b),
 
             // Quantity comparisons (only if compatible units)
             (Self::Quantity { value: v1, .. }, Self::Quantity { value: v2, .. }) => {
@@ -1163,10 +1409,409 @@ impl PartialOrd for FhirPathValue {
                 }
             }
 
-            // ID comparisons
-            (Self::Id(a), Self::Id(b)) => a.partial_cmp(b),
-
             _ => None, // Different types are not comparable
+        }
+    }
+}
+
+/// Type details with constraints and cardinality information
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeDetails {
+    /// Base type information
+    pub base_info: TypeInfo,
+    /// Cardinality constraints
+    pub cardinality: Cardinality,
+    /// Type-specific constraints
+    pub constraints: Vec<TypeConstraint>,
+    /// Whether this property is required
+    pub is_required: bool,
+    /// Default value if any
+    pub default_value: Option<JsonValue>,
+}
+
+/// Cardinality specifications for properties
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Cardinality {
+    /// 0..1 (zero or one)
+    ZeroToOne,
+    /// 0..* (zero or many)
+    ZeroToMany,
+    /// 1..1 (exactly one)
+    OneToOne,
+    /// 1..* (one or many)
+    OneToMany,
+    /// Exact count (e.g., exactly 3)
+    Exact(usize),
+    /// Range (min, max) where max=None means unlimited
+    Range(usize, Option<usize>),
+}
+
+/// Type constraints for validation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TypeConstraint {
+    /// ValueSet constraint with ValueSet URL
+    ValueSet(String),
+    /// Regular expression pattern
+    Pattern(String),
+    /// Minimum string length
+    MinLength(usize),
+    /// Maximum string length
+    MaxLength(usize),
+    /// Minimum value (for numeric types)
+    MinValue(JsonValue),
+    /// Maximum value (for numeric types)
+    MaxValue(JsonValue),
+    /// Fixed value constraint
+    FixedValue(JsonValue),
+    /// Required property constraint
+    RequiredProperty(String),
+    /// Conditional constraint based on other properties
+    ConditionalConstraint {
+        condition: String,
+        constraint: Box<TypeConstraint>,
+    },
+}
+
+impl TypeDetails {
+    /// Create new type details with basic information
+    pub fn new(base_info: TypeInfo, cardinality: Cardinality) -> Self {
+        Self {
+            base_info,
+            cardinality,
+            constraints: Vec::new(),
+            is_required: false,
+            default_value: None,
+        }
+    }
+
+    /// Create type details with constraints
+    pub fn with_constraints(
+        base_info: TypeInfo,
+        cardinality: Cardinality,
+        constraints: Vec<TypeConstraint>,
+    ) -> Self {
+        Self {
+            base_info,
+            cardinality,
+            constraints,
+            is_required: false,
+            default_value: None,
+        }
+    }
+
+    /// Mark this type as required
+    pub fn required(mut self) -> Self {
+        self.is_required = true;
+        self
+    }
+
+    /// Set default value
+    pub fn with_default(mut self, default_value: JsonValue) -> Self {
+        self.default_value = Some(default_value);
+        self
+    }
+
+    /// Add a constraint
+    pub fn add_constraint(mut self, constraint: TypeConstraint) -> Self {
+        self.constraints.push(constraint);
+        self
+    }
+
+    /// Check if this type allows multiple values
+    pub fn is_multiple(&self) -> bool {
+        match self.cardinality {
+            Cardinality::ZeroToMany | Cardinality::OneToMany => true,
+            Cardinality::Exact(n) => n > 1,
+            Cardinality::Range(_, Some(max)) => max > 1,
+            Cardinality::Range(_, None) => true,
+            _ => false,
+        }
+    }
+
+    /// Check if this type is optional (allows zero values)
+    pub fn is_optional(&self) -> bool {
+        match self.cardinality {
+            Cardinality::ZeroToOne | Cardinality::ZeroToMany => true,
+            Cardinality::Range(0, _) => true,
+            _ => false,
+        }
+    }
+
+    /// Get minimum cardinality
+    pub fn min_cardinality(&self) -> usize {
+        match self.cardinality {
+            Cardinality::ZeroToOne | Cardinality::ZeroToMany => 0,
+            Cardinality::OneToOne | Cardinality::OneToMany => 1,
+            Cardinality::Exact(n) => n,
+            Cardinality::Range(min, _) => min,
+        }
+    }
+
+    /// Get maximum cardinality (None means unlimited)
+    pub fn max_cardinality(&self) -> Option<usize> {
+        match self.cardinality {
+            Cardinality::ZeroToOne | Cardinality::OneToOne => Some(1),
+            Cardinality::ZeroToMany | Cardinality::OneToMany => None,
+            Cardinality::Exact(n) => Some(n),
+            Cardinality::Range(_, max) => max,
+        }
+    }
+}
+
+impl Cardinality {
+    /// Parse cardinality from FHIR-style string (e.g., "0..1", "1..*")
+    pub fn from_fhir_string(s: &str) -> Result<Self> {
+        match s {
+            "0..1" => Ok(Self::ZeroToOne),
+            "0..*" => Ok(Self::ZeroToMany),
+            "1..1" => Ok(Self::OneToOne),
+            "1..*" => Ok(Self::OneToMany),
+            _ => {
+                if let Some(n) = s.parse::<usize>().ok() {
+                    Ok(Self::Exact(n))
+                } else if let Some((min_str, max_str)) = s.split_once("..") {
+                    let min = min_str.parse::<usize>().map_err(|_| {
+                        FhirPathError::evaluation_error(
+                            FP0051,
+                            format!("Invalid cardinality format: {}", s),
+                        )
+                    })?;
+                    let max = if max_str == "*" {
+                        None
+                    } else {
+                        Some(max_str.parse::<usize>().map_err(|_| {
+                            FhirPathError::evaluation_error(
+                                FP0051,
+                                format!("Invalid cardinality format: {}", s),
+                            )
+                        })?)
+                    };
+                    Ok(Self::Range(min, max))
+                } else {
+                    Err(FhirPathError::evaluation_error(
+                        FP0051,
+                        format!("Invalid cardinality format: {}", s),
+                    ))
+                }
+            }
+        }
+    }
+
+    /// Convert to FHIR-style string representation
+    pub fn to_fhir_string(&self) -> String {
+        match self {
+            Self::ZeroToOne => "0..1".to_string(),
+            Self::ZeroToMany => "0..*".to_string(),
+            Self::OneToOne => "1..1".to_string(),
+            Self::OneToMany => "1..*".to_string(),
+            Self::Exact(n) => n.to_string(),
+            Self::Range(min, Some(max)) => format!("{}..{}", min, max),
+            Self::Range(min, None) => format!("{}..*", min),
+        }
+    }
+
+    /// Check if a count satisfies this cardinality
+    pub fn allows_count(&self, count: usize) -> bool {
+        let min = match self {
+            Self::ZeroToOne | Self::ZeroToMany => 0,
+            Self::OneToOne | Self::OneToMany => 1,
+            Self::Exact(n) => *n,
+            Self::Range(min, _) => *min,
+        };
+
+        let max = match self {
+            Self::ZeroToOne | Self::OneToOne => Some(1),
+            Self::ZeroToMany | Self::OneToMany => None,
+            Self::Exact(n) => Some(*n),
+            Self::Range(_, max) => *max,
+        };
+
+        count >= min && max.map_or(true, |m| count <= m)
+    }
+}
+
+impl fmt::Display for Cardinality {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_fhir_string())
+    }
+}
+
+impl TypeConstraint {
+    /// Check if a value satisfies this constraint
+    pub fn validate(&self, value: &FhirPathValue) -> Result<bool> {
+        match self {
+            Self::ValueSet(_url) => {
+                // ValueSet validation would require terminology service
+                // For now, always return true as this is infrastructure
+                Ok(true)
+            }
+            Self::Pattern(pattern) => {
+                if let Ok(string_val) = value.to_string() {
+                    // Simple pattern matching - in real implementation would use regex
+                    Ok(string_val.contains(pattern))
+                } else {
+                    Ok(false)
+                }
+            }
+            Self::MinLength(min_len) => {
+                if let Ok(string_val) = value.to_string() {
+                    Ok(string_val.len() >= *min_len)
+                } else {
+                    Ok(false)
+                }
+            }
+            Self::MaxLength(max_len) => {
+                if let Ok(string_val) = value.to_string() {
+                    Ok(string_val.len() <= *max_len)
+                } else {
+                    Ok(false)
+                }
+            }
+            Self::MinValue(min_val) => {
+                // Simplified validation - real implementation would handle all value types
+                match (value, min_val) {
+                    (FhirPathValue::Integer(val, _, _), JsonValue::Number(min)) => {
+                        if let Some(min_i64) = min.as_i64() {
+                            Ok(*val >= min_i64)
+                        } else {
+                            Ok(false)
+                        }
+                    }
+                    (FhirPathValue::Decimal(val, _, _), JsonValue::Number(min)) => {
+                        if let Some(min_f64) = min.as_f64() {
+                            if let Ok(val_f64) = val.to_string().parse::<f64>() {
+                                Ok(val_f64 >= min_f64)
+                            } else {
+                                Ok(false)
+                            }
+                        } else {
+                            Ok(false)
+                        }
+                    }
+                    _ => Ok(false),
+                }
+            }
+            Self::MaxValue(max_val) => {
+                // Similar to MinValue but with opposite comparison
+                match (value, max_val) {
+                    (FhirPathValue::Integer(val, _, _), JsonValue::Number(max)) => {
+                        if let Some(max_i64) = max.as_i64() {
+                            Ok(*val <= max_i64)
+                        } else {
+                            Ok(false)
+                        }
+                    }
+                    (FhirPathValue::Decimal(val, _, _), JsonValue::Number(max)) => {
+                        if let Some(max_f64) = max.as_f64() {
+                            if let Ok(val_f64) = val.to_string().parse::<f64>() {
+                                Ok(val_f64 <= max_f64)
+                            } else {
+                                Ok(false)
+                            }
+                        } else {
+                            Ok(false)
+                        }
+                    }
+                    _ => Ok(false),
+                }
+            }
+            Self::FixedValue(fixed_val) => {
+                let value_json = value.to_json_value();
+                Ok(value_json == *fixed_val)
+            }
+            Self::RequiredProperty(_prop_name) => {
+                // Property requirement validation would be done at the object level
+                Ok(true)
+            }
+            Self::ConditionalConstraint { constraint, .. } => {
+                // Conditional constraints require evaluation context
+                // For now, validate the inner constraint unconditionally
+                constraint.validate(value)
+            }
+        }
+    }
+
+    /// Get human-readable description of this constraint
+    pub fn description(&self) -> String {
+        match self {
+            Self::ValueSet(url) => format!("Must be a value from ValueSet: {}", url),
+            Self::Pattern(pattern) => format!("Must match pattern: {}", pattern),
+            Self::MinLength(min) => format!("Minimum length: {}", min),
+            Self::MaxLength(max) => format!("Maximum length: {}", max),
+            Self::MinValue(min) => format!("Minimum value: {}", min),
+            Self::MaxValue(max) => format!("Maximum value: {}", max),
+            Self::FixedValue(val) => format!("Fixed value: {}", val),
+            Self::RequiredProperty(prop) => format!("Required property: {}", prop),
+            Self::ConditionalConstraint {
+                condition,
+                constraint,
+            } => {
+                format!("When {}: {}", condition, constraint.description())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+pub mod test_utils {
+    use super::*;
+    use crate::core::ModelProvider;
+    use serde_json::Value as JsonValue;
+
+    /// Create a test model provider for unit tests
+    pub fn create_test_model_provider() -> impl ModelProvider {
+        TestModelProvider
+    }
+
+    struct TestModelProvider;
+
+    impl ModelProvider for TestModelProvider {
+        fn get_type_info(&self, _type_name: &str) -> Result<TypeInfo> {
+            Ok(TypeInfo {
+                type_name: "TestType".to_string(),
+                singleton: true,
+                namespace: Some("Test".to_string()),
+                name: Some("TestType".to_string()),
+                is_empty: Some(false),
+                is_union_type: Some(false),
+                union_choices: None,
+            })
+        }
+
+        fn get_property_type(&self, _resource_type: &str, _property_path: &str) -> Result<TypeInfo> {
+            Ok(TypeInfo {
+                type_name: "String".to_string(),
+                singleton: true,
+                namespace: Some("System".to_string()),
+                name: Some("String".to_string()),
+                is_empty: Some(false),
+                is_union_type: Some(false),
+                union_choices: None,
+            })
+        }
+
+        fn navigate_property(&self, _input: &JsonValue, _property: &str) -> Result<Vec<JsonValue>> {
+            Ok(vec![])
+        }
+
+        fn validate_resource_type(&self, _resource: &JsonValue, _expected_type: &str) -> Result<bool> {
+            Ok(true)
+        }
+
+        fn get_resource_type(&self, _resource: &JsonValue) -> Option<String> {
+            Some("TestResource".to_string())
+        }
+
+        fn is_primitive_type(&self, _type_name: &str) -> bool {
+            false
+        }
+
+        fn get_element_children(&self, _resource: &JsonValue) -> Result<Vec<(String, JsonValue)>> {
+            Ok(vec![])
+        }
+
+        fn get_choice_type_names(&self, _base_type: &str) -> Vec<String> {
+            vec![]
         }
     }
 }

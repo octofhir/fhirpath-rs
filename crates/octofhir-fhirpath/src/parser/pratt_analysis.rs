@@ -424,7 +424,7 @@ fn preprocess_input(input: &str) -> String {
                     Some('/') => {
                         // Single-line comment - skip to end of line
                         chars.next(); // consume the second /
-                        while let Some(c) = chars.next() {
+                        for c in chars.by_ref() {
                             if c == '\n' || c == '\r' {
                                 result.push(' '); // Replace comment with space
                                 break;
@@ -435,7 +435,7 @@ fn preprocess_input(input: &str) -> String {
                         // Multi-line comment - skip to */
                         chars.next(); // consume the *
                         let mut prev_char = '\0';
-                        while let Some(c) = chars.next() {
+                        for c in chars.by_ref() {
                             if prev_char == '*' && c == '/' {
                                 result.push(' '); // Replace comment with space
                                 break;
@@ -569,11 +569,10 @@ fn check_bracket_matching(input: &str, original: &str) -> Option<Vec<Diagnostic>
                         };
                         diagnostics.push(create_simple_diagnostic(
                             error_code,
-                            format!("Expected '{}' but found '{}'", expected_close, ch),
+                            format!("Expected '{expected_close}' but found '{ch}'"),
                             location,
                             Some(format!(
-                                "The opening '{}' requires a closing '{}'",
-                                open, expected_close
+                                "The opening '{open}' requires a closing '{expected_close}'"
                             )),
                         ));
                     }
@@ -583,7 +582,7 @@ fn check_bracket_matching(input: &str, original: &str) -> Option<Vec<Diagnostic>
                     let error_code = if ch == ']' { "FP0004" } else { "FP0003" };
                     diagnostics.push(create_simple_diagnostic(
                         error_code,
-                        format!("Unexpected '{}' - no matching opening bracket", ch),
+                        format!("Unexpected '{ch}' - no matching opening bracket"),
                         location,
                         Some("Remove this bracket or add a matching opening bracket".to_string()),
                     ));
@@ -604,9 +603,9 @@ fn check_bracket_matching(input: &str, original: &str) -> Option<Vec<Diagnostic>
         let location = calculate_line_column_simple(pos, original);
         diagnostics.push(create_simple_diagnostic(
             "FP0008",
-            format!("Unclosed '{}' - expected '{}'", open, expected_close),
+            format!("Unclosed '{open}' - expected '{expected_close}'"),
             location,
-            Some(format!("Add '{}' to close this bracket", expected_close)),
+            Some(format!("Add '{expected_close}' to close this bracket")),
         ));
     }
 
@@ -642,9 +641,9 @@ fn check_unterminated_strings(input: &str, original: &str) -> Option<Vec<Diagnos
         let location = calculate_line_column_simple(string_start, original);
         diagnostics.push(create_simple_diagnostic(
             "FP0009",
-            format!("Unterminated string literal - expected '{}'", string_quote),
+            format!("Unterminated string literal - expected '{string_quote}'"),
             location,
-            Some(format!("Add '{}' to close this string", string_quote)),
+            Some(format!("Add '{string_quote}' to close this string")),
         ));
     }
 
@@ -726,17 +725,17 @@ fn convert_rich_error_to_diagnostic(error: Rich<char>, input: &str) -> Diagnosti
             } else {
                 expected
                     .iter()
-                    .map(|e| format!("{:?}", e))
+                    .map(|e| format!("{e:?}"))
                     .collect::<Vec<_>>()
                     .join(", ")
             };
 
             let found_str = match found {
-                Some(c) => format!("'{:?}'", c),
+                Some(c) => format!("'{c:?}'"),
                 None => "end of input".to_string(),
             };
 
-            format!("Expected {}, but found {}", expected_str, found_str)
+            format!("Expected {expected_str}, but found {found_str}")
         }
         RichReason::Custom(msg) => msg.clone(),
     };

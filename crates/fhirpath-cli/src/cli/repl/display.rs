@@ -164,28 +164,28 @@ impl DisplayFormatter {
 
     fn format_single_value(&self, value: &FhirPathValue, show_types: bool) -> String {
         let value_str = match value {
-            FhirPathValue::String(s) => {
+            FhirPathValue::String(s, _, _) => {
                 if self.use_colors {
                     self.green(&format!("\"{s}\""))
                 } else {
                     format!("\"{s}\"")
                 }
             }
-            FhirPathValue::Integer(i) => {
+            FhirPathValue::Integer(i, _, _) => {
                 if self.use_colors {
                     self.blue(&i.to_string())
                 } else {
                     i.to_string()
                 }
             }
-            FhirPathValue::Decimal(d) => {
+            FhirPathValue::Decimal(d, _, _) => {
                 if self.use_colors {
                     self.blue(&d.to_string())
                 } else {
                     d.to_string()
                 }
             }
-            FhirPathValue::Boolean(b) => {
+            FhirPathValue::Boolean(b, _, _) => {
                 let bool_str = b.to_string();
                 if self.use_colors {
                     self.yellow(&bool_str)
@@ -193,33 +193,28 @@ impl DisplayFormatter {
                     bool_str
                 }
             }
-            FhirPathValue::Date(d) => {
+            FhirPathValue::Date(d, _, _) => {
                 if self.use_colors {
                     self.magenta(&d.to_string())
                 } else {
                     d.to_string()
                 }
             }
-            FhirPathValue::DateTime(dt) => {
+            FhirPathValue::DateTime(dt, _, _) => {
                 if self.use_colors {
                     self.magenta(&dt.to_string())
                 } else {
                     dt.to_string()
                 }
             }
-            FhirPathValue::Time(t) => {
+            FhirPathValue::Time(t, _, _) => {
                 if self.use_colors {
                     self.magenta(&t.to_string())
                 } else {
                     t.to_string()
                 }
             }
-            FhirPathValue::Quantity {
-                value,
-                unit: _,
-                ucum_unit: _,
-                calendar_unit: _,
-            } => {
+            FhirPathValue::Quantity { value, .. } => {
                 if self.use_colors {
                     self.cyan(&value.to_string())
                 } else {
@@ -230,8 +225,8 @@ impl DisplayFormatter {
                 // This shouldn't happen for single values, but handle it
                 "Collection".to_string()
             }
-            FhirPathValue::JsonValue(json_value) => {
-                // Format JSON values without debug wrapper
+            FhirPathValue::Resource(json_value, _, _) => {
+                // Format JSON values (both JsonValue and Resource are now consolidated into Json)
                 match json_value.as_inner() {
                     serde_json::Value::String(s) => {
                         if self.use_colors {
@@ -256,7 +251,7 @@ impl DisplayFormatter {
                         }
                     }
                     serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                        // For complex JSON objects, show formatted JSON
+                        // For complex JSON objects (including FHIR resources), show formatted JSON
                         if let Ok(pretty) = serde_json::to_string_pretty(json_value.as_inner()) {
                             if self.use_colors {
                                 self.cyan(&pretty)
@@ -274,18 +269,6 @@ impl DisplayFormatter {
                             "null".to_string()
                         }
                     }
-                }
-            }
-            FhirPathValue::Resource(resource) => {
-                // Format FHIR resources nicely
-                if let Ok(pretty) = serde_json::to_string_pretty(resource.as_ref()) {
-                    if self.use_colors {
-                        self.cyan(&pretty)
-                    } else {
-                        pretty
-                    }
-                } else {
-                    resource.to_string()
                 }
             }
             _ => {

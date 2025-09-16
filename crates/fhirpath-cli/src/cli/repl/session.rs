@@ -30,7 +30,7 @@ use super::{ReplCommand, ReplConfig};
 use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
 use octofhir_fhirpath::parser::{parse, parse_with_analysis};
-use octofhir_fhirpath::{FhirPathEngine, FhirPathValue};
+use octofhir_fhirpath::{EvaluationContext, FhirPathEngine, FhirPathValue};
 
 /// Main REPL session that handles user interaction
 pub struct ReplSession {
@@ -318,8 +318,7 @@ impl ReplSession {
 
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res) => res.clone(),
-                FhirPathValue::JsonValue(json) => std::sync::Arc::new(json.as_ref().clone()),
+                FhirPathValue::Resource(res, _, _) => res.clone(),
                 _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else if needs_resource {
@@ -338,20 +337,23 @@ impl ReplSession {
         let start = std::time::Instant::now();
 
         // For now, use a simple evaluation approach
-        // TODO: Integrate variables and full engine support properly
+        // Create evaluation context with input data
         use octofhir_fhirpath::{Collection, FhirPathValue};
-        use std::collections::HashMap;
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
-        let variables = HashMap::new();
+
+        // Create evaluation context using the engine's providers
+        let model_provider = self.engine.get_model_provider();
+        let context = EvaluationContext::new(collection, model_provider, None).await;
+
         let result = self
             .engine
-            .evaluate_with_variables(expression, &collection, variables)
+            .evaluate(expression, &context)
             .await
             .with_context(|| format!("Failed to evaluate expression: '{}'", expression))?;
 
-        // Convert FhirPathValue to Vec<FhirPathValue>
-        let values: Vec<FhirPathValue> = result.iter().cloned().collect();
+        // Convert EvaluationResult to Vec<FhirPathValue>
+        let values: Vec<FhirPathValue> = result.value.iter().cloned().collect();
 
         // Convert back to single FhirPathValue for formatting
         let result_value = if values.is_empty() {
@@ -475,8 +477,7 @@ impl ReplSession {
     async fn try_evaluate_as_expression(&mut self, expression: &str) -> Result<FhirPathValue> {
         let input_json = if let Some(resource) = &self.current_resource {
             match resource {
-                FhirPathValue::Resource(res) => res.clone(),
-                FhirPathValue::JsonValue(json) => std::sync::Arc::new(json.as_ref().clone()),
+                FhirPathValue::Resource(res, _, _) => res.clone(),
                 _ => std::sync::Arc::new(serde_json::json!({})),
             }
         } else {
@@ -490,15 +491,16 @@ impl ReplSession {
         use std::collections::HashMap;
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
-        let variables = HashMap::new();
+        let model_provider = self.engine.get_model_provider();
+        let context = EvaluationContext::new(collection, model_provider, None).await;
         let result = self
             .engine
-            .evaluate_with_variables(expression, &collection, variables)
+            .evaluate(expression, &context)
             .await
             .map_err(|e| anyhow::anyhow!("Evaluation error: {}", e))?;
 
         // Convert to the format expected by the rest of the function
-        let values: Vec<FhirPathValue> = result.iter().cloned().collect();
+        let values: Vec<FhirPathValue> = result.value.iter().cloned().collect();
         if let Some(first_value) = values.first() {
             Ok(first_value.clone())
         } else {
@@ -521,7 +523,7 @@ impl ReplSession {
             // Show context resource
             if let Some(resource) = &self.current_resource {
                 let resource_type = match resource {
-                    FhirPathValue::Resource(res) => res.resource_type().unwrap_or("Unknown"),
+                    FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
                     _ => "Unknown",
                 };
                 output.push(format!("%context = {} resource", resource_type));
@@ -541,7 +543,7 @@ impl ReplSession {
     fn show_current_resource(&self) -> String {
         if let Some(resource) = &self.current_resource {
             let resource_type = match resource {
-                FhirPathValue::Resource(res) => res.resource_type().unwrap_or("Unknown"),
+                FhirPathValue::Resource(res, _, _) => res.resource_type().unwrap_or("Unknown"),
                 _ => "Unknown",
             };
             format!("Current resource: {}", resource_type)
@@ -561,13 +563,12 @@ impl ReplSession {
         // Expression explanation not available (StaticAnalyzer removed)
         // Try to evaluate and show result
         if let Ok(result) = self.evaluate_expression(expression).await {
-            Ok(format!(
-                "Expression: {}\nResult: {}",
-                expression,
-                result
-            ))
+            Ok(format!("Expression: {}\nResult: {}", expression, result))
         } else {
-            Ok(format!("Expression explanation not available for '{}'", expression))
+            Ok(format!(
+                "Expression explanation not available for '{}'",
+                expression
+            ))
         }
     }
 
@@ -874,13 +875,8 @@ impl ReplSession {
 
     /// Cache function names from registry for autocomplete
     async fn cache_function_names(&mut self) {
-        let function_names: Vec<String> = self
-            .engine
-            .get_function_registry()
-            .list_functions()
-            .iter()
-            .map(|f| f.name.clone())
-            .collect();
+        // FunctionRegistry is currently a placeholder, so use empty list
+        let function_names: Vec<String> = Vec::new();
         if let Some(helper) = self.editor.helper_mut() {
             helper.cache_function_names(function_names);
         }

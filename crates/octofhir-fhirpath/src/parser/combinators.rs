@@ -44,10 +44,7 @@ pub fn string_literal_parser_single<'a>()
                                 .ok()
                                 .and_then(char::from_u32)
                                 .ok_or_else(|| {
-                                    Rich::custom(
-                                        span,
-                                        format!("Invalid unicode escape: \\u{}", hex),
-                                    )
+                                    Rich::custom(span, format!("Invalid unicode escape: \\u{hex}"))
                                 })
                         }),
                 ))))
@@ -92,10 +89,7 @@ pub fn string_literal_parser_double<'a>()
                                 .ok()
                                 .and_then(char::from_u32)
                                 .ok_or_else(|| {
-                                    Rich::custom(
-                                        span,
-                                        format!("Invalid unicode escape: \\u{}", hex),
-                                    )
+                                    Rich::custom(span, format!("Invalid unicode escape: \\u{hex}"))
                                 })
                         }),
                 ))))
@@ -133,7 +127,7 @@ pub fn number_parser<'a>()
                     .at_least(1)
                     .collect::<String>(),
             )
-            .map(|frac_part| format!("0.{}", frac_part)),
+            .map(|frac_part| format!("0.{frac_part}")),
         // Handle regular integers and decimals
         one_of("0123456789")
             .repeated()
@@ -151,86 +145,92 @@ pub fn number_parser<'a>()
             )
             .map(|(int_part, frac_part)| {
                 if let Some(frac) = frac_part {
-                    format!("{}.{}", int_part, frac)
+                    format!("{int_part}.{frac}")
                 } else {
                     int_part
                 }
             }),
     ));
 
-    // Allow optional leading '+' for polarity (but not '-')
-    choice((just('+').ignore_then(base_number.clone()), base_number))
-        .then(
-            // Enhanced unit specification - supports both quoted ('mg') and unquoted units (days, hours, etc.)
-            just(' ')
-                .repeated()
-                .at_least(0)
-                .ignore_then(choice((
-                    // Quoted units like 'mg', 'kg'
-                    just('\'')
-                        .ignore_then(none_of(['\'']).repeated().collect::<String>())
-                        .then_ignore(just('\'')),
-                    // Unquoted units like days, hours, weeks, months, years, milliseconds
-                    choice((
-                        just("milliseconds").to("milliseconds".to_string()),
-                        just("millisecond").to("millisecond".to_string()),
-                        just("days").to("days".to_string()),
-                        just("day").to("day".to_string()),
-                        just("hours").to("hours".to_string()),
-                        just("hour").to("hour".to_string()),
-                        just("minutes").to("minutes".to_string()),
-                        just("minute").to("minute".to_string()),
-                        just("seconds").to("seconds".to_string()),
-                        just("second").to("second".to_string()),
-                        just("weeks").to("weeks".to_string()),
-                        just("week").to("week".to_string()),
-                        just("months").to("months".to_string()),
-                        just("month").to("month".to_string()),
-                        just("years").to("years".to_string()),
-                        just("year").to("year".to_string()),
-                    )),
-                )))
-                .or_not(),
-        )
-        .map(|(number_str, unit): (String, Option<String>)| {
-            // Try to parse as decimal first (handles both integers and decimals)
-            match number_str.parse::<Decimal>() {
-                Ok(decimal) => {
-                    if let Some(unit_str) = unit {
-                        // Create Quantity literal
-                        ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::Quantity {
-                                value: decimal,
-                                unit: Some(unit_str),
-                            },
+    // Allow optional leading '+' or '-' for polarity
+    choice((
+        just('+').ignore_then(base_number),
+        just('-')
+            .ignore_then(base_number)
+            .map(|num| format!("-{num}")),
+        base_number,
+    ))
+    .then(
+        // Enhanced unit specification - supports both quoted ('mg') and unquoted units (days, hours, etc.)
+        just(' ')
+            .repeated()
+            .at_least(0)
+            .ignore_then(choice((
+                // Quoted units like 'mg', 'kg'
+                just('\'')
+                    .ignore_then(none_of(['\'']).repeated().collect::<String>())
+                    .then_ignore(just('\'')),
+                // Unquoted units like days, hours, weeks, months, years, milliseconds
+                choice((
+                    just("milliseconds").to("milliseconds".to_string()),
+                    just("millisecond").to("millisecond".to_string()),
+                    just("days").to("days".to_string()),
+                    just("day").to("day".to_string()),
+                    just("hours").to("hours".to_string()),
+                    just("hour").to("hour".to_string()),
+                    just("minutes").to("minutes".to_string()),
+                    just("minute").to("minute".to_string()),
+                    just("seconds").to("seconds".to_string()),
+                    just("second").to("second".to_string()),
+                    just("weeks").to("weeks".to_string()),
+                    just("week").to("week".to_string()),
+                    just("months").to("months".to_string()),
+                    just("month").to("month".to_string()),
+                    just("years").to("years".to_string()),
+                    just("year").to("year".to_string()),
+                )),
+            )))
+            .or_not(),
+    )
+    .map(|(number_str, unit): (String, Option<String>)| {
+        // Try to parse as decimal first (handles both integers and decimals)
+        match number_str.parse::<Decimal>() {
+            Ok(decimal) => {
+                if let Some(unit_str) = unit {
+                    // Create Quantity literal
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Quantity {
+                            value: decimal,
+                            unit: Some(unit_str),
+                        },
+                        location: None,
+                    })
+                } else if number_str.contains('.') {
+                    // Plain decimal
+                    ExpressionNode::Literal(LiteralNode {
+                        value: LiteralValue::Decimal(decimal),
+                        location: None,
+                    })
+                } else {
+                    // Try as integer first for whole numbers
+                    match number_str.parse::<i64>() {
+                        Ok(num) => ExpressionNode::Literal(LiteralNode {
+                            value: LiteralValue::Integer(num),
                             location: None,
-                        })
-                    } else if number_str.contains('.') {
-                        // Plain decimal
-                        ExpressionNode::Literal(LiteralNode {
+                        }),
+                        Err(_) => ExpressionNode::Literal(LiteralNode {
                             value: LiteralValue::Decimal(decimal),
                             location: None,
-                        })
-                    } else {
-                        // Try as integer first for whole numbers
-                        match number_str.parse::<i64>() {
-                            Ok(num) => ExpressionNode::Literal(LiteralNode {
-                                value: LiteralValue::Integer(num),
-                                location: None,
-                            }),
-                            Err(_) => ExpressionNode::Literal(LiteralNode {
-                                value: LiteralValue::Decimal(decimal),
-                                location: None,
-                            }),
-                        }
+                        }),
                     }
                 }
-                Err(_) => ExpressionNode::Literal(LiteralNode {
-                    value: LiteralValue::String(number_str),
-                    location: None,
-                }),
             }
-        })
+            Err(_) => ExpressionNode::Literal(LiteralNode {
+                value: LiteralValue::String(number_str),
+                location: None,
+            }),
+        }
+    })
 }
 
 /// Parser for boolean literals
@@ -292,9 +292,9 @@ fn date_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a,
             if let Some(day) = day {
                 format!("{}-{}-{}", year, month.unwrap(), day)
             } else if let Some(month) = month {
-                format!("{}-{}", year, month)
+                format!("{year}-{month}")
             } else {
-                format!("{}", year)
+                year.to_string()
             }
         })
 }
@@ -350,14 +350,14 @@ fn time_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a,
                 .or_not(),
         )
         .map(|(((hour, minute), second), millis)| {
-            let mut time_str = format!("{}", hour);
+            let mut time_str = hour.to_string();
             if let Some(min) = minute {
-                time_str.push_str(&format!(":{}", min));
+                time_str.push_str(&format!(":{min}"));
                 if let Some(sec) = second {
-                    time_str.push_str(&format!(":{}", sec));
+                    time_str.push_str(&format!(":{sec}"));
                     if let Some(ms) = millis {
                         // Pad milliseconds to 3 digits if needed
-                        time_str.push_str(&format!(".{:0<3}", ms));
+                        time_str.push_str(&format!(".{ms:0<3}"));
                     }
                 }
             }
@@ -387,7 +387,7 @@ fn timezone_format_str<'a>() -> impl Parser<'a, &'a str, String, extra::Err<Rich
                     .exactly(2)
                     .collect::<String>(),
             )
-            .map(|((sign, hours), mins)| format!("{}{}:{}", sign, hours, mins)),
+            .map(|((sign, hours), mins)| format!("{sign}{hours}:{mins}")),
     ))
 }
 
@@ -400,14 +400,14 @@ fn datetime_full_parser<'a>()
         .then(timezone_format_str().or_not())
         .try_map(|((date_str, time_str), tz_opt), span| {
             let full_str = if let Some(tz) = tz_opt {
-                format!("{}T{}{}", date_str, time_str, tz)
+                format!("{date_str}T{time_str}{tz}")
             } else {
-                format!("{}T{}", date_str, time_str)
+                format!("{date_str}T{time_str}")
             };
 
             // Use temporal module for precision-aware parsing
             PrecisionDateTime::parse(&full_str)
-                .ok_or_else(|| Rich::custom(span, format!("Invalid datetime format: {}", full_str)))
+                .ok_or_else(|| Rich::custom(span, format!("Invalid datetime format: {full_str}")))
                 .map(|precision_dt| {
                     ExpressionNode::Literal(LiteralNode {
                         value: LiteralValue::DateTime(precision_dt),
@@ -431,8 +431,8 @@ fn datetime_date_shorthand_parser<'a>()
                 let ndt = pdate
                     .date
                     .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-                let offset = FixedOffset::east_opt(0)
-                    .ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                let offset =
+                    FixedOffset::east_opt(0).ok_or_else(|| Rich::custom(span, "Invalid offset"))?;
                 let dt: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(ndt, offset);
                 let precision = match pdate.precision {
                     crate::core::temporal::TemporalPrecision::Year => {
@@ -450,7 +450,7 @@ fn datetime_date_shorthand_parser<'a>()
             } else {
                 Err(Rich::custom(
                     span,
-                    format!("Invalid date format: {}", date_str),
+                    format!("Invalid date format: {date_str}"),
                 ))
             }
         })
@@ -485,7 +485,7 @@ fn datetime_date_or_full_parser<'a>()
                     } else {
                         Err(Rich::custom(
                             span,
-                            format!("Invalid date format: {}", date_str),
+                            format!("Invalid date format: {date_str}"),
                         ))
                     }
                 }
@@ -497,7 +497,7 @@ fn datetime_date_or_full_parser<'a>()
                             .date
                             .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
                         let offset = FixedOffset::east_opt(0)
-                            .ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                            .ok_or_else(|| Rich::custom(span, "Invalid offset"))?;
                         let dt: DateTime<FixedOffset> =
                             DateTime::from_naive_utc_and_offset(ndt, offset);
                         let precision = match pdate.precision {
@@ -510,13 +510,15 @@ fn datetime_date_or_full_parser<'a>()
                             _ => crate::core::temporal::TemporalPrecision::Day,
                         };
                         Ok(ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(dt, precision, false)),
+                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(
+                                dt, precision, false,
+                            )),
                             location: None,
                         }))
                     } else {
                         Err(Rich::custom(
                             span,
-                            format!("Invalid date format: {}", date_str),
+                            format!("Invalid date format: {date_str}"),
                         ))
                     }
                 }
@@ -524,10 +526,10 @@ fn datetime_date_or_full_parser<'a>()
                     // Full datetime (with or without timezone)
                     if let Some(tz) = tz_opt {
                         // Delegate to precision parser for timezone cases
-                        let full_str = format!("{}T{}{}", date_str, time_str, tz);
+                        let full_str = format!("{date_str}T{time_str}{tz}");
                         PrecisionDateTime::parse(&full_str)
                             .ok_or_else(|| {
-                                Rich::custom(span, format!("Invalid datetime format: {}", full_str))
+                                Rich::custom(span, format!("Invalid datetime format: {full_str}"))
                             })
                             .map(|precision_dt| {
                                 ExpressionNode::Literal(LiteralNode {
@@ -540,20 +542,17 @@ fn datetime_date_or_full_parser<'a>()
                         use chrono::{DateTime, FixedOffset, NaiveTime};
                         // Parse date
                         let pdate = PrecisionDate::parse(&date_str).ok_or_else(|| {
-                            Rich::custom(span.clone(), format!("Invalid date format: {}", date_str))
+                            Rich::custom(span, format!("Invalid date format: {date_str}"))
                         })?;
 
                         // Determine time precision and parse
                         let (ntime, precision) = if time_str.len() == 2 {
                             // HH
                             let hour: u32 = time_str.parse().map_err(|_| {
-                                Rich::custom(span.clone(), format!("Invalid hour: {}", time_str))
+                                Rich::custom(span, format!("Invalid hour: {time_str}"))
                             })?;
                             let t = NaiveTime::from_hms_opt(hour, 0, 0).ok_or_else(|| {
-                                Rich::custom(
-                                    span.clone(),
-                                    format!("Invalid hour value: {}", time_str),
-                                )
+                                Rich::custom(span, format!("Invalid hour value: {time_str}"))
                             })?;
                             (t, crate::core::temporal::TemporalPrecision::Hour)
                         } else if time_str.len() == 5 && time_str.chars().nth(2) == Some(':') {
@@ -561,8 +560,8 @@ fn datetime_date_or_full_parser<'a>()
                             let t =
                                 NaiveTime::parse_from_str(&time_str, "%H:%M").map_err(|_| {
                                     Rich::custom(
-                                        span.clone(),
-                                        format!("Invalid time (minute) format: {}", time_str),
+                                        span,
+                                        format!("Invalid time (minute) format: {time_str}"),
                                     )
                                 })?;
                             (t, crate::core::temporal::TemporalPrecision::Minute)
@@ -571,8 +570,8 @@ fn datetime_date_or_full_parser<'a>()
                             let t =
                                 NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(|_| {
                                     Rich::custom(
-                                        span.clone(),
-                                        format!("Invalid time (second) format: {}", time_str),
+                                        span,
+                                        format!("Invalid time (second) format: {time_str}"),
                                     )
                                 })?;
                             (t, crate::core::temporal::TemporalPrecision::Second)
@@ -581,8 +580,8 @@ fn datetime_date_or_full_parser<'a>()
                             let t = NaiveTime::parse_from_str(&time_str, "%H:%M:%S%.3f").map_err(
                                 |_| {
                                     Rich::custom(
-                                        span.clone(),
-                                        format!("Invalid time (millisecond) format: {}", time_str),
+                                        span,
+                                        format!("Invalid time (millisecond) format: {time_str}"),
                                     )
                                 },
                             )?;
@@ -590,18 +589,20 @@ fn datetime_date_or_full_parser<'a>()
                         } else {
                             return Err(Rich::custom(
                                 span,
-                                format!("Unrecognized time format: {}", time_str),
+                                format!("Unrecognized time format: {time_str}"),
                             ));
                         };
 
                         // Build fixed-offset datetime (UTC)
                         let ndt = pdate.date.and_time(ntime);
                         let offset = FixedOffset::east_opt(0)
-                            .ok_or_else(|| Rich::custom(span.clone(), "Invalid offset"))?;
+                            .ok_or_else(|| Rich::custom(span, "Invalid offset"))?;
                         let dt: DateTime<FixedOffset> =
                             DateTime::from_naive_utc_and_offset(ndt, offset);
                         Ok(ExpressionNode::Literal(LiteralNode {
-                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(dt, precision, false)),
+                            value: LiteralValue::DateTime(PrecisionDateTime::new_with_tz(
+                                dt, precision, false,
+                            )),
                             location: None,
                         }))
                     }
@@ -617,7 +618,7 @@ fn date_only_parser<'a>()
     // `datetime_date_or_full_parser` handles date-only as well.
     date_format_str().try_map(|date_str, span| {
         PrecisionDate::parse(&date_str)
-            .ok_or_else(|| Rich::custom(span, format!("Invalid date format: {}", date_str)))
+            .ok_or_else(|| Rich::custom(span, format!("Invalid date format: {date_str}")))
             .map(|precision_date| {
                 ExpressionNode::Literal(LiteralNode {
                     value: LiteralValue::Date(precision_date),
@@ -635,7 +636,7 @@ fn time_only_parser<'a>()
         .try_map(|time_str, span| {
             // Use temporal module for precision-aware parsing
             PrecisionTime::parse(&time_str)
-                .ok_or_else(|| Rich::custom(span, format!("Invalid time format: {}", time_str)))
+                .ok_or_else(|| Rich::custom(span, format!("Invalid time format: {time_str}")))
                 .map(|precision_time| {
                     ExpressionNode::Literal(LiteralNode {
                         value: LiteralValue::Time(precision_time),

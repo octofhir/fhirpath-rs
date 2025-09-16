@@ -34,6 +34,7 @@
 //! ```
 
 pub mod analysis_integration;
+pub mod analyzer;
 pub mod combinators;
 pub mod pratt;
 pub mod pratt_analysis;
@@ -49,14 +50,18 @@ pub use combinators::*;
 // Re-export analysis integration
 pub use analysis_integration::{AnalysisResult, ComprehensiveAnalyzer};
 
+// Re-export semantic analyzer
+pub use analyzer::{SemanticAnalyzer, AnalyzedParseResult};
+
 /// Parser mode selection for different use cases
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ParsingMode {
     /// Fast parser optimized for runtime evaluation
     /// - High performance (100K+ ops/sec)
     /// - Minimal error recovery
     /// - Stops at first error
     /// - Best for production environments
+    #[default]
     Fast,
 
     /// Comprehensive error recovery parser for development
@@ -65,12 +70,6 @@ pub enum ParsingMode {
     /// - Rich diagnostic information
     /// - Best for development and IDE integration
     Analysis,
-}
-
-impl Default for ParsingMode {
-    fn default() -> Self {
-        ParsingMode::Fast
-    }
 }
 
 impl fmt::Display for ParsingMode {
@@ -258,6 +257,55 @@ pub fn parse_with_mode(input: &str, mode: ParsingMode) -> ParseResult {
     }
 }
 
+/// Parse FHIRPath expression with semantic analysis using ModelProvider
+///
+/// This function performs both syntactic and semantic analysis, providing
+/// rich type information and validation feedback.
+///
+/// # Examples
+/// ```rust
+/// use octofhir_fhirpath::parser::parse_with_semantic_analysis;
+/// use octofhir_fhirpath::core::model_provider::EmbeddedModelProvider;
+/// use std::sync::Arc;
+///
+/// let model_provider = Arc::new(EmbeddedModelProvider::new());
+/// let result = parse_with_semantic_analysis("Patient.name", model_provider, None);
+/// ```
+pub async fn parse_with_semantic_analysis(
+    input: &str,
+    model_provider: std::sync::Arc<dyn octofhir_fhir_model::ModelProvider>,
+    context_type: Option<octofhir_fhir_model::TypeInfo>,
+) -> AnalyzedParseResult {
+    // First parse the expression
+    let parse_result = parse_analysis(input);
+
+    if let Some(ast) = parse_result.ast {
+        // Then perform semantic analysis
+        let mut analyzer = SemanticAnalyzer::new(model_provider);
+        match analyzer.analyze_expression(&ast, context_type).await {
+            Ok(analysis) => AnalyzedParseResult::success(ast, analysis),
+            Err(err) => {
+                let mut analysis = crate::ast::ExpressionAnalysis::failure(vec![]);
+                analysis.add_diagnostic(crate::diagnostics::Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "SEMANTIC_ANALYSIS_FAILED".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: err.to_string(),
+                    location: None,
+                    related: vec![],
+                });
+                AnalyzedParseResult::failure(analysis)
+            }
+        }
+    } else {
+        // Parsing failed, convert parse diagnostics to analysis format
+        let analysis = crate::ast::ExpressionAnalysis::failure(parse_result.diagnostics);
+        AnalyzedParseResult::failure(analysis)
+    }
+}
+
 /// Parse FHIRPath expression and return AST directly (Result wrapper)
 ///
 /// This function provides a traditional Result<AST, Error> interface for
@@ -327,13 +375,11 @@ fn parse_analysis(input: &str) -> ParseResult {
         Some(ast) => {
             if result.has_errors {
                 ParseResult::partial(ast, result.diagnostics)
+            } else if result.diagnostics.is_empty() {
+                ParseResult::success(ast)
             } else {
-                if result.diagnostics.is_empty() {
-                    ParseResult::success(ast)
-                } else {
-                    // Has warnings/notes but no errors
-                    ParseResult::partial(ast, result.diagnostics)
-                }
+                // Has warnings/notes but no errors
+                ParseResult::partial(ast, result.diagnostics)
             }
         }
         None => {

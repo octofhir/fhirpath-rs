@@ -276,6 +276,7 @@ impl ExpressionNode {
         }
     }
 
+
     /// Set the source location for this node
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         match &mut self {
@@ -300,6 +301,7 @@ impl ExpressionNode {
         }
         self
     }
+
 
     /// Get a human-readable description of the node type
     pub fn node_type(&self) -> &'static str {
@@ -518,7 +520,7 @@ impl fmt::Display for ExpressionNode {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", arg)?;
+                    write!(f, "{arg}")?;
                 }
                 write!(f, ")")
             }
@@ -528,7 +530,7 @@ impl fmt::Display for ExpressionNode {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", arg)?;
+                    write!(f, "{arg}")?;
                 }
                 write!(f, ")")
             }
@@ -549,7 +551,7 @@ impl fmt::Display for ExpressionNode {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", element)?;
+                    write!(f, "{element}")?;
                 }
                 write!(f, "}}")
             }
@@ -559,7 +561,7 @@ impl fmt::Display for ExpressionNode {
             Self::Variable(n) => write!(f, "${}", n.name),
             Self::Path(n) => write!(f, "{}.{}", n.base, n.path),
             Self::TypeInfo(n) => write!(f, "{}.{}", n.namespace, n.name),
-            Self::Parenthesized(expr) => write!(f, "({})", expr),
+            Self::Parenthesized(expr) => write!(f, "({expr})"),
             Self::TypeCast(n) => write!(f, "{} as {}", n.expression, n.target_type),
         }
     }
@@ -659,7 +661,6 @@ impl ExpressionNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
 
     #[test]
     fn test_expression_construction() {

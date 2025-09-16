@@ -24,12 +24,11 @@
 //! The crate is organized into the following modules:
 //!
 //! - [`ast`] - Abstract syntax tree definitions
-//! - [`core`] - Core types, errors, and value system  
+//! - [`core`] - Core types, errors, and value system
 //! - [`parser`] - Expression parsing with nom
 //! - [`evaluator`] - Expression evaluation engine
 //! - [`registry`] - Function and operator registry
 //! - [`diagnostics`] - Error reporting and diagnostics
-//! - [`analyzer`] - Static analysis and validation
 //!
 //! ## Quick Start
 //!
@@ -40,7 +39,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a FHIRPath engine with a model provider
-//! let registry = octofhir_fhirpath::create_standard_registry().await;
+//! let registry = octofhir_fhirpath::create_empty_registry();
 //! let model_provider = Arc::new(EmptyModelProvider);
 //! let engine = FhirPathEngine::new(Arc::new(registry), model_provider);
 //!
@@ -71,24 +70,17 @@ pub mod core;
 // Engine modules
 pub mod evaluator;
 pub mod parser;
-pub mod registry;
+// TODO: Registry will be reimplemented in new evaluator
 
 // Support modules
-// TODO: Re-enable analyzer after fixing ModelProvider refactor issues
-// pub mod analyzer;
 pub mod diagnostics;
 pub mod path;
 pub mod typing;
-pub mod wrapped;
 
 // Re-export core types for convenience
+pub use crate::core::model_provider::EmptyModelProvider;
 pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
-pub use crate::core::model_provider::MockModelProvider;
 
-// Re-export wrapped types for rich metadata support
-pub use crate::wrapped::{
-    IntoPlain, IntoWrapped, ValueMetadata, WrappedCollection, WrappedValue, collection_utils,
-};
 
 // Re-export path types for canonical path representation
 pub use crate::path::{CanonicalPath, PathBuilder, PathParseError, PathSegment, path_utils};
@@ -98,35 +90,12 @@ pub use crate::typing::{
     TypeResolutionContext, TypeResolver, TypeResolverFactory, is_primitive_type, type_utils,
 };
 
-// Re-export main engine types
+// Re-export main engine types (minimal for stub)
 pub use crate::evaluator::{
-    // New clean evaluator
-    Evaluator,
-    FhirPathEvaluator,
-    FhirPathEngine,
-    EvaluationResult,
-    EvaluationWarning,
-    EvaluationMetrics,
-
-    // Context system
     EvaluationContext,
-    EvaluationContextBuilder,
-    ContextManager,
-
-    // Configuration and metrics
-    EngineConfig,
-    CacheEfficiency,
-    CacheMetrics,
-    CacheStats,
-    MetricsCollector,
-    PerformanceLevel,
-
-    // Support types that remain useful
-    ChoiceTypeDetector,
-    ChoiceProperty,
-    ChoiceResolution,
-    PropertyNavigator,
-
+    EvaluationResult,
+    EvaluationResultWithMetadata,
+    FhirPathEngine,
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
@@ -156,29 +125,13 @@ pub use crate::parser::{
     recommend_mode,
     validate,
 };
-pub use crate::registry::{
-    AsyncFunction,
-    // Terminology types and providers
-    Coding,
-    ConceptDesignation,
-    ConceptDetails,
-    ConceptProperty,
-    ConceptTranslation,
-    DefaultTerminologyProvider,
-    FunctionCategory,
-    FunctionContext,
-    FunctionMetadata,
-    FunctionRegistry,
-    MockTerminologyProvider,
-    ParameterMetadata,
-    PropertyValue,
-    SyncFunction,
-    TerminologyProvider,
-    TerminologyUtils,
-    builder::FunctionBuilder,
-    create_standard_registry,
-    dispatcher::FunctionDispatcher,
-};
+// Re-export the real function registry from evaluator
+pub use crate::evaluator::FunctionRegistry;
+
+/// Create empty registry for compatibility during Phase 1
+pub fn create_empty_registry() -> FunctionRegistry {
+    FunctionRegistry::new()
+}
 
 // Re-export AST types
 pub use crate::ast::{BinaryOperator, ExpressionNode, LiteralValue, UnaryOperator};
@@ -198,28 +151,29 @@ pub use crate::diagnostics::{
     SourceManager,
 };
 
-// Note: MockModelProvider will be provided by external model provider dependencies
+// Note: EmptyModelProvider is provided by external model provider dependencies for basic testing
 
-/// Create a FhirPathEngine with MockModelProvider for testing and development
+/// Create a FhirPathEngine with EmptyModelProvider for testing and development
 ///
 /// This is a convenience function for getting started quickly with FHIRPath
 /// evaluation when you don't need full FHIR schema support.
 ///
 /// ```rust,no_run
-/// use octofhir_fhirpath::create_engine_with_mock_provider;
+/// use octofhir_fhirpath::create_engine_with_empty_provider;
 ///
 /// # async fn example() -> octofhir_fhirpath::Result<()> {
-/// let engine = create_engine_with_mock_provider().await?;
+/// let engine = create_engine_with_empty_provider().await?;
 ///
 /// let result = engine.evaluate("1 + 2", &octofhir_fhirpath::Collection::empty()).await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
+pub async fn create_engine_with_empty_provider() -> Result<FhirPathEngine> {
     use octofhir_fhir_model::EmptyModelProvider;
     use std::sync::Arc;
 
-    let registry = Arc::new(create_standard_registry().await);
+    // TODO: Replace with real registry when implemented
+    let registry = Arc::new(create_empty_registry());
     let model_provider = Arc::new(EmptyModelProvider);
 
     FhirPathEngine::new(registry, model_provider).await
@@ -246,21 +200,22 @@ pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
 /// # }
 /// ```
 pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirPathValue> {
-    let mut engine = create_engine_with_mock_provider().await?;
-    
+    let engine = create_engine_with_empty_provider().await?;
+
     // Convert FhirPathValue to Collection
     let collection = match context {
         FhirPathValue::Collection(collection) => collection.clone(),
         FhirPathValue::Empty => Collection::empty(),
         single_value => Collection::single(single_value.clone()),
     };
-    
+
     let eval_context = EvaluationContext::new(
         collection,
         engine.get_model_provider(),
         None, // TODO: Convert TerminologyService to TerminologyProvider
-    ).await;
-    
+    )
+    .await;
+
     let result = engine.evaluate(expression, &eval_context).await?;
     // Convert Collection to FhirPathValue for convenience function
     let values = result.value.into_vec();

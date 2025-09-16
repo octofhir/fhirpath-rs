@@ -64,7 +64,7 @@ fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
                         // Single-line comment - skip to end of line
                         chars.next(); // consume the second /
                         result.push(' '); // Add space where comment was
-                        while let Some(c) = chars.next() {
+                        for c in chars.by_ref() {
                             if c == '\n' || c == '\r' {
                                 result.push(' '); // Replace newline with space
                                 break;
@@ -77,7 +77,7 @@ fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
                         result.push(' '); // Add space where comment started
                         let mut prev_char = '\0';
                         let mut comment_closed = false;
-                        while let Some(c) = chars.next() {
+                        for c in chars.by_ref() {
                             if prev_char == '*' && c == '/' {
                                 comment_closed = true;
                                 break; // End of comment
@@ -148,11 +148,7 @@ fn preprocess_input(input: &str) -> Result<String, FhirPathError> {
     }
 
     // Trim and collapse multiple whitespaces
-    let normalized = result
-        .trim()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let normalized = result.split_whitespace().collect::<Vec<_>>().join(" ");
 
     Ok(normalized)
 }
@@ -690,7 +686,7 @@ mod tests {
     #[test]
     fn test_literals() {
         use crate::ast::literal::LiteralValue;
-        
+
         // Single quote strings
         let result = parse("'hello world'").unwrap();
         assert!(matches!(result, ExpressionNode::Literal(_)));

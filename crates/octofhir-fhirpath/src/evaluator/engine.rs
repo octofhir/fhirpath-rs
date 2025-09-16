@@ -1,65 +1,31 @@
-//! FHIRPath evaluation engine with clean architecture
+//! Real FHIRPath evaluation engine implementation
+//!
+//! This module provides the actual FhirPathEngine implementation that replaces
+//! the stub, using the new registry-based evaluator architecture.
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-use crate::{
-    ast::ExpressionNode,
-    core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result},
-    parser::parse_ast,
-    registry::{FunctionRegistry, create_standard_registry},
-    evaluator::{EvaluationContext, evaluator::{FhirPathEvaluator, Evaluator}},
-};
-
+use crate::ast::ExpressionNode;
+use crate::core::{ModelProvider, Result, FhirPathValue};
+use crate::parser;
 use octofhir_fhir_model::TerminologyProvider;
 
-/// Evaluation result with metrics and warnings
-#[derive(Debug, Clone)]
-pub struct EvaluationResult {
-    /// Result collection (always a Collection per FHIRPath spec)
-    pub value: Collection,
-    /// Performance metrics
-    pub metrics: EvaluationMetrics,
-    /// Warnings generated during evaluation
-    pub warnings: Vec<EvaluationWarning>,
-}
+use super::evaluator::Evaluator;
+use super::context::EvaluationContext;
+use super::operator_registry::{OperatorRegistry, create_default_operator_registry};
+use super::function_registry::{FunctionRegistry, create_basic_function_registry};
+use super::stub::{EvaluationResult, EvaluationResultWithMetadata};
 
-/// Performance metrics for evaluation
-#[derive(Debug, Clone, Default)]
-pub struct EvaluationMetrics {
-    /// Total evaluation time in microseconds
-    pub total_time_us: u64,
-    /// Parse time in microseconds
-    pub parse_time_us: u64,
-    /// Evaluation time in microseconds
-    pub eval_time_us: u64,
-    /// Number of function calls
-    pub function_calls: usize,
-    /// Number of model provider calls
-    pub model_provider_calls: usize,
-}
-
-/// Warning generated during evaluation
-#[derive(Debug, Clone)]
-pub struct EvaluationWarning {
-    /// Warning code
-    pub code: String,
-    /// Warning message
-    pub message: String,
-    /// Source location if available
-    pub location: Option<std::ops::Range<usize>>,
-}
-
-/// FHIRPath evaluation engine
+/// Real FHIRPath evaluation engine with registry-based architecture
 pub struct FhirPathEngine {
-    /// Core evaluator
-    evaluator: FhirPathEvaluator,
+    /// The core evaluator
+    evaluator: Evaluator,
+    /// Function registry for introspection
+    function_registry: Arc<FunctionRegistry>,
     /// Model provider for type information
     model_provider: Arc<dyn ModelProvider>,
     /// Optional terminology provider
     terminology_provider: Option<Arc<dyn TerminologyProvider>>,
-    /// AST cache for performance
-    ast_cache: RwLock<HashMap<String, Arc<ExpressionNode>>>,
 }
 
 impl FhirPathEngine {
@@ -68,159 +34,56 @@ impl FhirPathEngine {
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Result<Self> {
+        // Create default operator registry
+        let operator_registry = Arc::new(create_default_operator_registry());
+
+        // Create the evaluator
+        let evaluator = Evaluator::new(
+            operator_registry,
+            function_registry.clone(),
+            model_provider.clone(),
+            None,
+        );
+
         Ok(Self {
-            evaluator: FhirPathEvaluator::new(function_registry),
+            evaluator,
+            function_registry,
             model_provider,
             terminology_provider: None,
-            ast_cache: RwLock::new(HashMap::new()),
+        })
+    }
+
+    /// Create new engine with custom registries
+    pub async fn new_with_registries(
+        operator_registry: Arc<OperatorRegistry>,
+        function_registry: Arc<FunctionRegistry>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Result<Self> {
+        let evaluator = Evaluator::new(
+            operator_registry,
+            function_registry.clone(),
+            model_provider.clone(),
+            None,
+        );
+
+        Ok(Self {
+            evaluator,
+            function_registry,
+            model_provider,
+            terminology_provider: None,
         })
     }
 
     /// Add terminology provider to engine
     pub fn with_terminology_provider(mut self, provider: Arc<dyn TerminologyProvider>) -> Self {
-        self.terminology_provider = Some(provider);
+        self.terminology_provider = Some(provider.clone());
+        self.evaluator = self.evaluator.with_terminology_provider(provider);
         self
     }
 
     /// Get the function registry for introspection
     pub fn get_function_registry(&self) -> &Arc<FunctionRegistry> {
-        self.evaluator.get_function_registry()
-    }
-
-    /// Evaluate AST directly (legacy compatibility method)
-    pub async fn evaluate_ast(
-        &mut self,
-        ast: &ExpressionNode,
-        context: &EvaluationContext,
-    ) -> Result<EvaluationResult> {
-        let start_time = std::time::Instant::now();
-
-        // Evaluate with providers
-        let result = self.evaluator.evaluate(
-            ast,
-            context,
-            self.model_provider.as_ref(),
-            self.terminology_provider.as_ref().map(|t| t.as_ref()),
-        ).await?;
-
-        let elapsed = start_time.elapsed();
-        let metrics = EvaluationMetrics {
-            total_time_us: elapsed.as_micros() as u64,
-            parse_time_us: 0,
-            eval_time_us: elapsed.as_micros() as u64,
-            function_calls: 0,
-            model_provider_calls: 0,
-        };
-
-        Ok(EvaluationResult {
-            value: result,
-            metrics,
-            warnings: Vec::new(),
-        })
-    }
-
-    /// Plain fast evaluate - returns just the Collection result
-    pub async fn evaluate_fast(
-        &mut self,
-        expression: &str,
-        context: &EvaluationContext,
-    ) -> Result<Collection> {
-        // Parse expression (with caching)
-        let ast = self.parse_or_cached(expression)?;
-
-        // Evaluate with providers - no timing overhead
-        self.evaluator.evaluate(
-            &ast,
-            context,
-            self.model_provider.as_ref(),
-            self.terminology_provider.as_ref().map(|t| t.as_ref()),
-        ).await
-    }
-
-    /// Evaluate expression with full metadata and metrics
-    pub async fn evaluate_with_metadata(
-        &mut self,
-        expression: &str,
-        context: &EvaluationContext,
-    ) -> Result<EvaluationResult> {
-        let start_time = std::time::Instant::now();
-
-        // Parse expression (with caching)
-        let ast = self.parse_or_cached(expression)?;
-
-        // Evaluate with providers
-        let result = self.evaluator.evaluate(
-            &ast,
-            context,
-            self.model_provider.as_ref(),
-            self.terminology_provider.as_ref().map(|t| t.as_ref()),
-        ).await?;
-
-        let elapsed = start_time.elapsed();
-        let metrics = EvaluationMetrics {
-            total_time_us: elapsed.as_micros() as u64,
-            parse_time_us: 0,
-            eval_time_us: elapsed.as_micros() as u64,
-            function_calls: 0,
-            model_provider_calls: 0,
-        };
-
-        Ok(EvaluationResult {
-            value: result,
-            metrics,
-            warnings: vec![],
-        })
-    }
-
-    /// Legacy evaluate method (delegates to evaluate_with_metadata)
-    pub async fn evaluate(
-        &mut self,
-        expression: &str,
-        context: &EvaluationContext,
-    ) -> Result<EvaluationResult> {
-        self.evaluate_with_metadata(expression, context).await
-    }
-
-    /// Evaluate with variables
-    pub async fn evaluate_with_variables(
-        &mut self,
-        expression: &str,
-        collection: &Collection,
-        variables: HashMap<String, FhirPathValue>,
-    ) -> Result<Collection> {
-        let mut context = EvaluationContext::new(
-            collection.clone(),
-            self.model_provider.clone(),
-            self.terminology_provider.clone().map(|t| t as Arc<dyn TerminologyProvider>),
-        ).await;
-
-        for (name, value) in variables {
-            let _ = context.set_user_variable(name, value);
-        }
-
-        let result = self.evaluate(expression, &context).await?;
-        Ok(result.value)
-    }
-
-    /// Get cached AST or parse and cache expression
-    fn parse_or_cached(&self, expression: &str) -> Result<Arc<ExpressionNode>> {
-        // Check cache first
-        if let Ok(cache) = self.ast_cache.read() {
-            if let Some(ast) = cache.get(expression) {
-                return Ok(ast.clone());
-            }
-        }
-
-        // Parse expression
-        let ast = parse_ast(expression)?;
-        let ast_arc = Arc::new(ast);
-
-        // Cache the result
-        if let Ok(mut cache) = self.ast_cache.write() {
-            cache.insert(expression.to_string(), ast_arc.clone());
-        }
-
-        Ok(ast_arc)
+        &self.function_registry
     }
 
     /// Get model provider
@@ -233,37 +96,98 @@ impl FhirPathEngine {
         self.terminology_provider.clone()
     }
 
-    /// Clear AST cache
-    pub fn clear_cache(&self) -> Result<()> {
-        let mut cache = self.ast_cache.write().map_err(|_| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0001,
-                "Failed to write AST cache",
-            )
-        })?;
-        cache.clear();
-        Ok(())
+    /// Auto-prepend resource type if expression doesn't start with capital letter
+    async fn maybe_prepend_resource_type(
+        &self,
+        expression: &str,
+        context: &EvaluationContext,
+    ) -> Result<String> {
+        // Check if expression already starts with capital letter (explicit resource type)
+        if expression.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            return Ok(expression.to_string());
+        }
+
+        // Try to auto-extract resource type from input
+        if let Some(resource_type) = self.extract_resource_type_from_context(context).await? {
+            // Prepend the resource type
+            Ok(format!("{}.{}", resource_type, expression))
+        } else {
+            // No resource type found, use expression as-is
+            Ok(expression.to_string())
+        }
     }
 
-    /// Get cache statistics
-    pub fn cache_stats(&self) -> Result<HashMap<String, usize>> {
-        let cache = self.ast_cache.read().map_err(|_| {
-            FhirPathError::evaluation_error(
-                crate::core::error_code::FP0001,
-                "Failed to read AST cache",
-            )
-        })?;
+    /// Extract resource type from evaluation context
+    async fn extract_resource_type_from_context(
+        &self,
+        context: &EvaluationContext,
+    ) -> Result<Option<String>> {
+        for item in context.input_collection().iter() {
+            if let FhirPathValue::Resource(json, _, _) = item {
+                if let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str()) {
+                    // Validate that this is a known FHIR resource type
+                    if self.model_provider.get_type(resource_type).await.is_ok() {
+                        return Ok(Some(resource_type.to_string()));
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
 
-        let mut stats = HashMap::new();
-        stats.insert("entries".to_string(), cache.len());
-        Ok(stats)
+    /// Evaluate expression
+    pub async fn evaluate(
+        &self,
+        expression: &str,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        // Check if we need to auto-prepend resource type
+        let final_expression = self.maybe_prepend_resource_type(expression, context).await?;
+
+        // Parse the expression
+        let ast = parser::parse_ast(&final_expression)?;
+
+        // Evaluate using the real evaluator
+        self.evaluate_ast(&ast, context).await
+    }
+
+    /// Evaluate AST directly
+    pub async fn evaluate_ast(
+        &self,
+        ast: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResult> {
+        self.evaluator.evaluate_node(ast, context).await
+    }
+
+    /// Evaluate expression with metadata
+    pub async fn evaluate_with_metadata(
+        &self,
+        expression: &str,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResultWithMetadata> {
+        // Parse the expression
+        let ast = parser::parse_ast(expression)?;
+
+        // Evaluate with metadata using the real evaluator
+        self.evaluate_ast_with_metadata(&ast, context).await
+    }
+
+    /// Evaluate AST with metadata
+    pub async fn evaluate_ast_with_metadata(
+        &self,
+        ast: &ExpressionNode,
+        context: &EvaluationContext,
+    ) -> Result<EvaluationResultWithMetadata> {
+        self.evaluator.evaluate_node_with_metadata(ast, context).await
     }
 }
 
-/// Create engine with mock provider for testing
+/// Create engine with mock provider for testing (transitional compatibility)
 pub async fn create_engine_with_mock_provider() -> Result<FhirPathEngine> {
     use octofhir_fhir_model::EmptyModelProvider;
-    let registry = Arc::new(create_standard_registry().await);
+
+    let registry = Arc::new(create_basic_function_registry());
     let provider = Arc::new(EmptyModelProvider);
     FhirPathEngine::new(registry, provider).await
 }

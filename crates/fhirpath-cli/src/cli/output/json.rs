@@ -145,30 +145,31 @@ struct JsonValidationError {
 
 impl OutputFormatter for JsonFormatter {
     fn format_evaluation(&self, output: &EvaluationOutput) -> Result<String, FormatError> {
-        let (result_value, type_metadata) = if let Some(ref collection_with_metadata) = output.result_with_metadata {
-            // Use rich metadata when available
-            let result_value = Some(collection_with_metadata.to_json_parts());
-            let type_metadata = Some(
-                collection_with_metadata
-                    .results()
-                    .iter()
-                    .map(|result| JsonTypeMetadata {
-                        type_name: result.type_info.type_name.clone(),
-                        expected_return_type: result.type_info.expected_return_type.clone(),
-                        cardinality: result.type_info.cardinality.clone(),
-                        namespace: result.type_info.namespace.clone(),
-                        is_fhir_type: result.type_info.is_fhir_type,
-                        constraints: result.type_info.constraints.clone(),
-                    })
-                    .collect::<Vec<_>>()
-            );
-            (result_value, type_metadata)
-        } else if let Some(ref value) = output.result {
-            // Fall back to basic result without rich type info
-            (Some(serde_json::to_value(value)?), None)
-        } else {
-            (None, None)
-        };
+        let (result_value, type_metadata) =
+            if let Some(ref collection_with_metadata) = output.result_with_metadata {
+                // Use rich metadata when available
+                let result_value = Some(collection_with_metadata.to_json_parts());
+                let type_metadata = Some(
+                    collection_with_metadata
+                        .results()
+                        .iter()
+                        .map(|result| JsonTypeMetadata {
+                            type_name: result.type_info.type_name.clone(),
+                            expected_return_type: result.type_info.expected_return_type.clone(),
+                            cardinality: result.type_info.cardinality.clone(),
+                            namespace: result.type_info.namespace.clone(),
+                            is_fhir_type: result.type_info.is_fhir_type,
+                            constraints: result.type_info.constraints.clone(),
+                        })
+                        .collect::<Vec<_>>(),
+                );
+                (result_value, type_metadata)
+            } else if let Some(ref value) = output.result {
+                // Fall back to basic result without rich type info
+                (Some(serde_json::to_value(value)?), None)
+            } else {
+                (None, None)
+            };
 
         let result = JsonEvaluationResult {
             success: output.success,

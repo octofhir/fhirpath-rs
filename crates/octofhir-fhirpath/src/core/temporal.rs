@@ -159,7 +159,7 @@ impl PrecisionDate {
 
         Err(FhirPathError::parse_error(
             FP0070,
-            format!("Invalid date format: '{}'", trimmed),
+            format!("Invalid date format: '{trimmed}'"),
             trimmed,
             None,
         ))
@@ -168,14 +168,14 @@ impl PrecisionDate {
     /// Parse year string with validation
     fn parse_year_with_validation(s: &str) -> Result<Self> {
         let year = s.parse::<i32>().map_err(|_| {
-            FhirPathError::parse_error(FP0073, format!("Invalid year value: '{}'", s), s, None)
+            FhirPathError::parse_error(FP0073, format!("Invalid year value: '{s}'"), s, None)
         })?;
 
         // Validate year range
-        if year < 1900 || year > 2100 {
+        if !(1900..=2100).contains(&year) {
             return Err(FhirPathError::parse_error(
                 FP0073,
-                format!("Year {} is out of valid range (1900-2100)", year),
+                format!("Year {year} is out of valid range (1900-2100)"),
                 s,
                 None,
             ));
@@ -184,7 +184,7 @@ impl PrecisionDate {
         Self::from_year(year).ok_or_else(|| {
             FhirPathError::parse_error(
                 FP0080,
-                format!("Failed to create date from year {}", year),
+                format!("Failed to create date from year {year}"),
                 s,
                 None,
             )
@@ -197,7 +197,7 @@ impl PrecisionDate {
         if parts.len() != 2 {
             return Err(FhirPathError::parse_error(
                 FP0070,
-                format!("Invalid year-month format: '{}'", s),
+                format!("Invalid year-month format: '{s}'"),
                 s,
                 None,
             ));
@@ -221,18 +221,18 @@ impl PrecisionDate {
         })?;
 
         // Validate ranges
-        if year < 1900 || year > 2100 {
+        if !(1900..=2100).contains(&year) {
             return Err(FhirPathError::parse_error(
                 FP0073,
-                format!("Year {} is out of valid range (1900-2100)", year),
+                format!("Year {year} is out of valid range (1900-2100)"),
                 s,
                 None,
             ));
         }
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(FhirPathError::parse_error(
                 FP0072,
-                format!("Month {} must be between 1 and 12", month),
+                format!("Month {month} must be between 1 and 12"),
                 s,
                 None,
             ));
@@ -241,7 +241,7 @@ impl PrecisionDate {
         Self::from_year_month(year, month).ok_or_else(|| {
             FhirPathError::parse_error(
                 FP0080,
-                format!("Failed to create date from year {} month {}", year, month),
+                format!("Failed to create date from year {year} month {month}"),
                 s,
                 None,
             )
@@ -254,7 +254,7 @@ impl PrecisionDate {
         if parts.len() != 3 {
             return Err(FhirPathError::parse_error(
                 FP0070,
-                format!("Invalid date format: '{}', expected YYYY-MM-DD", s),
+                format!("Invalid date format: '{s}', expected YYYY-MM-DD"),
                 s,
                 None,
             ));
@@ -286,51 +286,46 @@ impl PrecisionDate {
         })?;
 
         // Validate ranges
-        if year < 1900 || year > 2100 {
+        if !(1900..=2100).contains(&year) {
             return Err(FhirPathError::parse_error(
                 FP0073,
-                format!("Year {} is out of valid range (1900-2100)", year),
+                format!("Year {year} is out of valid range (1900-2100)"),
                 s,
                 None,
             ));
         }
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(FhirPathError::parse_error(
                 FP0072,
-                format!("Month {} must be between 1 and 12", month),
+                format!("Month {month} must be between 1 and 12"),
                 s,
                 None,
             ));
         }
-        if day < 1 || day > 31 {
+        if !(1..=31).contains(&day) {
             return Err(FhirPathError::parse_error(
                 FP0071,
-                format!("Day {} must be between 1 and 31", day),
+                format!("Day {day} must be between 1 and 31"),
                 s,
                 None,
             ));
         }
 
         // Special validation for February 29th (leap year check)
-        if month == 2 && day == 29 {
-            if !Self::is_leap_year(year) {
-                return Err(FhirPathError::parse_error(
-                    FP0079,
-                    format!("February 29th is not valid in non-leap year {}", year),
-                    s,
-                    None,
-                ));
-            }
+        if month == 2 && day == 29 && !Self::is_leap_year(year) {
+            return Err(FhirPathError::parse_error(
+                FP0079,
+                format!("February 29th is not valid in non-leap year {year}"),
+                s,
+                None,
+            ));
         }
 
         // Validate day for specific months
         if day > Self::days_in_month(year, month) {
             return Err(FhirPathError::parse_error(
                 FP0071,
-                format!(
-                    "Day {} is not valid for month {} in year {}",
-                    day, month, year
-                ),
+                format!("Day {day} is not valid for month {month} in year {year}"),
                 s,
                 None,
             ));
@@ -338,11 +333,11 @@ impl PrecisionDate {
 
         // Use chrono to parse and validate
         NaiveDate::from_ymd_opt(year, month, day)
-            .map(|date| Self::from_date(date))
+            .map(Self::from_date)
             .ok_or_else(|| {
                 FhirPathError::parse_error(
                     FP0080,
-                    format!("Invalid date: {}-{:02}-{:02}", year, month, day),
+                    format!("Invalid date: {year}-{month:02}-{day:02}"),
                     s,
                     None,
                 )
@@ -509,7 +504,7 @@ impl PrecisionDateTime {
     pub fn parse(s: &str) -> Option<Self> {
         // Detect if original string has explicit timezone information
         let has_tz =
-            s.ends_with('Z') || s.contains('+') || s.rfind('-').map_or(false, |pos| pos > 10);
+            s.ends_with('Z') || s.contains('+') || s.rfind('-').is_some_and(|pos| pos > 10);
 
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if s.ends_with('Z') {
@@ -584,7 +579,7 @@ impl PrecisionDateTime {
         // Detect if original string has explicit timezone information
         let has_tz = trimmed.ends_with('Z')
             || trimmed.contains('+')
-            || trimmed.rfind('-').map_or(false, |pos| pos > 10);
+            || trimmed.rfind('-').is_some_and(|pos| pos > 10);
 
         // Support trailing 'Z' (UTC) by normalizing to +00:00
         let s_norm: std::borrow::Cow<str> = if trimmed.ends_with('Z') {
@@ -631,8 +626,7 @@ impl PrecisionDateTime {
         Err(FhirPathError::parse_error(
             FP0075,
             format!(
-                "Invalid datetime format: '{}'. Expected ISO 8601 format like YYYY-MM-DDTHH:MM:SSZ",
-                trimmed
+                "Invalid datetime format: '{trimmed}'. Expected ISO 8601 format like YYYY-MM-DDTHH:MM:SSZ"
             ),
             trimmed,
             None,
@@ -828,8 +822,8 @@ impl PartialOrd for PrecisionDateTime {
         // Special case: Second and Millisecond are considered the same precision per FHIR spec
         if matches!(
             (self.precision, other.precision),
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second)
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+                | (TemporalPrecision::Millisecond, TemporalPrecision::Second)
         ) {
             return Some(self.datetime.cmp(&other.datetime));
         }
@@ -998,8 +992,8 @@ impl PartialOrd for PrecisionTime {
         // Special case: Second and Millisecond are considered the same precision per FHIR spec
         if matches!(
             (self.precision, other.precision),
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second)
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+                | (TemporalPrecision::Millisecond, TemporalPrecision::Second)
         ) {
             return Some(self.time.cmp(&other.time));
         }
@@ -1046,7 +1040,7 @@ pub mod parsing {
                     // If datetime parsing failed, it might be a malformed datetime
                     Err(FhirPathError::parse_error(
                         FP0075,
-                        format!("Invalid datetime format: '{}'", trimmed),
+                        format!("Invalid datetime format: '{trimmed}'"),
                         trimmed,
                         None,
                     ))
@@ -1103,11 +1097,12 @@ impl PartialEq for PrecisionDateTime {
             // Both have same precision
             (a, b) if a == b => self.datetime == other.datetime,
             // Second vs Millisecond: use decimal semantics
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
                 // Compare truncated to seconds precision
-                self.datetime.timestamp() == other.datetime.timestamp() &&
-                self.datetime.timestamp_subsec_millis() == other.datetime.timestamp_subsec_millis()
+                self.datetime.timestamp() == other.datetime.timestamp()
+                    && self.datetime.timestamp_subsec_millis()
+                        == other.datetime.timestamp_subsec_millis()
             }
             _ => false,
         }
@@ -1135,8 +1130,8 @@ impl PartialEq for PrecisionTime {
             // Both have same precision
             (a, b) if a == b => self.time == other.time,
             // Second vs Millisecond: use decimal semantics
-            (TemporalPrecision::Second, TemporalPrecision::Millisecond) |
-            (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
+            (TemporalPrecision::Second, TemporalPrecision::Millisecond)
+            | (TemporalPrecision::Millisecond, TemporalPrecision::Second) => {
                 // Compare hours, minutes, and seconds
                 self.time.hour() == other.time.hour() &&
                 self.time.minute() == other.time.minute() &&
@@ -1148,7 +1143,6 @@ impl PartialEq for PrecisionTime {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

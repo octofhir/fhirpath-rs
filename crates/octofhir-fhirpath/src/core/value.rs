@@ -68,7 +68,7 @@ pub mod utils {
         if obj.contains_key("value") && (obj.contains_key("unit") || obj.contains_key("code")) {
             return Some("Quantity".to_string());
         }
-        
+
         // Could add other FHIR types here in the future
         None
     }
@@ -76,14 +76,16 @@ pub mod utils {
     /// Convert JSON object to Quantity FhirPathValue
     fn convert_json_to_quantity(obj: &serde_json::Map<String, JsonValue>) -> FhirPathValue {
         // Extract value
-        let value = obj.get("value")
+        let value = obj
+            .get("value")
             .and_then(|v| v.as_f64())
             .map(|f| rust_decimal::Decimal::try_from(f).unwrap_or_default())
             .unwrap_or_default();
 
         // For unit, prefer "unit" field over "code" field for display
         // This matches FHIRPath expectation that .unit returns human-readable unit
-        let unit = obj.get("unit")
+        let unit = obj
+            .get("unit")
             .and_then(|u| u.as_str())
             .map(|s| s.to_string())
             .or_else(|| {

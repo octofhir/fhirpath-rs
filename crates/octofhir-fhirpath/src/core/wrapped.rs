@@ -51,7 +51,8 @@ impl Extension {
             )
         })?;
 
-        let url = obj.get("url")
+        let url = obj
+            .get("url")
             .and_then(|u| u.as_str())
             .ok_or_else(|| {
                 crate::core::error::FhirPathError::evaluation_error(
@@ -62,7 +63,8 @@ impl Extension {
             .to_string();
 
         // Extract value* field (valueString, valueInteger, etc.)
-        let value = obj.iter()
+        let value = obj
+            .iter()
             .find(|(key, _)| key.starts_with("value"))
             .map(|(_, val)| val.clone())
             .unwrap_or(JsonValue::Null);
@@ -74,7 +76,7 @@ impl Extension {
     pub fn to_json(&self) -> JsonValue {
         let mut obj = serde_json::Map::new();
         obj.insert("url".to_string(), JsonValue::String(self.url.clone()));
-        
+
         // Determine the value type and create appropriate value[x] field
         match &self.value {
             JsonValue::String(s) => {
@@ -87,10 +89,13 @@ impl Extension {
                 obj.insert("valueBoolean".to_string(), JsonValue::Bool(*b));
             }
             other => {
-                obj.insert("valueString".to_string(), JsonValue::String(other.to_string()));
+                obj.insert(
+                    "valueString".to_string(),
+                    JsonValue::String(other.to_string()),
+                );
             }
         }
-        
+
         JsonValue::Object(obj)
     }
 }
@@ -128,10 +133,11 @@ impl PrimitiveElement {
         })?;
 
         let id = obj.get("id").and_then(|i| i.as_str()).map(String::from);
-        
+
         let extensions = if let Some(ext_array) = obj.get("extension") {
             if let Some(array) = ext_array.as_array() {
-                array.iter()
+                array
+                    .iter()
                     .map(Extension::from_json)
                     .collect::<crate::core::error::Result<Vec<_>>>()?
             } else {
@@ -147,19 +153,17 @@ impl PrimitiveElement {
     /// Convert to JSON representation
     pub fn to_json(&self) -> JsonValue {
         let mut obj = serde_json::Map::new();
-        
+
         if let Some(id) = &self.id {
             obj.insert("id".to_string(), JsonValue::String(id.clone()));
         }
-        
+
         if !self.extensions.is_empty() {
-            let ext_array: Vec<JsonValue> = self.extensions
-                .iter()
-                .map(|ext| ext.to_json())
-                .collect();
+            let ext_array: Vec<JsonValue> =
+                self.extensions.iter().map(|ext| ext.to_json()).collect();
             obj.insert("extension".to_string(), JsonValue::Array(ext_array));
         }
-        
+
         JsonValue::Object(obj)
     }
 
@@ -249,7 +253,8 @@ impl FhirPathWrapped<JsonValue> {
     /// Create wrapped JSON value for FHIR resource
     pub fn resource(json: JsonValue) -> Self {
         // Extract resource type for type information
-        let resource_type = json.get("resourceType")
+        let resource_type = json
+            .get("resourceType")
             .and_then(|rt| rt.as_str())
             .map(String::from);
 
@@ -295,13 +300,15 @@ impl FhirPathWrapped<JsonValue> {
                         is_empty: Some(prop_value.as_array().unwrap().is_empty()),
                         is_union_type: Some(false),
                         union_choices: None,
-                }),
+                    }),
                 ));
             }
 
             // Check for primitive element (_{property} field)
-            let primitive_key = format!("_{}", property);
-            let primitive_element = self.value.get(&primitive_key)
+            let primitive_key = format!("_{property}");
+            let primitive_element = self
+                .value
+                .get(&primitive_key)
                 .and_then(|pe_json| PrimitiveElement::from_json(pe_json).ok());
 
             // Create appropriate type info based on value type
@@ -383,8 +390,9 @@ impl FhirPathWrapped<JsonValue> {
                     if let Some(first_char) = suffix.chars().next() {
                         if first_char.is_uppercase() {
                             // Check for primitive element
-                            let primitive_key = format!("_{}", key);
-                            let primitive_element = obj.get(&primitive_key)
+                            let primitive_key = format!("_{key}");
+                            let primitive_element = obj
+                                .get(&primitive_key)
                                 .and_then(|pe_json| PrimitiveElement::from_json(pe_json).ok());
 
                             choices.push(ChoiceProperty {
@@ -409,8 +417,7 @@ impl FhirPathWrapped<JsonValue> {
 
     /// Get resource type if this is a FHIR resource
     pub fn resource_type(&self) -> Option<&str> {
-        self.value.get("resourceType")
-            .and_then(|rt| rt.as_str())
+        self.value.get("resourceType").and_then(|rt| rt.as_str())
     }
 }
 
@@ -483,7 +490,7 @@ mod tests {
         });
 
         let wrapped = FhirPathWrapped::resource(data);
-        
+
         assert!(wrapped.get_type_info().is_some());
         let type_info = wrapped.get_type_info().unwrap();
         assert_eq!(type_info.type_name, "Patient");
@@ -503,10 +510,13 @@ mod tests {
         });
 
         let primitive_element = PrimitiveElement::from_json(&ext_json).unwrap();
-        
+
         assert_eq!(primitive_element.id, Some("test-id".to_string()));
         assert_eq!(primitive_element.extensions.len(), 1);
-        assert_eq!(primitive_element.extensions[0].url, "http://example.com/ext");
+        assert_eq!(
+            primitive_element.extensions[0].url,
+            "http://example.com/ext"
+        );
         assert!(primitive_element.has_extensions());
     }
 
@@ -525,10 +535,10 @@ mod tests {
 
         let wrapped = FhirPathWrapped::new(data, None);
         let status_prop = wrapped.get_property("status").unwrap();
-        
-        assert_eq!(**status_prop.unwrap(), json!("active"));
+
+        assert_eq!(*status_prop.unwrap(), json!("active"));
         assert!(status_prop.has_extensions());
-        
+
         let pe = status_prop.get_primitive_element().unwrap();
         assert_eq!(pe.id, Some("status-id".to_string()));
         assert_eq!(pe.extensions.len(), 1);
@@ -549,13 +559,13 @@ mod tests {
 
         let wrapped = FhirPathWrapped::new(data, None);
         let choices = wrapped.detect_choice_properties("value");
-        
+
         assert_eq!(choices.len(), 2);
-        
+
         let string_choice = choices.iter().find(|c| c.type_suffix == "String").unwrap();
         assert_eq!(string_choice.value, json!("test string"));
         assert!(string_choice.primitive_element.is_some());
-        
+
         let int_choice = choices.iter().find(|c| c.type_suffix == "Integer").unwrap();
         assert_eq!(int_choice.value, json!(42));
         assert!(int_choice.primitive_element.is_none());
@@ -566,7 +576,7 @@ mod tests {
         let data = json!({"large": "data".repeat(1000)});
         let wrapped1 = FhirPathWrapped::new(data.clone(), None);
         let wrapped2 = wrapped1.clone();
-        
+
         // Verify Arc sharing (same memory location)
         assert!(Arc::ptr_eq(&wrapped1.value, &wrapped2.value));
     }
@@ -583,7 +593,7 @@ mod tests {
 
         let data = json!([{"family": "Smith"}, {"family": "Jones"}]);
         let wrapped = FhirPathWrapped::typed(data, type_info.clone());
-        
+
         assert_eq!(wrapped.get_type_info().unwrap(), &type_info);
         assert!(!wrapped.get_type_info().unwrap().singleton);
     }

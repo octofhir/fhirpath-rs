@@ -14,7 +14,7 @@
 
 //! Common utilities for development tools
 
-use octofhir_fhirpath::ModelProvider;
+use octofhir_fhir_model::{FhirVersion, ModelProvider};
 use octofhir_fhirschema::model_provider::EmbeddedSchemaProvider;
 use std::env;
 use std::sync::Arc;
@@ -25,21 +25,20 @@ use std::sync::Arc;
 pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
     let fhir_version = env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
 
-    log::info!(
-        "Using EmbeddedModelProvider for development tools (FHIR version: {})",
-        fhir_version
-    );
+    log::info!("Using EmbeddedModelProvider for development tools (FHIR version: {fhir_version})");
 
-    let provider = match fhir_version.to_lowercase().as_str() {
-        "r4" => EmbeddedSchemaProvider::r4(),
-        "r4b" => EmbeddedSchemaProvider::r4b(),
-        "r5" => EmbeddedSchemaProvider::r5(),
-        "r6" => EmbeddedSchemaProvider::r6(),
+    let version = match fhir_version.to_lowercase().as_str() {
+        "r4" => FhirVersion::R4,
+        "r4b" => FhirVersion::R4B,
+        "r5" => FhirVersion::R5,
+        "r6" => FhirVersion::R6,
         _ => {
-            log::warn!("Unknown FHIR version '{}', defaulting to R4", fhir_version);
-            EmbeddedSchemaProvider::r4()
+            log::warn!("Unknown FHIR version '{fhir_version}', defaulting to R4");
+            FhirVersion::R4
         }
     };
+
+    let provider = EmbeddedSchemaProvider::new(version);
 
     Arc::new(provider)
 }
@@ -48,9 +47,9 @@ pub async fn create_dev_model_provider() -> Arc<dyn ModelProvider> {
 /// This should only be used in unit tests where speed is more important than accuracy
 #[cfg(test)]
 pub fn create_mock_provider_for_tests() -> Arc<dyn ModelProvider> {
-    use octofhir_fhirpath::MockModelProvider;
-    log::info!("Using MockModelProvider for unit tests only");
-    Arc::new(MockModelProvider::new())
+    use octofhir_fhir_model::EmptyModelProvider;
+    log::info!("Using EmptyModelProvider for unit tests only");
+    Arc::new(EmptyModelProvider)
 }
 
 /// Common configuration for development tools

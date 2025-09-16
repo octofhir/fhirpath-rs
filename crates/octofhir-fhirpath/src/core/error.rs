@@ -175,15 +175,14 @@ impl FhirPathError {
         let expected = expected_type.into();
         let actual = actual_type.into();
         let message = format!(
-            "Resource type mismatch: expression expects '{}' but context contains '{}' resource",
-            expected, actual
+            "Resource type mismatch: expression expects '{expected}' but context contains '{actual}' resource"
         );
         Self::EvaluationError {
             error_code: super::error_code::FP0061,
             message,
             expression: None,
             location,
-            context: Some(format!("Expected: {}, Actual: {}", expected, actual)),
+            context: Some(format!("Expected: {expected}, Actual: {actual}")),
         }
     }
 

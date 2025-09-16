@@ -93,16 +93,17 @@ impl OutputFormatter for PrettyFormatter {
                         .expected_return_type
                         .as_ref()
                         .unwrap_or(&result_metadata.type_info.type_name);
-                    
+
                     let value_str = format_fhir_value_pretty(&result_metadata.value);
-                    
+
                     // Show additional type information when available
-                    let type_display = if let Some(namespace) = &result_metadata.type_info.namespace {
+                    let type_display = if let Some(namespace) = &result_metadata.type_info.namespace
+                    {
                         format!("{}.{}", namespace, type_name)
                     } else {
                         type_name.clone()
                     };
-                    
+
                     result.push_str(&format!(
                         "   [{}] {}: {}\n",
                         self.colorize(&i.to_string(), colored::Color::Cyan),
@@ -301,61 +302,41 @@ impl OutputFormatter for PrettyFormatter {
 
 fn get_fhir_type_name(value: &FhirPathValue) -> String {
     match value {
-        FhirPathValue::String(_) => "String".to_string(),
-        FhirPathValue::Integer(_) => "Integer".to_string(),
-        FhirPathValue::Decimal(_) => "Decimal".to_string(),
-        FhirPathValue::Boolean(_) => "Boolean".to_string(),
-        FhirPathValue::Date(_) => "Date".to_string(),
-        FhirPathValue::DateTime(_) => "DateTime".to_string(),
-        FhirPathValue::Time(_) => "Time".to_string(),
+        FhirPathValue::String(_, _, _) => "String".to_string(),
+        FhirPathValue::Integer(_, _, _) => "Integer".to_string(),
+        FhirPathValue::Decimal(_, _, _) => "Decimal".to_string(),
+        FhirPathValue::Boolean(_, _, _) => "Boolean".to_string(),
+        FhirPathValue::Date(_, _, _) => "Date".to_string(),
+        FhirPathValue::DateTime(_, _, _) => "DateTime".to_string(),
+        FhirPathValue::Time(_, _, _) => "Time".to_string(),
         FhirPathValue::Quantity { .. } => "Quantity".to_string(),
         FhirPathValue::Collection(_) => "Collection".to_string(),
-        FhirPathValue::Resource(_) => "Resource".to_string(),
-        FhirPathValue::JsonValue(_) => "JsonValue".to_string(),
-        FhirPathValue::TypeInfoObject { .. } => "TypeInfo".to_string(),
+        // Resource variant was consolidated into Json - handled above
+        // JsonValue variant was consolidated into Json - removed
+        // TypeInfoObject variant doesn't exist anymore
         FhirPathValue::Empty => "Empty".to_string(),
-        FhirPathValue::Id(_) => "Id".to_string(),
-        FhirPathValue::Base64Binary(_) => "Base64Binary".to_string(),
-        FhirPathValue::Uri(_) => "Uri".to_string(),
-        FhirPathValue::Url(_) => "Url".to_string(),
-        FhirPathValue::Wrapped(wrapped) => {
-            if let Some(type_info) = wrapped.get_type_info() {
-                // Prefer the specific FHIR type name if available
-                if let Some(ref name) = type_info.name {
-                    name.clone()
-                } else {
-                    type_info.type_name.clone()
-                }
+        // Id variant doesn't exist anymore
+        // Base64Binary variant doesn't exist anymore
+        // Uri variant doesn't exist anymore
+        // Url variant doesn't exist anymore
+        FhirPathValue::Resource(json, type_info, _) => {
+            // Use the TypeInfo's name if available
+            if let Some(ref name) = type_info.name {
+                name.clone()
             } else {
-                "Unknown".to_string()
+                type_info.type_name.clone()
             }
-        },
-        FhirPathValue::ResourceWrapped(wrapped) => {
-            if let Some(type_info) = wrapped.get_type_info() {
-                // Prefer the specific FHIR type name if available
-                if let Some(ref name) = type_info.name {
-                    name.clone()
-                } else {
-                    type_info.type_name.clone()
-                }
-            } else {
-                // Fallback to resourceType from JSON
-                if let Some(resource_type) = wrapped.value.get("resourceType").and_then(|v| v.as_str()) {
-                    resource_type.to_string()
-                } else {
-                    "Resource".to_string()
-                }
-            }
-        },
+        }
+        // No more separate case for None metadata
     }
 }
 
 fn format_fhir_value_pretty(value: &FhirPathValue) -> String {
     match value {
-        FhirPathValue::String(s) => format!("\"{s}\""),
-        FhirPathValue::Integer(i) => i.to_string(),
-        FhirPathValue::Decimal(d) => d.to_string(),
-        FhirPathValue::Boolean(b) => b.to_string(),
+        FhirPathValue::String(s, _, _) => format!("\"{s}\""),
+        FhirPathValue::Integer(i, _, _) => i.to_string(),
+        FhirPathValue::Decimal(d, _, _) => d.to_string(),
+        FhirPathValue::Boolean(b, _, _) => b.to_string(),
         other => {
             match serde_json::to_string(other) {
                 Ok(json) => {

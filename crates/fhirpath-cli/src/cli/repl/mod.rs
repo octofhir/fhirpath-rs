@@ -68,11 +68,11 @@ pub async fn start_repl(
     initial_resource: Option<JsonValue>,
     initial_variables: Vec<(String, String)>,
 ) -> Result<()> {
-    use octofhir_fhirpath::create_standard_registry;
+    use octofhir_fhirpath::create_empty_registry;
     use octofhir_fhirpath::evaluator::FhirPathEngine;
 
     // Create the engine asynchronously
-    let registry = Arc::new(create_standard_registry().await);
+    let registry = Arc::new(create_empty_registry());
     let engine = FhirPathEngine::new(registry, model_provider).await?;
 
     let mut session = ReplSession::new(engine, config).await?;

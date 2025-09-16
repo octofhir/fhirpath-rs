@@ -55,9 +55,9 @@ impl PathSegment {
 impl fmt::Display for PathSegment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PathSegment::Root(name) => write!(f, "{}", name),
-            PathSegment::Property(name) => write!(f, "{}", name),
-            PathSegment::Index(idx) => write!(f, "[{}]", idx),
+            PathSegment::Root(name) => write!(f, "{name}"),
+            PathSegment::Property(name) => write!(f, "{name}"),
+            PathSegment::Index(idx) => write!(f, "[{idx}]"),
             PathSegment::Wildcard => write!(f, "[*]"),
         }
     }
@@ -127,7 +127,7 @@ impl CanonicalPath {
 
                     // Parse index content
                     let mut index_content = String::new();
-                    while let Some(index_ch) = chars.next() {
+                    for index_ch in chars.by_ref() {
                         if index_ch == ']' {
                             break;
                         }
@@ -269,7 +269,7 @@ impl fmt::Display for CanonicalPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use cached string if available
         if let Some(ref cached) = self.cached_string {
-            return write!(f, "{}", cached);
+            return write!(f, "{cached}");
         }
 
         // Build string representation
@@ -286,7 +286,7 @@ impl fmt::Display for CanonicalPath {
                     result.push_str(name);
                 }
                 PathSegment::Index(idx) => {
-                    result.push_str(&format!("[{}]", idx));
+                    result.push_str(&format!("[{idx}]"));
                 }
                 PathSegment::Wildcard => {
                     result.push_str("[*]");
@@ -294,7 +294,7 @@ impl fmt::Display for CanonicalPath {
             }
         }
 
-        write!(f, "{}", result)
+        write!(f, "{result}")
     }
 }
 
@@ -314,8 +314,8 @@ pub enum PathParseError {
 impl fmt::Display for PathParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PathParseError::InvalidIndex(idx) => write!(f, "Invalid index: {}", idx),
-            PathParseError::InvalidFormat(msg) => write!(f, "Invalid path format: {}", msg),
+            PathParseError::InvalidIndex(idx) => write!(f, "Invalid index: {idx}"),
+            PathParseError::InvalidFormat(msg) => write!(f, "Invalid path format: {msg}"),
         }
     }
 }

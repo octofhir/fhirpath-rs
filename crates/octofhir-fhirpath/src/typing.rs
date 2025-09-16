@@ -38,10 +38,7 @@ impl TypeResolver {
         if is_primitive_type(parent_type) {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0052,
-                format!(
-                    "Cannot access property '{}' on primitive type '{}'",
-                    property, parent_type
-                ),
+                format!("Cannot access property '{property}' on primitive type '{parent_type}'"),
             ));
         }
 
@@ -56,30 +53,35 @@ impl TypeResolver {
             union_choices: None,
         };
 
-        match self.model_provider.get_element_type(&parent_type_info, property).await {
+        match self
+            .model_provider
+            .get_element_type(&parent_type_info, property)
+            .await
+        {
             Ok(Some(element_type_info)) => {
                 // Return the type name from the TypeInfo
                 return Ok(element_type_info.type_name);
             }
             Ok(None) => {
                 // Property not found with standard navigation, try choice element resolution
-                if let Some(choice_type) = self.resolve_choice_element(parent_type, property).await? {
+                if let Some(choice_type) =
+                    self.resolve_choice_element(parent_type, property).await?
+                {
                     return Ok(choice_type);
                 }
                 // If no choice element found, fall through to error
             }
             Err(_) => {
                 // Property navigation failed, check if it's a choice element
-                if let Some(choice_type) = self.resolve_choice_element(parent_type, property).await? {
+                if let Some(choice_type) =
+                    self.resolve_choice_element(parent_type, property).await?
+                {
                     return Ok(choice_type);
                 } else {
                     // Property doesn't exist
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0052,
-                        format!(
-                            "Property '{}' not found on type '{}'",
-                            property, parent_type
-                        ),
+                        format!("Property '{property}' not found on type '{parent_type}'"),
                     ));
                 }
             }
@@ -88,10 +90,7 @@ impl TypeResolver {
         // If we get here, all navigation attempts failed
         Err(FhirPathError::evaluation_error(
             crate::core::error_code::FP0052,
-            format!(
-                "Property '{}' not found on type '{}'",
-                property, parent_type
-            ),
+            format!("Property '{property}' not found on type '{parent_type}'"),
         ))
     }
 
@@ -134,8 +133,12 @@ impl TypeResolver {
                     is_union_type: Some(false),
                     union_choices: None,
                 };
-                
-                if let Ok(element_names) = self.model_provider.get_element_names(&parent_type_info).await {
+
+                if let Ok(element_names) = self
+                    .model_provider
+                    .get_element_names(&parent_type_info)
+                    .await
+                {
                     if element_names.contains(&base.to_string()) {
                         // The element exists as a choice - resolve the specific type
                         return Ok(Some(type_suffix.to_string()));
@@ -186,7 +189,7 @@ impl TypeResolver {
                 }
                 crate::path::PathSegment::Wildcard => {
                     // Wildcard represents collection access
-                    current_type = format!("Array<{}>", current_type);
+                    current_type = format!("Array<{current_type}>");
                 }
                 crate::path::PathSegment::Root(_) => {
                     // Should not have multiple roots in a path
@@ -243,8 +246,12 @@ impl TypeResolver {
 pub fn is_primitive_type(type_name: &str) -> bool {
     // Normalize optional namespaces and casing: e.g., System.Boolean -> boolean
     let mut t = type_name;
-    if let Some(stripped) = t.strip_prefix("System.") { t = stripped; }
-    if let Some(stripped) = t.strip_prefix("FHIR.") { t = stripped; }
+    if let Some(stripped) = t.strip_prefix("System.") {
+        t = stripped;
+    }
+    if let Some(stripped) = t.strip_prefix("FHIR.") {
+        t = stripped;
+    }
     let t = t;
 
     // Accept canonical primitive spellings (case-sensitive as per spec), plus a few tolerant aliases
@@ -327,7 +334,14 @@ pub mod type_utils {
         }
 
         // Numeric types are compatible with each other (allow Number alias)
-        let numeric_types = ["integer", "decimal", "unsignedInt", "positiveInt", "Number", "System.Number"];
+        let numeric_types = [
+            "integer",
+            "decimal",
+            "unsignedInt",
+            "positiveInt",
+            "Number",
+            "System.Number",
+        ];
         let type1_numeric = numeric_types.contains(&type1);
         let type2_numeric = numeric_types.contains(&type2);
         if type1_numeric && type2_numeric {
@@ -411,32 +425,19 @@ pub mod type_utils {
     /// Convert FhirPathValue type to FHIR type name
     pub fn fhirpath_value_to_fhir_type(value: &crate::core::FhirPathValue) -> String {
         match value {
-            crate::core::FhirPathValue::Boolean(_) => "boolean".to_string(),
-            crate::core::FhirPathValue::Integer(_) => "integer".to_string(),
-            crate::core::FhirPathValue::Decimal(_) => "decimal".to_string(),
-            crate::core::FhirPathValue::String(_) => "string".to_string(),
-            crate::core::FhirPathValue::Date(_) => "date".to_string(),
-            crate::core::FhirPathValue::DateTime(_) => "dateTime".to_string(),
-            crate::core::FhirPathValue::Time(_) => "time".to_string(),
+            crate::core::FhirPathValue::Boolean(_, _, _) => "boolean".to_string(),
+            crate::core::FhirPathValue::Integer(_, _, _) => "integer".to_string(),
+            crate::core::FhirPathValue::Decimal(_, _, _) => "decimal".to_string(),
+            crate::core::FhirPathValue::String(_, _, _) => "string".to_string(),
+            crate::core::FhirPathValue::Date(_, _, _) => "date".to_string(),
+            crate::core::FhirPathValue::DateTime(_, _, _) => "dateTime".to_string(),
+            crate::core::FhirPathValue::Time(_, _, _) => "time".to_string(),
             crate::core::FhirPathValue::Quantity { .. } => "Quantity".to_string(),
-            crate::core::FhirPathValue::Resource(_) => "Resource".to_string(),
-            crate::core::FhirPathValue::JsonValue(_) => "unknown".to_string(),
-            crate::core::FhirPathValue::Id(_) => "id".to_string(),
-            crate::core::FhirPathValue::Base64Binary(_) => "base64Binary".to_string(),
-            crate::core::FhirPathValue::Uri(_) => "uri".to_string(),
-            crate::core::FhirPathValue::Url(_) => "url".to_string(),
+            crate::core::FhirPathValue::Resource(_, type_info, _) => {
+                // Use TypeInfo to get the proper FHIR type name
+                type_info.name.as_deref().unwrap_or(&type_info.type_name).to_string()
+            },
             crate::core::FhirPathValue::Collection(_) => "Collection".to_string(),
-            crate::core::FhirPathValue::TypeInfoObject { .. } => "TypeInfo".to_string(),
-            crate::core::FhirPathValue::Wrapped(wrapped) => {
-                wrapped.get_type_info()
-                    .and_then(|t| t.name.clone())
-                    .unwrap_or_else(|| "Any".to_string())
-            }
-            crate::core::FhirPathValue::ResourceWrapped(wrapped) => {
-                wrapped.get_type_info()
-                    .and_then(|t| t.name.clone())
-                    .unwrap_or_else(|| "Resource".to_string())
-            }
             crate::core::FhirPathValue::Empty => "empty".to_string(),
         }
     }
@@ -506,15 +507,18 @@ mod tests {
         use crate::core::FhirPathValue;
 
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::String("test".to_string())),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::String(
+                "test".to_string(),
+                None
+            )),
             "string"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(42)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(42, None)),
             "integer"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(true)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(true, None)),
             "boolean"
         );
     }

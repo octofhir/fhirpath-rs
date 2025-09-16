@@ -155,8 +155,7 @@ impl DiagnosticFormatter {
             };
 
             output.push_str(&format!(
-                "│ {:<7} │ {:<7} │ {:<8} │ {:<55} │\n",
-                code, level, span, message
+                "│ {code:<7} │ {level:<7} │ {span:<8} │ {message:<55} │\n"
             ));
         }
 

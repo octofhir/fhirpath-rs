@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use clap::Parser;
 use octofhir_fhirpath::core::error_code::{ErrorCategory, ErrorCode};
-use octofhir_fhirpath::registry::{FunctionCategory, FunctionRegistry};
+// use octofhir_fhirpath::registry::{FunctionCategory, FunctionRegistry};
 
 /// Generate MDX documentation for FHIRPath functions and error codes
 #[derive(Parser, Debug)]
@@ -27,14 +27,16 @@ fn main() -> Result<()> {
     fs::create_dir_all(&functions_dir).context("create functions dir")?;
     fs::create_dir_all(&errors_dir).context("create errors dir")?;
 
-    generate_functions_docs(&functions_dir)?;
-    generate_errors_docs(&errors_dir)?;
-    generate_section_indexes(&args.out_dir)?;
+    // generate_functions_docs(&functions_dir)?;
+    // generate_errors_docs(&errors_dir)?;
+    // generate_section_indexes(&args.out_dir)?;
+    println!("📚 Function and error docs generation is disabled in this version.");
 
     println!("✅ Documentation generated at {}", args.out_dir.display());
     Ok(())
 }
 
+/*
 fn generate_functions_docs(dir: &Path) -> Result<()> {
     let registry = FunctionRegistry::default();
     let mut items = registry.list_functions();
@@ -62,26 +64,16 @@ fn generate_functions_docs(dir: &Path) -> Result<()> {
 
         // Signature
         mdx.push_str("## Signature\n\n");
-        if let Some(ret) = &meta.return_type {
-            mdx.push_str(&format!("- Return type: `{}`\n", ret));
+        let return_type_name = meta.signature.returns.display_name();
+        if !return_type_name.is_empty() {
+            mdx.push_str(&format!("- Return type: `{}`\n", return_type_name));
         }
-        if !meta.parameters.is_empty() {
+        if !meta.signature.parameters.is_empty() {
             mdx.push_str("- Parameters:\n");
-            for p in &meta.parameters {
-                let t = p
-                    .type_constraint
-                    .as_ref()
-                    .map(|s| format!(" `{}`", s))
-                    .unwrap_or_default();
-                let opt = if p.is_optional { " (optional)" } else { "" };
-                if p.description.is_empty() {
-                    mdx.push_str(&format!("  - `{}`{}{}\n", p.name, t, opt));
-                } else {
-                    mdx.push_str(&format!(
-                        "  - `{}`{}{} — {}\n",
-                        p.name, t, opt, p.description
-                    ));
-                }
+            for p in &meta.signature.parameters {
+                let t = format!(" `{:?}`", p.ty);
+                let opt = if p.variadic { " (variadic)" } else { "" };
+                mdx.push_str(&format!("  - `{}`{}{}\n", p.name, t, opt));
             }
         }
         mdx.push_str("\n");
@@ -155,6 +147,9 @@ fn generate_functions_docs(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+*/
+
+/*
 fn generate_errors_docs(dir: &Path) -> Result<()> {
     // Iterate a reasonable range and filter defined codes
     let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
@@ -264,6 +259,7 @@ fn format_function_category(cat: &FunctionCategory) -> &'static str {
         FunctionCategory::Utility => "Utility",
     }
 }
+*/
 
 fn format_error_category(cat: &ErrorCategory) -> &'static str {
     match cat {

@@ -16,13 +16,18 @@
 
 use clap::Parser;
 use fhirpath_cli::EmbeddedModelProvider;
-use octofhir_fhir_model::provider::EmptyModelProvider;
-use octofhir_fhir_model::HttpTerminologyProvider;
 use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput};
-use fhirpath_cli::cli::{Cli, Commands};
-use octofhir_fhirpath::{self, create_standard_registry};
+use fhirpath_cli::cli::{Cli, Commands, RegistryCommands, RegistryShowTarget, RegistryTarget};
+use octofhir_fhir_model::HttpTerminologyProvider;
+use octofhir_fhir_model::provider::{EmptyModelProvider, FhirVersion, ModelProvider};
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
+// Registry module removed - commenting out
+// use octofhir_fhirpath::registry::{
+//     FunctionRegistry, create_comprehensive_operator_registry, export_functions_json,
+//     export_operators_json,
+// };
+use octofhir_fhirpath::{self, create_empty_registry};
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
@@ -31,7 +36,7 @@ use std::time::Instant;
 
 /// Create a shared EmbeddedModelProvider instance for all commands
 async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvider>> {
-    let provider = EmbeddedModelProvider::r4();
+    let provider = EmbeddedModelProvider::new(FhirVersion::R4);
     Ok(Arc::new(provider))
 }
 
@@ -39,7 +44,7 @@ async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvi
 async fn create_fhirpath_engine(
     model_provider: Arc<EmbeddedModelProvider>,
 ) -> anyhow::Result<FhirPathEngine> {
-    let registry = Arc::new(create_standard_registry().await);
+    let registry = Arc::new(create_empty_registry());
     let engine = FhirPathEngine::new(registry, model_provider)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
@@ -206,27 +211,6 @@ async fn main() {
             )
             .await;
         }
-        Commands::Parse {
-            ref expression,
-            ref output_format,
-            no_color,
-            quiet,
-            verbose,
-        } => {
-            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
-                merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
-
-            let mut merged_cli = cli.clone();
-            merged_cli.output_format = merged_format.clone();
-            merged_cli.no_color = merged_no_color;
-            merged_cli.quiet = merged_quiet;
-            merged_cli.verbose = merged_verbose;
-
-            let merged_formatter_factory = FormatterFactory::new(merged_no_color);
-            let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
-
-            handle_parse(expression, &merged_cli, &*merged_formatter);
-        }
         Commands::Validate {
             ref expression,
             ref output_format,
@@ -286,69 +270,57 @@ async fn main() {
         Commands::Docs { ref error_code } => {
             handle_docs(error_code, &cli);
         }
-        Commands::Repl {
-            ref input,
-            ref variables,
-            ref history_file,
-            history_size,
-        } => {
-            handle_repl(
-                input.as_deref(),
-                variables,
-                history_file.as_deref(),
-                history_size,
-                &cli,
-            )
-            .await;
-        }
-        // Commands::Server {
-        //     port,
-        //     ref storage,
-        //     ref host,
-        //     cors_all,
-        //     max_body_size,
-        //     timeout,
-        //     rate_limit,
-        //     no_ui,
-        // } => {
-        //     handle_server(
-        //         port,
-        //         storage.clone(),
-        //         host.clone(),
-        //         cors_all,
-        //         max_body_size,
-        //         timeout,
-        //         rate_limit,
-        //         no_ui,
-        //         &cli,
-        //     )
-        //     .await;
-        // }
-        // Commands::Tui {
-        //     ref input,
-        //     ref variables,
-        //     ref config,
-        //     ref theme,
-        //     no_mouse,
-        //     no_syntax_highlighting,
-        //     no_auto_completion,
-        //     performance_monitoring,
-        //     check_terminal,
-        // } => {
-        //     handle_tui(
-        //         input.as_deref(),
-        //         variables,
-        //         config.as_deref(),
-        //         theme,
-        //         no_mouse,
-        //         no_syntax_highlighting,
-        //         no_auto_completion,
-        //         performance_monitoring,
-        //         check_terminal,
-        //         &cli,
-        //     )
-        //     .await;
-        // }
+        // Commands::Repl { ... } => { ... } // Commented out during Phase 1
+        Commands::Registry { ref command } => {
+            handle_registry(command, &cli).await;
+        } // Commands::Server {
+          //     port,
+          //     ref storage,
+          //     ref host,
+          //     cors_all,
+          //     max_body_size,
+          //     timeout,
+          //     rate_limit,
+          //     no_ui,
+          // } => {
+          //     handle_server(
+          //         port,
+          //         storage.clone(),
+          //         host.clone(),
+          //         cors_all,
+          //         max_body_size,
+          //         timeout,
+          //         rate_limit,
+          //         no_ui,
+          //         &cli,
+          //     )
+          //     .await;
+          // }
+          // Commands::Tui {
+          //     ref input,
+          //     ref variables,
+          //     ref config,
+          //     ref theme,
+          //     no_mouse,
+          //     no_syntax_highlighting,
+          //     no_auto_completion,
+          //     performance_monitoring,
+          //     check_terminal,
+          // } => {
+          //     handle_tui(
+          //         input.as_deref(),
+          //         variables,
+          //         config.as_deref(),
+          //         theme,
+          //         no_mouse,
+          //         no_syntax_highlighting,
+          //         no_auto_completion,
+          //         performance_monitoring,
+          //         check_terminal,
+          //         &cli,
+          //     )
+          //     .await;
+          // }
     }
 }
 
@@ -447,11 +419,11 @@ async fn handle_evaluate(
     };
 
     // Attach default terminology provider (tx.fhir.org) matching model provider's FHIR version
-    let tx_path = match model_provider.version() {
-        octofhir_fhirschema::ModelFhirVersion::R4 => "r4",
-        octofhir_fhirschema::ModelFhirVersion::R4B => "r4b",
-        octofhir_fhirschema::ModelFhirVersion::R5 => "r5",
-        octofhir_fhirschema::ModelFhirVersion::R6 => "r6",
+    let tx_path = match model_provider.get_fhir_version().await {
+        Ok(octofhir_fhir_model::provider::FhirVersion::R4) => "r4",
+        Ok(octofhir_fhir_model::provider::FhirVersion::R4B) => "r4b",
+        Ok(octofhir_fhir_model::provider::FhirVersion::R5) => "r5",
+        Ok(octofhir_fhir_model::provider::FhirVersion::R6) => "r6",
         _ => "r4",
     };
     let tx_url = format!("https://tx.fhir.org/{}", tx_path);
@@ -472,7 +444,7 @@ async fn handle_evaluate(
                 Ok(json_value) => octofhir_fhirpath::FhirPathValue::resource(json_value),
                 Err(_) => {
                     // If JSON parsing fails, treat as string
-                    octofhir_fhirpath::FhirPathValue::String(value_str.to_string().into())
+                    octofhir_fhirpath::FhirPathValue::string(value_str.to_string())
                 }
             };
             initial_variables.insert(name.to_string(), value);
@@ -491,17 +463,21 @@ async fn handle_evaluate(
     // Create NEW async evaluation context with the resource and variables
     let context_collection =
         octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource));
-    let model_provider_arc = model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
+    let model_provider_arc =
+        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
     let mut eval_context = octofhir_fhirpath::EvaluationContext::new(
         context_collection,
         model_provider_arc,
         engine.get_terminology_provider(),
-    ).await;
+    )
+    .await;
 
     // Add variables if provided - support multiple variables
     if !variables.is_empty() {
-        if let Err(e) = eval_context.add_variables(variables) {
-            eprintln!("Warning: Failed to set variables: {}", e);
+        for (name, value) in variables {
+            if let Err(e) = eval_context.set_user_variable(name, value) {
+                eprintln!("Warning: Failed to set variable: {}", e);
+            }
         }
     }
 
@@ -572,10 +548,8 @@ async fn handle_evaluate(
             metadata: OutputMetadata::default(),
         }
     } else {
-        // Parse successful - now evaluate with metadata
-        let result = engine
-            .evaluate_with_metadata(expression, &eval_context)
-            .await;
+        // Parse successful - now evaluate
+        let result = engine.evaluate(expression, &eval_context).await;
 
         let execution_time = start_time.elapsed();
         match result {
@@ -880,7 +854,8 @@ async fn handle_repl(
     use serde_json::Value as JsonValue;
     use std::path::PathBuf;
 
-    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::r4());
+    let model_provider =
+        std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::new(FhirVersion::R4));
 
     // Parse initial variables
     let mut initial_variables = Vec::new();
@@ -1205,6 +1180,126 @@ fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::o
     None
 }
 
+/// Handle registry commands for functions and operators
+async fn handle_registry(command: &RegistryCommands, cli: &Cli) {
+    use fhirpath_cli::cli::output::FormatterFactory;
+
+    match command {
+        RegistryCommands::List {
+            target,
+            category,
+            search,
+            output_format,
+            no_color,
+            quiet,
+            verbose,
+        } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), *no_color, *quiet, *verbose);
+
+            let formatter_factory = FormatterFactory::new(merged_no_color);
+            let formatter = formatter_factory.create_formatter(merged_format);
+
+            match target {
+                RegistryTarget::Functions => {
+                    handle_registry_list_functions(category, search, &*formatter, merged_quiet)
+                        .await;
+                }
+                RegistryTarget::Operators => {
+                    handle_registry_list_operators(category, search, &*formatter, merged_quiet)
+                        .await;
+                }
+            }
+        }
+        RegistryCommands::Show {
+            name,
+            target,
+            output_format,
+            no_color,
+            quiet,
+            verbose,
+        } => {
+            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
+                merge_output_options(&cli, output_format.clone(), *no_color, *quiet, *verbose);
+
+            let formatter_factory = FormatterFactory::new(merged_no_color);
+            let formatter = formatter_factory.create_formatter(merged_format);
+
+            handle_registry_show(name, target, &*formatter, merged_quiet).await;
+        }
+    }
+}
+
+async fn handle_registry_list_functions(
+    category: &Option<String>,
+    search: &Option<String>,
+    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    quiet: bool,
+) {
+    // Registry functionality removed - functions listing not available
+    if !quiet {
+        eprintln!("Function registry functionality is not available in this version.");
+    }
+}
+
+async fn handle_registry_list_operators(
+    category: &Option<String>,
+    search: &Option<String>,
+    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    quiet: bool,
+) {
+    // Registry functionality removed - operators listing not available
+    if !quiet {
+        eprintln!("Operator registry functionality is not available in this version.");
+    }
+}
+
+async fn handle_registry_show(
+    name: &str,
+    target: &RegistryShowTarget,
+    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    quiet: bool,
+) {
+    match target {
+        RegistryShowTarget::Auto => {
+            // Try to find in functions first, then operators
+            if !try_show_function(name, formatter, quiet).await {
+                try_show_operator(name, formatter, quiet).await;
+            }
+        }
+        RegistryShowTarget::Function => {
+            try_show_function(name, formatter, quiet).await;
+        }
+        RegistryShowTarget::Operator => {
+            try_show_operator(name, formatter, quiet).await;
+        }
+    }
+}
+
+async fn try_show_function(
+    name: &str,
+    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    quiet: bool,
+) -> bool {
+    // Registry functionality removed
+    if !quiet {
+        eprintln!("Function '{}' lookup functionality is not available in this version.", name);
+    }
+    false
+}
+
+async fn try_show_operator(
+    name: &str,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    quiet: bool,
+) -> bool {
+    // Registry functionality removed - operator lookup not available
+    if !quiet {
+        eprintln!("Operator '{}' lookup functionality is not available in this version.", name);
+    }
+    false
+}
+
 // Handle the TUI command
 /* async fn handle_tui(
     input: Option<&str>,
@@ -1239,7 +1334,7 @@ fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::o
     }
 
     // Create ModelProvider
-    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::r4());
+    let model_provider = std::sync::Arc::new(fhirpath_cli::EmbeddedModelProvider::new(FhirVersion::R4));
 
     // Load configuration
     let mut config = if let Some(config_path) = config_path {
