@@ -7,11 +7,12 @@
 use std::sync::Arc;
 
 use crate::ast::{
-    AnalysisMetadata, ExpressionAnalysis, ExpressionNode, IdentifierNode, PropertyAccessNode,
+    AnalysisMetadata, BinaryOperationNode, BinaryOperator, ExpressionAnalysis, ExpressionNode,
+    FunctionCallNode, IdentifierNode, LiteralNode, LiteralValue, MethodCallNode, PropertyAccessNode,
 };
-use octofhir_fhir_model::{ModelProvider, TypeInfo};
 use crate::core::FhirPathError;
 use crate::diagnostics::{Diagnostic, DiagnosticCode, DiagnosticSeverity};
+use octofhir_fhir_model::{ModelProvider, TypeInfo};
 
 /// Semantic analyzer for FHIRPath expressions
 pub struct SemanticAnalyzer {
@@ -68,7 +69,9 @@ impl SemanticAnalyzer {
         &'a mut self,
         node: &'a ExpressionNode,
         analysis: &'a mut ExpressionAnalysis,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<AnalysisMetadata, FhirPathError>> + 'a>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<AnalysisMetadata, FhirPathError>> + 'a>,
+    > {
         Box::pin(async move {
             match node {
                 ExpressionNode::Identifier(identifier) => {
@@ -77,8 +80,15 @@ impl SemanticAnalyzer {
                 ExpressionNode::PropertyAccess(prop) => {
                     self.analyze_property_access(prop, analysis).await
                 }
-                ExpressionNode::Literal(literal) => {
-                    Ok(self.analyze_literal(literal))
+                ExpressionNode::Literal(literal) => Ok(self.analyze_literal(literal)),
+                ExpressionNode::BinaryOperation(binary_op) => {
+                    self.analyze_binary_operation(binary_op, analysis).await
+                }
+                ExpressionNode::FunctionCall(func_call) => {
+                    self.analyze_function_call(func_call, analysis).await
+                }
+                ExpressionNode::MethodCall(method_call) => {
+                    self.analyze_method_call(method_call, analysis).await
                 }
                 _ => {
                     // For now, return empty metadata for other node types
@@ -100,7 +110,9 @@ impl SemanticAnalyzer {
         // Try to use model provider for accurate type information
         if let Some(ref input_type) = self.input_type {
             // First try to navigate from input type (property access)
-            if let Ok(Some(element_type)) = self.model_provider.get_element_type(input_type, name).await {
+            if let Ok(Some(element_type)) =
+                self.model_provider.get_element_type(input_type, name).await
+            {
                 metadata.type_info = Some(element_type);
                 self.input_type = metadata.type_info.clone();
                 self.is_chain_head = false;
@@ -109,7 +121,7 @@ impl SemanticAnalyzer {
 
             // If property not found and we have a concrete type, this is a semantic error
             // C# implementation: "prop 'given1' not found on HumanName[]"
-            let type_display = if input_type.singleton {
+            let type_display = if input_type.singleton.unwrap_or(true) {
                 input_type.type_name.clone()
             } else {
                 format!("{}[]", input_type.type_name)
@@ -129,7 +141,13 @@ impl SemanticAnalyzer {
             analysis.add_diagnostic(diagnostic);
 
             // Return empty collection type but mark analysis as failed
-            metadata.type_info = Some(TypeInfo::system_type("Any".to_string(), false));
+            metadata.type_info = Some(TypeInfo {
+                type_name: "Any".to_string(),
+                singleton: Some(false),
+                is_empty: Some(false),
+                namespace: Some("System".to_string()),
+                name: Some("Any".to_string()),
+            });
             return Ok(metadata);
         }
 
@@ -146,7 +164,13 @@ impl SemanticAnalyzer {
 
         // Without a model provider or context, we can't know the type
         // Return Any type - don't make assumptions
-        metadata.type_info = Some(TypeInfo::system_type("Any".to_string(), false));
+        metadata.type_info = Some(TypeInfo {
+            type_name: "Any".to_string(),
+            singleton: Some(false),
+            is_empty: Some(false),
+            namespace: Some("System".to_string()),
+            name: Some("Any".to_string()),
+        });
         Ok(metadata)
     }
 
@@ -176,9 +200,84 @@ impl SemanticAnalyzer {
         let mut metadata = AnalysisMetadata::new();
 
         // TODO: Infer type from literal value
-        metadata.type_info = Some(TypeInfo::system_type("Any".to_string(), true));
+        metadata.type_info = Some(TypeInfo {
+            type_name: "Any".to_string(),
+            singleton: Some(true),
+            is_empty: Some(false),
+            namespace: Some("System".to_string()),
+            name: Some("Any".to_string()),
+        });
 
         metadata
+    }
+
+    /// Analyze binary operation node for semantic errors
+    async fn analyze_binary_operation(
+        &mut self,
+        binary_op: &BinaryOperationNode,
+        analysis: &mut ExpressionAnalysis,
+    ) -> Result<AnalysisMetadata, FhirPathError> {
+        // First, analyze the left and right operands
+        let _left_metadata = self.analyze_node(&binary_op.left, analysis).await?;
+        let _right_metadata = self.analyze_node(&binary_op.right, analysis).await?;
+
+        // Check for semantic errors in addition operations
+        if binary_op.operator == BinaryOperator::Add {
+            // Check if left is a date/datetime/time literal and right is a plain number
+            if let (ExpressionNode::Literal(left_literal), ExpressionNode::Literal(right_literal)) =
+                (&*binary_op.left, &*binary_op.right)
+            {
+                // Check if left is a temporal literal and right is a number
+                if self.is_temporal_literal(left_literal) && self.is_number_literal(right_literal) {
+                    // Extract the actual number value for a better error message
+                    let number_str = self.get_number_string(right_literal);
+                    let suggestion = format!("+ {} 'days'", number_str);
+
+                    // This is a semantic error: date + plain number is not allowed
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "FP0082".to_string(),
+                            namespace: None,
+                        },
+                        message: format!("Cannot add a plain number to a date/time value. Use a quantity with units instead (e.g., {})", suggestion),
+                        location: binary_op.location.clone(),
+                        related: Vec::new(),
+                    });
+                    analysis.success = false;
+                }
+            }
+        }
+
+        Ok(AnalysisMetadata::new())
+    }
+
+    /// Check if a literal is a temporal type (date, datetime, time)
+    fn is_temporal_literal(&self, literal: &LiteralNode) -> bool {
+        use crate::ast::LiteralValue;
+        matches!(
+            literal.value,
+            LiteralValue::Date(_) | LiteralValue::DateTime(_) | LiteralValue::Time(_)
+        )
+    }
+
+    /// Check if a literal is a number (integer or decimal)
+    fn is_number_literal(&self, literal: &LiteralNode) -> bool {
+        use crate::ast::LiteralValue;
+        matches!(
+            literal.value,
+            LiteralValue::Integer(_) | LiteralValue::Decimal(_)
+        )
+    }
+
+    /// Get the string representation of a number literal
+    fn get_number_string(&self, literal: &LiteralNode) -> String {
+        use crate::ast::LiteralValue;
+        match &literal.value {
+            LiteralValue::Integer(i) => i.to_string(),
+            LiteralValue::Decimal(d) => d.to_string(),
+            _ => "number".to_string(), // fallback
+        }
     }
 
     /// Suggest property name fixes for typos
@@ -190,15 +289,11 @@ impl SemanticAnalyzer {
         let mut suggestions = Vec::new();
 
         // Get available properties for the current type
-        if let Ok(properties) = self.model_provider
-            .get_element_names(context_type)
-            .await
-        {
-            // Simple distance-based suggestions (could be enhanced with better algorithms)
-            for prop in properties.iter().take(5) {
-                if self.string_distance(property_name, prop) <= 2 {
-                    suggestions.push(prop.clone());
-                }
+        let properties = self.model_provider.get_element_names(context_type);
+        // Simple distance-based suggestions (could be enhanced with better algorithms)
+        for prop in properties.iter().take(5) {
+            if self.string_distance(property_name, prop) <= 2 {
+                suggestions.push(prop.clone());
             }
         }
 
@@ -228,7 +323,11 @@ impl SemanticAnalyzer {
 
         for i in 1..=a_chars.len() {
             for j in 1..=b_chars.len() {
-                let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+                let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
                 matrix[i][j] = std::cmp::min(
                     std::cmp::min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
                     matrix[i - 1][j - 1] + cost,
@@ -237,6 +336,75 @@ impl SemanticAnalyzer {
         }
 
         matrix[a_chars.len()][b_chars.len()]
+    }
+
+    /// Analyze function call node
+    async fn analyze_function_call(
+        &mut self,
+        func_call: &FunctionCallNode,
+        analysis: &mut ExpressionAnalysis,
+    ) -> Result<AnalysisMetadata, FhirPathError> {
+        // Check for specific function type validation
+        if func_call.name == "iif" && func_call.arguments.len() >= 1 {
+            // Analyze the first argument (condition) - should be boolean
+            let condition_expr = &func_call.arguments[0];
+            let metadata = self.analyze_node(condition_expr, analysis).await?;
+
+            // Check if it's a literal non-boolean value
+            if let ExpressionNode::Literal(literal) = condition_expr {
+                if !matches!(literal.value, LiteralValue::Boolean(_)) {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "TYPE_MISMATCH".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: "iif function condition must be boolean".to_string(),
+                        location: condition_expr.location().cloned(),
+                        related: vec![],
+                    });
+                }
+            }
+        }
+
+        Ok(AnalysisMetadata::new())
+    }
+
+    /// Analyze method call node
+    async fn analyze_method_call(
+        &mut self,
+        method_call: &MethodCallNode,
+        analysis: &mut ExpressionAnalysis,
+    ) -> Result<AnalysisMetadata, FhirPathError> {
+        // Analyze the object first
+        let _object_metadata = self.analyze_node(&method_call.object, analysis).await?;
+
+        // Check for specific method type validation
+        if method_call.method == "iif" && method_call.arguments.len() >= 1 {
+            // Analyze the first argument (condition) - should be boolean
+            let condition_expr = &method_call.arguments[0];
+            let _metadata = self.analyze_node(condition_expr, analysis).await?;
+
+            // Check if it's a literal non-boolean value
+            if let ExpressionNode::Literal(literal) = condition_expr {
+                if !matches!(literal.value, LiteralValue::Boolean(_)) {
+                    analysis.success = false;
+                    analysis.add_diagnostic(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        code: DiagnosticCode {
+                            code: "TYPE_MISMATCH".to_string(),
+                            namespace: Some("fhirpath".to_string()),
+                        },
+                        message: "iif function condition must be boolean".to_string(),
+                        location: condition_expr.location().cloned(),
+                        related: vec![],
+                    });
+                }
+            }
+        }
+
+        Ok(AnalysisMetadata::new())
     }
 
     /// Reset analyzer state
@@ -280,12 +448,12 @@ impl AnalyzedParseResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use octofhir_fhir_model::EmbeddedModelProvider;
     use crate::ast::ExpressionNode;
+    use octofhir_fhir_model::EmptyModelProvider;
 
     #[tokio::test]
     async fn test_semantic_analyzer_creation() {
-        let model_provider = Arc::new(EmbeddedModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider::new());
         let analyzer = SemanticAnalyzer::new(model_provider);
         assert!(analyzer.input_type.is_none());
         assert!(analyzer.is_chain_head);
@@ -293,11 +461,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_resource_type_analysis() {
-        let model_provider = Arc::new(EmbeddedModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider::new());
         let mut analyzer = SemanticAnalyzer::new(model_provider);
 
         let identifier = ExpressionNode::identifier("Patient");
-        let result = analyzer.analyze_expression(&identifier, None).await.unwrap();
+        let result = analyzer
+            .analyze_expression(&identifier, None)
+            .await
+            .unwrap();
 
         // Should succeed for known resource type
         assert!(result.success);
@@ -305,7 +476,7 @@ mod tests {
 
     #[test]
     fn test_string_distance() {
-        let model_provider = Arc::new(EmbeddedModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider::new());
         let analyzer = SemanticAnalyzer::new(model_provider);
 
         assert_eq!(analyzer.string_distance("test", "test"), 0);

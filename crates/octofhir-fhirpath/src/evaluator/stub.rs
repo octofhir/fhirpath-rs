@@ -7,9 +7,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::FunctionRegistry;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, ModelProvider, Result};
-use crate::FunctionRegistry;
 use octofhir_fhir_model::TerminologyProvider;
 
 /// Stub evaluation context for CLI compatibility
@@ -77,7 +77,11 @@ impl EvaluationContext {
     }
 
     /// Set user variable (stub implementation)
-    pub fn set_user_variable(&mut self, _name: String, _value: crate::core::FhirPathValue) -> Result<()> {
+    pub fn set_user_variable(
+        &mut self,
+        _name: String,
+        _value: crate::core::FhirPathValue,
+    ) -> Result<()> {
         // STUB: No variable setting supported yet
         Ok(())
     }
@@ -90,29 +94,44 @@ pub struct EvaluationResult {
     pub value: Collection,
 }
 
-/// Stub evaluation result with metadata for CLI debugging
+/// Evaluation result with comprehensive metadata for CLI debugging
 #[derive(Debug, Clone)]
 pub struct EvaluationResultWithMetadata {
     /// Result collection
     pub value: Collection,
-    /// Evaluation metadata (stub)
+    /// Evaluation metadata
     pub metadata: EvaluationMetadata,
 }
 
-/// Stub evaluation metadata for CLI debugging
+/// Comprehensive evaluation metadata for CLI debugging and development tools
 #[derive(Debug, Clone)]
 pub struct EvaluationMetadata {
-    /// Execution time (always zero for stub)
+    /// Total execution time
     pub execution_time: Duration,
-    /// Number of operations (always zero for stub)
-    pub operation_count: usize,
+    /// Node evaluation information
+    pub node_evaluations: Vec<super::metadata_collector::NodeEvaluationInfo>,
+    /// Type resolution information
+    pub type_resolutions: Vec<super::metadata_collector::TypeResolutionInfo>,
+    /// Cache performance statistics
+    pub cache_stats: super::metadata_collector::CacheStats,
+    /// Trace events for detailed flow analysis
+    pub trace_events: Vec<super::metadata_collector::TraceEvent>,
+    /// Performance metrics
+    pub performance_metrics: super::metadata_collector::PerformanceMetrics,
+    /// Session identifier
+    pub session_id: String,
 }
 
 impl Default for EvaluationMetadata {
     fn default() -> Self {
         Self {
             execution_time: Duration::ZERO,
-            operation_count: 0,
+            node_evaluations: Vec::new(),
+            type_resolutions: Vec::new(),
+            cache_stats: super::metadata_collector::CacheStats::default(),
+            trace_events: Vec::new(),
+            performance_metrics: super::metadata_collector::PerformanceMetrics::default(),
+            session_id: String::new(),
         }
     }
 }

@@ -201,7 +201,7 @@ impl TuiApp {
         terminal: Terminal<CrosstermBackend<Stdout>>,
     ) -> Result<Self> {
         // Create engine and analyzer
-        let registry = Arc::new(octofhir_fhirpath::create_empty_registry());
+        let registry = Arc::new(octofhir_fhirpath::create_function_registry());
         let engine = FhirPathEngine::new(registry.clone(), model_provider.clone()).await?;
         // let analyzer = StaticAnalyzer::new(registry, model_provider); // Removed
 

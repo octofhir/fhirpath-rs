@@ -276,7 +276,6 @@ impl ExpressionNode {
         }
     }
 
-
     /// Set the source location for this node
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         match &mut self {
@@ -301,7 +300,6 @@ impl ExpressionNode {
         }
         self
     }
-
 
     /// Get a human-readable description of the node type
     pub fn node_type(&self) -> &'static str {

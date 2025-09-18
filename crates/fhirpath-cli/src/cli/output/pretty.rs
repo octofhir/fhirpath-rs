@@ -94,6 +94,7 @@ impl OutputFormatter for PrettyFormatter {
                         .as_ref()
                         .unwrap_or(&result_metadata.type_info.type_name);
 
+
                     let value_str = format_fhir_value_pretty(&result_metadata.value);
 
                     // Show additional type information when available
@@ -326,8 +327,7 @@ fn get_fhir_type_name(value: &FhirPathValue) -> String {
             } else {
                 type_info.type_name.clone()
             }
-        }
-        // No more separate case for None metadata
+        } // No more separate case for None metadata
     }
 }
 

@@ -1,16 +1,16 @@
 //! Type operators (is/as) implementation
 //!
-//! Implements FHIRPath type checking and casting operations.
+//! Implements FHIRPath type checking and casting operations with comprehensive
+//! ModelProvider integration and FHIR type hierarchy support.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, ModelProvider, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// "is" operator evaluator for type checking
 pub struct IsOperatorEvaluator {
@@ -30,23 +30,63 @@ impl IsOperatorEvaluator {
         Arc::new(Self::new())
     }
 
-    /// Check if a value is of the specified type
-    fn check_type(&self, value: &FhirPathValue, type_name: &str) -> bool {
-        match value {
-            FhirPathValue::Boolean(_, _, _) => type_name == "boolean" || type_name == "System.Boolean",
-            FhirPathValue::String(_, _, _) => type_name == "string" || type_name == "System.String",
-            FhirPathValue::Integer(_, _, _) => type_name == "integer" || type_name == "System.Integer",
-            FhirPathValue::Decimal(_, _, _) => type_name == "decimal" || type_name == "System.Decimal",
-            FhirPathValue::Date(_, _, _) => type_name == "date" || type_name == "System.Date",
-            FhirPathValue::DateTime(_, _, _) => type_name == "dateTime" || type_name == "System.DateTime",
-            FhirPathValue::Time(_, _, _) => type_name == "time" || type_name == "System.Time",
-            FhirPathValue::Quantity { .. } => type_name == "Quantity" || type_name == "System.Quantity",
-            FhirPathValue::Resource(_, type_info, _) => {
-                type_name == type_info.type_name ||
-                type_name == format!("FHIR.{}", type_info.type_name)
-            },
-            _ => false,
+    /// Enhanced type compatibility checking with namespace support
+    async fn check_type_compatibility(
+        &self,
+        value_type: &crate::core::model_provider::TypeInfo,
+        target_type: &str,
+        context: &EvaluationContext,
+    ) -> Result<bool> {
+        // Handle namespace prefixes (System.Boolean, FHIR.Patient)
+        let (target_namespace, target_type_name) = if target_type.contains('.') {
+            let parts: Vec<&str> = target_type.split('.').collect();
+            (Some(parts[0]), parts[1])
+        } else {
+            (None, target_type)
+        };
+
+        // Check direct type match
+        if value_type.type_name == target_type_name {
+            return Ok(true);
         }
+
+        // Use ModelProvider.of_type for schema-driven type checking
+        if context
+            .model_provider()
+            .of_type(value_type, target_type_name)
+            .is_some()
+        {
+            return Ok(true);
+        }
+
+        // Check namespace compatibility if specified
+        if let Some(target_ns) = target_namespace {
+            if let Some(value_ns) = &value_type.namespace {
+                if value_ns != target_ns {
+                    return Ok(false);
+                }
+            }
+        }
+
+        // Check inheritance hierarchy using ModelProvider
+        if let Some(value_name) = &value_type.name {
+            if context
+                .model_provider()
+                .is_type_derived_from(value_name, target_type_name)
+            {
+                return Ok(true);
+            }
+        }
+
+        // Check type_name derivation as well
+        if context
+            .model_provider()
+            .is_type_derived_from(&value_type.type_name, target_type_name)
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }
 
@@ -55,38 +95,51 @@ impl OperationEvaluator for IsOperatorEvaluator {
     async fn evaluate(
         &self,
         _input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
+        context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
-        // Empty propagation: if left operand is empty, result is empty
+        // Spec: If left operand is empty, result is empty (not false)
         if left.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        // For type checking, we need the right operand to be a type identifier
-        // This would normally be handled by parser, but for now we'll extract from string
+        // Spec: If right operand is empty or invalid, throw error
         if right.is_empty() {
-            return Ok(EvaluationResult {
-                value: Collection::single(FhirPathValue::boolean(false)),
-            });
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0062,
+                "Type identifier required for 'is' operator",
+            ));
+        }
+
+        // Spec: If left operand has more than one item, throw error
+        if left.len() > 1 {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0063,
+                "'is' operator requires single item collection",
+            ));
         }
 
         let value = left.first().unwrap();
 
-        // Extract type name from right operand (should be a string literal)
+        // Extract type name from right operand (should be a string literal representing type identifier)
         let type_name = if let Some(FhirPathValue::String(type_str, _, _)) = right.first() {
             type_str.as_str()
         } else {
             // If right operand is not a string, this is likely a parser issue
-            return Ok(EvaluationResult {
-                value: Collection::single(FhirPathValue::boolean(false)),
-            });
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0062,
+                "Invalid type identifier for 'is' operator",
+            ));
         };
 
-        let is_of_type = self.check_type(value, type_name);
+        // Get type info for the value
+        let value_type_info = value.type_info();
+
+        // Enhanced type checking with namespace support and hierarchy
+        let is_of_type = self.check_type_compatibility(&value_type_info, type_name, context).await?;
 
         Ok(EvaluationResult {
             value: Collection::single(FhirPathValue::boolean(is_of_type)),
@@ -116,15 +169,63 @@ impl AsOperatorEvaluator {
         Arc::new(Self::new())
     }
 
-    /// Cast a value to the specified type (returns value if cast is valid, empty otherwise)
-    fn cast_type(&self, value: &FhirPathValue, type_name: &str) -> Option<FhirPathValue> {
-        // For now, simple type checking - in a full implementation this would do actual conversion
-        let is_evaluator = IsOperatorEvaluator::new();
-        if is_evaluator.check_type(value, type_name) {
-            Some(value.clone())
+    /// Enhanced type compatibility checking with namespace support
+    async fn check_type_compatibility(
+        &self,
+        value_type: &crate::core::model_provider::TypeInfo,
+        target_type: &str,
+        context: &EvaluationContext,
+    ) -> Result<bool> {
+        // Handle namespace prefixes (System.Boolean, FHIR.Patient)
+        let (target_namespace, target_type_name) = if target_type.contains('.') {
+            let parts: Vec<&str> = target_type.split('.').collect();
+            (Some(parts[0]), parts[1])
         } else {
-            None
+            (None, target_type)
+        };
+
+        // Check direct type match
+        if value_type.type_name == target_type_name {
+            return Ok(true);
         }
+
+        // Use ModelProvider.of_type for schema-driven type checking
+        if context
+            .model_provider()
+            .of_type(value_type, target_type_name)
+            .is_some()
+        {
+            return Ok(true);
+        }
+
+        // Check namespace compatibility if specified
+        if let Some(target_ns) = target_namespace {
+            if let Some(value_ns) = &value_type.namespace {
+                if value_ns != target_ns {
+                    return Ok(false);
+                }
+            }
+        }
+
+        // Check inheritance hierarchy using ModelProvider
+        if let Some(value_name) = &value_type.name {
+            if context
+                .model_provider()
+                .is_type_derived_from(value_name, target_type_name)
+            {
+                return Ok(true);
+            }
+        }
+
+        // Check type_name derivation as well
+        if context
+            .model_provider()
+            .is_type_derived_from(&value_type.type_name, target_type_name)
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }
 
@@ -133,22 +234,30 @@ impl OperationEvaluator for AsOperatorEvaluator {
     async fn evaluate(
         &self,
         _input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
+        context: &EvaluationContext,
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
-        // Empty propagation: if left operand is empty, result is empty
+        // Spec: If left operand is empty, result is empty
         if left.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        // Extract type name from right operand
+        // Spec: If right operand is empty, result is empty
         if right.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
+        }
+
+        // Spec: If left operand has more than one item, throw error
+        if left.len() > 1 {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0063,
+                "'as' operator requires single item collection",
+            ));
         }
 
         let value = left.first().unwrap();
@@ -156,18 +265,45 @@ impl OperationEvaluator for AsOperatorEvaluator {
         let type_name = if let Some(FhirPathValue::String(type_str, _, _)) = right.first() {
             type_str.as_str()
         } else {
-            return Ok(EvaluationResult {
-                value: Collection::empty(),
-            });
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0062,
+                "Invalid type identifier for 'as' operator",
+            ));
         };
 
-        match self.cast_type(value, type_name) {
-            Some(cast_value) => Ok(EvaluationResult {
+        // Get type info for the value
+        let value_type_info = value.type_info();
+
+        // Enhanced type casting with proper type conversion
+        if self.check_type_compatibility(&value_type_info, type_name, context).await? {
+            // Get target type info from ModelProvider
+            let target_type_info = context
+                .model_provider()
+                .get_type(type_name)
+                .await
+                .map_err(|e| {
+                    crate::core::FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0054,
+                        format!("ModelProvider error getting type '{}': {}", type_name, e),
+                    )
+                })?
+                .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                    type_name: type_name.to_string(),
+                    singleton: Some(true),
+                    namespace: None,
+                    name: Some(type_name.to_string()),
+                    is_empty: Some(false),
+                });
+
+            // Return the value with updated type info
+            let cast_value = value.with_type_info(target_type_info);
+            Ok(EvaluationResult {
                 value: Collection::single(cast_value),
-            }),
-            None => Ok(EvaluationResult {
+            })
+        } else {
+            Ok(EvaluationResult {
                 value: Collection::empty(),
-            }),
+            })
         }
     }
 
@@ -230,12 +366,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::string("boolean".to_string())];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -248,12 +388,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("boolean".to_string())];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(false));
@@ -266,12 +410,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("integer".to_string())];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(42));
@@ -284,12 +432,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::string("boolean".to_string())];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert!(result.value.is_empty());
     }

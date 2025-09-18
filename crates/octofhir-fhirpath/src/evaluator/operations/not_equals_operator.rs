@@ -3,16 +3,15 @@
 //! Implements FHIRPath inequality comparison.
 //! The not equals operator returns the logical negation of the equals operator.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
-use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
-};
 use super::equals_operator::EqualsOperatorEvaluator;
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::evaluator::operator_registry::{
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
+};
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Not equals operator evaluator
 pub struct NotEqualsOperatorEvaluator {
@@ -45,7 +44,10 @@ impl OperationEvaluator for NotEqualsOperatorEvaluator {
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
         // Use the equals evaluator and negate the result
-        let equals_result = self.equals_evaluator.evaluate(input, context, left, right).await?;
+        let equals_result = self
+            .equals_evaluator
+            .evaluate(input, context, left, right)
+            .await?;
 
         // If equals returned empty, not equals also returns empty
         if equals_result.value.is_empty() {
@@ -104,12 +106,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::integer(43)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -122,12 +128,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::integer(42)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(false));

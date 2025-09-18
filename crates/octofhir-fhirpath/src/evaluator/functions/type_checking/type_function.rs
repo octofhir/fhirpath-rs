@@ -1,0 +1,115 @@
+//! Type function implementation
+//!
+//! The type function returns type information about a value.
+//! Syntax: value.type()
+
+use std::sync::Arc;
+
+use crate::ast::ExpressionNode;
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::function_registry::{
+    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use serde_json::{json, Value};
+
+/// Type function evaluator
+pub struct TypeFunctionEvaluator {
+    metadata: FunctionMetadata,
+}
+
+impl TypeFunctionEvaluator {
+    /// Create a new type function evaluator
+    pub fn create() -> Arc<dyn FunctionEvaluator> {
+        Arc::new(Self {
+            metadata: FunctionMetadata {
+                name: "type".to_string(),
+                description: "Returns type information about the input value".to_string(),
+                signature: FunctionSignature {
+                    input_type: "Any".to_string(),
+                    parameters: vec![],
+                    return_type: "TypeInfo".to_string(),
+                    polymorphic: false,
+                    min_params: 0,
+                    max_params: Some(0),
+                },
+                empty_propagation: EmptyPropagation::Propagate,
+                deterministic: true,
+                category: FunctionCategory::Utility,
+                requires_terminology: false,
+                requires_model: false,
+            },
+        })
+    }
+
+    fn get_type_info(&self, value: &FhirPathValue) -> (String, String) {
+        match value {
+            FhirPathValue::Boolean(_, _, _) => ("System".to_string(), "Boolean".to_string()),
+            FhirPathValue::Integer(_, _, _) => ("System".to_string(), "Integer".to_string()),
+            FhirPathValue::Decimal(_, _, _) => ("System".to_string(), "Decimal".to_string()),
+            FhirPathValue::String(_, _, _) => ("System".to_string(), "String".to_string()),
+            FhirPathValue::Date(_, _, _) => ("System".to_string(), "Date".to_string()),
+            FhirPathValue::DateTime(_, _, _) => ("System".to_string(), "DateTime".to_string()),
+            FhirPathValue::Time(_, _, _) => ("System".to_string(), "Time".to_string()),
+            FhirPathValue::Quantity { .. } => ("System".to_string(), "Quantity".to_string()),
+            FhirPathValue::Resource(_, type_info, _) => {
+                ("FHIR".to_string(), type_info.type_name.clone())
+            },
+            FhirPathValue::Collection(_) => ("System".to_string(), "Collection".to_string()),
+            FhirPathValue::Empty => ("System".to_string(), "Empty".to_string()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl FunctionEvaluator for TypeFunctionEvaluator {
+    async fn evaluate(
+        &self,
+        input: Vec<FhirPathValue>,
+        _context: &EvaluationContext,
+        args: Vec<ExpressionNode>,
+        _evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        if !args.is_empty() {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                "type function takes no arguments".to_string(),
+            ));
+        }
+
+        let mut results = Vec::new();
+
+        for value in input {
+            let (namespace, name) = self.get_type_info(&value);
+
+            // Create a JSON object representing the type information
+            let type_info = json!({
+                "namespace": namespace,
+                "name": name
+            });
+
+            // Convert to FhirPathValue::Resource to represent the type object
+            let default_type_info = crate::core::model_provider::TypeInfo {
+                type_name: "TypeInfo".to_string(),
+                singleton: Some(true),
+                namespace: Some("System".to_string()),
+                name: Some("TypeInfo".to_string()),
+                is_empty: Some(false),
+            };
+
+            results.push(FhirPathValue::Resource(
+                std::sync::Arc::new(type_info),
+                default_type_info,
+                None, // No primitive element
+            ));
+        }
+
+        Ok(EvaluationResult {
+            value: crate::core::Collection::from(results),
+        })
+    }
+
+    fn metadata(&self) -> &FunctionMetadata {
+        &self.metadata
+    }
+}

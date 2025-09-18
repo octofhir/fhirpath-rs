@@ -105,9 +105,9 @@ pub fn add_type_information<'a>(
                 // Get return type from function registry if available
                 if let Some(registry) = function_registry {
                     // FunctionRegistry is currently a placeholder
-                // FunctionRegistry is currently a placeholder
-                // Type inference would be implemented here when registry is complete
-                let _ = registry; // Suppress unused variable warning
+                    // FunctionRegistry is currently a placeholder
+                    // Type inference would be implemented here when registry is complete
+                    let _ = registry; // Suppress unused variable warning
                 }
             }
             ExpressionNode::MethodCall(node) => {
@@ -414,7 +414,8 @@ pub fn convert_ast_to_lab_format(
             let return_type = if let Some(registry) = function_registry {
                 // Query the function registry for the return type
                 // FunctionRegistry is currently a placeholder
-                if false { // let Some(function_info) = registry.get_function_metadata(&node.name) {
+                if false {
+                    // let Some(function_info) = registry.get_function_metadata(&node.name) {
                     // Convert the function's return type to FHIRPath Lab format
                     // Some(function_info.signature.returns.display_name())
                     None
@@ -503,7 +504,8 @@ pub fn convert_ast_to_lab_format(
             // Get return type from function registry if available
             let return_type = if let Some(registry) = function_registry {
                 // FunctionRegistry is currently a placeholder
-                if false { // let Some(function_info) = registry.get_function_metadata(&node.method) {
+                if false {
+                    // let Some(function_info) = registry.get_function_metadata(&node.method) {
                     // Some(function_info.signature.returns.display_name())
                     None
                 } else {

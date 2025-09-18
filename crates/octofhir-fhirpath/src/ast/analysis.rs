@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use octofhir_fhir_model::TypeInfo;
 use crate::diagnostics::Diagnostic;
+use octofhir_fhir_model::TypeInfo;
 
 /// Analysis metadata that can be attached to AST nodes during analysis parsing
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -85,12 +85,16 @@ impl AnalysisMetadata {
 
     /// Check if this node has any errors
     pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| matches!(d.severity, crate::diagnostics::DiagnosticSeverity::Error))
+        self.diagnostics
+            .iter()
+            .any(|d| matches!(d.severity, crate::diagnostics::DiagnosticSeverity::Error))
     }
 
     /// Check if this node has any warnings
     pub fn has_warnings(&self) -> bool {
-        self.diagnostics.iter().any(|d| matches!(d.severity, crate::diagnostics::DiagnosticSeverity::Warning))
+        self.diagnostics
+            .iter()
+            .any(|d| matches!(d.severity, crate::diagnostics::DiagnosticSeverity::Warning))
     }
 }
 
@@ -199,7 +203,10 @@ impl ExpressionAnalysis {
 
     /// Add a diagnostic
     pub fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-        let is_error = matches!(diagnostic.severity, crate::diagnostics::DiagnosticSeverity::Error);
+        let is_error = matches!(
+            diagnostic.severity,
+            crate::diagnostics::DiagnosticSeverity::Error
+        );
         self.diagnostics.push(diagnostic);
         if is_error {
             self.success = false;
@@ -210,7 +217,7 @@ impl ExpressionAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagnostics::{DiagnosticSeverity, DiagnosticCode};
+    use crate::diagnostics::{DiagnosticCode, DiagnosticSeverity};
 
     #[test]
     fn test_analysis_metadata_creation() {

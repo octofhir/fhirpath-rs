@@ -2,16 +2,15 @@
 //!
 //! Implements FHIRPath multiplication for numeric types and quantities.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Multiplication operator evaluator
 pub struct MultiplyOperatorEvaluator {
@@ -32,7 +31,11 @@ impl MultiplyOperatorEvaluator {
     }
 
     /// Perform multiplication on two FhirPathValues
-    fn multiply_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
+    fn multiply_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<FhirPathValue> {
         match (left, right) {
             // Integer multiplication
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -55,23 +58,58 @@ impl MultiplyOperatorEvaluator {
             }
 
             // Quantity * Scalar = Quantity
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Integer(r, _, _)) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Integer(r, _, _),
+            ) => {
                 let right_decimal = Decimal::from(*r);
                 Some(FhirPathValue::quantity(*lv * right_decimal, lu.clone()))
             }
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Decimal(r, _, _)) => {
-                Some(FhirPathValue::quantity(*lv * *r, lu.clone()))
-            }
-            (FhirPathValue::Integer(l, _, _), FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Decimal(r, _, _),
+            ) => Some(FhirPathValue::quantity(*lv * *r, lu.clone())),
+            (
+                FhirPathValue::Integer(l, _, _),
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 let left_decimal = Decimal::from(*l);
                 Some(FhirPathValue::quantity(left_decimal * *rv, ru.clone()))
             }
-            (FhirPathValue::Decimal(l, _, _), FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
-                Some(FhirPathValue::quantity(*l * *rv, ru.clone()))
-            }
+            (
+                FhirPathValue::Decimal(l, _, _),
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => Some(FhirPathValue::quantity(*l * *rv, ru.clone())),
 
             // Quantity * Quantity = Quantity (with unit combination)
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 // TODO: Implement proper unit multiplication using UCUM
                 // For now, simple concatenation
                 let combined_unit = match (lu, ru) {
@@ -138,17 +176,43 @@ fn create_multiply_metadata() -> OperatorMetadata {
             signature,
             overloads: vec![
                 // Numeric multiplication
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Integer),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Integer], FhirPathType::Decimal),
-
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Integer],
+                    FhirPathType::Integer,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Integer],
+                    FhirPathType::Decimal,
+                ),
                 // Quantity multiplication
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Integer], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Decimal], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Quantity], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Quantity], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Quantity], FhirPathType::Quantity),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Integer],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Decimal],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Quantity],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Quantity],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Quantity],
+                    FhirPathType::Quantity,
+                ),
             ],
         },
         empty_propagation: EmptyPropagation::Propagate,
@@ -170,12 +234,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(6)];
         let right = vec![FhirPathValue::integer(7)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(42));
@@ -188,12 +256,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::quantity(5.0, "kg".to_string())];
         let right = vec![FhirPathValue::integer(3)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {

@@ -10,7 +10,7 @@ use crate::cli::server::{
     version::ServerFhirVersion,
 };
 use octofhir_fhirpath::evaluator::FhirPathEngine;
-use octofhir_fhirpath::{FunctionRegistry, create_empty_registry};
+use octofhir_fhirpath::{FunctionRegistry, create_function_registry};
 use papaya::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -35,7 +35,7 @@ impl ServerRegistry {
         let model_providers = HashMap::new();
 
         // Create shared function registry once
-        let function_registry: Arc<FunctionRegistry> = Arc::new(create_empty_registry());
+        let function_registry: Arc<FunctionRegistry> = Arc::new(create_function_registry());
         info!("✅ Created shared function registry");
 
         // Initialize engines for all supported FHIR versions

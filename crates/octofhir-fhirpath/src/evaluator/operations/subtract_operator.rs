@@ -3,16 +3,15 @@
 //! Implements FHIRPath subtraction for numeric types and temporal arithmetic.
 //! Uses octofhir_ucum for quantity arithmetic and handles temporal arithmetic.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Subtraction operator evaluator
 pub struct SubtractOperatorEvaluator {
@@ -33,7 +32,11 @@ impl SubtractOperatorEvaluator {
     }
 
     /// Perform subtraction on two FhirPathValues
-    fn subtract_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<FhirPathValue> {
+    fn subtract_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Option<FhirPathValue> {
         match (left, right) {
             // Integer subtraction
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -56,7 +59,18 @@ impl SubtractOperatorEvaluator {
             }
 
             // Quantity subtraction - requires same units or compatible units via UCUM
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 if lu == ru {
                     // Same units - simple subtraction
                     Some(FhirPathValue::quantity(*lv - *rv, lu.clone()))
@@ -73,7 +87,7 @@ impl SubtractOperatorEvaluator {
                     self.subtract_temporal_quantity(
                         &FhirPathValue::date(date.clone()),
                         *value,
-                        unit_str
+                        unit_str,
                     )
                 } else {
                     None
@@ -81,12 +95,15 @@ impl SubtractOperatorEvaluator {
             }
 
             // DateTime - Quantity (time-valued) = DateTime
-            (FhirPathValue::DateTime(datetime, _, _), FhirPathValue::Quantity { value, unit, .. }) => {
+            (
+                FhirPathValue::DateTime(datetime, _, _),
+                FhirPathValue::Quantity { value, unit, .. },
+            ) => {
                 if let Some(unit_str) = unit {
                     self.subtract_temporal_quantity(
                         &FhirPathValue::datetime(datetime.clone()),
                         *value,
-                        unit_str
+                        unit_str,
                     )
                 } else {
                     None
@@ -99,7 +116,7 @@ impl SubtractOperatorEvaluator {
                     self.subtract_temporal_quantity(
                         &FhirPathValue::time(time.clone()),
                         *value,
-                        unit_str
+                        unit_str,
                     )
                 } else {
                     None
@@ -230,21 +247,52 @@ fn create_subtract_metadata() -> OperatorMetadata {
             signature,
             overloads: vec![
                 // Numeric subtraction
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Integer),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Integer], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Quantity], FhirPathType::Quantity),
-
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Integer],
+                    FhirPathType::Integer,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Integer],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Quantity],
+                    FhirPathType::Quantity,
+                ),
                 // Temporal arithmetic
-                TypeSignature::new(vec![FhirPathType::Date, FhirPathType::Quantity], FhirPathType::Date),
-                TypeSignature::new(vec![FhirPathType::DateTime, FhirPathType::Quantity], FhirPathType::DateTime),
-                TypeSignature::new(vec![FhirPathType::Time, FhirPathType::Quantity], FhirPathType::Time),
-
+                TypeSignature::new(
+                    vec![FhirPathType::Date, FhirPathType::Quantity],
+                    FhirPathType::Date,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::DateTime, FhirPathType::Quantity],
+                    FhirPathType::DateTime,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Time, FhirPathType::Quantity],
+                    FhirPathType::Time,
+                ),
                 // Temporal differences
-                TypeSignature::new(vec![FhirPathType::Date, FhirPathType::Date], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::DateTime, FhirPathType::DateTime], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Time, FhirPathType::Time], FhirPathType::Quantity),
+                TypeSignature::new(
+                    vec![FhirPathType::Date, FhirPathType::Date],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::DateTime, FhirPathType::DateTime],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Time, FhirPathType::Time],
+                    FhirPathType::Quantity,
+                ),
             ],
         },
         empty_propagation: EmptyPropagation::Propagate,
@@ -266,12 +314,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(8)];
         let right = vec![FhirPathValue::integer(3)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(5));
@@ -284,15 +336,22 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::decimal(8.7)];
         let right = vec![FhirPathValue::decimal(3.2)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(Decimal::from_f64_retain(5.5).unwrap()));
+        assert_eq!(
+            result.value.first().unwrap().as_decimal(),
+            Some(Decimal::from_f64_retain(5.5).unwrap())
+        );
     }
 
     #[tokio::test]
@@ -302,12 +361,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::quantity(8.0, "kg".to_string())];
         let right = vec![FhirPathValue::quantity(3.0, "kg".to_string())];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {

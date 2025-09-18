@@ -2,15 +2,14 @@
 //!
 //! Implements FHIRPath XOR logical operator with three-valued logic.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// XOR operator evaluator
 pub struct XorOperatorEvaluator {
@@ -104,9 +103,10 @@ fn create_xor_metadata() -> OperatorMetadata {
         description: "Exclusive OR logical operator with three-valued logic".to_string(),
         signature: OperatorSignature {
             signature,
-            overloads: vec![
-                TypeSignature::new(vec![FhirPathType::Boolean, FhirPathType::Boolean], FhirPathType::Boolean),
-            ],
+            overloads: vec![TypeSignature::new(
+                vec![FhirPathType::Boolean, FhirPathType::Boolean],
+                FhirPathType::Boolean,
+            )],
         },
         empty_propagation: EmptyPropagation::Propagate,
         deterministic: true,
@@ -127,12 +127,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(false)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -145,12 +149,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(false)];
         let right = vec![FhirPathValue::boolean(true)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -163,12 +171,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(true)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(false));
@@ -181,12 +193,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(false)];
         let right = vec![FhirPathValue::boolean(false)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(false));
@@ -199,12 +215,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(1)]; // truthy
         let right = vec![FhirPathValue::integer(0)]; // falsy
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -217,12 +237,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![]; // Empty collection
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert!(result.value.is_empty());
     }

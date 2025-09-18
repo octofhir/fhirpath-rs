@@ -4,15 +4,15 @@
 //! The equality operator performs type-specific comparison and returns empty
 //! if either operand is empty.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 use rust_decimal::Decimal;
 
 /// Equality operator evaluator
@@ -33,8 +33,62 @@ impl EqualsOperatorEvaluator {
         Arc::new(Self::new())
     }
 
-    /// Compare two FhirPathValues for equality
+    /// Try to parse a string as a temporal value
+    fn try_parse_string_as_temporal(&self, s: &str) -> Option<FhirPathValue> {
+        // Try parsing as Date first
+        if let Some(date) = PrecisionDate::parse(s) {
+            return Some(FhirPathValue::date(date));
+        }
+
+        // Try parsing as DateTime
+        if let Some(datetime) = PrecisionDateTime::parse(s) {
+            return Some(FhirPathValue::datetime(datetime));
+        }
+
+        // Try parsing as Time
+        if let Some(time) = PrecisionTime::parse(s) {
+            return Some(FhirPathValue::time(time));
+        }
+
+        None
+    }
+
+    /// Check if a value is a temporal type
+    fn is_temporal(&self, value: &FhirPathValue) -> bool {
+        matches!(
+            value,
+            FhirPathValue::Date(_, _, _)
+                | FhirPathValue::DateTime(_, _, _)
+                | FhirPathValue::Time(_, _, _)
+        )
+    }
+
+    /// Compare two FhirPathValues for equality with automatic string-to-temporal conversion
     fn compare_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
+        // Handle string-to-temporal conversions
+        match (left, right) {
+            // String vs temporal types - try to parse string as temporal
+            (FhirPathValue::String(s, _, _), temporal) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values_direct(&parsed, temporal);
+                }
+                // Fall through to regular comparison if parsing fails
+            }
+            (temporal, FhirPathValue::String(s, _, _)) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values_direct(temporal, &parsed);
+                }
+                // Fall through to regular comparison if parsing fails
+            }
+            _ => {}
+        }
+
+        // Regular comparison without conversion
+        self.compare_values_direct(left, right)
+    }
+
+    /// Compare two FhirPathValues for equality without auto-conversion
+    fn compare_values_direct(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
         match (left, right) {
             // Boolean equality
             (FhirPathValue::Boolean(l, _, _), FhirPathValue::Boolean(r, _, _)) => Some(l == r),
@@ -64,13 +118,39 @@ impl EqualsOperatorEvaluator {
             (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => Some(l == r),
 
             // DateTime equality
-            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => Some(l == r),
+            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
+                // Check if both have the same timezone specification
+                if l.tz_specified != r.tz_specified {
+                    // Different timezone specifications - comparison returns empty
+                    return None;
+                }
+                Some(l == r)
+            }
 
             // Time equality
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l == r),
 
+            // Cross-type temporal comparisons should return empty (None)
+            (FhirPathValue::Date(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
+            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Date(_, _, _)) => None,
+            (FhirPathValue::Date(_, _, _), FhirPathValue::Time(_, _, _)) => None,
+            (FhirPathValue::Time(_, _, _), FhirPathValue::Date(_, _, _)) => None,
+            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Time(_, _, _)) => None,
+            (FhirPathValue::Time(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
+
             // Quantity equality (considering units)
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 // For now, simple equality - in real implementation we'd need unit conversion
                 if lu == ru {
                     Some((lv - rv).abs() < Decimal::new(1, 10)) // Small epsilon for decimal comparison
@@ -78,6 +158,17 @@ impl EqualsOperatorEvaluator {
                     // Different units - would need proper unit conversion
                     Some(false)
                 }
+            }
+
+            // Resource equality - compare JSON content and type
+            (FhirPathValue::Resource(json1, type1, _), FhirPathValue::Resource(json2, type2, _)) => {
+                // Fast path: if Arc pointers are the same, objects are identical
+                if std::sync::Arc::ptr_eq(json1, json2) {
+                    return Some(true);
+                }
+                // Resources are equal if they have the same type and JSON content
+                // JsonValue already implements proper equality for nested structures
+                Some(type1 == type2 && **json1 == **json2)
             }
 
             // Different types are not equal
@@ -154,12 +245,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::boolean(true)];
         let right = vec![FhirPathValue::boolean(true)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -172,12 +267,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::integer(42)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -190,12 +289,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![FhirPathValue::decimal(42.0)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(true));
@@ -208,12 +311,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::string("42".to_string())];
         let right = vec![FhirPathValue::integer(42)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_boolean(), Some(false));
@@ -226,12 +333,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(42)];
         let right = vec![]; // Empty collection
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert!(result.value.is_empty());
     }

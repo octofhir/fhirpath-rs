@@ -1,15 +1,14 @@
 //! Less than or equal (<=) operator implementation
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 pub struct LessEqualOperatorEvaluator {
     metadata: OperatorMetadata,
@@ -29,8 +28,14 @@ impl LessEqualOperatorEvaluator {
                 signature: OperatorSignature {
                     signature,
                     overloads: vec![
-                        TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Boolean),
-                        TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Boolean),
+                        TypeSignature::new(
+                            vec![FhirPathType::Integer, FhirPathType::Integer],
+                            FhirPathType::Boolean,
+                        ),
+                        TypeSignature::new(
+                            vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                            FhirPathType::Boolean,
+                        ),
                     ],
                 },
                 empty_propagation: EmptyPropagation::Propagate,
@@ -76,14 +81,18 @@ impl OperationEvaluator for LessEqualOperatorEvaluator {
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
         if left.is_empty() || right.is_empty() {
-            return Ok(EvaluationResult { value: Collection::empty() });
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
         match self.compare_values(left.first().unwrap(), right.first().unwrap()) {
             Some(result) => Ok(EvaluationResult {
                 value: Collection::single(FhirPathValue::boolean(result)),
             }),
-            None => Ok(EvaluationResult { value: Collection::empty() }),
+            None => Ok(EvaluationResult {
+                value: Collection::empty(),
+            }),
         }
     }
 

@@ -45,12 +45,10 @@ impl TypeResolver {
         // Use simplified ModelProvider to get element type information
         let parent_type_info = octofhir_fhir_model::TypeInfo {
             type_name: parent_type.to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("FHIR".to_string()),
             name: Some(parent_type.to_string()),
             is_empty: None,
-            is_union_type: Some(false),
-            union_choices: None,
         };
 
         match self
@@ -126,19 +124,14 @@ impl TypeResolver {
                 // Check if the base element exists as a choice element
                 let parent_type_info = octofhir_fhir_model::TypeInfo {
                     type_name: parent_type.to_string(),
-                    singleton: true,
+                    singleton: Some(true),
                     namespace: Some("FHIR".to_string()),
                     name: Some(parent_type.to_string()),
                     is_empty: None,
-                    is_union_type: Some(false),
-                    union_choices: None,
                 };
 
-                if let Ok(element_names) = self
-                    .model_provider
-                    .get_element_names(&parent_type_info)
-                    .await
                 {
+                    let element_names = self.model_provider.get_element_names(&parent_type_info);
                     if element_names.contains(&base.to_string()) {
                         // The element exists as a choice - resolve the specific type
                         return Ok(Some(type_suffix.to_string()));
@@ -435,8 +428,12 @@ pub mod type_utils {
             crate::core::FhirPathValue::Quantity { .. } => "Quantity".to_string(),
             crate::core::FhirPathValue::Resource(_, type_info, _) => {
                 // Use TypeInfo to get the proper FHIR type name
-                type_info.name.as_deref().unwrap_or(&type_info.type_name).to_string()
-            },
+                type_info
+                    .name
+                    .as_deref()
+                    .unwrap_or(&type_info.type_name)
+                    .to_string()
+            }
             crate::core::FhirPathValue::Collection(_) => "Collection".to_string(),
             crate::core::FhirPathValue::Empty => "empty".to_string(),
         }

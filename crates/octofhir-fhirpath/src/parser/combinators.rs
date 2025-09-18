@@ -686,7 +686,7 @@ pub fn variable_parser<'a>()
         // Standard $variable syntax
         just('$').ignore_then(text::ident()).map(|name: &str| {
             ExpressionNode::Variable(VariableNode {
-                name: name.to_string(),
+                name: format!("${}", name),  // Include the $ prefix
                 location: None,
             })
         }),
@@ -707,7 +707,7 @@ pub fn variable_parser<'a>()
             )))
             .map(|name: String| {
                 ExpressionNode::Variable(VariableNode {
-                    name,
+                    name: format!("%{}", name),  // Include the % prefix
                     location: None,
                 })
             }),

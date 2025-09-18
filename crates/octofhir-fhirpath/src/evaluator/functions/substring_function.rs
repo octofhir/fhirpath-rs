@@ -1,0 +1,171 @@
+//! Substring function implementation
+//!
+//! The substring function returns a portion of a string.
+//! Syntax: string.substring(start [, length])
+
+use std::sync::Arc;
+
+use crate::ast::ExpressionNode;
+use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::function_registry::{
+    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature,
+};
+use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+
+/// Substring function evaluator
+pub struct SubstringFunctionEvaluator {
+    metadata: FunctionMetadata,
+}
+
+impl SubstringFunctionEvaluator {
+    /// Create a new substring function evaluator
+    pub fn create() -> Arc<dyn FunctionEvaluator> {
+        Arc::new(Self {
+            metadata: FunctionMetadata {
+                name: "substring".to_string(),
+                description: "Returns a portion of a string".to_string(),
+                signature: FunctionSignature {
+                    input_type: "String".to_string(),
+                    parameters: vec![
+                        FunctionParameter {
+                            name: "start".to_string(),
+                            parameter_type: vec!["Integer".to_string()],
+                            optional: false,
+                            is_expression: true,
+                            description: "Starting position (0-based)".to_string(),
+                            default_value: None,
+                        },
+                        FunctionParameter {
+                            name: "length".to_string(),
+                            parameter_type: vec!["Integer".to_string()],
+                            optional: true,
+                            is_expression: true,
+                            description: "Length of substring".to_string(),
+                            default_value: None,
+                        },
+                    ],
+                    return_type: "String".to_string(),
+                    polymorphic: false,
+                    min_params: 1,
+                    max_params: Some(2),
+                },
+                empty_propagation: EmptyPropagation::Propagate,
+                deterministic: true,
+                category: FunctionCategory::StringManipulation,
+                requires_terminology: false,
+                requires_model: false,
+            },
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl FunctionEvaluator for SubstringFunctionEvaluator {
+    async fn evaluate(
+        &self,
+        input: Vec<FhirPathValue>,
+        context: &EvaluationContext,
+        args: Vec<ExpressionNode>,
+        evaluator: AsyncNodeEvaluator<'_>,
+    ) -> Result<EvaluationResult> {
+        if args.is_empty() || args.len() > 2 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                "substring function requires 1 or 2 arguments (start [, length])".to_string(),
+            ));
+        }
+
+        // Evaluate start argument
+        let start_result = evaluator.evaluate(&args[0], context).await?;
+        let start_values: Vec<FhirPathValue> = start_result.value.iter().cloned().collect();
+
+        if start_values.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "substring function start parameter must evaluate to a single value".to_string(),
+            ));
+        }
+
+        let start = match &start_values[0] {
+            FhirPathValue::Integer(i, _, _) => *i,
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0055,
+                    "substring function start parameter must be an integer".to_string(),
+                ));
+            }
+        };
+
+        // Evaluate optional length argument
+        let length = if args.len() > 1 {
+            let length_result = evaluator.evaluate(&args[1], context).await?;
+            let length_values: Vec<FhirPathValue> = length_result.value.iter().cloned().collect();
+
+            if length_values.len() != 1 {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0054,
+                    "substring function length parameter must evaluate to a single value"
+                        .to_string(),
+                ));
+            }
+
+            match &length_values[0] {
+                FhirPathValue::Integer(i, _, _) => Some(*i),
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0055,
+                        "substring function length parameter must be an integer".to_string(),
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+
+        let mut results = Vec::new();
+
+        for value in input {
+            match &value {
+                FhirPathValue::String(s, _, _) => {
+                    let chars: Vec<char> = s.chars().collect();
+                    let str_len = chars.len() as i64;
+
+                    // Handle negative start (from end)
+                    let start_idx = if start < 0 {
+                        (str_len + start).max(0) as usize
+                    } else {
+                        (start.min(str_len)) as usize
+                    };
+
+                    let substring = if let Some(len) = length {
+                        if len <= 0 {
+                            String::new()
+                        } else {
+                            let end_idx = (start_idx + len as usize).min(chars.len());
+                            chars[start_idx..end_idx].iter().collect()
+                        }
+                    } else {
+                        chars[start_idx..].iter().collect()
+                    };
+
+                    results.push(FhirPathValue::string(substring));
+                }
+                _ => {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0055,
+                        "substring function can only be called on strings".to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(EvaluationResult {
+            value: crate::core::Collection::from(results),
+        })
+    }
+
+    fn metadata(&self) -> &FunctionMetadata {
+        &self.metadata
+    }
+}

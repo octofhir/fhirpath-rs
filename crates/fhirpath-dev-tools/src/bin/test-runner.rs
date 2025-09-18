@@ -18,6 +18,7 @@
 
 use octofhir_fhir_model::FhirVersion;
 use octofhir_fhirpath::FhirPathValue;
+use octofhir_fhirpath::core::trace::create_cli_provider;
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -188,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create function registry
     println!("📋 Creating function registry...");
     let registry_start = std::time::Instant::now();
-    let registry = std::sync::Arc::new(octofhir_fhirpath::create_empty_registry());
+    let registry = std::sync::Arc::new(octofhir_fhirpath::create_function_registry());
     let registry_time = registry_start.elapsed();
     println!(
         "✅ Function registry created in {}ms",
@@ -212,6 +213,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut engine =
         octofhir_fhirpath::FhirPathEngine::new(registry, model_provider.clone()).await?;
+
+    // Add CLI trace provider for trace function support
+    let trace_provider = create_cli_provider();
+    engine = engine.with_trace_provider(trace_provider);
     // Attach real terminology provider (tx.fhir.org) by default for integration tests
     let tx_base = match fhir_version.as_str() {
         "r6" => "https://tx.fhir.org/r6",
@@ -258,7 +263,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Extract context type from input data if available
                     let context_type = if input_data != Value::Null {
                         // Try to determine FHIR resource type from input
-                        if let Some(resource_type) = input_data.get("resourceType").and_then(|v| v.as_str()) {
+                        if let Some(resource_type) =
+                            input_data.get("resourceType").and_then(|v| v.as_str())
+                        {
                             model_provider.get_type(resource_type).await.ok().flatten()
                         } else {
                             None
@@ -271,13 +278,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         &test_case.expression,
                         model_provider.clone(),
                         context_type,
-                    ).await;
+                    )
+                    .await;
 
                     if !semantic_result.analysis.success {
                         // Found semantic error as expected
                         for diagnostic in &semantic_result.analysis.diagnostics {
-                            if matches!(diagnostic.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error) {
-                                println!("✅ PASS: Semantic error detected: {}", diagnostic.message);
+                            if matches!(
+                                diagnostic.severity,
+                                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                            ) {
+                                println!(
+                                    "✅ PASS: Semantic error detected: {}",
+                                    diagnostic.message
+                                );
                                 passed += 1;
                                 continue 'test_loop;
                             }
@@ -298,6 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             input_collection,
             model_provider.clone(),
             engine.get_terminology_provider(),
+            engine.get_trace_provider(),
         )
         .await;
 
@@ -312,7 +327,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fhir_version, test_case.name
             );
         }
-
 
         // Use single root evaluation method (parse + evaluate in one call)
         let timeout_ms: u64 = env::var("FHIRPATH_TEST_TIMEOUT_MS")
@@ -369,7 +383,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let final_result = if test_case.predicate.is_some() && test_case.predicate.unwrap() {
             use octofhir_fhirpath::FhirPathValue;
             let exists = !result.is_empty();
-            octofhir_fhirpath::Collection::single(FhirPathValue::Boolean(exists, octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true), None))
+            octofhir_fhirpath::Collection::single(FhirPathValue::Boolean(
+                exists,
+                octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true),
+                None,
+            ))
         } else {
             result
         };

@@ -263,7 +263,7 @@ async fn profile_expression(
             octofhir_fhirpath::FhirPathValue::resource(data.clone()),
         );
         let ctx =
-            octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None)
+            octofhir_fhirpath::EvaluationContext::new(collection, model_provider.clone(), None, None)
                 .await;
         let _ = engine.evaluate(expression, &ctx).await;
     }
@@ -416,6 +416,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
                 let ctx = octofhir_fhirpath::EvaluationContext::new(
                     collection,
                     model_provider.clone(),
+                    None,
                     None,
                 )
                 .await;

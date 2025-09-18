@@ -51,7 +51,7 @@ pub use combinators::*;
 pub use analysis_integration::{AnalysisResult, ComprehensiveAnalyzer};
 
 // Re-export semantic analyzer
-pub use analyzer::{SemanticAnalyzer, AnalyzedParseResult};
+pub use analyzer::{AnalyzedParseResult, SemanticAnalyzer};
 
 /// Parser mode selection for different use cases
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -265,10 +265,10 @@ pub fn parse_with_mode(input: &str, mode: ParsingMode) -> ParseResult {
 /// # Examples
 /// ```rust
 /// use octofhir_fhirpath::parser::parse_with_semantic_analysis;
-/// use octofhir_fhirpath::core::model_provider::EmbeddedModelProvider;
+/// use octofhir_fhir_model::EmptyModelProvider;
 /// use std::sync::Arc;
 ///
-/// let model_provider = Arc::new(EmbeddedModelProvider::new());
+/// let model_provider = Arc::new(EmptyModelProvider::new());
 /// let result = parse_with_semantic_analysis("Patient.name", model_provider, None);
 /// ```
 pub async fn parse_with_semantic_analysis(

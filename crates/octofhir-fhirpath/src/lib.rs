@@ -81,7 +81,6 @@ pub mod typing;
 pub use crate::core::model_provider::EmptyModelProvider;
 pub use crate::core::{Collection, FhirPathError, FhirPathValue, ModelProvider, Result};
 
-
 // Re-export path types for canonical path representation
 pub use crate::path::{CanonicalPath, PathBuilder, PathParseError, PathSegment, path_utils};
 
@@ -92,10 +91,7 @@ pub use crate::typing::{
 
 // Re-export main engine types (minimal for stub)
 pub use crate::evaluator::{
-    EvaluationContext,
-    EvaluationResult,
-    EvaluationResultWithMetadata,
-    FhirPathEngine,
+    EvaluationContext, EvaluationResult, EvaluationResultWithMetadata, FhirPathEngine,
 };
 // Parser API exports - New unified API with clean naming
 pub use crate::parser::{
@@ -128,9 +124,26 @@ pub use crate::parser::{
 // Re-export the real function registry from evaluator
 pub use crate::evaluator::FunctionRegistry;
 
-/// Create empty registry for compatibility during Phase 1
+/// Create function registry with all FHIRPath functions (recommended)
+pub fn create_function_registry() -> FunctionRegistry {
+    crate::evaluator::function_registry::create_comprehensive_function_registry()
+}
+
+/// Create empty registry (for testing or minimal usage)
 pub fn create_empty_registry() -> FunctionRegistry {
     FunctionRegistry::new()
+}
+
+// Deprecated - use create_function_registry() instead
+#[deprecated(since = "0.4.22", note = "use create_function_registry() instead")]
+pub fn create_standard_function_registry() -> FunctionRegistry {
+    crate::evaluator::function_registry::create_standard_function_registry()
+}
+
+// Deprecated - use create_function_registry() instead
+#[deprecated(since = "0.4.22", note = "use create_function_registry() instead")]
+pub fn create_comprehensive_function_registry() -> FunctionRegistry {
+    crate::evaluator::function_registry::create_comprehensive_function_registry()
 }
 
 // Re-export AST types
@@ -213,6 +226,7 @@ pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirP
         collection,
         engine.get_model_provider(),
         None, // TODO: Convert TerminologyService to TerminologyProvider
+        engine.get_trace_provider(),
     )
     .await;
 

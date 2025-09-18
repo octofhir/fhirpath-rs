@@ -69,6 +69,7 @@ bumpalo = { workspace = true }
 unicode-xid = { workspace = true }
 once_cell = { workspace = true }
 urlencoding = "2.1"
+html-escape = "0.2"
 
 # Async dependencies
 async-trait = { workspace = true }

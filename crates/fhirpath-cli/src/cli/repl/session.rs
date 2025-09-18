@@ -344,7 +344,7 @@ impl ReplSession {
 
         // Create evaluation context using the engine's providers
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None).await;
+        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_trace_provider()).await;
 
         let result = self
             .engine
@@ -492,7 +492,7 @@ impl ReplSession {
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None).await;
+        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_trace_provider()).await;
         let result = self
             .engine
             .evaluate(expression, &context)

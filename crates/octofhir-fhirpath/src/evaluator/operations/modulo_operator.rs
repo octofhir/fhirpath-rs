@@ -2,15 +2,14 @@
 //!
 //! Implements FHIRPath modulo operation for integer types.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection, FhirPathError};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Modulo operator evaluator
 pub struct ModuloOperatorEvaluator {
@@ -31,7 +30,11 @@ impl ModuloOperatorEvaluator {
     }
 
     /// Perform modulo operation on two FhirPathValues
-    fn modulo_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<Option<FhirPathValue>> {
+    fn modulo_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Result<Option<FhirPathValue>> {
         match (left, right) {
             // Integer modulo
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -118,12 +121,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(17)];
         let right = vec![FhirPathValue::integer(5)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(2));
@@ -136,7 +143,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];

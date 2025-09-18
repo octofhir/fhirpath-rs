@@ -28,7 +28,8 @@ mod integration_test_runner {
     use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
-    use octofhir_fhirpath::{Collection, FhirPathEngine, create_empty_registry};
+    use octofhir_fhirpath::core::trace::create_cli_provider;
+    use octofhir_fhirpath::{Collection, FhirPathEngine, create_function_registry};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use std::collections::HashMap;
@@ -163,10 +164,14 @@ mod integration_test_runner {
                 std::sync::Arc::new(provider)
             };
 
-            let registry = Arc::new(create_empty_registry());
+            let registry = Arc::new(create_function_registry());
             let mut engine = FhirPathEngine::new(registry.clone(), model_provider.clone())
                 .await
                 .expect("cannot create engine");
+
+            // Add CLI trace provider for trace function support
+            let trace_provider = create_cli_provider();
+            engine = engine.with_trace_provider(trace_provider);
             // Attach real terminology provider (tx.fhir.org) by default, matching model provider version
             let provider_version = model_provider
                 .get_fhir_version()
@@ -459,8 +464,14 @@ mod integration_test_runner {
                         // Extract context type from input data if available
                         let context_type = if input_data != serde_json::Value::Null {
                             // Try to determine FHIR resource type from input
-                            if let Some(resource_type) = input_data.get("resourceType").and_then(|v| v.as_str()) {
-                                self.model_provider.get_type(resource_type).await.ok().flatten()
+                            if let Some(resource_type) =
+                                input_data.get("resourceType").and_then(|v| v.as_str())
+                            {
+                                self.model_provider
+                                    .get_type(resource_type)
+                                    .await
+                                    .ok()
+                                    .flatten()
                             } else {
                                 None
                             }
@@ -468,24 +479,33 @@ mod integration_test_runner {
                             None
                         };
 
-                        let semantic_result = octofhir_fhirpath::parser::parse_with_semantic_analysis(
-                            &test.expression,
-                            self.model_provider.clone(),
-                            context_type,
-                        ).await;
+                        let semantic_result =
+                            octofhir_fhirpath::parser::parse_with_semantic_analysis(
+                                &test.expression,
+                                self.model_provider.clone(),
+                                context_type,
+                            )
+                            .await;
 
                         if !semantic_result.analysis.success {
                             // Found semantic error as expected
                             for diagnostic in &semantic_result.analysis.diagnostics {
-                                if matches!(diagnostic.severity, octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error) {
+                                if matches!(
+                                    diagnostic.severity,
+                                    octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+                                ) {
                                     return TestResult::Passed;
                                 }
                             }
                         }
                         // If we get here, no semantic error was found
                         return TestResult::Failed {
-                            expected: serde_json::Value::String("Semantic error expected".to_string()),
-                            actual: serde_json::Value::String("No semantic error detected".to_string()),
+                            expected: serde_json::Value::String(
+                                "Semantic error expected".to_string(),
+                            ),
+                            actual: serde_json::Value::String(
+                                "No semantic error detected".to_string(),
+                            ),
                         };
                     }
                 }
@@ -498,6 +518,7 @@ mod integration_test_runner {
                 input_collection,
                 self.model_provider.clone(),
                 self.engine.get_terminology_provider(),
+                self.engine.get_trace_provider(),
             )
             .await;
 
@@ -542,7 +563,11 @@ mod integration_test_runner {
             // Handle predicate tests - convert result to boolean using FHIRPath exists() logic
             let result = if test.predicate.unwrap_or(false) {
                 let exists = !result.is_empty();
-                Collection::single(FhirPathValue::Boolean(exists, octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true), None))
+                Collection::single(FhirPathValue::Boolean(
+                    exists,
+                    octofhir_fhir_model::TypeInfo::system_type("Boolean".to_string(), true),
+                    None,
+                ))
             } else {
                 result
             };
@@ -746,10 +771,10 @@ async fn main() -> Result<()> {
             .await
             {
                 Ok(Ok(stats)) => {
-                    // Show ERROR status if there are parse errors, otherwise show pass/fail info
+                    // Show ERROR status if there are evaluation errors, otherwise show pass/fail info
                     if stats.errored > 0 {
                         println!(
-                            " ⚠️ ERROR {}/{} ({} parse errors, {} failed)",
+                            " ⚠️ ERROR {}/{} ({} evaluation errors, {} failed)",
                             stats.passed, stats.total, stats.errored, stats.failed
                         );
                         // Show detailed error messages for debugging
@@ -759,7 +784,7 @@ async fn main() -> Result<()> {
                             }
                             if stats.error_details.len() < stats.errored {
                                 println!(
-                                    "     ... and {} more parse errors",
+                                    "     ... and {} more evaluation errors",
                                     stats.errored - stats.error_details.len()
                                 );
                             }

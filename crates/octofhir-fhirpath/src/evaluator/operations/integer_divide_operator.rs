@@ -2,17 +2,16 @@
 //!
 //! Implements FHIRPath integer division for numeric types.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection, FhirPathError};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Integer division operator evaluator
 pub struct IntegerDivideOperatorEvaluator {
@@ -33,7 +32,11 @@ impl IntegerDivideOperatorEvaluator {
     }
 
     /// Perform integer division on two FhirPathValues
-    fn integer_divide_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<Option<FhirPathValue>> {
+    fn integer_divide_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Result<Option<FhirPathValue>> {
         match (left, right) {
             // Integer division
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -140,10 +143,22 @@ fn create_integer_divide_metadata() -> OperatorMetadata {
         signature: OperatorSignature {
             signature,
             overloads: vec![
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Integer),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Integer),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Decimal], FhirPathType::Integer),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Integer], FhirPathType::Integer),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Integer],
+                    FhirPathType::Integer,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                    FhirPathType::Integer,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Decimal],
+                    FhirPathType::Integer,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Integer],
+                    FhirPathType::Integer,
+                ),
             ],
         },
         empty_propagation: EmptyPropagation::Propagate,
@@ -165,12 +180,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(17)];
         let right = vec![FhirPathValue::integer(5)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(3));
@@ -183,12 +202,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::decimal(17.8)];
         let right = vec![FhirPathValue::decimal(5.2)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(3)); // 17.8 / 5.2 = 3.423... truncated to 3
@@ -201,7 +224,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];

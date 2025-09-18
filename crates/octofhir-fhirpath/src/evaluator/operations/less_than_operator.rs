@@ -2,16 +2,16 @@
 //!
 //! Implements FHIRPath less than comparison for ordered types.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Less than operator evaluator
 pub struct LessThanOperatorEvaluator {
@@ -31,8 +31,62 @@ impl LessThanOperatorEvaluator {
         Arc::new(Self::new())
     }
 
-    /// Compare two FhirPathValues for less than relationship
+    /// Try to parse a string as a temporal value
+    fn try_parse_string_as_temporal(&self, s: &str) -> Option<FhirPathValue> {
+        // Try parsing as Date first
+        if let Some(date) = PrecisionDate::parse(s) {
+            return Some(FhirPathValue::date(date));
+        }
+
+        // Try parsing as DateTime
+        if let Some(datetime) = PrecisionDateTime::parse(s) {
+            return Some(FhirPathValue::datetime(datetime));
+        }
+
+        // Try parsing as Time
+        if let Some(time) = PrecisionTime::parse(s) {
+            return Some(FhirPathValue::time(time));
+        }
+
+        None
+    }
+
+    /// Check if a value is a temporal type
+    fn is_temporal(&self, value: &FhirPathValue) -> bool {
+        matches!(
+            value,
+            FhirPathValue::Date(_, _, _)
+                | FhirPathValue::DateTime(_, _, _)
+                | FhirPathValue::Time(_, _, _)
+        )
+    }
+
+    /// Compare two FhirPathValues for less than relationship with automatic string-to-temporal conversion
     fn compare_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
+        // Handle string-to-temporal conversions
+        match (left, right) {
+            // String vs temporal types - try to parse string as temporal
+            (FhirPathValue::String(s, _, _), temporal) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values_direct(&parsed, temporal);
+                }
+                // Fall through to regular comparison if parsing fails
+            }
+            (temporal, FhirPathValue::String(s, _, _)) if self.is_temporal(temporal) => {
+                if let Some(parsed) = self.try_parse_string_as_temporal(s) {
+                    return self.compare_values_direct(temporal, &parsed);
+                }
+                // Fall through to regular comparison if parsing fails
+            }
+            _ => {}
+        }
+
+        // Regular comparison without conversion
+        self.compare_values_direct(left, right)
+    }
+
+    /// Compare two FhirPathValues for less than relationship without auto-conversion
+    fn compare_values_direct(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
         match (left, right) {
             // Integer comparison
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => Some(l < r),
@@ -63,7 +117,18 @@ impl LessThanOperatorEvaluator {
             (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l < r),
 
             // Quantity comparison (with same units)
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 if lu == ru {
                     Some(lv < rv)
                 } else {
@@ -127,15 +192,42 @@ fn create_less_than_metadata() -> OperatorMetadata {
         signature: OperatorSignature {
             signature,
             overloads: vec![
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Decimal], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Integer], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::String, FhirPathType::String], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Date, FhirPathType::Date], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::DateTime, FhirPathType::DateTime], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Time, FhirPathType::Time], FhirPathType::Boolean),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Quantity], FhirPathType::Boolean),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Integer],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Decimal],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Integer],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::String, FhirPathType::String],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Date, FhirPathType::Date],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::DateTime, FhirPathType::DateTime],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Time, FhirPathType::Time],
+                    FhirPathType::Boolean,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Quantity],
+                    FhirPathType::Boolean,
+                ),
             ],
         },
         empty_propagation: EmptyPropagation::Propagate,

@@ -61,6 +61,8 @@ impl JsonValueExt for JsonValue {
 /// Utility functions for working with JSON values in FHIRPath context
 pub mod utils {
     use super::*;
+    use crate::core::model_provider::ModelProvider;
+    use std::sync::Arc;
 
     /// Infer FHIR type from JSON object structure
     fn infer_fhir_type_from_json(obj: &serde_json::Map<String, JsonValue>) -> Option<String> {
@@ -129,6 +131,79 @@ pub mod utils {
                 }
             }
             JsonValue::Null => FhirPathValue::Empty,
+        }
+    }
+
+    /// Convert a JsonValue to a FhirPathValue with proper FHIR resource typing using ModelProvider
+    pub async fn json_to_fhirpath_value_with_model_provider(
+        json: JsonValue,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> crate::core::Result<FhirPathValue> {
+        match json {
+            JsonValue::Bool(b) => Ok(FhirPathValue::boolean(b)),
+            JsonValue::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Ok(FhirPathValue::integer(i))
+                } else if let Some(f) = n.as_f64() {
+                    Ok(FhirPathValue::decimal(
+                        rust_decimal::Decimal::try_from(f).unwrap_or_default(),
+                    ))
+                } else {
+                    Ok(FhirPathValue::string(n.to_string()))
+                }
+            }
+            JsonValue::String(s) => Ok(FhirPathValue::string(s)),
+            JsonValue::Array(arr) => {
+                let mut values = Vec::new();
+                for item in arr {
+                    let value = Box::pin(json_to_fhirpath_value_with_model_provider(
+                        item,
+                        model_provider.clone(),
+                    ))
+                    .await?;
+                    values.push(value);
+                }
+                Ok(FhirPathValue::collection(values))
+            }
+            JsonValue::Object(ref obj) => {
+                // Check if this is a FHIR resource (has resourceType property)
+                if let Some(resource_type) = obj.get("resourceType").and_then(|rt| rt.as_str()) {
+                    // Extract resourceType and get proper TypeInfo from ModelProvider
+                    let type_info = model_provider
+                        .get_type(resource_type)
+                        .await
+                        .map_err(|e| {
+                            crate::core::FhirPathError::evaluation_error(
+                                crate::core::error_code::FP0054,
+                                format!(
+                                    "ModelProvider error getting type '{}': {}",
+                                    resource_type, e
+                                ),
+                            )
+                        })?
+                        .unwrap_or_else(|| crate::core::model_provider::TypeInfo {
+                            type_name: resource_type.to_string(),
+                            singleton: Some(true),
+                            namespace: Some("FHIR".to_string()),
+                            name: Some(resource_type.to_string()),
+                            is_empty: Some(false),
+                        });
+
+                    // Create properly typed resource
+                    Ok(FhirPathValue::Resource(Arc::new(json), type_info, None))
+                } else {
+                    // Check if this is a special FHIR type that should be converted to a specific FhirPathValue
+                    if let Some(fhir_type) = infer_fhir_type_from_json(obj) {
+                        match fhir_type.as_str() {
+                            "Quantity" => Ok(convert_json_to_quantity(obj)),
+                            _ => Ok(FhirPathValue::resource(json)),
+                        }
+                    } else {
+                        Ok(FhirPathValue::resource(json))
+                    }
+                }
+            }
+            JsonValue::Null => Ok(FhirPathValue::Empty),
         }
     }
 

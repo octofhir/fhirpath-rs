@@ -218,6 +218,8 @@ pub const FP0058: ErrorCode = ErrorCode::new(58); // Invalid type conversion
 pub const FP0059: ErrorCode = ErrorCode::new(59); // Collection index out of bounds
 pub const FP0060: ErrorCode = ErrorCode::new(60); // Variable not defined
 pub const FP0061: ErrorCode = ErrorCode::new(61); // Resource type mismatch
+pub const FP0062: ErrorCode = ErrorCode::new(62); // Invalid type identifier for type operator
+pub const FP0063: ErrorCode = ErrorCode::new(63); // Type operator requires single item collection
 
 // Temporal/Date validation errors (FP0070-FP0080)
 pub const FP0070: ErrorCode = ErrorCode::new(70); // Invalid date format
@@ -231,6 +233,8 @@ pub const FP0077: ErrorCode = ErrorCode::new(77); // Invalid timezone format
 pub const FP0078: ErrorCode = ErrorCode::new(78); // Temporal precision mismatch
 pub const FP0079: ErrorCode = ErrorCode::new(79); // Invalid leap year date
 pub const FP0080: ErrorCode = ErrorCode::new(80); // Temporal parsing error
+pub const FP0081: ErrorCode = ErrorCode::new(81); // Invalid UCUM unit in temporal arithmetic
+pub const FP0082: ErrorCode = ErrorCode::new(82); // Invalid temporal arithmetic (date + plain number)
 
 // Model Provider Error Codes (FP0101-FP0150)
 pub const FP0101: ErrorCode = ErrorCode::new(101); // Resource not found

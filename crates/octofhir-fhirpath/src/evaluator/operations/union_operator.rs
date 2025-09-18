@@ -2,15 +2,14 @@
 //!
 //! Implements FHIRPath collection union operator that combines two collections.
 
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Union operator evaluator
 pub struct UnionOperatorEvaluator {
@@ -40,12 +39,37 @@ impl OperationEvaluator for UnionOperatorEvaluator {
         left: Vec<FhirPathValue>,
         right: Vec<FhirPathValue>,
     ) -> Result<EvaluationResult> {
-        // Union combines both collections
+        // Union combines both collections and removes duplicates
         let mut result_values = left;
         result_values.extend(right);
 
+        // Remove duplicates while preserving order
+        let mut unique_values = Vec::new();
+        for value in result_values {
+            let is_duplicate = unique_values.iter().any(|existing| {
+                match (existing, &value) {
+                    // Use the FhirPath equality semantics
+                    (FhirPathValue::Integer(a, _, _), FhirPathValue::Integer(b, _, _)) => a == b,
+                    (FhirPathValue::Decimal(a, _, _), FhirPathValue::Decimal(b, _, _)) => a == b,
+                    (FhirPathValue::String(a, _, _), FhirPathValue::String(b, _, _)) => a == b,
+                    (FhirPathValue::Boolean(a, _, _), FhirPathValue::Boolean(b, _, _)) => a == b,
+                    (FhirPathValue::Date(a, _, _), FhirPathValue::Date(b, _, _)) => a == b,
+                    (FhirPathValue::DateTime(a, _, _), FhirPathValue::DateTime(b, _, _)) => a == b,
+                    (FhirPathValue::Time(a, _, _), FhirPathValue::Time(b, _, _)) => a == b,
+                    (FhirPathValue::Quantity { value: v1, unit: u1, .. }, FhirPathValue::Quantity { value: v2, unit: u2, .. }) => {
+                        v1 == v2 && u1 == u2
+                    },
+                    // For different types, they are not equal
+                    _ => false,
+                }
+            });
+            if !is_duplicate {
+                unique_values.push(value);
+            }
+        }
+
         Ok(EvaluationResult {
-            value: Collection::from_values(result_values),
+            value: Collection::from(unique_values),
         })
     }
 
@@ -87,12 +111,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(1), FhirPathValue::integer(2)];
         let right = vec![FhirPathValue::integer(3), FhirPathValue::integer(4)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 4);
         assert_eq!(result.value.get(0).unwrap().as_integer(), Some(1));
@@ -108,12 +136,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(1)];
         let right = vec![];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         assert_eq!(result.value.first().unwrap().as_integer(), Some(1));

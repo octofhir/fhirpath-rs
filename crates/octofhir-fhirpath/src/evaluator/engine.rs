@@ -6,14 +6,15 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{ModelProvider, Result, FhirPathValue};
+use crate::core::trace::SharedTraceProvider;
+use crate::core::{FhirPathValue, ModelProvider, Result};
 use crate::parser;
 use octofhir_fhir_model::TerminologyProvider;
 
-use super::evaluator::Evaluator;
 use super::context::EvaluationContext;
-use super::operator_registry::{OperatorRegistry, create_default_operator_registry};
+use super::evaluator::Evaluator;
 use super::function_registry::{FunctionRegistry, create_basic_function_registry};
+use super::operator_registry::{OperatorRegistry, create_standard_operator_registry};
 use super::stub::{EvaluationResult, EvaluationResultWithMetadata};
 
 /// Real FHIRPath evaluation engine with registry-based architecture
@@ -26,6 +27,8 @@ pub struct FhirPathEngine {
     model_provider: Arc<dyn ModelProvider>,
     /// Optional terminology provider
     terminology_provider: Option<Arc<dyn TerminologyProvider>>,
+    /// Optional trace provider
+    trace_provider: Option<SharedTraceProvider>,
 }
 
 impl FhirPathEngine {
@@ -34,8 +37,8 @@ impl FhirPathEngine {
         function_registry: Arc<FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
     ) -> Result<Self> {
-        // Create default operator registry
-        let operator_registry = Arc::new(create_default_operator_registry());
+        // Create standard operator registry
+        let operator_registry = Arc::new(create_standard_operator_registry());
 
         // Create the evaluator
         let evaluator = Evaluator::new(
@@ -50,6 +53,7 @@ impl FhirPathEngine {
             function_registry,
             model_provider,
             terminology_provider: None,
+            trace_provider: None,
         })
     }
 
@@ -71,6 +75,7 @@ impl FhirPathEngine {
             function_registry,
             model_provider,
             terminology_provider: None,
+            trace_provider: None,
         })
     }
 
@@ -78,6 +83,13 @@ impl FhirPathEngine {
     pub fn with_terminology_provider(mut self, provider: Arc<dyn TerminologyProvider>) -> Self {
         self.terminology_provider = Some(provider.clone());
         self.evaluator = self.evaluator.with_terminology_provider(provider);
+        self
+    }
+
+    /// Add trace provider to engine
+    pub fn with_trace_provider(mut self, provider: SharedTraceProvider) -> Self {
+        self.trace_provider = Some(provider.clone());
+        self.evaluator = self.evaluator.with_trace_provider(provider);
         self
     }
 
@@ -96,6 +108,11 @@ impl FhirPathEngine {
         self.terminology_provider.clone()
     }
 
+    /// Get trace provider
+    pub fn get_trace_provider(&self) -> Option<SharedTraceProvider> {
+        self.trace_provider.clone()
+    }
+
     /// Auto-prepend resource type if expression doesn't start with capital letter
     async fn maybe_prepend_resource_type(
         &self,
@@ -103,7 +120,12 @@ impl FhirPathEngine {
         context: &EvaluationContext,
     ) -> Result<String> {
         // Check if expression already starts with capital letter (explicit resource type)
-        if expression.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if expression
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
+        {
             return Ok(expression.to_string());
         }
 
@@ -141,11 +163,8 @@ impl FhirPathEngine {
         expression: &str,
         context: &EvaluationContext,
     ) -> Result<EvaluationResult> {
-        // Check if we need to auto-prepend resource type
-        let final_expression = self.maybe_prepend_resource_type(expression, context).await?;
-
-        // Parse the expression
-        let ast = parser::parse_ast(&final_expression)?;
+        // Parse the expression as-is without modification
+        let ast = parser::parse_ast(expression)?;
 
         // Evaluate using the real evaluator
         self.evaluate_ast(&ast, context).await
@@ -179,7 +198,9 @@ impl FhirPathEngine {
         ast: &ExpressionNode,
         context: &EvaluationContext,
     ) -> Result<EvaluationResultWithMetadata> {
-        self.evaluator.evaluate_node_with_metadata(ast, context).await
+        self.evaluator
+            .evaluate_node_with_metadata(ast, context)
+            .await
     }
 }
 

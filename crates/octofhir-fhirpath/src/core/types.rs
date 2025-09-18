@@ -10,7 +10,8 @@ use std::sync::{Arc, LazyLock};
 
 use super::error::{FhirPathError, Result};
 use super::error_code::*;
-use super::model_provider::TypeInfo;
+use super::model_provider::{ModelProvider, TypeInfo};
+use super::model_provider::utils::extract_resource_type;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
 // New wrapped primitive element for Phase 1 implementation
 
@@ -57,6 +58,15 @@ impl Collection {
             is_ordered: true,
             mixed: false,
         }
+    }
+
+    /// Create a collection from JSON resource with ModelProvider-aware typing
+    pub async fn from_json_resource(
+        json: JsonValue,
+        model_provider: Option<Arc<dyn ModelProvider>>,
+    ) -> crate::core::Result<Self> {
+        let resource_value = FhirPathValue::resource_with_model_provider(json, model_provider).await?;
+        Ok(Self::from_values(vec![resource_value]))
     }
 
     /// Create a collection from a vector with explicit ordering
@@ -347,45 +357,152 @@ impl serde::Serialize for FhirPathValue {
 /// Calendar units for temporal calculations (not supported by UCUM)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CalendarUnit {
-    /// Year (approximately 365.25 days)
-    Year,
-    /// Month (varies between 28-31 days)
-    Month,
-    /// Week (exactly 7 days)
-    Week,
-    /// Day (exactly 24 hours)
+    /// One millisecond - 1/1000 of a calendar second
+    Millisecond,
+    /// One second
+    Second,
+    /// One minute - exactly 60 seconds
+    Minute,
+    /// One hour - exactly 60 minutes
+    Hour,
+    /// One day - exactly 24 hours
     Day,
+    /// One week - exactly 7 days
+    Week,
+    /// A calendar month - Month is not a fixed size in days
+    Month,
+    /// A calendar year - exactly 12 months
+    Year,
 }
 
 impl CalendarUnit {
     /// Get the unit name as a string
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Year => "year",
-            Self::Month => "month",
-            Self::Week => "week",
+            Self::Millisecond => "millisecond",
+            Self::Second => "second",
+            Self::Minute => "minute",
+            Self::Hour => "hour",
             Self::Day => "day",
+            Self::Week => "week",
+            Self::Month => "month",
+            Self::Year => "year",
         }
     }
 
     /// Parse from string
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "year" | "years" | "yr" | "yrs" | "a" => Some(Self::Year),
-            "month" | "months" | "mo" | "mos" => Some(Self::Month),
-            "week" | "weeks" | "wk" | "wks" => Some(Self::Week),
+            "millisecond" | "milliseconds" | "ms" => Some(Self::Millisecond),
+            "second" | "seconds" | "sec" | "secs" | "s" => Some(Self::Second),
+            "minute" | "minutes" | "min" | "mins" | "m" => Some(Self::Minute),
+            "hour" | "hours" | "hr" | "hrs" | "h" => Some(Self::Hour),
             "day" | "days" | "d" => Some(Self::Day),
+            "week" | "weeks" | "wk" | "wks" | "w" => Some(Self::Week),
+            "month" | "months" | "mos" => Some(Self::Month), // Removed "mo" - UCUM only
+            "year" | "years" | "yr" | "yrs" => Some(Self::Year), // Removed "a" - UCUM only
             _ => None,
         }
+    }
+
+    /// Get the human-readable description of the unit
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::Millisecond => "One millisecond - 1/1000 of a calendar second",
+            Self::Second => "One second",
+            Self::Minute => "One minute - exactly 60 seconds",
+            Self::Hour => "One hour - exactly 60 minutes",
+            Self::Day => "One day - exactly 24 hours",
+            Self::Week => "One week - exactly 7 days",
+            Self::Month => "A calendar month - Month is not a fixed size in days",
+            Self::Year => "A calendar year - exactly 12 months",
+        }
+    }
+
+    /// Check if this unit has a fixed duration in lower units
+    /// Returns true for units that always have the same duration
+    pub fn is_fixed_duration(&self) -> bool {
+        match self {
+            Self::Millisecond => true,
+            Self::Second => true,
+            Self::Minute => true,
+            Self::Hour => true,
+            Self::Day => true,
+            Self::Week => true,
+            Self::Month => false, // Varies between 28-31 days
+            Self::Year => false,  // Varies between 365-366 days
+        }
+    }
+
+    /// Get the conversion factor to milliseconds for fixed-duration units
+    /// Returns None for variable-duration units (month, year)
+    pub fn to_milliseconds(&self) -> Option<i64> {
+        match self {
+            Self::Millisecond => Some(1),
+            Self::Second => Some(1_000),
+            Self::Minute => Some(60_000),
+            Self::Hour => Some(3_600_000),
+            Self::Day => Some(86_400_000),
+            Self::Week => Some(604_800_000),
+            Self::Month => None, // Variable duration
+            Self::Year => None,  // Variable duration
+        }
+    }
+
+    /// Get all calendar units in order from smallest to largest
+    pub fn all_units() -> &'static [CalendarUnit] {
+        &[
+            CalendarUnit::Millisecond,
+            CalendarUnit::Second,
+            CalendarUnit::Minute,
+            CalendarUnit::Hour,
+            CalendarUnit::Day,
+            CalendarUnit::Week,
+            CalendarUnit::Month,
+            CalendarUnit::Year,
+        ]
+    }
+
+    /// Check if this unit is compatible for arithmetic with another unit
+    /// Generally, only units of the same "type" can be safely combined
+    pub fn is_compatible_with(&self, other: &CalendarUnit) -> bool {
+        let time_units = [
+            CalendarUnit::Millisecond,
+            CalendarUnit::Second,
+            CalendarUnit::Minute,
+            CalendarUnit::Hour,
+        ];
+        let date_units = [CalendarUnit::Day, CalendarUnit::Week];
+        let calendar_units = [CalendarUnit::Month, CalendarUnit::Year];
+
+        let self_is_time = time_units.contains(self);
+        let self_is_date = date_units.contains(self);
+        let self_is_calendar = calendar_units.contains(self);
+
+        let other_is_time = time_units.contains(other);
+        let other_is_date = date_units.contains(other);
+        let other_is_calendar = calendar_units.contains(other);
+
+        // Same category units are compatible
+        (self_is_time && other_is_time)
+            || (self_is_date && other_is_date)
+            || (self_is_calendar && other_is_calendar)
+            // Time units are compatible with date units
+            || (self_is_time && other_is_date)
+            || (self_is_date && other_is_time)
     }
 
     /// Convert to approximate days (for rough comparisons only)
     pub fn approximate_days(&self) -> f64 {
         match self {
-            Self::Year => 365.25,
-            Self::Month => 30.44, // Average month length
-            Self::Week => 7.0,
+            Self::Millisecond => 1.0 / 86_400_000.0,
+            Self::Second => 1.0 / 86_400.0,
+            Self::Minute => 1.0 / 1_440.0,
+            Self::Hour => 1.0 / 24.0,
             Self::Day => 1.0,
+            Self::Week => 7.0,
+            Self::Month => 30.44, // Average month length
+            Self::Year => 365.25,
         }
     }
 }
@@ -401,12 +518,10 @@ impl FhirPathValue {
     pub fn integer(value: i64) -> Self {
         let type_info = TypeInfo {
             type_name: "Integer".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Integer".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Integer(value, type_info, None)
     }
@@ -427,12 +542,10 @@ impl FhirPathValue {
                 // Return a reference to a static lazy TypeInfo
                 static COLLECTION_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
                     type_name: "Collection".to_string(),
-                    singleton: false,
+                    singleton: Some(false),
                     namespace: Some("System".to_string()),
                     name: Some("Collection".to_string()),
                     is_empty: Some(false),
-                    is_union_type: Some(false),
-                    union_choices: None,
                 });
                 &COLLECTION_TYPE
             }
@@ -440,12 +553,10 @@ impl FhirPathValue {
                 // Return a reference to a static lazy TypeInfo
                 static EMPTY_TYPE: LazyLock<TypeInfo> = LazyLock::new(|| TypeInfo {
                     type_name: "Empty".to_string(),
-                    singleton: true,
+                    singleton: Some(true),
                     namespace: Some("System".to_string()),
                     name: Some("Empty".to_string()),
                     is_empty: Some(true),
-                    is_union_type: Some(false),
-                    union_choices: None,
                 });
                 &EMPTY_TYPE
             }
@@ -463,7 +574,9 @@ impl FhirPathValue {
             | Self::DateTime(_, _, element)
             | Self::Time(_, _, element)
             | Self::Resource(_, _, element) => element.as_ref(),
-            Self::Quantity { primitive_element, .. } => primitive_element.as_ref(),
+            Self::Quantity {
+                primitive_element, ..
+            } => primitive_element.as_ref(),
             _ => None,
         }
     }
@@ -475,7 +588,11 @@ impl FhirPathValue {
     }
 
     /// Wrap a value with TypeInfo and optional primitive element
-    pub fn wrap_value(value: Self, type_info: TypeInfo, primitive_element: Option<WrappedPrimitiveElement>) -> Self {
+    pub fn wrap_value(
+        value: Self,
+        type_info: TypeInfo,
+        primitive_element: Option<WrappedPrimitiveElement>,
+    ) -> Self {
         match value {
             Self::Boolean(v, _, _) => Self::Boolean(v, type_info, primitive_element),
             Self::Integer(v, _, _) => Self::Integer(v, type_info, primitive_element),
@@ -485,7 +602,13 @@ impl FhirPathValue {
             Self::DateTime(v, _, _) => Self::DateTime(v, type_info, primitive_element),
             Self::Time(v, _, _) => Self::Time(v, type_info, primitive_element),
             Self::Resource(v, _, _) => Self::Resource(v, type_info, primitive_element),
-            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+            Self::Quantity {
+                value,
+                unit,
+                ucum_unit,
+                calendar_unit,
+                ..
+            } => Self::Quantity {
                 value,
                 unit,
                 ucum_unit,
@@ -501,12 +624,10 @@ impl FhirPathValue {
     pub fn unwrap_value(&self) -> Self {
         let default_type_info = TypeInfo {
             type_name: "Unknown".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: None,
             name: Some("Unknown".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
 
         match self {
@@ -518,7 +639,13 @@ impl FhirPathValue {
             Self::DateTime(v, _, _) => Self::DateTime(v.clone(), default_type_info.clone(), None),
             Self::Time(v, _, _) => Self::Time(v.clone(), default_type_info.clone(), None),
             Self::Resource(v, _, _) => Self::Resource(v.clone(), default_type_info.clone(), None),
-            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+            Self::Quantity {
+                value,
+                unit,
+                ucum_unit,
+                calendar_unit,
+                ..
+            } => Self::Quantity {
                 value: value.clone(),
                 unit: unit.clone(),
                 ucum_unit: ucum_unit.clone(),
@@ -551,6 +678,26 @@ impl FhirPathValue {
             Self::Resource(_, _, _) => "Resource",
             Self::Collection(_) => "Collection",
             Self::Empty => "empty",
+        }
+    }
+
+    /// Get the display type name, using TypeInfo when available for Resources
+    pub fn display_type_name(&self) -> String {
+        match self {
+            Self::Boolean(_, _, _) => "Boolean".to_string(),
+            Self::Integer(_, _, _) => "Integer".to_string(),
+            Self::Decimal(_, _, _) => "Decimal".to_string(),
+            Self::String(_, _, _) => "String".to_string(),
+            Self::Date(_, _, _) => "Date".to_string(),
+            Self::DateTime(_, _, _) => "DateTime".to_string(),
+            Self::Time(_, _, _) => "Time".to_string(),
+            Self::Quantity { .. } => "Quantity".to_string(),
+            Self::Resource(_, type_info, _) => {
+                // Use the corrected type_name from TypeInfo for display
+                type_info.type_name.clone()
+            },
+            Self::Collection(_) => "Collection".to_string(),
+            Self::Empty => "empty".to_string(),
         }
     }
 
@@ -650,12 +797,10 @@ impl FhirPathValue {
     pub fn string(s: impl Into<String>) -> Self {
         let type_info = TypeInfo {
             type_name: "String".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("String".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::String(s.into(), type_info, None)
     }
@@ -664,12 +809,10 @@ impl FhirPathValue {
     pub fn decimal(d: impl Into<Decimal>) -> Self {
         let type_info = TypeInfo {
             type_name: "Decimal".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Decimal".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Decimal(d.into(), type_info, None)
     }
@@ -678,12 +821,10 @@ impl FhirPathValue {
     pub fn boolean(b: bool) -> Self {
         let type_info = TypeInfo {
             type_name: "Boolean".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Boolean".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Boolean(b, type_info, None)
     }
@@ -692,14 +833,38 @@ impl FhirPathValue {
     pub fn resource(json: JsonValue) -> Self {
         let type_info = TypeInfo {
             type_name: "Resource".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("FHIR".to_string()),
             name: Some("Resource".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Resource(Arc::new(json), type_info, None)
+    }
+
+    /// Create a resource value with ModelProvider-aware type resolution
+    pub async fn resource_with_model_provider(
+        json: JsonValue,
+        model_provider: Option<Arc<dyn ModelProvider>>,
+    ) -> crate::core::Result<Self> {
+        if let Some(provider) = model_provider {
+            // Try to extract resourceType and get proper TypeInfo
+            if let Some(resource_type) = extract_resource_type(&json) {
+                match provider.get_type(&resource_type).await {
+                    Ok(Some(type_info)) => {
+                        return Ok(Self::Resource(Arc::new(json), type_info, None));
+                    }
+                    Ok(None) => {
+                        // Type not found in model provider, fall through to default
+                    }
+                    Err(_) => {
+                        // Error getting type, fall through to default
+                    }
+                }
+            }
+        }
+
+        // Fallback to default resource TypeInfo
+        Ok(Self::resource(json))
     }
 
     /// Create a resource value with TypeInfo
@@ -708,10 +873,7 @@ impl FhirPathValue {
     }
 
     /// Create a wrapped value with type information
-    pub fn wrapped_with_type_info(
-        data: JsonValue,
-        type_info: TypeInfo,
-    ) -> Self {
+    pub fn wrapped_with_type_info(data: JsonValue, type_info: TypeInfo) -> Self {
         Self::Resource(Arc::new(data), type_info, None)
     }
 
@@ -734,12 +896,10 @@ impl FhirPathValue {
 
         let type_info = TypeInfo {
             type_name: "Quantity".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Quantity".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
 
         Self::Quantity {
@@ -766,12 +926,10 @@ impl FhirPathValue {
 
         let type_info = TypeInfo {
             type_name: "Quantity".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Quantity".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
 
         Self::Quantity {
@@ -788,12 +946,10 @@ impl FhirPathValue {
     pub fn calendar_quantity(value: Decimal, calendar_unit: CalendarUnit) -> Self {
         let type_info = TypeInfo {
             type_name: "Quantity".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Quantity".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
 
         Self::Quantity {
@@ -810,12 +966,10 @@ impl FhirPathValue {
     pub fn date(date: PrecisionDate) -> Self {
         let type_info = TypeInfo {
             type_name: "Date".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Date".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Date(date, type_info, None)
     }
@@ -824,12 +978,10 @@ impl FhirPathValue {
     pub fn datetime(datetime: PrecisionDateTime) -> Self {
         let type_info = TypeInfo {
             type_name: "DateTime".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("DateTime".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::DateTime(datetime, type_info, None)
     }
@@ -838,12 +990,10 @@ impl FhirPathValue {
     pub fn time(time: PrecisionTime) -> Self {
         let type_info = TypeInfo {
             type_name: "Time".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Time".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Time(time, type_info, None)
     }
@@ -852,12 +1002,10 @@ impl FhirPathValue {
     pub fn json_value(json: JsonValue) -> Self {
         let type_info = TypeInfo {
             type_name: "Json".to_string(),
-            singleton: true,
+            singleton: Some(true),
             namespace: Some("System".to_string()),
             name: Some("Json".to_string()),
             is_empty: Some(false),
-            is_union_type: Some(false),
-            union_choices: None,
         };
         Self::Resource(Arc::new(json), type_info, None)
     }
@@ -1046,6 +1194,30 @@ impl FhirPathValue {
             Self::Empty => JsonValue::Null,
         }
     }
+
+    /// Create a new value with updated type info
+    pub fn with_type_info(&self, new_type_info: crate::core::model_provider::TypeInfo) -> Self {
+        match self {
+            Self::Boolean(b, _, primitive) => Self::Boolean(*b, new_type_info, primitive.clone()),
+            Self::Integer(i, _, primitive) => Self::Integer(*i, new_type_info, primitive.clone()),
+            Self::Decimal(d, _, primitive) => Self::Decimal(*d, new_type_info, primitive.clone()),
+            Self::String(s, _, primitive) => Self::String(s.clone(), new_type_info, primitive.clone()),
+            Self::Date(date, _, primitive) => Self::Date(date.clone(), new_type_info, primitive.clone()),
+            Self::DateTime(dt, _, primitive) => Self::DateTime(dt.clone(), new_type_info, primitive.clone()),
+            Self::Time(time, _, primitive) => Self::Time(time.clone(), new_type_info, primitive.clone()),
+            Self::Quantity { value, unit, ucum_unit, calendar_unit, .. } => Self::Quantity {
+                value: *value,
+                unit: unit.clone(),
+                ucum_unit: ucum_unit.clone(),
+                calendar_unit: *calendar_unit,
+                type_info: new_type_info,
+                primitive_element: None,
+            },
+            Self::Resource(json, _, primitive) => Self::Resource(json.clone(), new_type_info, primitive.clone()),
+            Self::Collection(collection) => Self::Collection(collection.clone()),
+            Self::Empty => Self::Empty,
+        }
+    }
 }
 
 impl fmt::Display for FhirPathValue {
@@ -1070,7 +1242,10 @@ impl fmt::Display for FhirPathValue {
                 if let Some(resource_type) = json.get("resourceType").and_then(|rt| rt.as_str()) {
                     write!(f, "{resource_type}({json})")
                 } else {
-                    write!(f, "{}({json})", type_info.name.as_deref().unwrap_or(&type_info.type_name))
+                    let display_name = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+                    eprintln!("DEBUG Display: Using display_name='{}' from type_info.name={:?}, type_info.type_name='{}'",
+                              display_name, type_info.name, type_info.type_name);
+                    write!(f, "{}({json})", display_name)
                 }
             }
             Self::Collection(collection) => {
@@ -1236,7 +1411,7 @@ impl ResultWithMetadata {
 impl ValueTypeInfo {
     /// Create type info from a FhirPathValue
     pub fn from_value(value: &FhirPathValue) -> Self {
-        let type_name = value.type_name().to_string();
+        let type_name = value.display_type_name();
         let is_fhir_type = matches!(value, FhirPathValue::Resource(json, type_info, _) if json.get("resourceType").is_some() || type_info.namespace.as_deref() == Some("FHIR"));
 
         Self {
@@ -1769,24 +1944,24 @@ pub mod test_utils {
         fn get_type_info(&self, _type_name: &str) -> Result<TypeInfo> {
             Ok(TypeInfo {
                 type_name: "TestType".to_string(),
-                singleton: true,
+                singleton: Some(true),
                 namespace: Some("Test".to_string()),
                 name: Some("TestType".to_string()),
                 is_empty: Some(false),
-                is_union_type: Some(false),
-                union_choices: None,
             })
         }
 
-        fn get_property_type(&self, _resource_type: &str, _property_path: &str) -> Result<TypeInfo> {
+        fn get_property_type(
+            &self,
+            _resource_type: &str,
+            _property_path: &str,
+        ) -> Result<TypeInfo> {
             Ok(TypeInfo {
                 type_name: "String".to_string(),
-                singleton: true,
+                singleton: Some(true),
                 namespace: Some("System".to_string()),
                 name: Some("String".to_string()),
                 is_empty: Some(false),
-                is_union_type: Some(false),
-                union_choices: None,
             })
         }
 
@@ -1794,7 +1969,11 @@ pub mod test_utils {
             Ok(vec![])
         }
 
-        fn validate_resource_type(&self, _resource: &JsonValue, _expected_type: &str) -> Result<bool> {
+        fn validate_resource_type(
+            &self,
+            _resource: &JsonValue,
+            _expected_type: &str,
+        ) -> Result<bool> {
             Ok(true)
         }
 

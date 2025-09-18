@@ -240,14 +240,12 @@
       "expression": "@1973-12-25 + 1 'mo'",
       "input": null,
       "inputfile": "patient-example.json",
-      "expected": [
-        "1974-01-25"
-      ],
+      "expected": [],
       "tags": [
         "r5-xml",
         "testPlus"
       ],
-      "expectError": false,
+      "expectError": true,
       "invalidKind": "execution"
     },
     {

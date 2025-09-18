@@ -16,7 +16,9 @@
 
 use crate::core::error_code::{FP0070, FP0071, FP0072, FP0073, FP0075, FP0079, FP0080};
 use crate::core::{FhirPathError, Result};
-use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
+use chrono::{
+    DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, Utc,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -1141,6 +1143,218 @@ impl PartialEq for PrecisionTime {
             }
             _ => false,
         }
+    }
+}
+
+/// A duration expressed in calendar units
+///
+/// This represents durations in terms of calendar units (year, month, day, etc.)
+/// rather than fixed time intervals. This is important for accurate temporal
+/// arithmetic as calendar months and years have variable lengths.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalendarDuration {
+    /// The magnitude of the duration
+    pub value: i64,
+    /// The calendar unit
+    pub unit: crate::core::CalendarUnit,
+}
+
+impl CalendarDuration {
+    /// Create a new calendar duration
+    pub fn new(value: i64, unit: crate::core::CalendarUnit) -> Self {
+        Self { value, unit }
+    }
+
+    /// Create a duration from a string like "5 days" or "2 years"
+    pub fn from_string(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.trim().split_whitespace().collect();
+        if parts.len() != 2 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                format!(
+                    "Invalid calendar duration format: '{s}'. Expected format: '<number> <unit>'"
+                ),
+            ));
+        }
+
+        let value = parts[0].parse::<i64>().map_err(|_| {
+            FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                format!("Invalid number in calendar duration: '{}'", parts[0]),
+            )
+        })?;
+
+        let unit = crate::core::CalendarUnit::from_str(parts[1]).ok_or_else(|| {
+            FhirPathError::evaluation_error(
+                crate::core::error_code::FP0053,
+                format!("Invalid calendar unit: '{}'", parts[1]),
+            )
+        })?;
+
+        Ok(Self::new(value, unit))
+    }
+
+    /// Convert to total milliseconds if the unit has a fixed duration
+    pub fn to_milliseconds(&self) -> Option<i64> {
+        self.unit.to_milliseconds().map(|ms| self.value * ms)
+    }
+
+    /// Check if this duration is zero
+    pub fn is_zero(&self) -> bool {
+        self.value == 0
+    }
+
+    /// Get the absolute value of this duration
+    pub fn abs(&self) -> Self {
+        Self {
+            value: self.value.abs(),
+            unit: self.unit,
+        }
+    }
+
+    /// Negate this duration
+    pub fn negate(&self) -> Self {
+        Self {
+            value: -self.value,
+            unit: self.unit,
+        }
+    }
+
+    /// Add calendar duration to a precision date
+    pub fn add_to_date(&self, date: &PrecisionDate) -> Result<PrecisionDate> {
+        use crate::core::CalendarUnit;
+        use chrono::{Datelike, NaiveDate};
+
+        match self.unit {
+            CalendarUnit::Year => {
+                let new_year = date.date.year() + self.value as i32;
+                let new_date = date.date.with_year(new_year).ok_or_else(|| {
+                    FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0076,
+                        format!("Invalid date after adding {} years", self.value),
+                    )
+                })?;
+                Ok(PrecisionDate {
+                    date: new_date,
+                    precision: date.precision,
+                })
+            }
+            CalendarUnit::Month => {
+                let total_months =
+                    date.date.year() as i64 * 12 + date.date.month() as i64 - 1 + self.value;
+                let new_year = (total_months / 12) as i32;
+                let new_month = (total_months % 12 + 1) as u32;
+
+                let new_date = NaiveDate::from_ymd_opt(new_year, new_month, date.date.day())
+                    .or_else(|| {
+                        // Handle month-end overflow (e.g., Jan 31 + 1 month = Feb 28/29)
+                        let last_day_of_month = NaiveDate::from_ymd_opt(new_year, new_month + 1, 1)
+                            .unwrap_or_else(|| NaiveDate::from_ymd_opt(new_year + 1, 1, 1).unwrap())
+                            .pred_opt()
+                            .unwrap();
+                        Some(last_day_of_month)
+                    })
+                    .ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0076,
+                            format!("Invalid date after adding {} months", self.value),
+                        )
+                    })?;
+                Ok(PrecisionDate {
+                    date: new_date,
+                    precision: date.precision,
+                })
+            }
+            CalendarUnit::Week => {
+                let new_date = date.date + chrono::Duration::weeks(self.value);
+                Ok(PrecisionDate {
+                    date: new_date,
+                    precision: date.precision,
+                })
+            }
+            CalendarUnit::Day => {
+                let new_date = date.date + chrono::Duration::days(self.value);
+                Ok(PrecisionDate {
+                    date: new_date,
+                    precision: date.precision,
+                })
+            }
+            _ => {
+                // For time units, convert to milliseconds if possible and add as duration
+                if let Some(ms) = self.to_milliseconds() {
+                    let new_date = date.date + chrono::Duration::milliseconds(ms);
+                    Ok(PrecisionDate {
+                        date: new_date,
+                        precision: date.precision,
+                    })
+                } else {
+                    Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        format!("Cannot add {} {} to date", self.value, self.unit),
+                    ))
+                }
+            }
+        }
+    }
+
+    /// Add calendar duration to a precision datetime
+    pub fn add_to_datetime(&self, datetime: &PrecisionDateTime) -> Result<PrecisionDateTime> {
+        use crate::core::CalendarUnit;
+
+        match self.unit {
+            CalendarUnit::Year | CalendarUnit::Month => {
+                // Use date addition for year/month units - extract naive date for calendar arithmetic
+                let naive_date = datetime.datetime.date_naive();
+                let date_part = PrecisionDate {
+                    date: naive_date,
+                    precision: datetime.precision,
+                };
+                let new_date = self.add_to_date(&date_part)?;
+
+                // Reconstruct datetime with the same time part and timezone
+                let time_part = datetime.datetime.time();
+                let naive_datetime = new_date.date.and_time(time_part);
+                let new_datetime = datetime
+                    .datetime
+                    .timezone()
+                    .from_local_datetime(&naive_datetime)
+                    .single()
+                    .ok_or_else(|| {
+                        FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0076,
+                            "Cannot create datetime after calendar arithmetic".to_string(),
+                        )
+                    })?;
+
+                Ok(PrecisionDateTime {
+                    datetime: new_datetime,
+                    precision: datetime.precision,
+                    tz_specified: datetime.tz_specified,
+                })
+            }
+            _ => {
+                // For other units, convert to milliseconds and add as duration
+                if let Some(ms) = self.to_milliseconds() {
+                    let new_datetime = datetime.datetime + chrono::Duration::milliseconds(ms);
+                    Ok(PrecisionDateTime {
+                        datetime: new_datetime,
+                        precision: datetime.precision,
+                        tz_specified: datetime.tz_specified,
+                    })
+                } else {
+                    Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0053,
+                        format!("Cannot add {} {} to datetime", self.value, self.unit),
+                    ))
+                }
+            }
+        }
+    }
+}
+
+impl fmt::Display for CalendarDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.value, self.unit)
     }
 }
 

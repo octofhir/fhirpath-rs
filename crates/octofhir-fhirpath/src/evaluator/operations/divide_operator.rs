@@ -2,16 +2,15 @@
 //!
 //! Implements FHIRPath division for numeric types and quantities.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result, Collection, FhirPathError};
-use crate::evaluator::{EvaluationContext, EvaluationResult};
+use crate::core::{Collection, FhirPathError, FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::operator_registry::{
-    OperationEvaluator, OperatorMetadata, OperatorSignature,
-    EmptyPropagation, Associativity
+    Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Division operator evaluator
 pub struct DivideOperatorEvaluator {
@@ -32,7 +31,11 @@ impl DivideOperatorEvaluator {
     }
 
     /// Perform division on two FhirPathValues
-    fn divide_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Result<Option<FhirPathValue>> {
+    fn divide_values(
+        &self,
+        left: &FhirPathValue,
+        right: &FhirPathValue,
+    ) -> Result<Option<FhirPathValue>> {
         match (left, right) {
             // Integer division - always results in Decimal per FHIRPath spec
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
@@ -81,7 +84,14 @@ impl DivideOperatorEvaluator {
             }
 
             // Quantity / Scalar = Quantity
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Integer(r, _, _)) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Integer(r, _, _),
+            ) => {
                 if *r == 0 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0051,
@@ -89,9 +99,19 @@ impl DivideOperatorEvaluator {
                     ));
                 }
                 let right_decimal = Decimal::from(*r);
-                Ok(Some(FhirPathValue::quantity(*lv / right_decimal, lu.clone())))
+                Ok(Some(FhirPathValue::quantity(
+                    *lv / right_decimal,
+                    lu.clone(),
+                )))
             }
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Decimal(r, _, _)) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Decimal(r, _, _),
+            ) => {
                 if *r == Decimal::ZERO {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0051,
@@ -102,7 +122,18 @@ impl DivideOperatorEvaluator {
             }
 
             // Quantity / Quantity = Decimal (unitless) or Quantity (with unit division)
-            (FhirPathValue::Quantity { value: lv, unit: lu, .. }, FhirPathValue::Quantity { value: rv, unit: ru, .. }) => {
+            (
+                FhirPathValue::Quantity {
+                    value: lv,
+                    unit: lu,
+                    ..
+                },
+                FhirPathValue::Quantity {
+                    value: rv,
+                    unit: ru,
+                    ..
+                },
+            ) => {
                 if *rv == Decimal::ZERO {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0051,
@@ -181,15 +212,35 @@ fn create_divide_metadata() -> OperatorMetadata {
             signature,
             overloads: vec![
                 // Numeric division (always returns Decimal per FHIRPath spec)
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Integer], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Integer, FhirPathType::Decimal], FhirPathType::Decimal),
-                TypeSignature::new(vec![FhirPathType::Decimal, FhirPathType::Integer], FhirPathType::Decimal),
-
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Integer],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Integer, FhirPathType::Decimal],
+                    FhirPathType::Decimal,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Decimal, FhirPathType::Integer],
+                    FhirPathType::Decimal,
+                ),
                 // Quantity division
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Integer], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Decimal], FhirPathType::Quantity),
-                TypeSignature::new(vec![FhirPathType::Quantity, FhirPathType::Quantity], FhirPathType::Any), // Can be Decimal or Quantity
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Integer],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Decimal],
+                    FhirPathType::Quantity,
+                ),
+                TypeSignature::new(
+                    vec![FhirPathType::Quantity, FhirPathType::Quantity],
+                    FhirPathType::Any,
+                ), // Can be Decimal or Quantity
             ],
         },
         empty_propagation: EmptyPropagation::Propagate,
@@ -211,15 +262,22 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(15)];
         let right = vec![FhirPathValue::integer(3)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(Decimal::from(5)));
+        assert_eq!(
+            result.value.first().unwrap().as_decimal(),
+            Some(Decimal::from(5))
+        );
     }
 
     #[tokio::test]
@@ -229,15 +287,22 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::decimal(10.0)];
         let right = vec![FhirPathValue::decimal(2.0)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
-        assert_eq!(result.value.first().unwrap().as_decimal(), Some(Decimal::from(5)));
+        assert_eq!(
+            result.value.first().unwrap().as_decimal(),
+            Some(Decimal::from(5))
+        );
     }
 
     #[tokio::test]
@@ -247,7 +312,8 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::integer(10)];
         let right = vec![FhirPathValue::integer(0)];
@@ -265,12 +331,16 @@ mod tests {
             Collection::empty(),
             std::sync::Arc::new(crate::core::test_utils::create_test_model_provider()),
             None,
-        ).await;
+        )
+        .await;
 
         let left = vec![FhirPathValue::quantity(15.0, "kg".to_string())];
         let right = vec![FhirPathValue::integer(3)];
 
-        let result = evaluator.evaluate(vec![], &context, left, right).await.unwrap();
+        let result = evaluator
+            .evaluate(vec![], &context, left, right)
+            .await
+            .unwrap();
 
         assert_eq!(result.value.len(), 1);
         if let FhirPathValue::Quantity { value, unit, .. } = result.value.first().unwrap() {

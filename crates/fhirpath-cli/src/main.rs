@@ -22,12 +22,8 @@ use octofhir_fhir_model::HttpTerminologyProvider;
 use octofhir_fhir_model::provider::{EmptyModelProvider, FhirVersion, ModelProvider};
 use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
-// Registry module removed - commenting out
-// use octofhir_fhirpath::registry::{
-//     FunctionRegistry, create_comprehensive_operator_registry, export_functions_json,
-//     export_operators_json,
-// };
-use octofhir_fhirpath::{self, create_empty_registry};
+use octofhir_fhirpath::{self, create_function_registry};
+use octofhir_fhirpath::core::trace::create_cli_provider;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
@@ -44,10 +40,15 @@ async fn create_shared_model_provider() -> anyhow::Result<Arc<EmbeddedModelProvi
 async fn create_fhirpath_engine(
     model_provider: Arc<EmbeddedModelProvider>,
 ) -> anyhow::Result<FhirPathEngine> {
-    let registry = Arc::new(create_empty_registry());
+    let registry = Arc::new(create_function_registry());
     let engine = FhirPathEngine::new(registry, model_provider)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
+
+    // Add CLI trace provider for trace function support
+    let trace_provider = create_cli_provider();
+    let engine = engine.with_trace_provider(trace_provider);
+
     Ok(engine)
 }
 
@@ -460,15 +461,25 @@ async fn handle_evaluate(
     let variables: std::collections::HashMap<String, octofhir_fhirpath::FhirPathValue> =
         initial_variables.into_iter().collect();
 
-    // Create NEW async evaluation context with the resource and variables
-    let context_collection =
-        octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource));
+    // Create Collection with proper resource typing using ModelProvider
     let model_provider_arc =
         model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>;
+
+    let context_collection = match octofhir_fhirpath::Collection::from_json_resource(
+        resource.clone(),
+        Some(model_provider_arc.clone()),
+    ).await {
+        Ok(collection) => collection,
+        Err(e) => {
+            eprintln!("⚠️ Warning: Failed to properly type resource, using fallback: {}", e);
+            octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(resource))
+        }
+    };
     let mut eval_context = octofhir_fhirpath::EvaluationContext::new(
         context_collection,
         model_provider_arc,
         engine.get_terminology_provider(),
+        None, // trace_provider
     )
     .await;
 
@@ -548,20 +559,30 @@ async fn handle_evaluate(
             metadata: OutputMetadata::default(),
         }
     } else {
-        // Parse successful - now evaluate
-        let result = engine.evaluate(expression, &eval_context).await;
+        // Parse successful - now evaluate with metadata for rich debugging info
+        let result = engine
+            .evaluate_with_metadata(expression, &eval_context)
+            .await;
 
         let execution_time = start_time.elapsed();
         match result {
-            Ok(eval_result) => EvaluationOutput {
-                success: true,
-                result: Some(eval_result.value.clone()),
-                result_with_metadata: None, // TODO: Fix metadata format
-                error: None,
-                expression: expression.to_string(),
-                execution_time,
-                metadata: OutputMetadata::default(),
-            },
+            Ok(eval_result_with_metadata) => {
+                // Convert Collection to CollectionWithMetadata for rich CLI output
+                let collection_with_metadata =
+                    octofhir_fhirpath::core::CollectionWithMetadata::from(
+                        eval_result_with_metadata.value.clone(),
+                    );
+
+                EvaluationOutput {
+                    success: true,
+                    result: Some(eval_result_with_metadata.value.clone()),
+                    result_with_metadata: Some(collection_with_metadata),
+                    error: None,
+                    expression: expression.to_string(),
+                    execution_time,
+                    metadata: OutputMetadata::default(),
+                }
+            }
             Err(e) => {
                 // Report diagnostic for evaluation error
                 let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
@@ -1283,7 +1304,10 @@ async fn try_show_function(
 ) -> bool {
     // Registry functionality removed
     if !quiet {
-        eprintln!("Function '{}' lookup functionality is not available in this version.", name);
+        eprintln!(
+            "Function '{}' lookup functionality is not available in this version.",
+            name
+        );
     }
     false
 }
@@ -1295,7 +1319,10 @@ async fn try_show_operator(
 ) -> bool {
     // Registry functionality removed - operator lookup not available
     if !quiet {
-        eprintln!("Operator '{}' lookup functionality is not available in this version.", name);
+        eprintln!(
+            "Operator '{}' lookup functionality is not available in this version.",
+            name
+        );
     }
     false
 }

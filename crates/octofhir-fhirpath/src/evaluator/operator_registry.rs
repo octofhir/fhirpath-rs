@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{BinaryOperator, UnaryOperator};
-use crate::core::{FhirPathValue, FhirPathType, TypeSignature, Result};
+use crate::core::{FhirPathType, FhirPathValue, Result, TypeSignature};
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Metadata for an operator describing its behavior and signature
@@ -39,7 +39,6 @@ pub struct OperatorSignature {
     /// Alternative signatures for overloaded operators
     pub overloads: Vec<TypeSignature>,
 }
-
 
 /// Empty value propagation behavior
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +88,11 @@ pub trait OperationEvaluator: Send + Sync {
         }
 
         // Check overloaded signatures
-        metadata.signature.overloads.iter().any(|sig| sig.matches(argument_types))
+        metadata
+            .signature
+            .overloads
+            .iter()
+            .any(|sig| sig.matches(argument_types))
     }
 }
 
@@ -136,12 +139,18 @@ impl OperatorRegistry {
     }
 
     /// Get binary operator evaluator
-    pub fn get_binary_operator(&self, operator: &BinaryOperator) -> Option<&Arc<dyn OperationEvaluator>> {
+    pub fn get_binary_operator(
+        &self,
+        operator: &BinaryOperator,
+    ) -> Option<&Arc<dyn OperationEvaluator>> {
         self.binary_operators.get(operator)
     }
 
     /// Get unary operator evaluator
-    pub fn get_unary_operator(&self, operator: &UnaryOperator) -> Option<&Arc<dyn OperationEvaluator>> {
+    pub fn get_unary_operator(
+        &self,
+        operator: &UnaryOperator,
+    ) -> Option<&Arc<dyn OperationEvaluator>> {
         self.unary_operators.get(operator)
     }
 
@@ -166,7 +175,10 @@ impl OperatorRegistry {
     }
 
     /// Find operators that can handle the given types
-    pub fn find_compatible_binary_operators(&self, argument_types: &[FhirPathType]) -> Vec<&BinaryOperator> {
+    pub fn find_compatible_binary_operators(
+        &self,
+        argument_types: &[FhirPathType],
+    ) -> Vec<&BinaryOperator> {
         self.binary_operators
             .iter()
             .filter(|(_, evaluator)| evaluator.can_handle(argument_types))
@@ -175,7 +187,10 @@ impl OperatorRegistry {
     }
 
     /// Find unary operators that can handle the given type
-    pub fn find_compatible_unary_operators(&self, argument_types: &[FhirPathType]) -> Vec<&UnaryOperator> {
+    pub fn find_compatible_unary_operators(
+        &self,
+        argument_types: &[FhirPathType],
+    ) -> Vec<&UnaryOperator> {
         self.unary_operators
             .iter()
             .filter(|(_, evaluator)| evaluator.can_handle(argument_types))
@@ -209,35 +224,29 @@ impl OperatorRegistryBuilder {
         use crate::evaluator::operations::*;
 
         // Register arithmetic operators
-        self.registry.register_binary_operator(
-            BinaryOperator::Add,
-            AddOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::Add, AddOperatorEvaluator::create());
         self.registry.register_binary_operator(
             BinaryOperator::Subtract,
-            SubtractOperatorEvaluator::create()
+            SubtractOperatorEvaluator::create(),
         );
         self.registry.register_binary_operator(
             BinaryOperator::Multiply,
-            MultiplyOperatorEvaluator::create()
+            MultiplyOperatorEvaluator::create(),
         );
-        self.registry.register_binary_operator(
-            BinaryOperator::Divide,
-            DivideOperatorEvaluator::create()
-        );
-        self.registry.register_binary_operator(
-            BinaryOperator::Modulo,
-            ModuloOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::Divide, DivideOperatorEvaluator::create());
+        self.registry
+            .register_binary_operator(BinaryOperator::Modulo, ModuloOperatorEvaluator::create());
         self.registry.register_binary_operator(
             BinaryOperator::IntegerDivide,
-            IntegerDivideOperatorEvaluator::create()
+            IntegerDivideOperatorEvaluator::create(),
         );
 
         // Register string concatenation operator
         self.registry.register_binary_operator(
             BinaryOperator::Concatenate,
-            ConcatenateOperatorEvaluator::create()
+            ConcatenateOperatorEvaluator::create(),
         );
 
         self
@@ -249,29 +258,37 @@ impl OperatorRegistryBuilder {
         use crate::evaluator::operations::*;
 
         // Register comparison operators
-        self.registry.register_binary_operator(
-            BinaryOperator::Equal,
-            EqualsOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::Equal, EqualsOperatorEvaluator::create());
         self.registry.register_binary_operator(
             BinaryOperator::NotEqual,
-            NotEqualsOperatorEvaluator::create()
+            NotEqualsOperatorEvaluator::create(),
         );
         self.registry.register_binary_operator(
             BinaryOperator::LessThan,
-            LessThanOperatorEvaluator::create()
+            LessThanOperatorEvaluator::create(),
         );
         self.registry.register_binary_operator(
             BinaryOperator::GreaterThan,
-            GreaterThanOperatorEvaluator::create()
+            GreaterThanOperatorEvaluator::create(),
         );
         self.registry.register_binary_operator(
             BinaryOperator::LessThanOrEqual,
-            LessEqualOperatorEvaluator::create()
+            LessEqualOperatorEvaluator::create(),
         );
         self.registry.register_binary_operator(
             BinaryOperator::GreaterThanOrEqual,
-            GreaterEqualOperatorEvaluator::create()
+            GreaterEqualOperatorEvaluator::create(),
+        );
+
+        // Register equivalence operators
+        self.registry.register_binary_operator(
+            BinaryOperator::Equivalent,
+            EquivalentOperatorEvaluator::create(),
+        );
+        self.registry.register_binary_operator(
+            BinaryOperator::NotEquivalent,
+            NotEquivalentOperatorEvaluator::create(),
         );
 
         self
@@ -283,18 +300,14 @@ impl OperatorRegistryBuilder {
         use crate::evaluator::operations::*;
 
         // Register logical operators
-        self.registry.register_binary_operator(
-            BinaryOperator::And,
-            AndOperatorEvaluator::create()
-        );
-        self.registry.register_binary_operator(
-            BinaryOperator::Or,
-            OrOperatorEvaluator::create()
-        );
-        self.registry.register_binary_operator(
-            BinaryOperator::Implies,
-            ImpliesOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::And, AndOperatorEvaluator::create());
+        self.registry
+            .register_binary_operator(BinaryOperator::Or, OrOperatorEvaluator::create());
+        self.registry
+            .register_binary_operator(BinaryOperator::Implies, ImpliesOperatorEvaluator::create());
+        self.registry
+            .register_binary_operator(BinaryOperator::Xor, XorOperatorEvaluator::create());
 
         self
     }
@@ -305,29 +318,36 @@ impl OperatorRegistryBuilder {
         use crate::evaluator::operations::*;
 
         // Register collection operators
-        self.registry.register_binary_operator(
-            BinaryOperator::Union,
-            UnionOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::Union, UnionOperatorEvaluator::create());
 
         // Register type operators
-        self.registry.register_binary_operator(
-            BinaryOperator::Is,
-            IsOperatorEvaluator::create()
-        );
-        self.registry.register_binary_operator(
-            BinaryOperator::As,
-            AsOperatorEvaluator::create()
-        );
+        self.registry
+            .register_binary_operator(BinaryOperator::Is, IsOperatorEvaluator::create());
+        self.registry
+            .register_binary_operator(BinaryOperator::As, AsOperatorEvaluator::create());
 
-        // Note: 'in' and 'contains' operators would be added here when implemented
+        // Register membership operators
+        self.registry
+            .register_binary_operator(BinaryOperator::In, InOperatorEvaluator::create());
+        self.registry.register_binary_operator(
+            BinaryOperator::Contains,
+            ContainsOperatorEvaluator::create(),
+        );
 
         self
     }
 
     /// Add default unary operators (not, -)
     pub fn with_unary_operators(mut self) -> Self {
-        // TODO: Implement default unary operators in Phase 2
+        use crate::ast::UnaryOperator;
+        use crate::evaluator::operations::*;
+
+        // Register unary operators
+        self.registry
+            .register_unary_operator(UnaryOperator::Negate, NegateOperatorEvaluator::create());
+        // TODO: Add NotOperatorEvaluator once implemented
+
         self
     }
 
@@ -363,8 +383,8 @@ impl Default for OperatorRegistryBuilder {
     }
 }
 
-/// Create a default operator registry with all standard FHIRPath operators
-pub fn create_default_operator_registry() -> OperatorRegistry {
+/// Create a standard operator registry with all FHIRPath operators
+pub fn create_standard_operator_registry() -> OperatorRegistry {
     OperatorRegistryBuilder::new()
         .with_arithmetic_operators()
         .with_comparison_operators()
