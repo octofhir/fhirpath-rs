@@ -1,7 +1,7 @@
 //! Length function implementation
 //!
-//! The length function returns the length of a string.
-//! Syntax: string.length()
+//! The length function returns the number of items in a collection.
+//! Syntax: collection.length()
 
 use std::sync::Arc;
 
@@ -23,9 +23,9 @@ impl LengthFunctionEvaluator {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "length".to_string(),
-                description: "Returns the length of a string".to_string(),
+                description: "Returns the number of items in a collection".to_string(),
                 signature: FunctionSignature {
-                    input_type: "String".to_string(),
+                    input_type: "Collection".to_string(),
                     parameters: vec![],
                     return_type: "Integer".to_string(),
                     polymorphic: false,
@@ -34,7 +34,7 @@ impl LengthFunctionEvaluator {
                 },
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
-                category: FunctionCategory::StringManipulation,
+                category: FunctionCategory::Utility,
                 requires_terminology: false,
                 requires_model: false,
             },
@@ -58,24 +58,33 @@ impl FunctionEvaluator for LengthFunctionEvaluator {
             ));
         }
 
-        let mut results = Vec::new();
+        // length() has different behavior based on input:
+        // - For collections: returns the number of items in the collection
+        // - For single string: returns the number of characters in the string
 
-        for value in input {
-            match &value {
+        if input.len() == 1 {
+            match &input[0] {
                 FhirPathValue::String(s, _, _) => {
-                    results.push(FhirPathValue::integer(s.chars().count() as i64));
+                    // For a single string, return its character length
+                    let string_length = s.chars().count() as i64;
+                    return Ok(EvaluationResult {
+                        value: crate::core::Collection::single(FhirPathValue::integer(string_length)),
+                    });
                 }
                 _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        "length function can only be called on strings".to_string(),
-                    ));
+                    // For a single non-string value, return 1 (collection length)
+                    return Ok(EvaluationResult {
+                        value: crate::core::Collection::single(FhirPathValue::integer(1)),
+                    });
                 }
             }
         }
 
+        // For collections with multiple items, return the collection size
+        let collection_length = input.len() as i64;
+
         Ok(EvaluationResult {
-            value: crate::core::Collection::from(results),
+            value: crate::core::Collection::single(FhirPathValue::integer(collection_length)),
         })
     }
 

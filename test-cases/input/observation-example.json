@@ -1,6 +1,17 @@
 {
   "resourceType": "Observation",
   "id": "example",
+  "extension": [
+    {
+      "url": "http://example.com/fhir/StructureDefinition/patient-age",
+      "valueAge": {
+        "value": 30,
+        "unit": "years",
+        "system": "http://unitsofmeasure.org",
+        "code": "a"
+      }
+    }
+  ],
   "text": {
     "status": "generated",
     "div": {

@@ -109,15 +109,23 @@ impl FunctionEvaluator for IndexOfFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
         if input.is_empty() {
             return Ok(EvaluationResult {
-                value: crate::core::Collection::from(vec![FhirPathValue::integer(-1)]),
+                value: crate::core::Collection::empty(),
             });
         }
 
         // Evaluate search value argument
         let search_result = evaluator.evaluate(&args[0], context).await?;
         let search_values: Vec<FhirPathValue> = search_result.value.iter().cloned().collect();
+
+        // Handle empty search parameter - propagate empty collections
+        if search_values.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
         if search_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(

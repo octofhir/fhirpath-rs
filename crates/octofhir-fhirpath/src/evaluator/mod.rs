@@ -13,6 +13,7 @@ pub mod functions;
 pub mod metadata_collector;
 pub mod operations;
 pub mod operator_registry;
+pub mod quantity_utils;
 pub mod terminologies_variable;
 
 #[cfg(test)]

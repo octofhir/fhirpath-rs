@@ -39,15 +39,17 @@ impl ModuloOperatorEvaluator {
             // Integer modulo
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 if *r == 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Modulo by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 Ok(Some(FhirPathValue::integer(l % r)))
             }
+            (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
+                if r.is_zero() {
+                    return Ok(None);
+                }
+                Ok(Some(FhirPathValue::decimal(l % r)))
+            }
 
-            // Modulo is only defined for integers in FHIRPath
             _ => Ok(None),
         }
     }

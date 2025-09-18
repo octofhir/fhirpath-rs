@@ -63,9 +63,30 @@ impl LessEqualOperatorEvaluator {
                 Some(*l <= right_decimal)
             }
             (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => Some(l <= r),
-            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => Some(l <= r),
-            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => Some(l <= r),
-            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l <= r),
+            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) => Some(false),
+                    None => None, // Uncertain due to precision differences
+                }
+            }
+            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) => Some(false),
+                    None => None, // Uncertain due to precision differences
+                }
+            }
+            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) => Some(false),
+                    None => None, // Uncertain due to precision differences
+                }
+            }
             _ => None,
         }
     }

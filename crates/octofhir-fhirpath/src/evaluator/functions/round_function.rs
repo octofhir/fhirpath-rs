@@ -70,6 +70,13 @@ impl FunctionEvaluator for RoundFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,

@@ -2,8 +2,10 @@
 //!
 //! Functions for runtime type checking and type operations.
 
+pub mod as_function;
 pub mod is_function;
 pub mod type_function;
 
+pub use as_function::AsFunctionEvaluator;
 pub use is_function::IsFunctionEvaluator;
 pub use type_function::TypeFunctionEvaluator;

@@ -5,11 +5,11 @@
   "tests": [
     {
       "name": "testEscapeHtml",
-      "expression": "'\"1<2\"'.escape('html')",
+      "expression": "'\"1&lt;2\"'.escape('html')",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
-        "\"1<2\""
+        "&quot;1&amp;lt;2&quot;"
       ],
       "tags": [
         "r5-xml",
@@ -18,11 +18,11 @@
     },
     {
       "name": "testEscapeJson",
-      "expression": "'\"1<2\"'.escape('json')",
+      "expression": "'\"1&lt;2\"'.escape('json')",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
-        "\\\"1<2\\\""
+        "\\\"1&lt;2\\\""
       ],
       "tags": [
         "r5-xml",
@@ -31,7 +31,7 @@
     },
     {
       "name": "testUnescapeHtml",
-      "expression": "'\"1<2\"'.unescape('html')",
+      "expression": "'&quot;1&lt;2&quot;'.unescape('html')",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
@@ -44,11 +44,11 @@
     },
     {
       "name": "testUnescapeJson",
-      "expression": "'\\\"1<2\\\"'.unescape('json')",
+      "expression": "'\\\"1&lt;2\\\"'.unescape('json')",
       "input": null,
       "inputfile": "patient-example.json",
       "expected": [
-        "\"1<2\""
+        "\"1&lt;2\""
       ],
       "tags": [
         "r5-xml",

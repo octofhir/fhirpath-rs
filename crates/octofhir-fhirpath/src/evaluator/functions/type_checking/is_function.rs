@@ -48,6 +48,69 @@ impl IsFunctionEvaluator {
             },
         })
     }
+
+    /// Check if a value type inherits from or is compatible with the target type
+    fn is_type_compatible(&self, value: &FhirPathValue, target_type: &str) -> bool {
+        let type_info = value.type_info();
+        let actual_type = type_info.name.as_deref().unwrap_or(&type_info.type_name);
+
+        // Direct type match
+        if actual_type == target_type {
+            return true;
+        }
+
+        // Check inheritance relationships according to FHIR type hierarchy
+        match target_type {
+            "string" | "String" | "System.String" => {
+                matches!(actual_type, "string" | "code" | "id" | "uri" | "url" | "canonical" | "oid" | "uuid" | "markdown" | "base64Binary" | "xhtml")
+            }
+            "code" | "Code" => {
+                matches!(actual_type, "code")
+            }
+            "id" | "Id" => {
+                matches!(actual_type, "id")
+            }
+            "uri" | "Uri" => {
+                matches!(actual_type, "uri" | "url" | "canonical")
+            }
+            "url" | "Url" => {
+                matches!(actual_type, "url")
+            }
+            "canonical" | "Canonical" => {
+                matches!(actual_type, "canonical")
+            }
+            "Boolean" | "boolean" | "System.Boolean" => {
+                matches!(value, FhirPathValue::Boolean(_, _, _))
+            }
+            "Integer" | "integer" | "System.Integer" => {
+                matches!(value, FhirPathValue::Integer(_, _, _))
+            }
+            "Decimal" | "decimal" | "System.Decimal" => {
+                matches!(value, FhirPathValue::Decimal(_, _, _))
+            }
+            "Date" | "date" | "System.Date" => {
+                matches!(value, FhirPathValue::Date(_, _, _))
+            }
+            "DateTime" | "dateTime" | "System.DateTime" => {
+                matches!(value, FhirPathValue::DateTime(_, _, _))
+            }
+            "Time" | "time" | "System.Time" => {
+                matches!(value, FhirPathValue::Time(_, _, _))
+            }
+            "Quantity" | "quantity" | "System.Quantity" => {
+                // Check for direct Quantity type
+                if matches!(value, FhirPathValue::Quantity { .. }) {
+                    return true;
+                }
+                // Check for FHIR types that inherit from Quantity: Age, Count, Distance, Duration, Money
+                matches!(actual_type, "Quantity" | "Age" | "Count" | "Distance" | "Duration" | "Money")
+            }
+            _ => {
+                // For other types, check exact match
+                actual_type == target_type
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -94,34 +157,7 @@ impl FunctionEvaluator for IsFunctionEvaluator {
         let mut results = Vec::new();
 
         for value in input {
-            let is_type = match type_name.as_str() {
-                "Boolean" => matches!(value, FhirPathValue::Boolean(_, _, _)),
-                "Integer" => matches!(value, FhirPathValue::Integer(_, _, _)),
-                "Decimal" => matches!(value, FhirPathValue::Decimal(_, _, _)),
-                "String" => matches!(value, FhirPathValue::String(_, _, _)),
-                "Date" => matches!(value, FhirPathValue::Date(_, _, _)),
-                "DateTime" => matches!(value, FhirPathValue::DateTime(_, _, _)),
-                "Time" => matches!(value, FhirPathValue::Time(_, _, _)),
-                "Quantity" => matches!(value, FhirPathValue::Quantity { .. }),
-                "System.Boolean" => matches!(value, FhirPathValue::Boolean(_, _, _)),
-                "System.Integer" => matches!(value, FhirPathValue::Integer(_, _, _)),
-                "System.Decimal" => matches!(value, FhirPathValue::Decimal(_, _, _)),
-                "System.String" => matches!(value, FhirPathValue::String(_, _, _)),
-                "System.Date" => matches!(value, FhirPathValue::Date(_, _, _)),
-                "System.DateTime" => matches!(value, FhirPathValue::DateTime(_, _, _)),
-                "System.Time" => matches!(value, FhirPathValue::Time(_, _, _)),
-                "System.Quantity" => matches!(value, FhirPathValue::Quantity { .. }),
-                _ => {
-                    // Check if the type name matches the TypeInfo of the value
-                    let type_info = value.type_info();
-                    if let Some(type_name_from_info) = &type_info.name {
-                        type_name_from_info == &type_name
-                    } else {
-                        type_info.type_name == type_name
-                    }
-                }
-            };
-
+            let is_type = self.is_type_compatible(&value, &type_name);
             results.push(FhirPathValue::boolean(is_type));
         }
 

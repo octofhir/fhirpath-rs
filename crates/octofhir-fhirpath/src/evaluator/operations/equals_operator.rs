@@ -12,6 +12,7 @@ use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
+use crate::evaluator::quantity_utils;
 use crate::evaluator::{EvaluationContext, EvaluationResult};
 use rust_decimal::Decimal;
 
@@ -31,6 +32,22 @@ impl EqualsOperatorEvaluator {
     /// Create an Arc-wrapped instance for registry registration
     pub fn create() -> Arc<dyn OperationEvaluator> {
         Arc::new(Self::new())
+    }
+
+    /// Extract quantity information from a FHIR Quantity resource
+    fn extract_quantity_from_resource(&self, json: &serde_json::Value) -> Option<FhirPathValue> {
+        let value = json.get("value")?.as_f64()?;
+        let unit = json.get("unit").and_then(|u| u.as_str()).unwrap_or("");
+        let system = json.get("system").and_then(|s| s.as_str()).unwrap_or("");
+        let code = json.get("code").and_then(|c| c.as_str()).unwrap_or("");
+
+        // Prefer code over unit if available
+        let unit_str = if !code.is_empty() { code } else { unit };
+
+        Some(FhirPathValue::quantity(
+            rust_decimal::Decimal::from_f64_retain(value)?,
+            if unit_str.is_empty() { None } else { Some(unit_str.to_string()) },
+        ))
     }
 
     /// Try to parse a string as a temporal value
@@ -143,25 +160,47 @@ impl EqualsOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    calendar_unit: lc,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    calendar_unit: rc,
                     ..
                 },
             ) => {
-                // For now, simple equality - in real implementation we'd need unit conversion
-                if lu == ru {
-                    Some((lv - rv).abs() < Decimal::new(1, 10)) // Small epsilon for decimal comparison
-                } else {
-                    // Different units - would need proper unit conversion
-                    Some(false)
+                // Use the quantity utilities for exact equality comparison
+                match quantity_utils::are_quantities_equal(*lv, lu, lc, *rv, ru, rc) {
+                    Ok(result) => Some(result),
+                    Err(_) => Some(false), // Conversion failed, not equal
                 }
+            }
+            // FHIR.Quantity (Resource) vs Quantity comparison
+            (FhirPathValue::Resource(json, type_info, _), quantity @ FhirPathValue::Quantity { .. }) => {
+                if type_info.type_name == "Quantity" {
+                    // Try to extract Quantity information from the FHIR resource
+                    if let Some(fhir_quantity) = self.extract_quantity_from_resource(json) {
+                        return self.compare_values_direct(&fhir_quantity, quantity);
+                    }
+                }
+                Some(false)
+            }
+            (quantity @ FhirPathValue::Quantity { .. }, FhirPathValue::Resource(json, type_info, _)) => {
+                if type_info.type_name == "Quantity" {
+                    // Try to extract Quantity information from the FHIR resource
+                    if let Some(fhir_quantity) = self.extract_quantity_from_resource(json) {
+                        return self.compare_values_direct(quantity, &fhir_quantity);
+                    }
+                }
+                Some(false)
             }
 
             // Resource equality - compare JSON content and type
-            (FhirPathValue::Resource(json1, type1, _), FhirPathValue::Resource(json2, type2, _)) => {
+            (
+                FhirPathValue::Resource(json1, type1, _),
+                FhirPathValue::Resource(json2, type2, _),
+            ) => {
                 // Fast path: if Arc pointers are the same, objects are identical
                 if std::sync::Arc::ptr_eq(json1, json2) {
                     return Some(true);
@@ -193,18 +232,39 @@ impl OperationEvaluator for EqualsOperatorEvaluator {
             });
         }
 
-        // For equality, we compare the first elements (singleton evaluation)
-        let left_value = left.first().unwrap();
-        let right_value = right.first().unwrap();
-
-        match self.compare_values(left_value, right_value) {
-            Some(result) => Ok(EvaluationResult {
-                value: Collection::single(FhirPathValue::boolean(result)),
-            }),
-            None => Ok(EvaluationResult {
-                value: Collection::empty(),
-            }),
+        // Collection equality: collections are equal if they have the same size and all elements are equal
+        if left.len() != right.len() {
+            return Ok(EvaluationResult {
+                value: Collection::single(FhirPathValue::boolean(false)),
+            });
         }
+
+        // Check if all corresponding elements are equal
+        for (left_val, right_val) in left.iter().zip(right.iter()) {
+            match self.compare_values(left_val, right_val) {
+                Some(false) => {
+                    // Found unequal elements
+                    return Ok(EvaluationResult {
+                        value: Collection::single(FhirPathValue::boolean(false)),
+                    });
+                }
+                None => {
+                    // Comparison returned empty - collections are not equal
+                    return Ok(EvaluationResult {
+                        value: Collection::empty(),
+                    });
+                }
+                Some(true) => {
+                    // Elements are equal, continue checking
+                    continue;
+                }
+            }
+        }
+
+        // All elements are equal
+        Ok(EvaluationResult {
+            value: Collection::single(FhirPathValue::boolean(true)),
+        })
     }
 
     fn metadata(&self) -> &OperatorMetadata {

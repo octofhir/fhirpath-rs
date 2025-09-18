@@ -7,6 +7,7 @@
 pub mod count_function;
 pub mod empty_function;
 pub mod exclude_function;
+pub mod extension_function;
 pub mod first_function;
 pub mod last_function;
 pub mod of_type_function;
@@ -121,6 +122,9 @@ pub mod substring_function;
 // Utility functions
 pub mod trace_function;
 
+// CDA functions
+pub mod has_template_id_of_function;
+
 // Re-export all functions for convenience
 pub use abs_function::*;
 pub use aggregate_function::*;
@@ -146,6 +150,7 @@ pub use ends_with_function::*;
 pub use exclude_function::*;
 pub use escape_function::*;
 pub use exists_function::*;
+pub use extension_function::*;
 pub use exp_function::*;
 pub use first_function::*;
 pub use floor_function::*;
@@ -205,3 +210,4 @@ pub use union_function::*;
 pub use upper_function::*;
 pub use where_function::*;
 pub use year_of_function::*;
+pub use has_template_id_of_function::*;

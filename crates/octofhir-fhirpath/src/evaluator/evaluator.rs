@@ -231,6 +231,27 @@ impl Evaluator {
                 self.evaluate_function_call("is", &[type_arg], &new_context)
                     .await
             }
+            ExpressionNode::TypeCast(type_cast) => {
+                // Evaluate the expression being type-casted
+                let expression_result =
+                    Box::pin(self.evaluate_node_inner(&type_cast.expression, context)).await?;
+                // Create a new context with the expression result as input
+                let new_context = EvaluationContext::new(
+                    expression_result.value,
+                    self.model_provider.clone(),
+                    self.terminology_provider.clone(),
+                    self.trace_provider.clone(),
+                )
+                .await;
+                // Create an identifier node for the type name to pass to the as function
+                let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
+                    name: type_cast.target_type.clone(),
+                    location: None,
+                });
+                // Delegate to the as function
+                self.evaluate_function_call("as", &[type_arg], &new_context)
+                    .await
+            }
             _ => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
                 format!("Expression type not yet implemented: {:?}", node),
@@ -551,6 +572,38 @@ impl Evaluator {
 
                 result
             }
+            ExpressionNode::TypeCast(type_cast) => {
+                // Evaluate the expression being type-casted
+                let expression_result = Box::pin(self.evaluate_node_with_collector(
+                    &type_cast.expression,
+                    context,
+                    collector,
+                    depth + 1,
+                ))
+                .await?;
+                // Create a new context with the expression result as input
+                let new_context = EvaluationContext::new(
+                    expression_result.value,
+                    self.model_provider.clone(),
+                    self.terminology_provider.clone(),
+                    self.trace_provider.clone(),
+                )
+                .await;
+                // Create an identifier node for the type name to pass to the as function
+                let type_arg = ExpressionNode::Identifier(crate::ast::expression::IdentifierNode {
+                    name: type_cast.target_type.clone(),
+                    location: None,
+                });
+                // Record type cast timing
+                let type_cast_start = Instant::now();
+                let result = self
+                    .evaluate_function_call("as", &[type_arg], &new_context)
+                    .await;
+                let type_cast_time = type_cast_start.elapsed();
+                collector.record_function_timing("as", type_cast_time);
+
+                result
+            }
             _ => Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
                 format!("Expression type not yet implemented: {:?}", node),
@@ -732,11 +785,9 @@ impl Evaluator {
                             .await?;
                         result_values.extend(flattened_values);
                     } else {
-                        // Check for choice types (valueX properties)
-                        if identifier.starts_with("value") && identifier.len() > 5 {
-                            let choice_results = self
-                                .navigate_choice_property(json, identifier, &type_info.type_name)
-                                .await?;
+                        // Use atomic-ehr pattern: detect choice values first
+                        let choice_results = self.detect_choice_values(json, identifier).await?;
+                        if !choice_results.is_empty() {
                             result_values.extend(choice_results);
                         }
                         // Check for extension access
@@ -1134,6 +1185,98 @@ impl Evaluator {
 
         let base_value = crate::core::value::utils::json_to_fhirpath_value(extension_json);
         Ok(FhirPathValue::wrap_value(base_value, type_info, None))
+    }
+
+    /// Detect choice type values using atomic-ehr pattern
+    /// This scans the JSON for properties starting with base name and validates them
+    async fn detect_choice_values(
+        &self,
+        json: &serde_json::Value,
+        base_property: &str,
+    ) -> Result<Vec<FhirPathValue>> {
+        let mut results = Vec::new();
+
+        // Get the JSON object to scan for choice properties
+        let json_obj = match json.as_object() {
+            Some(obj) => obj,
+            None => return Ok(results),
+        };
+
+        // Find all properties that start with base_property and are longer than base_property
+        let possible_choices: Vec<String> = json_obj
+            .keys()
+            .filter(|key| {
+                key.starts_with(base_property)
+                && key != &base_property
+                && key.len() > base_property.len()
+            })
+            .cloned()
+            .collect();
+
+        if possible_choices.is_empty() {
+            return Ok(results);
+        }
+
+        // Process each potential choice property
+        for choice_property in possible_choices {
+            if let Some(property_value) = json_obj.get(&choice_property) {
+                // Skip null or undefined values
+                if property_value.is_null() {
+                    continue;
+                }
+
+                // Extract the type suffix (e.g., "valueAge" -> "Age")
+                let type_suffix = &choice_property[base_property.len()..];
+
+                // Get type info from ModelProvider if available
+                let choice_type_info = if let Ok(Some(type_info)) = self
+                    .model_provider
+                    .get_type(type_suffix)
+                    .await
+                {
+                    type_info
+                } else {
+                    // Fallback type info - handle common FHIR primitive type mappings
+                    let mapped_type = match type_suffix {
+                        "String" => "string",
+                        "Integer" => "integer",
+                        "Decimal" => "decimal",
+                        "Boolean" => "boolean",
+                        "Date" => "date",
+                        "DateTime" => "dateTime",
+                        "Time" => "time",
+                        _ => type_suffix,
+                    };
+
+                    crate::core::model_provider::TypeInfo {
+                        type_name: mapped_type.to_string(),
+                        singleton: Some(!property_value.is_array()),
+                        namespace: Some("FHIR".to_string()),
+                        name: Some(mapped_type.to_lowercase()),
+                        is_empty: Some(false),
+                    }
+                };
+
+                // Process the value(s) with proper type information
+                let choice_values = self
+                    .navigate_property_with_flattening(property_value, &choice_type_info)
+                    .await?;
+                results.extend(choice_values);
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Legacy method for compatibility - now uses detect_choice_values
+    async fn find_choice_type_value(
+        &self,
+        json: &serde_json::Value,
+        base_property: &str,
+        _choices: &[crate::core::model_provider::ChoiceTypeInfo],
+    ) -> Result<Vec<FhirPathValue>> {
+        // Use the new detect_choice_values approach
+        self.detect_choice_values(json, base_property).await
     }
 
     /// Evaluate variable access ($this, $index, $total, user variables)

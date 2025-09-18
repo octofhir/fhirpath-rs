@@ -90,30 +90,30 @@ impl FunctionEvaluator for AggregateFunctionEvaluator {
         let aggregator_expr = &args[0];
         let init_expr = args.get(1); // optional init value
 
-        // Evaluate init value if provided, otherwise start with empty collection
-        let mut total = if let Some(init_expr) = init_expr {
-            let init_result = evaluator.evaluate(init_expr, context).await?;
-            init_result.value.iter().cloned().collect()
-        } else {
-            vec![]
-        };
-
-        // If input is empty and init is provided, return the init value
-        if input.is_empty() && init_expr.is_some() {
-            return Ok(EvaluationResult {
-                value: Collection::from(total),
-            });
-        }
-
-        // If input is empty and no init, return empty
+        // If input is empty, return empty regardless of init
         if input.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        // For each item in the input collection, evaluate the aggregator expression
-        for (index, item) in input.iter().enumerate() {
+        // Handle initialization
+        let mut total;
+        let start_index;
+
+        if let Some(init_expr) = init_expr {
+            // Init value provided - evaluate it and start from index 0
+            let init_result = evaluator.evaluate(init_expr, context).await?;
+            total = init_result.value.iter().cloned().collect();
+            start_index = 0;
+        } else {
+            // No init value - use first element as init and start from index 1
+            total = vec![input[0].clone()];
+            start_index = 1;
+        }
+
+        // For each item in the input collection (starting from appropriate index)
+        for (index, item) in input.iter().enumerate().skip(start_index) {
             // Clone the context to avoid mutation issues
             let mut iteration_context = context.clone();
 
@@ -125,10 +125,12 @@ impl FunctionEvaluator for AggregateFunctionEvaluator {
             if total.len() == 1 {
                 iteration_context.set_user_variable("$total".to_string(), total[0].clone())?;
             } else if total.len() > 1 {
-                // Multiple values in total - use the first one (shouldn't happen normally)
-                iteration_context.set_user_variable("$total".to_string(), total[0].clone())?;
+                // Multiple values in total - create a collection
+                iteration_context.set_user_variable("$total".to_string(), FhirPathValue::Collection(Collection::from(total.clone())))?;
+            } else {
+                // This shouldn't happen now since we always have at least one value
+                iteration_context.set_user_variable("$total".to_string(), FhirPathValue::Collection(Collection::empty()))?;
             }
-            // If total is empty, we don't set $total variable - it will be undefined
 
             // Evaluate the aggregator expression in this context
             let result = evaluator.evaluate(aggregator_expr, &iteration_context).await?;

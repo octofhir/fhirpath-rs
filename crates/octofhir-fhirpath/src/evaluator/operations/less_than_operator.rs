@@ -6,8 +6,10 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
-use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime, TemporalPrecision};
+use crate::evaluator::quantity_utils;
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
+use chrono::TimeZone;
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -108,32 +110,92 @@ impl LessThanOperatorEvaluator {
             (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => Some(l < r),
 
             // Date comparison
-            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => Some(l < r),
+            (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(_) => Some(false), // Equal or Greater
+                    None => None, // Uncertain due to precision differences
+                }
+            }
 
             // DateTime comparison
-            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => Some(l < r),
+            (FhirPathValue::DateTime(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(_) => Some(false), // Equal or Greater
+                    None => None, // Uncertain due to precision differences
+                }
+            }
 
             // Time comparison
-            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => Some(l < r),
+            (FhirPathValue::Time(l, _, _), FhirPathValue::Time(r, _, _)) => {
+                // Use PartialOrd for proper temporal precision handling
+                match l.partial_cmp(r) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(_) => Some(false), // Equal or Greater
+                    None => None, // Uncertain due to precision differences
+                }
+            }
 
-            // Quantity comparison (with same units)
+            // Cross-type temporal comparisons: Date vs DateTime
+            // For Date vs DateTime, convert Date to DateTime at start of day (UTC) for comparison
+            (FhirPathValue::Date(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
+                // Convert date to datetime at start of day (00:00:00) in UTC for comparison
+                if let Some(naive_datetime) = l.date.and_hms_opt(0, 0, 0) {
+                    if let Some(offset) = chrono::FixedOffset::east_opt(0) {
+                        let datetime = offset.from_utc_datetime(&naive_datetime);
+                        let left_as_datetime = PrecisionDateTime::new(datetime, TemporalPrecision::Day);
+                        Some(left_as_datetime < *r)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            (FhirPathValue::DateTime(l, _, _), FhirPathValue::Date(r, _, _)) => {
+                // Convert date to datetime at start of day (00:00:00) in UTC for comparison
+                if let Some(naive_datetime) = r.date.and_hms_opt(0, 0, 0) {
+                    if let Some(offset) = chrono::FixedOffset::east_opt(0) {
+                        let datetime = offset.from_utc_datetime(&naive_datetime);
+                        let right_as_datetime = PrecisionDateTime::new(datetime, TemporalPrecision::Day);
+                        Some(*l < right_as_datetime)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+
+            // Other cross-type temporal comparisons are not supported
+            (FhirPathValue::Date(_, _, _), FhirPathValue::Time(_, _, _)) => None,
+            (FhirPathValue::Time(_, _, _), FhirPathValue::Date(_, _, _)) => None,
+            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Time(_, _, _)) => None,
+            (FhirPathValue::Time(_, _, _), FhirPathValue::DateTime(_, _, _)) => None,
+
+            // Quantity comparison (with unit conversion)
             (
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    calendar_unit: lc,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    calendar_unit: rc,
                     ..
                 },
             ) => {
-                if lu == ru {
-                    Some(lv < rv)
-                } else {
-                    // Different units - would need proper unit conversion
-                    None
+                // Use the quantity utilities for proper unit conversion
+                match quantity_utils::compare_quantities(*lv, lu, lc, *rv, ru, rc) {
+                    Ok(Some(std::cmp::Ordering::Less)) => Some(true),
+                    Ok(Some(_)) => Some(false), // Equal or Greater
+                    Ok(None) | Err(_) => None, // Not comparable or conversion failed
                 }
             }
 

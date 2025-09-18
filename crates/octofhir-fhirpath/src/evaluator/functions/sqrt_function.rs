@@ -59,6 +59,13 @@ impl FunctionEvaluator for SqrtFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
@@ -69,19 +76,19 @@ impl FunctionEvaluator for SqrtFunctionEvaluator {
         let input_float = match &input[0] {
             FhirPathValue::Integer(i, _, _) => {
                 if *i < 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "sqrt function requires a non-negative input value".to_string(),
-                    ));
+                    // Per FHIRPath spec, sqrt of negative number returns empty collection
+                    return Ok(EvaluationResult {
+                        value: crate::core::Collection::empty(),
+                    });
                 }
                 *i as f64
             }
             FhirPathValue::Decimal(d, _, _) => {
                 if *d < Decimal::ZERO {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "sqrt function requires a non-negative input value".to_string(),
-                    ));
+                    // Per FHIRPath spec, sqrt of negative number returns empty collection
+                    return Ok(EvaluationResult {
+                        value: crate::core::Collection::empty(),
+                    });
                 }
                 d.to_f64().ok_or_else(|| {
                     FhirPathError::evaluation_error(

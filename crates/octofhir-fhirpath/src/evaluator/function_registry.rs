@@ -107,6 +107,8 @@ pub enum FunctionCategory {
     Types,
     /// Aggregate functions (aggregate)
     Aggregate,
+    /// CDA-specific functions
+    CDA,
 }
 
 /// Trait for evaluating functions
@@ -337,6 +339,8 @@ impl FunctionRegistryBuilder {
             .register_function(RepeatFunctionEvaluator::create());
         self.registry
             .register_function(ResolveFunctionEvaluator::create());
+        self.registry
+            .register_function(ExtensionFunctionEvaluator::create());
 
         self
     }
@@ -559,6 +563,8 @@ impl FunctionRegistryBuilder {
         self.registry
             .register_function(IsFunctionEvaluator::create());
         self.registry
+            .register_function(AsFunctionEvaluator::create());
+        self.registry
             .register_function(TypeFunctionEvaluator::create());
 
         // Enhanced functions (FHIRPath 3.0.0-ballot)
@@ -640,6 +646,17 @@ impl FunctionRegistryBuilder {
         self
     }
 
+    /// Add CDA-specific functions
+    pub fn with_cda_functions(mut self) -> Self {
+        use crate::evaluator::functions::*;
+
+        // Register CDA functions
+        self.registry
+            .register_function(HasTemplateIdOfFunctionEvaluator::create());
+
+        self
+    }
+
     /// Build the function registry
     pub fn build(self) -> FunctionRegistry {
         self.registry
@@ -667,6 +684,7 @@ pub fn create_comprehensive_function_registry() -> FunctionRegistry {
         .with_terminology_functions()
         .with_type_functions()
         .with_aggregate_functions()
+        .with_cda_functions()
         .build()
 }
 

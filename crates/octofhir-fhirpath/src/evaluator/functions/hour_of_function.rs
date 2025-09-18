@@ -59,28 +59,38 @@ impl FunctionEvaluator for HourOfFunctionEvaluator {
             ));
         }
 
-        let mut results = Vec::new();
-
-        for value in input {
-            let hour = match &value {
-                FhirPathValue::DateTime(datetime, _, _) => datetime.datetime.hour() as i64,
-                FhirPathValue::Time(time, _, _) => time.time.hour() as i64,
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        format!(
-                            "hourOf function can only be applied to DateTime or Time values, got {}",
-                            value.type_name()
-                        ),
-                    ));
-                }
-            };
-
-            results.push(FhirPathValue::integer(hour));
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
         }
 
+        // hourOf function should only work on a single value, not collections
+        if input.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "hourOf function can only be called on a single datetime or time value".to_string(),
+            ));
+        }
+
+        let value = &input[0];
+        let hour = match value {
+            FhirPathValue::DateTime(datetime, _, _) => datetime.datetime.hour() as i64,
+            FhirPathValue::Time(time, _, _) => time.time.hour() as i64,
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0055,
+                    format!(
+                        "hourOf function can only be applied to DateTime or Time values, got {}",
+                        value.type_name()
+                    ),
+                ));
+            }
+        };
+
         Ok(EvaluationResult {
-            value: crate::core::Collection::from(results),
+            value: crate::core::Collection::from(vec![FhirPathValue::integer(hour)]),
         })
     }
 

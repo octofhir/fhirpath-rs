@@ -33,7 +33,7 @@ impl EscapeFunctionEvaluator {
                         parameter_type: vec!["String".to_string()],
                         optional: false,
                         is_expression: true,
-                        description: "Escape format (json, regex, sql)".to_string(),
+                        description: "Escape format (html, json, regex, sql)".to_string(),
                         default_value: None,
                     }],
                     return_type: "String".to_string(),
@@ -90,6 +90,17 @@ impl EscapeFunctionEvaluator {
     /// Escape string for SQL
     fn escape_sql(input: &str) -> String {
         input.replace('\'', "''")
+    }
+
+    /// Escape string for HTML
+    fn escape_html(input: &str) -> String {
+        // Simple HTML escaping following the reference implementation
+        input
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;")
     }
 }
 
@@ -150,6 +161,7 @@ impl FunctionEvaluator for EscapeFunctionEvaluator {
 
         // Perform escaping based on format
         let escaped = match format_str.to_lowercase().as_str() {
+            "html" => Self::escape_html(&input_str),
             "json" => Self::escape_json(&input_str),
             "regex" => Self::escape_regex(&input_str),
             "sql" => Self::escape_sql(&input_str),
@@ -157,7 +169,7 @@ impl FunctionEvaluator for EscapeFunctionEvaluator {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!(
-                        "Unsupported escape format: {}. Supported formats: json, regex, sql",
+                        "Unsupported escape format: {}. Supported formats: html, json, regex, sql",
                         format_str
                     ),
                 ));

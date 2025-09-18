@@ -12,6 +12,7 @@ use crate::evaluator::function_registry::{
     FunctionSignature,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::quantity_utils;
 
 /// Comparable function evaluator
 pub struct ComparableFunctionEvaluator {
@@ -49,6 +50,21 @@ impl ComparableFunctionEvaluator {
         })
     }
 
+    /// Check if two units are comparable (same dimension) using UCUM library
+    fn are_units_comparable(&self, left_unit: &Option<String>, right_unit: &Option<String>) -> bool {
+        match (left_unit, right_unit) {
+            (Some(left), Some(right)) => {
+                // Use the UCUM library to check if units are comparable
+                quantity_utils::are_ucum_units_comparable(left, right)
+                    .unwrap_or(false) // If there's an error (e.g., invalid unit), consider them not comparable
+            }
+            // If both units are None, they are comparable (both dimensionless)
+            (None, None) => true,
+            // If only one unit is missing, consider them not comparable
+            _ => false,
+        }
+    }
+
     /// Check if two FhirPath values are comparable
     fn are_comparable(&self, left: &FhirPathValue, right: &FhirPathValue) -> bool {
         match (left, right) {
@@ -66,7 +82,10 @@ impl ComparableFunctionEvaluator {
             (FhirPathValue::Decimal(_, _, _), FhirPathValue::Integer(_, _, _)) => true,
 
             // Quantities are comparable if they have compatible units
-            (FhirPathValue::Quantity { .. }, FhirPathValue::Quantity { .. }) => true,
+            (
+                FhirPathValue::Quantity { unit: left_unit, .. },
+                FhirPathValue::Quantity { unit: right_unit, .. },
+            ) => self.are_units_comparable(left_unit, right_unit),
 
             // Different types are generally not comparable
             _ => false,

@@ -80,6 +80,13 @@ impl FunctionEvaluator for SubstringFunctionEvaluator {
         let start_result = evaluator.evaluate(&args[0], context).await?;
         let start_values: Vec<FhirPathValue> = start_result.value.iter().cloned().collect();
 
+        if start_values.is_empty() {
+            // If start parameter is empty, return empty collection
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if start_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
@@ -101,6 +108,13 @@ impl FunctionEvaluator for SubstringFunctionEvaluator {
         let length = if args.len() > 1 {
             let length_result = evaluator.evaluate(&args[1], context).await?;
             let length_values: Vec<FhirPathValue> = length_result.value.iter().cloned().collect();
+
+            if length_values.is_empty() {
+                // If length parameter is empty, return empty collection
+                return Ok(EvaluationResult {
+                    value: crate::core::Collection::empty(),
+                });
+            }
 
             if length_values.len() != 1 {
                 return Err(FhirPathError::evaluation_error(
@@ -131,12 +145,13 @@ impl FunctionEvaluator for SubstringFunctionEvaluator {
                     let chars: Vec<char> = s.chars().collect();
                     let str_len = chars.len() as i64;
 
-                    // Handle negative start (from end)
-                    let start_idx = if start < 0 {
-                        (str_len + start).max(0) as usize
-                    } else {
-                        (start.min(str_len)) as usize
-                    };
+                    // According to FHIRPath spec, negative start or start >= string length should return empty
+                    if start < 0 || start >= str_len {
+                        // Return empty collection - don't add anything to results
+                        continue;
+                    }
+
+                    let start_idx = start as usize;
 
                     let substring = if let Some(len) = length {
                         if len <= 0 {

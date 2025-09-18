@@ -6,6 +6,7 @@
 use rust_decimal::prelude::*;
 use std::sync::Arc;
 
+use crate::Collection;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
@@ -58,6 +59,12 @@ impl FunctionEvaluator for FloorFunctionEvaluator {
                 crate::core::error_code::FP0053,
                 "floor function takes no arguments".to_string(),
             ));
+        }
+
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: Collection::empty(),
+            });
         }
 
         if input.len() != 1 {

@@ -5,9 +5,12 @@
 
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromPrimitive;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::model_provider::TypeInfo;
+use crate::evaluator::quantity_utils;
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -31,6 +34,67 @@ impl EquivalentOperatorEvaluator {
         Arc::new(Self::new())
     }
 
+    /// Get the decimal precision (number of digits after the decimal point)
+    /// Trailing zeroes are ignored in determining precision according to FHIRPath spec
+    fn get_decimal_precision(&self, decimal: &Decimal) -> u32 {
+        let decimal_str = decimal.to_string();
+        if let Some(dot_pos) = decimal_str.find('.') {
+            let fractional_part = &decimal_str[dot_pos + 1..];
+            // Remove trailing zeros to get actual precision
+            let trimmed = fractional_part.trim_end_matches('0');
+            trimmed.len() as u32
+        } else {
+            0
+        }
+    }
+
+    /// Round a decimal to the specified number of decimal places
+    fn round_decimal(&self, decimal: &Decimal, scale: u32) -> Decimal {
+        decimal.round_dp(scale)
+    }
+
+    /// Compare a FHIR Resource (quantity) with a FHIRPath quantity
+    fn compare_fhir_quantity_with_fhirpath_quantity(
+        &self,
+        fhir_json: &serde_json::Value,
+        type_info: &TypeInfo,
+        fhirpath_value: Decimal,
+        fhirpath_unit: &Option<String>,
+        fhirpath_calendar_unit: &Option<crate::core::CalendarUnit>,
+    ) -> Option<bool> {
+        // Check if this is a FHIR Quantity resource
+        if type_info.type_name == "Quantity" || type_info.name.as_deref() == Some("Quantity") {
+                // Extract value and code from FHIR quantity
+                let fhir_value = fhir_json.get("value")?;
+                let fhir_code = fhir_json.get("code")?.as_str()?;
+
+                // Convert FHIR value to Decimal (could be integer or float)
+                let fhir_decimal = if let Some(int_val) = fhir_value.as_i64() {
+                    Decimal::from(int_val)
+                } else if let Some(float_val) = fhir_value.as_f64() {
+                    Decimal::from_f64(float_val)?
+                } else {
+                    return Some(false); // Invalid value type
+                };
+
+                // Use quantity utilities for comparison
+                match crate::evaluator::quantity_utils::are_quantities_equivalent(
+                    fhir_decimal,
+                    &Some(fhir_code.to_string()),
+                    &None, // FHIR quantities don't have calendar units
+                    fhirpath_value,
+                    fhirpath_unit,
+                    fhirpath_calendar_unit,
+                ) {
+                    Ok(result) => Some(result),
+                    Err(_) => Some(false),
+                }
+        } else {
+            // Not a quantity, not equivalent
+            Some(false)
+        }
+    }
+
     /// Compare two FhirPathValues for equivalence
     fn compare_values(&self, left: &FhirPathValue, right: &FhirPathValue) -> Option<bool> {
         match (left, right) {
@@ -50,17 +114,40 @@ impl EquivalentOperatorEvaluator {
 
             // Decimal equivalence
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
-                Some((l - r).abs() < Decimal::new(1, 10)) // Small epsilon for decimal comparison
+                // According to FHIRPath spec: values must be equal, comparison is done on values
+                // rounded to the precision of the least precise operand
+                let left_precision = self.get_decimal_precision(l);
+                let right_precision = self.get_decimal_precision(r);
+                let min_precision = left_precision.min(right_precision);
+
+                let left_rounded = self.round_decimal(l, min_precision);
+                let right_rounded = self.round_decimal(r, min_precision);
+
+                Some(left_rounded == right_rounded)
             }
 
             // Integer vs Decimal comparison
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Decimal(r, _, _)) => {
                 let left_decimal = Decimal::from(*l);
-                Some((left_decimal - r).abs() < Decimal::new(1, 10))
+                // Integer has precision 0, so compare rounded decimal to precision 0
+                let right_precision = self.get_decimal_precision(r);
+                let min_precision = 0_u32.min(right_precision);
+
+                let left_rounded = self.round_decimal(&left_decimal, min_precision);
+                let right_rounded = self.round_decimal(r, min_precision);
+
+                Some(left_rounded == right_rounded)
             }
             (FhirPathValue::Decimal(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 let right_decimal = Decimal::from(*r);
-                Some((l - right_decimal).abs() < Decimal::new(1, 10))
+                // Integer has precision 0, so compare rounded decimal to precision 0
+                let left_precision = self.get_decimal_precision(l);
+                let min_precision = left_precision.min(0_u32);
+
+                let left_rounded = self.round_decimal(l, min_precision);
+                let right_rounded = self.round_decimal(&right_decimal, min_precision);
+
+                Some(left_rounded == right_rounded)
             }
 
             // Date equivalence (considering precision)
@@ -85,22 +172,29 @@ impl EquivalentOperatorEvaluator {
                 FhirPathValue::Quantity {
                     value: lv,
                     unit: lu,
+                    calendar_unit: lc,
                     ..
                 },
                 FhirPathValue::Quantity {
                     value: rv,
                     unit: ru,
+                    calendar_unit: rc,
                     ..
                 },
             ) => {
-                // For now, simple comparison - full implementation would need UCUM normalization
-                if lu == ru {
-                    Some((lv - rv).abs() < Decimal::new(1, 10))
-                } else {
-                    // Different units - would need UCUM normalization for true equivalence
-                    // For now, return false for different units
-                    Some(false)
+                // Use the quantity utilities for proper unit conversion
+                match quantity_utils::are_quantities_equivalent(*lv, lu, lc, *rv, ru, rc) {
+                    Ok(result) => Some(result),
+                    Err(_) => Some(false), // Conversion failed, not equivalent
                 }
+            }
+
+            // FHIR Resource (Quantity) vs FHIRPath Quantity equivalence
+            (FhirPathValue::Resource(json, type_info, _), FhirPathValue::Quantity { value: rv, unit: ru, calendar_unit: rc, .. }) => {
+                self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *rv, ru, rc)
+            }
+            (FhirPathValue::Quantity { value: lv, unit: lu, calendar_unit: lc, .. }, FhirPathValue::Resource(json, type_info, _)) => {
+                self.compare_fhir_quantity_with_fhirpath_quantity(json, type_info, *lv, lu, lc)
             }
 
             // Collection equivalence (recursive)
@@ -109,13 +203,46 @@ impl EquivalentOperatorEvaluator {
                     return Some(false);
                 }
 
-                // Compare each element recursively
-                for (l_item, r_item) in l.iter().zip(r.iter()) {
-                    if let Some(false) = self.compare_values(l_item, r_item) {
+                // For equivalence, collections should be compared order-independently
+                // Check if each item in left collection has an equivalent in right collection
+                for l_item in l.iter() {
+                    let mut found_equivalent = false;
+                    for r_item in r.iter() {
+                        if let Some(true) = self.compare_values(l_item, r_item) {
+                            found_equivalent = true;
+                            break;
+                        }
+                    }
+                    if !found_equivalent {
                         return Some(false);
                     }
                 }
+
+                // Check if each item in right collection has an equivalent in left collection
+                for r_item in r.iter() {
+                    let mut found_equivalent = false;
+                    for l_item in l.iter() {
+                        if let Some(true) = self.compare_values(l_item, r_item) {
+                            found_equivalent = true;
+                            break;
+                        }
+                    }
+                    if !found_equivalent {
+                        return Some(false);
+                    }
+                }
+
                 Some(true)
+            }
+
+            // Resource equivalence (compare JSON objects)
+            (FhirPathValue::Resource(l_json, l_type, _), FhirPathValue::Resource(r_json, r_type, _)) => {
+                // Resources are equivalent if they have the same type and the same JSON content
+                if l_type.type_name == r_type.type_name {
+                    Some(l_json == r_json)
+                } else {
+                    Some(false)
+                }
             }
 
             // Different types - for equivalence, this depends on the specific types
@@ -156,20 +283,40 @@ impl OperationEvaluator for EquivalentOperatorEvaluator {
                     });
                 }
 
-                // Compare each element pair
-                for (left_val, right_val) in left.iter().zip(right.iter()) {
-                    match self.compare_values(left_val, right_val) {
-                        Some(false) | None => {
-                            // If any element pair is not equivalent, the whole comparison is false
-                            return Ok(EvaluationResult {
-                                value: Collection::single(FhirPathValue::boolean(false)),
-                            });
+                // For equivalence, collections should be compared order-independently
+                // Check if each item in left collection has an equivalent in right collection
+                for left_val in left.iter() {
+                    let mut found_equivalent = false;
+                    for right_val in right.iter() {
+                        if let Some(true) = self.compare_values(left_val, right_val) {
+                            found_equivalent = true;
+                            break;
                         }
-                        Some(true) => continue,
+                    }
+                    if !found_equivalent {
+                        return Ok(EvaluationResult {
+                            value: Collection::single(FhirPathValue::boolean(false)),
+                        });
                     }
                 }
 
-                // All elements matched
+                // Check if each item in right collection has an equivalent in left collection
+                for right_val in right.iter() {
+                    let mut found_equivalent = false;
+                    for left_val in left.iter() {
+                        if let Some(true) = self.compare_values(left_val, right_val) {
+                            found_equivalent = true;
+                            break;
+                        }
+                    }
+                    if !found_equivalent {
+                        return Ok(EvaluationResult {
+                            value: Collection::single(FhirPathValue::boolean(false)),
+                        });
+                    }
+                }
+
+                // All elements have equivalents
                 Ok(EvaluationResult {
                     value: Collection::single(FhirPathValue::boolean(true)),
                 })

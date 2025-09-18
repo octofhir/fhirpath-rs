@@ -84,7 +84,14 @@ impl OperationEvaluator for InOperatorEvaluator {
             });
         }
 
-        // For 'in' operator, we check if the left operand (single value) is in the right collection
+        // For 'in' operator, the left operand must be a single value, not a collection
+        if left.len() > 1 {
+            return Err(crate::core::FhirPathError::evaluation_error(
+                crate::core::error_code::FP0051,
+                "Left operand of 'in' operator must be a single value, not a collection".to_string(),
+            ));
+        }
+
         let needle = left.first().unwrap();
 
         // Handle different right-hand side types

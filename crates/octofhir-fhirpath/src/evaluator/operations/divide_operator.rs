@@ -40,10 +40,7 @@ impl DivideOperatorEvaluator {
             // Integer division - always results in Decimal per FHIRPath spec
             (FhirPathValue::Integer(l, _, _), FhirPathValue::Integer(r, _, _)) => {
                 if *r == 0 {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0051,
-                        "Division by zero".to_string(),
-                    ));
+                    return Ok(None);
                 }
                 let left_decimal = Decimal::from(*l);
                 let right_decimal = Decimal::from(*r);
@@ -141,9 +138,12 @@ impl DivideOperatorEvaluator {
                     ));
                 }
 
-                // If same units, result is unitless decimal
+                // If same units, result is quantity with unit "1" (dimensionless)
                 if lu == ru {
-                    Ok(Some(FhirPathValue::decimal(*lv / *rv)))
+                    Ok(Some(FhirPathValue::quantity(
+                        *lv / *rv,
+                        Some("1".to_string()),
+                    )))
                 } else {
                     // TODO: Implement proper unit division using UCUM
                     // For now, simple concatenation with division

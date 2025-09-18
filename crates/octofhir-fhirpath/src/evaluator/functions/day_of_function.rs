@@ -59,43 +59,53 @@ impl FunctionEvaluator for DayOfFunctionEvaluator {
             ));
         }
 
-        let mut results = Vec::new();
-
-        for value in input {
-            let day = match &value {
-                FhirPathValue::Date(date, _, _) => date.date.day() as i64,
-                FhirPathValue::DateTime(datetime, _, _) => datetime.datetime.day() as i64,
-                FhirPathValue::String(s, _, _) => {
-                    // Try to parse string as date or datetime
-                    use crate::core::temporal::{PrecisionDate, PrecisionDateTime};
-
-                    if let Some(precision_date) = PrecisionDate::parse(s) {
-                        precision_date.date.day() as i64
-                    } else if let Some(precision_datetime) = PrecisionDateTime::parse(s) {
-                        precision_datetime.datetime.day() as i64
-                    } else {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0055,
-                            format!("Cannot parse '{}' as Date or DateTime for dayOf function", s),
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(FhirPathError::evaluation_error(
-                        crate::core::error_code::FP0055,
-                        format!(
-                            "dayOf function can only be applied to Date or DateTime values, got {}",
-                            value.type_name()
-                        ),
-                    ));
-                }
-            };
-
-            results.push(FhirPathValue::integer(day));
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
         }
 
+        // dayOf function should only work on a single value, not collections
+        if input.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "dayOf function can only be called on a single date or datetime value".to_string(),
+            ));
+        }
+
+        let value = &input[0];
+        let day = match value {
+            FhirPathValue::Date(date, _, _) => date.date.day() as i64,
+            FhirPathValue::DateTime(datetime, _, _) => datetime.datetime.day() as i64,
+            FhirPathValue::String(s, _, _) => {
+                // Try to parse string as date or datetime
+                use crate::core::temporal::{PrecisionDate, PrecisionDateTime};
+
+                if let Some(precision_date) = PrecisionDate::parse(s) {
+                    precision_date.date.day() as i64
+                } else if let Some(precision_datetime) = PrecisionDateTime::parse(s) {
+                    precision_datetime.datetime.day() as i64
+                } else {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0055,
+                        format!("Cannot parse '{}' as Date or DateTime for dayOf function", s),
+                    ));
+                }
+            }
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0055,
+                    format!(
+                        "dayOf function can only be applied to Date or DateTime values, got {}",
+                        value.type_name()
+                    ),
+                ));
+            }
+        };
+
         Ok(EvaluationResult {
-            value: crate::core::Collection::from(results),
+            value: crate::core::Collection::from(vec![FhirPathValue::integer(day)]),
         })
     }
 

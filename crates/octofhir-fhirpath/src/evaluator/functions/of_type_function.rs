@@ -1,7 +1,8 @@
 //! ofType function implementation
 //!
-//! The ofType function allows filtering collections by type using comprehensive
-//! ModelProvider integration for schema-driven type checking.
+//! The ofType function returns a collection that contains all items in the input
+//! collection that are of the given type or a subclass thereof.
+//! Per FHIRPath spec: "ofType(type : type specifier) : collection"
 
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -31,6 +32,27 @@ impl OfTypeFunctionEvaluator {
     pub fn create() -> Arc<dyn FunctionEvaluator> {
         Arc::new(Self::new())
     }
+
+    /// Check if a type name is valid using ModelProvider
+    async fn is_valid_type_name(&self, type_name: &str, context: &EvaluationContext) -> bool {
+        let model_provider = context.model_provider();
+
+        // Check if it's a primitive type
+        if let Ok(primitive_types) = model_provider.get_primitive_types().await {
+            if primitive_types.contains(&type_name.to_string()) {
+                return true;
+            }
+        }
+
+        // Check if it's a complex type
+        if let Ok(complex_types) = model_provider.get_complex_types().await {
+            if complex_types.contains(&type_name.to_string()) {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[async_trait]
@@ -52,41 +74,113 @@ impl FunctionEvaluator for OfTypeFunctionEvaluator {
             ));
         }
 
-        // Evaluate the type argument
-        let type_result = evaluator.evaluate(&args[0], context).await?;
-        let type_values = type_result.value.values();
+        // Extract the type name from the AST node (can be identifier or string literal)
+        let type_name = match &args[0] {
+            ExpressionNode::Literal(literal_node) => {
+                match &literal_node.value {
+                    crate::ast::literal::LiteralValue::String(s) => s.clone(),
+                    _ => {
+                        return Err(FhirPathError::evaluation_error(
+                            crate::core::error_code::FP0062,
+                            "ofType function type argument must be a string literal or identifier",
+                        ));
+                    }
+                }
+            }
+            ExpressionNode::Identifier(identifier_node) => {
+                // Accept identifier as type name (e.g., String, code, Patient)
+                identifier_node.name.clone()
+            }
+            _ => {
+                return Err(FhirPathError::evaluation_error(
+                    crate::core::error_code::FP0062,
+                    "ofType function type argument must be a type identifier or string literal",
+                ));
+            }
+        };
 
-        if type_values.len() != 1 {
+        // Validate the type name - reject invalid types like "string1"
+        if !self.is_valid_type_name(&type_name, context).await {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0062,
-                "ofType function requires a single type identifier",
+                format!("Invalid type name: {}", type_name),
             ));
         }
 
-        // Extract type name from argument (should be a string literal representing type identifier)
-        let type_name = if let Some(FhirPathValue::String(type_str, _, _)) = type_values.first() {
-            type_str.as_str()
-        } else {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0062,
-                "ofType function requires a string type identifier",
-            ));
-        };
-
         // Filter the input collection based on type matching
+        // For basic primitive types, also allow conversion (similar to as() function)
         let mut filtered_items = Vec::new();
 
         for item in input {
-            // Get type info for the item
-            let item_type_info = item.type_info();
+            // For primitive types, prioritize conversion logic over ModelProvider
+            // This handles cases like ofType(string) with integer values
+            let converted_value = match type_name.as_str() {
+                "string" | "String" | "System.String" => {
+                    match &item {
+                        FhirPathValue::String(_, _, _) => Some(item.clone()),
+                        FhirPathValue::Integer(i, _, _) => Some(FhirPathValue::string(i.to_string())),
+                        FhirPathValue::Decimal(d, _, _) => Some(FhirPathValue::string(d.to_string())),
+                        FhirPathValue::Boolean(b, _, _) => Some(FhirPathValue::string(b.to_string())),
+                        _ => None,
+                    }
+                }
+                "integer" | "Integer" | "System.Integer" => {
+                    match &item {
+                        FhirPathValue::Integer(_, _, _) => Some(item.clone()),
+                        FhirPathValue::String(s, _, _) => {
+                            if let Ok(i) = s.parse::<i64>() {
+                                Some(FhirPathValue::integer(i))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                "decimal" | "Decimal" | "System.Decimal" => {
+                    match &item {
+                        FhirPathValue::Decimal(_, _, _) => Some(item.clone()),
+                        FhirPathValue::Integer(i, _, _) => Some(FhirPathValue::decimal(rust_decimal::Decimal::from(*i))),
+                        FhirPathValue::String(s, _, _) => {
+                            if let Ok(d) = s.parse::<rust_decimal::Decimal>() {
+                                Some(FhirPathValue::decimal(d))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                "boolean" | "Boolean" | "System.Boolean" => {
+                    match &item {
+                        FhirPathValue::Boolean(_, _, _) => Some(item.clone()),
+                        FhirPathValue::String(s, _, _) => {
+                            match s.to_lowercase().as_str() {
+                                "true" => Some(FhirPathValue::boolean(true)),
+                                "false" => Some(FhirPathValue::boolean(false)),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                _ => {
+                    // For complex types, fall back to ModelProvider check
+                    let item_type_info = item.type_info();
+                    if context
+                        .model_provider()
+                        .of_type(&item_type_info, &type_name)
+                        .is_some()
+                    {
+                        Some(item.clone())
+                    } else {
+                        None
+                    }
+                }
+            };
 
-            // Use ModelProvider.of_type for schema-driven type checking
-            if context
-                .model_provider()
-                .of_type(&item_type_info, type_name)
-                .is_some()
-            {
-                filtered_items.push(item);
+            if let Some(converted) = converted_value {
+                filtered_items.push(converted);
             }
         }
 
@@ -104,7 +198,7 @@ impl FunctionEvaluator for OfTypeFunctionEvaluator {
 fn create_metadata() -> FunctionMetadata {
     FunctionMetadata {
         name: "ofType".to_string(),
-        description: "Filter collection to items of specified type".to_string(),
+        description: "Filter collection to items of specified type or subclass thereof".to_string(),
         signature: FunctionSignature {
             input_type: "Collection".to_string(),
             parameters: vec![FunctionParameter {
@@ -112,7 +206,7 @@ fn create_metadata() -> FunctionMetadata {
                 parameter_type: vec!["String".to_string()],
                 optional: false,
                 is_expression: false,
-                description: "Type identifier to filter by".to_string(),
+                description: "Type identifier or string literal to filter by".to_string(),
                 default_value: None,
             }],
             return_type: "Collection".to_string(),
@@ -124,7 +218,7 @@ fn create_metadata() -> FunctionMetadata {
         deterministic: true,
         category: FunctionCategory::FilteringProjection,
         requires_terminology: false,
-        requires_model: true, // Requires ModelProvider for type checking
+        requires_model: true, // Requires ModelProvider for strict schema-based type checking
     }
 }
 

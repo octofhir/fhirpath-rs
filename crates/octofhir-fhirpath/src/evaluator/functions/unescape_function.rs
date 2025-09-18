@@ -33,7 +33,7 @@ impl UnescapeFunctionEvaluator {
                         parameter_type: vec!["String".to_string()],
                         optional: false,
                         is_expression: true,
-                        description: "Unescape format (json, sql)".to_string(),
+                        description: "Unescape format (html, json, sql)".to_string(),
                         default_value: None,
                     }],
                     return_type: "String".to_string(),
@@ -122,6 +122,18 @@ impl UnescapeFunctionEvaluator {
     fn unescape_sql(input: &str) -> String {
         input.replace("''", "'")
     }
+
+    /// Unescape HTML string
+    fn unescape_html(input: &str) -> String {
+        // Reference implementation from FHIRPath specification
+        // Note: &amp; must be last to avoid double-unescaping
+        input
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+    }
 }
 
 #[async_trait::async_trait]
@@ -181,13 +193,14 @@ impl FunctionEvaluator for UnescapeFunctionEvaluator {
 
         // Perform unescaping based on format
         let unescaped = match format_str.to_lowercase().as_str() {
+            "html" => Self::unescape_html(&input_str),
             "json" => Self::unescape_json(&input_str)?,
             "sql" => Self::unescape_sql(&input_str),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0058,
                     format!(
-                        "Unsupported unescape format: {}. Supported formats: json, sql",
+                        "Unsupported unescape format: {}. Supported formats: html, json, sql",
                         format_str
                     ),
                 ));

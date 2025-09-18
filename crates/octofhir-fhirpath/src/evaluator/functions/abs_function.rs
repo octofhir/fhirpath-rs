@@ -25,9 +25,9 @@ impl AbsFunctionEvaluator {
                 name: "abs".to_string(),
                 description: "Returns the absolute value of a numeric value".to_string(),
                 signature: FunctionSignature {
-                    input_type: "Number".to_string(),
+                    input_type: "Number | Quantity".to_string(),
                     parameters: vec![],
-                    return_type: "Number".to_string(),
+                    return_type: "Number | Quantity".to_string(),
                     polymorphic: true,
                     min_params: 0,
                     max_params: Some(0),
@@ -58,6 +58,13 @@ impl FunctionEvaluator for AbsFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
@@ -68,10 +75,14 @@ impl FunctionEvaluator for AbsFunctionEvaluator {
         let result = match &input[0] {
             FhirPathValue::Integer(i, _, _) => FhirPathValue::integer(i.abs()),
             FhirPathValue::Decimal(d, _, _) => FhirPathValue::decimal(d.abs()),
+            FhirPathValue::Quantity { value, unit, .. } => {
+                // Support absolute value for quantities
+                FhirPathValue::quantity(value.abs(), unit.clone())
+            }
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    "abs function can only be called on numeric values (Integer or Decimal)"
+                    "abs function can only be called on numeric values (Integer, Decimal, or Quantity)"
                         .to_string(),
                 ));
             }

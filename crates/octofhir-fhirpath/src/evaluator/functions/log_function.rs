@@ -67,6 +67,13 @@ impl FunctionEvaluator for LogFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
@@ -111,6 +118,13 @@ impl FunctionEvaluator for LogFunctionEvaluator {
         // Evaluate base argument
         let base_result = evaluator.evaluate(&args[0], context).await?;
         let base_values: Vec<FhirPathValue> = base_result.value.iter().cloned().collect();
+
+        // Handle empty base parameter - propagate empty collections
+        if base_values.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
         if base_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(

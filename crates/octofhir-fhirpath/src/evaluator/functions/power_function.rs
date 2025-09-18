@@ -67,6 +67,13 @@ impl FunctionEvaluator for PowerFunctionEvaluator {
             ));
         }
 
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
         if input.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
@@ -95,6 +102,13 @@ impl FunctionEvaluator for PowerFunctionEvaluator {
         // Evaluate exponent argument
         let exponent_result = evaluator.evaluate(&args[0], context).await?;
         let exponent_values: Vec<FhirPathValue> = exponent_result.value.iter().cloned().collect();
+
+        // Handle empty exponent parameter - propagate empty collections
+        if exponent_values.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
         if exponent_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -128,10 +142,10 @@ impl FunctionEvaluator for PowerFunctionEvaluator {
         }
 
         if base_float < 0.0 && exponent_float.fract() != 0.0 {
-            return Err(FhirPathError::evaluation_error(
-                crate::core::error_code::FP0051,
-                "power function: negative base with non-integer exponent is undefined".to_string(),
-            ));
+            // Per FHIRPath spec, negative base with non-integer exponent returns empty collection
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
         }
 
         let result_float = base_float.powf(exponent_float);

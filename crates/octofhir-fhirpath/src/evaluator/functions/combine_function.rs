@@ -66,12 +66,9 @@ impl FunctionEvaluator for CombineFunctionEvaluator {
             ));
         }
 
-        // TODO: Fix context management for proper combine function behavior
-        // Currently, the argument is evaluated in the current context which may have been
-        // narrowed down from the original resource context. This causes issues when
-        // combining results from different property paths that should both be evaluated
-        // against the original resource.
-        let other_result = evaluator.evaluate(&args[0], context).await?;
+        let root_collection = context.get_root_evaluation_context().clone();
+        let function_context = context.for_function_evaluation(root_collection);
+        let other_result = evaluator.evaluate(&args[0], &function_context).await?;
 
         // Combine the two collections without deduplication
         let mut combined = Vec::new();
