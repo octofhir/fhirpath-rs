@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Intersect function evaluator
 pub struct IntersectFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct IntersectFunctionEvaluator {
 
 impl IntersectFunctionEvaluator {
     /// Create a new intersect function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "intersect".to_string(),
@@ -31,7 +30,7 @@ impl IntersectFunctionEvaluator {
                         name: "other".to_string(),
                         parameter_type: vec!["Collection".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The collection to intersect with".to_string(),
                         default_value: None,
                     }],
@@ -40,6 +39,8 @@ impl IntersectFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -51,32 +52,20 @@ impl IntersectFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for IntersectFunctionEvaluator {
+impl PureFunctionEvaluator for IntersectFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
-                crate::core::FP0053,
+                crate::core::error_code::FP0053,
                 "intersect function requires exactly one argument".to_string(),
             ));
         }
 
-        let root_collection = context.get_root_evaluation_context().clone();
-        let root_context = EvaluationContext::new(
-            root_collection,
-            context.get_model_provider(),
-            context.get_terminology_provider(),
-            context.get_trace_provider(),
-        ).await;
-        let other_result = evaluator
-            .evaluate(&args[0], &root_context)
-            .await?;
-        let other: Vec<FhirPathValue> = other_result.value.iter().cloned().collect();
+        let other = args[0].clone();
 
         let mut result = Vec::new();
 

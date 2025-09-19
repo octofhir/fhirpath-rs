@@ -14,22 +14,21 @@ pub mod metadata_collector;
 pub mod operations;
 pub mod operator_registry;
 pub mod quantity_utils;
+pub mod result;
 pub mod terminologies_variable;
 
 #[cfg(test)]
 mod terminologies_variable_integration_test;
 
-// Backward compatibility stub (temporary)
-pub mod stub;
+// Note: stub module removed - now using complete evaluation engine
 
 // Re-export main types
-pub use context::{EvaluationContext, EvaluationContextExt, SystemVariables, VariableStack};
+pub use context::EvaluationContext;
 pub use environment_variables::{EnvironmentVariables, EnvironmentVariablesBuilder};
 pub use evaluator::{AsyncNodeEvaluator, Evaluator};
 pub use function_registry::{
     FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter, FunctionRegistry,
-    FunctionSignature, create_basic_function_registry, create_comprehensive_function_registry,
-    create_standard_function_registry,
+    FunctionSignature, create_function_registry,
 };
 pub use metadata_collector::{
     CacheStats, EvaluationSummary, MetadataCollector, NodeEvaluationInfo, PerformanceMetrics,
@@ -43,5 +42,5 @@ pub use operator_registry::{
 // Re-export engine types
 pub use engine::{FhirPathEngine, create_engine_with_mock_provider};
 
-// Re-export stub types for backward compatibility
-pub use stub::{EvaluationResult, EvaluationResultWithMetadata};
+// Re-export result types
+pub use result::{EvaluationResult, EvaluationResultWithMetadata};

@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Log function evaluator
 pub struct LogFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct LogFunctionEvaluator {
 
 impl LogFunctionEvaluator {
     /// Create a new log function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "log".to_string(),
@@ -32,7 +31,7 @@ impl LogFunctionEvaluator {
                         name: "base".to_string(),
                         parameter_type: vec!["Number".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The base for the logarithm".to_string(),
                         default_value: None,
                     }],
@@ -41,6 +40,8 @@ impl LogFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Math,
@@ -52,13 +53,11 @@ impl LogFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for LogFunctionEvaluator {
+impl PureFunctionEvaluator for LogFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -115,25 +114,22 @@ impl FunctionEvaluator for LogFunctionEvaluator {
             }
         };
 
-        // Evaluate base argument
-        let base_result = evaluator.evaluate(&args[0], context).await?;
-        let base_values: Vec<FhirPathValue> = base_result.value.iter().cloned().collect();
-
+        // Get the pre-evaluated base argument
         // Handle empty base parameter - propagate empty collections
-        if base_values.is_empty() {
+        if args[0].is_empty() {
             return Ok(EvaluationResult {
                 value: crate::core::Collection::empty(),
             });
         }
 
-        if base_values.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
                 "log function base argument must evaluate to a single value".to_string(),
             ));
         }
 
-        let base_float = match &base_values[0] {
+        let base_float = match &args[0][0] {
             FhirPathValue::Integer(i, _, _) => {
                 if *i <= 0 || *i == 1 {
                     return Err(FhirPathError::evaluation_error(

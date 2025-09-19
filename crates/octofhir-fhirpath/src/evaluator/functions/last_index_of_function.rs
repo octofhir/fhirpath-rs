@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// LastIndexOf function evaluator
 pub struct LastIndexOfFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct LastIndexOfFunctionEvaluator {
 
 impl LastIndexOfFunctionEvaluator {
     /// Create a new lastIndexOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "lastIndexOf".to_string(),
@@ -33,7 +32,7 @@ impl LastIndexOfFunctionEvaluator {
                             name: "searchValue".to_string(),
                             parameter_type: vec!["Any".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "The substring to search for in a string, or the item to find in a collection".to_string(),
                             default_value: None,
                         }
@@ -43,6 +42,8 @@ impl LastIndexOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -94,13 +95,11 @@ impl LastIndexOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for LastIndexOfFunctionEvaluator {
+impl PureFunctionEvaluator for LastIndexOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -115,18 +114,21 @@ impl FunctionEvaluator for LastIndexOfFunctionEvaluator {
             });
         }
 
-        // Evaluate search value argument
-        let search_result = evaluator.evaluate(&args[0], context).await?;
-        let search_values: Vec<FhirPathValue> = search_result.value.iter().cloned().collect();
+        // Handle empty search argument - propagate empty collections
+        if args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
-        if search_values.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
-                "lastIndexOf function search argument must evaluate to a single value".to_string(),
+                "lastIndexOf function search argument must be a single value".to_string(),
             ));
         }
 
-        let search_value = &search_values[0];
+        let search_value = &args[0][0];
 
         // Handle different input types
         let index = if input.len() == 1 {

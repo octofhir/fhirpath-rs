@@ -7,13 +7,12 @@
 use regex::Regex;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// Matches function evaluator
 pub struct MatchesFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct MatchesFunctionEvaluator {
 
 impl MatchesFunctionEvaluator {
     /// Create a new matches function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "matches".to_string(),
@@ -44,6 +43,8 @@ impl MatchesFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -55,13 +56,11 @@ impl MatchesFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for MatchesFunctionEvaluator {
+impl PureFunctionEvaluator for MatchesFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -95,9 +94,8 @@ impl FunctionEvaluator for MatchesFunctionEvaluator {
             }
         };
 
-        // Evaluate pattern argument
-        let pattern_result = evaluator.evaluate(&args[0], context).await?;
-        let pattern_values: Vec<FhirPathValue> = pattern_result.value.iter().cloned().collect();
+        // Get pattern argument from pre-evaluated args
+        let pattern_values = &args[0];
 
         // Handle empty pattern - return empty per FHIRPath specification
         if pattern_values.is_empty() {

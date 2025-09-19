@@ -1,11 +1,11 @@
 //! Empty function implementation
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 pub struct EmptyFunctionEvaluator {
@@ -13,7 +13,7 @@ pub struct EmptyFunctionEvaluator {
 }
 
 impl EmptyFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "empty".to_string(),
@@ -26,6 +26,8 @@ impl EmptyFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
                 empty_propagation: EmptyPropagation::Custom,
                 deterministic: true,
                 category: FunctionCategory::Existence,
@@ -37,13 +39,11 @@ impl EmptyFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for EmptyFunctionEvaluator {
+impl PureFunctionEvaluator for EmptyFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        _args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         let is_empty = input.is_empty();
 

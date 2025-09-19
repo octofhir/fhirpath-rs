@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// SupersetOf function evaluator
 pub struct SupersetOfFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SupersetOfFunctionEvaluator {
 
 impl SupersetOfFunctionEvaluator {
     /// Create a new supersetOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "supersetOf".to_string(),
@@ -31,7 +30,7 @@ impl SupersetOfFunctionEvaluator {
                         name: "other".to_string(),
                         parameter_type: vec!["Collection".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The collection to check against".to_string(),
                         default_value: None,
                     }],
@@ -40,6 +39,8 @@ impl SupersetOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -51,32 +52,20 @@ impl SupersetOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SupersetOfFunctionEvaluator {
+impl PureFunctionEvaluator for SupersetOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
-                crate::core::FP0053,
+                crate::core::error_code::FP0053,
                 "supersetOf function requires exactly one argument".to_string(),
             ));
         }
 
-        let root_collection = context.get_root_evaluation_context().clone();
-        let root_context = EvaluationContext::new(
-            root_collection,
-            context.get_model_provider(),
-            context.get_terminology_provider(),
-            context.get_trace_provider(),
-        ).await;
-        let other_result = evaluator
-            .evaluate(&args[0], &root_context)
-            .await?;
-        let other: Vec<FhirPathValue> = other_result.value.iter().cloned().collect();
+        let other = &args[0];
 
         // Any set is a superset of the empty set
         if other.is_empty() {

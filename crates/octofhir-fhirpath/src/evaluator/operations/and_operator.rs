@@ -39,13 +39,24 @@ impl AndOperatorEvaluator {
         Arc::new(Self::new())
     }
 
-    /// Extract boolean value from a collection
+    /// Extract boolean value from a collection using FHIRPath singleton evaluation rules
     fn extract_boolean(&self, collection: &[FhirPathValue]) -> Option<bool> {
         if collection.is_empty() {
             None
-        } else if let Some(first) = collection.first() {
-            first.as_boolean()
+        } else if collection.len() == 1 {
+            let first = collection.first().unwrap();
+            match first.as_boolean() {
+                Some(bool_val) => Some(bool_val),
+                None => {
+                    // According to FHIRPath singleton evaluation:
+                    // "IF the collection contains a single node AND the expected input type is Boolean THEN
+                    //  The collection evaluates to true"
+                    Some(true)
+                }
+            }
         } else {
+            // Multiple items in collection - this should error according to singleton evaluation rules
+            // For now, return None to maintain current behavior, but this should be enhanced
             None
         }
     }

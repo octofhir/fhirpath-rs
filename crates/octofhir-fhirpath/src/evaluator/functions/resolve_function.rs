@@ -6,12 +6,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Resolve function evaluator
 pub struct ResolveFunctionEvaluator {
@@ -20,7 +20,7 @@ pub struct ResolveFunctionEvaluator {
 
 impl ResolveFunctionEvaluator {
     /// Create a new resolve function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "resolve".to_string(),
@@ -33,6 +33,8 @@ impl ResolveFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Resolution may depend on external state
                 category: FunctionCategory::Utility,
@@ -71,7 +73,7 @@ impl ResolveFunctionEvaluator {
         context: &EvaluationContext,
     ) -> Option<FhirPathValue> {
         // Get the root resource from context
-        let root_collection = context.get_root_context();
+        let root_collection = context.input_collection();
 
         // Handle different reference types
         if reference.starts_with('#') {
@@ -197,13 +199,12 @@ impl ResolveFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ResolveFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for ResolveFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
+        args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(

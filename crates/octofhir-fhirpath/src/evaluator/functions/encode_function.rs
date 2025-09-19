@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// Encode function evaluator
 pub struct EncodeFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct EncodeFunctionEvaluator {
 
 impl EncodeFunctionEvaluator {
     /// Create a new encode function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "encode".to_string(),
@@ -32,7 +31,7 @@ impl EncodeFunctionEvaluator {
                         name: "format".to_string(),
                         parameter_type: vec!["String".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "Encoding format (base64, urlbase64, hex, url, html)"
                             .to_string(),
                         default_value: None,
@@ -42,6 +41,8 @@ impl EncodeFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -53,19 +54,24 @@ impl EncodeFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for EncodeFunctionEvaluator {
+impl PureFunctionEvaluator for EncodeFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "encode function requires exactly one argument (format)".to_string(),
             ));
+        }
+
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
         }
 
         if input.len() != 1 {
@@ -86,18 +92,21 @@ impl FunctionEvaluator for EncodeFunctionEvaluator {
             }
         };
 
-        // Evaluate format argument
-        let format_result = evaluator.evaluate(&args[0], context).await?;
-        let format_values: Vec<FhirPathValue> = format_result.value.iter().cloned().collect();
+        // Handle empty format argument - propagate empty collections
+        if args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
-        if format_values.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
-                "encode function format argument must evaluate to a single value".to_string(),
+                "encode function format argument must be a single value".to_string(),
             ));
         }
 
-        let format_str = match &format_values[0] {
+        let format_str = match &args[0][0] {
             FhirPathValue::String(s, _, _) => s.clone(),
             _ => {
                 return Err(FhirPathError::evaluation_error(

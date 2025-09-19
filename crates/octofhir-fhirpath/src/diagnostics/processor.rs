@@ -167,7 +167,7 @@ pub enum SuggestionConfidence {
 }
 
 /// Category of suggestion
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SuggestionCategory {
     /// Fix a definite error
     Fix,
@@ -193,7 +193,7 @@ pub struct DiagnosticRelationship {
 }
 
 /// Type of relationship between diagnostics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RelationshipKind {
     /// Diagnostics are duplicates or very similar
     Duplicate,

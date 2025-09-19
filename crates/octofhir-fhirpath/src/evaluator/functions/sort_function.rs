@@ -10,10 +10,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Sort function evaluator
 pub struct SortFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct SortFunctionEvaluator {
 
 impl SortFunctionEvaluator {
     /// Create a new sort function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "sort".to_string(),
@@ -44,6 +43,8 @@ impl SortFunctionEvaluator {
                     min_params: 0,
                     max_params: None, // Unlimited parameters for multicriteria sort
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -109,7 +110,7 @@ impl SortKey {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SortFunctionEvaluator {
+impl LazyFunctionEvaluator for SortFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -151,15 +152,15 @@ impl FunctionEvaluator for SortFunctionEvaluator {
             let mut iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
-                context.terminology_provider().clone(),
-                context.trace_provider(),
+                context.terminology_provider().cloned(),
+                context.validation_provider().cloned(),
+                context.trace_provider().cloned(),
             )
             .await;
 
-            // Set lambda variables: $this = single item, $index = current index, $total = input length
-            iteration_context.set_system_this(item.clone());
-            iteration_context.set_system_index(index as i64);
-            iteration_context.set_system_total(input.len() as i64);
+            iteration_context.set_variable("$this".to_string(), item.clone());
+            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
 
             let mut sort_keys = Vec::new();
 

@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// SubsetOf function evaluator
 pub struct SubsetOfFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SubsetOfFunctionEvaluator {
 
 impl SubsetOfFunctionEvaluator {
     /// Create a new subsetOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "subsetOf".to_string(),
@@ -31,7 +30,7 @@ impl SubsetOfFunctionEvaluator {
                         name: "other".to_string(),
                         parameter_type: vec!["Collection".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The collection to check against".to_string(),
                         default_value: None,
                     }],
@@ -40,6 +39,8 @@ impl SubsetOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -51,27 +52,27 @@ impl SubsetOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SubsetOfFunctionEvaluator {
+impl PureFunctionEvaluator for SubsetOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
-                crate::core::FP0053,
+                crate::core::error_code::FP0053,
                 "subsetOf function requires exactly one argument".to_string(),
             ));
         }
 
-        let root_collection = context.get_root_evaluation_context().clone();
-        let function_context = context.for_function_evaluation(root_collection);
-        let other_result = evaluator
-            .evaluate(&args[0], &function_context)
-            .await?;
-        let other: Vec<FhirPathValue> = other_result.value.iter().cloned().collect();
+        // Handle empty other argument - propagate empty collections
+        if args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+            });
+        }
+
+        let other = &args[0];
 
         // Empty set is a subset of any set
         if input.is_empty() {

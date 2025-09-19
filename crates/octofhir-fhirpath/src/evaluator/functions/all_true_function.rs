@@ -9,9 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// AllTrue function evaluator
 pub struct AllTrueFunctionEvaluator {
@@ -20,7 +20,7 @@ pub struct AllTrueFunctionEvaluator {
 
 impl AllTrueFunctionEvaluator {
     /// Create a new allTrue function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "allTrue".to_string(),
@@ -33,6 +33,8 @@ impl AllTrueFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation, // Returns true for empty collections
                 deterministic: true,
                 category: FunctionCategory::Existence,
@@ -44,13 +46,11 @@ impl AllTrueFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for AllTrueFunctionEvaluator {
+impl PureFunctionEvaluator for AllTrueFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(
@@ -79,10 +79,11 @@ impl FunctionEvaluator for AllTrueFunctionEvaluator {
                     // Continue checking other items
                 }
                 _ => {
-                    // Non-boolean values result in false
-                    return Ok(EvaluationResult {
-                        value: crate::core::Collection::single(FhirPathValue::boolean(false)),
-                    });
+                    // Non-boolean values should cause an execution error
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0001,
+                        format!("allTrue function can only be applied to Boolean values, found: {}", item.type_name()),
+                    ));
                 }
             }
         }

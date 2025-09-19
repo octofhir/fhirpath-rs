@@ -7,12 +7,12 @@ use rust_decimal::prelude::*;
 use std::sync::Arc;
 
 use crate::Collection;
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Floor function evaluator
 pub struct FloorFunctionEvaluator {
@@ -21,7 +21,7 @@ pub struct FloorFunctionEvaluator {
 
 impl FloorFunctionEvaluator {
     /// Create a new floor function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "floor".to_string(),
@@ -35,6 +35,8 @@ impl FloorFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Math,
@@ -46,15 +48,13 @@ impl FloorFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for FloorFunctionEvaluator {
+impl PureFunctionEvaluator for FloorFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
-        if !args.is_empty() {
+        if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "floor function takes no arguments".to_string(),

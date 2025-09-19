@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Split function evaluator
 pub struct SplitFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SplitFunctionEvaluator {
 
 impl SplitFunctionEvaluator {
     /// Create a new split function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "split".to_string(),
@@ -32,7 +31,7 @@ impl SplitFunctionEvaluator {
                         name: "separator".to_string(),
                         parameter_type: vec!["String".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "String separator to split on".to_string(),
                         default_value: None,
                     }],
@@ -41,6 +40,8 @@ impl SplitFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -52,13 +53,11 @@ impl SplitFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SplitFunctionEvaluator {
+impl PureFunctionEvaluator for SplitFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -85,18 +84,15 @@ impl FunctionEvaluator for SplitFunctionEvaluator {
             }
         };
 
-        // Evaluate separator argument
-        let separator_result = evaluator.evaluate(&args[0], context).await?;
-        let separator_values: Vec<FhirPathValue> = separator_result.value.iter().cloned().collect();
-
-        if separator_values.len() != 1 {
+        // Get the pre-evaluated separator argument
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
-                "split function separator argument must evaluate to a single value".to_string(),
+                "split function separator argument must be a single value".to_string(),
             ));
         }
 
-        let separator_str = match &separator_values[0] {
+        let separator_str = match &args[0][0] {
             FhirPathValue::String(s, _, _) => s.clone(),
             _ => {
                 return Err(FhirPathError::evaluation_error(

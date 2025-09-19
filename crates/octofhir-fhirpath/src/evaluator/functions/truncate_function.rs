@@ -6,12 +6,11 @@
 use rust_decimal::prelude::*;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy,
+};use crate::evaluator::EvaluationResult;
 
 /// Truncate function evaluator
 pub struct TruncateFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct TruncateFunctionEvaluator {
 
 impl TruncateFunctionEvaluator {
     /// Create a new truncate function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "truncate".to_string(),
@@ -34,6 +33,8 @@ impl TruncateFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Math,
@@ -45,15 +46,13 @@ impl TruncateFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for TruncateFunctionEvaluator {
+impl PureFunctionEvaluator for TruncateFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
-        if !args.is_empty() {
+        if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "truncate function takes no arguments".to_string(),

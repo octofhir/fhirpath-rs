@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// Skip function evaluator
 pub struct SkipFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SkipFunctionEvaluator {
 
 impl SkipFunctionEvaluator {
     /// Create a new skip function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "skip".to_string(),
@@ -42,6 +41,8 @@ impl SkipFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -53,13 +54,11 @@ impl SkipFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SkipFunctionEvaluator {
+impl PureFunctionEvaluator for SkipFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -68,26 +67,23 @@ impl FunctionEvaluator for SkipFunctionEvaluator {
             ));
         }
 
-        let num_expr = &args[0];
+        let num_values = &args[0];
 
-        // Evaluate the num argument
-        let num_result = evaluator.evaluate(num_expr, context).await?;
-
-        if num_result.value.is_empty() {
+        if num_values.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "skip argument cannot be empty".to_string(),
             ));
         }
 
-        if num_result.value.len() != 1 {
+        if num_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "skip argument must be a single value".to_string(),
             ));
         }
 
-        let skip_value = &num_result.value[0];
+        let skip_value = &num_values[0];
         let skip_num = match skip_value {
             FhirPathValue::Integer(n, _, _) => *n,
             _ => {

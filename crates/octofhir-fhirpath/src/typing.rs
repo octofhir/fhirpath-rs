@@ -506,16 +506,17 @@ mod tests {
         assert_eq!(
             type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::String(
                 "test".to_string(),
+                TypeInfo::system_type("String".to_string(), true),
                 None
             )),
             "string"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(42, None)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Integer(42, TypeInfo::system_type("Integer".to_string(), true), None)),
             "integer"
         );
         assert_eq!(
-            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(true, None)),
+            type_utils::fhirpath_value_to_fhir_type(&FhirPathValue::Boolean(true, TypeInfo::system_type("Boolean".to_string(), true), None)),
             "boolean"
         );
     }

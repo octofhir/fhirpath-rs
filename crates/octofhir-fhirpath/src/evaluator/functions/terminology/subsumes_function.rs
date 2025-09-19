@@ -6,13 +6,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 use octofhir_fhir_model::TerminologyProvider;
 
 /// Subsumes function evaluator
@@ -22,7 +21,7 @@ pub struct SubsumesFunctionEvaluator {
 
 impl SubsumesFunctionEvaluator {
     /// Create a new subsumes function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "subsumes".to_string(),
@@ -60,6 +59,8 @@ impl SubsumesFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(3),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Terminology operations may change over time
                 category: FunctionCategory::Utility,
@@ -70,11 +71,9 @@ impl SubsumesFunctionEvaluator {
     }
 
     /// Extract subsumption parameters based on argument count
-    async fn extract_subsumption_params(
+    fn extract_subsumption_params(
         input: &[FhirPathValue],
-        args: &[ExpressionNode],
-        context: &EvaluationContext,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: &[Vec<FhirPathValue>],
     ) -> Result<(String, String, String)> {
         match args.len() {
             1 => {
@@ -88,9 +87,7 @@ impl SubsumesFunctionEvaluator {
 
                 let (parent_system, parent_code) = Self::extract_coding_info(&input[0])?;
 
-                let child_result = evaluator.evaluate(&args[0], context).await?;
-                let child_values: Vec<FhirPathValue> = child_result.value.iter().cloned().collect();
-
+                let child_values = &args[0];
                 if child_values.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0056,
@@ -112,9 +109,7 @@ impl SubsumesFunctionEvaluator {
             }
             3 => {
                 // Three-parameter form: subsumes(system, parent, child)
-                let system_result = evaluator.evaluate(&args[0], context).await?;
-                let system_values: Vec<FhirPathValue> = system_result.value.iter().cloned().collect();
-
+                let system_values = &args[0];
                 if system_values.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0056,
@@ -130,9 +125,7 @@ impl SubsumesFunctionEvaluator {
                     )),
                 };
 
-                let parent_result = evaluator.evaluate(&args[1], context).await?;
-                let parent_values: Vec<FhirPathValue> = parent_result.value.iter().cloned().collect();
-
+                let parent_values = &args[1];
                 if parent_values.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0056,
@@ -148,9 +141,7 @@ impl SubsumesFunctionEvaluator {
                     )),
                 };
 
-                let child_result = evaluator.evaluate(&args[2], context).await?;
-                let child_values: Vec<FhirPathValue> = child_result.value.iter().cloned().collect();
-
+                let child_values = &args[2];
                 if child_values.len() != 1 {
                     return Err(FhirPathError::evaluation_error(
                         crate::core::error_code::FP0056,
@@ -210,13 +201,12 @@ impl SubsumesFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SubsumesFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for SubsumesFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
+        context: &crate::evaluator::EvaluationContext,
     ) -> Result<EvaluationResult> {
         if args.is_empty() || args.len() > 3 {
             return Err(FhirPathError::evaluation_error(
@@ -235,7 +225,7 @@ impl FunctionEvaluator for SubsumesFunctionEvaluator {
 
         // Extract subsumption parameters
         let (system, parent_code, child_code) =
-            Self::extract_subsumption_params(&input, &args, context, evaluator).await?;
+            Self::extract_subsumption_params(&input, &args)?;
 
         // Perform subsumption test
         match terminology_provider

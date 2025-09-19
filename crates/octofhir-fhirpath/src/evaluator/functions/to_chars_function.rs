@@ -5,12 +5,11 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy,
+};use crate::evaluator::EvaluationResult;
 
 /// toChars function evaluator
 pub struct ToCharsFunctionEvaluator {
@@ -19,7 +18,7 @@ pub struct ToCharsFunctionEvaluator {
 
 impl ToCharsFunctionEvaluator {
     /// Create a new toChars function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "toChars".to_string(),
@@ -33,6 +32,8 @@ impl ToCharsFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -44,18 +45,16 @@ impl ToCharsFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ToCharsFunctionEvaluator {
+impl PureFunctionEvaluator for ToCharsFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
-        if !args.is_empty() {
+        if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                format!("toChars function expects no arguments, got {}", args.len()),
+                format!("toChars function expects no arguments, got {}", _args.len()),
             ));
         }
 

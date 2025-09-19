@@ -1,38 +1,39 @@
 {
-  "resourceType": "Observation",
-  "id": "obs1",
-  "text": {
-    "status": "generated",
-    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">This is a simple <b>example</b></div>"
-  },
-  "contained": [
-    {
-      "resourceType": "Provenance",
-      "target": [
-        {
-          "reference": "#"
-        }
-      ]
-    }
-  ],
   "code": {
     "coding": [
       {
-        "system": "http://something6"
+        "system": "http://something6",
+        "value": "something7"
       }
     ],
-    "_text": {
+    "text": {
       "extension": [
         {
-          "url": "http://something11",
           "valueString": "something12"
         }
       ]
     }
   },
+  "contained": [
+    {
+      "Provenance": {
+        "target": {
+          "reference": "#"
+        }
+      }
+    }
+  ],
+  "id": "obs1",
+  "resourceType": "Observation",
+  "text": {
+    "div": {
+      "b": {}
+    },
+    "status": "generated"
+  },
   "valueQuantity": {
-    "value": 1,
+    "code": "something10",
     "system": "http://something9",
-    "code": "something10"
+    "value": "1"
   }
 }

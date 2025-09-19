@@ -46,11 +46,15 @@ impl EnvironmentVariables {
         // Add commonly used HL7 value sets
         value_sets.insert("administrative-gender".to_string(), "http://hl7.org/fhir/ValueSet/administrative-gender".to_string());
 
+        let mut extensions = HashMap::new();
+        // Add commonly used HL7 extensions
+        extensions.insert("patient-birthTime".to_string(), "http://hl7.org/fhir/StructureDefinition/patient-birthTime".to_string());
+
         Self {
             sct_url: Some("http://snomed.info/sct".to_string()),
             loinc_url: Some("http://loinc.org".to_string()),
             value_sets,
-            extensions: HashMap::new(),
+            extensions,
             custom_variables,
         }
     }
@@ -250,6 +254,7 @@ mod tests {
         // Check default values
         assert!(env_vars.get_variable("%sct").is_some());
         assert!(env_vars.get_variable("%loinc").is_some());
+        assert!(env_vars.get_variable("%ext-patient-birthTime").is_some());
 
         if let Some(FhirPathValue::String(sct_url, _, _)) = env_vars.get_variable("%sct") {
             assert_eq!(sct_url, "http://snomed.info/sct");
@@ -261,6 +266,12 @@ mod tests {
             assert_eq!(loinc_url, "http://loinc.org");
         } else {
             panic!("Expected string value for %loinc");
+        }
+
+        if let Some(FhirPathValue::String(birthtime_url, _, _)) = env_vars.get_variable("%ext-patient-birthTime") {
+            assert_eq!(birthtime_url, "http://hl7.org/fhir/StructureDefinition/patient-birthTime");
+        } else {
+            panic!("Expected string value for %ext-patient-birthTime");
         }
     }
 

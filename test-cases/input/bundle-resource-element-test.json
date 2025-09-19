@@ -1,12 +1,58 @@
 {
-  "resourceType": "Bundle",
-  "identifier": {
-    "system": "http://something1",
-    "value": "something2"
+  "entry": {
+    "fullUrl": "http://something5",
+    "resource": {
+      "Observation": {
+        "code": {
+          "coding": [
+            {
+              "system": "http://something6",
+              "value": "something7"
+            }
+          ],
+          "text": {
+            "extension": [
+              {
+                "valueString": "something12"
+              }
+            ]
+          }
+        },
+        "contained": [
+          {
+            "Provenance": {
+              "target": {
+                "reference": "#"
+              }
+            }
+          }
+        ],
+        "id": "obs1",
+        "text": {
+          "div": {
+            "b": {}
+          },
+          "status": "generated"
+        },
+        "valueQuantity": {
+          "code": "something10",
+          "system": "http://something9",
+          "value": "1"
+        }
+      }
+    }
   },
-  "type": "collection",
-  "timestamp": "2024-06-09T11:06:35+10:00",
-  "total": 2,
+  "identifier": [
+    {
+      "system": "http://something1",
+      "value": "something2"
+    }
+  ],
+  "issues": {
+    "OperationOutcome": {
+      "id": "2"
+    }
+  },
   "link": [
     {
       "relation": "self",
@@ -17,51 +63,8 @@
       "url": "http://something4"
     }
   ],
-  "entry": [
-    {
-      "fullUrl": "http://something5",
-      "resource": {
-        "resourceType": "Observation",
-        "id": "obs1",
-        "text": {
-          "status": "generated",
-          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">This is a simple <b>example</b></div>"
-        },
-        "contained": [
-          {
-            "resourceType": "Provenance",
-            "target": [
-              {
-                "reference": "#"
-              }
-            ]
-          }
-        ],
-        "code": {
-          "coding": [
-            {
-              "system": "http://something6"
-            }
-          ],
-          "_text": {
-            "extension": [
-              {
-                "url": "http://something11",
-                "valueString": "something12"
-              }
-            ]
-          }
-        },
-        "valueQuantity": {
-          "value": 1,
-          "system": "http://something9",
-          "code": "something10"
-        }
-      }
-    }
-  ],
-  "issues": {
-    "resourceType": "OperationOutcome",
-    "id": "2"
-  }
+  "resourceType": "Bundle",
+  "timestamp": "2024-06-09T11:06:35+10:00",
+  "total": "2",
+  "type": "collection"
 }

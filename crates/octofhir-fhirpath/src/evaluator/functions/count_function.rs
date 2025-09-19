@@ -1,11 +1,11 @@
 //! Count function implementation
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
 
 pub struct CountFunctionEvaluator {
@@ -13,7 +13,7 @@ pub struct CountFunctionEvaluator {
 }
 
 impl CountFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "count".to_string(),
@@ -26,6 +26,8 @@ impl CountFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
                 empty_propagation: EmptyPropagation::Custom,
                 deterministic: true,
                 category: FunctionCategory::Aggregate,
@@ -37,13 +39,11 @@ impl CountFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for CountFunctionEvaluator {
+impl PureFunctionEvaluator for CountFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        _args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         let count = input.len() as i64;
 

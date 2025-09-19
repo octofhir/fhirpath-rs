@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Round function evaluator
 pub struct RoundFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct RoundFunctionEvaluator {
 
 impl RoundFunctionEvaluator {
     /// Create a new round function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "round".to_string(),
@@ -34,7 +33,7 @@ impl RoundFunctionEvaluator {
                         name: "precision".to_string(),
                         parameter_type: vec!["Integer".to_string()],
                         optional: true,
-                        is_expression: true,
+                        is_expression: false,
                         description: "Number of decimal places to round to (default: 0)"
                             .to_string(),
                         default_value: Some("0".to_string()),
@@ -44,6 +43,8 @@ impl RoundFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Math,
@@ -55,13 +56,11 @@ impl RoundFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for RoundFunctionEvaluator {
+impl PureFunctionEvaluator for RoundFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
@@ -101,18 +100,14 @@ impl FunctionEvaluator for RoundFunctionEvaluator {
         let precision = if args.is_empty() {
             0u32
         } else {
-            let precision_result = evaluator.evaluate(&args[0], context).await?;
-            let precision_values: Vec<FhirPathValue> =
-                precision_result.value.iter().cloned().collect();
-
-            if precision_values.len() != 1 {
+            if args[0].len() != 1 {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0056,
-                    "round function precision argument must evaluate to a single value".to_string(),
+                    "round function precision argument must be a single value".to_string(),
                 ));
             }
 
-            match &precision_values[0] {
+            match &args[0][0] {
                 FhirPathValue::Integer(i, _, _) => {
                     if *i < 0 {
                         return Err(FhirPathError::evaluation_error(

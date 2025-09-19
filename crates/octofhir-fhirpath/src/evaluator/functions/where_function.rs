@@ -6,12 +6,11 @@
 use std::sync::Arc;
 
 use crate::ast::ExpressionNode;
-use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Where function evaluator
 pub struct WhereFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct WhereFunctionEvaluator {
 
 impl WhereFunctionEvaluator {
     /// Create a new where function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "where".to_string(),
@@ -40,6 +39,8 @@ impl WhereFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::FilteringProjection,
@@ -51,7 +52,7 @@ impl WhereFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for WhereFunctionEvaluator {
+impl LazyFunctionEvaluator for WhereFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -70,25 +71,13 @@ impl FunctionEvaluator for WhereFunctionEvaluator {
         let mut filtered = Vec::new();
 
         for (index, item) in input.iter().enumerate() {
-            // Create single-element collection for this item (focus)
-            let single_item_collection = vec![item.clone()];
+            let mut child_context = context.create_child_context(Collection::single(item.clone()));
+            child_context.set_variable("$this".to_string(), item.clone());
+            child_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
 
-            // Create nested context for this iteration
-            let mut iteration_context = EvaluationContext::new(
-                crate::core::Collection::from(single_item_collection.clone()),
-                context.model_provider().clone(),
-                context.terminology_provider().clone(),
-                context.trace_provider(),
-            )
-            .await;
-
-            // Set lambda variables: $this = single item collection, $index = current index
-            iteration_context.set_system_this(item.clone());
-            iteration_context.set_system_index(index as i64);
-
-            // Evaluate criteria expression in the iteration context
+            // Evaluate criteria expression with child context
             let result = evaluator
-                .evaluate(criteria_expr, &iteration_context)
+                .evaluate(criteria_expr, &child_context)
                 .await?;
 
             // Check if result is truthy

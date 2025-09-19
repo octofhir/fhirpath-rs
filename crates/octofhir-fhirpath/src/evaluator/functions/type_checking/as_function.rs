@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// As function evaluator for type casting
 pub struct AsFunctionEvaluator {
@@ -28,7 +27,7 @@ impl AsFunctionEvaluator {
     }
 
     /// Create an Arc-wrapped instance for registry registration
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self::new())
     }
 
@@ -125,13 +124,12 @@ impl AsFunctionEvaluator {
 }
 
 #[async_trait]
-impl FunctionEvaluator for AsFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for AsFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
+        args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         // Check argument count
         if args.len() != 1 {
@@ -141,27 +139,21 @@ impl FunctionEvaluator for AsFunctionEvaluator {
             ));
         }
 
-        // Extract the type name from the AST node (can be identifier or string literal)
-        let type_name = match &args[0] {
-            ExpressionNode::Literal(literal_node) => {
-                match &literal_node.value {
-                    crate::ast::literal::LiteralValue::String(s) => s.clone(),
-                    _ => {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0055,
-                            "as function type argument must be a string literal or identifier",
-                        ));
-                    }
-                }
-            }
-            ExpressionNode::Identifier(identifier_node) => {
-                // Accept identifier as type name (e.g., String, code, Patient)
-                identifier_node.name.clone()
-            }
+        // Get the type name from pre-evaluated argument
+        let type_arg = &args[0];
+        if type_arg.len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0054,
+                "Type argument must evaluate to a single value".to_string(),
+            ));
+        }
+
+        let type_name = match &type_arg[0] {
+            FhirPathValue::String(s, _, _) => s.clone(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    "as function type argument must be a type identifier or string literal",
+                    "Type argument must be a string".to_string(),
                 ));
             }
         };
@@ -215,6 +207,8 @@ fn create_metadata() -> FunctionMetadata {
             min_params: 1,
             max_params: Some(1),
         },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
         empty_propagation: EmptyPropagation::Propagate,
         deterministic: true,
         category: FunctionCategory::Utility,

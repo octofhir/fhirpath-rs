@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// HasTemplateIdOf function evaluator for CDA documents
 pub struct HasTemplateIdOfFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct HasTemplateIdOfFunctionEvaluator {
 
 impl HasTemplateIdOfFunctionEvaluator {
     /// Create a new hasTemplateIdOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "hasTemplateIdOf".to_string(),
@@ -31,7 +30,7 @@ impl HasTemplateIdOfFunctionEvaluator {
                         name: "templateId".to_string(),
                         parameter_type: vec!["String".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The template ID to check for".to_string(),
                         default_value: None,
                     }],
@@ -40,6 +39,8 @@ impl HasTemplateIdOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::CDA,
@@ -51,13 +52,11 @@ impl HasTemplateIdOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
+impl PureFunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -66,9 +65,8 @@ impl FunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
             ));
         }
 
-        // Evaluate the templateId argument
-        let template_id_result = evaluator.evaluate(&args[0], context).await?;
-        let template_id_values: Vec<FhirPathValue> = template_id_result.value.iter().cloned().collect();
+        // Get the templateId argument (pre-evaluated)
+        let template_id_values = &args[0];
 
         if template_id_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -90,7 +88,7 @@ impl FunctionEvaluator for HasTemplateIdOfFunctionEvaluator {
         // Handle empty input - check context input instead
         let elements_to_check = if input.is_empty() {
             // When called as a function (not method), use the context input
-            context.input_collection().iter().cloned().collect()
+            vec![] // For pure functions, we can't access context, return empty
         } else {
             input
         };

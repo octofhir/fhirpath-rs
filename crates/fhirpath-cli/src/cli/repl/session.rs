@@ -29,7 +29,7 @@ use super::{ReplCommand, ReplConfig};
 // use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
 use octofhir_fhirpath::core::JsonValueExt;
 use octofhir_fhirpath::diagnostics::{ColorScheme, DiagnosticEngine};
-use octofhir_fhirpath::parser::{parse, parse_with_analysis};
+use octofhir_fhirpath::parser::parse_with_analysis;
 use octofhir_fhirpath::{EvaluationContext, FhirPathEngine, FhirPathValue};
 
 /// Main REPL session that handles user interaction
@@ -344,7 +344,7 @@ impl ReplSession {
 
         // Create evaluation context using the engine's providers
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_trace_provider()).await;
+        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_validation_provider(), self.engine.get_trace_provider()).await;
 
         let result = self
             .engine
@@ -488,11 +488,11 @@ impl ReplSession {
         // For now, use simple evaluation without variables
         // TODO: Add variables support back
         use octofhir_fhirpath::Collection;
-        use std::collections::HashMap;
+        
         let input_value = FhirPathValue::resource(input_json.as_ref().clone());
         let collection = Collection::single(input_value);
         let model_provider = self.engine.get_model_provider();
-        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_trace_provider()).await;
+        let context = EvaluationContext::new(collection, model_provider, None, self.engine.get_validation_provider(), self.engine.get_trace_provider()).await;
         let result = self
             .engine
             .evaluate(expression, &context)

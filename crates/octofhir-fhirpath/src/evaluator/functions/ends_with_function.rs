@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// EndsWith function evaluator
 pub struct EndsWithFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct EndsWithFunctionEvaluator {
 
 impl EndsWithFunctionEvaluator {
     /// Create a new endsWith function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "endsWith".to_string(),
@@ -40,6 +39,8 @@ impl EndsWithFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -51,13 +52,11 @@ impl EndsWithFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for EndsWithFunctionEvaluator {
+impl PureFunctionEvaluator for EndsWithFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -66,10 +65,9 @@ impl FunctionEvaluator for EndsWithFunctionEvaluator {
             ));
         }
 
-        // Evaluate the suffix argument
-        let suffix_result = evaluator.evaluate(&args[0], context).await?;
-        let suffix = suffix_result
-            .value
+        // Get the suffix argument from pre-evaluated args
+        let suffix_values = &args[0];
+        let suffix = suffix_values
             .first()
             .and_then(|v| v.as_string())
             .ok_or_else(|| {

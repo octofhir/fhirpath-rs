@@ -9,8 +9,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use octofhir_fhir_model::TerminologyProvider;
@@ -22,7 +22,7 @@ pub struct MemberOfFunctionEvaluator {
 
 impl MemberOfFunctionEvaluator {
     /// Create a new memberOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "memberOf".to_string(),
@@ -44,6 +44,8 @@ impl MemberOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Terminology operations may change over time
                 category: FunctionCategory::Terminology,
@@ -176,7 +178,7 @@ impl MemberOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for MemberOfFunctionEvaluator {
+impl LazyFunctionEvaluator for MemberOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

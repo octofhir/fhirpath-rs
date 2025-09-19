@@ -1,157 +1,145 @@
 {
-  "url": "http://example.org/ConceptMap/example-obs-map",
-  "targetScopeCanonical": "http://example.org/ValueSet/local-measure-type",
   "group": [
     {
-      "source": "http://snomed.info/sct",
       "element": [
         {
+          "code": "75367002",
           "display": "Blood pressure",
           "target": [
             {
+              "code": "1000000008",
+              "comment": "Blood pressure is split into multiple components in Example CodeSystem",
               "display": "BP -  Systolic blood pressure",
-              "relationship": "source-is-narrower-than-target",
-              "comment": "Blood pressure is split into multiple components in Example CodeSystem",
-              "code": "1000000008"
+              "relationship": "source-is-narrower-than-target"
             },
             {
-              "display": "BP - Diastolic blood pressure",
-              "relationship": "source-is-narrower-than-target",
+              "code": "1000000009",
               "comment": "Blood pressure is split into multiple components in Example CodeSystem",
-              "code": "1000000009"
+              "display": "BP - Diastolic blood pressure",
+              "relationship": "source-is-narrower-than-target"
             },
             {
-              "display": "BP - Diastolic blood pressure",
-              "relationship": "source-is-narrower-than-target",
+              "code": "1000000009",
               "comment": "An intentionally duplicate mapping to test the invariant that a given source can only have one mapping to a given target",
-              "code": "1000000009"
-            }
-          ],
-          "code": "75367002"
-        },
-        {
-          "display": "Systolic blood pressure",
-          "target": [
-            {
-              "display": "BP -  Systolic blood pressure",
-              "relationship": "equivalent",
-              "code": "1000000008"
-            }
-          ],
-          "code": "271649006"
-        },
-        {
-          "display": "Diastolic blood pressure",
-          "target": [
-            {
               "display": "BP - Diastolic blood pressure",
-              "relationship": "equivalent",
-              "code": "1000000009"
+              "relationship": "source-is-narrower-than-target"
             }
-          ],
-          "code": "271650006"
+          ]
+        },
+        {
+          "code": "271649006",
+          "display": "Systolic blood pressure",
+          "target": {
+            "code": "1000000008",
+            "display": "BP -  Systolic blood pressure",
+            "relationship": "equivalent"
+          }
+        },
+        {
+          "code": "271650006",
+          "display": "Diastolic blood pressure",
+          "target": {
+            "code": "1000000009",
+            "display": "BP - Diastolic blood pressure",
+            "relationship": "equivalent"
+          }
         }
       ],
+      "source": "http://snomed.info/sct",
       "target": "http://example.org/CodeSystem/local-measure-type"
     },
     {
-      "source": "http://example.org/CodeSystem/local-measure-type",
       "element": [
         {
+          "code": "1000000008",
           "display": "BP -  Systolic blood pressure",
           "target": [
             {
+              "code": "75367002",
               "display": "Blood pressure",
-              "relationship": "source-is-broader-than-target",
-              "code": "75367002"
+              "relationship": "source-is-broader-than-target"
             },
             {
+              "code": "271649006",
               "display": "Systolic blood pressure",
-              "relationship": "equivalent",
-              "code": "271649006"
+              "relationship": "equivalent"
             }
-          ],
-          "code": "1000000008"
+          ]
         },
         {
+          "code": "1000000009",
           "display": "BP - Diastolic blood pressure",
           "target": [
             {
+              "code": "75367002",
               "display": "Blood pressure",
-              "relationship": "source-is-broader-than-target",
-              "code": "75367002"
+              "relationship": "source-is-broader-than-target"
             },
             {
+              "code": "271650006",
               "display": "Diastolic blood pressure",
-              "relationship": "equivalent",
-              "code": "271650006"
+              "relationship": "equivalent"
             }
-          ],
-          "code": "1000000009"
+          ]
         }
       ],
+      "source": "http://example.org/CodeSystem/local-measure-type",
       "target": "http://snomed.info/sct"
     },
     {
-      "source": "http://example.org/CodeSystem/local-measure-type",
       "element": [
         {
+          "code": "1000000008",
           "display": "BP -  Systolic blood pressure",
-          "target": [
-            {
-              "display": "Systolic blood pressure",
-              "relationship": "equivalent",
-              "code": "8480-6"
-            }
-          ],
-          "code": "1000000008"
+          "target": {
+            "code": "8480-6",
+            "display": "Systolic blood pressure",
+            "relationship": "equivalent"
+          }
         },
         {
+          "code": "1000000009",
           "display": "BP - Diastolic blood pressure",
-          "target": [
-            {
-              "display": "Diastolic blood pressure",
-              "relationship": "equivalent",
-              "code": "8462-4"
-            }
-          ],
-          "code": "1000000009"
+          "target": {
+            "code": "8462-4",
+            "display": "Diastolic blood pressure",
+            "relationship": "equivalent"
+          }
         }
       ],
+      "source": "http://example.org/CodeSystem/local-measure-type",
       "target": "http://loinc.org"
     },
     {
-      "source": "http://loinc.org",
       "element": [
         {
+          "code": "8480-6",
           "display": "Systolic blood pressure",
-          "target": [
-            {
-              "display": "BP -  Systolic blood pressure",
-              "relationship": "equivalent",
-              "code": "1000000008"
-            }
-          ],
-          "code": "8480-6"
+          "target": {
+            "code": "1000000008",
+            "display": "BP -  Systolic blood pressure",
+            "relationship": "equivalent"
+          }
         },
         {
+          "code": "8462-4",
           "display": "Diastolic blood pressure",
-          "target": [
-            {
-              "display": "BP - Diastolic blood pressure",
-              "relationship": "equivalent",
-              "code": "1000000009"
-            }
-          ],
-          "code": "8462-4"
+          "target": {
+            "code": "1000000009",
+            "display": "BP - Diastolic blood pressure",
+            "relationship": "equivalent"
+          }
         }
       ],
+      "source": "http://loinc.org",
       "target": "http://example.org/CodeSystem/local-measure-type"
     }
   ],
-  "title": "Demo map from SNOMED/Loinc to/from local measure type mapping",
-  "resourceType": "ConceptMap",
   "id": "example-obs-map",
-  "version": "0.1",
-  "status": "draft"
+  "resourceType": "ConceptMap",
+  "status": "draft",
+  "targetScopeCanonical": "http://example.org/ValueSet/local-measure-type",
+  "title": "Demo map from SNOMED/Loinc to/from local measure type mapping",
+  "url": "http://example.org/ConceptMap/example-obs-map",
+  "version": "0.1"
 }

@@ -1,99 +1,99 @@
 {
-  "resourceType": "Observation",
-  "id": "example",
-  "extension": [
-    {
-      "url": "http://example.com/fhir/StructureDefinition/patient-age",
-      "valueAge": {
-        "value": 30,
-        "unit": "years",
-        "system": "http://unitsofmeasure.org",
-        "code": "a"
-      }
-    }
-  ],
-  "text": {
-    "status": "generated",
-    "div": {
-      "p": [
-        {
-          "b": "Generated Narrative with Details"
-        },
-        {
-          "b": "id"
-        },
-        {
-          "b": "status"
-        },
-        {
-          "b": "category",
-          "span": "(Details : {http://terminology.hl7.org/CodeSystem/observation-category code 'vital-signs' = 'Vital Signs', given as 'Vital Signs'})"
-        },
-        {
-          "b": "code",
-          "span": "(Details : {LOINC code '29463-7' = 'Body weight', given as 'Body Weight'}; {LOINC code '3141-9' = 'Body weight Measured', given as 'Body weight Measured'}; {SNOMED CT code '27113001' = 'Body weight', given as 'Body weight'}; {http://acme.org/devices/clinical-codes code 'body-weight' = 'body-weight', given as 'Body Weight'})"
-        },
-        {
-          "b": "subject",
-          "a": "Patient/example"
-        },
-        {
-          "b": "encounter",
-          "a": "Encounter/example"
-        },
-        {
-          "b": "effective"
-        },
-        {
-          "b": "value",
-          "span": "(Details: UCUM code [lb_av] = 'lb_av')"
-        }
-      ]
-    }
-  },
-  "status": "final",
   "category": {
-    "coding": {
-      "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-      "code": "vital-signs",
-      "display": "Vital Signs"
-    }
+    "coding": [
+      {
+        "code": "vital-signs",
+        "display": "Vital Signs",
+        "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+      }
+    ]
   },
   "code": {
     "coding": [
       {
-        "system": "http://loinc.org",
         "code": "29463-7",
-        "display": "Body Weight"
+        "display": "Body Weight",
+        "system": "http://loinc.org"
       },
       {
-        "system": "http://loinc.org",
         "code": "3141-9",
-        "display": "Body weight Measured"
+        "display": "Body weight Measured",
+        "system": "http://loinc.org"
       },
       {
-        "system": "http://snomed.info/sct",
-        "code": 27113001,
-        "display": "Body weight"
+        "code": "27113001",
+        "display": "Body weight",
+        "system": "http://snomed.info/sct"
       },
       {
-        "system": "http://acme.org/devices/clinical-codes",
         "code": "body-weight",
-        "display": "Body Weight"
+        "display": "Body Weight",
+        "system": "http://acme.org/devices/clinical-codes"
       }
     ]
   },
-  "subject": {
-    "reference": "Patient/example"
-  },
+  "effectiveDateTime": "2016-03-28",
   "encounter": {
     "reference": "Encounter/example"
   },
-  "effectiveDateTime": "2016-03-28",
+  "extension": [
+    {
+      "valueAge": {
+        "code": "a",
+        "system": "http://unitsofmeasure.org",
+        "value": "41"
+      }
+    }
+  ],
+  "id": "example",
+  "resourceType": "Observation",
+  "status": "final",
+  "subject": {
+    "reference": "Patient/example"
+  },
+  "text": {
+    "div": {
+      "p": [
+        {
+          "b": {}
+        },
+        {
+          "b": {}
+        },
+        {
+          "b": {}
+        },
+        {
+          "b": {},
+          "span": {}
+        },
+        {
+          "b": {},
+          "span": {}
+        },
+        {
+          "a": {},
+          "b": {}
+        },
+        {
+          "a": {},
+          "b": {}
+        },
+        {
+          "b": {}
+        },
+        {
+          "b": {},
+          "span": {}
+        }
+      ]
+    },
+    "status": "generated"
+  },
   "valueQuantity": {
-    "value": 185,
-    "unit": "lbs",
+    "code": "[lb_av]",
     "system": "http://unitsofmeasure.org",
-    "code": "[lb_av]"
+    "unit": "lbs",
+    "value": "185"
   }
 }

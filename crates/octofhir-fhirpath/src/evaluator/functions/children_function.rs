@@ -8,9 +8,9 @@ use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 use crate::ast::ExpressionNode;
 
 /// Children function evaluator
@@ -20,7 +20,7 @@ pub struct ChildrenFunctionEvaluator {
 
 impl ChildrenFunctionEvaluator {
     /// Create a new children function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "children".to_string(),
@@ -33,6 +33,8 @@ impl ChildrenFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Returns unordered collection
                 category: FunctionCategory::TreeNavigation,
@@ -107,13 +109,11 @@ impl ChildrenFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ChildrenFunctionEvaluator {
+impl PureFunctionEvaluator for ChildrenFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(crate::core::FhirPathError::evaluation_error(

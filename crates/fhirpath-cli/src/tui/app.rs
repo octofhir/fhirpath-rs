@@ -485,7 +485,7 @@ impl TuiApp {
                 let context_collection = octofhir_fhirpath::Collection::single(resource.clone());
                 let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
                 let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
+                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {
@@ -514,7 +514,7 @@ impl TuiApp {
                 let context_collection = octofhir_fhirpath::Collection::empty();
                 let embedded_provider = octofhir_fhir_model::EmptyModelProvider;
                 let mut eval_context =
-                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
+                    octofhir_fhirpath::EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
 
                 // Set variables if any
                 for (name, value) in &self.state.variables {

@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use crate::evaluator::quantity_utils;
 
 /// Comparable function evaluator
@@ -21,7 +20,7 @@ pub struct ComparableFunctionEvaluator {
 
 impl ComparableFunctionEvaluator {
     /// Create a new comparable function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "comparable".to_string(),
@@ -41,6 +40,8 @@ impl ComparableFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Logic,
@@ -51,12 +52,15 @@ impl ComparableFunctionEvaluator {
     }
 
     /// Check if two units are comparable (same dimension) using UCUM library
-    fn are_units_comparable(&self, left_unit: &Option<String>, right_unit: &Option<String>) -> bool {
+    fn are_units_comparable(
+        &self,
+        left_unit: &Option<String>,
+        right_unit: &Option<String>,
+    ) -> bool {
         match (left_unit, right_unit) {
             (Some(left), Some(right)) => {
                 // Use the UCUM library to check if units are comparable
-                quantity_utils::are_ucum_units_comparable(left, right)
-                    .unwrap_or(false) // If there's an error (e.g., invalid unit), consider them not comparable
+                quantity_utils::are_ucum_units_comparable(left, right).unwrap_or(false) // If there's an error (e.g., invalid unit), consider them not comparable
             }
             // If both units are None, they are comparable (both dimensionless)
             (None, None) => true,
@@ -83,8 +87,12 @@ impl ComparableFunctionEvaluator {
 
             // Quantities are comparable if they have compatible units
             (
-                FhirPathValue::Quantity { unit: left_unit, .. },
-                FhirPathValue::Quantity { unit: right_unit, .. },
+                FhirPathValue::Quantity {
+                    unit: left_unit, ..
+                },
+                FhirPathValue::Quantity {
+                    unit: right_unit, ..
+                },
             ) => self.are_units_comparable(left_unit, right_unit),
 
             // Different types are generally not comparable
@@ -94,13 +102,11 @@ impl ComparableFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ComparableFunctionEvaluator {
+impl PureFunctionEvaluator for ComparableFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -109,23 +115,20 @@ impl FunctionEvaluator for ComparableFunctionEvaluator {
             ));
         }
 
-        // Evaluate the other value
-        let other_result = evaluator.evaluate(&args[0], context).await?;
+        // Handle empty input or arguments - propagate empty collections
+        if input.is_empty() || args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
         let mut results = Vec::new();
 
         for left_value in &input {
-            for right_value in other_result.value.iter() {
+            for right_value in &args[0] {
                 let is_comparable = self.are_comparable(left_value, right_value);
                 results.push(FhirPathValue::boolean(is_comparable));
             }
-        }
-
-        // If either input or other is empty, return empty
-        if input.is_empty() || other_result.value.is_empty() {
-            return Ok(EvaluationResult {
-                value: crate::core::Collection::empty(),
-            });
         }
 
         Ok(EvaluationResult {

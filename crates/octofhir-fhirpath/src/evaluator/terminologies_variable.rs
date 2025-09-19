@@ -99,7 +99,7 @@ pub fn extract_terminology_provider_from_terminologies_variable(
 ) -> Option<Arc<dyn TerminologyProvider>> {
     if is_terminologies_variable(value) {
         // Return the terminology provider from the context
-        context.terminology_provider()
+        context.terminology_provider().cloned()
     } else {
         None
     }

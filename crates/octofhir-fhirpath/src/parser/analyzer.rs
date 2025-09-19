@@ -73,7 +73,7 @@ impl SemanticAnalyzer {
         Box<dyn std::future::Future<Output = Result<AnalysisMetadata, FhirPathError>> + 'a>,
     > {
         Box::pin(async move {
-            match node {
+            let result = match node {
                 ExpressionNode::Identifier(identifier) => {
                     self.analyze_identifier(identifier, analysis).await
                 }
@@ -94,7 +94,11 @@ impl SemanticAnalyzer {
                     // For now, return empty metadata for other node types
                     Ok(AnalysisMetadata::new())
                 }
-            }
+            };
+
+            // After analyzing a node, we're no longer at the chain head
+            self.is_chain_head = false;
+            result
         })
     }
 
@@ -344,6 +348,28 @@ impl SemanticAnalyzer {
         func_call: &FunctionCallNode,
         analysis: &mut ExpressionAnalysis,
     ) -> Result<AnalysisMetadata, FhirPathError> {
+        // Check for functions that require an input context but are called without one
+        let functions_requiring_context = [
+            "length", "empty", "count", "first", "last", "tail", "skip", "take",
+            "exists", "all", "any", "allTrue", "anyTrue", "distinct", "children",
+            "descendants", "where", "select", "single", "hasValue"
+        ];
+
+        if functions_requiring_context.contains(&func_call.name.as_str()) && self.is_chain_head {
+            // This function requires an input context but is being called at the start of a chain
+            analysis.success = false;
+            analysis.add_diagnostic(Diagnostic {
+                severity: DiagnosticSeverity::Error,
+                code: DiagnosticCode {
+                    code: "CONTEXT_REQUIRED".to_string(),
+                    namespace: Some("fhirpath".to_string()),
+                },
+                message: format!("{} function requires an input context", func_call.name),
+                location: func_call.location.clone(),
+                related: vec![],
+            });
+        }
+
         // Check for specific function type validation
         if func_call.name == "iif" && func_call.arguments.len() >= 1 {
             // Analyze the first argument (condition) - should be boolean
@@ -366,6 +392,30 @@ impl SemanticAnalyzer {
                     });
                 }
             }
+
+            // Check if condition involves union operations (creates collections)
+            if self.contains_union_operation(condition_expr) {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "COLLECTION_IN_BOOLEAN_CONTEXT".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: "iif function condition cannot be a collection, must be a single boolean value".to_string(),
+                    location: condition_expr.location().cloned(),
+                    related: vec![],
+                });
+            }
+        }
+
+        // Analyze function arguments recursively
+        for arg in &func_call.arguments {
+            // Set context for analyzing arguments - they are not at chain head
+            let prev_chain_head = self.is_chain_head;
+            self.is_chain_head = true; // Arguments start their own chains
+            let _arg_metadata = self.analyze_node(arg, analysis).await?;
+            self.is_chain_head = prev_chain_head;
         }
 
         Ok(AnalysisMetadata::new())
@@ -377,13 +427,20 @@ impl SemanticAnalyzer {
         method_call: &MethodCallNode,
         analysis: &mut ExpressionAnalysis,
     ) -> Result<AnalysisMetadata, FhirPathError> {
-        // Analyze the object first
+        // Analyze the object first - this provides the context for the method
+        let prev_chain_head = self.is_chain_head;
         let _object_metadata = self.analyze_node(&method_call.object, analysis).await?;
+
+        // The method call is not at the chain head since it has an object
+        self.is_chain_head = false;
 
         // Check for specific method type validation
         if method_call.method == "iif" && method_call.arguments.len() >= 1 {
             // Analyze the first argument (condition) - should be boolean
             let condition_expr = &method_call.arguments[0];
+
+            // Arguments start their own chains
+            self.is_chain_head = true;
             let _metadata = self.analyze_node(condition_expr, analysis).await?;
 
             // Check if it's a literal non-boolean value
@@ -402,8 +459,30 @@ impl SemanticAnalyzer {
                     });
                 }
             }
+
+            // Check if condition involves union operations (creates collections)
+            if self.contains_union_operation(condition_expr) {
+                analysis.success = false;
+                analysis.add_diagnostic(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    code: DiagnosticCode {
+                        code: "COLLECTION_IN_BOOLEAN_CONTEXT".to_string(),
+                        namespace: Some("fhirpath".to_string()),
+                    },
+                    message: "iif function condition cannot be a collection, must be a single boolean value".to_string(),
+                    location: condition_expr.location().cloned(),
+                    related: vec![],
+                });
+            }
         }
 
+        // Analyze any other method arguments
+        for arg in &method_call.arguments {
+            self.is_chain_head = true; // Arguments start their own chains
+            let _arg_metadata = self.analyze_node(arg, analysis).await?;
+        }
+
+        self.is_chain_head = prev_chain_head;
         Ok(AnalysisMetadata::new())
     }
 
@@ -411,6 +490,38 @@ impl SemanticAnalyzer {
     pub fn reset(&mut self) {
         self.input_type = None;
         self.is_chain_head = true;
+    }
+
+    /// Check if an expression contains union operations (creates collections)
+    fn contains_union_operation(&self, expr: &ExpressionNode) -> bool {
+        match expr {
+            ExpressionNode::BinaryOperation(binary_op) => {
+                if binary_op.operator == BinaryOperator::Union {
+                    true
+                } else {
+                    // Recursively check both operands
+                    self.contains_union_operation(&binary_op.left) ||
+                    self.contains_union_operation(&binary_op.right)
+                }
+            }
+            ExpressionNode::FunctionCall(func_call) => {
+                // Check function arguments
+                func_call.arguments.iter().any(|arg| self.contains_union_operation(arg))
+            }
+            ExpressionNode::MethodCall(method_call) => {
+                // Check object and method arguments
+                self.contains_union_operation(&method_call.object) ||
+                method_call.arguments.iter().any(|arg| self.contains_union_operation(arg))
+            }
+            ExpressionNode::PropertyAccess(prop_access) => {
+                // Check the object being accessed
+                self.contains_union_operation(&prop_access.object)
+            }
+            // Literals and identifiers don't contain unions
+            ExpressionNode::Literal(_) | ExpressionNode::Identifier(_) => false,
+            // For other node types, assume no union for now
+            _ => false,
+        }
     }
 }
 
@@ -453,7 +564,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_semantic_analyzer_creation() {
-        let model_provider = Arc::new(EmptyModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider);
         let analyzer = SemanticAnalyzer::new(model_provider);
         assert!(analyzer.input_type.is_none());
         assert!(analyzer.is_chain_head);
@@ -461,7 +572,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resource_type_analysis() {
-        let model_provider = Arc::new(EmptyModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider);
         let mut analyzer = SemanticAnalyzer::new(model_provider);
 
         let identifier = ExpressionNode::identifier("Patient");
@@ -476,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_string_distance() {
-        let model_provider = Arc::new(EmptyModelProvider::new());
+        let model_provider = Arc::new(EmptyModelProvider);
         let analyzer = SemanticAnalyzer::new(model_provider);
 
         assert_eq!(analyzer.string_distance("test", "test"), 0);

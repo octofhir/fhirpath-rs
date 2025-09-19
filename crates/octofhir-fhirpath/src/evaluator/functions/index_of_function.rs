@@ -6,13 +6,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// IndexOf function evaluator
 pub struct IndexOfFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct IndexOfFunctionEvaluator {
 
 impl IndexOfFunctionEvaluator {
     /// Create a new indexOf function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "indexOf".to_string(),
@@ -43,6 +42,8 @@ impl IndexOfFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -94,13 +95,11 @@ impl IndexOfFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for IndexOfFunctionEvaluator {
+impl PureFunctionEvaluator for IndexOfFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -116,9 +115,8 @@ impl FunctionEvaluator for IndexOfFunctionEvaluator {
             });
         }
 
-        // Evaluate search value argument
-        let search_result = evaluator.evaluate(&args[0], context).await?;
-        let search_values: Vec<FhirPathValue> = search_result.value.iter().cloned().collect();
+        // Get search value argument from pre-evaluated args
+        let search_values = &args[0];
 
         // Handle empty search parameter - propagate empty collections
         if search_values.is_empty() {

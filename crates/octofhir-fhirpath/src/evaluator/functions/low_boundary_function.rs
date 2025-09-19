@@ -11,22 +11,21 @@ use crate::ast::ExpressionNode;
 use crate::core::error_code::{FP0053, FP0054, FP0055, FP0056, FP0057};
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::functions::boundary_utils::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::functions::boundary_utils::{
     BoundaryKind, NumericBoundaryError, compute_date_boundary, compute_datetime_boundary,
     compute_numeric_boundaries, compute_time_boundary, resolve_date_precision,
     resolve_datetime_precision, resolve_time_precision,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 pub struct LowBoundaryFunctionEvaluator {
     metadata: FunctionMetadata,
 }
 
 impl LowBoundaryFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "lowBoundary".to_string(),
@@ -37,7 +36,7 @@ impl LowBoundaryFunctionEvaluator {
                         name: "precision".to_string(),
                         parameter_type: vec!["Integer".to_string(), "Decimal".to_string()],
                         optional: true,
-                        is_expression: true,
+                        is_expression: false,
                         description: "Optional precision override".to_string(),
                         default_value: None,
                     }],
@@ -46,6 +45,8 @@ impl LowBoundaryFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Utility,
@@ -57,13 +58,11 @@ impl LowBoundaryFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for LowBoundaryFunctionEvaluator {
+impl PureFunctionEvaluator for LowBoundaryFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
@@ -86,20 +85,19 @@ impl FunctionEvaluator for LowBoundaryFunctionEvaluator {
         }
 
         let precision_value = if let Some(arg) = args.first() {
-            let evaluated = evaluator.evaluate(arg, context).await?;
-            if evaluated.value.is_empty() {
+            if arg.is_empty() {
                 return Ok(EvaluationResult {
                     value: Collection::empty(),
                 });
             }
-            if evaluated.value.len() != 1 {
+            if arg.len() != 1 {
                 return Err(FhirPathError::evaluation_error(
                     FP0056,
                     "precision argument must evaluate to a single value".to_string(),
                 ));
             }
 
-            Some(match evaluated.value.first().unwrap() {
+            Some(match &arg[0] {
                 FhirPathValue::Integer(i, _, _) => *i as i32,
                 FhirPathValue::Decimal(d, _, _) => d.to_i32().ok_or_else(|| {
                     FhirPathError::evaluation_error(

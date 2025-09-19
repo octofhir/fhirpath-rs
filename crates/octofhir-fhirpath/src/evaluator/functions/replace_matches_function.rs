@@ -10,10 +10,9 @@ use regex::Regex;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// replaceMatches function evaluator
 pub struct ReplaceMatchesFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct ReplaceMatchesFunctionEvaluator {
 
 impl ReplaceMatchesFunctionEvaluator {
     /// Create a new replaceMatches function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "replaceMatches".to_string(),
@@ -34,7 +33,7 @@ impl ReplaceMatchesFunctionEvaluator {
                             name: "pattern".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Regular expression pattern to match".to_string(),
                             default_value: None,
                         },
@@ -42,7 +41,7 @@ impl ReplaceMatchesFunctionEvaluator {
                             name: "substitution".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Replacement text for each match".to_string(),
                             default_value: None,
                         },
@@ -52,6 +51,8 @@ impl ReplaceMatchesFunctionEvaluator {
                     min_params: 2,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -63,13 +64,11 @@ impl ReplaceMatchesFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ReplaceMatchesFunctionEvaluator {
+impl PureFunctionEvaluator for ReplaceMatchesFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 2 {
             return Err(FhirPathError::evaluation_error(
@@ -81,15 +80,15 @@ impl FunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             ));
         }
 
-        // Evaluate the pattern argument
-        let pattern_result = evaluator.evaluate(&args[0], context).await?;
-        if pattern_result.value.is_empty() {
+        // Get the pattern argument (pre-evaluated)
+        let pattern_arg = &args[0];
+        if pattern_arg.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        if pattern_result.value.len() != 1 {
+        if pattern_arg.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
                 "replaceMatches function pattern parameter must evaluate to a single value"
@@ -97,8 +96,7 @@ impl FunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             ));
         }
 
-        let pattern = pattern_result
-            .value
+        let pattern = pattern_arg
             .first()
             .and_then(|v| v.as_string())
             .ok_or_else(|| {
@@ -109,15 +107,15 @@ impl FunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             })?
             .to_string();
 
-        // Evaluate the substitution argument
-        let substitution_result = evaluator.evaluate(&args[1], context).await?;
-        if substitution_result.value.is_empty() {
+        // Get the substitution argument (pre-evaluated)
+        let substitution_arg = &args[1];
+        if substitution_arg.is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        if substitution_result.value.len() != 1 {
+        if substitution_arg.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
                 "replaceMatches function substitution parameter must evaluate to a single value"
@@ -125,8 +123,7 @@ impl FunctionEvaluator for ReplaceMatchesFunctionEvaluator {
             ));
         }
 
-        let substitution = substitution_result
-            .value
+        let substitution = substitution_arg
             .first()
             .and_then(|v| v.as_string())
             .ok_or_else(|| {

@@ -7,13 +7,12 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// ofType function evaluator for filtering collections by type
 pub struct OfTypeFunctionEvaluator {
@@ -29,7 +28,7 @@ impl OfTypeFunctionEvaluator {
     }
 
     /// Create an Arc-wrapped instance for registry registration
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self::new())
     }
 
@@ -56,13 +55,12 @@ impl OfTypeFunctionEvaluator {
 }
 
 #[async_trait]
-impl FunctionEvaluator for OfTypeFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for OfTypeFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
+        args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         // Spec: ofType(type) filters the input collection to only items of the specified type
 
@@ -74,27 +72,27 @@ impl FunctionEvaluator for OfTypeFunctionEvaluator {
             ));
         }
 
-        // Extract the type name from the AST node (can be identifier or string literal)
-        let type_name = match &args[0] {
-            ExpressionNode::Literal(literal_node) => {
-                match &literal_node.value {
-                    crate::ast::literal::LiteralValue::String(s) => s.clone(),
-                    _ => {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0062,
-                            "ofType function type argument must be a string literal or identifier",
-                        ));
-                    }
-                }
-            }
-            ExpressionNode::Identifier(identifier_node) => {
-                // Accept identifier as type name (e.g., String, code, Patient)
-                identifier_node.name.clone()
-            }
+        // Extract the type name from pre-evaluated arguments
+        if args.is_empty() || args[0].is_empty() {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0062,
+                "ofType function requires a type argument",
+            ));
+        }
+
+        if args[0].len() != 1 {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0062,
+                "ofType function type argument must evaluate to a single value",
+            ));
+        }
+
+        let type_name = match &args[0][0] {
+            FhirPathValue::String(s, _, _) => s.clone(),
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0062,
-                    "ofType function type argument must be a type identifier or string literal",
+                    "ofType function type argument must be a string",
                 ));
             }
         };
@@ -214,6 +212,8 @@ fn create_metadata() -> FunctionMetadata {
             min_params: 1,
             max_params: Some(1),
         },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
         empty_propagation: EmptyPropagation::Propagate,
         deterministic: true,
         category: FunctionCategory::FilteringProjection,

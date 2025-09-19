@@ -106,8 +106,10 @@ impl LessThanOperatorEvaluator {
                 Some(*l < right_decimal)
             }
 
-            // String comparison (lexicographic)
-            (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => Some(l < r),
+            // String comparison - try temporal parsing first, fall back to lexicographic
+            (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => {
+                self.compare_strings_with_temporal_parsing(l, r)
+            }
 
             // Date comparison
             (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
@@ -140,34 +142,15 @@ impl LessThanOperatorEvaluator {
             }
 
             // Cross-type temporal comparisons: Date vs DateTime
-            // For Date vs DateTime, convert Date to DateTime at start of day (UTC) for comparison
-            (FhirPathValue::Date(l, _, _), FhirPathValue::DateTime(r, _, _)) => {
-                // Convert date to datetime at start of day (00:00:00) in UTC for comparison
-                if let Some(naive_datetime) = l.date.and_hms_opt(0, 0, 0) {
-                    if let Some(offset) = chrono::FixedOffset::east_opt(0) {
-                        let datetime = offset.from_utc_datetime(&naive_datetime);
-                        let left_as_datetime = PrecisionDateTime::new(datetime, TemporalPrecision::Day);
-                        Some(left_as_datetime < *r)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+            // According to FHIRPath spec: "If one value is specified to a different level of precision
+            // than the other, the result is empty ({ }) to indicate that the result of the comparison is unknown"
+            (FhirPathValue::Date(_, _, _), FhirPathValue::DateTime(_, _, _)) => {
+                // Different precision levels - return empty (None) per FHIRPath specification
+                None
             }
-            (FhirPathValue::DateTime(l, _, _), FhirPathValue::Date(r, _, _)) => {
-                // Convert date to datetime at start of day (00:00:00) in UTC for comparison
-                if let Some(naive_datetime) = r.date.and_hms_opt(0, 0, 0) {
-                    if let Some(offset) = chrono::FixedOffset::east_opt(0) {
-                        let datetime = offset.from_utc_datetime(&naive_datetime);
-                        let right_as_datetime = PrecisionDateTime::new(datetime, TemporalPrecision::Day);
-                        Some(*l < right_as_datetime)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+            (FhirPathValue::DateTime(_, _, _), FhirPathValue::Date(_, _, _)) => {
+                // Different precision levels - return empty (None) per FHIRPath specification
+                None
             }
 
             // Other cross-type temporal comparisons are not supported
@@ -201,6 +184,53 @@ impl LessThanOperatorEvaluator {
 
             // Other types are not orderable
             _ => None,
+        }
+    }
+
+    /// Compare two strings, attempting to parse as temporal values first
+    fn compare_strings_with_temporal_parsing(&self, left: &str, right: &str) -> Option<bool> {
+        // Try to parse both strings as temporal values
+        match (PrecisionDate::parse(left), PrecisionDate::parse(right)) {
+            (Some(l_date), Some(r_date)) => {
+                // Both parsed as dates - use temporal comparison with precision awareness
+                match l_date.partial_cmp(&r_date) {
+                    Some(std::cmp::Ordering::Less) => Some(true),
+                    Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(false),
+                    None => None, // Different precisions or uncertain comparison
+                }
+            }
+            _ => {
+                // Try parsing as datetimes
+                match (PrecisionDateTime::parse(left), PrecisionDateTime::parse(right)) {
+                    (Some(l_dt), Some(r_dt)) => {
+                        // Both parsed as datetimes - use temporal comparison with precision awareness
+                        match l_dt.partial_cmp(&r_dt) {
+                            Some(std::cmp::Ordering::Less) => Some(true),
+                            Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => Some(false),
+                            None => None, // Different precisions or uncertain comparison
+                        }
+                    }
+                    _ => {
+                        // Try mixed date/datetime parsing
+                        match (PrecisionDate::parse(left), PrecisionDateTime::parse(right)) {
+                            (Some(_), Some(_)) => {
+                                // According to FHIRPath spec: different precision levels return empty
+                                None
+                            }
+                            _ => match (PrecisionDateTime::parse(left), PrecisionDate::parse(right)) {
+                                (Some(_), Some(_)) => {
+                                    // According to FHIRPath spec: different precision levels return empty
+                                    None
+                                }
+                                _ => {
+                                    // Neither string could be parsed as temporal - fall back to lexicographic comparison
+                                    Some(left < right)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

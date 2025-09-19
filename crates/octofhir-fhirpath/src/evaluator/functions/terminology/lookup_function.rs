@@ -9,8 +9,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use octofhir_fhir_model::TerminologyProvider;
@@ -22,7 +22,7 @@ pub struct LookupFunctionEvaluator {
 
 impl LookupFunctionEvaluator {
     /// Create a new lookup function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "lookup".to_string(),
@@ -34,7 +34,7 @@ impl LookupFunctionEvaluator {
                             name: "system".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: true,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Code system URL. Required when input is not a Coding.".to_string(),
                             default_value: None,
                         },
@@ -42,7 +42,7 @@ impl LookupFunctionEvaluator {
                             name: "code".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: true,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Code value. Required when input is not a Coding.".to_string(),
                             default_value: None,
                         }
@@ -52,6 +52,8 @@ impl LookupFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Terminology operations may change over time
                 category: FunctionCategory::Utility,
@@ -151,7 +153,7 @@ impl LookupFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for LookupFunctionEvaluator {
+impl LazyFunctionEvaluator for LookupFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

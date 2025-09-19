@@ -9,8 +9,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
@@ -21,7 +21,7 @@ pub struct DefineVariableFunctionEvaluator {
 
 impl DefineVariableFunctionEvaluator {
     /// Create a new defineVariable function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "defineVariable".to_string(),
@@ -33,24 +33,26 @@ impl DefineVariableFunctionEvaluator {
                             name: "name".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "The variable name to define".to_string(),
                             default_value: None,
                         },
                         FunctionParameter {
                             name: "value".to_string(),
                             parameter_type: vec!["Any".to_string()],
-                            optional: false,
+                            optional: true,
                             is_expression: true,
-                            description: "The value expression to assign to the variable".to_string(),
+                            description: "The value expression to assign to the variable (optional)".to_string(),
                             default_value: None,
                         }
                     ],
                     return_type: "Collection".to_string(),
                     polymorphic: true,
-                    min_params: 2,
+                    min_params: 1,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Utility,
@@ -62,7 +64,7 @@ impl DefineVariableFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for DefineVariableFunctionEvaluator {
+impl LazyFunctionEvaluator for DefineVariableFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -70,10 +72,10 @@ impl FunctionEvaluator for DefineVariableFunctionEvaluator {
         args: Vec<ExpressionNode>,
         evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
-        if args.len() != 2 {
+        if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
-                "defineVariable function requires exactly two arguments (name, value)".to_string(),
+                "defineVariable function requires one or two arguments (name, [value])".to_string(),
             ));
         }
 
@@ -127,37 +129,49 @@ impl FunctionEvaluator for DefineVariableFunctionEvaluator {
             ));
         }
 
-        // Evaluate the variable value in the current context
-        let value_result = evaluator.evaluate(&args[1], context).await?;
+        if context.get_variable(&variable_name).is_some() {
+            return Err(FhirPathError::evaluation_error(
+                crate::core::error_code::FP0058,
+                format!(
+                    "Variable '{}' is already defined in this scope",
+                    variable_name
+                ),
+            ));
+        }
 
-        // Get the collection as the variable value (defineVariable can assign collections)
-        let variable_value = if value_result.value.is_empty() {
-            // If the value expression evaluates to empty, use empty value
-            FhirPathValue::Empty
-        } else if value_result.value.len() == 1 {
-            // Single value - store directly
-            value_result
-                .value
-                .iter()
-                .next()
-                .cloned()
-                .unwrap_or(FhirPathValue::Empty)
+        if args.len() == 1 {
+            // Single-parameter form: defineVariable(name) - assign current focus
+            let variable_value = if input.is_empty() {
+                FhirPathValue::Empty
+            } else if input.len() == 1 {
+                input.iter().next().cloned().unwrap_or(FhirPathValue::Empty)
+            } else {
+                FhirPathValue::Collection(crate::core::Collection::from(input.clone()))
+            };
+            context.set_variable(variable_name, variable_value);
         } else {
-            // Multiple values - store as a collection
-            FhirPathValue::Collection(value_result.value.clone())
-        };
+            // Two-parameter form: defineVariable(name, value) - evaluate value expression
+            // Create child context with current input as focus for value evaluation
+            let child_context =
+                context.create_child_context(crate::core::Collection::from(input.clone()));
+            let value_result = evaluator.evaluate(&args[1], &child_context).await?;
 
-        // For now, we'll implement a basic version that stores the variable
-        // but doesn't make it available to subsequent expressions in the chain
-        // This is a limitation of the current architecture where context is immutable
+            let variable_value = if value_result.value.is_empty() {
+                FhirPathValue::Empty
+            } else if value_result.value.len() == 1 {
+                value_result
+                    .value
+                    .iter()
+                    .next()
+                    .cloned()
+                    .unwrap_or(FhirPathValue::Empty)
+            } else {
+                FhirPathValue::Collection(value_result.value.clone())
+            };
+            context.set_variable(variable_name, variable_value);
+        }
 
-        // Log the variable definition (in a real implementation, this would be stored
-        // in a mutable context that persists across the evaluation chain)
-        log::debug!("defineVariable: {} = {:?}", variable_name, variable_value);
-
-        // Return the original input collection (defineVariable is a pass-through function)
-        // NOTE: The variable is not actually available for subsequent expressions
-        // This requires architectural changes to support context mutation
+        // Return original focus (input collection) - variable is now available in current scope
         Ok(EvaluationResult {
             value: crate::core::Collection::from(input),
         })

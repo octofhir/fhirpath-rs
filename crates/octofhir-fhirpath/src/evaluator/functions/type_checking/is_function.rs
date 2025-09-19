@@ -8,8 +8,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, LazyFunctionEvaluator,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
@@ -20,7 +20,7 @@ pub struct IsFunctionEvaluator {
 
 impl IsFunctionEvaluator {
     /// Create a new is function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "is".to_string(),
@@ -40,6 +40,8 @@ impl IsFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Utility,
@@ -114,7 +116,7 @@ impl IsFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for IsFunctionEvaluator {
+impl LazyFunctionEvaluator for IsFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -129,27 +131,26 @@ impl FunctionEvaluator for IsFunctionEvaluator {
             ));
         }
 
-        // Extract the type name from the AST node (can be identifier or string literal)
+        // Extract type identifier from AST node directly instead of evaluating
         let type_name = match &args[0] {
-            ExpressionNode::Literal(literal_node) => {
-                match &literal_node.value {
-                    crate::ast::literal::LiteralValue::String(s) => s.clone(),
-                    _ => {
-                        return Err(FhirPathError::evaluation_error(
-                            crate::core::error_code::FP0055,
-                            "Type argument must be a string literal".to_string(),
-                        ));
-                    }
-                }
-            }
             ExpressionNode::Identifier(identifier_node) => {
-                // Accept identifier as type name (e.g., String, Integer)
                 identifier_node.name.clone()
+            }
+            ExpressionNode::PropertyAccess(property_access_node) => {
+                // Handle property access like FHIR.boolean, System.Boolean
+                if let ExpressionNode::Identifier(base_identifier) = property_access_node.object.as_ref() {
+                    format!("{}.{}", base_identifier.name, property_access_node.property)
+                } else {
+                    return Err(FhirPathError::evaluation_error(
+                        crate::core::error_code::FP0055,
+                        format!("Type argument must be an identifier or property access, got {:?}", args[0]),
+                    ));
+                }
             }
             _ => {
                 return Err(FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
-                    "Type argument must be a type name or string literal".to_string(),
+                    format!("Type argument must be an identifier or property access, got {:?}", args[0]),
                 ));
             }
         };

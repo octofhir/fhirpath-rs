@@ -1,11 +1,10 @@
 //! Last function implementation
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy,
+};use crate::evaluator::EvaluationResult;
 use std::sync::Arc;
 
 pub struct LastFunctionEvaluator {
@@ -13,7 +12,7 @@ pub struct LastFunctionEvaluator {
 }
 
 impl LastFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "last".to_string(),
@@ -26,6 +25,8 @@ impl LastFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Custom,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -37,13 +38,11 @@ impl LastFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for LastFunctionEvaluator {
+impl PureFunctionEvaluator for LastFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        _args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         let result = if input.is_empty() {
             Vec::new()

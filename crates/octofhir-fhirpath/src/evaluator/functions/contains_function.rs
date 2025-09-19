@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
+use crate::evaluator::EvaluationResult;
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata,
+    FunctionParameter, FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Contains function evaluator
 pub struct ContainsFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct ContainsFunctionEvaluator {
 
 impl ContainsFunctionEvaluator {
     /// Create a new contains function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "contains".to_string(),
@@ -40,7 +39,9 @@ impl ContainsFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
-                empty_propagation: EmptyPropagation::Propagate,
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
+                empty_propagation: EmptyPropagation::Custom,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
                 requires_terminology: false,
@@ -51,13 +52,11 @@ impl ContainsFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ContainsFunctionEvaluator {
+impl PureFunctionEvaluator for ContainsFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -66,18 +65,20 @@ impl FunctionEvaluator for ContainsFunctionEvaluator {
             ));
         }
 
-        // Evaluate the substring argument
-        let substring_result = evaluator.evaluate(&args[0], context).await?;
-        let substring = substring_result
-            .value
-            .first()
-            .and_then(|v| v.as_string())
-            .ok_or_else(|| {
-                FhirPathError::evaluation_error(
-                    crate::core::error_code::FP0055,
-                    "contains function requires a string argument".to_string(),
-                )
-            })?;
+        // If input is empty, return empty collection
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
+
+        // Get the substring argument
+        let substring = args[0].first().and_then(|v| v.as_string()).ok_or_else(|| {
+            FhirPathError::evaluation_error(
+                crate::core::error_code::FP0055,
+                "contains function requires a string argument".to_string(),
+            )
+        })?;
 
         let mut results = Vec::new();
 

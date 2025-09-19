@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
+};use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Simplified Expand function evaluator
 pub struct SimpleExpandFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SimpleExpandFunctionEvaluator {
 
 impl SimpleExpandFunctionEvaluator {
     /// Create a new expand function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "expand".to_string(),
@@ -32,7 +31,7 @@ impl SimpleExpandFunctionEvaluator {
                             name: "valueSetUrl".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: true,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Optional value set URL".to_string(),
                             default_value: None,
                         }
@@ -42,6 +41,8 @@ impl SimpleExpandFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false,
                 category: FunctionCategory::Utility,
@@ -53,13 +54,12 @@ impl SimpleExpandFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SimpleExpandFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for SimpleExpandFunctionEvaluator {
     async fn evaluate(
         &self,
         _input: Vec<FhirPathValue>,
+        _args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
-        _args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         // Check if terminology provider is available
         let _terminology_provider = context.terminology_provider().ok_or_else(|| {

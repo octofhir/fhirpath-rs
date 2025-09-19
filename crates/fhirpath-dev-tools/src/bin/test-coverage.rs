@@ -28,6 +28,7 @@ mod integration_test_runner {
     use octofhir_fhir_model::FhirVersion;
     use octofhir_fhirpath::FhirPathValue;
     use octofhir_fhirpath::ModelProvider;
+    use octofhir_fhirschema::create_validation_provider_from_embedded;
     use octofhir_fhirpath::core::trace::create_cli_provider;
     use octofhir_fhirpath::{Collection, FhirPathEngine, create_function_registry};
     use serde::{Deserialize, Serialize};
@@ -172,6 +173,13 @@ mod integration_test_runner {
             // Add CLI trace provider for trace function support
             let trace_provider = create_cli_provider();
             engine = engine.with_trace_provider(trace_provider);
+
+            if let Ok(validation_provider) = create_validation_provider_from_embedded(
+                model_provider.clone() as std::sync::Arc<dyn octofhir_fhir_model::provider::ModelProvider>
+            ).await {
+                engine = engine.with_validation_provider(validation_provider);
+            }
+
             // Attach real terminology provider (tx.fhir.org) by default, matching model provider version
             let provider_version = model_provider
                 .get_fhir_version()
@@ -518,6 +526,7 @@ mod integration_test_runner {
                 input_collection,
                 self.model_provider.clone(),
                 self.engine.get_terminology_provider(),
+                self.engine.get_validation_provider(),
                 self.engine.get_trace_provider(),
             )
             .await;

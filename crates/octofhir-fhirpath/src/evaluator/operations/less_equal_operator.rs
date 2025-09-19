@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 use std::sync::Arc;
 
 use crate::core::{Collection, FhirPathType, FhirPathValue, Result, TypeSignature};
+use crate::core::temporal::{PrecisionDate, PrecisionDateTime};
 use crate::evaluator::operator_registry::{
     Associativity, EmptyPropagation, OperationEvaluator, OperatorMetadata, OperatorSignature,
 };
@@ -62,7 +63,9 @@ impl LessEqualOperatorEvaluator {
                 let right_decimal = Decimal::from(*r);
                 Some(*l <= right_decimal)
             }
-            (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => Some(l <= r),
+            (FhirPathValue::String(l, _, _), FhirPathValue::String(r, _, _)) => {
+                self.compare_strings_with_temporal_parsing(l, r)
+            }
             (FhirPathValue::Date(l, _, _), FhirPathValue::Date(r, _, _)) => {
                 // Use PartialOrd for proper temporal precision handling
                 match l.partial_cmp(r) {
@@ -88,6 +91,53 @@ impl LessEqualOperatorEvaluator {
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Compare two strings, attempting to parse as temporal values first
+    fn compare_strings_with_temporal_parsing(&self, left: &str, right: &str) -> Option<bool> {
+        // Try to parse both strings as temporal values
+        match (PrecisionDate::parse(left), PrecisionDate::parse(right)) {
+            (Some(l_date), Some(r_date)) => {
+                // Both parsed as dates - use temporal comparison with precision awareness
+                match l_date.partial_cmp(&r_date) {
+                    Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                    Some(std::cmp::Ordering::Greater) => Some(false),
+                    None => None, // Different precisions or uncertain comparison
+                }
+            }
+            _ => {
+                // Try parsing as datetimes
+                match (PrecisionDateTime::parse(left), PrecisionDateTime::parse(right)) {
+                    (Some(l_dt), Some(r_dt)) => {
+                        // Both parsed as datetimes - use temporal comparison with precision awareness
+                        match l_dt.partial_cmp(&r_dt) {
+                            Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => Some(true),
+                            Some(std::cmp::Ordering::Greater) => Some(false),
+                            None => None, // Different precisions or uncertain comparison
+                        }
+                    }
+                    _ => {
+                        // Try mixed date/datetime parsing
+                        match (PrecisionDate::parse(left), PrecisionDateTime::parse(right)) {
+                            (Some(_), Some(_)) => {
+                                // According to FHIRPath spec: different precision levels return empty
+                                None
+                            }
+                            _ => match (PrecisionDateTime::parse(left), PrecisionDate::parse(right)) {
+                                (Some(_), Some(_)) => {
+                                    // According to FHIRPath spec: different precision levels return empty
+                                    None
+                                }
+                                _ => {
+                                    // Neither string could be parsed as temporal - fall back to lexicographic comparison
+                                    Some(left <= right)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Iif (conditional) function evaluator
 pub struct IifFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct IifFunctionEvaluator {
 
 impl IifFunctionEvaluator {
     /// Create a new iif function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "iif".to_string(),
@@ -58,6 +57,8 @@ impl IifFunctionEvaluator {
                     min_params: 2,
                     max_params: Some(3),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Utility,
@@ -80,7 +81,7 @@ impl IifFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for IifFunctionEvaluator {
+impl LazyFunctionEvaluator for IifFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

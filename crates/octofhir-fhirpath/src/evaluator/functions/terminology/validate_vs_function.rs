@@ -9,8 +9,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use octofhir_fhir_model::TerminologyProvider;
@@ -22,7 +22,7 @@ pub struct ValidateVSFunctionEvaluator {
 
 impl ValidateVSFunctionEvaluator {
     /// Create a new validateVS function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "validateVS".to_string(),
@@ -34,7 +34,7 @@ impl ValidateVSFunctionEvaluator {
                             name: "valueSet".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Value set URL or value set resource to validate against".to_string(),
                             default_value: None,
                         }
@@ -44,6 +44,8 @@ impl ValidateVSFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Terminology operations may change over time
                 category: FunctionCategory::Utility,
@@ -135,7 +137,7 @@ impl ValidateVSFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ValidateVSFunctionEvaluator {
+impl LazyFunctionEvaluator for ValidateVSFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

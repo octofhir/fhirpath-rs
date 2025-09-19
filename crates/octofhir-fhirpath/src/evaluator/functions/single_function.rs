@@ -6,12 +6,11 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionEvaluator, PureFunctionEvaluator, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy,
+};use crate::evaluator::EvaluationResult;
 
 /// Single function evaluator
 pub struct SingleFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SingleFunctionEvaluator {
 
 impl SingleFunctionEvaluator {
     /// Create a new single function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "single".to_string(),
@@ -33,6 +32,8 @@ impl SingleFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -44,15 +45,13 @@ impl SingleFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SingleFunctionEvaluator {
+impl PureFunctionEvaluator for SingleFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        _args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
-        if !args.is_empty() {
+        if !_args.is_empty() {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "single function takes no arguments".to_string(),

@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
 };
 use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
@@ -22,7 +22,7 @@ pub struct AggregateFunctionEvaluator {
 
 impl AggregateFunctionEvaluator {
     /// Create a new aggregate function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "aggregate".to_string(),
@@ -54,6 +54,8 @@ impl AggregateFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Aggregate,
@@ -65,7 +67,7 @@ impl AggregateFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for AggregateFunctionEvaluator {
+impl LazyFunctionEvaluator for AggregateFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -114,26 +116,22 @@ impl FunctionEvaluator for AggregateFunctionEvaluator {
 
         // For each item in the input collection (starting from appropriate index)
         for (index, item) in input.iter().enumerate().skip(start_index) {
-            // Clone the context to avoid mutation issues
-            let mut iteration_context = context.clone();
-
-            // Set the special aggregate variables
-            iteration_context.set_user_variable("$this".to_string(), item.clone())?;
-            iteration_context.set_user_variable("$index".to_string(), FhirPathValue::integer(index as i64))?;
-
-            // Set $total - this is the accumulated value from previous iterations
-            if total.len() == 1 {
-                iteration_context.set_user_variable("$total".to_string(), total[0].clone())?;
+            // Prepare total value for this iteration
+            let total_value = if total.len() == 1 {
+                total[0].clone()
             } else if total.len() > 1 {
-                // Multiple values in total - create a collection
-                iteration_context.set_user_variable("$total".to_string(), FhirPathValue::Collection(Collection::from(total.clone())))?;
+                FhirPathValue::Collection(Collection::from(total.clone()))
             } else {
-                // This shouldn't happen now since we always have at least one value
-                iteration_context.set_user_variable("$total".to_string(), FhirPathValue::Collection(Collection::empty()))?;
-            }
+                FhirPathValue::Collection(Collection::empty())
+            };
 
-            // Evaluate the aggregator expression in this context
-            let result = evaluator.evaluate(aggregator_expr, &iteration_context).await?;
+            let mut child_context = context.create_child_context(Collection::single(item.clone()));
+            child_context.set_variable("$this".to_string(), item.clone());
+            child_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            child_context.set_variable("$total".to_string(), total_value);
+
+            // Evaluate the aggregator expression in child context
+            let result = evaluator.evaluate(aggregator_expr, &child_context).await?;
 
             // Update total with the result - this becomes the new accumulator value
             total = result.value.iter().cloned().collect();

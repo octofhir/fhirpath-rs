@@ -1,183 +1,194 @@
 {
-  "resourceType": "ValueSet",
+  "compose": {
+    "include": {
+      "filter": {
+        "op": "=",
+        "property": "parent",
+        "value": "LP43571-6"
+      },
+      "system": "http://loinc.org"
+    }
+  },
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "url",
+          "value": "http://hl7.org/fhir"
+        }
+      ]
+    }
+  ],
+  "copyright": "This content from LOINC&#xAE; is copyright &#xA9; 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use.",
+  "date": "2015-06-22",
+  "description": "This is an example value set that includes all the LOINC codes for serum/plasma cholesterol from v2.36.",
+  "expansion": {
+    "contains": [
+      {
+        "code": "14647-2",
+        "display": "Cholesterol [Moles/volume] in Serum or Plasma",
+        "system": "http://loinc.org",
+        "version": "2.50"
+      },
+      {
+        "abstract": "true",
+        "contains": [
+          {
+            "code": "2093-3",
+            "display": "Cholesterol [Mass/volume] in Serum or Plasma",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          },
+          {
+            "code": "48620-9",
+            "display": "Cholesterol [Mass/volume] in Serum or Plasma ultracentrifugate",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          },
+          {
+            "code": "9342-7",
+            "display": "Cholesterol [Percentile]",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          }
+        ],
+        "display": "Cholesterol codes"
+      },
+      {
+        "abstract": "true",
+        "contains": [
+          {
+            "code": "2096-6",
+            "display": "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          },
+          {
+            "code": "35200-5",
+            "display": "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          },
+          {
+            "code": "48089-7",
+            "display": "Cholesterol/Apolipoprotein B [Molar ratio] in Serum or Plasma",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          },
+          {
+            "code": "55838-7",
+            "display": "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma",
+            "system": "http://loinc.org",
+            "version": "2.50"
+          }
+        ],
+        "display": "Cholesterol Ratios"
+      }
+    ],
+    "extension": [
+      {
+        "valueUri": "http://hl7.org/fhir/ValueSet/example-extensional"
+      }
+    ],
+    "identifier": [
+      "urn:uuid:42316ff8-2714-4680-9980-f37a6d1a71bc"
+    ],
+    "offset": "0",
+    "parameter": {
+      "name": [
+        "version"
+      ],
+      "valueString": "2.50"
+    },
+    "timestamp": "2015-06-22T13:56:07Z",
+    "total": "8"
+  },
+  "experimental": "true",
   "id": "example-expansion",
   "meta": {
     "profile": "http://hl7.org/fhir/StructureDefinition/shareablevalueset"
   },
+  "name": [
+    "LOINC Codes for Cholesterol in Serum/Plasma"
+  ],
+  "publisher": "FHIR Project team",
+  "resourceType": "ValueSet",
+  "status": "draft",
   "text": {
-    "status": "generated",
     "div": {
       "table": {
         "tr": [
           {
             "td": [
-              "http://loinc.org",
-              "14647-2",
-              "Cholesterol [Moles/volume] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": {
-              "b": "Additional Cholesterol codes"
+              "b": {}
             }
           },
           {
             "td": [
-              "http://loinc.org",
-              "2093-3",
-              "Cholesterol [Mass/volume] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": [
-              "http://loinc.org",
-              "48620-9",
-              "Cholesterol [Mass/volume] in Serum or Plasma ultracentrifugate"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": [
-              "http://loinc.org",
-              "9342-7",
-              "Cholesterol [Percentile]"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": {
-              "b": "Cholesterol Ratios"
+              "b": {}
             }
           },
           {
             "td": [
-              "http://loinc.org",
-              "2096-6",
-              "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": [
-              "http://loinc.org",
-              "35200-5",
-              "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": [
-              "http://loinc.org",
-              "48089-7",
-              "Cholesterol/Apolipoprotein B [Molar ratio] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           },
           {
             "td": [
-              "http://loinc.org",
-              "55838-7",
-              "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma"
+              {},
+              {},
+              {}
             ]
           }
         ]
       }
-    }
+    },
+    "status": "generated"
   },
   "url": "http://hl7.org/fhir/ValueSet/example-expansion",
-  "version": 20150622,
-  "name": "LOINC Codes for Cholesterol in Serum/Plasma",
-  "status": "draft",
-  "experimental": true,
-  "date": "2015-06-22",
-  "publisher": "FHIR Project team",
-  "contact": {
-    "telecom": {
-      "system": "url",
-      "value": "http://hl7.org/fhir"
-    }
-  },
-  "description": "This is an example value set that includes all the LOINC codes for serum/plasma cholesterol from v2.36.",
-  "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use.",
-  "compose": {
-    "include": {
-      "system": "http://loinc.org",
-      "filter": {
-        "property": "parent",
-        "op": "=",
-        "value": "LP43571-6"
-      }
-    }
-  },
-  "expansion": {
-    "extension": {
-      "valueUri": "http://hl7.org/fhir/ValueSet/example-extensional",
-      "url": "http://hl7.org/fhir/StructureDefinition/valueset-expansionSource"
-    },
-    "identifier": "urn:uuid:42316ff8-2714-4680-9980-f37a6d1a71bc",
-    "timestamp": "2015-06-22T13:56:07Z",
-    "total": 8,
-    "offset": 0,
-    "parameter": {
-      "name": "version",
-      "valueString": 2.5
-    },
-    "contains": [
-      {
-        "system": "http://loinc.org",
-        "version": 2.5,
-        "code": "14647-2",
-        "display": "Cholesterol [Moles/volume] in Serum or Plasma"
-      },
-      {
-        "abstract": true,
-        "display": "Cholesterol codes",
-        "contains": [
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "2093-3",
-            "display": "Cholesterol [Mass/volume] in Serum or Plasma"
-          },
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "48620-9",
-            "display": "Cholesterol [Mass/volume] in Serum or Plasma ultracentrifugate"
-          },
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "9342-7",
-            "display": "Cholesterol [Percentile]"
-          }
-        ]
-      },
-      {
-        "abstract": true,
-        "display": "Cholesterol Ratios",
-        "contains": [
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "2096-6",
-            "display": "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma"
-          },
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "35200-5",
-            "display": "Cholesterol/Triglyceride [Mass Ratio] in Serum or Plasma"
-          },
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "48089-7",
-            "display": "Cholesterol/Apolipoprotein B [Molar ratio] in Serum or Plasma"
-          },
-          {
-            "system": "http://loinc.org",
-            "version": 2.5,
-            "code": "55838-7",
-            "display": "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma"
-          }
-        ]
-      }
-    ]
-  }
+  "version": "20150622"
 }

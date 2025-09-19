@@ -48,7 +48,7 @@ pub fn compute_numeric_boundaries(
             }
             let p_u32 = p as u32;
             if p_u32 > original_scale {
-                (NumericMode::DefaultWithRequested, original_scale)
+                (NumericMode::DefaultWithRequested, p_u32)
             } else {
                 (NumericMode::Reduced, p_u32)
             }

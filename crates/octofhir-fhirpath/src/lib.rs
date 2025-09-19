@@ -51,16 +51,6 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! ## Features
-//!
-//! - **Parser**: Complete FHIRPath syntax support using nom parser combinators
-//! - **Type System**: Rich type system with temporal precision and UCUM quantities
-//! - **Functions**: Comprehensive function library covering all FHIRPath operations
-//! - **Error Handling**: Detailed error messages with source location tracking
-//! - **Performance**: Optimized evaluation with efficient collection handling
-//! - **ModelProvider**: Pluggable model provider system for different FHIR versions
-
 #![deny(unsafe_code)]
 
 // Core modules
@@ -70,7 +60,6 @@ pub mod core;
 // Engine modules
 pub mod evaluator;
 pub mod parser;
-// TODO: Registry will be reimplemented in new evaluator
 
 // Support modules
 pub mod diagnostics;
@@ -126,24 +115,12 @@ pub use crate::evaluator::FunctionRegistry;
 
 /// Create function registry with all FHIRPath functions (recommended)
 pub fn create_function_registry() -> FunctionRegistry {
-    crate::evaluator::function_registry::create_comprehensive_function_registry()
+    crate::evaluator::function_registry::create_function_registry()
 }
 
 /// Create empty registry (for testing or minimal usage)
 pub fn create_empty_registry() -> FunctionRegistry {
     FunctionRegistry::new()
-}
-
-// Deprecated - use create_function_registry() instead
-#[deprecated(since = "0.4.22", note = "use create_function_registry() instead")]
-pub fn create_standard_function_registry() -> FunctionRegistry {
-    crate::evaluator::function_registry::create_standard_function_registry()
-}
-
-// Deprecated - use create_function_registry() instead
-#[deprecated(since = "0.4.22", note = "use create_function_registry() instead")]
-pub fn create_comprehensive_function_registry() -> FunctionRegistry {
-    crate::evaluator::function_registry::create_comprehensive_function_registry()
 }
 
 // Re-export AST types
@@ -164,8 +141,6 @@ pub use crate::diagnostics::{
     SourceManager,
 };
 
-// Note: EmptyModelProvider is provided by external model provider dependencies for basic testing
-
 /// Create a FhirPathEngine with EmptyModelProvider for testing and development
 ///
 /// This is a convenience function for getting started quickly with FHIRPath
@@ -185,60 +160,10 @@ pub async fn create_engine_with_empty_provider() -> Result<FhirPathEngine> {
     use octofhir_fhir_model::EmptyModelProvider;
     use std::sync::Arc;
 
-    // TODO: Replace with real registry when implemented
-    let registry = Arc::new(create_empty_registry());
+    let registry = Arc::new(create_function_registry());
     let model_provider = Arc::new(EmptyModelProvider);
 
     FhirPathEngine::new(registry, model_provider).await
-}
-
-/// Main evaluation function for simple use cases
-///
-/// This function provides a simple interface for evaluating FHIRPath expressions
-/// when you don't need the full engine configuration options.
-///
-/// ```rust,no_run
-/// use octofhir_fhirpath::{evaluate, Collection};
-/// use serde_json::json;
-///
-/// # async fn example() -> octofhir_fhirpath::Result<()> {
-/// let patient = json!({
-///     "resourceType": "Patient",
-///     "name": [{"family": "Doe", "given": ["John"]}]
-/// });
-///
-/// let context = Collection::single(octofhir_fhirpath::FhirPathValue::resource(patient));
-/// let result = evaluate("Patient.name.family", &context).await?;
-/// # Ok(())
-/// # }
-/// ```
-pub async fn evaluate(expression: &str, context: &FhirPathValue) -> Result<FhirPathValue> {
-    let engine = create_engine_with_empty_provider().await?;
-
-    // Convert FhirPathValue to Collection
-    let collection = match context {
-        FhirPathValue::Collection(collection) => collection.clone(),
-        FhirPathValue::Empty => Collection::empty(),
-        single_value => Collection::single(single_value.clone()),
-    };
-
-    let eval_context = EvaluationContext::new(
-        collection,
-        engine.get_model_provider(),
-        None, // TODO: Convert TerminologyService to TerminologyProvider
-        engine.get_trace_provider(),
-    )
-    .await;
-
-    let result = engine.evaluate(expression, &eval_context).await?;
-    // Convert Collection to FhirPathValue for convenience function
-    let values = result.value.into_vec();
-    let fhir_value = match values.len() {
-        0 => FhirPathValue::Empty,
-        1 => values.into_iter().next().unwrap(),
-        _ => FhirPathValue::Collection(Collection::from_values(values)),
-    };
-    Ok(fhir_value)
 }
 
 // Version information

@@ -944,7 +944,7 @@ async fn fhirpath_lab_handler_impl(
                     octofhir_fhirpath::FhirPathValue::resource(parsed_request.resource.clone());
                 let initial_context_collection = Collection::single(resource_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut context_eval_context = EvaluationContext::new(initial_context_collection, std::sync::Arc::new(embedded_provider), None).await;
+                let mut context_eval_context = EvaluationContext::new(initial_context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
 
                 // Set variables for context evaluation
                 for (name, value) in &parsed_request.variables {
@@ -990,7 +990,7 @@ async fn fhirpath_lab_handler_impl(
             for context_value in context_results {
                 let context_collection = Collection::single(context_value);
                 let embedded_provider = crate::EmbeddedModelProvider::r4();
-                let mut eval_context = EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None).await;
+                let mut eval_context = EvaluationContext::new(context_collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
 
                 // Set variables for main expression evaluation
                 for (name, value) in &parsed_request.variables {
@@ -1608,7 +1608,7 @@ async fn evaluate_fhirpath_expression(
     let resource_value = octofhir_fhirpath::FhirPathValue::resource(request.resource.clone());
     let collection = octofhir_fhirpath::Collection::single(resource_value);
     let embedded_provider = crate::EmbeddedModelProvider::r4();
-    let mut context = octofhir_fhirpath::EvaluationContext::new(collection, std::sync::Arc::new(embedded_provider), None).await;
+    let mut context = octofhir_fhirpath::EvaluationContext::new(collection, std::sync::Arc::new(embedded_provider), None, None, None).await;
 
     // Set variables
     for (name, value) in &request.variables {

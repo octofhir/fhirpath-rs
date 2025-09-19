@@ -1,785 +1,773 @@
 {
-    "resourceType": "ClinicalDocument",
-    "author": {
-      "assignedAuthor": {
-        "addr": {
-          "city": {
-            "#text": "OROVILLE"
-          },
-          "country": {
-            "#text": "US"
-          },
-          "postalCode": {
-            "#text": "21014"
-          },
-          "state": {
-            "#text": "CA"
-          },
-          "streetAddressLine": {
-            "#text": "302 Cumming Ave RR 2"
+  "author": {
+    "assignedAuthor": {
+      "addr": {
+        "city": {},
+        "country": {},
+        "postalCode": {},
+        "state": {},
+        "streetAddressLine": {}
+      },
+      "assignedPerson": {
+        "name": [
+          {
+            "family": {},
+            "given": [
+              {}
+            ],
+            "prefix": [
+              {}
+            ]
           }
-        },
-        "assignedPerson": {
-          "name": {
-            "family": {
-              "#text": "Wilma"
-            },
-            "given": {
-              "#text": "Colon"
-            },
-            "prefix": {
-              "#text": "Dr"
-            }
-          }
+        ]
+      },
+      "id": {},
+      "telecom": [
+        {
+          "use": "WP",
+          "value": "4105550305"
         }
-      }
+      ]
     },
-    "component": {
-      "structuredBody": {
-        "component": [
-          {
-            "section": {
-              "entry": [
-                {
-                  "act": {
-                    "@classCode": "ACT",
-                    "@moodCode": "EVN",
-                    "effectiveTime": {},
-                    "entryRelationship": {
-                      "@typeCode": "SUBJ",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN",
-                        "effectiveTime": {},
-                        "text": {},
-                        "value": {
-                          "@nullFlavor": "OTH",
-                          "@xsi:type": "CD"
-                        }
-                      }
-                    }
-                  }
-                },
-                {
-                  "act": {
-                    "@classCode": "ACT",
-                    "@moodCode": "EVN",
-                    "effectiveTime": {},
-                    "entryRelationship": {
-                      "@typeCode": "SUBJ",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN",
-                        "effectiveTime": {},
-                        "text": {},
-                        "value": {
-                          "@nullFlavor": "OTH",
-                          "@xsi:type": "CD"
-                        }
-                      }
-                    }
-                  }
-                },
-                {
-                  "act": {
-                    "@classCode": "ACT",
-                    "@moodCode": "EVN",
-                    "effectiveTime": {},
-                    "entryRelationship": {
-                      "@typeCode": "SUBJ",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN",
-                        "effectiveTime": {},
-                        "text": {},
-                        "value": {
-                          "@nullFlavor": "OTH",
-                          "@xsi:type": "CD"
-                        }
-                      }
-                    }
-                  }
-                },
-                {
-                  "act": {
-                    "@classCode": "ACT",
-                    "@moodCode": "EVN",
-                    "effectiveTime": {},
-                    "entryRelationship": {
-                      "@typeCode": "SUBJ",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN",
-                        "effectiveTime": {},
-                        "text": {},
-                        "value": {
-                          "@nullFlavor": "OTH",
-                          "@xsi:type": "CD"
-                        }
-                      }
-                    }
-                  }
-                }
-              ],
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": [
-                      {
-                        "td": [
-                          {
-                            "#text": "Burn Of Third Degree Of Unspecified Thigh, Subsequent Encounter",
-                            "@ID": "problem920000584281"
-                          },
-                          {
-                            "#text": "06/25/2015"
-                          },
-                          {
-                            "#text": "Active"
-                          }
-                        ]
-                      },
-                      {
-                        "td": [
-                          {
-                            "#text": "Burn Of Second Degree Of Female Genital Region, Initial Encounter",
-                            "@ID": "problem920000584280"
-                          },
-                          {
-                            "#text": "06/25/2015"
-                          },
-                          {
-                            "#text": "Active"
-                          }
-                        ]
-                      },
-                      {
-                        "td": [
-                          {
-                            "#text": "Burns on lower body",
-                            "@ID": "problem920000584278"
-                          },
-                          {
-                            "#text": "06/18/2015"
-                          },
-                          {
-                            "#text": "06/25/2015"
-                          },
-                          {
-                            "#text": "Resolved"
-                          }
-                        ]
-                      },
-                      {
-                        "td": [
-                          {
-                            "#text": "Cerebral Palsy, Unspecified",
-                            "@ID": "problem920000584276"
-                          },
-                          {
-                            "#text": "08/29/1982"
-                          },
-                          {
-                            "#text": "Active"
-                          }
-                        ]
-                      }
-                    ]
+    "time": "20160414"
+  },
+  "code": {},
+  "component": {
+    "structuredBody": {
+      "component": [
+        {
+          "section": {
+            "code": {},
+            "entry": [
+              {
+                "act": {
+                  "code": {},
+                  "effectiveTime": {
+                    "low": "20160413003547Z"
                   },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Condition"
-                        },
-                        {
-                          "#text": "Effective Date"
-                        },
-                        {
-                          "#text": "Resolved Date"
-                        },
-                        {
-                          "#text": "Status"
-                        }
-                      ]
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "effectiveTime": {
+                        "low": "20150625"
+                      },
+                      "id": {},
+                      "statusCode": {},
+                      "templateId": {},
+                      "text": {
+                        "reference": "#problem920000584281"
+                      },
+                      "value": {
+                        "translation": {}
+                      }
                     }
-                  }
+                  },
+                  "id": {},
+                  "statusCode": {},
+                  "templateId": {}
                 }
               },
-              "title": {
-                "#text": "Problems"
+              {
+                "act": {
+                  "code": {},
+                  "effectiveTime": {
+                    "low": "20160413003543Z"
+                  },
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "effectiveTime": {
+                        "low": "20150625"
+                      },
+                      "id": {},
+                      "statusCode": {},
+                      "templateId": {},
+                      "text": {
+                        "reference": "#problem920000584280"
+                      },
+                      "value": {
+                        "translation": {}
+                      }
+                    }
+                  },
+                  "id": {},
+                  "statusCode": {},
+                  "templateId": {}
+                }
+              },
+              {
+                "act": {
+                  "code": {},
+                  "effectiveTime": {
+                    "high": "20150625",
+                    "low": "20160413034835Z"
+                  },
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "effectiveTime": {
+                        "high": "20150625",
+                        "low": "20150618"
+                      },
+                      "id": {},
+                      "statusCode": {},
+                      "templateId": {},
+                      "text": {
+                        "reference": "#problem920000584278"
+                      },
+                      "value": {
+                        "translation": {}
+                      }
+                    }
+                  },
+                  "id": {},
+                  "statusCode": {},
+                  "templateId": {}
+                }
+              },
+              {
+                "act": {
+                  "code": {},
+                  "effectiveTime": {
+                    "low": "20160413033854Z"
+                  },
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "effectiveTime": {
+                        "low": "19820829"
+                      },
+                      "id": {},
+                      "statusCode": {},
+                      "templateId": {},
+                      "text": {
+                        "reference": "#problem920000584276"
+                      },
+                      "value": {
+                        "translation": {}
+                      }
+                    }
+                  },
+                  "id": {},
+                  "statusCode": {},
+                  "templateId": {}
+                }
               }
-            }
-          },
-          {
-            "section": {
-              "entry": [
-                {
-                  "@typeCode": "DRIV",
-                  "substanceAdministration": {
-                    "@classCode": "SBADM",
-                    "@moodCode": "INT",
-                    "consumable": {
-                      "manufacturedProduct": {
-                        "@classCode": "MANU",
-                        "manufacturedMaterial": {
-                          "code": {
-                            "@nullFlavor": "OTH",
-                            "originalText": {}
-                          }
-                        }
-                      }
-                    },
-                    "effectiveTime": [
-                      {
-                        "@xsi:type": "IVL_TS"
-                      },
-                      {
-                        "@operator": "A",
-                        "@xsi:type": "PIVL_TS"
-                      },
-                      {
-                        "@operator": "A",
-                        "@xsi:type": "EIVL_TS"
-                      }
-                    ],
-                    "entryRelationship": {
-                      "@typeCode": "REFR",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN"
-                      }
-                    },
-                    "precondition": {
-                      "@typeCode": "PRCN",
-                      "criterion": {}
-                    },
-                    "text": {}
-                  }
-                },
-                {
-                  "@typeCode": "DRIV",
-                  "substanceAdministration": {
-                    "@classCode": "SBADM",
-                    "@moodCode": "INT",
-                    "consumable": {
-                      "manufacturedProduct": {
-                        "@classCode": "MANU",
-                        "manufacturedMaterial": {
-                          "code": {
-                            "@nullFlavor": "OTH",
-                            "originalText": {}
-                          }
-                        }
-                      }
-                    },
-                    "effectiveTime": [
-                      {
-                        "@xsi:type": "IVL_TS"
-                      },
-                      {
-                        "@operator": "A",
-                        "@xsi:type": "PIVL_TS"
-                      }
-                    ],
-                    "entryRelationship": {
-                      "@typeCode": "REFR",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN"
-                      }
-                    },
-                    "precondition": {
-                      "@typeCode": "PRCN",
-                      "criterion": {}
-                    },
-                    "text": {}
-                  }
-                },
-                {
-                  "@typeCode": "DRIV",
-                  "substanceAdministration": {
-                    "@classCode": "SBADM",
-                    "@moodCode": "INT",
-                    "consumable": {
-                      "manufacturedProduct": {
-                        "@classCode": "MANU",
-                        "manufacturedMaterial": {
-                          "code": {
-                            "@nullFlavor": "OTH",
-                            "originalText": {}
-                          }
-                        }
-                      }
-                    },
-                    "effectiveTime": [
-                      {
-                        "@xsi:type": "IVL_TS"
-                      },
-                      {
-                        "@operator": "A",
-                        "@xsi:type": "PIVL_TS"
-                      }
-                    ],
-                    "entryRelationship": {
-                      "@typeCode": "REFR",
-                      "observation": {
-                        "@classCode": "OBS",
-                        "@moodCode": "EVN"
-                      }
-                    },
-                    "precondition": {
-                      "@typeCode": "PRCN",
-                      "criterion": {}
-                    },
-                    "text": {}
-                  }
-                }
-              ],
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": [
-                      {
-                        "td": [
-                          {
-                            "#text": "SENOKOT  187 MG | 2 Tablet(s) | PO | QHS  (06/01/2015 - present)",
-                            "@ID": "medication920000875889"
-                          },
-                          {
-                            "#text": "187 MG | 2 Tablet(s) | PO | QHS"
-                          },
-                          {
-                            "#text": "06/01/2015-"
-                          },
-                          {
-                            "#text": "Completed"
-                          },
-                          {
-                            "#text": "Taken in clinic |",
-                            "@ID": "medcommentsmedication920000875889"
-                          }
-                        ]
-                      },
-                      {
-                        "td": [
-                          {
-                            "#text": "CLOTRIMAZOLE  1 % | 1 GM | VA | BID  (06/01/2015 - present)",
-                            "@ID": "medication920000875890"
-                          },
-                          {
-                            "#text": "1 % | 1 GM | VA | BID"
-                          },
-                          {
-                            "#text": "06/01/2015-"
-                          },
-                          {
-                            "#text": "Completed"
-                          },
-                          {
-                            "#text": "Taken in clinic |",
-                            "@ID": "medcommentsmedication920000875890"
-                          }
-                        ]
-                      },
-                      {
-                        "td": [
-                          {
-                            "#text": "TYLENOL WITH CODEINE #3  300-30 MG | 1 Tablet(s) | PO | QD-PRN  (06/25/2015 - present)",
-                            "@ID": "medication920000875891"
-                          },
-                          {
-                            "#text": "300-30 MG | 1 Tablet(s) | PO | QD-PRN"
-                          },
-                          {
-                            "#text": "06/25/2015-"
-                          },
-                          {
-                            "#text": "Completed"
-                          },
-                          {
-                            "#text": "Taken in clinic |",
-                            "@ID": "medcommentsmedication920000875891"
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Medication"
-                        },
-                        {
-                          "#text": "Instructions"
-                        },
-                        {
-                          "#text": "Date Range"
-                        },
-                        {
-                          "#text": "Status"
-                        },
-                        {
-                          "#text": "comments"
-                        }
-                      ]
-                    }
-                  }
-                }
-              },
-              "title": {
-                "#text": "Medications"
-              }
-            }
-          },
-          {
-            "section": {
-              "entry": {
-                "@typeCode": "DRIV",
-                "substanceAdministration": {
-                  "@classCode": "SBADM",
-                  "@moodCode": "EVN",
-                  "@negationInd": "true",
-                  "consumable": {
-                    "manufacturedProduct": {
-                      "manufacturedLabeledDrug": {}
-                    }
-                  },
-                  "text": {}
-                }
-              },
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": {
-                      "td": {
-                        "#text": "No Known Medication Administrations",
-                        "@ID": "medicationadmin1"
-                      }
-                    }
-                  },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Medication"
-                        },
-                        {
-                          "#text": "Start Date"
-                        },
-                        {
-                          "#text": "End Date"
-                        },
-                        {
-                          "#text": "Status"
-                        }
-                      ]
-                    }
-                  }
-                }
-              },
-              "title": {
-                "#text": "Medications Administered"
-              }
-            }
-          },
-          {
-            "section": {
-              "entry": {
-                "@typeCode": "DRIV",
-                "substanceAdministration": {
-                  "@classCode": "SBADM",
-                  "@moodCode": "EVN",
-                  "@negationInd": "false",
-                  "consumable": {
-                    "manufacturedProduct": {
-                      "@classCode": "MANU",
-                      "manufacturedMaterial": {
-                        "code": {
-                          "@codeSystem": "2.16.840.1.113883.12.292",
-                          "@codeSystemName": "CVX",
-                          "originalText": {}
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": {
+            ],
+            "templateId": [
+              {},
+              {}
+            ],
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": [
+                    {
                       "td": [
-                        {
-                          "#text": "No Known Immunizations",
-                          "@ID": "immunization1"
-                        },
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    },
+                    {
+                      "td": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    },
+                    {
+                      "td": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    },
+                    {
+                      "td": [
+                        {},
+                        {},
+                        {},
                         {}
                       ]
                     }
-                  },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Date"
-                        },
-                        {
-                          "#text": "Vaccination"
-                        },
-                        {
-                          "#text": "Appointment"
-                        },
-                        {
-                          "#text": "Status/Event"
-                        },
-                        {
-                          "#text": "Comments"
-                        }
-                      ]
-                    }
+                  ]
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
                   }
                 }
-              },
-              "title": {
-                "#text": "IMMUNIZATIONS"
               }
-            }
-          },
-          {
-            "section": {
-              "entry": {
-                "act": {
-                  "entryRelationship": {
-                    "observation": {
-                      "@classCode": "OBS",
-                      "@moodCode": "EVN",
-                      "@negationInd": "true",
-                      "effectiveTime": {},
-                      "entryRelationship": {
-                        "@inversionInd": "true",
-                        "@typeCode": "MFST",
-                        "observation": {
-                          "@classCode": "OBS",
-                          "@moodCode": "EVN",
-                          "effectiveTime": {},
-                          "text": {},
-                          "value": {
-                            "@xsi:type": "CD"
-                          }
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "entry": [
+              {
+                "substanceAdministration": {
+                  "consumable": {
+                    "manufacturedProduct": {
+                      "manufacturedMaterial": {
+                        "code": {
+                          "originalText": {
+                            "reference": "#medication920000875889"
+                          },
+                          "translation": [
+                            {},
+                            {}
+                          ]
                         }
                       },
-                      "participant": {
-                        "@typeCode": "CSM",
-                        "participantRole": {
-                          "@classCode": "MANU",
-                          "playingEntity": {
-                            "@classCode": "MMAT"
-                          }
-                        }
-                      }
+                      "templateId": {}
                     }
+                  },
+                  "doseQuantity": {
+                    "unit": "MG",
+                    "value": "374"
+                  },
+                  "effectiveTime": [
+                    {
+                      "high": {},
+                      "low": "20150601"
+                    },
+                    {
+                      "period": {
+                        "unit": "d",
+                        "value": "1"
+                      }
+                    },
+                    {
+                      "event": {}
+                    }
+                  ],
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "id": {},
+                  "precondition": {
+                    "criterion": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "routeCode": {},
+                  "statusCode": {},
+                  "templateId": {},
+                  "text": {
+                    "reference": "#medication920000875889"
                   }
                 }
               },
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": {
-                      "td": {
-                        "#text": "No Known Allergies",
-                        "@ID": "allergy1"
-                      }
+              {
+                "substanceAdministration": {
+                  "consumable": {
+                    "manufacturedProduct": {
+                      "manufacturedMaterial": {
+                        "code": {
+                          "originalText": {
+                            "reference": "#medication920000875890"
+                          },
+                          "translation": [
+                            {},
+                            {}
+                          ]
+                        }
+                      },
+                      "templateId": {}
                     }
                   },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Substance"
-                        },
-                        {
-                          "#text": "Reaction"
-                        },
-                        {
-                          "#text": "Effective Date"
-                        },
-                        {
-                          "#text": "Resolved Date"
-                        },
-                        {
-                          "#text": "Severity"
-                        },
-                        {
-                          "#text": "Status"
-                        },
-                        {
-                          "#text": "Notes"
-                        }
-                      ]
+                  "doseQuantity": {
+                    "unit": "GM",
+                    "value": "1"
+                  },
+                  "effectiveTime": [
+                    {
+                      "high": {},
+                      "low": "20150601"
+                    },
+                    {
+                      "period": {
+                        "unit": "d",
+                        "value": ".5"
+                      }
                     }
+                  ],
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "id": {},
+                  "precondition": {
+                    "criterion": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "routeCode": {},
+                  "statusCode": {},
+                  "templateId": {},
+                  "text": {
+                    "reference": "#medication920000875890"
                   }
                 }
               },
-              "title": {
-                "#text": "Allergies/Adverse Reactions"
-              }
-            }
-          },
-          {
-            "section": {
-              "@nullFlavor": "NI",
-              "text": {
-                "#text": "No Information"
-              },
-              "title": {
-                "#text": "VITAL SIGNS"
-              }
-            }
-          },
-          {
-            "section": {
-              "entry": {
-                "@typeCode": "DRIV",
-                "observation": {
-                  "@classCode": "OBS",
-                  "@moodCode": "EVN",
-                  "code": {
-                    "@code": "ASSERTION",
-                    "@codeSystem": "2.16.840.1.113883.5.4",
-                    "@codeSystemName": "ActCode",
-                    "@displayName": "Assertion",
-                    "originalText": {}
+              {
+                "substanceAdministration": {
+                  "consumable": {
+                    "manufacturedProduct": {
+                      "manufacturedMaterial": {
+                        "code": {
+                          "originalText": {
+                            "reference": "#medication920000875891"
+                          },
+                          "translation": [
+                            {},
+                            {}
+                          ]
+                        }
+                      },
+                      "templateId": {}
+                    }
                   },
-                  "effectiveTime": {}
+                  "doseQuantity": {
+                    "unit": "Tablet(s)",
+                    "value": "1"
+                  },
+                  "effectiveTime": [
+                    {
+                      "high": {},
+                      "low": "20150625"
+                    },
+                    {
+                      "period": {
+                        "unit": "d",
+                        "value": "1"
+                      }
+                    }
+                  ],
+                  "entryRelationship": {
+                    "observation": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "id": {},
+                  "precondition": {
+                    "criterion": {
+                      "code": {},
+                      "templateId": {},
+                      "value": {}
+                    }
+                  },
+                  "routeCode": {},
+                  "statusCode": {},
+                  "templateId": {},
+                  "text": {
+                    "reference": "#medication920000875891"
+                  }
                 }
-              },
-              "text": {
-                "table": {
-                  "@border": "1",
-                  "@width": "100%",
-                  "tbody": {
-                    "tr": {
+              }
+            ],
+            "templateId": [
+              {},
+              {}
+            ],
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": [
+                    {
                       "td": [
-                        {
-                          "content": {
-                            "#text": "Smoking"
-                          }
-                        },
-                        {
-                          "#text": "Never as of 06/18/2015"
-                        },
-                        {
-                          "#text": "20150618000000"
-                        }
+                        {},
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    },
+                    {
+                      "td": [
+                        {},
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    },
+                    {
+                      "td": [
+                        {},
+                        {},
+                        {},
+                        {},
+                        {}
                       ]
                     }
-                  },
-                  "thead": {
-                    "tr": {
-                      "th": [
-                        {
-                          "#text": "Social History Element"
-                        },
-                        {
-                          "#text": "Description"
-                        },
-                        {
-                          "#text": "Effective Date"
-                        }
-                      ]
-                    }
+                  ]
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
                   }
                 }
-              },
-              "title": {
-                "#text": "Social History"
               }
-            }
-          },
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "entry": {
+              "substanceAdministration": {
+                "consumable": {
+                  "manufacturedProduct": {
+                    "manufacturedLabeledDrug": {
+                      "code": {}
+                    }
+                  }
+                },
+                "text": {
+                  "reference": "#Medication_1"
+                }
+              }
+            },
+            "templateId": [
+              {},
+              {}
+            ],
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": {
+                    "td": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "entry": {
+              "substanceAdministration": {
+                "consumable": {
+                  "manufacturedProduct": {
+                    "manufacturedMaterial": {
+                      "code": {
+                        "originalText": {
+                          "reference": "#immunization1"
+                        }
+                      }
+                    },
+                    "templateId": {}
+                  }
+                },
+                "effectiveTime": {},
+                "id": {},
+                "statusCode": {},
+                "templateId": {}
+              }
+            },
+            "templateId": [
+              {},
+              {}
+            ],
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": {
+                    "td": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {
+                        "content": {}
+                      }
+                    ]
+                  }
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "entry": {
+              "act": {
+                "entryRelationship": {
+                  "observation": {
+                    "code": {},
+                    "effectiveTime": {
+                      "high": {},
+                      "low": {}
+                    },
+                    "entryRelationship": {
+                      "observation": {
+                        "code": {},
+                        "effectiveTime": {
+                          "high": {},
+                          "low": {}
+                        },
+                        "id": {},
+                        "statusCode": {},
+                        "templateId": {},
+                        "text": {
+                          "reference": "#reaction1"
+                        },
+                        "value": {
+                          "translation": {}
+                        }
+                      }
+                    },
+                    "participant": {
+                      "participantRole": {
+                        "playingEntity": {
+                          "code": {}
+                        }
+                      }
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            },
+            "templateId": [
+              {},
+              {}
+            ],
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": {
+                    "td": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "templateId": {},
+            "text": {},
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "entry": {
+              "observation": {
+                "code": {
+                  "originalText": {
+                    "reference": "#soc1"
+                  }
+                },
+                "effectiveTime": {
+                  "high": "20150618000000",
+                  "low": {}
+                },
+                "id": {},
+                "statusCode": {},
+                "templateId": {},
+                "value": {}
+              }
+            },
+            "templateId": {},
+            "text": {
+              "table": {
+                "tbody": {
+                  "tr": {
+                    "td": [
+                      {
+                        "content": {}
+                      },
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                "thead": {
+                  "tr": {
+                    "th": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            },
+            "title": {}
+          }
+        },
+        {
+          "section": {
+            "code": {},
+            "templateId": {},
+            "text": {},
+            "title": {}
+          }
+        }
+      ]
+    }
+  },
+  "confidentialityCode": {},
+  "custodian": {
+    "assignedCustodian": {
+      "representedCustodianOrganization": {
+        "addr": {
+          "city": {},
+          "country": {},
+          "postalCode": {},
+          "state": {},
+          "streetAddressLine": {}
+        },
+        "id": {},
+        "name": [
+          {}
+        ],
+        "telecom": [
           {
-            "section": {
-              "text": {
-                "#text": "Pain and Blistering on legs"
-              },
-              "title": {
-                "#text": "Reason for Visit/Chief Complaint"
-              }
-            }
+            "use": "WP",
+            "value": "tel: +1-(410)555-5544"
           }
         ]
       }
-    },
-    "custodian": {
-      "assignedCustodian": {
-        "representedCustodianOrganization": {
-          "addr": {
-            "@use": "WP",
-            "city": {
-              "#text": "Bel Air"
-            },
-            "country": {
-              "#text": "US"
-            },
-            "postalCode": {
-              "#text": "21014"
-            },
-            "state": {
-              "#text": "MD"
-            },
-            "streetAddressLine": {
-              "#text": "8333 Clairemont Blvd"
-            }
-          }
-        }
-      }
-    },
-    "recordTarget": {
-      "patientRole": {
-        "addr": {
-          "@use": "HP",
-          "city": {
-            "#text": "OROVILLE"
-          },
-          "country": {
-            "#text": "US"
-          },
-          "postalCode": {
-            "#text": "21014"
-          },
-          "state": {
-            "#text": "CA"
-          },
-          "streetAddressLine": {
-            "#text": "302 Cumming Ave RR 2"
-          }
-        },
-        "patient": {
-          "languageCommunication": {},
-          "name": {
-            "@use": "L",
-            "family": {
-              "#text": "DCI"
-            },
-            "given": {
-              "#text": "BARBARA"
-            }
-          }
-        }
-      }
-    },
-    "title": {
-      "#text": "DCI Continuity of Care Document"
     }
+  },
+  "effectiveTime": "20160414095027",
+  "id": {},
+  "languageCode": {},
+  "realmCode": {},
+  "recordTarget": {
+    "patientRole": {
+      "addr": {
+        "city": {},
+        "country": {},
+        "postalCode": {},
+        "state": {},
+        "streetAddressLine": {}
+      },
+      "id": [
+        {},
+        {}
+      ],
+      "patient": {
+        "administrativeGenderCode": {},
+        "birthTime": "19811208",
+        "ethnicGroupCode": {},
+        "languageCommunication": {
+          "languageCode": {},
+          "preferenceInd": "true"
+        },
+        "maritalStatusCode": {},
+        "name": [
+          {
+            "family": {},
+            "given": [
+              {}
+            ]
+          }
+        ],
+        "raceCode": {}
+      },
+      "telecom": [
+        {
+          "use": "HP",
+          "value": "4105550305"
+        }
+      ]
+    }
+  },
+  "resourceType": "ClinicalDocument",
+  "templateId": [
+    {},
+    {}
+  ],
+  "title": {},
+  "typeId": {}
 }

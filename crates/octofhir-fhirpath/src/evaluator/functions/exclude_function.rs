@@ -7,17 +7,16 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 pub struct ExcludeFunctionEvaluator {
     metadata: FunctionMetadata,
 }
 
 impl ExcludeFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "exclude".to_string(),
@@ -28,7 +27,7 @@ impl ExcludeFunctionEvaluator {
                         name: "criteria".to_string(),
                         parameter_type: vec!["Any".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The value or expression to exclude".to_string(),
                         default_value: None,
                     }],
@@ -37,6 +36,8 @@ impl ExcludeFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::FilteringProjection,
@@ -98,38 +99,33 @@ impl ExcludeFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ExcludeFunctionEvaluator {
+impl PureFunctionEvaluator for ExcludeFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
-                crate::core::FP0053,
+                crate::core::error_code::FP0053,
                 "exclude function requires exactly one argument".to_string(),
             ));
         }
 
-        let root_collection = context.get_root_evaluation_context().clone();
-        let root_context = EvaluationContext::new(
-            root_collection,
-            context.get_model_provider(),
-            context.get_terminology_provider(),
-            context.get_trace_provider(),
-        ).await;
-        let criteria_result = evaluator
-            .evaluate(&args[0], &root_context)
-            .await?;
-        let exclude_values: Vec<FhirPathValue> = criteria_result.value.iter().cloned().collect();
+        // Handle empty exclude criteria - propagate empty collections
+        if args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::from(input),
+            });
+        }
+
+        let exclude_values = &args[0];
 
         // Filter input, excluding items that match any of the exclude values
         let mut filtered = Vec::new();
         for input_item in input {
             let mut should_exclude = false;
-            for exclude_value in &exclude_values {
+            for exclude_value in exclude_values {
                 if self.values_equal(&input_item, exclude_value) {
                     should_exclude = true;
                     break;
@@ -141,7 +137,7 @@ impl FunctionEvaluator for ExcludeFunctionEvaluator {
         }
 
         Ok(EvaluationResult {
-            value: Collection::from(filtered),
+            value: crate::core::Collection::from(filtered),
         })
     }
 

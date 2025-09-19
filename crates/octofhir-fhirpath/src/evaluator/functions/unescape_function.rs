@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// Unescape function evaluator
 pub struct UnescapeFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct UnescapeFunctionEvaluator {
 
 impl UnescapeFunctionEvaluator {
     /// Create a new unescape function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "unescape".to_string(),
@@ -32,7 +31,7 @@ impl UnescapeFunctionEvaluator {
                         name: "format".to_string(),
                         parameter_type: vec!["String".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "Unescape format (html, json, sql)".to_string(),
                         default_value: None,
                     }],
@@ -41,6 +40,8 @@ impl UnescapeFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -137,19 +138,24 @@ impl UnescapeFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for UnescapeFunctionEvaluator {
+impl PureFunctionEvaluator for UnescapeFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0053,
                 "unescape function requires exactly one argument (format)".to_string(),
             ));
+        }
+
+        // Handle empty input - propagate empty collections
+        if input.is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
         }
 
         if input.len() != 1 {
@@ -170,18 +176,21 @@ impl FunctionEvaluator for UnescapeFunctionEvaluator {
             }
         };
 
-        // Evaluate format argument
-        let format_result = evaluator.evaluate(&args[0], context).await?;
-        let format_values: Vec<FhirPathValue> = format_result.value.iter().cloned().collect();
+        // Handle empty format argument - propagate empty collections
+        if args[0].is_empty() {
+            return Ok(EvaluationResult {
+                value: crate::core::Collection::empty(),
+            });
+        }
 
-        if format_values.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
-                "unescape function format argument must evaluate to a single value".to_string(),
+                "unescape function format argument must be a single value".to_string(),
             ));
         }
 
-        let format_str = match &format_values[0] {
+        let format_str = match &args[0][0] {
             FhirPathValue::String(s, _, _) => s.clone(),
             _ => {
                 return Err(FhirPathError::evaluation_error(

@@ -3,10 +3,9 @@
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
 
 pub struct ExistsFunctionEvaluator {
@@ -14,7 +13,7 @@ pub struct ExistsFunctionEvaluator {
 }
 
 impl ExistsFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "exists".to_string(),
@@ -34,6 +33,8 @@ impl ExistsFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Custom,
                 empty_propagation: EmptyPropagation::Custom,
                 deterministic: true,
                 category: FunctionCategory::Existence,
@@ -45,7 +46,7 @@ impl ExistsFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ExistsFunctionEvaluator {
+impl LazyFunctionEvaluator for ExistsFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -79,14 +80,15 @@ impl FunctionEvaluator for ExistsFunctionEvaluator {
             let mut iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
-                context.terminology_provider().clone(),
-                context.trace_provider(),
+                context.terminology_provider().cloned(),
+                context.validation_provider().cloned(),
+                context.trace_provider().cloned(),
             )
             .await;
 
             // Set lambda variables: $this = single item, $index = current index
-            iteration_context.set_system_this(item.clone());
-            iteration_context.set_system_index(index as i64);
+            iteration_context.set_variable("$this".to_string(), item.clone());
+            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator

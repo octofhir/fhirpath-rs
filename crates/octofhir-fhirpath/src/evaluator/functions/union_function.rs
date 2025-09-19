@@ -8,10 +8,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Union function evaluator
 pub struct UnionFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct UnionFunctionEvaluator {
 
 impl UnionFunctionEvaluator {
     /// Create a new union function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "union".to_string(),
@@ -31,7 +30,7 @@ impl UnionFunctionEvaluator {
                         name: "other".to_string(),
                         parameter_type: vec!["Any".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The other collection to union with".to_string(),
                         default_value: None,
                     }],
@@ -40,6 +39,8 @@ impl UnionFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Combining,
@@ -51,13 +52,11 @@ impl UnionFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for UnionFunctionEvaluator {
+impl PureFunctionEvaluator for UnionFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -66,9 +65,8 @@ impl FunctionEvaluator for UnionFunctionEvaluator {
             ));
         }
 
-        // Evaluate the argument expression
-        let other_result = evaluator.evaluate(&args[0], context).await?;
-        let other_values = other_result.value.into_vec();
+        // Get the pre-evaluated argument values
+        let other_values = args[0].clone();
 
         // Combine the input and other collections
         let mut result_values = input;

@@ -9,9 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// AnyTrue function evaluator
 pub struct AnyTrueFunctionEvaluator {
@@ -20,7 +20,7 @@ pub struct AnyTrueFunctionEvaluator {
 
 impl AnyTrueFunctionEvaluator {
     /// Create a new anyTrue function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "anyTrue".to_string(),
@@ -33,6 +33,8 @@ impl AnyTrueFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation, // Returns false for empty collections
                 deterministic: true,
                 category: FunctionCategory::Existence,
@@ -44,13 +46,11 @@ impl AnyTrueFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for AnyTrueFunctionEvaluator {
+impl PureFunctionEvaluator for AnyTrueFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(

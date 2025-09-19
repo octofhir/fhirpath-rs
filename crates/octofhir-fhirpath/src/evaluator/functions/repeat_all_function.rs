@@ -10,10 +10,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, LazyFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// RepeatAll function evaluator
 pub struct RepeatAllFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct RepeatAllFunctionEvaluator {
 
 impl RepeatAllFunctionEvaluator {
     /// Create a new repeatAll function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "repeatAll".to_string(),
@@ -44,6 +43,8 @@ impl RepeatAllFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Order is undefined, duplicates allowed
                 category: FunctionCategory::TreeNavigation,
@@ -64,7 +65,7 @@ impl RepeatAllFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for RepeatAllFunctionEvaluator {
+impl LazyFunctionEvaluator for RepeatAllFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -164,8 +165,9 @@ impl RepeatAllFunctionEvaluator {
             let iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection),
                 context.model_provider().clone(),
-                context.terminology_provider().clone(),
-                context.trace_provider(),
+                context.terminology_provider().cloned(),
+                context.validation_provider().cloned(),
+                context.trace_provider().cloned(),
             )
             .await;
 

@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// ConvertsToString function evaluator
 pub struct ConvertsToStringFunctionEvaluator {
@@ -19,7 +19,7 @@ pub struct ConvertsToStringFunctionEvaluator {
 
 impl ConvertsToStringFunctionEvaluator {
     /// Create a new convertsToString function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "convertsToString".to_string(),
@@ -32,6 +32,8 @@ impl ConvertsToStringFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(0),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Conversion,
@@ -43,13 +45,11 @@ impl ConvertsToStringFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ConvertsToStringFunctionEvaluator {
+impl PureFunctionEvaluator for ConvertsToStringFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        _context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        _evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if !args.is_empty() {
             return Err(FhirPathError::evaluation_error(

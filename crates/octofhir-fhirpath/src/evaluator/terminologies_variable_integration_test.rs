@@ -18,7 +18,7 @@ mod tests {
         let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
 
         // Create an engine with terminology provider
-        let engine = create_engine_with_mock_provider().await;
+        let engine = create_engine_with_mock_provider().await.unwrap();
 
         // Create evaluation context with terminology provider
         let input = Collection::empty();
@@ -26,11 +26,13 @@ mod tests {
             input,
             engine.model_provider().clone(),
             Some(terminology_provider.clone()),
+            None, // No validation provider
+            None, // No trace provider
         )
         .await;
 
-        // Test that %terminologies variable is available
-        let terminologies_var = context.get_variable("%terminologies");
+        // Test that %terminologies variable is available (stored as "terminologies")
+        let terminologies_var = context.get_variable("terminologies");
         assert!(
             terminologies_var.is_some(),
             "%terminologies variable should be available when terminology provider is present"
@@ -48,7 +50,7 @@ mod tests {
     #[tokio::test]
     async fn test_terminologies_variable_unavailable_without_provider() {
         // Create an engine without terminology provider
-        let engine = create_engine_with_mock_provider().await;
+        let engine = create_engine_with_mock_provider().await.unwrap();
 
         // Create evaluation context without terminology provider
         let input = Collection::empty();
@@ -56,6 +58,8 @@ mod tests {
             input,
             engine.model_provider().clone(),
             None, // No terminology provider
+            None, // No validation provider
+            None, // No trace provider
         )
         .await;
 
@@ -109,7 +113,7 @@ mod tests {
         let terminology_provider = Arc::new(NoOpTerminologyProvider::default());
 
         // Create an engine with terminology provider
-        let engine = create_engine_with_mock_provider().await;
+        let engine = create_engine_with_mock_provider().await.unwrap();
 
         // Create evaluation context
         let input = Collection::from(vec![FhirPathValue::string("test")]);
@@ -117,29 +121,30 @@ mod tests {
             input,
             engine.model_provider().clone(),
             Some(terminology_provider.clone()),
+            None, // No validation provider
+            None, // No trace provider
         )
         .await;
 
         // Set system variables for testing
-        context.set_system_this(FhirPathValue::string("this_value"));
-        context.set_system_index(5);
-        context.set_system_total(10);
+        context.set_variable("this".to_string(), FhirPathValue::string("this_value".to_string()));
+        context.set_variable("index".to_string(), FhirPathValue::integer(5));
+        context.set_variable("total".to_string(), FhirPathValue::integer(10));
 
-        // Test all system variables
-        assert!(context.get_variable("%this").is_some());
-        assert!(context.get_variable("$this").is_some());
-        assert!(context.get_variable("%index").is_some());
-        assert!(context.get_variable("%total").is_some());
-        assert!(context.get_variable("%terminologies").is_some());
+        // Test all system variables - note: variables are stored without prefixes internally
+        assert!(context.get_variable("this").is_some());
+        assert!(context.get_variable("index").is_some());
+        assert!(context.get_variable("total").is_some());
+        assert!(context.get_variable("terminologies").is_some());
 
         // Verify values
-        match context.get_variable("%index").unwrap() {
-            FhirPathValue::Integer(i, _, _) => assert_eq!(*i, 5),
+        match context.get_variable("index").unwrap() {
+            FhirPathValue::Integer(i, _, _) => assert_eq!(i, 5),
             _ => panic!("$index should be an integer"),
         }
 
-        match context.get_variable("%total").unwrap() {
-            FhirPathValue::Integer(i, _, _) => assert_eq!(*i, 10),
+        match context.get_variable("total").unwrap() {
+            FhirPathValue::Integer(i, _, _) => assert_eq!(i, 10),
             _ => panic!("$total should be an integer"),
         }
     }

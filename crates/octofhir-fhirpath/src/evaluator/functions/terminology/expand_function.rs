@@ -9,13 +9,12 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::terminologies_variable::{
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, ProviderPureFunctionEvaluator,
+};use crate::evaluator::terminologies_variable::{
     extract_terminology_provider_from_terminologies_variable, is_terminologies_variable,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::{EvaluationContext, EvaluationResult};
 
 /// Expand function evaluator
 pub struct ExpandFunctionEvaluator {
@@ -24,7 +23,7 @@ pub struct ExpandFunctionEvaluator {
 
 impl ExpandFunctionEvaluator {
     /// Create a new expand function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn ProviderPureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "expand".to_string(),
@@ -36,7 +35,7 @@ impl ExpandFunctionEvaluator {
                             name: "valueSetUrl".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: true,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Optional value set URL. If not provided, uses the input as the value set reference.".to_string(),
                             default_value: None,
                         }
@@ -46,6 +45,8 @@ impl ExpandFunctionEvaluator {
                     min_params: 0,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: false, // Terminology operations may change over time
                 category: FunctionCategory::Utility,
@@ -58,9 +59,7 @@ impl ExpandFunctionEvaluator {
     /// Extract value set URL from input or parameter
     async fn get_value_set_url(
         input: &[FhirPathValue],
-        args: &[ExpressionNode],
-        context: &EvaluationContext,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: &[Vec<FhirPathValue>],
     ) -> Result<String> {
         // Check if this is being called on %terminologies variable
         let is_terminologies_call = input.len() == 1 && is_terminologies_variable(&input[0]);
@@ -75,8 +74,7 @@ impl ExpandFunctionEvaluator {
                 ));
             }
 
-            let url_result = evaluator.evaluate(&args[0], context).await?;
-            let url_values: Vec<FhirPathValue> = url_result.value.iter().cloned().collect();
+            let url_values = &args[0];
 
             if url_values.len() != 1 {
                 return Err(FhirPathError::evaluation_error(
@@ -95,8 +93,7 @@ impl ExpandFunctionEvaluator {
             }
         } else if args.len() == 1 {
             // Value set URL provided as parameter
-            let url_result = evaluator.evaluate(&args[0], context).await?;
-            let url_values: Vec<FhirPathValue> = url_result.value.iter().cloned().collect();
+            let url_values = &args[0];
 
             if url_values.len() != 1 {
                 return Err(FhirPathError::evaluation_error(
@@ -153,13 +150,12 @@ impl ExpandFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ExpandFunctionEvaluator {
+impl ProviderPureFunctionEvaluator for ExpandFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
+        args: Vec<Vec<FhirPathValue>>,
         context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
     ) -> Result<EvaluationResult> {
         if args.len() > 1 {
             return Err(FhirPathError::evaluation_error(
@@ -178,7 +174,7 @@ impl FunctionEvaluator for ExpandFunctionEvaluator {
                 ))?
         } else {
             // Standard call - get provider from context
-            context.terminology_provider().ok_or_else(|| {
+            context.terminology_provider().cloned().ok_or_else(|| {
                 FhirPathError::evaluation_error(
                     crate::core::error_code::FP0051,
                     "expand function requires a terminology provider".to_string(),
@@ -187,7 +183,7 @@ impl FunctionEvaluator for ExpandFunctionEvaluator {
         };
 
         // Get value set URL
-        let value_set_url = Self::get_value_set_url(&input, &args, context, evaluator).await?;
+        let value_set_url = Self::get_value_set_url(&input, &args).await?;
 
         // Perform value set expansion
         match terminology_provider

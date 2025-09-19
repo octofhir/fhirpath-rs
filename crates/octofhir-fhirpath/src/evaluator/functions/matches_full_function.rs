@@ -10,10 +10,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// MatchesFull function evaluator
 pub struct MatchesFullFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct MatchesFullFunctionEvaluator {
 
 impl MatchesFullFunctionEvaluator {
     /// Create a new matchesFull function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "matchesFull".to_string(),
@@ -34,7 +33,7 @@ impl MatchesFullFunctionEvaluator {
                             name: "pattern".to_string(),
                             parameter_type: vec!["String".to_string()],
                             optional: false,
-                            is_expression: true,
+                            is_expression: false,
                             description: "Regular expression pattern to match against the entire string".to_string(),
                             default_value: None,
                         }
@@ -44,6 +43,8 @@ impl MatchesFullFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -55,13 +56,11 @@ impl MatchesFullFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for MatchesFullFunctionEvaluator {
+impl PureFunctionEvaluator for MatchesFullFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -88,9 +87,8 @@ impl FunctionEvaluator for MatchesFullFunctionEvaluator {
             }
         };
 
-        // Evaluate pattern argument
-        let pattern_result = evaluator.evaluate(&args[0], context).await?;
-        let pattern_values: Vec<FhirPathValue> = pattern_result.value.iter().cloned().collect();
+        // Get pattern argument (pre-evaluated)
+        let pattern_values = &args[0];
 
         if pattern_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(

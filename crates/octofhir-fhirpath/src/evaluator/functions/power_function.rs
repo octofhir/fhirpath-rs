@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Power function evaluator
 pub struct PowerFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct PowerFunctionEvaluator {
 
 impl PowerFunctionEvaluator {
     /// Create a new power function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "power".to_string(),
@@ -32,7 +31,7 @@ impl PowerFunctionEvaluator {
                         name: "exponent".to_string(),
                         parameter_type: vec!["Number".to_string()],
                         optional: false,
-                        is_expression: true,
+                        is_expression: false,
                         description: "The exponent to raise the input to".to_string(),
                         default_value: None,
                     }],
@@ -41,6 +40,8 @@ impl PowerFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::Math,
@@ -52,13 +53,11 @@ impl PowerFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for PowerFunctionEvaluator {
+impl PureFunctionEvaluator for PowerFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -99,25 +98,22 @@ impl FunctionEvaluator for PowerFunctionEvaluator {
             }
         };
 
-        // Evaluate exponent argument
-        let exponent_result = evaluator.evaluate(&args[0], context).await?;
-        let exponent_values: Vec<FhirPathValue> = exponent_result.value.iter().cloned().collect();
-
+        // Get the pre-evaluated exponent argument
         // Handle empty exponent parameter - propagate empty collections
-        if exponent_values.is_empty() {
+        if args[0].is_empty() {
             return Ok(EvaluationResult {
                 value: crate::core::Collection::empty(),
             });
         }
 
-        if exponent_values.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0056,
-                "power function exponent argument must evaluate to a single value".to_string(),
+                "power function exponent argument must be a single value".to_string(),
             ));
         }
 
-        let exponent_float = match &exponent_values[0] {
+        let exponent_float = match &args[0][0] {
             FhirPathValue::Integer(i, _, _) => *i as f64,
             FhirPathValue::Decimal(d, _, _) => d.to_f64().ok_or_else(|| {
                 FhirPathError::evaluation_error(

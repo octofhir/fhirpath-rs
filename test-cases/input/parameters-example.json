@@ -1,0 +1,238 @@
+{
+  "id": "example-tpr-response",
+  "meta": {
+    "profile": "http://telus.com/fhir/StructureDefinition/profile-parameters-tpr-response"
+  },
+  "parameter": [
+    {
+      "name": [
+        "over100flag"
+      ],
+      "valueBoolean": "false"
+    },
+    {
+      "name": [
+        "address"
+      ],
+      "part": [
+        {
+          "name": [
+            "number"
+          ],
+          "valueInteger": "1"
+        },
+        {
+          "name": [
+            "resources"
+          ],
+          "resource": {
+            "PractitionerRole": {
+              "code": {
+                "coding": [
+                  {
+                    "code": "doctor",
+                    "display": {
+                      "extension": [
+                        {
+                          "extension": [
+                            {
+                              "valueCode": "fr-CA"
+                            },
+                            {
+                              "valueString": "Médecin"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "Doctor"
+                    },
+                    "system": "http://terminology.hl7.org/CodeSystem/practitioner-role"
+                  }
+                ],
+                "text": "Doctor"
+              },
+              "id": "PractitionerRoleDestinationTPRID",
+              "organization": {
+                "reference": "https://webservices.telus.com/rest/v1/THP/TPR/v1/Organization/CDXORG12345"
+              },
+              "practitioner": {
+                "display": "Dr Medical Clinic ABC General Inbox (CDX)",
+                "reference": "https://webservices.telus.com/rest/v1/THP/TPR/v1/Practitioner/CDXPP12345"
+              },
+              "specialty": {
+                "coding": [
+                  {
+                    "code": "90655003",
+                    "display": "Geriatrics specialist",
+                    "system": "http://snomed.info/sct"
+                  }
+                ],
+                "text": {
+                  "extension": [
+                    {
+                      "extension": [
+                        {
+                          "valueCode": "fr-CA"
+                        },
+                        {
+                          "valueString": "Spécialiste en Gériatrie"
+                        }
+                      ]
+                    }
+                  ],
+                  "value": "Geriatrics specialist"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": [
+            "resources"
+          ],
+          "resource": {
+            "Practitioner": {
+              "communication": [
+                {
+                  "language": {
+                    "coding": [
+                      {
+                        "code": "fr-CA",
+                        "system": "urn:ietf:bcp:47"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "id": "CDXPP12345",
+              "identifier": [
+                {
+                  "system": "http://telus.com/fhir/Identifiers/TPR",
+                  "type": {
+                    "coding": [
+                      {
+                        "code": "PRN",
+                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203"
+                      }
+                    ]
+                  },
+                  "value": "CDXPP12345-bad"
+                }
+              ],
+              "name": [
+                {
+                  "family": "General Inbox (CDX)",
+                  "given": [
+                    "Medical Clinic ABC"
+                  ],
+                  "prefix": [
+                    "Dr"
+                  ],
+                  "use": "official"
+                }
+              ],
+              "qualification": {
+                "code": {
+                  "coding": [
+                    {
+                      "code": "BS",
+                      "display": "Bachelor of Science",
+                      "system": "http://terminology.hl7.org/CodeSystem/v2-0360|2.7"
+                    }
+                  ],
+                  "text": "Bachelor of Science"
+                },
+                "identifier": [
+                  {
+                    "system": "urn:oid:2.16.840.1.113883.4.756",
+                    "type": {
+                      "coding": [
+                        {
+                          "code": "LN",
+                          "system": "http://terminology.hl7.org/CodeSystem/v2-0203"
+                        }
+                      ],
+                      "text": "College of Physicians and Surgeons of British Columbia"
+                    },
+                    "value": "0000000"
+                  }
+                ]
+              },
+              "telecom": [
+                {
+                  "system": "phone",
+                  "use": "work",
+                  "value": "(222) 456-7890"
+                },
+                {
+                  "system": "phone",
+                  "use": "mobile",
+                  "value": "(263) 222-2222"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": [
+            "resources"
+          ],
+          "resource": {
+            "Organization": {
+              "address": [
+                {
+                  "city": "Vancouver",
+                  "country": "Canada",
+                  "line": [
+                    "55 Test Ave"
+                  ],
+                  "postalCode": "B1C 1B1",
+                  "state": "British Columbia",
+                  "type": "physical"
+                }
+              ],
+              "id": "CDXORG12345",
+              "identifier": [
+                {
+                  "system": "http://telus.com/fhir/Identifiers/TPR",
+                  "value": "CDXORG12345"
+                }
+              ],
+              "name": [
+                "Medical Clinic ABC"
+              ],
+              "telecom": [
+                {
+                  "system": "phone",
+                  "use": "work",
+                  "value": "+1 555 234 1234"
+                },
+                {
+                  "system": "email",
+                  "use": "work",
+                  "value": "contact@erad.acme.org"
+                }
+              ],
+              "type": {
+                "coding": [
+                  {
+                    "code": "PROFF",
+                    "display": "Provider's Office",
+                    "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": [
+            "recipientHealthcareService"
+          ],
+          "valueCode": "eServices"
+        }
+      ]
+    }
+  ],
+  "resourceType": "Parameters"
+}

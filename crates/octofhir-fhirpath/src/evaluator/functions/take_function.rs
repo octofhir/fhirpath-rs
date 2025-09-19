@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Take function evaluator
 pub struct TakeFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct TakeFunctionEvaluator {
 
 impl TakeFunctionEvaluator {
     /// Create a new take function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "take".to_string(),
@@ -43,6 +42,8 @@ impl TakeFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Subsetting,
@@ -54,7 +55,7 @@ impl TakeFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for TakeFunctionEvaluator {
+impl LazyFunctionEvaluator for TakeFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

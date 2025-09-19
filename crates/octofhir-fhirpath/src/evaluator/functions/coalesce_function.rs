@@ -10,10 +10,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Coalesce function evaluator
 pub struct CoalesceFunctionEvaluator {
@@ -22,7 +21,7 @@ pub struct CoalesceFunctionEvaluator {
 
 impl CoalesceFunctionEvaluator {
     /// Create a new coalesce function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "coalesce".to_string(),
@@ -44,6 +43,8 @@ impl CoalesceFunctionEvaluator {
                     min_params: 1,
                     max_params: None, // Unlimited parameters
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: true,
                 category: FunctionCategory::Combining,
@@ -55,7 +56,7 @@ impl CoalesceFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for CoalesceFunctionEvaluator {
+impl LazyFunctionEvaluator for CoalesceFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,

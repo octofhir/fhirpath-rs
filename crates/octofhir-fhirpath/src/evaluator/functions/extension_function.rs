@@ -10,10 +10,9 @@ use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::core::model_provider::TypeInfo;
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::EvaluationResult;
 
 /// Extension function evaluator for filtering extensions by URL
 pub struct ExtensionFunctionEvaluator {
@@ -29,19 +28,17 @@ impl ExtensionFunctionEvaluator {
     }
 
     /// Create an Arc-wrapped instance for registry registration
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self::new())
     }
 }
 
 #[async_trait]
-impl FunctionEvaluator for ExtensionFunctionEvaluator {
+impl PureFunctionEvaluator for ExtensionFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         // Check argument count
         if args.len() != 1 {
@@ -51,9 +48,8 @@ impl FunctionEvaluator for ExtensionFunctionEvaluator {
             ));
         }
 
-        // Evaluate the URL argument
-        let url_result = evaluator.evaluate(&args[0], context).await?;
-        let url_values: Vec<FhirPathValue> = url_result.value.iter().cloned().collect();
+        // Get the URL argument (pre-evaluated)
+        let url_values = &args[0];
 
         if url_values.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -129,7 +125,7 @@ fn create_metadata() -> FunctionMetadata {
                 name: "url".to_string(),
                 parameter_type: vec!["String".to_string()],
                 optional: false,
-                is_expression: true,
+                is_expression: false,
                 description: "URL of the extension to filter by".to_string(),
                 default_value: None,
             }],
@@ -138,6 +134,8 @@ fn create_metadata() -> FunctionMetadata {
             min_params: 1,
             max_params: Some(1),
         },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
         empty_propagation: EmptyPropagation::Propagate,
         deterministic: true,
         category: FunctionCategory::FilteringProjection,

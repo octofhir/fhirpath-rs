@@ -19,6 +19,7 @@
 use octofhir_fhir_model::FhirVersion;
 use octofhir_fhirpath::FhirPathValue;
 use octofhir_fhirpath::core::trace::create_cli_provider;
+use octofhir_fhirschema::create_validation_provider_from_embedded;
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -217,6 +218,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add CLI trace provider for trace function support
     let trace_provider = create_cli_provider();
     engine = engine.with_trace_provider(trace_provider);
+
+    if let Ok(validation_provider) = create_validation_provider_from_embedded(
+        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>
+    ).await {
+        engine = engine.with_validation_provider(validation_provider);
+    }
+
     // Attach real terminology provider (tx.fhir.org) by default for integration tests
     let tx_base = match fhir_version.as_str() {
         "r6" => "https://tx.fhir.org/r6",
@@ -312,6 +320,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             input_collection,
             model_provider.clone(),
             engine.get_terminology_provider(),
+            engine.get_validation_provider(),
             engine.get_trace_provider(),
         )
         .await;

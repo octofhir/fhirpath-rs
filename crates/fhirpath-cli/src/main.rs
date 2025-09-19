@@ -24,6 +24,7 @@ use octofhir_fhirpath::evaluator::FhirPathEngine;
 use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
 use octofhir_fhirpath::{self, create_function_registry};
 use octofhir_fhirpath::core::trace::create_cli_provider;
+use octofhir_fhirschema::create_validation_provider_from_embedded;
 use serde_json::{Value as JsonValue, from_str as parse_json};
 use std::fs;
 use std::process;
@@ -41,13 +42,20 @@ async fn create_fhirpath_engine(
     model_provider: Arc<EmbeddedModelProvider>,
 ) -> anyhow::Result<FhirPathEngine> {
     let registry = Arc::new(create_function_registry());
-    let engine = FhirPathEngine::new(registry, model_provider)
+    let engine = FhirPathEngine::new(registry, model_provider.clone())
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create FhirPath engine: {}", e))?;
 
-    // Add CLI trace provider for trace function support
     let trace_provider = create_cli_provider();
-    let engine = engine.with_trace_provider(trace_provider);
+    let mut engine = engine.with_trace_provider(trace_provider);
+
+    // Create and wire in the FhirSchemaValidationProvider from the existing EmbeddedModelProvider
+    // This reuses the already initialized provider and provides out-of-the-box support for conformsTo()
+    if let Ok(validation_provider) = create_validation_provider_from_embedded(
+        model_provider.clone() as Arc<dyn octofhir_fhir_model::provider::ModelProvider>
+    ).await {
+        engine = engine.with_validation_provider(validation_provider);
+    }
 
     Ok(engine)
 }
@@ -479,6 +487,7 @@ async fn handle_evaluate(
         context_collection,
         model_provider_arc,
         engine.get_terminology_provider(),
+        engine.get_validation_provider(),
         None, // trace_provider
     )
     .await;
@@ -486,9 +495,7 @@ async fn handle_evaluate(
     // Add variables if provided - support multiple variables
     if !variables.is_empty() {
         for (name, value) in variables {
-            if let Err(e) = eval_context.set_user_variable(name, value) {
-                eprintln!("Warning: Failed to set variable: {}", e);
-            }
+            eval_context.set_variable(name.to_string(), value);
         }
     }
 
@@ -570,12 +577,12 @@ async fn handle_evaluate(
                 // Convert Collection to CollectionWithMetadata for rich CLI output
                 let collection_with_metadata =
                     octofhir_fhirpath::core::CollectionWithMetadata::from(
-                        eval_result_with_metadata.value.clone(),
+                        eval_result_with_metadata.result.value.clone(),
                     );
 
                 EvaluationOutput {
                     success: true,
-                    result: Some(eval_result_with_metadata.value.clone()),
+                    result: Some(eval_result_with_metadata.result.value.clone()),
                     result_with_metadata: Some(collection_with_metadata),
                     error: None,
                     expression: expression.to_string(),

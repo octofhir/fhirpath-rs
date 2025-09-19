@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{Collection, FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// Replace function evaluator
 pub struct ReplaceFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct ReplaceFunctionEvaluator {
 
 impl ReplaceFunctionEvaluator {
     /// Create a new replace function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "replace".to_string(),
@@ -53,6 +52,8 @@ impl ReplaceFunctionEvaluator {
                     min_params: 2,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -89,13 +90,11 @@ impl ReplaceFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for ReplaceFunctionEvaluator {
+impl PureFunctionEvaluator for ReplaceFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 2 {
             return Err(FhirPathError::evaluation_error(
@@ -104,58 +103,50 @@ impl FunctionEvaluator for ReplaceFunctionEvaluator {
             ));
         }
 
-        let pattern_result = evaluator.evaluate(&args[0], context).await?;
-        if pattern_result.value.is_empty() {
+        if args[0].is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        if pattern_result.value.len() != 1 {
+        if args[0].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                "replace function pattern parameter must evaluate to a single value".to_string(),
+                "replace function pattern parameter must be a single value".to_string(),
             ));
         }
 
-        let pattern = pattern_result
-            .value
-            .first()
-            .and_then(|v| v.as_string())
+        let pattern = args[0][0]
+            .as_string()
             .ok_or_else(|| {
                 FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
                     "replace function pattern parameter must be a string".to_string(),
                 )
-            })?
-            .to_string();
+            })?;
 
-        let substitution_result = evaluator.evaluate(&args[1], context).await?;
-        if substitution_result.value.is_empty() {
+        if args[1].is_empty() {
             return Ok(EvaluationResult {
                 value: Collection::empty(),
             });
         }
 
-        if substitution_result.value.len() != 1 {
+        if args[1].len() != 1 {
             return Err(FhirPathError::evaluation_error(
                 crate::core::error_code::FP0054,
-                "replace function substitution parameter must evaluate to a single value"
+                "replace function substitution parameter must be a single value"
                     .to_string(),
             ));
         }
 
-        let substitution = substitution_result
-            .value
-            .first()
-            .and_then(|v| v.as_string())
+        let substitution = args[1][0]
+            .as_string()
             .ok_or_else(|| {
                 FhirPathError::evaluation_error(
                     crate::core::error_code::FP0055,
                     "replace function substitution parameter must be a string".to_string(),
                 )
-            })?
-            .to_string();
+            })?;
 
         if input.is_empty() {
             return Ok(EvaluationResult {

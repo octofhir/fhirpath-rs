@@ -3,9 +3,9 @@
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter, FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 use std::sync::Arc;
 
 pub struct TraceFunctionEvaluator {
@@ -13,7 +13,7 @@ pub struct TraceFunctionEvaluator {
 }
 
 impl TraceFunctionEvaluator {
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "trace".to_string(),
@@ -43,6 +43,8 @@ impl TraceFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation,
                 deterministic: false, // trace has side effects
                 category: FunctionCategory::Utility,
@@ -54,7 +56,7 @@ impl TraceFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for TraceFunctionEvaluator {
+impl LazyFunctionEvaluator for TraceFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -100,11 +102,10 @@ impl FunctionEvaluator for TraceFunctionEvaluator {
         // If there's a second parameter (selector), evaluate it for each item
         if args.len() == 2 {
             for (index, item) in input.iter().enumerate() {
-                let item_context = context.create_iteration_context(
-                    item.clone(),
-                    index as i64,
-                    input.len() as i64,
-                );
+                let mut item_context = context.create_child_context(crate::core::Collection::single(item.clone()));
+                item_context.set_variable("$this".to_string(), item.clone());
+                item_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+                item_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
                 let selector_result = evaluator.evaluate(&args[1], &item_context).await?;
 
                 // Format the trace message with the selector result

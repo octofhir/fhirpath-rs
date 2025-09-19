@@ -13,6 +13,9 @@ use super::error_code::*;
 use super::model_provider::{ModelProvider, TypeInfo};
 use super::model_provider::utils::extract_resource_type;
 use super::temporal::{PrecisionDate, PrecisionDateTime, PrecisionTime};
+
+// Import the new evaluation types from fhir-model-rs
+pub use octofhir_fhir_model::{EvaluationResult, IntoEvaluationResult, TypeInfoResult};
 // New wrapped primitive element for Phase 1 implementation
 
 /// A collection of FHIRPath values - the fundamental evaluation result type
@@ -1218,6 +1221,200 @@ impl FhirPathValue {
             Self::Empty => Self::Empty,
         }
     }
+
+    /// Convert to EvaluationResult for efficient operations
+    pub fn to_evaluation_result(&self) -> EvaluationResult {
+        match self {
+            Self::Boolean(b, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Boolean(*b, type_info_result)
+            }
+            Self::Integer(i, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Integer(*i, type_info_result)
+            }
+            Self::Decimal(d, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Decimal(*d, type_info_result)
+            }
+            Self::String(s, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::String(s.clone(), type_info_result)
+            }
+            Self::Date(d, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Date(d.to_string(), type_info_result)
+            }
+            Self::DateTime(dt, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::DateTime(dt.to_string(), type_info_result)
+            }
+            Self::Time(t, type_info, _) => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Time(t.to_string(), type_info_result)
+            }
+            Self::Quantity { value, unit, type_info, .. } => {
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Quantity(*value, unit.clone().unwrap_or_default(), type_info_result)
+            }
+            Self::Resource(json, type_info, _) => {
+                // Convert to object representation
+                let mut map = std::collections::HashMap::new();
+                if let JsonValue::Object(obj) = json.as_ref() {
+                    for (key, value) in obj {
+                        map.insert(key.clone(), self.json_to_evaluation_result(value));
+                    }
+                }
+                let type_info_result = type_info.namespace.as_ref()
+                    .map(|ns| TypeInfoResult::new(ns, &type_info.type_name));
+                EvaluationResult::Object {
+                    map,
+                    type_info: type_info_result,
+                }
+            }
+            Self::Collection(collection) => {
+                let items = collection.iter()
+                    .map(|v| v.to_evaluation_result())
+                    .collect();
+                EvaluationResult::Collection {
+                    items,
+                    has_undefined_order: !collection.is_ordered(),
+                    type_info: None,
+                }
+            }
+            Self::Empty => EvaluationResult::Empty,
+        }
+    }
+
+    /// Helper method to convert JSON values to EvaluationResult
+    fn json_to_evaluation_result(&self, value: &JsonValue) -> EvaluationResult {
+        match value {
+            JsonValue::Null => EvaluationResult::Empty,
+            JsonValue::Bool(b) => EvaluationResult::boolean(*b),
+            JsonValue::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    EvaluationResult::integer(i)
+                } else if let Some(f) = n.as_f64() {
+                    if let Ok(d) = f.to_string().parse::<Decimal>() {
+                        EvaluationResult::decimal(d)
+                    } else {
+                        EvaluationResult::Empty
+                    }
+                } else {
+                    EvaluationResult::Empty
+                }
+            }
+            JsonValue::String(s) => EvaluationResult::string(s.clone()),
+            JsonValue::Array(arr) => {
+                let items = arr.iter()
+                    .map(|v| self.json_to_evaluation_result(v))
+                    .collect();
+                EvaluationResult::collection(items)
+            }
+            JsonValue::Object(obj) => {
+                let mut map = std::collections::HashMap::new();
+                for (key, val) in obj {
+                    map.insert(key.clone(), self.json_to_evaluation_result(val));
+                }
+                EvaluationResult::object(map)
+            }
+        }
+    }
+
+    /// Convert from EvaluationResult back to FhirPathValue
+    pub fn from_evaluation_result(eval_result: &EvaluationResult) -> Self {
+        match eval_result {
+            EvaluationResult::Empty => Self::Empty,
+            EvaluationResult::Boolean(b, type_info) => {
+                let ti = type_info.as_ref()
+                    .map(|ti| TypeInfo {
+                        type_name: ti.name.clone(),
+                        singleton: Some(true),
+                        namespace: Some(ti.namespace.clone()),
+                        name: Some(ti.name.clone()),
+                        is_empty: Some(false),
+                    })
+                    .unwrap_or_else(|| TypeInfo {
+                        type_name: "Boolean".to_string(),
+                        singleton: Some(true),
+                        namespace: Some("System".to_string()),
+                        name: Some("Boolean".to_string()),
+                        is_empty: Some(false),
+                    });
+                Self::Boolean(*b, ti, None)
+            }
+            EvaluationResult::Integer(i, type_info) => {
+                let ti = type_info.as_ref()
+                    .map(|ti| TypeInfo {
+                        type_name: ti.name.clone(),
+                        singleton: Some(true),
+                        namespace: Some(ti.namespace.clone()),
+                        name: Some(ti.name.clone()),
+                        is_empty: Some(false),
+                    })
+                    .unwrap_or_else(|| TypeInfo {
+                        type_name: "Integer".to_string(),
+                        singleton: Some(true),
+                        namespace: Some("System".to_string()),
+                        name: Some("Integer".to_string()),
+                        is_empty: Some(false),
+                    });
+                Self::Integer(*i, ti, None)
+            }
+            EvaluationResult::String(s, type_info) => {
+                let ti = type_info.as_ref()
+                    .map(|ti| TypeInfo {
+                        type_name: ti.name.clone(),
+                        singleton: Some(true),
+                        namespace: Some(ti.namespace.clone()),
+                        name: Some(ti.name.clone()),
+                        is_empty: Some(false),
+                    })
+                    .unwrap_or_else(|| TypeInfo {
+                        type_name: "String".to_string(),
+                        singleton: Some(true),
+                        namespace: Some("System".to_string()),
+                        name: Some("String".to_string()),
+                        is_empty: Some(false),
+                    });
+                Self::String(s.clone(), ti, None)
+            }
+            EvaluationResult::Decimal(d, type_info) => {
+                let ti = type_info.as_ref()
+                    .map(|ti| TypeInfo {
+                        type_name: ti.name.clone(),
+                        singleton: Some(true),
+                        namespace: Some(ti.namespace.clone()),
+                        name: Some(ti.name.clone()),
+                        is_empty: Some(false),
+                    })
+                    .unwrap_or_else(|| TypeInfo {
+                        type_name: "Decimal".to_string(),
+                        singleton: Some(true),
+                        namespace: Some("System".to_string()),
+                        name: Some("Decimal".to_string()),
+                        is_empty: Some(false),
+                    });
+                Self::Decimal(*d, ti, None)
+            }
+            EvaluationResult::Collection { items, .. } => {
+                let values = items.iter()
+                    .map(|item| Self::from_evaluation_result(item))
+                    .collect();
+                Self::Collection(Collection::from_values(values))
+            }
+            // Add other variants as needed
+            _ => Self::Empty, // Fallback for unhandled cases
+        }
+    }
 }
 
 impl fmt::Display for FhirPathValue {
@@ -1930,7 +2127,7 @@ impl TypeConstraint {
 #[cfg(test)]
 pub mod test_utils {
     use super::*;
-    use crate::core::ModelProvider;
+    use crate::core::{ModelProvider, TypeInfo, ElementInfo};
     use serde_json::Value as JsonValue;
 
     /// Create a test model provider for unit tests
@@ -1940,57 +2137,58 @@ pub mod test_utils {
 
     struct TestModelProvider;
 
+    #[async_trait::async_trait]
     impl ModelProvider for TestModelProvider {
-        fn get_type_info(&self, _type_name: &str) -> Result<TypeInfo> {
-            Ok(TypeInfo {
+        async fn get_type(&self, _type_name: &str) -> Result<Option<TypeInfo>> {
+            Ok(Some(TypeInfo {
                 type_name: "TestType".to_string(),
                 singleton: Some(true),
                 namespace: Some("Test".to_string()),
                 name: Some("TestType".to_string()),
                 is_empty: Some(false),
-            })
+            }))
         }
 
-        fn get_property_type(
+        async fn get_element_type(
             &self,
-            _resource_type: &str,
-            _property_path: &str,
-        ) -> Result<TypeInfo> {
-            Ok(TypeInfo {
+            _parent_type: &TypeInfo,
+            _property_name: &str,
+        ) -> Result<Option<TypeInfo>> {
+            Ok(Some(TypeInfo {
                 type_name: "String".to_string(),
                 singleton: Some(true),
                 namespace: Some("System".to_string()),
                 name: Some("String".to_string()),
                 is_empty: Some(false),
-            })
+            }))
         }
 
-        fn navigate_property(&self, _input: &JsonValue, _property: &str) -> Result<Vec<JsonValue>> {
-            Ok(vec![])
+        fn of_type(&self, _type_info: &TypeInfo, _target_type: &str) -> Option<TypeInfo> {
+            None
         }
 
-        fn validate_resource_type(
-            &self,
-            _resource: &JsonValue,
-            _expected_type: &str,
-        ) -> Result<bool> {
-            Ok(true)
-        }
-
-        fn get_resource_type(&self, _resource: &JsonValue) -> Option<String> {
-            Some("TestResource".to_string())
-        }
-
-        fn is_primitive_type(&self, _type_name: &str) -> bool {
-            false
-        }
-
-        fn get_element_children(&self, _resource: &JsonValue) -> Result<Vec<(String, JsonValue)>> {
-            Ok(vec![])
-        }
-
-        fn get_choice_type_names(&self, _base_type: &str) -> Vec<String> {
+        fn get_element_names(&self, _parent_type: &TypeInfo) -> Vec<String> {
             vec![]
+        }
+
+        async fn get_children_type(&self, _parent_type: &TypeInfo) -> Result<Option<TypeInfo>> {
+            Ok(None)
+        }
+
+        async fn get_elements(&self, _type_name: &str) -> Result<Vec<ElementInfo>> {
+            Ok(vec![])
+        }
+
+        async fn get_resource_types(&self) -> Result<Vec<String>> {
+            Ok(vec!["TestResource".to_string()])
+        }
+
+        async fn get_complex_types(&self) -> Result<Vec<String>> {
+            Ok(vec!["TestType".to_string()])
+        }
+
+        async fn get_primitive_types(&self) -> Result<Vec<String>> {
+            Ok(vec!["string".to_string(), "integer".to_string(), "boolean".to_string()])
         }
     }
 }

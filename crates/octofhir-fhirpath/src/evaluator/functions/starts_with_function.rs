@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// StartsWith function evaluator
 pub struct StartsWithFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct StartsWithFunctionEvaluator {
 
 impl StartsWithFunctionEvaluator {
     /// Create a new startsWith function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "startsWith".to_string(),
@@ -40,6 +39,8 @@ impl StartsWithFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -51,13 +52,11 @@ impl StartsWithFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for StartsWithFunctionEvaluator {
+impl PureFunctionEvaluator for StartsWithFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.len() != 1 {
             return Err(FhirPathError::evaluation_error(
@@ -66,10 +65,9 @@ impl FunctionEvaluator for StartsWithFunctionEvaluator {
             ));
         }
 
-        // Evaluate the prefix argument
-        let prefix_result = evaluator.evaluate(&args[0], context).await?;
-        let prefix = prefix_result
-            .value
+        // Get the prefix argument from pre-evaluated args
+        let prefix_values = &args[0];
+        let prefix = prefix_values
             .first()
             .and_then(|v| v.as_string())
             .ok_or_else(|| {

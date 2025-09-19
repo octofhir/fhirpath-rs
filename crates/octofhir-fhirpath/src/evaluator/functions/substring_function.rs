@@ -5,13 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, NullPropagationStrategy, PureFunctionEvaluator,
 };
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+use crate::evaluator::EvaluationResult;
 
 /// Substring function evaluator
 pub struct SubstringFunctionEvaluator {
@@ -20,7 +19,7 @@ pub struct SubstringFunctionEvaluator {
 
 impl SubstringFunctionEvaluator {
     /// Create a new substring function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn PureFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "substring".to_string(),
@@ -50,6 +49,8 @@ impl SubstringFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(2),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::Propagate,
                 deterministic: true,
                 category: FunctionCategory::StringManipulation,
@@ -61,13 +62,11 @@ impl SubstringFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for SubstringFunctionEvaluator {
+impl PureFunctionEvaluator for SubstringFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
-        context: &EvaluationContext,
-        args: Vec<ExpressionNode>,
-        evaluator: AsyncNodeEvaluator<'_>,
+        args: Vec<Vec<FhirPathValue>>,
     ) -> Result<EvaluationResult> {
         if args.is_empty() || args.len() > 2 {
             return Err(FhirPathError::evaluation_error(
@@ -76,9 +75,8 @@ impl FunctionEvaluator for SubstringFunctionEvaluator {
             ));
         }
 
-        // Evaluate start argument
-        let start_result = evaluator.evaluate(&args[0], context).await?;
-        let start_values: Vec<FhirPathValue> = start_result.value.iter().cloned().collect();
+        // Get start argument from pre-evaluated args
+        let start_values = &args[0];
 
         if start_values.is_empty() {
             // If start parameter is empty, return empty collection
@@ -104,10 +102,9 @@ impl FunctionEvaluator for SubstringFunctionEvaluator {
             }
         };
 
-        // Evaluate optional length argument
+        // Get optional length argument from pre-evaluated args
         let length = if args.len() > 1 {
-            let length_result = evaluator.evaluate(&args[1], context).await?;
-            let length_values: Vec<FhirPathValue> = length_result.value.iter().cloned().collect();
+            let length_values = &args[1];
 
             if length_values.is_empty() {
                 // If length parameter is empty, return empty collection

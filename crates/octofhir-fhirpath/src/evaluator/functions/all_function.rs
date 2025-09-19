@@ -9,10 +9,9 @@ use std::sync::Arc;
 use crate::ast::ExpressionNode;
 use crate::core::{FhirPathError, FhirPathValue, Result};
 use crate::evaluator::function_registry::{
-    EmptyPropagation, FunctionCategory, FunctionEvaluator, FunctionMetadata, FunctionParameter,
-    FunctionSignature,
-};
-use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
+    ArgumentEvaluationStrategy, EmptyPropagation, FunctionCategory, FunctionMetadata, FunctionParameter,
+    FunctionSignature, LazyFunctionEvaluator, NullPropagationStrategy,
+};use crate::evaluator::{AsyncNodeEvaluator, EvaluationContext, EvaluationResult};
 
 /// All function evaluator
 pub struct AllFunctionEvaluator {
@@ -21,7 +20,7 @@ pub struct AllFunctionEvaluator {
 
 impl AllFunctionEvaluator {
     /// Create a new all function evaluator
-    pub fn create() -> Arc<dyn FunctionEvaluator> {
+    pub fn create() -> Arc<dyn LazyFunctionEvaluator> {
         Arc::new(Self {
             metadata: FunctionMetadata {
                 name: "all".to_string(),
@@ -43,6 +42,8 @@ impl AllFunctionEvaluator {
                     min_params: 1,
                     max_params: Some(1),
                 },
+                argument_evaluation: ArgumentEvaluationStrategy::Current,
+                null_propagation: NullPropagationStrategy::Focus,
                 empty_propagation: EmptyPropagation::NoPropagation, // Returns true for empty collections
                 deterministic: true,
                 category: FunctionCategory::Existence,
@@ -54,7 +55,7 @@ impl AllFunctionEvaluator {
 }
 
 #[async_trait::async_trait]
-impl FunctionEvaluator for AllFunctionEvaluator {
+impl LazyFunctionEvaluator for AllFunctionEvaluator {
     async fn evaluate(
         &self,
         input: Vec<FhirPathValue>,
@@ -87,15 +88,15 @@ impl FunctionEvaluator for AllFunctionEvaluator {
             let mut iteration_context = EvaluationContext::new(
                 crate::core::Collection::from(single_item_collection.clone()),
                 context.model_provider().clone(),
-                context.terminology_provider().clone(),
-                context.trace_provider(),
+                context.terminology_provider().cloned(),
+                context.validation_provider().cloned(),
+                context.trace_provider().cloned(),
             )
             .await;
 
-            // Set lambda variables: $this = single item, $index = current index, $total = input length
-            iteration_context.set_system_this(item.clone());
-            iteration_context.set_system_index(index as i64);
-            iteration_context.set_system_total(input.len() as i64);
+            iteration_context.set_variable("$this".to_string(), item.clone());
+            iteration_context.set_variable("$index".to_string(), FhirPathValue::integer(index as i64));
+            iteration_context.set_variable("$total".to_string(), FhirPathValue::integer(input.len() as i64));
 
             // Evaluate criteria expression in the iteration context
             let result = evaluator
@@ -103,10 +104,10 @@ impl FunctionEvaluator for AllFunctionEvaluator {
                 .await?;
 
             // Check if the result is truthy
-            // If the result is empty or contains a falsy value, return false
+            // If the result is empty, propagate the empty result per FHIRPath specification
             if result.value.is_empty() {
                 return Ok(EvaluationResult {
-                    value: crate::core::Collection::single(FhirPathValue::boolean(false)),
+                    value: crate::core::Collection::empty(),
                 });
             }
 
