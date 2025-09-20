@@ -22,7 +22,7 @@ base64 = "0.22.1"
 chrono = { version = "0.4.41", features = ["serde"] }
 glob = "0.3"
 hex = "0.4"
-indexmap = "2.10.0"
+indexmap = "2.11.4"
 log = "0.4"
 octofhir-ucum = { version = "0.5.1", features = ["fhir", "serde"] }
 octofhir-fhir-model = { version = "0.1.5", features = ["serde", "http-client"] }
