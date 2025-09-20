@@ -1,0 +1,457 @@
+//! Comprehensive test suite for diagnostic enhancement features
+//!
+//! This module tests the complete diagnostic enhancement system including:
+//! - DiagnosticBuilder with template support
+//! - DiagnosticTemplateRegistry with predefined templates
+//! - StaticAnalyzer for comprehensive batch analysis
+//! - Integration between all diagnostic components
+
+use std::sync::Arc;
+
+use crate::analyzer::{
+    AnalysisContext, DiagnosticBuilder, DiagnosticContext, DiagnosticTemplateRegistry,
+    StaticAnalyzer, SuggestionType,
+};
+use crate::diagnostics::DiagnosticSeverity;
+use octofhir_fhir_model::{EmptyModelProvider, TypeInfo};
+
+fn create_test_type_info(type_name: &str, singleton: bool) -> TypeInfo {
+    TypeInfo {
+        type_name: type_name.to_string(),
+        singleton: Some(singleton),
+        is_empty: Some(false),
+        namespace: Some("FHIR".to_string()),
+        name: Some(type_name.to_string()),
+    }
+}
+
+/// Test DiagnosticBuilder template system
+#[tokio::test]
+async fn test_diagnostic_builder_templates() {
+    let builder = DiagnosticBuilder::new();
+
+    // Test property not found with context
+    let mut context = DiagnosticContext::new();
+    context
+        .variables
+        .insert("property_name".to_string(), "invalidProp".to_string());
+    context
+        .variables
+        .insert("type_name".to_string(), "Patient".to_string());
+    context
+        .variables
+        .insert("suggestions".to_string(), "name, birthDate".to_string());
+
+    let diagnostic = builder.from_template("PROPERTY_NOT_FOUND", context, 0..10);
+    assert!(diagnostic.is_ok());
+
+    let diag = diagnostic.unwrap();
+    assert_eq!(diag.severity, DiagnosticSeverity::Error);
+    assert!(diag.message.contains("invalidProp"));
+    assert!(diag.message.contains("Patient"));
+}
+
+/// Test DiagnosticTemplateRegistry functionality
+#[tokio::test]
+async fn test_diagnostic_template_registry() {
+    let registry = DiagnosticTemplateRegistry::new();
+
+    // Test template exists
+    assert!(registry.has_template("FP0301"));
+    assert!(registry.has_template("PROPERTY_NOT_FOUND"));
+
+    // Test template retrieval
+    let template = registry.get_template("FP0301").unwrap();
+    assert_eq!(template.code, "FP0301");
+    assert_eq!(template.severity, DiagnosticSeverity::Warning);
+    assert!(template.message_template.contains("ofType"));
+
+    // Test template count
+    assert!(registry.template_count() > 20);
+
+    // Test template keys
+    let keys = registry.template_keys();
+    assert!(keys.contains(&&"FP0302".to_string()));
+}
+
+/// Test DiagnosticBuilder with various templates
+#[tokio::test]
+async fn test_diagnostic_builder_various_templates() {
+    let builder = DiagnosticBuilder::new();
+
+    // Test union type filtering
+    let diagnostic = builder.empty_union_filter(
+        "Observation",
+        "Patient",
+        vec!["Patient".to_string(), "DomainResource".to_string()],
+        0..26,
+    );
+    assert_eq!(diagnostic.severity, DiagnosticSeverity::Warning);
+    assert!(diagnostic.message.contains("ofType(Observation)"));
+
+    // Test invalid resource type
+    let diagnostic = builder.invalid_resource_type(
+        "InvalidType",
+        vec!["Patient".to_string(), "Observation".to_string()],
+        0..11,
+    );
+    assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+    assert!(diagnostic.message.contains("InvalidType"));
+
+    // Test function context error
+    let diagnostic = builder.function_context_error("count", "collection", 0..5);
+    assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+    assert!(diagnostic.message.contains("count"));
+    assert!(diagnostic.message.contains("collection"));
+}
+
+/// Test StaticAnalyzer creation and basic functionality
+#[tokio::test]
+async fn test_static_analyzer_creation() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = StaticAnalyzer::new(provider);
+
+    // Verify analyzer is created successfully
+    assert_eq!(
+        std::mem::size_of_val(&analyzer),
+        std::mem::size_of::<StaticAnalyzer>()
+    );
+}
+
+/// Test AnalysisContext configuration
+#[tokio::test]
+async fn test_analysis_context_configuration() {
+    let patient_type = create_test_type_info("Patient", true);
+
+    // Test default context
+    let context = AnalysisContext::new(patient_type.clone());
+    assert_eq!(context.root_type.type_name, "Patient");
+    assert!(!context.deep_analysis);
+    assert!(context.suggest_optimizations);
+    assert_eq!(context.max_suggestions, 10);
+
+    // Test configured context
+    let context = AnalysisContext::new(patient_type)
+        .with_deep_analysis()
+        .with_optimization_suggestions(false)
+        .with_max_suggestions(5);
+
+    assert!(context.deep_analysis);
+    assert!(!context.suggest_optimizations);
+    assert_eq!(context.max_suggestions, 5);
+}
+
+/// Test StaticAnalyzer with valid expression
+#[tokio::test]
+async fn test_static_analyzer_valid_expression() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    let result = analyzer.analyze_expression("Patient.name", context).await;
+
+    // Should succeed with valid expression
+    assert!(result.success);
+    assert_eq!(result.statistics.total_expressions, 1);
+}
+
+/// Test StaticAnalyzer with invalid expression
+#[tokio::test]
+async fn test_static_analyzer_invalid_expression() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    let result = analyzer
+        .analyze_expression("Patient.name.invalid(", context)
+        .await;
+
+    // Should fail with invalid expression
+    assert!(!result.success);
+    assert!(result.statistics.errors_found > 0);
+    assert!(!result.diagnostics.is_empty());
+}
+
+/// Test StaticAnalyzer batch analysis
+#[tokio::test]
+async fn test_static_analyzer_batch_analysis() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    let expressions = vec![
+        "Patient.name".to_string(),
+        "Patient.birthDate".to_string(),
+        "Patient.invalid(".to_string(), // Invalid
+    ];
+
+    let results = analyzer.analyze_batch(expressions, context).await;
+
+    assert_eq!(results.len(), 3);
+    assert!(results[0].success); // Valid
+    assert!(results[1].success); // Valid
+    assert!(!results[2].success); // Invalid
+}
+
+/// Test suggestion system
+#[tokio::test]
+async fn test_suggestion_system() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type)
+        .with_optimization_suggestions(true)
+        .with_max_suggestions(5);
+
+    let result = analyzer
+        .analyze_expression("Patient.name.family", context)
+        .await;
+
+    // Check if suggestions are generated (even if empty for simple expressions)
+    assert!(result.suggestions.len() <= 5);
+    assert_eq!(
+        result.statistics.suggestions_generated,
+        result.suggestions.len()
+    );
+}
+
+/// Test performance metrics
+#[tokio::test]
+async fn test_performance_metrics() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    let result = analyzer.analyze_expression("Patient.name", context).await;
+
+    // Check that performance metrics are recorded
+    assert!(result.statistics.performance_metrics.total_analysis_time > 0);
+    // Individual analyzer times might be 0 for simple expressions
+}
+
+/// Test error code handling
+#[tokio::test]
+async fn test_error_code_handling() {
+    let builder = DiagnosticBuilder::new();
+
+    // Test various error codes from template
+    let templates = vec![
+        ("FP0301", DiagnosticSeverity::Warning),
+        ("FP0302", DiagnosticSeverity::Error),
+        ("PROPERTY_NOT_FOUND", DiagnosticSeverity::Error),
+    ];
+
+    for (template_key, expected_severity) in templates {
+        let context = DiagnosticContext::new();
+        let result = builder.from_template(template_key, context, 0..10);
+
+        if let Ok(diagnostic) = result {
+            assert_eq!(diagnostic.severity, expected_severity);
+        }
+    }
+}
+
+/// Test template variable substitution
+#[tokio::test]
+async fn test_template_variable_substitution() {
+    let builder = DiagnosticBuilder::new();
+
+    let mut context = DiagnosticContext::new();
+    context
+        .variables
+        .insert("target_type".to_string(), "Observation".to_string());
+    context
+        .variables
+        .insert("input_type".to_string(), "Patient".to_string());
+    context.variables.insert(
+        "available_types".to_string(),
+        "Patient, DomainResource".to_string(),
+    );
+
+    let diagnostic = builder.from_template("FP0301", context, 0..26);
+    assert!(diagnostic.is_ok());
+
+    let diag = diagnostic.unwrap();
+    assert!(diag.message.contains("Observation"));
+    if let Some(help) = &diag.help {
+        assert!(help.contains("Patient, DomainResource"));
+    }
+}
+
+/// Test fallback diagnostics
+#[tokio::test]
+async fn test_fallback_diagnostics() {
+    let builder = DiagnosticBuilder::new();
+
+    // Test that fallback works when template is not found
+    let context = DiagnosticContext::new();
+    let result = builder.from_template("NONEXISTENT_TEMPLATE", context, 0..10);
+
+    // Should fail gracefully
+    assert!(result.is_err());
+}
+
+/// Test diagnostic context helper methods
+#[tokio::test]
+async fn test_diagnostic_context_helpers() {
+    let context = DiagnosticContext::new()
+        .with_variable("key1", "value1")
+        .with_variable("key2", "value2");
+
+    assert_eq!(context.variables.get("key1"), Some(&"value1".to_string()));
+    assert_eq!(context.variables.get("key2"), Some(&"value2".to_string()));
+
+    // Test with multiple variables
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("key3".to_string(), "value3".to_string());
+    vars.insert("key4".to_string(), "value4".to_string());
+
+    let context = DiagnosticContext::new().with_variables(vars);
+    assert_eq!(context.variables.len(), 2);
+}
+
+/// Test integration between all diagnostic components
+#[tokio::test]
+async fn test_diagnostic_integration() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type)
+        .with_deep_analysis()
+        .with_optimization_suggestions(true);
+
+    // Test complex expression that should generate diagnostics
+    let result = analyzer
+        .analyze_expression("Patient.name.family.first().count()", context)
+        .await;
+
+    // Should complete analysis even with potential warnings
+    assert_eq!(result.statistics.total_expressions, 1);
+
+    // Check that statistics are properly calculated
+    let total_diagnostics = result.statistics.errors_found
+        + result.statistics.warnings_found
+        + result.statistics.info_found;
+    assert_eq!(total_diagnostics, result.diagnostics.len());
+}
+
+/// Test suggestion types
+#[tokio::test]
+async fn test_suggestion_types() {
+    // Test all suggestion types exist and are correctly categorized
+    let types = vec![
+        SuggestionType::Performance,
+        SuggestionType::Simplification,
+        SuggestionType::TypeSafety,
+        SuggestionType::BestPractice,
+        SuggestionType::ErrorPrevention,
+    ];
+
+    for suggestion_type in types {
+        // Just verify they can be created and compared
+        assert_eq!(suggestion_type, suggestion_type);
+    }
+}
+
+/// Test comprehensive error coverage
+#[tokio::test]
+async fn test_comprehensive_error_coverage() {
+    let registry = DiagnosticTemplateRegistry::new();
+
+    // Test that key error codes are present
+    let required_codes = vec![
+        "PROPERTY_NOT_FOUND",
+        "FP0201",
+        "FP0202",
+        "FP0203",
+        "FP0301",
+        "FP0302",
+        "FP0303",
+        "FP0304",
+        "FP0305",
+        "FP0306",
+        "FP0307",
+        "FP0308",
+        "FP0309",
+        "FP0310",
+        "FP0311",
+        "FP0312",
+        "FP0313",
+        "FP0314",
+        "FP0315",
+        "FP0316",
+        "FP0317",
+        "FP0318",
+        "FP0319",
+        "FP0320",
+        "FP0401",
+        "FP0402",
+        "FP0403",
+    ];
+
+    for code in required_codes {
+        assert!(
+            registry.has_template(code),
+            "Missing template for code: {}",
+            code
+        );
+    }
+}
+
+/// Test memory and performance characteristics
+#[tokio::test]
+async fn test_performance_characteristics() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    // Test multiple expressions to check for memory leaks or performance degradation
+    for i in 0..10 {
+        let expression = format!("Patient.name.family[{}]", i);
+        let result = analyzer
+            .analyze_expression(&expression, context.clone())
+            .await;
+
+        // Each analysis should complete in reasonable time
+        assert!(result.statistics.performance_metrics.total_analysis_time < 1_000_000); // < 1 second in microseconds
+    }
+}
+
+/// Test edge cases and error recovery
+#[tokio::test]
+async fn test_edge_cases_and_error_recovery() {
+    let provider = Arc::new(EmptyModelProvider);
+    let mut analyzer = StaticAnalyzer::new(provider);
+
+    let patient_type = create_test_type_info("Patient", true);
+    let context = AnalysisContext::new(patient_type);
+
+    // Test empty expression
+    let result = analyzer.analyze_expression("", context.clone()).await;
+    assert!(!result.success);
+
+    // Test very long expression
+    let long_expr = "Patient.name.".repeat(10) + "family";
+    let _result = analyzer
+        .analyze_expression(&long_expr, context.clone())
+        .await;
+    // Should handle gracefully without crashing
+
+    // Test expression with special characters
+    let _result = analyzer
+        .analyze_expression("Patient.name[0].family.substring(0, 1)", context)
+        .await;
+    // Should parse and analyze without errors
+}

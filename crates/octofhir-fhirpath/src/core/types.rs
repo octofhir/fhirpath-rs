@@ -1956,7 +1956,10 @@ impl TypeDetails {
 
     /// Check if this type is optional (allows zero values)
     pub fn is_optional(&self) -> bool {
-        matches!(self.cardinality, Cardinality::ZeroToOne | Cardinality::ZeroToMany | Cardinality::Range(0, _))
+        matches!(
+            self.cardinality,
+            Cardinality::ZeroToOne | Cardinality::ZeroToMany | Cardinality::Range(0, _)
+        )
     }
 
     /// Get minimum cardinality

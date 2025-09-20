@@ -1,0 +1,216 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "FHIRPath",
+  "scopeName": "source.fhirpath",
+  "fileTypes": ["fhirpath", "fhir"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#functions" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#booleans" },
+    { "include": "#identifiers" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.fhirpath",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.fhirpath",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "patterns": [
+            {
+              "name": "comment.block.fhirpath",
+              "match": "."
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.fhirpath",
+          "match": "\\b(where|select|exists|all|any|empty|first|last|tail|skip|take|distinct|iif|repeat|single|children|descendants)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.fhirpath",
+          "match": "\\b(and|or|xor|implies|not)\\b"
+        },
+        {
+          "name": "keyword.operator.type.fhirpath",
+          "match": "\\b(is|as|ofType)\\b"
+        },
+        {
+          "name": "keyword.operator.membership.fhirpath",
+          "match": "\\b(in|contains)\\b"
+        },
+        {
+          "name": "constant.language.fhirpath",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.fhirpath",
+          "match": "[+\\-*/]"
+        },
+        {
+          "name": "keyword.operator.comparison.fhirpath",
+          "match": "(<=?|>=?|!=?|~)"
+        },
+        {
+          "name": "keyword.operator.union.fhirpath",
+          "match": "\\|"
+        },
+        {
+          "name": "keyword.operator.assignment.fhirpath",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.navigation.fhirpath",
+          "match": "\\."
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.collection.fhirpath",
+          "match": "\\b(count|sum|min|max|avg|distinct|isDistinct|subsetOf|supersetOf|union|intersect|exclude|combine)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.string.fhirpath", 
+          "match": "\\b(matches|indexOf|substring|startsWith|endsWith|contains|replace|length|upper|lower|trim)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.conversion.fhirpath",
+          "match": "\\b(toInteger|toDecimal|toString|toBoolean|toQuantity|toDateTime|toTime|toDate)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.math.fhirpath",
+          "match": "\\b(round|sqrt|abs|ceiling|exp|floor|ln|log|power|truncate)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.datetime.fhirpath",
+          "match": "\\b(today|now|timeOfDay|year|month|day|hour|minute|second|millisecond|date|dateTime|time|duration|between)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.type.fhirpath",
+          "match": "\\b(convertsToBoolean|convertsToInteger|convertsToDecimal|convertsToString|convertsToQuantity|convertsToDateTime|convertsToTime|convertsToDate)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.utility.fhirpath",
+          "match": "\\b(trace|aggregate|groupBy|lowBoundary|highBoundary|precision|hasValue|htmlChecks|allTrue|anyTrue|allFalse|anyFalse)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.fhirpath",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.fhirpath",
+              "match": "\\\\['\\\\/bfnrt]"
+            },
+            {
+              "name": "constant.character.escape.unicode.fhirpath",
+              "match": "\\\\u[0-9a-fA-F]{4}"
+            },
+            {
+              "name": "invalid.illegal.escape.fhirpath",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.fhirpath",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.fhirpath",
+              "match": "\\\\[\"\\\\/bfnrt]"
+            },
+            {
+              "name": "constant.character.escape.unicode.fhirpath",
+              "match": "\\\\u[0-9a-fA-F]{4}"
+            },
+            {
+              "name": "invalid.illegal.escape.fhirpath",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.decimal.fhirpath",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.fhirpath",
+          "match": "\\b\\d+([eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.fhirpath",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.dollar.fhirpath",
+          "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+        },
+        {
+          "name": "entity.name.type.fhir-resource.fhirpath",
+          "match": "\\b(Patient|Observation|Encounter|Practitioner|Organization|Location|Condition|Procedure|MedicationRequest|MedicationStatement|AllergyIntolerance|DiagnosticReport|Immunization|CarePlan|Goal|Device|DeviceUseStatement|Specimen|ImagingStudy|Media|DocumentReference|Composition|Bundle|MessageHeader|OperationOutcome|Parameters|Binary|Subscription|AuditEvent|Provenance|Task|Appointment|AppointmentResponse|Schedule|Slot|Coverage|ExplanationOfBenefit|Claim|ClaimResponse|PaymentNotice|PaymentReconciliation|Account|ChargeItem|Invoice|Contract|ValueSet|CodeSystem|ConceptMap|StructureDefinition|ImplementationGuide|CapabilityStatement|OperationDefinition|SearchParameter|CompartmentDefinition|StructureMap|GraphDefinition|ExampleScenario|MessageDefinition|EventDefinition|ActivityDefinition|PlanDefinition|Measure|MeasureReport|Library|ResearchStudy|ResearchSubject|EvidenceVariable|Evidence|EvidenceReport|Citation|RelatedPerson|Person|Group|CareTeam|HealthcareService|Endpoint|NutritionOrder|ServiceRequest|SupplyRequest|SupplyDelivery|VisionPrescription|RiskAssessment|RequestGroup|Communication|CommunicationRequest|DeviceRequest|DeviceMetric|DeviceComponent|Flag|List|Basic|BodyStructure|Substance|BiologicallyDerivedProduct|NutritionProduct|PackagedProductDefinition|AdministrableProductDefinition|Ingredient|ClinicalUseDefinition|MedicinalProductDefinition|RegulatedAuthorization|ManufacturedItemDefinition|SubstanceDefinition|SubstanceNucleicAcid|SubstancePolymer|SubstanceProtein|SubstanceReferenceInformation|SubstanceSourceMaterial|MolecularSequence|ImmunizationEvaluation|ImmunizationRecommendation|EffectEvidenceSynthesis|RiskEvidenceSynthesis|ResearchElementDefinition|ResearchDefinition|InsurancePlan|CatalogEntry|MedicationKnowledge|TerminologyCapabilities|TestScript|TestReport|Linkage|ImagingSelection|GenomicStudy|Transport|InventoryReport|InventoryItem|Questionnaire|QuestionnaireResponse)\\b"
+        },
+        {
+          "name": "variable.other.property.fhirpath",
+          "match": "\\b[a-z][a-zA-Z0-9_]*\\b"
+        },
+        {
+          "name": "entity.name.type.fhirpath",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.array.fhirpath",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.definition.parameters.fhirpath",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.separator.fhirpath",
+          "match": "[,;]"
+        }
+      ]
+    }
+  }
+}

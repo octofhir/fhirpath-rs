@@ -84,10 +84,7 @@ fn xml_text_to_value(ty: &str, text: &str) -> Value {
 
 fn map_inputfile(inputfile: &str) -> String {
     if inputfile.ends_with(".xml") {
-        format!(
-            "{}",
-            inputfile.trim_end_matches(".xml").to_string() + ".json"
-        )
+        inputfile.trim_end_matches(".xml").to_string() + ".json"
     } else {
         inputfile.to_string()
     }
@@ -114,19 +111,19 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
     reader.config_mut().trim_text(true);
 
     let mut buf = Vec::new();
-    let mut in_group = false;
+    let _in_group = false;
     let mut in_test = false;
     // We will read expression/output text via read_text, no flags needed
 
     let mut current_group_name = String::new();
-    let mut current_group_desc: Option<String> = None;
+    let mut _current_group_desc: Option<String> = None;
 
     let mut current_test_name = String::new();
     let mut current_test_desc: Option<String> = None;
     let mut current_inputfile: Option<String> = None;
     let mut current_expression = String::new();
     let mut current_expect_error = false;
-    let mut current_output_type: Option<String> = None;
+    let mut _current_output_type: Option<String> = None;
     let mut current_expected: Vec<Value> = Vec::new();
     let mut current_disabled: Option<bool> = None;
     let mut current_predicate: Option<bool> = None;
@@ -142,15 +139,15 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                 let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 match tag.as_str() {
                     "group" => {
-                        in_group = true;
+                        // Processing a group
                         current_group_name.clear();
-                        current_group_desc = None;
+                        _current_group_desc = None;
                         for a in e.attributes().flatten() {
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
                                 let v = a.unescape_value().unwrap_or_default().to_string();
                                 match k {
                                     "name" => current_group_name = v,
-                                    "description" => current_group_desc = Some(v),
+                                    "description" => _current_group_desc = Some(v),
                                     _ => {}
                                 }
                             }
@@ -158,7 +155,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         let key = current_group_name.clone();
                         groups.entry(key.clone()).or_insert(JsonTestSuite {
                             name: current_group_name.clone(),
-                            description: current_group_desc.clone(),
+                            description: _current_group_desc.clone(),
                             source: Some("fhir-test-cases r5".to_string()),
                             tests: Vec::new(),
                         });
@@ -215,11 +212,11 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                     }
                     "output" => {
                         // Capture output type
-                        current_output_type = None;
+                        _current_output_type = None;
                         for a in e.attributes().flatten() {
                             if let Ok(k) = std::str::from_utf8(a.key.as_ref()) {
                                 if k == "type" {
-                                    current_output_type =
+                                    _current_output_type =
                                         Some(a.unescape_value().unwrap_or_default().to_string());
                                 }
                             }
@@ -230,9 +227,9 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                             .read_text(QName(b"output"))
                             .unwrap_or_default()
                             .into_owned();
-                        let ty = current_output_type.as_deref().unwrap_or("string");
+                        let ty = _current_output_type.as_deref().unwrap_or("string");
                         current_expected.push(xml_text_to_value(ty, &out_text));
-                        current_output_type = None;
+                        _current_output_type = None;
                     }
                     _ => {}
                 }
@@ -270,7 +267,7 @@ fn parse_groups(xml_path: &Path) -> Result<HashMap<String, JsonTestSuite>, Strin
                         }
                     }
                     "group" => {
-                        in_group = false;
+                        // End of group
                     }
                     _ => {}
                 }
@@ -309,6 +306,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("📝 Wrote {} ({} tests)", path.display(), suite.tests.len());
     }
 
-    println!("✅ Done. Wrote {} group files.", files_written);
+    println!("✅ Done. Wrote {files_written} group files.");
     Ok(())
 }

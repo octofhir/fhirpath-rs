@@ -1,11 +1,11 @@
-use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use octofhir_fhirpath::core::error_code::{ErrorCategory, ErrorCode};
-// use octofhir_fhirpath::registry::{FunctionCategory, FunctionRegistry};
+use std::collections::{BTreeSet, HashMap};
+use std::path::Path;
 
 /// Generate MDX documentation for FHIRPath functions and error codes
 #[derive(Parser, Debug)]
@@ -27,10 +27,9 @@ fn main() -> Result<()> {
     fs::create_dir_all(&functions_dir).context("create functions dir")?;
     fs::create_dir_all(&errors_dir).context("create errors dir")?;
 
-    // generate_functions_docs(&functions_dir)?;
-    // generate_errors_docs(&errors_dir)?;
-    // generate_section_indexes(&args.out_dir)?;
-    println!("📚 Function and error docs generation is disabled in this version.");
+    generate_errors_docs(&errors_dir)?;
+    generate_section_indexes(&args.out_dir)?;
+    println!("📚 Error docs generation complete.");
 
     println!("✅ Documentation generated at {}", args.out_dir.display());
     Ok(())
@@ -149,7 +148,6 @@ fn generate_functions_docs(dir: &Path) -> Result<()> {
 
 */
 
-/*
 fn generate_errors_docs(dir: &Path) -> Result<()> {
     // Iterate a reasonable range and filter defined codes
     let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
@@ -166,12 +164,11 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
 
         let mut mdx = String::new();
         mdx.push_str(&format!(
-            "---\nTitle: {} — {}\nsidebar:\n  label: FP{:04}\n---\n\n",
+            "---\ntitle: {}\nsidebar:\n  label: FP{:04}\n---\n\n",
             ec.code_str(),
-            info.title,
             code
         ));
-        mdx.push_str(&format!("# {} — {}\n\n", ec.code_str(), info.title));
+        mdx.push_str(&format!("# {} - {}\n\n", ec.code_str(), info.title));
         mdx.push_str(&format!(
             "**Category**: {}\n\n",
             format_error_category(&ec.category())
@@ -195,7 +192,7 @@ fn generate_errors_docs(dir: &Path) -> Result<()> {
 
     // Build index page
     let mut index = String::new();
-    index.push_str("---\ntitle: error codes\n---\n\n");
+    index.push_str("---\ntitle: Error Codes\n---\n\n");
     index.push_str("# Error Codes\n\n");
     let error_order = ["Parser", "Evaluation", "Model Provider", "Analysis"];
     let mut printed: BTreeSet<String> = BTreeSet::new();
@@ -238,29 +235,13 @@ fn generate_section_indexes(root: &Path) -> Result<()> {
     let mut mdx = String::new();
     mdx.push_str("---\ntitle: Introduction\n---\n\n");
     mdx.push_str("# FHIRPath-rs Documentation\n\n");
-    mdx.push_str("- [Function Library](/functions/)\n");
     mdx.push_str("- [Error Codes](/errors/)\n");
     fs::create_dir_all(root).context("create docs root")?;
     fs::write(root.join("index.mdx"), mdx).context("write root index")?;
     Ok(())
 }
 
-fn format_function_category(cat: &FunctionCategory) -> &'static str {
-    match cat {
-        FunctionCategory::Collection => "Collection",
-        FunctionCategory::Math => "Math",
-        FunctionCategory::String => "String",
-        FunctionCategory::Type => "Type",
-        FunctionCategory::Conversion => "Conversion",
-        FunctionCategory::DateTime => "Date & Time",
-        FunctionCategory::Fhir => "FHIR",
-        FunctionCategory::Terminology => "Terminology",
-        FunctionCategory::Logic => "Logic",
-        FunctionCategory::Utility => "Utility",
-    }
-}
-*/
-
+#[allow(dead_code)]
 fn format_error_category(cat: &ErrorCategory) -> &'static str {
     match cat {
         ErrorCategory::Parser => "Parser",

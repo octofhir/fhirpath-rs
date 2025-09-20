@@ -181,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create FHIR schema provider (R4) to match CLI behavior
     println!("📋 Initializing FHIR R5 schema provider...");
-    let provider_timeout = Duration::from_secs(60);
+    let _provider_timeout = Duration::from_secs(60);
     let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(FhirVersion::R5);
     println!("✅ EmbeddedModelProvider (R5) loaded successfully");
     let model_provider: Arc<dyn octofhir_fhirpath::ModelProvider> = Arc::new(provider);
@@ -337,8 +337,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let fhir_version =
                 std::env::var("FHIRPATH_FHIR_VERSION").unwrap_or_else(|_| "r4".to_string());
             println!(
-                "📋 Engine includes terminology service (tx.fhir.org/{}) for test '{}'",
-                fhir_version, test_case.name
+                "📋 Engine includes terminology service (tx.fhir.org/{fhir_version}) for test '{}'",
+                test_case.name
             );
         }
 
@@ -348,16 +348,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .and_then(|s| s.parse().ok())
             .unwrap_or(5_000);
 
-        println!("📋 Evaluating expression with timeout {}ms...", timeout_ms);
+        println!("📋 Evaluating expression with timeout {timeout_ms}ms...");
         let eval_start = std::time::Instant::now();
         let eval_fut = engine.evaluate(&test_case.expression, &context);
         let result = match tokio::time::timeout(Duration::from_millis(timeout_ms), eval_fut).await {
             Err(_) => {
                 let eval_time = eval_start.elapsed();
                 println!(
-                    "⚠️ TIMEOUT after {}ms (limit: {}ms)",
-                    eval_time.as_millis(),
-                    timeout_ms
+                    "⚠️ TIMEOUT after {}ms (limit: {timeout_ms}ms)",
+                    eval_time.as_millis()
                 );
                 if test_case.expecterror.is_some() && test_case.expecterror.unwrap() {
                     println!("✅ PASS");
@@ -420,8 +419,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 serde_json::to_string_pretty(&test_case.expected).unwrap_or_default();
             let actual_json = match serde_json::to_value(&final_result) {
                 Ok(json) => serde_json::to_string_pretty(&json)
-                    .unwrap_or_else(|_| format!("{:?}", final_result)),
-                Err(_) => format!("{:?}", final_result),
+                    .unwrap_or_else(|_| format!("{final_result:?}")),
+                Err(_) => format!("{final_result:?}"),
             };
             println!("   Expected: {expected_json}");
             println!("   Actual:   {actual_json}");

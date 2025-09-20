@@ -134,9 +134,18 @@ impl CliDiagnosticHandler {
                     error_codes.sort(); // Ensure consistent ordering
 
                     if error_codes.len() == 1 {
-                        writeln!(writer, "\n  = help: for more information about this error, try `octofhir-fhirpath docs {}`", error_codes[0])?;
+                        writeln!(
+                            writer,
+                            "\n  = help: for more information about this error, try `octofhir-fhirpath docs {}`",
+                            error_codes[0]
+                        )?;
                     } else {
-                        writeln!(writer, "\n  = help: for more information about these errors, try `octofhir-fhirpath docs {}` (or other codes: {})", error_codes[0], error_codes[1..].join(", "))?;
+                        writeln!(
+                            writer,
+                            "\n  = help: for more information about these errors, try `octofhir-fhirpath docs {}` (or other codes: {})",
+                            error_codes[0],
+                            error_codes[1..].join(", ")
+                        )?;
                     }
                 }
                 Ok(())
@@ -187,7 +196,11 @@ impl CliDiagnosticHandler {
         let message = if diagnostics.len() == 1 {
             first_message.clone()
         } else {
-            format!("{} (and {} more issues)", first_message, diagnostics.len() - 1)
+            format!(
+                "{} (and {} more issues)",
+                first_message,
+                diagnostics.len() - 1
+            )
         };
 
         // Use span of first diagnostic
@@ -195,7 +208,10 @@ impl CliDiagnosticHandler {
 
         // Create help text with docs command suggestion
         let help_text = if error_codes.len() == 1 {
-            format!("for more information about this error, try `octofhir-fhirpath docs {}`", error_codes[0])
+            format!(
+                "for more information about this error, try `octofhir-fhirpath docs {}`",
+                error_codes[0]
+            )
         } else {
             format!(
                 "for more information about these errors, try `octofhir-fhirpath docs {}` (or other codes: {})",
@@ -210,7 +226,11 @@ impl CliDiagnosticHandler {
             message,
             span,
             help: Some(help_text),
-            note: Some(format!("found {} error(s) with codes: {}", diagnostics.len(), error_codes.join(", "))),
+            note: Some(format!(
+                "found {} error(s) with codes: {}",
+                diagnostics.len(),
+                error_codes.join(", ")
+            )),
             related: Vec::new(),
         }
     }

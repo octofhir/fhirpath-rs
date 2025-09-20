@@ -12,6 +12,7 @@ default:
     @echo "  just repl                # Start interactive REPL (simple)"
     @echo "  just tui                 # Start Terminal User Interface (advanced)"
     @echo "  just test                # Run all tests"
+    @echo "  just cli-analyze EXPR    # Analyze FHIRPath expression for errors/warnings"
     @echo "  just diagnostic-demo     # Show beautiful error reporting demo"
     @echo "  just convert-r5-xml      # Convert official R5 XML tests to JSON (in-place)"
     @echo ""
@@ -27,6 +28,13 @@ default:
     @echo "  just diagnostic-demo-pretty      # Pretty output with colors"
     @echo "  just diagnostic-demo-json        # JSON structured output"
     @echo "  just diagnostic-demo-types       # Show different diagnostic types"
+    @echo ""
+    @echo "🔧 Registry Commands:"
+    @echo "  just registry-help               # Show registry command help"
+    @echo "  just registry-functions          # List all FHIRPath functions"
+    @echo "  just registry-operators          # List all FHIRPath operators"
+    @echo "  just registry-show <name>        # Show detailed function/operator info"
+    @echo "  just registry-search <pattern>   # Search functions and operators"
     @echo ""
     @echo "📋 All available commands:"
     @just --list
@@ -229,12 +237,140 @@ cli-parse EXPRESSION:
 cli-validate EXPRESSION:
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- validate "{{EXPRESSION}}"
 
+cli-analyze EXPRESSION:
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- analyze "{{EXPRESSION}}"
+
+cli-analyze-verbose EXPRESSION:
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- analyze "{{EXPRESSION}}" --verbose
+
+# Quick test command for span debugging
+test-span EXPRESSION="Patient.nam1":
+    @echo "🔍 Testing span location for: {{EXPRESSION}}"
+    @echo "Expected: Should highlight only the property part after the dot"
+    @echo ""
+    just cli-analyze "{{EXPRESSION}}"
+
 cli-docs ERROR_CODE:
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- docs {{ERROR_CODE}}
 
-
 cli-help:
     cargo run --package fhirpath-cli --bin octofhir-fhirpath -- help
+
+# Registry commands for functions and operators
+registry-list-functions CATEGORY="" SEARCH="":
+    @echo "📋 Listing FHIRPath Functions"
+    @echo "============================="
+    @if [ "{{CATEGORY}}" != "" ] && [ "{{SEARCH}}" != "" ]; then \
+        echo "🔍 Category filter: {{CATEGORY}}"; \
+        echo "🔎 Search filter: {{SEARCH}}"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list functions --category "{{CATEGORY}}" --search "{{SEARCH}}"; \
+    elif [ "{{CATEGORY}}" != "" ]; then \
+        echo "🔍 Category filter: {{CATEGORY}}"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list functions --category "{{CATEGORY}}"; \
+    elif [ "{{SEARCH}}" != "" ]; then \
+        echo "🔎 Search filter: {{SEARCH}}"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list functions --search "{{SEARCH}}"; \
+    else \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list functions; \
+    fi
+
+registry-list-operators SEARCH="":
+    @echo "⚙️  Listing FHIRPath Operators"
+    @echo "============================="
+    @if [ "{{SEARCH}}" != "" ]; then \
+        echo "🔎 Search filter: {{SEARCH}}"; \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list operators --search "{{SEARCH}}"; \
+    else \
+        cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry list operators; \
+    fi
+
+registry-show NAME TARGET="auto":
+    @echo "🔍 Showing FHIRPath Registry Info: {{NAME}}"
+    @echo "========================================"
+    cargo run --package fhirpath-cli --bin octofhir-fhirpath -- registry show "{{NAME}}" --target "{{TARGET}}"
+
+# Registry browsing convenience commands
+registry-functions:
+    @echo "📋 All FHIRPath Functions"
+    @echo "=========================="
+    just registry-list-functions
+
+registry-operators:
+    @echo "⚙️  All FHIRPath Operators"
+    @echo "========================="
+    just registry-list-operators
+
+# Category-specific function listings
+registry-functions-existence:
+    @echo "🔍 Existence Functions (empty, exists, all, count, etc.)"
+    just registry-list-functions "existence"
+
+registry-functions-filtering:
+    @echo "🔍 Filtering & Projection Functions (where, select, etc.)"
+    just registry-list-functions "filtering"
+
+registry-functions-subsetting:
+    @echo "🔍 Subsetting Functions (first, last, tail, take, etc.)"
+    just registry-list-functions "subsetting"
+
+registry-functions-conversion:
+    @echo "🔍 Conversion Functions (toString, toInteger, etc.)"
+    just registry-list-functions "conversion"
+
+registry-functions-string:
+    @echo "🔍 String Manipulation Functions"
+    just registry-list-functions "string"
+
+registry-functions-math:
+    @echo "🔍 Math Functions (abs, ceiling, floor, etc.)"
+    just registry-list-functions "math"
+
+registry-functions-terminology:
+    @echo "🔍 Terminology Functions (memberOf, subsumes, etc.)"
+    just registry-list-functions "terminology"
+
+# Search convenience commands
+registry-search PATTERN:
+    @echo "🔎 Searching FHIRPath Registry for: {{PATTERN}}"
+    @echo "=============================================="
+    @echo "📋 Functions:"
+    just registry-list-functions "" "{{PATTERN}}"
+    @echo ""
+    @echo "⚙️  Operators:"
+    just registry-list-operators "{{PATTERN}}"
+
+# Registry help and information
+registry-help:
+    @echo "📚 FHIRPath Registry Commands"
+    @echo "============================="
+    @echo ""
+    @echo "📋 Function Commands:"
+    @echo "  just registry-functions                    # List all functions"
+    @echo "  just registry-functions-existence          # List existence functions"
+    @echo "  just registry-functions-filtering          # List filtering functions"
+    @echo "  just registry-functions-subsetting         # List subsetting functions"
+    @echo "  just registry-functions-conversion         # List conversion functions"
+    @echo "  just registry-functions-string             # List string functions"
+    @echo "  just registry-functions-math               # List math functions"
+    @echo "  just registry-functions-terminology        # List terminology functions"
+    @echo ""
+    @echo "⚙️  Operator Commands:"
+    @echo "  just registry-operators                    # List all operators"
+    @echo ""
+    @echo "🔍 Search & Show Commands:"
+    @echo "  just registry-search <pattern>             # Search functions and operators"
+    @echo "  just registry-show <name>                  # Show detailed info for function/operator"
+    @echo "  just registry-show <name> function         # Show function info only"
+    @echo "  just registry-show <name> operator         # Show operator info only"
+    @echo ""
+    @echo "📂 Available Categories:"
+    @echo "  existence, filtering, subsetting, combining, conversion,"
+    @echo "  logic, string, math, tree, utility, terminology, types, aggregate, cda"
+    @echo ""
+    @echo "💡 Examples:"
+    @echo "  just registry-show count                   # Show count function details"
+    @echo "  just registry-show '+'                     # Show addition operator details"
+    @echo "  just registry-search 'string'             # Find all string-related functions"
 
 # Start Interactive REPL
 repl FILE="" *ARGS:

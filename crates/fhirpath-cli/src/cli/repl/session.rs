@@ -347,7 +347,7 @@ impl ReplSession {
         let context = EvaluationContext::new(
             collection,
             model_provider,
-            None,
+            self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
         )
@@ -502,7 +502,7 @@ impl ReplSession {
         let context = EvaluationContext::new(
             collection,
             model_provider,
-            None,
+            self.engine.get_terminology_provider(),
             self.engine.get_validation_provider(),
             self.engine.get_trace_provider(),
         )

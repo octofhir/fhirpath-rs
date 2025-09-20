@@ -5,10 +5,10 @@
 
 use roxmltree::Document;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[allow(dead_code)]
 fn unescape_html_entities(text: &str) -> String {
     text.replace("&amp;", "&")
         .replace("&lt;", "<")
@@ -200,9 +200,9 @@ fn convert_directory(
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "xml") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "xml") {
             let filename = path.file_stem().unwrap().to_str().unwrap();
-            let output_path = target_dir.join(format!("{}.json", filename));
+            let output_path = target_dir.join(format!("{filename}.json"));
 
             match convert_file(&path, &output_path) {
                 Ok(()) => {
@@ -221,10 +221,7 @@ fn convert_directory(
         }
     }
 
-    println!(
-        "🎉 Conversion completed! {} files converted, {} failed",
-        converted_count, failed_count
-    );
+    println!("🎉 Conversion completed! {converted_count} files converted, {failed_count} failed");
     Ok(())
 }
 

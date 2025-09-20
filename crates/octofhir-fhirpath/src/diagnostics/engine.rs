@@ -136,11 +136,8 @@ impl DiagnosticEngine {
 
         // Use custom report kind to avoid automatic "Error:" text
         let report_kind = ariadne::ReportKind::Custom("", primary.severity.color());
-        let mut report = Report::build(
-            report_kind,
-            (source_id, primary.span.clone()),
-        )
-        .with_code(error_codes.join(","));
+        let mut report = Report::build(report_kind, (source_id, primary.span.clone()))
+            .with_code(error_codes.join(","));
 
         // Add labels for all diagnostics
         for diagnostic in diagnostics {

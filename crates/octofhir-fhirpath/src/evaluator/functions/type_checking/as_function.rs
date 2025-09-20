@@ -99,11 +99,28 @@ impl AsFunctionEvaluator {
         }
 
         // Allow System and FHIR namespace types for common primitives
-        matches!(type_name, "System.String" | "System.Integer" | "System.Decimal" | "System.Boolean"
-            | "System.DateTime" | "System.Date" | "System.Time" | "FHIR.string"
-            | "FHIR.integer" | "FHIR.decimal" | "FHIR.boolean" | "FHIR.dateTime" | "FHIR.date"
-            | "FHIR.time" | "FHIR.uri" | "FHIR.url" | "FHIR.canonical" | "FHIR.code"
-            | "FHIR.id")
+        matches!(
+            type_name,
+            "System.String"
+                | "System.Integer"
+                | "System.Decimal"
+                | "System.Boolean"
+                | "System.DateTime"
+                | "System.Date"
+                | "System.Time"
+                | "FHIR.string"
+                | "FHIR.integer"
+                | "FHIR.decimal"
+                | "FHIR.boolean"
+                | "FHIR.dateTime"
+                | "FHIR.date"
+                | "FHIR.time"
+                | "FHIR.uri"
+                | "FHIR.url"
+                | "FHIR.canonical"
+                | "FHIR.code"
+                | "FHIR.id"
+        )
     }
 
     /// Perform strict type casting using ModelProvider

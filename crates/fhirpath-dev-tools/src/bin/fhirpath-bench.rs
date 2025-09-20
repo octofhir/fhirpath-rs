@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use octofhir_fhir_model::FhirVersion;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Format numbers in human-friendly format (K, M, etc.)
 fn format_ops_per_sec(ops_per_sec: f64) -> String {
@@ -242,7 +242,7 @@ async fn profile_expression(
     let registry = Arc::new(octofhir_fhirpath::create_function_registry());
     let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
         as Arc<dyn octofhir_fhir_model::ModelProvider>;
-    let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
+    let engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
 
     // Get test data
     let data = if use_bundle {
@@ -251,13 +251,13 @@ async fn profile_expression(
         get_sample_patient()
     };
 
-    println!("Running {} iterations...", iterations);
+    println!("Running {iterations} iterations...");
 
     // Simple profiling - just measure time for now
     let start = std::time::Instant::now();
     for i in 0..iterations {
         if i % 100 == 0 && i > 0 {
-            println!("Completed {} iterations", i);
+            println!("Completed {i} iterations");
         }
         let collection = octofhir_fhirpath::Collection::single(
             octofhir_fhirpath::FhirPathValue::resource(data.clone()),
@@ -279,7 +279,7 @@ async fn profile_expression(
 
     println!("Profiling completed!");
     println!("Total time: {:.2}s", duration.as_secs_f64());
-    println!("Average time per iteration: {:.2}ms", avg_time_ms);
+    println!("Average time per iteration: {avg_time_ms:.2}ms");
     println!("Operations per second: {}", format_ops_per_sec(ops_per_sec));
 
     // Write results to file
@@ -330,7 +330,7 @@ fn list_expressions() {
     println!("  fhirpath-bench profile \"Bundle.entry.resource.count()\" --bundle");
 }
 
-async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
+async fn run_benchmarks_and_generate(output_path: &Path) -> Result<()> {
     use octofhir_fhirpath::FhirPathEngine;
     use octofhir_fhirpath::parse_expression;
     use octofhir_fhirschema::EmbeddedSchemaProvider;
@@ -352,7 +352,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
     let model_provider = Arc::new(EmbeddedSchemaProvider::new(FhirVersion::R5))
         as Arc<dyn octofhir_fhir_model::ModelProvider>;
 
-    let mut engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
+    let engine = FhirPathEngine::new(registry, model_provider.clone()).await?;
     let patient_data = get_sample_patient();
     let bundle_data = get_sample_bundle();
 
@@ -404,7 +404,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
         name: &str,
         expressions: &[&str],
         data: &serde_json::Value,
-        engine: &mut FhirPathEngine,
+        engine: &FhirPathEngine,
         model_provider: Arc<dyn octofhir_fhir_model::ModelProvider>,
     ) -> Vec<String> {
         let mut bench_results = Vec::new();
@@ -466,7 +466,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Simple Evaluation",
             &expressions.simple,
             &patient_data,
-            &mut engine,
+            &engine,
             model_provider.clone(),
         )
         .await,
@@ -476,7 +476,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Medium Evaluation",
             &expressions.medium,
             &patient_data,
-            &mut engine,
+            &engine,
             model_provider.clone(),
         )
         .await,
@@ -486,7 +486,7 @@ async fn run_benchmarks_and_generate(output_path: &PathBuf) -> Result<()> {
             "Complex Evaluation",
             &expressions.complex,
             &bundle_data,
-            &mut engine,
+            &engine,
             model_provider.clone(),
         )
         .await,

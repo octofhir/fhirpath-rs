@@ -84,6 +84,9 @@ pub enum Commands {
         /// Verbose output with additional details
         #[arg(long, short = 'v')]
         verbose: bool,
+        /// Run static analysis alongside evaluation
+        #[arg(long)]
+        analyze: bool,
     },
     /// Validate FHIRPath expression syntax (alias for parse)
     Validate {

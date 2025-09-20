@@ -21,7 +21,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::{Arg, Command};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Integration test runner functionality
 mod integration_test_runner {
@@ -146,6 +146,7 @@ mod integration_test_runner {
     /// Integration test runner that uses the complete FHIRPath stack
     pub struct IntegrationTestRunner {
         engine: FhirPathEngine,
+        #[allow(dead_code)]
         registry: Arc<octofhir_fhirpath::FunctionRegistry>,
         model_provider: Arc<dyn ModelProvider>,
         input_cache: HashMap<String, Value>,
@@ -159,7 +160,7 @@ mod integration_test_runner {
             println!("🔄 Loading FHIR R5 ModelProvider (using schema packages)...");
             let model_provider: std::sync::Arc<dyn octofhir_fhirpath::ModelProvider> = {
                 // Add timeout to prevent hanging
-                let timeout_duration = std::time::Duration::from_secs(60);
+                let _timeout_duration = std::time::Duration::from_secs(60);
                 let provider = octofhir_fhirschema::EmbeddedSchemaProvider::new(FhirVersion::R5);
                 println!("✅ EmbeddedModelProvider (R5) loaded successfully");
                 std::sync::Arc::new(provider)
@@ -194,7 +195,7 @@ mod integration_test_runner {
                 octofhir_fhirschema::ModelFhirVersion::R6 => "r6",
                 _ => "r4",
             };
-            let tx_base = format!("https://tx.fhir.org/{}", tx_path);
+            let tx_base = format!("https://tx.fhir.org/{tx_path}");
             if let Ok(tx) = octofhir_fhir_model::HttpTerminologyProvider::new(tx_base) {
                 let tx_arc: std::sync::Arc<
                     dyn octofhir_fhir_model::terminology::TerminologyProvider,
@@ -380,6 +381,7 @@ mod integration_test_runner {
 
         /// Compare actual result with expected result
         /// Simplified comparison with proper handling of FHIRPath collection semantics
+        #[allow(dead_code)]
         fn compare_results(&self, actual: &FhirPathValue, expected: &Value) -> bool {
             // Convert actual to JSON for uniform comparison
             let actual_normalized = match serde_json::to_value(actual) {
@@ -549,7 +551,7 @@ mod integration_test_runner {
                             return TestResult::Passed;
                         }
                         return TestResult::Error {
-                            error: format!("Evaluation timed out after {}ms", timeout_ms),
+                            error: format!("Evaluation timed out after {timeout_ms}ms"),
                         };
                     }
                     Ok(inner) => match inner {
@@ -626,7 +628,7 @@ mod integration_test_runner {
             if self.verbose {
                 println!("Running test suite: {}", suite.name);
                 if let Some(desc) = &suite.description {
-                    println!("Description: {}", desc);
+                    println!("Description: {desc}");
                 }
                 println!("Total tests: {}", suite.tests.len());
                 println!();
@@ -655,9 +657,12 @@ mod integration_test_runner {
         }
 
         /// Calculate statistics from test results
+        #[allow(dead_code)]
         pub fn calculate_stats(&self, results: &HashMap<String, TestResult>) -> TestStats {
-            let mut stats = TestStats::default();
-            stats.total = results.len();
+            let mut stats = TestStats {
+                total: results.len(),
+                ..Default::default()
+            };
 
             for result in results.values() {
                 match result {
@@ -680,8 +685,10 @@ mod integration_test_runner {
             let results = self.run_test_suite(&suite).await;
 
             // Compile statistics
-            let mut stats = TestStats::default();
-            stats.total = suite.tests.len();
+            let mut stats = TestStats {
+                total: suite.tests.len(),
+                ..Default::default()
+            };
             for test in &suite.tests {
                 let result = &results[&test.name];
                 match result {
@@ -838,7 +845,7 @@ async fn main() -> Result<()> {
                 }
                 Err(_) => {
                     // Suite-level timeout
-                    println!(" ⏳ TIMEOUT after {}ms", suite_timeout_ms);
+                    println!(" ⏳ TIMEOUT after {suite_timeout_ms}ms");
                     // Try to load to count total tests for reporting
                     let total = runner
                         .load_test_suite(test_file)
@@ -886,7 +893,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_all_test_files(specs_path: &PathBuf) -> Vec<PathBuf> {
+fn get_all_test_files(specs_path: &Path) -> Vec<PathBuf> {
     fn collect(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {

@@ -221,7 +221,12 @@ impl FhirPathType {
         }
 
         // Numeric type promotions
-        matches!((self, other), (Self::Decimal, Self::Integer | Self::Long) | (Self::Long, Self::Integer) | (Self::Quantity, Self::Integer | Self::Long | Self::Decimal))
+        matches!(
+            (self, other),
+            (Self::Decimal, Self::Integer | Self::Long)
+                | (Self::Long, Self::Integer)
+                | (Self::Quantity, Self::Integer | Self::Long | Self::Decimal)
+        )
     }
 
     /// Parse a type from its string representation

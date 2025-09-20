@@ -1,0 +1,30 @@
+{
+  "name": "FHIRPath-rs",
+  "short_name": "FHIRPath-rs",
+  "description": "Fast, spec-compliant FHIRPath engine in Rust",
+  "icons": [
+    {
+      "src": "/fhirpath-rs/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/fhirpath-rs/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/fhirpath-rs/favicon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/fhirpath-rs/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#4a90e2",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

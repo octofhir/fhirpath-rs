@@ -39,10 +39,11 @@ pub fn extract_resource_type(resource: &JsonValue) -> Option<String> {
 }
 
 /// Add type information to AST using ModelProvider and FunctionRegistry
+#[allow(clippy::type_complexity)]
 pub fn add_type_information<'a>(
     mut ast_node: AstNode,
     original_ast: &'a octofhir_fhirpath::ast::ExpressionNode,
-    model_provider: &'a dyn octofhir_fhirpath::ModelProvider,
+    _model_provider: &'a dyn octofhir_fhirpath::ModelProvider,
     function_registry: Option<&'a octofhir_fhirpath::FunctionRegistry>,
     base_type: Option<&'a str>,
 ) -> Pin<Box<dyn Future<Output = Result<AstNode, Box<dyn std::error::Error>>> + Send + 'a>> {
@@ -57,7 +58,7 @@ pub fn add_type_information<'a>(
                         let enhanced_object = add_type_information(
                             object_arg.clone(),
                             &node.object,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -74,7 +75,7 @@ pub fn add_type_information<'a>(
                         let property_type = infer_property_access_type_async(
                             object_type,
                             &node.property,
-                            model_provider,
+                            _model_provider,
                         )
                         .await?;
 
@@ -92,7 +93,7 @@ pub fn add_type_information<'a>(
                             let enhanced_arg = add_type_information(
                                 ast_arg.clone(),
                                 arg_ast,
-                                model_provider,
+                                _model_provider,
                                 function_registry,
                                 base_type,
                             )
@@ -117,7 +118,7 @@ pub fn add_type_information<'a>(
                         let enhanced_object = add_type_information(
                             object_arg.clone(),
                             &node.object,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -132,7 +133,7 @@ pub fn add_type_information<'a>(
                             let enhanced_arg = add_type_information(
                                 ast_arg.clone(),
                                 method_arg,
-                                model_provider,
+                                _model_provider,
                                 function_registry,
                                 base_type,
                             )
@@ -156,7 +157,7 @@ pub fn add_type_information<'a>(
                         let enhanced_left = add_type_information(
                             args[0].clone(),
                             &node.left,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -164,7 +165,7 @@ pub fn add_type_information<'a>(
                         let enhanced_right = add_type_information(
                             args[1].clone(),
                             &node.right,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -243,7 +244,7 @@ pub fn add_type_information<'a>(
                         let enhanced_object = add_type_information(
                             object_arg.clone(),
                             &node.object,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -266,7 +267,7 @@ pub fn add_type_information<'a>(
                         let enhanced_operand = add_type_information(
                             operand_arg.clone(),
                             &node.operand,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -295,7 +296,7 @@ pub fn add_type_information<'a>(
                             let enhanced_item = add_type_information(
                                 ast_arg.clone(),
                                 item_ast,
-                                model_provider,
+                                _model_provider,
                                 function_registry,
                                 base_type,
                             )
@@ -325,7 +326,7 @@ pub fn add_type_information<'a>(
                         let enhanced_inner = add_type_information(
                             inner_arg.clone(),
                             expr,
-                            model_provider,
+                            _model_provider,
                             function_registry,
                             base_type,
                         )
@@ -357,7 +358,7 @@ pub fn add_type_information<'a>(
 async fn infer_property_access_type_async(
     _object_type: &str,
     _property_name: &str,
-    _model_provider: &dyn octofhir_fhirpath::ModelProvider,
+    __model_provider: &dyn octofhir_fhirpath::ModelProvider,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     // Use ModelProvider navigation to get correct type information (same as metadata_navigator)
     // navigate_typed_path method no longer available in new ModelProvider API
@@ -369,7 +370,7 @@ async fn infer_property_access_type_async(
 pub fn convert_ast_to_lab_format(
     ast: &octofhir_fhirpath::ast::ExpressionNode,
     function_registry: Option<&octofhir_fhirpath::FunctionRegistry>,
-    model_provider: Option<&dyn octofhir_fhirpath::ModelProvider>,
+    _model_provider: Option<&dyn octofhir_fhirpath::ModelProvider>,
 ) -> AstNode {
     use octofhir_fhirpath::ast::*;
 
@@ -388,7 +389,7 @@ pub fn convert_ast_to_lab_format(
 
         ExpressionNode::PropertyAccess(node) => {
             let object_arg =
-                convert_ast_to_lab_format(&node.object, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.object, function_registry, _model_provider);
 
             AstNode {
                 expression_type: "ChildExpression".to_string(),
@@ -406,7 +407,7 @@ pub fn convert_ast_to_lab_format(
                 args.push(convert_ast_to_lab_format(
                     arg,
                     function_registry,
-                    model_provider,
+                    _model_provider,
                 ));
             }
 
@@ -463,9 +464,10 @@ pub fn convert_ast_to_lab_format(
         }
 
         ExpressionNode::BinaryOperation(node) => {
-            let left_arg = convert_ast_to_lab_format(&node.left, function_registry, model_provider);
+            let left_arg =
+                convert_ast_to_lab_format(&node.left, function_registry, _model_provider);
             let right_arg =
-                convert_ast_to_lab_format(&node.right, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.right, function_registry, _model_provider);
 
             AstNode {
                 expression_type: "BinaryExpression".to_string(),
@@ -489,7 +491,7 @@ pub fn convert_ast_to_lab_format(
         ExpressionNode::MethodCall(node) => {
             // Convert object argument first
             let object_arg =
-                convert_ast_to_lab_format(&node.object, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.object, function_registry, _model_provider);
 
             // Convert method arguments
             let mut args = vec![object_arg];
@@ -497,7 +499,7 @@ pub fn convert_ast_to_lab_format(
                 args.push(convert_ast_to_lab_format(
                     arg,
                     function_registry,
-                    model_provider,
+                    _model_provider,
                 ));
             }
 
@@ -527,9 +529,9 @@ pub fn convert_ast_to_lab_format(
 
         ExpressionNode::IndexAccess(node) => {
             let object_arg =
-                convert_ast_to_lab_format(&node.object, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.object, function_registry, _model_provider);
             let index_arg =
-                convert_ast_to_lab_format(&node.index, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.index, function_registry, _model_provider);
 
             AstNode {
                 expression_type: "IndexerExpression".to_string(),
@@ -543,7 +545,7 @@ pub fn convert_ast_to_lab_format(
 
         ExpressionNode::UnaryOperation(node) => {
             let operand_arg =
-                convert_ast_to_lab_format(&node.operand, function_registry, model_provider);
+                convert_ast_to_lab_format(&node.operand, function_registry, _model_provider);
 
             let op_name = match node.operator {
                 octofhir_fhirpath::ast::UnaryOperator::Not => "not",
@@ -567,7 +569,7 @@ pub fn convert_ast_to_lab_format(
                 args.push(convert_ast_to_lab_format(
                     item,
                     function_registry,
-                    model_provider,
+                    _model_provider,
                 ));
             }
 
@@ -583,7 +585,7 @@ pub fn convert_ast_to_lab_format(
 
         ExpressionNode::Parenthesized(expr) => {
             // For parenthesized expressions, just convert the inner expression
-            convert_ast_to_lab_format(expr, function_registry, model_provider)
+            convert_ast_to_lab_format(expr, function_registry, _model_provider)
         }
 
         _ => {

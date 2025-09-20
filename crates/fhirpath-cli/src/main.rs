@@ -19,10 +19,10 @@ use fhirpath_cli::EmbeddedModelProvider;
 use fhirpath_cli::cli::output::{EvaluationOutput, FormatterFactory, OutputMetadata, ParseOutput};
 use fhirpath_cli::cli::{Cli, Commands, RegistryCommands, RegistryShowTarget, RegistryTarget};
 use octofhir_fhir_model::HttpTerminologyProvider;
-use octofhir_fhir_model::provider::{EmptyModelProvider, FhirVersion, ModelProvider};
+use octofhir_fhir_model::provider::FhirVersion;
 use octofhir_fhirpath::core::trace::create_cli_provider;
 use octofhir_fhirpath::evaluator::FhirPathEngine;
-use octofhir_fhirpath::parser::{ParseResult, ParsingMode, parse_with_mode};
+use octofhir_fhirpath::parser::{ParsingMode, parse_with_mode};
 use octofhir_fhirpath::{self, create_function_registry};
 use octofhir_fhirschema::create_validation_provider_from_embedded;
 use serde_json::{Value as JsonValue, from_str as parse_json};
@@ -177,14 +177,14 @@ async fn main() {
     let shared_model_provider = match create_shared_model_provider().await {
         Ok(provider) => provider,
         Err(e) => {
-            eprintln!("❌ Failed to initialize FHIR schema: {}", e);
+            eprintln!("❌ Failed to initialize FHIR schema: {e}");
             process::exit(1);
         }
     };
 
     // Create formatter factory
     let formatter_factory = FormatterFactory::new(cli.no_color);
-    let formatter = formatter_factory.create_formatter(cli.output_format.clone());
+    let _formatter = formatter_factory.create_formatter(cli.output_format.clone());
 
     match cli.command {
         Commands::Evaluate {
@@ -196,6 +196,7 @@ async fn main() {
             no_color,
             quiet,
             verbose,
+            analyze,
         } => {
             let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
                 merge_output_options(&cli, output_format.clone(), no_color, quiet, verbose);
@@ -216,6 +217,7 @@ async fn main() {
                 input.as_deref(),
                 variables,
                 pretty,
+                analyze,
                 &merged_cli,
                 &*merged_formatter,
                 &shared_model_provider,
@@ -242,7 +244,13 @@ async fn main() {
             let merged_formatter_factory = FormatterFactory::new(merged_no_color);
             let merged_formatter = merged_formatter_factory.create_formatter(merged_format);
 
-            handle_validate(expression, &merged_cli, &*merged_formatter);
+            handle_validate(
+                expression,
+                &merged_cli,
+                &*merged_formatter,
+                &shared_model_provider,
+            )
+            .await;
         }
         Commands::Analyze {
             ref expression,
@@ -340,6 +348,7 @@ async fn handle_evaluate(
     input: Option<&str>,
     variables: &[String],
     _pretty: bool,
+    analyze: bool,
     cli: &Cli,
     formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
     model_provider: &Arc<EmbeddedModelProvider>,
@@ -359,7 +368,7 @@ async fn handle_evaluate(
                 Ok(content) => content,
                 Err(e) => {
                     if !cli.quiet {
-                        eprintln!("Error reading file {}: {}", input_str, e);
+                        eprintln!("Error reading file {input_str}: {e}");
                     }
                     process::exit(1);
                 }
@@ -374,7 +383,7 @@ async fn handle_evaluate(
             Ok(_) => stdin_content,
             Err(e) => {
                 if !cli.quiet {
-                    eprintln!("Error reading from stdin: {}", e);
+                    eprintln!("Error reading from stdin: {e}");
                 }
                 process::exit(1);
             }
@@ -395,7 +404,7 @@ async fn handle_evaluate(
 
                 let diagnostic = handler.create_diagnostic_from_error(
                     octofhir_fhirpath::core::error_code::FP0001,
-                    format!("Invalid JSON resource: {}", e),
+                    format!("Invalid JSON resource: {e}"),
                     0..resource_data.len(),
                     Some("Ensure the resource is valid JSON format".to_string()),
                 );
@@ -418,7 +427,7 @@ async fn handle_evaluate(
             // Create AriadneDiagnostic using proper error code from anyhow::Error
             let diagnostic = handler.create_diagnostic_from_error(
                 octofhir_fhirpath::core::error_code::FP0001,
-                format!("Failed to create FHIRPath engine: {}", e),
+                format!("Failed to create FHIRPath engine: {e}"),
                 0..expression.len(),
                 None,
             );
@@ -437,7 +446,7 @@ async fn handle_evaluate(
         Ok(octofhir_fhir_model::provider::FhirVersion::R6) => "r6",
         _ => "r4",
     };
-    let tx_url = format!("https://tx.fhir.org/{}", tx_path);
+    let tx_url = format!("https://tx.fhir.org/{tx_path}");
     if let Ok(tx) = HttpTerminologyProvider::new(tx_url) {
         let tx_arc: Arc<dyn octofhir_fhir_model::terminology::TerminologyProvider> = Arc::new(tx);
         engine = engine.with_terminology_provider(tx_arc);
@@ -460,10 +469,7 @@ async fn handle_evaluate(
             };
             initial_variables.insert(name.to_string(), value);
         } else {
-            eprintln!(
-                "⚠️ Invalid variable format {}, expected 'name=value'",
-                var_spec
-            );
+            eprintln!("⚠️ Invalid variable format {var_spec}, expected 'name=value'");
         }
     }
 
@@ -483,16 +489,13 @@ async fn handle_evaluate(
     {
         Ok(collection) => collection,
         Err(e) => {
-            eprintln!(
-                "⚠️ Warning: Failed to properly type resource, using fallback: {}",
-                e
-            );
+            eprintln!("⚠️ Warning: Failed to properly type resource, using fallback: {e}");
             octofhir_fhirpath::Collection::single(octofhir_fhirpath::FhirPathValue::resource(
                 resource,
             ))
         }
     };
-    let mut eval_context = octofhir_fhirpath::EvaluationContext::new(
+    let eval_context = octofhir_fhirpath::EvaluationContext::new(
         context_collection,
         model_provider_arc,
         engine.get_terminology_provider(),
@@ -626,9 +629,67 @@ async fn handle_evaluate(
         }
     };
 
+    // If analyze flag is set, run static analysis alongside evaluation
+    if analyze {
+        use octofhir_fhir_model::TypeInfo;
+        use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
+
+        let mut analyzer = StaticAnalyzer::new(
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+        );
+
+        // Extract resource type from expression or use default
+        let inferred_type =
+            extract_resource_type_from_expression(expression).unwrap_or_else(|| TypeInfo {
+                type_name: "Resource".to_string(),
+                singleton: Some(true),
+                is_empty: Some(false),
+                namespace: Some("FHIR".to_string()),
+                name: Some("Resource".to_string()),
+            });
+
+        let context = AnalysisContext::new(inferred_type)
+            .with_deep_analysis()
+            .with_optimization_suggestions(true)
+            .with_max_suggestions(5);
+
+        // Run static analysis
+        let analysis_result = analyzer.analyze_expression(expression, context).await;
+
+        // Show analysis results if verbose or if there are significant issues
+        if cli.verbose
+            || analysis_result.statistics.errors_found > 0
+            || !analysis_result.suggestions.is_empty()
+        {
+            eprintln!("🔍 Static Analysis Results:");
+            eprintln!(
+                "   Errors: {}, Warnings: {}",
+                analysis_result.statistics.errors_found, analysis_result.statistics.warnings_found
+            );
+
+            if !analysis_result.suggestions.is_empty() {
+                eprintln!("💡 Suggestions:");
+                for suggestion in &analysis_result.suggestions {
+                    eprintln!("   {}: {}", suggestion.suggestion_type, suggestion.message);
+                }
+            }
+
+            // Report diagnostics if there are any
+            if !analysis_result.diagnostics.is_empty() {
+                let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+                let source_id =
+                    handler.add_source("expression".to_string(), expression.to_string());
+
+                handler
+                    .report_diagnostics(&analysis_result.diagnostics, source_id, &mut stderr())
+                    .unwrap_or_default();
+            }
+        }
+    }
+
     match formatter.format_evaluation(&output) {
         Ok(formatted) => {
-            println!("{}", formatted);
+            println!("{formatted}");
             if !output.success {
                 process::exit(1);
             }
@@ -640,7 +701,7 @@ async fn handle_evaluate(
 
             let diagnostic = handler.create_diagnostic_from_error(
                 octofhir_fhirpath::core::error_code::FP0001,
-                format!("Error formatting output: {}", e),
+                format!("Error formatting output: {e}"),
                 0..expression.len(),
                 Some("Check output format configuration".to_string()),
             );
@@ -653,6 +714,7 @@ async fn handle_evaluate(
     }
 }
 
+#[allow(dead_code)]
 fn handle_parse(
     expression: &str,
     cli: &Cli,
@@ -723,7 +785,7 @@ fn handle_parse(
         ParseOutput {
             success: false,
             ast: None,
-            error: Some(error.into()),
+            error: Some(error),
             expression: expression.to_string(),
             metadata: OutputMetadata::default(),
         }
@@ -731,7 +793,7 @@ fn handle_parse(
 
     match formatter.format_parse(&output) {
         Ok(formatted) => {
-            println!("{}", formatted);
+            println!("{formatted}");
             if !output.success {
                 process::exit(1);
             }
@@ -743,7 +805,7 @@ fn handle_parse(
 
             let diagnostic = handler.create_diagnostic_from_error(
                 octofhir_fhirpath::core::error_code::FP0001,
-                format!("Error formatting parse output: {}", e),
+                format!("Error formatting parse output: {e}"),
                 0..expression.len(),
                 Some("Check output format configuration".to_string()),
             );
@@ -756,38 +818,91 @@ fn handle_parse(
     }
 }
 
-fn handle_validate(
+async fn handle_validate(
     expression: &str,
     cli: &Cli,
-    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    model_provider: &Arc<EmbeddedModelProvider>,
 ) {
     use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
+    use octofhir_fhir_model::TypeInfo;
+    use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
     use std::io::stderr;
-    // Validate is basically the same as parse but focuses on success/failure
+
+    // Create diagnostic handler for unified error reporting
+    let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
+    let source_id = handler.add_source("expression".to_string(), expression.to_string());
+
+    // First parse the expression
     let parse_result = parse_with_mode(expression, ParsingMode::Analysis);
 
-    if parse_result.success {
-        // Validation successful - show success in quiet mode-aware way
-        if !cli.quiet {
-            println!("✅ Validation successful");
-        }
-    } else {
-        // Report rich diagnostics with proper spans using new single error format
-        let mut handler = CliDiagnosticHandler::new(cli.output_format.clone());
-        let source_id = handler.add_source("expression".to_string(), expression.to_string());
+    let mut all_diagnostics: Vec<octofhir_fhirpath::diagnostics::AriadneDiagnostic> = Vec::new();
+    let mut has_errors = false;
 
-        let ariadne_diagnostics: Vec<_> = parse_result
+    // Collect parser diagnostics first
+    if !parse_result.diagnostics.is_empty() {
+        let parser_diagnostics: Vec<_> = parse_result
             .diagnostics
             .iter()
             .map(convert_diagnostic_to_ariadne)
             .collect();
 
+        has_errors = parse_result.diagnostics.iter().any(|d| {
+            matches!(
+                d.severity,
+                octofhir_fhirpath::diagnostics::DiagnosticSeverity::Error
+            )
+        });
+
+        all_diagnostics.extend(parser_diagnostics);
+    }
+
+    // If parsing succeeded, run static analysis for enhanced validation
+    if parse_result.success && parse_result.ast.is_some() {
+        let mut analyzer = StaticAnalyzer::new(
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+        );
+
+        // Extract resource type from expression or use default
+        let inferred_type =
+            extract_resource_type_from_expression(expression).unwrap_or_else(|| TypeInfo {
+                type_name: "Resource".to_string(),
+                singleton: Some(true),
+                is_empty: Some(false),
+                namespace: Some("FHIR".to_string()),
+                name: Some("Resource".to_string()),
+            });
+
+        let context = AnalysisContext::new(inferred_type)
+            .with_deep_analysis()
+            .with_optimization_suggestions(false); // Keep validation focused
+
+        // Run static analysis
+        let analysis_result = analyzer.analyze_expression(expression, context).await;
+
+        // Check for errors in analysis results
+        let analysis_has_errors = analysis_result.statistics.errors_found > 0;
+        has_errors = has_errors || analysis_has_errors;
+
+        // Add analysis diagnostics
+        all_diagnostics.extend(analysis_result.diagnostics);
+    }
+
+    if has_errors || !all_diagnostics.is_empty() {
+        // Report rich diagnostics
         handler
-            .report_diagnostics(&ariadne_diagnostics, source_id, &mut stderr())
+            .report_diagnostics(&all_diagnostics, source_id, &mut stderr())
             .unwrap_or_default();
 
-        // Exit immediately with error code - no need for additional output
-        process::exit(1);
+        // Exit with error code if there are errors
+        if has_errors {
+            process::exit(1);
+        }
+    } else {
+        // Validation successful - show success in quiet mode-aware way
+        if !cli.quiet {
+            println!("✅ Validation successful");
+        }
     }
 }
 
@@ -804,6 +919,7 @@ async fn handle_analyze(
     handle_analyze_multi_error(expression, cli, formatter, model_provider).await;
 }
 
+#[allow(dead_code)]
 async fn handle_repl(
     input: Option<&str>,
     variables: &[String],
@@ -824,10 +940,7 @@ async fn handle_repl(
         if let Some((name, value)) = var.split_once('=') {
             initial_variables.push((name.to_string(), value.to_string()));
         } else {
-            eprintln!(
-                "Warning: Invalid variable format '{}'. Expected name=value",
-                var
-            );
+            eprintln!("Warning: Invalid variable format '{var}'. Expected name=value");
         }
     }
 
@@ -837,12 +950,12 @@ async fn handle_repl(
             Ok(content) => match serde_json::from_str::<JsonValue>(&content) {
                 Ok(json) => Some(json),
                 Err(e) => {
-                    eprintln!("Warning: Failed to parse JSON from '{}': {}", input_path, e);
+                    eprintln!("Warning: Failed to parse JSON from '{input_path}': {e}");
                     None
                 }
             },
             Err(e) => {
-                eprintln!("Warning: Failed to read file '{}': {}", input_path, e);
+                eprintln!("Warning: Failed to read file '{input_path}': {e}");
                 None
             }
         }
@@ -862,7 +975,7 @@ async fn handle_repl(
 
     // Start REPL
     if let Err(e) = start_repl(model_provider, config, initial_resource, initial_variables).await {
-        eprintln!("REPL error: {}", e);
+        eprintln!("REPL error: {e}");
         std::process::exit(1);
     }
 }
@@ -875,7 +988,8 @@ async fn handle_analyze_multi_error(
     model_provider: &Arc<EmbeddedModelProvider>,
 ) {
     use fhirpath_cli::cli::diagnostics::CliDiagnosticHandler;
-    // use octofhir_fhirpath::analyzer::StaticAnalyzer; // Removed
+    use octofhir_fhir_model::TypeInfo;
+    use octofhir_fhirpath::analyzer::{AnalysisContext, StaticAnalyzer};
     use std::io::{stderr, stdout};
 
     // Create diagnostic handler for unified error reporting
@@ -898,13 +1012,62 @@ async fn handle_analyze_multi_error(
     }
 
     if parse_result.success && parse_result.ast.is_some() {
-        // Phase 2: Run static analysis with shared model provider (UNIFIED)
-        // let registry = std::sync::Arc::new(octofhir_fhirpath::create_standard_registry().await);
-        // let analyzer = StaticAnalyzer::new(registry, model_provider.clone()); // Analyzer removed
+        // Phase 2: Run static analysis with shared model provider
+        let mut analyzer = StaticAnalyzer::new(
+            model_provider.clone() as Arc<dyn octofhir_fhir_model::ModelProvider>
+        );
 
-        // Run the analysis on the parsed AST
-        // Static analysis disabled (StaticAnalyzer removed)
-        // match analyzer.analyze(...) { ... }
+        // Extract resource type from expression or use default
+        let inferred_type =
+            extract_resource_type_from_expression(expression).unwrap_or_else(|| TypeInfo {
+                type_name: "Resource".to_string(),
+                singleton: Some(true),
+                is_empty: Some(false),
+                namespace: Some("FHIR".to_string()),
+                name: Some("Resource".to_string()),
+            });
+
+        let context = AnalysisContext::new(inferred_type)
+            .with_deep_analysis()
+            .with_optimization_suggestions(true)
+            .with_max_suggestions(10);
+
+        // Run comprehensive static analysis
+        let analysis_result = analyzer.analyze_expression(expression, context).await;
+
+        // Add analysis diagnostics to our collection
+        all_diagnostics.extend(analysis_result.diagnostics);
+
+        // If verbose mode, show analysis statistics and suggestions
+        if cli.verbose {
+            eprintln!("📊 Analysis Statistics:");
+            eprintln!(
+                "   Total expressions: {}",
+                analysis_result.statistics.total_expressions
+            );
+            eprintln!(
+                "   Errors found: {}",
+                analysis_result.statistics.errors_found
+            );
+            eprintln!(
+                "   Warnings found: {}",
+                analysis_result.statistics.warnings_found
+            );
+            eprintln!(
+                "   Analysis time: {}μs",
+                analysis_result
+                    .statistics
+                    .performance_metrics
+                    .total_analysis_time
+            );
+
+            if !analysis_result.suggestions.is_empty() {
+                eprintln!("💡 Suggestions:");
+                for suggestion in &analysis_result.suggestions {
+                    eprintln!("   {}: {}", suggestion.suggestion_type, suggestion.message);
+                }
+            }
+        }
     }
 
     // Sort diagnostics before deduplication to ensure consistent ordering
@@ -950,7 +1113,6 @@ async fn handle_analyze_multi_error(
 fn handle_docs(error_code: &str, cli: &Cli) {
     use colored::Colorize;
     use octofhir_fhirpath::core::error_code::ErrorCode;
-    use std::process::Command;
 
     // Parse error code - handle both "FP0001" and "1" formats
     let code_num = if error_code.starts_with("FP") || error_code.starts_with("fp") {
@@ -968,8 +1130,8 @@ fn handle_docs(error_code: &str, cli: &Cli) {
             // Display error information in terminal in Rust-like style
             if cli.output_format != fhirpath_cli::cli::output::OutputFormat::Json {
                 if !cli.no_color
-                    && !std::env::var("NO_COLOR").is_ok()
-                    && !std::env::var("FHIRPATH_NO_COLOR").is_ok()
+                    && std::env::var("NO_COLOR").is_err()
+                    && std::env::var("FHIRPATH_NO_COLOR").is_err()
                 {
                     // Colored output (Rust-like style)
                     println!(
@@ -1005,7 +1167,7 @@ fn handle_docs(error_code: &str, cli: &Cli) {
                     println!("\nCategory:");
                     println!("  {:?} errors", error_code_obj.category());
 
-                    println!("\nOnline documentation: {}", docs_url);
+                    println!("\nOnline documentation: {docs_url}");
                 }
 
                 // Ask if user wants to open browser
@@ -1036,8 +1198,8 @@ fn handle_docs(error_code: &str, cli: &Cli) {
         }
         Err(_) => {
             if !cli.no_color
-                && !std::env::var("NO_COLOR").is_ok()
-                && !std::env::var("FHIRPATH_NO_COLOR").is_ok()
+                && std::env::var("NO_COLOR").is_err()
+                && std::env::var("FHIRPATH_NO_COLOR").is_err()
             {
                 eprintln!(
                     "{}: Invalid error code format: '{}'",
@@ -1046,7 +1208,7 @@ fn handle_docs(error_code: &str, cli: &Cli) {
                 );
                 eprintln!("{}: Expected format: FP0001 or 1", "help".cyan().bold());
             } else {
-                eprintln!("error: Invalid error code format: '{}'", error_code);
+                eprintln!("error: Invalid error code format: '{error_code}'");
                 eprintln!("help: Expected format: FP0001 or 1");
             }
             process::exit(1);
@@ -1060,7 +1222,7 @@ fn open_browser(url: &str) {
     let result = if cfg!(target_os = "macos") {
         Command::new("open").arg(url).status()
     } else if cfg!(target_os = "windows") {
-        Command::new("cmd").args(&["/C", "start", url]).status()
+        Command::new("cmd").args(["/C", "start", url]).status()
     } else {
         // Linux/Unix
         Command::new("xdg-open").arg(url).status()
@@ -1071,7 +1233,7 @@ fn open_browser(url: &str) {
             println!("Opened documentation in your default browser.");
         }
         Err(e) => {
-            eprintln!("Failed to open browser: {}. Please visit: {}", e, url);
+            eprintln!("Failed to open browser: {e}. Please visit: {url}");
         }
     }
 }
@@ -1105,7 +1267,86 @@ fn open_browser(url: &str) {
 //     }
 // }
 
+/// Extract resource type from FHIRPath expression automatically
+fn extract_resource_type_from_expression(
+    expression: &str,
+) -> Option<octofhir_fhir_model::TypeInfo> {
+    // Parse common FHIR resource patterns from expressions
+    let trimmed = expression.trim();
+
+    // Check if expression starts with a known FHIR resource type
+    let known_resources = [
+        "Patient",
+        "Observation",
+        "Condition",
+        "Procedure",
+        "MedicationRequest",
+        "DiagnosticReport",
+        "Encounter",
+        "Practitioner",
+        "Organization",
+        "Location",
+        "Device",
+        "Medication",
+        "Substance",
+        "AllergyIntolerance",
+        "CarePlan",
+        "Goal",
+        "ServiceRequest",
+        "Specimen",
+        "ImagingStudy",
+        "DocumentReference",
+        "Bundle",
+        "Composition",
+        "ValueSet",
+        "CodeSystem",
+        "ConceptMap",
+        "StructureDefinition",
+        "CapabilityStatement",
+        "OperationDefinition",
+        "SearchParameter",
+        "CompartmentDefinition",
+        "ImplementationGuide",
+        "NamingSystem",
+        "TerminologyCapabilities",
+        "MessageDefinition",
+        "EventDefinition",
+        "PlanDefinition",
+        "ActivityDefinition",
+        "Questionnaire",
+        "QuestionnaireResponse",
+        "List",
+        "Library",
+    ];
+
+    // Look for resource types at the start of the expression
+    for resource in &known_resources {
+        if trimmed.starts_with(resource) {
+            // Check if it's followed by a dot, bracket, or end of string
+            let resource_len = resource.len();
+            if trimmed.len() == resource_len
+                || trimmed
+                    .chars()
+                    .nth(resource_len)
+                    .is_some_and(|c| c == '.' || c == '[' || c.is_whitespace())
+            {
+                return Some(octofhir_fhir_model::TypeInfo {
+                    type_name: resource.to_string(),
+                    singleton: Some(true),
+                    is_empty: Some(false),
+                    namespace: Some("FHIR".to_string()),
+                    name: Some(resource.to_string()),
+                });
+            }
+        }
+    }
+
+    // If no specific resource found, return None to use default
+    None
+}
+
 /// Calculate span from diagnostic message by finding tokens in expression
+#[allow(dead_code)]
 fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::ops::Range<usize>> {
     // Extract resource type or property name from message
     if message.contains("Unknown resource type: '") {
@@ -1131,7 +1372,7 @@ fn calculate_span_from_message(message: &str, expression: &str) -> Option<std::o
             if let Some(name_end) = message[name_start..].find(end_marker) {
                 let property_name = &message[name_start..name_start + name_end];
                 // Find this property name in the expression (usually after a dot)
-                if let Some(pos) = expression.find(&format!(".{}", property_name)) {
+                if let Some(pos) = expression.find(&format!(".{property_name}")) {
                     return Some(pos + 1..pos + 1 + property_name.len());
                 }
             }
@@ -1155,8 +1396,8 @@ async fn handle_registry(command: &RegistryCommands, cli: &Cli) {
             quiet,
             verbose,
         } => {
-            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
-                merge_output_options(&cli, output_format.clone(), *no_color, *quiet, *verbose);
+            let (merged_format, merged_no_color, merged_quiet, _merged_verbose) =
+                merge_output_options(cli, output_format.clone(), *no_color, *quiet, *verbose);
 
             let formatter_factory = FormatterFactory::new(merged_no_color);
             let formatter = formatter_factory.create_formatter(merged_format);
@@ -1180,8 +1421,8 @@ async fn handle_registry(command: &RegistryCommands, cli: &Cli) {
             quiet,
             verbose,
         } => {
-            let (merged_format, merged_no_color, merged_quiet, merged_verbose) =
-                merge_output_options(&cli, output_format.clone(), *no_color, *quiet, *verbose);
+            let (merged_format, merged_no_color, merged_quiet, _merged_verbose) =
+                merge_output_options(cli, output_format.clone(), *no_color, *quiet, *verbose);
 
             let formatter_factory = FormatterFactory::new(merged_no_color);
             let formatter = formatter_factory.create_formatter(merged_format);
@@ -1194,24 +1435,205 @@ async fn handle_registry(command: &RegistryCommands, cli: &Cli) {
 async fn handle_registry_list_functions(
     category: &Option<String>,
     search: &Option<String>,
-    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
     quiet: bool,
 ) {
-    // Registry functionality removed - functions listing not available
-    if !quiet {
-        eprintln!("Function registry functionality is not available in this version.");
+    use octofhir_fhirpath::evaluator::function_registry::{
+        FunctionCategory, create_function_registry,
+    };
+
+    let registry = create_function_registry();
+    let mut functions: Vec<_> = registry.all_metadata().iter().collect();
+
+    // Filter by category if provided
+    if let Some(cat_filter) = category {
+        let category_enum = match cat_filter.to_lowercase().as_str() {
+            "existence" => Some(FunctionCategory::Existence),
+            "filtering" | "projection" => Some(FunctionCategory::FilteringProjection),
+            "subsetting" => Some(FunctionCategory::Subsetting),
+            "combining" => Some(FunctionCategory::Combining),
+            "conversion" => Some(FunctionCategory::Conversion),
+            "logic" => Some(FunctionCategory::Logic),
+            "string" => Some(FunctionCategory::StringManipulation),
+            "math" => Some(FunctionCategory::Math),
+            "tree" | "navigation" => Some(FunctionCategory::TreeNavigation),
+            "utility" => Some(FunctionCategory::Utility),
+            "terminology" => Some(FunctionCategory::Terminology),
+            "types" => Some(FunctionCategory::Types),
+            "aggregate" => Some(FunctionCategory::Aggregate),
+            "cda" => Some(FunctionCategory::CDA),
+            _ => {
+                if !quiet {
+                    eprintln!(
+                        "Unknown category '{cat_filter}'. Available categories: existence, filtering, subsetting, combining, conversion, logic, string, math, tree, utility, terminology, types, aggregate, cda"
+                    );
+                }
+                return;
+            }
+        };
+
+        if let Some(cat) = category_enum {
+            functions.retain(|(_, metadata)| metadata.category == cat);
+        }
+    }
+
+    // Filter by search pattern if provided
+    if let Some(search_pattern) = search {
+        let pattern = search_pattern.to_lowercase();
+        functions.retain(|(name, metadata)| {
+            name.to_lowercase().contains(&pattern)
+                || metadata.description.to_lowercase().contains(&pattern)
+                || metadata.name.to_lowercase().contains(&pattern)
+                || format!("{:?}", metadata.category)
+                    .to_lowercase()
+                    .contains(&pattern)
+                || metadata
+                    .signature
+                    .input_type
+                    .to_lowercase()
+                    .contains(&pattern)
+                || metadata
+                    .signature
+                    .return_type
+                    .to_lowercase()
+                    .contains(&pattern)
+                || metadata.signature.parameters.iter().any(|p| {
+                    p.name.to_lowercase().contains(&pattern)
+                        || p.description.to_lowercase().contains(&pattern)
+                        || p.parameter_type
+                            .iter()
+                            .any(|t| t.to_lowercase().contains(&pattern))
+                })
+        });
+    }
+
+    // Sort by name
+    functions.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    if functions.is_empty() {
+        if !quiet {
+            println!("No functions found matching the criteria");
+        }
+        return;
+    }
+
+    // Output functions based on format
+    {
+        // Pretty/table format - show summary list
+        if !quiet {
+            println!("📋 FHIRPath Functions ({} found)", functions.len());
+            println!("{}", "=".repeat(50));
+        }
+
+        for (name, metadata) in functions {
+            let category_str = format!("{:?}", metadata.category);
+            let param_count = metadata.signature.parameters.len();
+            let param_info = if param_count == 0 {
+                "no params".to_string()
+            } else if metadata.signature.max_params.is_none() {
+                format!("{}+ params", metadata.signature.min_params)
+            } else {
+                format!(
+                    "{}-{} params",
+                    metadata.signature.min_params,
+                    metadata.signature.max_params.unwrap_or(0)
+                )
+            };
+
+            println!(
+                "🔧 {:<20} | {:<15} | {:<15} | {}",
+                name,
+                category_str,
+                param_info,
+                metadata.description.chars().take(40).collect::<String>()
+            );
+        }
+
+        if !quiet {
+            println!("\n💡 Use 'registry show <function_name>' for detailed information");
+        }
     }
 }
 
 async fn handle_registry_list_operators(
-    category: &Option<String>,
+    _category: &Option<String>,
     search: &Option<String>,
-    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
     quiet: bool,
 ) {
-    // Registry functionality removed - operators listing not available
-    if !quiet {
-        eprintln!("Operator registry functionality is not available in this version.");
+    use octofhir_fhirpath::evaluator::operator_registry::create_standard_operator_registry;
+
+    let registry = create_standard_operator_registry();
+    let mut operators: Vec<_> = registry.all_metadata().iter().collect();
+
+    // Filter by search pattern if provided
+    if let Some(search_pattern) = search {
+        let pattern = search_pattern.to_lowercase();
+        operators.retain(|(name, metadata)| {
+            name.to_lowercase().contains(&pattern)
+                || metadata.description.to_lowercase().contains(&pattern)
+                || metadata.name.to_lowercase().contains(&pattern)
+                || format!("{:?}", metadata.associativity)
+                    .to_lowercase()
+                    .contains(&pattern)
+                || format!("{:?}", metadata.empty_propagation)
+                    .to_lowercase()
+                    .contains(&pattern)
+                || format!("{:?}", metadata.signature.signature.return_type)
+                    .to_lowercase()
+                    .contains(&pattern)
+                || metadata
+                    .signature
+                    .signature
+                    .parameters
+                    .iter()
+                    .any(|t| format!("{t:?}").to_lowercase().contains(&pattern))
+                || metadata.signature.overloads.iter().any(|overload| {
+                    format!("{:?}", overload.return_type)
+                        .to_lowercase()
+                        .contains(&pattern)
+                        || overload
+                            .parameters
+                            .iter()
+                            .any(|t| format!("{t:?}").to_lowercase().contains(&pattern))
+                })
+        });
+    }
+
+    // Sort by name
+    operators.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    if operators.is_empty() {
+        if !quiet {
+            println!("No operators found matching the criteria");
+        }
+        return;
+    }
+
+    // Output operators based on format
+    {
+        // Pretty/table format - show summary list
+        if !quiet {
+            println!("🔧 FHIRPath Operators ({} found)", operators.len());
+            println!("{}", "=".repeat(50));
+        }
+
+        for (name, metadata) in operators {
+            let precedence = metadata.precedence;
+            let assoc = format!("{:?}", metadata.associativity);
+
+            println!(
+                "⚙️  {:<15} | P:{:<2} | {:<5} | {}",
+                name,
+                precedence,
+                assoc,
+                metadata.description.chars().take(50).collect::<String>()
+            );
+        }
+
+        if !quiet {
+            println!("\n💡 Use 'registry show <operator_name>' for detailed information");
+        }
     }
 }
 
@@ -1239,17 +1661,71 @@ async fn handle_registry_show(
 
 async fn try_show_function(
     name: &str,
-    formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
-    quiet: bool,
+    _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
+    _quiet: bool,
 ) -> bool {
-    // Registry functionality removed
-    if !quiet {
-        eprintln!(
-            "Function '{}' lookup functionality is not available in this version.",
-            name
+    use octofhir_fhirpath::evaluator::function_registry::create_function_registry;
+
+    let registry = create_function_registry();
+
+    if let Some(metadata) = registry.get_metadata(name) {
+        // Function found - display detailed information
+        println!("🔧 Function: {}", metadata.name);
+        println!("{}", "=".repeat(60));
+        println!("📝 Description: {}", metadata.description);
+        println!("📂 Category: {:?}", metadata.category);
+        println!("🔢 Input Type: {}", metadata.signature.input_type);
+        println!("🎯 Return Type: {}", metadata.signature.return_type);
+        println!("⚡ Deterministic: {}", metadata.deterministic);
+        println!("📋 Empty Propagation: {:?}", metadata.empty_propagation);
+
+        if !metadata.signature.parameters.is_empty() {
+            println!("\n📥 Parameters:");
+            for (i, param) in metadata.signature.parameters.iter().enumerate() {
+                let optional = if param.optional { " (optional)" } else { "" };
+                let expr = if param.is_expression {
+                    " [expression]"
+                } else {
+                    ""
+                };
+                println!(
+                    "  {}: {} - {}{}{}",
+                    i + 1,
+                    param.name,
+                    param.parameter_type.join(" | "),
+                    optional,
+                    expr
+                );
+                if !param.description.is_empty() {
+                    println!("     {}", param.description);
+                }
+            }
+        }
+
+        println!(
+            "\n🎛️  Signature: {}({})",
+            metadata.name,
+            metadata
+                .signature
+                .parameters
+                .iter()
+                .map(|p| {
+                    let name = &p.name;
+                    let types = p.parameter_type.join("|");
+                    if p.optional {
+                        format!("[{name}: {types}]")
+                    } else {
+                        format!("{name}: {types}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
         );
+
+        true
+    } else {
+        false
     }
-    false
 }
 
 async fn try_show_operator(
@@ -1257,14 +1733,64 @@ async fn try_show_operator(
     _formatter: &dyn fhirpath_cli::cli::output::OutputFormatter,
     quiet: bool,
 ) -> bool {
-    // Registry functionality removed - operator lookup not available
-    if !quiet {
-        eprintln!(
-            "Operator '{}' lookup functionality is not available in this version.",
-            name
+    use octofhir_fhirpath::evaluator::operator_registry::create_standard_operator_registry;
+
+    let registry = create_standard_operator_registry();
+
+    if let Some(metadata) = registry.get_metadata(name) {
+        // Operator found - display detailed information
+        println!("⚙️  Operator: {}", metadata.name);
+        println!("{}", "=".repeat(60));
+        println!("📝 Description: {}", metadata.description);
+        println!(
+            "🎯 Precedence: {} (higher = evaluated first)",
+            metadata.precedence
         );
+        println!("↔️  Associativity: {:?}", metadata.associativity);
+        println!("⚡ Deterministic: {}", metadata.deterministic);
+        println!("📋 Empty Propagation: {:?}", metadata.empty_propagation);
+
+        println!("\n🎛️  Primary Signature:");
+        println!(
+            "  Input Types: {}",
+            metadata
+                .signature
+                .signature
+                .parameters
+                .iter()
+                .map(|t| format!("{t:?}"))
+                .collect::<Vec<_>>()
+                .join(" × ")
+        );
+        println!(
+            "  Return Type: {:?}",
+            metadata.signature.signature.return_type
+        );
+
+        if !metadata.signature.overloads.is_empty() {
+            println!("\n🔄 Overloaded Signatures:");
+            for (i, overload) in metadata.signature.overloads.iter().enumerate() {
+                println!(
+                    "  {}: {} → {:?}",
+                    i + 1,
+                    overload
+                        .parameters
+                        .iter()
+                        .map(|t| format!("{t:?}"))
+                        .collect::<Vec<_>>()
+                        .join(" × "),
+                    overload.return_type
+                );
+            }
+        }
+
+        true
+    } else {
+        if !quiet {
+            eprintln!("Operator '{name}' not found");
+        }
+        false
     }
-    false
 }
 
 // Handle the TUI command

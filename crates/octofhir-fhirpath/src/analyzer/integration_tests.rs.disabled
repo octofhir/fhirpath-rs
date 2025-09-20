@@ -1,0 +1,273 @@
+//! Integration tests for PropertyAnalyzer functionality
+//!
+//! These tests validate the enhanced property validation capabilities
+//! including resource type validation, choice type validation, and
+//! property suggestions.
+
+use std::sync::Arc;
+
+use crate::analyzer::PropertyAnalyzer;
+use crate::core::SourceLocation;
+use crate::diagnostics::DiagnosticSeverity;
+use octofhir_fhir_model::{EmptyModelProvider, TypeInfo};
+
+fn create_test_type_info(type_name: &str, singleton: bool) -> TypeInfo {
+    TypeInfo {
+        type_name: type_name.to_string(),
+        singleton: Some(singleton),
+        is_empty: Some(false),
+        namespace: Some("FHIR".to_string()),
+        name: Some(type_name.to_string()),
+    }
+}
+
+fn create_test_location(offset: usize, length: usize) -> SourceLocation {
+    SourceLocation::new(1, offset + 1, offset, length)
+}
+
+#[tokio::test]
+async fn test_property_analyzer_creation() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    // Verify analyzer can be created
+    assert_eq!(
+        std::mem::size_of_val(&analyzer),
+        std::mem::size_of::<PropertyAnalyzer>()
+    );
+}
+
+#[tokio::test]
+async fn test_resource_type_validation_unknown_type() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let location = Some(create_test_location(0, 8));
+    let result = analyzer.validate_resource_type("Unknown", location).await;
+
+    assert!(result.is_ok());
+    let metadata = result.unwrap();
+
+    // Should have diagnostic for unknown resource type
+    assert!(!metadata.diagnostics.is_empty());
+    assert!(metadata.diagnostics.iter().any(|d| {
+        d.severity == DiagnosticSeverity::Error && d.message.contains("Unknown resource type")
+    }));
+}
+
+#[tokio::test]
+async fn test_property_access_validation_invalid_property() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let parent_type = create_test_type_info("Patient", true);
+    let location = Some(create_test_location(8, 13));
+
+    let result = analyzer
+        .validate_property_access(&parent_type, "invalidProp", location)
+        .await;
+
+    assert!(result.is_ok());
+    let metadata = result.unwrap();
+
+    // Should have diagnostic for property not found
+    assert!(!metadata.diagnostics.is_empty());
+    assert!(metadata.diagnostics.iter().any(|d| {
+        d.severity == DiagnosticSeverity::Error
+            && d.message.contains("prop 'invalidProp' not found")
+    }));
+
+    // Should have recovery type
+    assert!(metadata.type_info.is_some());
+    let type_info = metadata.type_info.unwrap();
+    assert_eq!(type_info.type_name, "Any");
+}
+
+#[tokio::test]
+async fn test_choice_property_validation_ambiguous() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let parent_type = create_test_type_info("Observation", true);
+    let location = Some(create_test_location(12, 5));
+
+    let result = analyzer
+        .validate_choice_property(&parent_type, "value", location)
+        .await;
+
+    assert!(result.is_ok());
+    let metadata = result.unwrap();
+
+    // Should have diagnostic for ambiguous choice property
+    assert!(!metadata.diagnostics.is_empty());
+    assert!(metadata.diagnostics.iter().any(|d| {
+        d.severity == DiagnosticSeverity::Error && d.message.contains("Ambiguous choice property")
+    }));
+}
+
+#[tokio::test]
+async fn test_choice_property_validation_specific_choice() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let parent_type = create_test_type_info("Observation", true);
+    let location = Some(create_test_location(12, 11));
+
+    // Test specific choice type - this will fall back to regular property validation
+    // since EmptyModelProvider doesn't have actual properties
+    let result = analyzer
+        .validate_choice_property(&parent_type, "valueString", location)
+        .await;
+
+    assert!(result.is_ok());
+    let metadata = result.unwrap();
+
+    // With EmptyModelProvider, this should fall back to regular property validation
+    // and produce a property not found error
+    assert!(!metadata.diagnostics.is_empty());
+}
+
+#[tokio::test]
+async fn test_property_suggestions() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let parent_type = create_test_type_info("Patient", true);
+
+    // EmptyModelProvider returns no elements, so suggestions should be empty
+    let suggestions = analyzer.suggest_properties(&parent_type, "nam").await;
+
+    // With EmptyModelProvider, no suggestions should be found
+    assert!(suggestions.is_empty());
+}
+
+#[tokio::test]
+async fn test_levenshtein_distance_calculation() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    // Test basic distance calculations
+    assert_eq!(analyzer.levenshtein_distance("test", "test"), 0);
+    assert_eq!(analyzer.levenshtein_distance("test", "best"), 1);
+    assert_eq!(analyzer.levenshtein_distance("kitten", "sitting"), 3);
+    assert_eq!(analyzer.levenshtein_distance("", "abc"), 3);
+    assert_eq!(analyzer.levenshtein_distance("abc", ""), 3);
+
+    // Test common property name typos
+    assert_eq!(analyzer.levenshtein_distance("name", "nam"), 1);
+    assert_eq!(analyzer.levenshtein_distance("family", "fmaily"), 2);
+    assert_eq!(analyzer.levenshtein_distance("given", "gven"), 1);
+}
+
+#[tokio::test]
+async fn test_resource_type_suggestions() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    // EmptyModelProvider returns empty list for get_resource_types()
+    let suggestions = analyzer.suggest_resource_types("Patien").await;
+
+    // With EmptyModelProvider, no suggestions should be found
+    assert!(suggestions.is_empty());
+}
+
+#[tokio::test]
+async fn test_enhanced_diagnostic_creation() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let location = Some(create_test_location(0, 7));
+    let result = analyzer.validate_resource_type("Patien", location).await;
+
+    assert!(result.is_ok());
+    let metadata = result.unwrap();
+
+    // Should have enhanced diagnostic with suggestions
+    assert!(!metadata.diagnostics.is_empty());
+    let diagnostic = &metadata.diagnostics[0];
+
+    assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+    assert_eq!(diagnostic.code.code, "FP0201");
+    assert!(diagnostic.message.contains("Unknown resource type"));
+
+    // Location should be preserved
+    assert!(diagnostic.location.is_some());
+}
+
+/// Test integration with different choice property patterns
+#[tokio::test]
+async fn test_choice_property_patterns() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let observation_type = create_test_type_info("Observation", true);
+    let condition_type = create_test_type_info("Condition", true);
+
+    // Test different base patterns
+    let test_cases = vec![
+        ("value", true),     // Should be ambiguous
+        ("onset", true),     // Should be ambiguous
+        ("effective", true), // Should be ambiguous
+        ("name", false),     // Not a choice property
+        ("id", false),       // Not a choice property
+    ];
+
+    for (property, should_be_choice) in test_cases {
+        let result = analyzer
+            .analyze_choice_property(&observation_type, property)
+            .await;
+        assert!(result.is_ok());
+
+        if should_be_choice {
+            let choice_result = result.unwrap();
+            assert!(
+                choice_result.is_some(),
+                "Expected choice property result for {}",
+                property
+            );
+        }
+
+        // Also test with Condition type
+        let result = analyzer
+            .analyze_choice_property(&condition_type, property)
+            .await;
+        assert!(result.is_ok());
+    }
+}
+
+/// Test that PropertyAnalyzer handles various error conditions gracefully
+#[tokio::test]
+async fn test_error_handling() {
+    let provider = Arc::new(EmptyModelProvider);
+    let analyzer = PropertyAnalyzer::new(provider);
+
+    let parent_type = create_test_type_info("Patient", true);
+
+    // Test with None location
+    let result = analyzer
+        .validate_property_access(&parent_type, "unknownProp", None)
+        .await;
+    assert!(result.is_ok());
+
+    // Test with empty property name
+    let result = analyzer
+        .validate_property_access(&parent_type, "", None)
+        .await;
+    assert!(result.is_ok());
+
+    // Test with very long property name
+    let long_name = "a".repeat(1000);
+    let result = analyzer
+        .validate_property_access(&parent_type, &long_name, None)
+        .await;
+    assert!(result.is_ok());
+
+    // Test resource type validation with edge cases
+    let result = analyzer.validate_resource_type("", None).await;
+    assert!(result.is_ok());
+
+    let result = analyzer
+        .validate_resource_type("VeryLongResourceTypeName", None)
+        .await;
+    assert!(result.is_ok());
+}
